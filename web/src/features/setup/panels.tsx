@@ -8,7 +8,7 @@ import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { useWorkingYear } from '@/lib/working-year'
-import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
+import { Button, Field, FormGrid, FormNotice, Input, Select, Badge, ExportTable } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
@@ -3231,9 +3231,12 @@ function FeeStructureList() {
 
   return (
     <div className="mt-4 border-t pt-4">
-      <p className="eyebrow mb-2">Structures already priced</p>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="eyebrow">Structures already priced</p>
+        <ExportTable tableId="priced-structures" name="fee-structures" />
+      </div>
       <div className="scroll-x rounded-md border">
-        <table className="w-full text-[13px]">
+        <table id="priced-structures" className="w-full text-[13px]">
           <thead className="bg-muted text-left text-muted-foreground">
             <tr>
               <th className="px-3 py-1.5 font-medium">Structure</th>
@@ -3847,8 +3850,11 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
           </Button>
         </div>
       </div>
+      <div className="mb-2 flex justify-end">
+        <ExportTable tableId="setup-names" name="list" />
+      </div>
       <div className="scroll-x rounded-md border">
-        <table className="w-full text-[13px]">
+        <table id="setup-names" className="w-full text-[13px]">
           <thead className="bg-muted text-left text-muted-foreground">
             <tr>
               <th className="px-3 py-1.5 font-medium">Name</th>
@@ -4027,8 +4033,12 @@ export function BoardImplications({ board }: { board: string }) {
       )}
 
       {open && (
+        <>
+        <div className="mt-3 flex justify-end">
+          <ExportTable tableId="grade-scale" name="grade-scale" />
+        </div>
         <div className="scroll-x">
-        <table className="mt-3 w-full text-[13px]">
+        <table id="grade-scale" className="w-full text-[13px]">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th className="py-1">Grade</th><th>From</th><th>To</th><th>Points</th>
@@ -4046,6 +4056,7 @@ export function BoardImplications({ board }: { board: string }) {
           </tbody>
         </table>
         </div>
+        </>
       )}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">

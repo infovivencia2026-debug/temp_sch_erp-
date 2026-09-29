@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  Card, CardHeader, Select, Button, FormNotice, Loading, ErrorState,
-} from '@/components/ui'
+  Card, CardHeader, Select, Button, FormNotice, Loading, ErrorState, ExportTable} from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 /* THE LIVE TIMETABLE, ONE SECTION AT A TIME — AND EDITABLE.
@@ -120,8 +119,11 @@ export default function SectionGrid() {
           <ErrorState error={entries.error} />
         ) : (
           <>
+            <div className="mb-2 flex justify-end">
+              <ExportTable tableId="section-grid" name="sections" />
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
+              <table id="section-grid" className="w-full border-collapse text-[13px]">
                 <thead>
                   <tr>
                     <th className="border p-2 text-left text-muted-foreground">Period</th>

@@ -176,6 +176,347 @@ export default function Homework() {
   const due = items.filter((h) => !h.overdue)
   const mineOutstanding = items.filter((h) => !h.submitted && !h.overdue).length
 
+  /* Drawn once, placed on either side of the tiles. */
+  const list = (
+          <Card>
+            <CardHeader
+              /* Not "Diary".
+
+                 The product has a diary — the digital diary a child reads at
+                 home — and this is the homework register on the homework screen.
+                 One word for two things is how a teacher ends up looking for
+                 yesterday's classwork in the wrong place. */
+              title={canPublish ? 'Homework set' : 'Homework you have been set'}
+              action={
+                /* Two choices, both drawn, one selected.
+
+                   It was one button labelled with the state it was already in —
+                   "Only mine" — so the label read as a description and pressing
+                   it did something nobody could predict. What it does and what
+                   it is doing are different questions, and a single toggle
+                   answers whichever one the reader guesses at.
+
+                   Only where there is a distinction to make: a student's list is
+                   their own by definition, and offering to widen it would offer
+                   them somebody else's homework. */
+                canPublish ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-[13px] text-muted-foreground">
+                      {items.length} showing
+                    </span>
+                    <span className="flex overflow-hidden rounded-sm border">
+                      <Button
+                        size="sm"
+                        variant={mine ? 'primary' : 'ghost'}
+                        onClick={() => setOnlyMine(true)}
+                        title="Only the homework you set yourself"
+                      >
+                        Set by me
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={!mine ? 'primary' : 'ghost'}
+                        onClick={() => setOnlyMine(false)}
+                        title="Everything set for these sections, by any teacher"
+                      >
+                        Set by anyone
+                      </Button>
+                    </span>
+                  </span>
+                ) : undefined
+              }
+            />
+            {items.length === 0 ? (
+              <EmptyState
+                title="Nothing set"
+                body={
+                  canPublish
+                    ? 'Homework you publish appears here, with a running count of who has submitted.'
+                    : 'When a teacher sets work it shows up here and in your parents’ portal.'
+                }
+              />
+            ) : (
+              /* A term is a few hundred rows. Left to grow, the list runs past
+                 the filters above it, and the filters are what somebody came
+                 back to the top for. */
+              /* Capped, with a way past the cap.
+
+                 Every day adds a row and nothing ever leaves, so by the third
+                 week the card was longer than the screen and the page below it
+                 — the stats, the filters, anything else on the screen — had been
+                 pushed out of reach by a list nobody was reading to the end of.
+                 Six rows is a fortnight of homework at the rate a section
+                 actually gets it; the rest is one press away and opens as its
+                 own scrolling page. */
+              <>
+              <ul className="space-y-3 p-4">
+                {(showAll ? items : items.slice(0, 6)).map((h) => (
+                  <li
+                    key={h.id}
+                    className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
+                  >
+                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* The subject as a chip, because it is the first thing
+                            scanned for and was reading as part of the title. */}
+                        {h.subject && (
+                          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                            {h.subject}
+                          </span>
+                        )}
+                        <span className="text-[15px] font-semibold">{h.title}</span>
+                      </div>
+                      {h.instructions && (
+                        <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>
+                      )}
+                      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+                        {h.class_name && (
+                          <span>
+                            {h.class_name}
+                            {h.section_name && `-${h.section_name}`}
+                          </span>
+                        )}
+                        {h.teacher && <><span aria-hidden>·</span><span>set by {h.teacher}</span></>}
+                        <span aria-hidden>·</span>
+                        {/* The state, not the arithmetic. A date leaves the
+                            reader to work out whether it has passed; a teacher
+                            scanning fifteen rows should not have to. */}
+                        {h.due_on ? (
+                          <span
+                            className={cn(
+                              'font-medium',
+                              h.overdue ? 'text-destructive' : dueSoon(h.due_on) ? 'text-warning' : '',
+                            )}
+                          >
+                            {h.overdue
+                              ? `Overdue, was due ${formatDate(h.due_on)}`
+                              : `${dueIn(h.due_on)} (${formatDate(h.due_on)})`}
+                          </span>
+                        ) : (
+                          <span>no due date</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      {/* ONE BUTTON, AND A FIGURE THAT IS NOT ONE.
+
+                          The row carried two bordered buttons of equal weight —
+                          "View" and "14/32 submitted" — so a count sat there
+                          looking like a control, and the eye had to choose
+                          between two things that were not alternatives. The
+                          count is a fact and is now written as one; Open is the
+                          only thing to press. The register it used to lead to is
+                          on the sheet Open shows, which is where somebody asking
+                          "who has not done it" was going anyway. */}
+                      {canPublish ? (
+                        <span
+                          className={cn(
+                            'rounded-lg bg-muted px-3 py-1.5 text-[13px] font-medium tabular-nums',
+                            h.submissions === 0
+                              ? 'text-muted-foreground'
+                              : h.submissions >= h.strength
+                                ? 'text-success'
+                                : 'text-foreground',
+                          )}
+                        >
+                          <Users className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
+                          {h.submissions} / {h.strength} turned in
+                        </span>
+                      ) : h.submitted ? (
+                        /* "Done", matching the button that gets you here. A
+                           child who presses Done and is then told "Turned in"
+                           has to work out that those are the same word. */
+                        <Badge tone="success">
+                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                          Done
+                        </Badge>
+                      ) : (
+                        /* The child, or the family on their behalf.
+
+                           A parent used to see the state and nothing else, on
+                           the grounds that handing work in for a child is not a
+                           convenience. True, and it did not stop the work being
+                           done for them — it stopped it being handed in, from a
+                           house where the phone belongs to a parent and the
+                           nine-year-old has no login. The row records who
+                           submitted, so a teacher can still tell. */
+                        <span className="flex items-center gap-2">
+                          {h.overdue && !h.submitted && <Badge tone="danger">Overdue</Badge>}
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setAnswering(answering === h.id ? null : h.id)
+                              setAnswer('')
+                              setAttached(null)
+                            }}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {answering === h.id ? 'Close' : 'Done'}
+                          </Button>
+                        </span>
+                      )}
+                      {/* The one control on the row. It opens the sheet: the
+                          question in full, the worksheet, and — for whoever set
+                          it — the register naming who has turned it in. */}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setViewing(viewing === h.id ? null : h.id)}
+                      >
+                        {viewing === h.id
+                          ? 'Close'
+                          : canPublish ? 'View submissions' : 'Open'}
+                      </Button>
+                    </div>
+                   </div>
+                    {/* The worksheet the teacher set.
+
+                        homework_attachments existed from the first migration and
+                        nothing ever wrote to it, so "here is the sheet" — which
+                        is most of what setting homework means — had nowhere to
+                        live. */}
+                    {!!h.files?.length && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {/* Opened, not downloaded. Checking that the worksheet
+                            you attached is the right one should not mean going
+                            to a Downloads folder to find out, and a parent on a
+                            phone should not have to save a school record to read
+                            one line of it. Download is still there, inside. */}
+                        {h.files.map((f) => (
+                          <button
+                            key={f.file_id}
+                            type="button"
+                            onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-primary/20"
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            {f.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* What this child turned in, once they have. */}
+                    {h.submitted && (h.my_answer || h.my_file_id) && (
+                      <div className="mt-3 border-t pt-3 text-[13px]">
+                        <p className="text-muted-foreground">What you sent</p>
+                        {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
+                        {h.my_file_id && (
+                          <button
+                            type="button"
+                            onClick={() => setViewFile({
+                              file_id: h.my_file_id!, name: h.my_file_name ?? 'your file',
+                            })}
+                            className="mt-1 inline-flex items-center gap-1.5 text-primary"
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            {h.my_file_name ?? 'your file'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Answering it.
+
+                        This used to post the literal word "Submitted". The child
+                        pressed a button and the system recorded that they had
+                        pressed it — nothing they wrote, nothing they photographed,
+                        nothing a teacher could mark. */}
+                    {answering === h.id && (
+                      <div className="mt-3 border-t pt-4">
+                        <label className="flex flex-col gap-1.5 text-[13px]">
+                          <span className="text-muted-foreground">Your answer</span>
+                          <Textarea
+                            value={answer}
+                            onChange={setAnswer}
+                            rows={4}
+                            placeholder="Type your answer, or attach a photo of the page below."
+                          />
+                        </label>
+                        <div className="mt-3 max-w-sm">
+                          <FilePicker
+                            value={attached}
+                            onChange={setAttached}
+                            purpose="homework_submission"
+                            label="Attach your work"
+                            hint="A photo of the page is fine."
+                          />
+                        </div>
+                        <FormNotice error={submit.error} />
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Button
+                            disabled={submit.isPending || (!answer.trim() && !attached)}
+                            onClick={() => submit.mutate(h.id)}
+                          >
+                            {submit.isPending ? 'Turning in…' : 'Turn it in'}
+                          </Button>
+                          <Button variant="ghost" onClick={() => setAnswering(null)}>Cancel</Button>
+                          {!answer.trim() && !attached && (
+                            <span className="text-[12.5px] text-muted-foreground">
+                              Write something or attach a page &mdash; an empty submission
+                              tells your teacher nothing.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  </li>
+                ))}
+              </ul>
+              {items.length > 6 && !showAll && (
+                /* The rest of the history, without it sitting on the page. */
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
+                >
+                  Show all {items.length}, including {items.length - 6} older
+                </button>
+              )}
+              </>
+            )}
+            {/* THE WHOLE TASK, NEARLY FULL SCREEN.
+
+                It was an inline panel under its own row, which kept the list in
+                view and made the thing you opened compete with it for width. A
+                worksheet title, the instructions and three attachments do not
+                read well in a 34rem box that is already scrolling.
+
+                A sheet at 94vw by 92vh instead, with the two controls a person
+                actually wants there: Back to the list, and Done to hand the work
+                in without going back for it. Escape closes it and the page
+                behind is scroll-locked, so a phone does not lose its place. */}
+            {viewing && (() => {
+              const h = items.find((x) => x.id === viewing)
+              if (!h) return null
+              return (
+                <HomeworkSheet
+                  h={h}
+                  onViewFile={setViewFile}
+                  showRegister={canPublish}
+                  canSubmit={!canPublish && !h.submitted}
+                  pending={submit.isPending}
+                  error={submit.error}
+                  answer={answer}
+                  onAnswer={setAnswer}
+                  attached={attached}
+                  onAttach={setAttached}
+                  onSubmit={() => submit.mutate(h.id)}
+                  onClose={() => setViewing(null)}
+                />
+              )
+            })()}
+
+            {submit.isError && (
+              <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
+                {submit.error instanceof Error ? submit.error.message : 'Could not submit'}
+              </p>
+            )}
+          </Card>
+  )
+
   return (
     <>
       {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
@@ -197,6 +538,19 @@ export default function Homework() {
         }
       />
       <PageBody>
+        {/* THE HOMEWORK FIRST, FOR WHOEVER CAME TO READ IT.
+
+            A parent opens this to answer one question -- what is due -- and
+            met three summary tiles and a filter bar before the first line of
+            it, which on a phone is most of a screen of scrolling to reach the
+            thing they came for. The counts are a glance, not an errand, so for
+            a parent or a child they now sit under the list.
+
+            A teacher keeps the old order deliberately. Theirs is a working
+            screen: Set homework and the filters are what they came to use, and
+            the list is what they check afterwards. */}
+        {!canPublish && list}
+
         <CellGrid cols={3}>
           <Stat label="Open" value={due.length} icon={BookOpen} />
           <Stat label="Overdue" value={items.length - due.length} icon={Clock} />
@@ -223,343 +577,7 @@ export default function Homework() {
           onChange={setFilters}
         />
 
-        <Card>
-          <CardHeader
-            /* Not "Diary".
-
-               The product has a diary — the digital diary a child reads at
-               home — and this is the homework register on the homework screen.
-               One word for two things is how a teacher ends up looking for
-               yesterday's classwork in the wrong place. */
-            title={canPublish ? 'Homework set' : 'Homework you have been set'}
-            action={
-              /* Two choices, both drawn, one selected.
-
-                 It was one button labelled with the state it was already in —
-                 "Only mine" — so the label read as a description and pressing
-                 it did something nobody could predict. What it does and what
-                 it is doing are different questions, and a single toggle
-                 answers whichever one the reader guesses at.
-
-                 Only where there is a distinction to make: a student's list is
-                 their own by definition, and offering to widen it would offer
-                 them somebody else's homework. */
-              canPublish ? (
-                <span className="flex items-center gap-2">
-                  <span className="text-[13px] text-muted-foreground">
-                    {items.length} showing
-                  </span>
-                  <span className="flex overflow-hidden rounded-sm border">
-                    <Button
-                      size="sm"
-                      variant={mine ? 'primary' : 'ghost'}
-                      onClick={() => setOnlyMine(true)}
-                      title="Only the homework you set yourself"
-                    >
-                      Set by me
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={!mine ? 'primary' : 'ghost'}
-                      onClick={() => setOnlyMine(false)}
-                      title="Everything set for these sections, by any teacher"
-                    >
-                      Set by anyone
-                    </Button>
-                  </span>
-                </span>
-              ) : undefined
-            }
-          />
-          {items.length === 0 ? (
-            <EmptyState
-              title="Nothing set"
-              body={
-                canPublish
-                  ? 'Homework you publish appears here, with a running count of who has submitted.'
-                  : 'When a teacher sets work it shows up here and in your parents’ portal.'
-              }
-            />
-          ) : (
-            /* A term is a few hundred rows. Left to grow, the list runs past
-               the filters above it, and the filters are what somebody came
-               back to the top for. */
-            /* Capped, with a way past the cap.
-
-               Every day adds a row and nothing ever leaves, so by the third
-               week the card was longer than the screen and the page below it
-               — the stats, the filters, anything else on the screen — had been
-               pushed out of reach by a list nobody was reading to the end of.
-               Six rows is a fortnight of homework at the rate a section
-               actually gets it; the rest is one press away and opens as its
-               own scrolling page. */
-            <>
-            <ul className="space-y-3 p-4">
-              {(showAll ? items : items.slice(0, 6)).map((h) => (
-                <li
-                  key={h.id}
-                  className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
-                >
-                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* The subject as a chip, because it is the first thing
-                          scanned for and was reading as part of the title. */}
-                      {h.subject && (
-                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
-                          {h.subject}
-                        </span>
-                      )}
-                      <span className="text-[15px] font-semibold">{h.title}</span>
-                    </div>
-                    {h.instructions && (
-                      <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>
-                    )}
-                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-                      {h.class_name && (
-                        <span>
-                          {h.class_name}
-                          {h.section_name && `-${h.section_name}`}
-                        </span>
-                      )}
-                      {h.teacher && <><span aria-hidden>·</span><span>set by {h.teacher}</span></>}
-                      <span aria-hidden>·</span>
-                      {/* The state, not the arithmetic. A date leaves the
-                          reader to work out whether it has passed; a teacher
-                          scanning fifteen rows should not have to. */}
-                      {h.due_on ? (
-                        <span
-                          className={cn(
-                            'font-medium',
-                            h.overdue ? 'text-destructive' : dueSoon(h.due_on) ? 'text-warning' : '',
-                          )}
-                        >
-                          {h.overdue
-                            ? `Overdue, was due ${formatDate(h.due_on)}`
-                            : `${dueIn(h.due_on)} (${formatDate(h.due_on)})`}
-                        </span>
-                      ) : (
-                        <span>no due date</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    {/* ONE BUTTON, AND A FIGURE THAT IS NOT ONE.
-
-                        The row carried two bordered buttons of equal weight —
-                        "View" and "14/32 submitted" — so a count sat there
-                        looking like a control, and the eye had to choose
-                        between two things that were not alternatives. The
-                        count is a fact and is now written as one; Open is the
-                        only thing to press. The register it used to lead to is
-                        on the sheet Open shows, which is where somebody asking
-                        "who has not done it" was going anyway. */}
-                    {canPublish ? (
-                      <span
-                        className={cn(
-                          'rounded-lg bg-muted px-3 py-1.5 text-[13px] font-medium tabular-nums',
-                          h.submissions === 0
-                            ? 'text-muted-foreground'
-                            : h.submissions >= h.strength
-                              ? 'text-success'
-                              : 'text-foreground',
-                        )}
-                      >
-                        <Users className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
-                        {h.submissions} / {h.strength} turned in
-                      </span>
-                    ) : h.submitted ? (
-                      /* "Done", matching the button that gets you here. A
-                         child who presses Done and is then told "Turned in"
-                         has to work out that those are the same word. */
-                      <Badge tone="success">
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Done
-                      </Badge>
-                    ) : (
-                      /* The child, or the family on their behalf.
-
-                         A parent used to see the state and nothing else, on
-                         the grounds that handing work in for a child is not a
-                         convenience. True, and it did not stop the work being
-                         done for them — it stopped it being handed in, from a
-                         house where the phone belongs to a parent and the
-                         nine-year-old has no login. The row records who
-                         submitted, so a teacher can still tell. */
-                      <span className="flex items-center gap-2">
-                        {h.overdue && !h.submitted && <Badge tone="danger">Overdue</Badge>}
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setAnswering(answering === h.id ? null : h.id)
-                            setAnswer('')
-                            setAttached(null)
-                          }}
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          {answering === h.id ? 'Close' : 'Done'}
-                        </Button>
-                      </span>
-                    )}
-                    {/* The one control on the row. It opens the sheet: the
-                        question in full, the worksheet, and — for whoever set
-                        it — the register naming who has turned it in. */}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setViewing(viewing === h.id ? null : h.id)}
-                    >
-                      {viewing === h.id
-                        ? 'Close'
-                        : canPublish ? 'View submissions' : 'Open'}
-                    </Button>
-                  </div>
-                 </div>
-                  {/* The worksheet the teacher set.
-
-                      homework_attachments existed from the first migration and
-                      nothing ever wrote to it, so "here is the sheet" — which
-                      is most of what setting homework means — had nowhere to
-                      live. */}
-                  {!!h.files?.length && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {/* Opened, not downloaded. Checking that the worksheet
-                          you attached is the right one should not mean going
-                          to a Downloads folder to find out, and a parent on a
-                          phone should not have to save a school record to read
-                          one line of it. Download is still there, inside. */}
-                      {h.files.map((f) => (
-                        <button
-                          key={f.file_id}
-                          type="button"
-                          onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-primary/20"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {f.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* What this child turned in, once they have. */}
-                  {h.submitted && (h.my_answer || h.my_file_id) && (
-                    <div className="mt-3 border-t pt-3 text-[13px]">
-                      <p className="text-muted-foreground">What you sent</p>
-                      {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
-                      {h.my_file_id && (
-                        <button
-                          type="button"
-                          onClick={() => setViewFile({
-                            file_id: h.my_file_id!, name: h.my_file_name ?? 'your file',
-                          })}
-                          className="mt-1 inline-flex items-center gap-1.5 text-primary"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {h.my_file_name ?? 'your file'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Answering it.
-
-                      This used to post the literal word "Submitted". The child
-                      pressed a button and the system recorded that they had
-                      pressed it — nothing they wrote, nothing they photographed,
-                      nothing a teacher could mark. */}
-                  {answering === h.id && (
-                    <div className="mt-3 border-t pt-4">
-                      <label className="flex flex-col gap-1.5 text-[13px]">
-                        <span className="text-muted-foreground">Your answer</span>
-                        <Textarea
-                          value={answer}
-                          onChange={setAnswer}
-                          rows={4}
-                          placeholder="Type your answer, or attach a photo of the page below."
-                        />
-                      </label>
-                      <div className="mt-3 max-w-sm">
-                        <FilePicker
-                          value={attached}
-                          onChange={setAttached}
-                          purpose="homework_submission"
-                          label="Attach your work"
-                          hint="A photo of the page is fine."
-                        />
-                      </div>
-                      <FormNotice error={submit.error} />
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Button
-                          disabled={submit.isPending || (!answer.trim() && !attached)}
-                          onClick={() => submit.mutate(h.id)}
-                        >
-                          {submit.isPending ? 'Turning in…' : 'Turn it in'}
-                        </Button>
-                        <Button variant="ghost" onClick={() => setAnswering(null)}>Cancel</Button>
-                        {!answer.trim() && !attached && (
-                          <span className="text-[12.5px] text-muted-foreground">
-                            Write something or attach a page &mdash; an empty submission
-                            tells your teacher nothing.
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                </li>
-              ))}
-            </ul>
-            {items.length > 6 && !showAll && (
-              /* The rest of the history, without it sitting on the page. */
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
-              >
-                Show all {items.length}, including {items.length - 6} older
-              </button>
-            )}
-            </>
-          )}
-          {/* THE WHOLE TASK, NEARLY FULL SCREEN.
-
-              It was an inline panel under its own row, which kept the list in
-              view and made the thing you opened compete with it for width. A
-              worksheet title, the instructions and three attachments do not
-              read well in a 34rem box that is already scrolling.
-
-              A sheet at 94vw by 92vh instead, with the two controls a person
-              actually wants there: Back to the list, and Done to hand the work
-              in without going back for it. Escape closes it and the page
-              behind is scroll-locked, so a phone does not lose its place. */}
-          {viewing && (() => {
-            const h = items.find((x) => x.id === viewing)
-            if (!h) return null
-            return (
-              <HomeworkSheet
-                h={h}
-                onViewFile={setViewFile}
-                showRegister={canPublish}
-                canSubmit={!canPublish && !h.submitted}
-                pending={submit.isPending}
-                error={submit.error}
-                answer={answer}
-                onAnswer={setAnswer}
-                attached={attached}
-                onAttach={setAttached}
-                onSubmit={() => submit.mutate(h.id)}
-                onClose={() => setViewing(null)}
-              />
-            )
-          })()}
-
-          {submit.isError && (
-            <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
-              {submit.error instanceof Error ? submit.error.message : 'Could not submit'}
-            </p>
-          )}
-        </Card>
+        {canPublish && list}
       </PageBody>
     </>
   )

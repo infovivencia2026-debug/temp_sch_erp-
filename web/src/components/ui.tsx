@@ -5,8 +5,7 @@ import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
-  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode,
-} from 'react'
+  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import {
@@ -565,6 +564,101 @@ const NARROW_WIDE = 'max-[900px]:w-max max-[900px]:min-w-full'
    columns need air on both sides, or the figures sit on the line. */
 const NARROW_PAD = 'max-[900px]:px-[12px]'
 
+/* EVERY TABLE CAN BE TAKEN AWAY.
+
+   Two hundred and fifty-four screens in this product draw a table and
+   twenty-six of them could export it, so for the other two hundred and
+   twenty-eight the answer to "can I have that in Excel" was to retype it. Done
+   here for the same reason paging and the wide-column rule are done here: a
+   hundred tables should not each have to remember, and the next one somebody
+   writes gets it without being told.
+
+   The rows are read from the React children rather than from the DOM, so the
+   file holds EVERY loaded row and not merely the ten on the page -- exporting
+   what you can see when you can only see ten of four hundred is the feature
+   failing quietly.
+
+   A control is not data. A cell holding an Edit or a Print button would
+   otherwise export the word "Edit", so buttons and links are skipped and what
+   is left is the text a reader would read aloud. */
+function cellText(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(cellText).join(' ')
+  if (!isValidElement(node)) return ''
+  const el = node as { type: unknown; props: { children?: ReactNode; className?: string } }
+  // What exists to be pressed is not part of the register.
+  if (el.type === Button || el.type === 'button' || el.type === 'input' || el.type === 'select') return ''
+  if (typeof el.props?.className === 'string' && el.props.className.includes('no-print')) return ''
+  return cellText(el.props?.children)
+}
+
+/** One CSV field: quoted only when it has to be, which keeps the file readable. */
+function csvField(v: string): string {
+  const t = v.replace(/\s+/g, ' ').trim()
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
+}
+
+function rowsToCSV(labels: string[], rows: ReactNode[]): string {
+  const lines = [labels.map(csvField).join(',')]
+  for (const row of rows) {
+    if (!isValidElement(row)) continue
+    const cells = Children.toArray((row as { props: { children?: ReactNode } }).props?.children)
+    lines.push(cells.map((c) => csvField(cellText(c))).join(','))
+  }
+  return lines.join('\r\n')
+}
+
+/* A TABLE THAT IS NOT THE Table.
+
+   Four screens draw their own <table> rather than using the component above --
+   the section grid, the shop's shelf, the admission fee sheet and three in the
+   setup panels -- because each wanted a shape the component does not offer. The
+   reader does not care which of the two they are looking at, so the export
+   cannot care either.
+
+   This one reads the rendered table instead of React children, which is the
+   honest tool for markup this file did not write: whatever is on the page is
+   what comes out. Cells marked no-print, and anything that exists to be
+   pressed, are left out for the same reason as above -- a column of Edit
+   buttons is not a column of data.
+*/
+export function ExportTable({ tableId, name }: { tableId: string; name: string }) {
+  const take = () => {
+    /* Found by id rather than held in a ref: these tables live inside
+       components this button is not part of, and an id costs them one
+       attribute where a ref would cost them a hook and a wrapper. */
+    const el = document.getElementById(tableId)
+    if (!el) return
+    const text = (cell: Element) => {
+      const c = cell.cloneNode(true) as HTMLElement
+      c.querySelectorAll('button, a[role="button"], input, select, .no-print').forEach((n) => n.remove())
+      return csvField(c.textContent ?? '')
+    }
+    const lines: string[] = []
+    el.querySelectorAll('tr').forEach((tr) => {
+      const cells = [...tr.querySelectorAll('th, td')]
+      if (cells.length) lines.push(cells.map(text).join(','))
+    })
+    if (!lines.length) return
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+  return (
+    <Button variant="secondary" size="sm" className="no-print" onClick={take} title="Download this table as CSV">
+      <Download className="h-3.5 w-3.5" />
+      Export
+    </Button>
+  )
+}
+
 export function Table({
   head,
   children,
@@ -687,6 +781,27 @@ export function Table({
      that has a horizon. Where it is false every expression below reduces to
      what it computed before, which is why the untouched call sites are
      untouched. */
+  /* The file is named for the table's first column heading and dated, so a
+     folder of them is still legible in a week and yesterday's is still there. */
+  const takeAway = () => {
+    const stem = (labels[0] || 'table').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const blob = new Blob(['﻿' + rowsToCSV(labels, rows)], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${stem || 'table'}-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    // Safari has not finished with the URL when click() returns.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
+  /* Whether there is anything to page THROUGH -- which is a different question
+     from whether the table has rows, and the reason the foot now stands for a
+     six-row register as well as a six-hundred-row one. */
+  const paging = rows.length > size || (!!onLoadMore && !!hasMore && !full)
+
   const canGrow = !!onLoadMore && !!hasMore
   const more = () => { if (canGrow && !loadingMore) onLoadMore!() }
   const sentinel = useRef<HTMLDivElement | null>(null)
@@ -879,7 +994,16 @@ export function Table({
 
         {/* Full screen scrolls; the sentinel below is its Next, so a pager there
             would be two controls for one move. */}
-        {(rows.length > size || (canGrow && !full)) && (
+        {/* A SHORT TABLE HAS A FOOT TOO.
+
+            The bar below used to appear only when there were more rows than a
+            page, which is exactly the table that needs a pager and says nothing
+            about which table needs taking away. A register of six rows is as
+            likely to be wanted in a spreadsheet as one of six hundred, so the
+            bar now stands whenever there are rows at all: with the range and
+            the pager when there is paging to do, and with the export alone when
+            there is not. */}
+        {rows.length > 0 && (
           <div className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
@@ -888,15 +1012,28 @@ export function Table({
                 And "of" counts the whole list, not the part fetched so far. A
                 denominator that climbs while you read is a worse answer than
                 none, so where the server has not counted this says "120+". */}
-            <p className="text-[12.5px] tabular-nums text-muted-foreground">
-              {start + 1}–{Math.min(start + size, rows.length)} of{' '}
-              {total != null ? total : canGrow ? `${rows.length}+` : rows.length}
-            </p>
+            {paging ? (
+              <p className="text-[12.5px] tabular-nums text-muted-foreground">
+                {start + 1}–{Math.min(start + size, rows.length)} of{' '}
+                {total != null ? total : canGrow ? `${rows.length}+` : rows.length}
+              </p>
+            ) : (
+              <p className="text-[12.5px] tabular-nums text-muted-foreground">
+                {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+              </p>
+            )}
             <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="secondary" className="no-print" onClick={takeAway}
+                      title={`Download these ${rows.length} rows as CSV`}>
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </Button>
+              {paging && (
               <Button size="sm" variant="secondary" disabled={at === 0}
                       onClick={() => setPage(at - 1)}>
                 Previous
               </Button>
+              )}
               {/* NEXT PAST THE LAST LOADED ROW.
 
                   On the final loaded page Next used to grey out, and that grey
@@ -906,6 +1043,7 @@ export function Table({
                   what has arrived, so the rows on screen do not blank out
                   mid-fetch -- they are simply joined by the next ten when the
                   answer lands. */}
+              {paging && (
               <Button size="sm" variant="secondary"
                       disabled={at >= pages - 1 && !canGrow}
                       onClick={() => {
@@ -914,6 +1052,7 @@ export function Table({
                       }}>
                 Next
               </Button>
+              )}
             </div>
           </div>
         )}
