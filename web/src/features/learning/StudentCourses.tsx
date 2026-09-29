@@ -3,12 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Clock, Lock, PlayCircle } from 'lucide-react'
 import { api } from '@/lib/api'
-import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Loading, PageBody, PageHead, Textarea } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
 import {
   FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, ProgressRing, SECTIONS, SECTION_LABEL, dateRange, fmtWhen, sourceMeta,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
-import { DoneCheck, confetti, rememberPlace } from '../portal/student-kit'
+import { Bone, DoneCheck, DueChip, confetti, rememberPlace } from '../portal/student-kit'
 import { StudentQuiz } from './StudentQuiz'
 
 /* THE CHILD'S COURSES (worker routes/portal/lms.ts).
@@ -51,60 +51,68 @@ export default function StudentCourses() {
   return <List onOpen={(cs) => setParams({ cs })} />
 }
 
+/* One skeleton the shape of the page, then the page: the to-do and the
+   subjects arrive together, so nothing is pushed down when the second lands. */
 function List({ onOpen }: { onOpen: (cs: string) => void }) {
   const q = useQuery({ queryKey: ['my-courses'], queryFn: () => api.get<{ class_name: string; section_name: string; items: CourseRow[] }>('/api/v1/portal/lms/courses') })
   const todo = useQuery({ queryKey: ['my-lms-todo'], queryFn: () => api.get<Todo>('/api/v1/portal/lms/todo') })
   const t = todo.data
-  const count = t ? t.assignments.length + t.quizzes.length : 0
+  const rows = t ? [
+    ...t.assignments.map((a) => ({ id: a.id, cs: a.class_subject_id, chip: <DueChip due={a.due_on} />, title: a.title, meta: `${a.subject ?? 'Assignment'}${a.status === 'resubmit' ? ' · your teacher asked for a redo' : ''}` })),
+    ...t.quizzes.map((z) => ({ id: z.id, cs: z.class_subject_id, chip: <Badge tone="info">Quiz</Badge>, title: z.title, meta: `${z.subject}${z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}` })),
+    ...t.lessons.slice(0, 3).map((l) => ({ id: l.id, cs: l.class_subject_id, chip: <Badge>Up next</Badge>, title: l.title, meta: `${l.subject} · ${l.unit}` })),
+  ] : []
+  const ready = !!q.data && (!!t || !!todo.error)
   return (
     <>
       <PageHead eyebrow="Learning" title="My courses" />
       <PageBody>
-        {q.error ? <ErrorState error={q.error} /> : !q.data ? <Loading /> : (
+        {q.error ? <ErrorState error={q.error} /> : !ready ? (
+          <div className="space-y-4" aria-busy>
+            <Card><div className="h-[52px] border-b" />{[0, 1, 2].map((i) => <div key={i} className="flex h-[64px] items-center gap-3 border-b px-[var(--card-pad)] last:border-b-0"><Bone className="h-4 flex-1" /><Bone className="h-6 w-24 rounded-full" /></div>)}</Card>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Bone key={i} className="h-[132px] rounded-2xl" />)}</div>
+          </div>
+        ) : (
           <div className="space-y-4">
-            <Card>
-              <CardHeader title={count ? `To do (${count})` : 'To do'} />
-              {!t ? <Loading /> : !count && !t.lessons.length ? <p className="px-[var(--card-pad)] py-4 text-[14px] text-muted-foreground">Nothing waiting. Well done.</p> : (
-                <ul className="divide-y text-[14px]">
-                  {t.assignments.map((a) => (
-                    <li key={a.id} className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-2.5">
-                      <Badge tone={a.overdue ? 'danger' : 'warning'}>{a.overdue ? 'Overdue' : 'Hand in'}</Badge>
-                      <button type="button" className="font-medium hover:underline" onClick={() => a.class_subject_id && onOpen(a.class_subject_id)}>{a.title}</button>
-                      <span className="text-muted-foreground">{a.subject}{a.due_on ? ` · due ${a.due_on}` : ''}{a.status === 'resubmit' ? ' · your teacher asked for a redo' : ''}</span>
-                    </li>
-                  ))}
-                  {t.quizzes.map((z) => (
-                    <li key={z.id} className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-2.5">
-                      <Badge tone="info">Quiz</Badge>
-                      <button type="button" className="font-medium hover:underline" onClick={() => onOpen(z.class_subject_id)}>{z.title}</button>
-                      <span className="text-muted-foreground">{z.subject}{z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}</span>
-                    </li>
-                  ))}
-                  {t.lessons.slice(0, 3).map((l) => (
-                    <li key={l.id} className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-2.5">
-                      <Badge>Up next</Badge>
-                      <button type="button" className="font-medium hover:underline" onClick={() => onOpen(l.class_subject_id)}>{l.title}</button>
-                      <span className="text-muted-foreground">{l.subject} · {l.unit}</span>
+            {rows.length > 0 && (
+              <Card>
+                <CardHeader title={`To do (${rows.length})`} />
+                <ul className="divide-y">
+                  {rows.map((r) => (
+                    <li key={r.id}>
+                      <Button variant="ghost" onClick={() => r.cs && onOpen(r.cs)}
+                        className="h-auto min-h-[64px] w-full justify-start gap-3 whitespace-normal rounded-none px-[var(--card-pad)] py-2.5 text-left">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
+                          <span className="block text-[13px] font-normal text-muted-foreground">{r.meta}</span>
+                        </span>
+                        {r.chip}
+                      </Button>
                     </li>
                   ))}
                 </ul>
-              )}
-            </Card>
-            {!q.data.items.length ? <EmptyState title="No subjects yet" body="Your class has no subjects set up yet." /> : (
+              </Card>
+            )}
+            {!q.data!.items.length ? <EmptyState title="No subjects yet" body="Your class has no subjects set up yet." /> : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {q.data.items.map((c) => {
+                {q.data!.items.map((c) => {
                   const pct = c.lessons ? Math.round((100 * c.completed) / c.lessons) : 0
                   return (
-                    <button key={c.class_subject_id} type="button" onClick={() => onOpen(c.class_subject_id)} className="card p-4 text-left transition hover:border-primary">
-                      <p className="text-[16px] font-semibold">{c.subject}</p>
-                      <p className="text-[13px] text-muted-foreground">{c.teacher ?? 'Teacher not set'}</p>
-                      <div className="mt-3 h-2 rounded bg-muted" aria-hidden><div className="h-2 rounded bg-primary" style={{ width: `${pct}%` }} /></div>
-                      <p className="mt-1.5 text-[13px]">{c.lessons ? `${c.completed} of ${c.lessons} sources done` : 'Nothing added yet'}</p>
-                      <p className="mt-1 flex gap-2">
+                    <Button key={c.class_subject_id} variant="secondary" onClick={() => onOpen(c.class_subject_id)}
+                      className="card h-auto min-h-[132px] w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-4 text-left font-normal">
+                      <span className="flex items-center gap-3">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[16px] font-semibold">{c.subject}</span>
+                          <span className="block text-[13px] text-muted-foreground">{c.teacher ?? 'Teacher not set'}</span>
+                        </span>
+                        <ProgressRing pct={pct} size={44} />
+                      </span>
+                      <span className="mt-2 block text-[13px]">{c.lessons ? `${c.completed} of ${c.lessons} done` : 'Nothing added yet'}</span>
+                      <span className="mt-1 flex min-h-6 flex-wrap gap-2">
                         {c.to_do > 0 && <Badge tone="warning">{c.to_do} to hand in</Badge>}
                         {c.quizzes_open > 0 && <Badge tone="info">{c.quizzes_open} quiz open</Badge>}
-                      </p>
-                    </button>
+                      </span>
+                    </Button>
                   )
                 })}
               </div>
@@ -194,7 +202,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
         actions={<Button variant="secondary" onClick={() => (item ? setWhere({ day: where.day, item: null }) : cur ? setWhere({ day: null, item: null }) : back())}><ChevronLeft className="h-4 w-4" /> {backLabel}</Button>}
       />
       <PageBody>
-        {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : item ? (
+        {q.error ? <ErrorState error={q.error} /> : !d ? <CourseSkeleton /> : item ? (
           <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => setWhere({ day: k, item: null })} onQuiz={setQuiz} />
         ) : cur ? (
           <DayPage d={d} m={cur.m} day={cur.d} titleOf={titleOf} open={(it) => open({ m: cur.m, d: cur.d, it })}
@@ -216,7 +224,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
               const s = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
               if (!s) return null
               return (
-                <button type="button" onClick={() => open(s)} className="flex w-full items-center gap-3 rounded-xl bg-primary px-[var(--card-pad)] py-4 text-left text-primary-foreground shadow-sm transition hover:brightness-110">
+                <Button onClick={() => open(s)} className="h-auto min-h-[72px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left">
                   <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-6 w-6" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[12px] font-medium uppercase tracking-wide opacity-80">{r.started ? 'Continue' : 'Start here'}</span>
@@ -224,7 +232,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     <span className="block truncate text-[13px] opacity-80">{number(s.m)} · {s.m.title}</span>
                   </span>
                   <ChevronRight className="h-5 w-5 shrink-0" />
-                </button>
+                </Button>
               )
             })() : allDays.length > 0 && daysDone === allDays.length ? (
               <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-success text-white"><Check className="h-5 w-5" /></span><p className="text-[15px] font-semibold">Every day is done. Well done.</p></div></Card>
@@ -269,14 +277,14 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                 })}
                 {loose.length > 0 && (
                   <li>
-                    <button type="button" onClick={() => setWhere({ day: OTHER, item: null })} className="card flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
+                    <Button variant="secondary" onClick={() => setWhere({ day: OTHER, item: null })} className="card h-auto min-h-[76px] w-full justify-start gap-3 whitespace-normal px-[var(--card-pad)] py-4 text-left font-normal">
                       <ProgressRing pct={Math.round((100 * loose.filter((x) => x.done).length) / loose.length)} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[16px] font-semibold">Other work</span>
                         <span className="block text-[13px] text-muted-foreground">Assignments and quizzes not on a day</span>
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </button>
+                    </Button>
                   </li>
                 )}
               </ol>
@@ -364,12 +372,12 @@ function DayPage({ d, m, day, titleOf, open, prev, next, toDay }: {
       {!bySection.length && <EmptyState title="Nothing on this day yet" body="Your teacher has not added anything here yet." />}
       {m.id !== OTHER && (
         <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next day">
-          {prev ? <button type="button" onClick={() => toDay(prev.key)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous day</span><span className="block truncate text-[14px] font-medium">{prev.name}</span></span></button> : <span />}
+          {prev ? <Button variant="secondary" onClick={() => toDay(prev.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous day</span><span className="block truncate text-[14px] font-medium">{prev.name}</span></span></Button> : <span />}
           {next ? (
-            <button type="button" disabled={next.state === 'locked'} onClick={() => toDay(next.key)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right disabled:cursor-not-allowed disabled:opacity-70">
+            <Button variant="secondary" disabled={next.state === 'locked'} onClick={() => toDay(next.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
               <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">{next.state === 'locked' ? 'Locked' : 'Next day'}</span><span className="block truncate text-[14px] font-medium">{next.name}</span></span>
               {next.state === 'locked' ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-            </button>
+            </Button>
           ) : <span />}
         </nav>
       )}
@@ -481,24 +489,24 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
       )}
       <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next">
         {prev ? (
-          <button type="button" onClick={() => open(prev)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left">
+          <Button variant="secondary" onClick={() => open(prev)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left">
             <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous{prev.d !== stop.d ? ` · ${shortDay(prev.d)}` : ''}</span><span className="block truncate text-[14px] font-medium">{titleOf(prev.it)}</span></span>
-          </button>
-        ) : <button type="button" onClick={() => toDay(stop.d.key)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="text-[14px] font-medium">{shortDay(stop.d)}</span></button>}
+          </Button>
+        ) : <Button variant="secondary" onClick={() => toDay(stop.d.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="text-[14px] font-medium">{shortDay(stop.d)}</span></Button>}
         {next ? (
-          <button type="button" disabled={next.it.locked} onClick={() => open(next)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right disabled:cursor-not-allowed disabled:opacity-70">
+          <Button variant="secondary" disabled={next.it.locked} onClick={() => open(next)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
             <span className="min-w-0">
               <span className="block text-[12px] text-muted-foreground">{next.it.locked ? `${shortDay(next.d)} is locked` : `Next${next.d !== stop.d ? ` · ${shortDay(next.d)}` : ''}`}</span>
               <span className="block truncate text-[14px] font-medium">{next.it.locked ? 'Finish this day first' : titleOf(next.it)}</span>
             </span>
             {next.it.locked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          </button>
+          </Button>
         ) : (
-          <button type="button" onClick={() => toDay(stop.d.key)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right">
+          <Button variant="secondary" onClick={() => toDay(stop.d.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
             <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">The end</span><span className="block truncate text-[14px] font-medium">Back to {shortDay(stop.d)}</span></span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
+          </Button>
         )}
       </nav>
     </div>
@@ -553,5 +561,15 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
         </div>
       )}
     </li>
+  )
+}
+
+function CourseSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy>
+      <Bone className="h-[88px] rounded-2xl" />
+      <Bone className="h-[76px] rounded-2xl" />
+      {[0, 1, 2].map((i) => <Bone key={i} className="h-[92px] rounded-2xl" />)}
+    </div>
   )
 }
