@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../../router'
+import { autoIssueStudentLogin } from '../setup/staff'
 import { Messenger, MessagingError, scopeOf } from '../../services/messaging'
 import { HttpError, badRequest, bool, clampInt, created, notFound, now, ok, readJSON, uuid } from '../../http'
 import { fullName, isUUIDish, isYMD, mergeModuleConfig, moduleConfig, nextNumber, nz, oneOfStr, placeholders, js, str, todayIST, workingYear, workingYearSQL } from './util'
@@ -524,6 +525,7 @@ export function registerAdmissionsWorkflow(r: Router) {
     stmts.push(c.db.prepare(`UPDATE applications SET status = 'accepted', student_id = ?, updated_at = ? WHERE id = ?`).bind(studentID, t, appID))
     stmts.push(c.db.prepare(`UPDATE enquiries SET status = 'applied', updated_at = ? WHERE id = (SELECT enquiry_id FROM applications WHERE id = ?)`).bind(t, appID))
     await c.db.batch(stmts)
+    try { await autoIssueStudentLogin(c, studentID) } catch (e) { console.error('auto login', e) }
     return created({ student_id: studentID, admission_no: admissionNo, status: 'enrolled', invoice_no: billedNo, net_paise: billedPaise, parent_login: welcome })
   })
 }

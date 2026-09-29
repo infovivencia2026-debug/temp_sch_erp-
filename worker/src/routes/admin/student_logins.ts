@@ -2,6 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, now, ok, readJSON } from '../../http'
 import { auditStmt, institutionId } from './common'
 import { MODULE, studentLoginPolicy } from '../../services/student_logins'
+import { autoIssueStudentLogin } from '../setup/staff'
 
 /* The school's "Student logins" switch (services/student_logins.ts).
    Reading needs access.users.read, changing it access.users.write, the keys
@@ -50,6 +51,20 @@ export function registerStudentLogins(r: Router) {
         .bind(now(), ...ids).run()
       signedOut += res.meta.changes ?? 0
     }
-    return ok({ ...(await studentLoginPolicy(c.db)), signed_out: signedOut })
+    /* Issued by default: switching on gives every eligible child without a
+       login one straight away (admission number as username and first
+       password). Up to 60 per save, so the request stays quick; the rest are
+       counted and the Issue button (or saving again) finishes them. */
+    let issued = 0, remaining = 0
+    if (b.enabled) {
+      const missing = (await c.db.prepare(`SELECT st.id FROM students st
+          LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active' LEFT JOIN classes cl ON cl.id = e.class_id
+          WHERE st.status = 'active' AND st.user_id IS NULL AND TRIM(COALESCE(st.admission_no, '')) <> ''
+            AND (? IS NULL OR (cl.level IS NOT NULL AND cl.level >= ?))
+          ORDER BY cl.level, st.admission_no`).bind(min, min).all<{ id: string }>()).results ?? []
+      for (const m of missing.slice(0, 60)) { try { if (await autoIssueStudentLogin(c, m.id)) issued++ } catch (e) { console.error('auto login', e) } }
+      remaining = Math.max(0, missing.length - issued)
+    }
+    return ok({ ...(await studentLoginPolicy(c.db)), signed_out: signedOut, logins_issued: issued, logins_remaining: remaining })
   })
 }

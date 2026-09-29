@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../router'
+import { autoIssueStudentLogin } from './setup/staff'
 import { reply } from '../router'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
@@ -237,6 +238,8 @@ async function createStudent(c: Ctx) {
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
+  // A login by default, when the school has student logins on.
+  if (plan.created) { try { await autoIssueStudentLogin(c, plan.studentId) } catch (e) { console.error('auto login', e) } }
   return reply({ id: plan.studentId, admission_no: plan.admissionNo }, 201)
 }
 
@@ -1353,6 +1356,10 @@ async function importStudents(c: Ctx) {
     throw coded(400, 'import_failed', err instanceof Error ? err.message : String(err))
   }
   out.run_id = runId
+  // Logins by default for everyone just imported (when the school has them on).
+  let logins = 0
+  for (const id of createdIds) { try { if (await autoIssueStudentLogin(c, id)) logins++ } catch (e) { console.error('auto login', e) } }
+  ;(out as Record<string, unknown>).logins_issued = logins
   return ok(out)
 }
 

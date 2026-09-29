@@ -111,6 +111,34 @@ function studentFirstPassword(admissionNo: string | undefined): { password: stri
   return a.length >= 3 ? { password: a, known: true } : { password: temporaryPassword(), known: false }
 }
 
+/* ISSUED BY DEFAULT (owner, 2026-09-29). A student who has no login gets one
+   the moment they are added (the student form, an import, an admission
+   accepted) and, when a school switches student logins on, every eligible
+   child at once. Same shape as the issue button: the admission number is the
+   username and the first password, and it must be changed at first sign-in.
+   Quietly does nothing when logins are off or the class is below the school's
+   lowest class. Returns true when a login was created. */
+export async function autoIssueStudentLogin(c: Ctx, studentId: string): Promise<boolean> {
+  const s = await c.db.prepare(`SELECT user_id, admission_no, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name FROM students WHERE id = ? AND status = 'active'`)
+    .bind(studentId).first<{ user_id: string | null; admission_no: string; full_name: string }>()
+  if (!s || s.user_id || !String(s.admission_no ?? '').trim()) return false
+  if (await studentLoginRefusal(c.db, studentId)) return false
+  const username = await uniqueUsername(c, s.admission_no)
+  const taken = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND username = ?`).bind(instId(c), username).first()
+  if (taken) return false
+  const pwHash = await hash(c, studentFirstPassword(s.admission_no).password)
+  const newId = uuid()
+  const t = now()
+  await c.db.batch([
+    c.db.prepare(`INSERT INTO users (id, institution_id, username, full_name, password_hash, status, must_change_password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', 1, ?, ?)`)
+      .bind(newId, instId(c), username, s.full_name, pwHash, t, t),
+    c.db.prepare(`UPDATE students SET user_id = ?, updated_at = ? WHERE id = ? AND user_id IS NULL`).bind(newId, t, studentId),
+  ])
+  await grantRole(c, newId, 'student')
+  await indexLogin(c, newId)
+  return true
+}
+
 export function registerStaff(r: Router): void {
   /* --- employees --- */
 
