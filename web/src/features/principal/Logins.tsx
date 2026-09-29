@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneCard } from './StudentLoginsCard'
 
 /* Who can sign in to this school.
 
@@ -280,6 +280,11 @@ export default function Logins() {
           </Card>
         )}
 
+        {/* One person first: it is what somebody at the office counter is
+            nearly always holding -- a parent on the phone who cannot get in --
+            and the class-sized job is the rarer, once-a-term one. */}
+        {record === 'student' && <IssueOneCard kind="students" />}
+        {record === 'guardian' && <IssueOneCard kind="guardians" />}
         {record === 'student' && <StudentLoginsCard />}
         {record === 'guardian' && <ParentLoginsCard />}
         {record === 'guardian' && <IssueLoginsCard kind="guardians" />}

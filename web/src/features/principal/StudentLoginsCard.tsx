@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Badge, Button, Card, CardHeader, Field, FormNotice, Select, Table, Td } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, Field, FormNotice, Select, Table, Td, Input } from '@/components/ui'
 
 /* STUDENT LOGINS: the school's switch, the lowest class, and issuing a class
    or section in one go (worker routes/admin/student_logins.ts and
@@ -359,6 +359,141 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
                 </tr>
               ))}
             </Table>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/* ONE CHILD, OR ONE PARENT, WITHOUT LEAVING THIS SCREEN.
+
+   Issuing for a single person lived only on Student 360: to give one parent
+   their login you opened the child, found the guardian and pressed it there.
+   That is a reasonable place for it and a hopeless place to look for it, and
+   the question people arrive at this screen holding is nearly always about one
+   person -- somebody rang the office because they cannot get in.
+
+   Search is the child either way, because that is what the office knows. For a
+   parent the child's guardians are listed once a child is chosen, since a
+   guardian is reached through their child and not out of a directory of
+   grown-ups. */
+export function IssueOneCard({ kind }: { kind: 'students' | 'guardians' }) {
+  const qc = useQueryClient()
+  const [needle, setNeedle] = useState('')
+  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
+  const [done, setDone] = useState<{ name: string; signIn: string; password: string } | null>(null)
+
+  const found = useQuery({
+    queryKey: ['issue-one', needle],
+    queryFn: () => api.get<{ items: { id: string; full_name: string; admission_no?: string; class_name?: string; section_name?: string }[] }>(
+      `/api/v1/students?q=${encodeURIComponent(needle.trim())}&status=active&limit=8`),
+    enabled: needle.trim().length >= 2 && !picked,
+  })
+  const child = useQuery({
+    queryKey: ['issue-one-child', picked?.id],
+    queryFn: () => api.get<{ guardians: { id: string; full_name: string; relation: string; phone?: string }[] }>(
+      `/api/v1/students/${picked!.id}`),
+    enabled: !!picked && kind === 'guardians',
+  })
+
+  const issue = useMutation({
+    mutationFn: (v: { id: string; name: string; reset: boolean }) =>
+      api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
+        `/api/v1/setup/${kind === 'students' ? 'students' : 'guardians'}/${v.id}/login${v.reset ? '?reset=true' : ''}`, {})
+        .then((r) => ({ name: v.name, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })),
+    onSuccess: (r) => { setDone(r); qc.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+
+  const clear = () => { setPicked(null); setNeedle(''); setDone(null) }
+  const guardians = child.data?.guardians ?? []
+
+  return (
+    <Card>
+      <CardHeader
+        title={kind === 'students' ? 'Issue a login for one child' : 'Issue a login for one parent'}
+        description="Search the child by name or admission number."
+        action={picked ? <Button variant="ghost" onClick={clear}>Start again</Button> : undefined}
+      />
+      <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
+        {!picked && (
+          <>
+            <Field label="Child">
+              <Input value={needle} onChange={setNeedle} placeholder="Name or admission number" />
+            </Field>
+            {needle.trim().length >= 2 && (
+              <Table head={['Child', 'Class', '']} empty={!(found.data?.items ?? []).length}
+                     emptyLabel={found.isLoading ? 'Looking…' : 'Nobody matches that.'}>
+                {(found.data?.items ?? []).map((st) => (
+                  <tr key={st.id}>
+                    <Td>{st.full_name}<span className="ml-2 text-muted-foreground">{st.admission_no}</span></Td>
+                    <Td>{[st.class_name, st.section_name].filter(Boolean).join(' ') || '—'}</Td>
+                    <Td>
+                      <Button size="sm" variant="secondary" onClick={() => setPicked({ id: st.id, name: st.full_name })}>
+                        Choose
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+          </>
+        )}
+
+        {picked && kind === 'students' && !done && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-medium">{picked.name}</p>
+            <Button pending={issue.isPending} onClick={() => issue.mutate({ id: picked.id, name: picked.name, reset: false })}>
+              Issue the login
+            </Button>
+            <Button variant="secondary" pending={issue.isPending}
+              onClick={() => { if (window.confirm(`Give ${picked.name} a new password? The one they hold now stops working.`)) issue.mutate({ id: picked.id, name: picked.name, reset: true }) }}>
+              Reset the password
+            </Button>
+          </div>
+        )}
+
+        {picked && kind === 'guardians' && !done && (
+          <>
+            <p className="font-medium">{picked.name}&rsquo;s family</p>
+            <Table head={['Parent', 'Relation', 'Phone', '']} empty={!guardians.length}
+                   emptyLabel={child.isLoading ? 'Reading the family…' : 'This child has no guardian on record.'}>
+              {guardians.map((g) => (
+                <tr key={g.id}>
+                  <Td>{g.full_name}</Td>
+                  <Td className="text-muted-foreground">{g.relation}</Td>
+                  <Td>{g.phone ?? '—'}</Td>
+                  <Td className="whitespace-nowrap">
+                    <Button size="sm" pending={issue.isPending} onClick={() => issue.mutate({ id: g.id, name: g.full_name, reset: false })}>
+                      Issue
+                    </Button>
+                    <Button size="sm" variant="secondary" pending={issue.isPending}
+                      onClick={() => { if (window.confirm(`Give ${g.full_name} a new password? The one they hold now stops working.`)) issue.mutate({ id: g.id, name: g.full_name, reset: true }) }}>
+                      Reset
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </>
+        )}
+
+        <FormNotice error={issue.error} />
+
+        {done && (
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-medium">{done.name} can sign in</p>
+            <p>Sign in as: <span className="font-mono">{done.signIn || '—'}</span></p>
+            <p>
+              Password:{' '}
+              {done.password
+                ? <span className="font-mono text-[16px]">{done.password}</span>
+                : <span className="text-muted-foreground">already set, reset it to see one</span>}
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              Shown once. Write it down or send it now; it cannot be read back.
+            </p>
+            <Button size="sm" variant="secondary" onClick={clear}>Do another</Button>
           </div>
         )}
       </div>
