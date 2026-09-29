@@ -14,4 +14,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 10, name: 'ai_warning_dismissals', checksum: '79e1cd120c3e534d082e28c806ca1ad7f9de76c40cd30532371637a77b4c3d91' },
   { version: 11, name: 'lms_modules', checksum: '186f731b38bac89604e9f5412f26501c0fe88b80f97f851e3773567a6d1d4906' },
   { version: 12, name: 'lms_progression', checksum: '4f6511af475fbf4fb76bdabf8185f9f3cfda1275070a90361570eca894b95599' },
+  { version: 14, name: 'messaging_delivery', checksum: '93c01ff8c7ca13f052e16a097c7ae407bf335a3e6dc70e8bdd254c6e14e9c00d' },
 ]
