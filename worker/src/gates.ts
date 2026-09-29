@@ -1,8 +1,9 @@
 import type { Env } from './env'
 import { can, type Identity } from './identity'
 import { HttpError, forbidden } from './http'
-import { entitlementFor } from './routes/misc/shell'
-import { featureGate } from './routes/seller/features'
+import { entitlementFor, entitlementFromRow, entitlementStmt, type Entitlement } from './routes/misc/shell'
+import { featureGate, featureOverrides, overridesFromRows, overridesStmt, type Override } from './routes/seller/features'
+import { memoFor } from './idcache'
 import type { Ctx } from './router'
 
 /* The middleware api.go stacks in front of every /api/v1 handler that the
@@ -73,7 +74,28 @@ export async function subscriptionGate(env: Env, id: Identity, pathname: string)
   if (!id.institution) return
   const path = pathname.startsWith(API) ? pathname.slice(API.length) : pathname
   if (OPEN_WHILE_LOCKED.some((p) => hasPrefix(path, p))) return
+  primeControl(env, id)
   const st = await entitlementFor({ env, id } as unknown as Ctx)
   if (!st.active) throw new HttpError(402, st.reason, { code: 'subscription_' + st.code })
   await featureGate(env, id, path, st)
+}
+
+/* The school's subscription and feature overrides in one CONTROL batch, read
+   once per cached identity (idcache.ts): entitlementFor and featureGate then
+   find both already in the identity's memo. */
+export function primeControl(env: Env, id: Identity): void {
+  if (!id.institution) return
+  const inst = id.institution.id
+  const both = memoFor(id, 'control', async (): Promise<{ ent: Entitlement; ov: Map<string, Override> }> => {
+    try {
+      const [a, b] = await env.CONTROL.batch([entitlementStmt(env, inst), overridesStmt(env, inst)])
+      return { ent: entitlementFromRow(a.results[0] as Parameters<typeof entitlementFromRow>[0]), ov: overridesFromRows(b.results as Parameters<typeof overridesFromRows>[0]) }
+    } catch {
+      // school_feature_overrides not there yet: the subscription alone.
+      const [row, ov] = await Promise.all([entitlementStmt(env, inst).first(), featureOverrides(env, inst)])
+      return { ent: entitlementFromRow(row as Parameters<typeof entitlementFromRow>[0]), ov }
+    }
+  })
+  void memoFor(id, 'entitlement', () => both.then((x) => x.ent))
+  void memoFor(id, 'overrides', () => both.then((x) => x.ov))
 }

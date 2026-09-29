@@ -71,7 +71,8 @@ export async function decodeStrict<T>(req: Request, fields: Record<string, Field
 }
 
 /** callerAddress: the client's address as Cloudflare saw it. */
-export const callerAddress = (req: Request) => req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip') ?? 'unknown'
+/** The caller's address (origin.ts settles it); X-Real-IP is never believed. */
+export const callerAddress = (req: Request) => req.headers.get('cf-connecting-ip') ?? 'unknown'
 
 /**
  * s.rateLimited: a fixed window of `burst` attempts per `windowS` seconds per

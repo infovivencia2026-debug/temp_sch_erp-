@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import type { DisplayPreferencesResponse } from '@shared/api'
 import { badRequest, conflict, created, isUUID, notFound, ok, readJSON, now, uuid, bool } from '../../http'
 import { can } from '../../identity'
 import {
@@ -550,6 +551,11 @@ const DEFAULT_LOCALE = 'en'
 const DEFAULT_LAYOUT = 'bento'
 
 async function getDisplayPreferences(c: Ctx) {
+  return ok(await displayPreferencesBody(c))
+}
+
+/** The body of GET /portal/preferences/display (also part of GET /bootstrap). */
+export async function displayPreferencesBody(c: Ctx): Promise<DisplayPreferencesResponse> {
   const pref = { theme: 'system', density: 'comfortable', reduce_motion: false, locale: DEFAULT_LOCALE, high_contrast: false, layout: DEFAULT_LAYOUT }
   const r = await c.db.prepare(`SELECT theme, density, reduce_motion, locale, high_contrast, layout FROM user_display_preferences WHERE user_id = ?`)
     .bind(c.id.userId).first<Record<string, unknown>>()
@@ -557,11 +563,11 @@ async function getDisplayPreferences(c: Ctx) {
     pref.theme = String(r.theme); pref.density = String(r.density); pref.reduce_motion = bool(r.reduce_motion)
     pref.locale = String(r.locale); pref.high_contrast = bool(r.high_contrast); pref.layout = String(r.layout)
   }
-  return ok({
+  return {
     preference: pref, theme_choices: THEME_CHOICES, density_choices: DENSITY_CHOICES,
     default_theme: 'system', default_density: 'comfortable', locale_choices: LOCALE_CHOICES,
     default_locale: DEFAULT_LOCALE, layout_choices: LAYOUT_CHOICES, default_layout: DEFAULT_LAYOUT,
-  })
+  }
 }
 
 async function saveDisplayPreferences(c: Ctx) {

@@ -49,105 +49,110 @@ async function rollupYear(c: Ctx, override: string): Promise<string> {
 const dp = (b: Boundary, col: string) => scopePred(b, col, b.depts)
 const sp = (b: Boundary, col: string) => scopePred(b, col, b.sections)
 
+/** The body of GET /rollups/today (also part of GET /bootstrap). */
+export async function rollupsTodayBody(c: Ctx) {
+  const b = await rollupBoundary(c)
+  const day = todayIST()
+  const dow = isoDow(day)
+  const out = {
+    date: day, weekday: WEEKDAYS[new Date(day + 'T00:00:00Z').getUTCDay()], scope: boundaryLabel(b),
+    staff_absent: [] as Row[], uncovered_periods: [] as Row[], money: undefined as Row | undefined,
+    visitors_expected: [] as Row[], events: [] as Row[], decisions: [] as Row[],
+  }
+  const staffAbsent = async () => {
+    if (!can(c.id, 'hr.employees.read')) return
+    const f = dp(b, 'e.department_id')
+    const rows = await c.db.prepare(`
+      SELECT u.id AS user_id, u.full_name, d.name AS department, sa.status,
+             (SELECT count(*) FROM timetable_entries te JOIN periods p ON p.id = te.period_id AND NOT p.is_break
+               WHERE te.teacher_user_id = sa.user_id AND te.weekday = ?2) AS periods,
+             (SELECT count(*) FROM timetable_entries te JOIN periods p ON p.id = te.period_id AND NOT p.is_break
+                JOIN substitutions su ON su.timetable_entry_id = te.id AND su.on_date = ?1
+               WHERE te.teacher_user_id = sa.user_id AND te.weekday = ?2) AS covered
+        FROM staff_attendance sa
+        JOIN users u ON u.id = sa.user_id
+        LEFT JOIN employees e ON e.user_id = sa.user_id
+        LEFT JOIN departments d ON d.id = e.department_id
+       WHERE sa.on_date = ?1 AND sa.status IN ('absent','leave') AND ${f.sql}
+       ORDER BY u.full_name`).bind(day, dow, ...f.args).all<Row>()
+    out.staff_absent = rows.results.map((v) => omitNull({ user_id: v.user_id, full_name: v.full_name, department: v.department, status: v.status,
+      periods_today: num0(v.periods), periods_covered: num0(v.covered), periods_uncovered: num0(v.periods) - num0(v.covered) }))
+  }
+  const uncovered = async () => {
+    const f = sp(b, 'te.section_id')
+    const rows = await c.db.prepare(`
+      SELECT p.name AS period, SUBSTR(time(p.starts_at),1,5) AS starts_at, c.name AS class_name, sec.name AS section_name, sub.name AS subject,
+             CASE WHEN te.teacher_user_id IS NULL THEN 'No teacher assigned' ELSE 'Teacher away, no cover arranged' END AS reason
+        FROM timetable_entries te
+        JOIN periods p ON p.id = te.period_id AND NOT p.is_break
+        JOIN sections sec ON sec.id = te.section_id
+        JOIN classes c ON c.id = sec.class_id
+        JOIN class_subjects cs ON cs.id = te.class_subject_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+       WHERE te.weekday = ?2
+         AND (te.teacher_user_id IS NULL
+              OR (EXISTS (SELECT 1 FROM staff_attendance sa WHERE sa.user_id = te.teacher_user_id AND sa.on_date = ?1 AND sa.status IN ('absent','leave'))
+                  AND NOT EXISTS (SELECT 1 FROM substitutions su WHERE su.timetable_entry_id = te.id AND su.on_date = ?1)))
+         AND ${f.sql}
+       ORDER BY p.sequence, c.level, sec.name`).bind(day, dow, ...f.args).all<Row>()
+    out.uncovered_periods = rows.results
+  }
+  const money = async () => {
+    if (!can(c.id, INVOICES)) return
+    const m = await c.db.prepare(`
+      SELECT COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices WHERE due_on = ?1 AND status IN ('unpaid','partial','overdue')), 0) AS due,
+             COALESCE((SELECT sum(amount_paise) FROM payments WHERE status = 'success' AND SUBSTR(paid_on,1,10) = ?1 AND mode <> 'adjustment'), 0) AS coll,
+             (SELECT count(*) FROM payments WHERE status = 'success' AND SUBSTR(paid_on,1,10) = ?1 AND mode <> 'adjustment') AS receipts,
+             COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices WHERE status IN ('unpaid','partial','overdue') AND due_on IS NOT NULL AND due_on < ?1), 0) AS overdue,
+             (SELECT count(DISTINCT student_id) FROM invoices WHERE status IN ('unpaid','partial','overdue') AND due_on IS NOT NULL AND due_on < ?1) AS students,
+             COALESCE((SELECT sum(amount_paise) FROM payments WHERE status = 'pending' AND mode IN ('cheque','dd')), 0) AS chq`).bind(day).first<Row>()
+    out.money = { due_today_paise: num0(m?.due), collected_today_paise: num0(m?.coll), receipts_today: num0(m?.receipts),
+      overdue_as_of_today_paise: num0(m?.overdue), overdue_students: num0(m?.students), cheques_awaiting_clearance_paise: num0(m?.chq) }
+  }
+  const diary = (v: Row) => {
+    const o: Row = {}
+    if (v.at) o.at = v.at
+    o.title = v.title ?? ''
+    if (v.with) o.with = v.with
+    if (v.kind) o.kind = v.kind
+    return o
+  }
+  const diaryRows = () => c.db.batch([
+    c.db.prepare(`SELECT SUBSTR(time(a.starts_at),1,5) AS at, a.visitor_name AS title, COALESCE(${empName('e')},'') AS "with", a.purpose AS kind
+        FROM appointments a LEFT JOIN employees e ON e.id = a.with_employee_id
+       WHERE a.on_date = ? AND a.status = 'booked' ORDER BY a.starts_at`).bind(day),
+    c.db.prepare(`SELECT at, title, "with", kind FROM (
+        SELECT CASE WHEN starts_at IS NULL THEN '' ELSE SUBSTR(time(starts_at),1,5) END AS at, name AS title, COALESCE(venue,'') AS "with", kind
+          FROM school_events WHERE is_published = 1 AND ?1 BETWEEN on_date AND COALESCE(ends_on, on_date)
+        UNION ALL
+        SELECT '', name, '', kind FROM holidays WHERE ?1 BETWEEN on_date AND COALESCE(to_date, on_date))
+       ORDER BY 1, 2`).bind(day),
+  ])
+
+  const add = (key: string, label: string, href: string, count: number) => { if (count > 0) out.decisions.push({ key, label, count, href }) }
+  const count = async (sql: string, ...args: unknown[]) => num0((await c.db.prepare(sql).bind(...args).first<{ n: number }>())?.n)
+  const none = async () => 0
+  // Every section is independent: all of them go to the database at once.
+  const [, , , [vis, ev], leave, concessions, corrections, admissions] = await Promise.all([
+    staffAbsent(), uncovered(), money(), diaryRows(),
+    can(c.id, 'hr.leave.approve') ? count(`SELECT count(*) AS n FROM leave_requests WHERE status = 'pending' AND subject_kind = 'staff' AND from_date <= date(?, '+2 days')`, day) : none(),
+    can(c.id, 'finance.fees.write') ? count(`SELECT count(*) AS n FROM fee_concessions WHERE status = 'pending'`) : none(),
+    can(c.id, 'academics.attendance.write.any') ? count(`SELECT count(*) AS n FROM attendance_corrections WHERE status = 'pending'`) : none(),
+    can(c.id, 'admissions.read') ? count(`SELECT count(*) AS n FROM applications WHERE status IN ('submitted','under_review','test_scheduled','interviewed')`) : none(),
+  ])
+  out.visitors_expected = (vis.results as Row[]).map(diary)
+  out.events = (ev.results as Row[]).map(diary)
+  add('leave.pending', 'staff leave requests starting within two days', 'approvals', leave)
+  add('fees.concessions', 'fee concessions awaiting approval', 'approvals', concessions)
+  add('attendance.corrections', 'attendance corrections awaiting review', 'approvals', corrections)
+  add('admissions.pending', 'admission applications waiting on a decision', 'admissions', admissions)
+  return out
+}
+
 export function registerRollups(r: Router) {
   // ---------------------------------------------------------------- 1. today
   r.get('/rollups/today', REPORTS, async (c) => {
-    const b = await rollupBoundary(c)
-    const day = todayIST()
-    const dow = isoDow(day)
-    const out = {
-      date: day, weekday: WEEKDAYS[new Date(day + 'T00:00:00Z').getUTCDay()], scope: boundaryLabel(b),
-      staff_absent: [] as Row[], uncovered_periods: [] as Row[], money: undefined as Row | undefined,
-      visitors_expected: [] as Row[], events: [] as Row[], decisions: [] as Row[],
-    }
-    if (can(c.id, 'hr.employees.read')) {
-      const f = dp(b, 'e.department_id')
-      const rows = await c.db.prepare(`
-        SELECT u.id AS user_id, u.full_name, d.name AS department, sa.status,
-               (SELECT count(*) FROM timetable_entries te JOIN periods p ON p.id = te.period_id AND NOT p.is_break
-                 WHERE te.teacher_user_id = sa.user_id AND te.weekday = ?2) AS periods,
-               (SELECT count(*) FROM timetable_entries te JOIN periods p ON p.id = te.period_id AND NOT p.is_break
-                  JOIN substitutions su ON su.timetable_entry_id = te.id AND su.on_date = ?1
-                 WHERE te.teacher_user_id = sa.user_id AND te.weekday = ?2) AS covered
-          FROM staff_attendance sa
-          JOIN users u ON u.id = sa.user_id
-          LEFT JOIN employees e ON e.user_id = sa.user_id
-          LEFT JOIN departments d ON d.id = e.department_id
-         WHERE sa.on_date = ?1 AND sa.status IN ('absent','leave') AND ${f.sql}
-         ORDER BY u.full_name`).bind(day, dow, ...f.args).all<Row>()
-      out.staff_absent = rows.results.map((v) => omitNull({ user_id: v.user_id, full_name: v.full_name, department: v.department, status: v.status,
-        periods_today: num0(v.periods), periods_covered: num0(v.covered), periods_uncovered: num0(v.periods) - num0(v.covered) }))
-    }
-    {
-      const f = sp(b, 'te.section_id')
-      const rows = await c.db.prepare(`
-        SELECT p.name AS period, SUBSTR(time(p.starts_at),1,5) AS starts_at, c.name AS class_name, sec.name AS section_name, sub.name AS subject,
-               CASE WHEN te.teacher_user_id IS NULL THEN 'No teacher assigned' ELSE 'Teacher away, no cover arranged' END AS reason
-          FROM timetable_entries te
-          JOIN periods p ON p.id = te.period_id AND NOT p.is_break
-          JOIN sections sec ON sec.id = te.section_id
-          JOIN classes c ON c.id = sec.class_id
-          JOIN class_subjects cs ON cs.id = te.class_subject_id
-          JOIN subjects sub ON sub.id = cs.subject_id
-         WHERE te.weekday = ?2
-           AND (te.teacher_user_id IS NULL
-                OR (EXISTS (SELECT 1 FROM staff_attendance sa WHERE sa.user_id = te.teacher_user_id AND sa.on_date = ?1 AND sa.status IN ('absent','leave'))
-                    AND NOT EXISTS (SELECT 1 FROM substitutions su WHERE su.timetable_entry_id = te.id AND su.on_date = ?1)))
-           AND ${f.sql}
-         ORDER BY p.sequence, c.level, sec.name`).bind(day, dow, ...f.args).all<Row>()
-      out.uncovered_periods = rows.results
-    }
-    if (can(c.id, INVOICES)) {
-      const m = await c.db.prepare(`
-        SELECT COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices WHERE due_on = ?1 AND status IN ('unpaid','partial','overdue')), 0) AS due,
-               COALESCE((SELECT sum(amount_paise) FROM payments WHERE status = 'success' AND SUBSTR(paid_on,1,10) = ?1 AND mode <> 'adjustment'), 0) AS coll,
-               (SELECT count(*) FROM payments WHERE status = 'success' AND SUBSTR(paid_on,1,10) = ?1 AND mode <> 'adjustment') AS receipts,
-               COALESCE((SELECT sum(net_paise - paid_paise) FROM invoices WHERE status IN ('unpaid','partial','overdue') AND due_on IS NOT NULL AND due_on < ?1), 0) AS overdue,
-               (SELECT count(DISTINCT student_id) FROM invoices WHERE status IN ('unpaid','partial','overdue') AND due_on IS NOT NULL AND due_on < ?1) AS students,
-               COALESCE((SELECT sum(amount_paise) FROM payments WHERE status = 'pending' AND mode IN ('cheque','dd')), 0) AS chq`).bind(day).first<Row>()
-      out.money = { due_today_paise: num0(m?.due), collected_today_paise: num0(m?.coll), receipts_today: num0(m?.receipts),
-        overdue_as_of_today_paise: num0(m?.overdue), overdue_students: num0(m?.students), cheques_awaiting_clearance_paise: num0(m?.chq) }
-    }
-    const diary = (v: Row) => {
-      const o: Row = {}
-      if (v.at) o.at = v.at
-      o.title = v.title ?? ''
-      if (v.with) o.with = v.with
-      if (v.kind) o.kind = v.kind
-      return o
-    }
-    const [vis, ev] = await c.db.batch([
-      c.db.prepare(`SELECT SUBSTR(time(a.starts_at),1,5) AS at, a.visitor_name AS title, COALESCE(${empName('e')},'') AS "with", a.purpose AS kind
-          FROM appointments a LEFT JOIN employees e ON e.id = a.with_employee_id
-         WHERE a.on_date = ? AND a.status = 'booked' ORDER BY a.starts_at`).bind(day),
-      c.db.prepare(`SELECT at, title, "with", kind FROM (
-          SELECT CASE WHEN starts_at IS NULL THEN '' ELSE SUBSTR(time(starts_at),1,5) END AS at, name AS title, COALESCE(venue,'') AS "with", kind
-            FROM school_events WHERE is_published = 1 AND ?1 BETWEEN on_date AND COALESCE(ends_on, on_date)
-          UNION ALL
-          SELECT '', name, '', kind FROM holidays WHERE ?1 BETWEEN on_date AND COALESCE(to_date, on_date))
-         ORDER BY 1, 2`).bind(day),
-    ])
-    out.visitors_expected = (vis.results as Row[]).map(diary)
-    out.events = (ev.results as Row[]).map(diary)
-
-    const add = (key: string, label: string, href: string, count: number) => { if (count > 0) out.decisions.push({ key, label, count, href }) }
-    const count = async (sql: string, ...args: unknown[]) => num0((await c.db.prepare(sql).bind(...args).first<{ n: number }>())?.n)
-    if (can(c.id, 'hr.leave.approve')) {
-      add('leave.pending', 'staff leave requests starting within two days', 'approvals',
-        await count(`SELECT count(*) AS n FROM leave_requests WHERE status = 'pending' AND subject_kind = 'staff' AND from_date <= date(?, '+2 days')`, day))
-    }
-    if (can(c.id, 'finance.fees.write')) {
-      add('fees.concessions', 'fee concessions awaiting approval', 'approvals', await count(`SELECT count(*) AS n FROM fee_concessions WHERE status = 'pending'`))
-    }
-    if (can(c.id, 'academics.attendance.write.any')) {
-      add('attendance.corrections', 'attendance corrections awaiting review', 'approvals',
-        await count(`SELECT count(*) AS n FROM attendance_corrections WHERE status = 'pending'`))
-    }
-    if (can(c.id, 'admissions.read')) {
-      add('admissions.pending', 'admission applications waiting on a decision', 'admissions',
-        await count(`SELECT count(*) AS n FROM applications WHERE status IN ('submitted','under_review','test_scheduled','interviewed')`))
-    }
-
+    const out = await rollupsTodayBody(c)
     if (wantsCSV(c)) {
       const lines: string[][] = []
       for (const v of out.staff_absent) lines.push(['Staff away', String(v.full_name), strCell(v.department as string | undefined),

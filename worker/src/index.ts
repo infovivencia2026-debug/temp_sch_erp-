@@ -6,6 +6,7 @@ import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
 import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } from './routes/login'
 import { getSession } from './routes/session'
+import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
 import { identityFrom, can } from './identity'
 import { errorResponse, forbidden, unauthorized } from './http'
@@ -17,6 +18,8 @@ import { handlePages } from './pages/index'
 import { groupGate, passwordGate, subscriptionGate } from './gates'
 import { idempotent } from './idempotency'
 import { recordServerError } from './services/background/health'
+import { normalizeRequest, originRefused } from './origin'
+import { PLATFORM_SCOPE, bumpVersion, watchAuthWrites } from './idcache'
 
 export { LiveHub } from './services/live'
 
@@ -28,7 +31,9 @@ const SCHOOL_ROUTE = /^\/([a-z]{2})\/([a-z0-9][a-z0-9-]{0,62})(\/logo|\/app\.jso
    they are ported; anything not yet ported answers 501 so a missing route is
    loud rather than a silent 404. */
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(incoming: Request, env: Env, ectx?: ExecutionContext): Promise<Response> {
+    // The caller's address settled and the origin secret checked (origin.ts).
+    const { req, verified } = normalizeRequest(env, incoming)
     const url = new URL(req.url)
     const { pathname } = url
     const m = req.method
@@ -36,6 +41,7 @@ export default {
 
     try {
       if (pathname === '/healthz') return new Response('ok')
+      if (originRefused(env, pathname, verified)) return new Response('Not Found', { status: 404 })
       if (pathname === '/login' && m === 'GET') return showLogin(env, req)
       if (pathname === '/login' && m === 'POST') return login(env, req)
       /* Public server-rendered pages: password reset, pricing, signup, apps,
@@ -59,6 +65,7 @@ export default {
         if (res) return res
       }
       if (pathname === '/api/v1/session' && m === 'GET') return getSession(env, req)
+      if (pathname === '/api/v1/bootstrap' && m === 'GET') return getBootstrap(env, req, router, ectx)
       /* Callers with no session cookie: the Android SMS gateway authenticates
          with its own device token. Checked before the session router. */
       const device = await handleSMSGatewayDevice(env, req, url)
@@ -69,7 +76,7 @@ export default {
       if (pub) return pub
       const hit = router.match(m, pathname)
       if (hit) {
-        const id = await identityFrom(env, req)
+        const id = await identityFrom(env, req, ectx)
         if (!id) throw unauthorized()
         schoolId = id.institution?.id
         if (hit.route.perm !== 'auth' && !can(id, hit.route.perm)) throw forbidden()
@@ -78,11 +85,19 @@ export default {
         passwordGate(id, m, pathname)
         await subscriptionGate(env, id, pathname)
         let db: D1Database | null = null
+        let watch: ReturnType<typeof watchAuthWrites> | null = null
         const ctx = { req, env, url, params: hit.params, id,
-          get db() { if (!db) { if (!id.institution) throw forbidden('no school in scope'); db = tenantDb(env, id.institution) } return db } }
+          get db() { if (!db) { if (!id.institution) throw forbidden('no school in scope'); watch = watchAuthWrites(tenantDb(env, id.institution)); db = watch.db } return db } }
         // Go's Idempotent middleware sits after the gates, around the handler.
         const res = await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })
         if (res.status >= 500 && res.status !== 501) await recordServerError(env, schoolId, pathname)
+        /* Who may do what changed: every isolate's cached identities of this
+           school (or, for a platform account's write, of every school) go. */
+        if (m !== 'GET' && m !== 'HEAD' && res.status < 400) {
+          const w = watch as ReturnType<typeof watchAuthWrites> | null
+          if (w?.dirty() && id.institution) await bumpVersion(env, id.institution.id)
+          if (id.platformAdmin) await bumpVersion(env, PLATFORM_SCOPE)
+        }
         return res
       }
       if (pathname.startsWith('/api/')) return json({ error: 'not ported to Workers yet', path: pathname }, 501)

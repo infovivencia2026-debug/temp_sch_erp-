@@ -1,5 +1,6 @@
 import type { Env } from './env'
-import { currentSession } from './auth/session'
+import { liveSession, readCookie, sessionStmt, tokenHash, type Session } from './auth/session'
+import { cacheKey, cacheTtl, cached, ensureVersionsTable, remember, versionString, versionsStmt } from './idcache'
 import { institutionById, tenantDb, type Institution } from './tenant'
 import { HttpError } from './http'
 import { SYSTEM_ROLES } from './routes/admin/static_data'
@@ -25,9 +26,43 @@ export interface Identity {
   mustChangePassword: boolean
 }
 
-export async function identityFrom(env: Env, req: Request): Promise<Identity | null> {
-  const s = await currentSession(env, req)
+/* The session row and the cache versions in one CONTROL round trip; then the
+   identity from this isolate's cache when its versions still match
+   (idcache.ts), else resolved afresh and remembered. */
+export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContext): Promise<Identity | null> {
+  const token = readCookie(req)
+  if (!token) return null
+  const hash = await tokenHash(token)
+  const acting = req.headers.get('x-acting-institution') || null
+  let row: Session | null
+  let versions: string | null = null
+  let home: Institution | null | undefined
+  const read = () => env.CONTROL.batch([sessionStmt(env, hash), versionsStmt(env, hash, acting),
+    env.CONTROL.prepare('SELECT * FROM institutions WHERE id = (SELECT institution_id FROM sessions WHERE token_hash = ?)').bind(hash)])
+  try {
+    let res: D1Result[]
+    try { res = await read() } catch { await ensureVersionsTable(env); res = await read() }
+    row = (res[0].results[0] as Session | undefined) ?? null
+    if (row) versions = versionString(res[1].results as { scope: string; version: number }[], row.institution_id, acting)
+    home = (res[2].results[0] as Institution | undefined) ?? null
+  } catch {
+    row = await sessionStmt(env, hash).first<Session>()
+  }
+  const s = await liveSession(env, row, ctx)
   if (!s) return null
+  const key = cacheKey(hash, acting)
+  const ttl = cacheTtl(env)
+  if (ttl === 0) versions = null
+  if (versions !== null) {
+    const hit = cached(key, versions, s.id, ttl)
+    if (hit) return hit
+  }
+  const id = await resolveIdentity(env, req, s, home)
+  if (id && versions !== null) remember(key, versions, id)
+  return id
+}
+
+async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: Institution | null): Promise<Identity | null> {
 
   if (s.institution_id === null) {
     const u = await env.CONTROL.prepare(`SELECT full_name FROM platform_users WHERE id = ? AND status = 'active'`)
@@ -47,7 +82,7 @@ export async function identityFrom(env: Env, req: Request): Promise<Identity | n
       institution, homeInstitutionId: null, permissions, roles: roleKeys.length ? roleKeys : ['platform_admin'], mustChangePassword: false }
   }
 
-  const home = await institutionById(env, s.institution_id)
+  const home = prefetched?.id === s.institution_id ? prefetched : await institutionById(env, s.institution_id)
   if (!home) return null
   /* A board member (acting.go actAsBoardMember) may stand inside another school,
      but ONLY one they oversee. Proven twice: the CONTROL index written when the

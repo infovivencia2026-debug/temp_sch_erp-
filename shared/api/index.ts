@@ -18,6 +18,7 @@ export * from './staff'
 export * from './notifications'
 export * from './messages'
 export * from './dashboards'
+export * from './bootstrap'
 
 import type { SessionApi } from './session'
 import type { CatalogApi } from './catalog'
@@ -30,6 +31,7 @@ import type { StaffApi } from './staff'
 import type { NotificationsApi } from './notifications'
 import type { MessagesApi } from './messages'
 import type { DashboardsApi } from './dashboards'
+import type { BootstrapApi } from './bootstrap'
 
 export interface Api extends SessionApi, CatalogApi, StudentsApi, AttendanceApi, TimetableApi, FeesApi, ExamsApi,
-  StaffApi, NotificationsApi, MessagesApi, DashboardsApi {}
+  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi {}

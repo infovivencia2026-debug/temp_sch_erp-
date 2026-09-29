@@ -1458,13 +1458,40 @@ async function computeWorkingDays(c: Ctx, yearId: string, from: string, to: stri
     required_working_days: 0, adjustment_days: 0, adjustment_minutes: 0, classes_short: 0, classes: [], notes: [],
   }
 
+  // Every read below is independent of the others: they all go at once.
+  const [holidays, minRows, allRows, adjRows, norms, model, declared] = await Promise.all([
+    c.db.prepare(`
+    SELECT kind, applies_to, ${dateOf('on_date')} AS on_date, ${dateOf('COALESCE(to_date, on_date)')} AS to_date
+      FROM holidays WHERE ${dateOf('on_date')} <= ?2 AND ${dateOf('COALESCE(to_date, on_date)')} >= ?1`).bind(from, to)
+    .all<{ kind: string; applies_to: string; on_date: string; to_date: string }>(),
+    c.db.prepare(`
+    SELECT c.id, c.name, c.level, sm.weekday, AVG(sm.mins) AS mins
+      FROM (
+          SELECT sec.class_id, te.section_id, te.weekday,
+                 SUM((strftime('%s', '2000-01-01 ' || p.ends_at) - strftime('%s', '2000-01-01 ' || p.starts_at)) / 60.0) AS mins
+            FROM timetable_entries te
+            JOIN sections sec ON sec.id = te.section_id
+            JOIN periods p ON p.id = te.period_id
+           WHERE te.academic_year_id = ? AND p.is_break = 0
+           GROUP BY sec.class_id, te.section_id, te.weekday
+      ) sm
+      JOIN classes c ON c.id = sm.class_id
+     GROUP BY c.id, c.name, c.level, sm.weekday`).bind(yearId)
+    .all<{ id: string; name: string; level: number | null; weekday: number; mins: number | null }>(),
+    c.db.prepare(`SELECT id, name, level FROM classes ORDER BY level, name`).all<{ id: string; name: string; level: number | null }>(),
+    c.db.prepare(`
+    SELECT class_id, SUM(CAST(days_delta AS REAL)) AS days, SUM(minutes_delta) AS mins
+      FROM working_days_adjustments
+     WHERE academic_year_id = ?1 AND ${dateOf('on_date')} BETWEEN ?2 AND ?3
+     GROUP BY class_id`).bind(yearId, from, to).all<{ class_id: string | null; days: number | null; mins: number | null }>(),
+    loadInstructionalNorms(c),
+    c.db.prepare(`SELECT required_working_days FROM academic_calendar_models LIMIT 1`).first<{ required_working_days: number }>(),
+    c.db.prepare(`SELECT working_days FROM academic_years WHERE id = ?`).bind(yearId).first<{ working_days: number | null }>(),
+  ])
+
   /* Which days the school was open, by weekday. Sunday is closed unless
      explicitly marked a working day, a holiday or vacation that applies to
      students closes the day, and kind='working_day' overrides both. */
-  const holidays = await c.db.prepare(`
-    SELECT kind, applies_to, ${dateOf('on_date')} AS on_date, ${dateOf('COALESCE(to_date, on_date)')} AS to_date
-      FROM holidays WHERE ${dateOf('on_date')} <= ?2 AND ${dateOf('COALESCE(to_date, on_date)')} >= ?1`).bind(from, to)
-    .all<{ kind: string; applies_to: string; on_date: string; to_date: string }>()
   const covers = (h: { on_date: string; to_date: string }, day: string) => day >= h.on_date && day <= h.to_date
   const openDays = new Map<number, number>()
   let baseDays = 0
@@ -1483,20 +1510,6 @@ async function computeWorkingDays(c: Ctx, yearId: string, from: string, to: stri
   out.calendar_days = Math.trunc((end.getTime() - start.getTime()) / dayMs) + 1
 
   /* Minutes of instruction per class per weekday, averaged across the sections of a class; breaks excluded. */
-  const minRows = await c.db.prepare(`
-    SELECT c.id, c.name, c.level, sm.weekday, AVG(sm.mins) AS mins
-      FROM (
-          SELECT sec.class_id, te.section_id, te.weekday,
-                 SUM((strftime('%s', '2000-01-01 ' || p.ends_at) - strftime('%s', '2000-01-01 ' || p.starts_at)) / 60.0) AS mins
-            FROM timetable_entries te
-            JOIN sections sec ON sec.id = te.section_id
-            JOIN periods p ON p.id = te.period_id
-           WHERE te.academic_year_id = ? AND p.is_break = 0
-           GROUP BY sec.class_id, te.section_id, te.weekday
-      ) sm
-      JOIN classes c ON c.id = sm.class_id
-     GROUP BY c.id, c.name, c.level, sm.weekday`).bind(yearId)
-    .all<{ id: string; name: string; level: number | null; weekday: number; mins: number | null }>()
   interface ClassAcc { name: string; level: number | null; weekday: Map<number, number>; hasTable: boolean }
   const classes = new Map<string, ClassAcc>()
   for (const r of minRows.results) {
@@ -1507,7 +1520,6 @@ async function computeWorkingDays(c: Ctx, yearId: string, from: string, to: stri
   }
 
   // Every class, including those with no timetable.
-  const allRows = await c.db.prepare(`SELECT id, name, level FROM classes ORDER BY level, name`).all<{ id: string; name: string; level: number | null }>()
   const order: string[] = []
   for (const r of allRows.results) {
     if (!classes.has(r.id)) classes.set(r.id, { name: r.name, level: r.level, weekday: new Map(), hasTable: false })
@@ -1515,11 +1527,6 @@ async function computeWorkingDays(c: Ctx, yearId: string, from: string, to: stri
   }
 
   // Adjustments. A NULL class_id applies to every class.
-  const adjRows = await c.db.prepare(`
-    SELECT class_id, SUM(CAST(days_delta AS REAL)) AS days, SUM(minutes_delta) AS mins
-      FROM working_days_adjustments
-     WHERE academic_year_id = ?1 AND ${dateOf('on_date')} BETWEEN ?2 AND ?3
-     GROUP BY class_id`).bind(yearId, from, to).all<{ class_id: string | null; days: number | null; mins: number | null }>()
   const classAdjDays = new Map<string, number>(), classAdjMin = new Map<string, number>()
   let allDays = 0, allMin = 0
   for (const a of adjRows.results) {
@@ -1532,13 +1539,10 @@ async function computeWorkingDays(c: Ctx, yearId: string, from: string, to: stri
   out.adjustment_minutes = allMin
   out.working_days = baseDays + allDays
 
-  const norms = await loadInstructionalNorms(c)
 
   // The whole-school minimum, as a fallback for a class whose level falls outside every band.
   let fallbackDays = 220
-  const model = await c.db.prepare(`SELECT required_working_days FROM academic_calendar_models LIMIT 1`).first<{ required_working_days: number }>()
   if (model) fallbackDays = model.required_working_days
-  const declared = await c.db.prepare(`SELECT working_days FROM academic_years WHERE id = ?`).bind(yearId).first<{ working_days: number | null }>()
   if (declared && declared.working_days !== null) out.declared_working_days = declared.working_days
   out.required_working_days = fallbackDays
 
@@ -1589,8 +1593,7 @@ function registerWorkingDays(r: Router): void {
   r.get('/statutory/working-days', PERM_READ, async (c) => {
     institutionId(c)
     const toDate = c.url.searchParams.get('to_date') === '1'
-    await ensureInstructionalNorms(c)
-    const year = await resolveAcademicYear(c.db, c.url.searchParams.get('academic_year_id'))
+    const [, year] = await Promise.all([ensureInstructionalNorms(c), resolveAcademicYear(c.db, c.url.searchParams.get('academic_year_id'))])
     let ends = year.ends_on
     if (toDate) {
       const today = todayIST()

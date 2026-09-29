@@ -1,7 +1,9 @@
 import type { Router, Ctx } from '../../router'
-import type { CatalogResponse } from '@shared/api'
+import type { Env } from '../../env'
+import type { CatalogResponse, WorkingYearResponse } from '@shared/api'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { can } from '../../identity'
+import { memoFor } from '../../idcache'
 import { institutionId, parseJSON, resolveScope, type Scope } from '../admin/common'
 import { catalogFeatureAllowed, featureOverrides } from '../seller/features'
 import { CATALOG_ROLES, IMPLEMENTED_FEATURES, allCatalogFeatureKeys, catalogLookup, type CatalogFeature } from '../admin/static_data'
@@ -50,17 +52,24 @@ export async function workingYear(c: Ctx, explicit = ''): Promise<string | null>
 }
 
 async function getWorkingYear(c: Ctx): Promise<Response> {
-  const out: Record<string, unknown> = { academic_year_id: null, chosen: false, years: [] }
-  if (!c.id.institution) return ok(out)
-  const rows = await c.db.prepare(`SELECT id, name, starts_on, ends_on, is_current, (is_current OR ends_on >= date('now')) AS open
-      FROM academic_years ORDER BY starts_on DESC`).all<{ id: string; name: string; starts_on: string; ends_on: string; is_current: number; open: number }>()
+  return ok(await workingYearBody(c))
+}
+
+/** The body of GET /working-year (also part of GET /bootstrap). */
+export async function workingYearBody(c: Ctx): Promise<WorkingYearResponse> {
+  const out: WorkingYearResponse = { academic_year_id: null, chosen: false, years: [] }
+  if (!c.id.institution) return out
+  const [rows, chosen] = await Promise.all([
+    c.db.prepare(`SELECT id, name, starts_on, ends_on, is_current, (is_current OR ends_on >= date('now')) AS open
+      FROM academic_years ORDER BY starts_on DESC`).all<{ id: string; name: string; starts_on: string; ends_on: string; is_current: number; open: number }>(),
+    c.db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`)
+      .bind(c.id.userId).first<{ id: string }>(),
+  ])
   out.years = rows.results.map((y) => ({ id: y.id, name: y.name, starts_on: y.starts_on, ends_on: y.ends_on, is_current: !!y.is_current, open: !!y.open }))
-  const chosen = await c.db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`)
-    .bind(c.id.userId).first<{ id: string }>()
-  if (chosen) { out.academic_year_id = chosen.id; out.chosen = true; return ok(out) }
+  if (chosen) { out.academic_year_id = chosen.id; out.chosen = true; return out }
   const y = await workingYear(c)
   if (y) out.academic_year_id = y
-  return ok(out)
+  return out
 }
 
 // --- date ranges ---------------------------------------------------------------
@@ -146,12 +155,28 @@ export const SECTION_MODULE: Record<string, string> = {
 export interface Entitlement { active: boolean; code: string; reason: string; planCode: string; planName: string; status: string; customIntegration: boolean; all: boolean; modules: Set<string> }
 
 /** entitlement.Resolve, read from CONTROL. plans.modules is JSON: a list of names, or an object of name -> enabled. */
-export async function entitlementFor(c: Ctx): Promise<Entitlement> {
-  const platform: Entitlement = { active: true, code: '', reason: '', planCode: 'platform', planName: '', status: 'platform', customIntegration: true, all: true, modules: new Set() }
-  if (!c.id.institution) return platform
-  const s = await c.env.CONTROL.prepare(`SELECT s.plan_code, p.name, s.status, s.trial_ends_on, p.modules, p.custom_integration
+/** The school's entitlement, read once per cached identity (idcache.ts memoFor). */
+export function entitlementFor(c: Ctx): Promise<Entitlement> {
+  return c.id?.sessionId ? memoFor(c.id, 'entitlement', () => readEntitlement(c)) : readEntitlement(c)
+}
+
+async function readEntitlement(c: Ctx): Promise<Entitlement> {
+  if (!c.id.institution) return PLATFORM_ENTITLEMENT()
+  return entitlementFromRow(await entitlementStmt(c.env, c.id.institution.id).first<EntitlementRow>())
+}
+
+type EntitlementRow = { plan_code: string; name: string | null; status: string | null; trial_ends_on: string | null; modules: string | null; custom_integration: number | null }
+
+const PLATFORM_ENTITLEMENT = (): Entitlement => ({ active: true, code: '', reason: '', planCode: 'platform', planName: '', status: 'platform', customIntegration: true, all: true, modules: new Set() })
+
+/** The school's latest subscription and plan (batched by gates.ts). */
+export function entitlementStmt(env: Env, institutionId: string): D1PreparedStatement {
+  return env.CONTROL.prepare(`SELECT s.plan_code, p.name, s.status, s.trial_ends_on, p.modules, p.custom_integration
       FROM subscriptions s LEFT JOIN plans p ON p.code = s.plan_code WHERE s.institution_id = ? ORDER BY s.started_on DESC LIMIT 1`)
-    .bind(c.id.institution.id).first<{ plan_code: string; name: string | null; status: string | null; trial_ends_on: string | null; modules: string | null; custom_integration: number | null }>()
+    .bind(institutionId)
+}
+
+export function entitlementFromRow(s: EntitlementRow | null | undefined): Entitlement {
   if (!s || s.status === null) {
     return { active: false, code: 'none', reason: 'This school does not have a subscription yet. Choose a plan to switch the system on.',
       planCode: '', planName: '', status: '', customIntegration: false, all: false, modules: new Set() }
@@ -234,7 +259,7 @@ async function setupIncomplete(c: Ctx): Promise<boolean> {
 
 const STUDENT_HIDDEN_SECTIONS = new Set(['alumni', 'fees'])
 
-async function getCatalog(c: Ctx): Promise<CatalogResponse> {
+export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const sc = await resolveScope(c)
   const ent = await entitlementFor(c)
   const locked = await setupIncomplete(c)

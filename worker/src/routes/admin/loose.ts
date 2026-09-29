@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../../router'
+import type { AttentionResponse } from '@shared/api'
 import { liveAnnouncements } from '../seller/announcements'
 import { can } from '../../identity'
 import { HttpError, badRequest, conflict, created, isUUID, noContent, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
@@ -288,78 +289,88 @@ function greeting(): string {
 }
 
 async function todaySummary(c: Ctx, sc: Scope, today: string): Promise<Record<string, unknown>[]> {
-  const out: Record<string, unknown>[] = []
+  type Fig = Record<string, unknown>
   /* The office's Today (admissions desk, head, admin) reads as the day's
      traffic: enquiries, admissions, fees in, concerns. The roll count is a
-     standing figure, shown in the overview beneath, so it is left out here. */
+     standing figure, shown in the overview beneath, so it is left out here.
+     Each figure is its own query; all go at once and keep this order. */
   const officeDay = can(c.id, 'admissions.read')
-  if (!officeDay && can(c.id, 'students.read')) {
+  const figures: (() => Promise<Fig[]>)[] = []
+  if (!officeDay && can(c.id, 'students.read')) figures.push(async () => {
     const p = studentPredicate(sc, 'st')
     const total = await count(c, `SELECT count(*) FROM students st WHERE st.id IN (SELECT e.student_id FROM enrollments e WHERE e.status = 'active') AND ${p.sql}`, ...p.args)
-    if (total > 0) out.push({ label: 'Students', value: String(total) })
-  }
-  if (can(c.id, 'academics.attendance.read')) {
+    return total > 0 ? [{ label: 'Students', value: String(total) }] : []
+  })
+  if (can(c.id, 'academics.attendance.read')) figures.push(async () => {
     const p = attendancePredicate(sc, 'sa')
     const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE sa.status IN ('present','late')) AS present, count(*) AS marked
       FROM student_attendance sa WHERE sa.on_date = ? AND ${p.sql}`).bind(today, ...p.args).first<{ present: number; marked: number }>()
     const present = Number(r?.present ?? 0), marked = Number(r?.marked ?? 0)
-    if (marked > 0) out.push({ label: 'Present today', value: `${((present * 100) / marked).toFixed(1)}%`, hint: `${present} of ${marked} marked` })
-  }
-  if (can(c.id, 'academics.timetable.read')) {
+    return marked > 0 ? [{ label: 'Present today', value: `${((present * 100) / marked).toFixed(1)}%`, hint: `${present} of ${marked} marked` }] : []
+  })
+  if (can(c.id, 'academics.timetable.read')) figures.push(async () => {
     const r = await c.db.prepare(`SELECT count(*) AS periods, count(DISTINCT te.section_id) AS sections FROM timetable_entries te
       WHERE te.teacher_user_id = ? AND te.weekday = ?`).bind(c.id.userId, isodow(today)).first<{ periods: number; sections: number }>()
     const periods = Number(r?.periods ?? 0), sections = Number(r?.sections ?? 0)
-    if (periods > 0) out.push({ label: 'Classes today', value: String(periods), hint: `${sections} section${sections !== 1 ? 's' : ''}` })
-  }
-  if (can(c.id, 'academics.attendance.write') && !sc.anySection && sc.sectionIds.length > 0) {
+    return periods > 0 ? [{ label: 'Classes today', value: String(periods), hint: `${sections} section${sections !== 1 ? 's' : ''}` }] : []
+  })
+  if (can(c.id, 'academics.attendance.write') && !sc.anySection && sc.sectionIds.length > 0) figures.push(async () => {
     const marked = await count(c, `SELECT count(DISTINCT sa.section_id) FROM student_attendance sa WHERE sa.on_date = ? AND ${inJSON('sa.section_id')}`,
       today, JSON.stringify(sc.sectionIds))
     const total = sc.sectionIds.length
     const done = marked >= total
-    const s: Record<string, unknown> = { label: 'Registers taken', value: `${marked} of ${total}`, hint: done ? 'All done' : 'Still to mark' }
-    if (done) s.tone = 'good'
-    out.push(s)
-  }
-  if (officeDay) {
-    const n = await count(c, `SELECT count(*) FROM enquiries WHERE ${istDay('created_at')} = ?`, today)
-    out.push({ label: 'New enquiries', value: String(n) })
-    const a = await count(c, `SELECT count(*) FROM applications WHERE status = 'accepted' AND decided_at IS NOT NULL AND ${istDay('decided_at')} = ?`, today)
-    out.push({ label: 'Admissions today', value: String(a), hint: 'Offers accepted' })
-  }
-  if (can(c.id, 'finance.payments.read')) {
+    const f: Fig = { label: 'Registers taken', value: `${marked} of ${total}`, hint: done ? 'All done' : 'Still to mark' }
+    if (done) f.tone = 'good'
+    return [f]
+  })
+  if (officeDay) figures.push(async () => {
+    const [n, a] = await Promise.all([
+      count(c, `SELECT count(*) FROM enquiries WHERE ${istDay('created_at')} = ?`, today),
+      count(c, `SELECT count(*) FROM applications WHERE status = 'accepted' AND decided_at IS NOT NULL AND ${istDay('decided_at')} = ?`, today),
+    ])
+    return [{ label: 'New enquiries', value: String(n) }, { label: 'Admissions today', value: String(a), hint: 'Offers accepted' }]
+  })
+  if (can(c.id, 'finance.payments.read')) figures.push(async () => {
     const collected = await count(c, `SELECT COALESCE(sum(amount_paise), 0) FROM payments WHERE status = 'success' AND paid_on = ?`, today)
-    out.push({ label: 'Collected today', value: rupees(collected) })
-  }
-  if (officeDay && can(c.id, 'office.front_desk.read')) {
+    return [{ label: 'Collected today', value: rupees(collected) }]
+  })
+  if (officeDay && can(c.id, 'office.front_desk.read')) figures.push(async () => {
     const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE status IN ('open','in_progress','waiting')) AS open,
         count(*) FILTER (WHERE ${istDay('created_at')} = ?1) AS fresh FROM support_tickets`).bind(today).first<{ open: number; fresh: number }>()
     const open = Number(r?.open ?? 0), fresh = Number(r?.fresh ?? 0)
-    const st: Record<string, unknown> = { label: 'Concerns', value: String(open), hint: fresh ? `${fresh} new today` : 'Open' }
+    const st: Fig = { label: 'Concerns', value: String(open), hint: fresh ? `${fresh} new today` : 'Open' }
     if (open === 0) st.tone = 'good'
-    out.push(st)
-  }
-  if (can(c.id, 'hr.employees.read')) {
+    return [st]
+  })
+  if (can(c.id, 'hr.employees.read')) figures.push(async () => {
     const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE status IN ('present','late','half_day')) AS present, count(*) AS marked
       FROM staff_attendance WHERE on_date = ?`).bind(today).first<{ present: number; marked: number }>()
     const present = Number(r?.present ?? 0), marked = Number(r?.marked ?? 0)
-    if (marked > 0) out.push({ label: 'Staff present', value: `${((present * 100) / marked).toFixed(0)}%` })
-  }
-  return out
+    return marked > 0 ? [{ label: 'Staff present', value: `${((present * 100) / marked).toFixed(0)}%` }] : []
+  })
+  return (await Promise.all(figures.map((f) => f()))).flat()
 }
 
-async function getAttention(c: Ctx): Promise<Response> {
+/** The body of GET /attention (also part of GET /bootstrap). Every probe and
+    every figure of the day is its own query, independent of the others, so
+    they all go out at once; the order of the result is the probes' order. */
+export async function attentionBody(c: Ctx, role = c.url.searchParams.get('role') ?? ''): Promise<AttentionResponse> {
   const sc = await resolveScope(c)
   const today = indiaToday()
+  const wanted = PROBES.filter((p) => canAny(c, p.needs))
+  let open: Promise<boolean> | null = null
+  const openToday = () => (open ??= schoolOpenToday(c, today))
+  const [results, summary] = await Promise.all([
+    Promise.all(wanted.map(async (p) => {
+      if (p.daily && !(await openToday())) return null
+      return p.run(c, sc, today)
+    })),
+    todaySummary(c, sc, today),
+  ])
   const items: Record<string, unknown>[] = []
-  let openToday: boolean | null = null
-  for (const p of PROBES) {
-    if (!canAny(c, p.needs)) continue
-    if (p.daily) {
-      if (openToday === null) openToday = await schoolOpenToday(c, today)
-      if (!openToday) continue
-    }
-    const res = await p.run(c, sc, today)
-    if (res.count === 0) continue
+  wanted.forEach((p, i) => {
+    const res = results[i]
+    if (!res || res.count === 0) return
     const amount = res.amount ?? 0
     const item: Record<string, unknown> = { key: p.key, severity: p.severity, count: res.count, headline: p.headline(res.count, amount) }
     if (res.detail) item.detail = res.detail
@@ -367,10 +378,13 @@ async function getAttention(c: Ctx): Promise<Response> {
     if (p.href) item.href = p.href
     if (amount) item.amount_paise = amount
     items.push(item)
-  }
-  const summary = await todaySummary(c, sc, today)
+  })
   items.sort((a, b) => SEVERITY_RANK[a.severity as keyof typeof SEVERITY_RANK] - SEVERITY_RANK[b.severity as keyof typeof SEVERITY_RANK])
-  return ok({ role: c.url.searchParams.get('role') ?? '', items, summary, greeting: greeting() })
+  return { role, items: items as unknown as AttentionResponse['items'], summary: summary as unknown as AttentionResponse['summary'], greeting: greeting() }
+}
+
+async function getAttention(c: Ctx): Promise<Response> {
+  return ok(await attentionBody(c))
 }
 
 // ============================================================================

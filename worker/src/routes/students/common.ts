@@ -73,7 +73,8 @@ export const str = (v: unknown): string => (v === null || v === undefined ? '' :
 export const numOrNull = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v))
 export const strOrNull = (v: unknown): string | null => (v === null || v === undefined ? null : String(v))
 /** Client IP for the audit log. */
-export const clientIP = (c: Ctx) => c.req.headers.get('cf-connecting-ip') ?? c.req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+/** The caller's address; behind the Pages proxy origin.ts has already put the visitor's here. X-Forwarded-For is never believed. */
+export const clientIP = (c: Ctx) => c.req.headers.get('cf-connecting-ip')
 
 // --- scope (port of internal/scope) --------------------------------------------
 

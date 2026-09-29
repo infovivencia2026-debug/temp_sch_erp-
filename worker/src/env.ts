@@ -9,6 +9,10 @@ export interface Env {
   /** Live update hubs, one per school (src/services/live.ts). */
   LIVE: DurableObjectNamespace
   CREDENTIAL_KEY?: string
+  /** Shared with the Pages function; see origin.ts. */
+  ORIGIN_SHARED_SECRET?: string
+  /** Identity cache lifetime (idcache.ts); "0" turns it off. */
+  IDENTITY_CACHE_TTL_SECONDS?: string
   SESSION_SECRET?: string
   PASSWORD_PEPPER: string
   SESSION_TTL_SECONDS: string

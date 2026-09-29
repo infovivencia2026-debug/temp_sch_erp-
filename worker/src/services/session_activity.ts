@@ -1,4 +1,5 @@
 import type { Env } from '../env'
+import { TRUSTED_MARK } from '../origin'
 import { institutionById, tenantDb } from '../tenant'
 import { featureOverrides } from '../routes/seller/features'
 
@@ -38,20 +39,18 @@ export async function activitySettings(env: Env, institutionId: string, db: D1Da
 
 /* --- what a request tells us about the visitor ------------------------------ */
 
-/** Cloudflare's own egress for Worker subrequests: the Pages proxy's hop. */
-const viaCloudflareProxy = (ip: string | null) => !!ip && /^2a06:98c[0-7]:/i.test(ip)
-
 /* Behind the Pages proxy (web/functions/[[path]].ts) CF-Connecting-IP and
    request.cf describe the proxy, not the person, so the proxy forwards the
    visitor's address and place as X-Visitor-*. Those are believed only when
-   the request really came from a Cloudflare Worker hop; called directly, the
+   the request carried the origin secret (origin.ts normalizeRequest, which
+   also puts the visitor's address in CF-Connecting-IP); called directly, the
    request's own values are used. Place is approximate (city level at best). */
 export function visitorFacts(req: Request): { ip: string | null; city: string | null; region: string | null; country: string | null } {
   const h = req.headers
   const direct = h.get('cf-connecting-ip')
   const cf = (req as unknown as { cf?: Record<string, unknown> }).cf ?? {}
   const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 80) : null)
-  if (viaCloudflareProxy(direct) && h.get('x-visitor-ip')) {
+  if (h.get(TRUSTED_MARK) === '1' && h.get('x-visitor-ip')) {
     const d = (k: string) => { const v = h.get(k); try { return s(v === null ? null : decodeURIComponent(v)) } catch { return s(v) } }
     return { ip: d('x-visitor-ip'), city: d('x-visitor-city'), region: d('x-visitor-region'), country: d('x-visitor-country') }
   }

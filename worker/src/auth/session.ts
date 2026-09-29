@@ -1,6 +1,7 @@
 import type { Env } from '../env'
 import { now } from '../env'
 import { recordSignIn, recordSignOut } from '../services/session_activity'
+import { forgetSession } from '../idcache'
 
 export const COOKIE = 'erp_session'
 
@@ -49,34 +50,49 @@ export function clearCookie(env: Env): string {
   return cookieHeader(env, '', 0)
 }
 
-function readCookie(req: Request): string | null {
+export function readCookie(req: Request): string | null {
   const m = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`))
   return m ? m[1] : null
 }
 
-/** The live session behind the cookie, or null. Touches last_seen_at at most once a minute. */
-export async function currentSession(env: Env, req: Request): Promise<Session | null> {
-  const token = readCookie(req)
-  if (!token) return null
-  const s = await env.CONTROL.prepare(
+export const tokenHash = sha256hex
+
+/** The statement that finds the live session behind a token hash (batched by identity.ts). */
+export function sessionStmt(env: Env, hash: string): D1PreparedStatement {
+  return env.CONTROL.prepare(
     `SELECT id, institution_id, user_id, via, expires_at, last_seen_at FROM sessions
-      WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?`)
-    .bind(await sha256hex(token), now()).first<Session>()
+      WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?`).bind(hash, now())
+}
+
+/** Applies the idle limit to a session row just read; touches last_seen_at at most once a minute,
+    after the response when an ExecutionContext is at hand (it is not on the request's critical path). */
+export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionContext): Promise<Session | null> {
   if (!s) return null
   const idle = Number(env.SESSION_IDLE_SECONDS) || 86400
   if (Date.now() - Date.parse(s.last_seen_at) > idle * 1000) {
     await env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'idle' WHERE id = ?`).bind(now(), s.id).run()
     await recordSignOut(env, s.id, 'idle', s.institution_id)
+    forgetSession(s.id)
     return null
   }
   if (Date.now() - Date.parse(s.last_seen_at) > 60_000) {
-    await env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ? WHERE id = ?`).bind(now(), s.id).run()
+    const touch = env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ? WHERE id = ?`).bind(now(), s.id).run()
+    if (ctx) ctx.waitUntil(touch.catch(() => undefined)); else await touch
   }
   return s
+}
+
+/** The live session behind the cookie, or null. Touches last_seen_at at most once a minute. */
+export async function currentSession(env: Env, req: Request, ctx?: ExecutionContext): Promise<Session | null> {
+  const token = readCookie(req)
+  if (!token) return null
+  const s = await sessionStmt(env, await sha256hex(token)).first<Session>()
+  return liveSession(env, s, ctx)
 }
 
 export async function revokeSession(env: Env, id: string, reason: string): Promise<void> {
   await env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = ? WHERE id = ? AND revoked_at IS NULL`)
     .bind(now(), reason, id).run()
+  forgetSession(id)
   await recordSignOut(env, id, reason)
 }

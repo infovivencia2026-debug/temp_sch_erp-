@@ -1,5 +1,6 @@
 import type { Ctx, Router } from '../../router'
 import type { Env } from '../../env'
+import { memoFor } from '../../idcache'
 import type { Identity } from '../../identity'
 import { HttpError, badRequest, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { institutionById } from '../../tenant'
@@ -80,17 +81,26 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }
 
+/** The statement reading a school's live (not lapsed) overrides, or all of them (batched by gates.ts). */
+export function overridesStmt(env: Env, institutionId: string, all = false): D1PreparedStatement {
+  return env.CONTROL.prepare(`SELECT feature_id, enabled, ends_at, note, updated_at FROM school_feature_overrides
+      WHERE institution_id = ? ${all ? '' : 'AND (ends_at IS NULL OR ends_at > ?)'}`)
+    .bind(...(all ? [institutionId] : [institutionId, now()]))
+}
+
+export function overridesFromRows(rows: { feature_id: string; enabled: number; ends_at: string | null; note: string; updated_at: string }[]): Map<string, Override> {
+  const out = new Map<string, Override>()
+  for (const r of rows) out.set(r.feature_id, { enabled: !!r.enabled, ends_at: r.ends_at, note: r.note, updated_at: r.updated_at })
+  return out
+}
+
 /** The school's live (not lapsed) overrides. Empty until the change file is applied. */
 export async function featureOverrides(env: Env, institutionId: string, all = false): Promise<Map<string, Override>> {
-  const out = new Map<string, Override>()
   try {
-    const rows = await env.CONTROL.prepare(`SELECT feature_id, enabled, ends_at, note, updated_at FROM school_feature_overrides
-        WHERE institution_id = ? ${all ? '' : 'AND (ends_at IS NULL OR ends_at > ?)'}`)
-      .bind(...(all ? [institutionId] : [institutionId, now()]))
+    const rows = await overridesStmt(env, institutionId, all)
       .all<{ feature_id: string; enabled: number; ends_at: string | null; note: string; updated_at: string }>()
-    for (const r of rows.results) out.set(r.feature_id, { enabled: !!r.enabled, ends_at: r.ends_at, note: r.note, updated_at: r.updated_at })
-  } catch { /* table not there yet */ }
-  return out
+    return overridesFromRows(rows.results)
+  } catch { return new Map() /* table not there yet */ }
 }
 
 const planAllows = (ent: Entitlement, module: string) => module === 'core' || ent.all || ent.modules.has(module)
@@ -115,7 +125,8 @@ export async function featureGate(env: Env, id: Identity, path: string, known?: 
   let hit: string[] | null = null
   for (const [p, fs] of prefixes()) if (path === p || path.startsWith(p + '/')) { hit = fs; break }
   if (!hit) return
-  const [ov, ent] = await Promise.all([featureOverrides(env, id.institution.id), known ?? entitlementFor({ env, id } as unknown as Ctx)])
+  const inst = id.institution.id
+  const [ov, ent] = await Promise.all([memoFor(id, 'overrides', () => featureOverrides(env, inst)), known ?? entitlementFor({ env, id } as unknown as Ctx)])
   let byPlan = false
   for (const f of hit) {
     const o = ov.get(f)
