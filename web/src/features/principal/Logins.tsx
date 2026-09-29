@@ -261,6 +261,15 @@ export default function Logins() {
           })}
         </div>
 
+        {/* THE WORK FIRST, THE NUMBERS AFTER.
+
+            Somebody opens this tab to give a class their logins. Four tiles
+            counting accounts, then a policy switch, then the roll, is three
+            screens of scrolling before the thing they came to do -- and on a
+            tab whose answer is usually "nobody has one yet", the tiles all read
+            zero and the roll is the only part worth reading. */}
+        {record === 'student' && <RosterLogins kind="students" />}
+        {record === 'guardian' && <RosterLogins kind="guardians" />}
         <CellGrid cols={4}>
           <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
           <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${users.length - active} cannot`} />
@@ -306,13 +315,14 @@ export default function Logins() {
         {/* The roll first. A school whose children have no logins yet has
             nothing to act on in a list of accounts, and that is the school
             that needs this screen. */}
-        {record === 'student' && <RosterLogins kind="students" />}
-        {record === 'guardian' && <RosterLogins kind="guardians" />}
         {record === 'student' && <IssueOneCard kind="students" />}
         {record === 'guardian' && <IssueOneCard kind="guardians" />}
-        {record === 'student' && <StudentLoginsCard />}
+        {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
-        {record === 'guardian' && <IssueLoginsCard kind="guardians" />}
+        {/* The parents' bulk card is gone: the roll above it has the same
+            class-and-section filter and issues from the row, so this was a
+            second way to do one thing, with its own answer about who was
+            covered. Staff keep theirs -- they have no roll to stand on. */}
         {record === 'staff' && <IssueOneStaffCard />}
         {record === 'staff' && <IssueLoginsCard kind="staff" />}
 
@@ -454,14 +464,19 @@ export default function Logins() {
                     >
                       <KeyRound className="h-3.5 w-3.5" /> Reset password
                     </ConfirmButton>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      title="Change roles"
-                      onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" /> Roles
-                    </Button>
+                    {/* A child has one role and a parent has one role, and neither
+                        is a thing the office changes from here. The button opened a
+                        drawer of permission switches over somebody who has none. */}
+                    {!simple && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Change roles"
+                        onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Roles
+                      </Button>
+                    )}
                     {u.status === 'active' ? (
                       /* Deactivating signs the person out of every device in
                          the same transaction on the server. It is still a real

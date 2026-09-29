@@ -92,7 +92,11 @@ export function printSlips(rows: Row[], title: string) {
   w.print()
 }
 
-export function StudentLoginsCard() {
+/* policyOnly: the class picker below is a second copy of the one on the roll
+   above this card, and two filters on one tab are two answers to "who did I
+   just give logins to". What only this card does -- whether children may
+   have a login at all, and from which class up -- stays either way. */
+export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean }) {
   const qc = useQueryClient()
   const policy = useQuery({ queryKey: ['student-logins'], queryFn: () => api.get<Policy>('/api/v1/admin/student-logins') })
   const sections = useQuery({ queryKey: ['academics-sections'], queryFn: () => api.get<{ items: Section[] }>('/api/v1/academics/sections') })
@@ -201,7 +205,7 @@ export function StudentLoginsCard() {
         </div>
         <FormNotice error={save.error} />
 
-        {p.enabled && (
+        {p.enabled && !policyOnly && (
           <div className="space-y-3 border-t pt-4">
             <p className="font-medium">Issue logins for a class or section</p>
             <p className="text-muted-foreground">
@@ -224,7 +228,7 @@ export function StudentLoginsCard() {
           </div>
         )}
 
-        {result && (
+        {result && !policyOnly && (
           <div className="space-y-3 border-t pt-4">
             <p>
               <strong>{result.created}</strong> issued, {result.existing} already had one{result.skipped ? `, ${result.skipped} skipped` : ''}. {result.note}
