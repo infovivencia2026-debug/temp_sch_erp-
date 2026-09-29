@@ -888,6 +888,16 @@ export function registerStaff(r: Router): void {
         continue
       }
       if (p.user_id) {
+        /* Issued by default and not yet used: the child still has the first
+           password, their admission number, so the slip can show it. */
+        if (kind === 'students' && p.admission_no) {
+          const u = await c.db.prepare(`SELECT must_change_password AS m FROM users WHERE id = ?`).bind(p.user_id).first<{ m: number }>()
+          if (u && Number(u.m) === 1) {
+            out.created++
+            out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), password: studentFirstPassword(p.admission_no).password, existing: false })
+            continue
+          }
+        }
         out.existing++
         out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), existing: true })
         continue
