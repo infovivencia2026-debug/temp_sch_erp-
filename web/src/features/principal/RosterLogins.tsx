@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Printer, RotateCcw } from 'lucide-react'
+import { Copy, KeyRound, MessageCircle, Printer, RotateCcw, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
@@ -219,6 +219,13 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
     roll_no: r.child.roll_no,
   }))
 
+  /* Only those whose password this sitting actually produced: resetting is what
+     yields one, and a row that merely already had a login has nothing to show. */
+  const justIssued = rows.filter((r) => issued[r.id]?.password)
+
+  const initials = (name: string) =>
+    name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+
   const act = (reset: boolean) => {
     const ids = (chosen.length ? chosen : []).map((r) => r.id)
     if (!ids.length) return
@@ -319,25 +326,119 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
           them and the thing cannot be asked for again -- so the ones issued in
           this sitting are also gathered here, at the top, until the page is
           left. */}
-      {Object.keys(issued).length > 0 && (
-        <div className="mx-[var(--card-pad)] mt-4 rounded-lg border border-success/40 bg-success/5 p-4">
-          <p className="text-[14px] font-medium">
-            {Object.keys(issued).length} password{Object.keys(issued).length === 1 ? '' : 's'} issued just now
-          </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Shown once and never again. Print the slips or download the list before you leave this page.
-          </p>
-          <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
-            {rows
-              .filter((r) => issued[r.id]?.password)
-              .map((r) => (
-                <div key={r.id} className="flex items-baseline justify-between gap-3 rounded-md bg-card px-3 py-1.5">
-                  <span className="truncate text-[13px]">{r.name}</span>
-                  <span className="whitespace-nowrap font-mono text-[13px]">
-                    {issued[r.id].signIn || r.signIn} · {issued[r.id].password}
-                  </span>
+      {/* WHAT WAS JUST HANDED OUT.
+
+          A password is shown once and cannot be asked for again, so this is the
+          only moment it exists anywhere a person can read it. It is drawn as a
+          card per person rather than a line of text because the office does one
+          of four things with it -- copies it, prints it, sends it, or writes it
+          on a slip -- and each of those wants the two values apart and labelled,
+          not run together where the sign-in name and the password are the same
+          ten digits. */}
+      {justIssued.length > 0 && (
+        <div className="mx-[var(--card-pad)] mt-4 rounded-2xl border border-success/40 bg-success/5 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-success text-success-foreground">
+                <KeyRound className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-[14px] font-semibold">
+                    {justIssued.length} password{justIssued.length === 1 ? '' : 's'} issued just now
+                  </h3>
+                  <Badge tone="warning">Shown once only</Badge>
                 </div>
-              ))}
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
+                  These will not be shown again once you leave this page. Copy, send, print or download them now.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+              <Button variant="secondary" onClick={() => printSlips(sheet, kind === 'students' ? 'Student logins' : 'Parent logins')}>
+                <Printer className="h-3.5 w-3.5" />
+                Print slips
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => downloadLogins(sheet, kind === 'students' ? 'student-logins' : 'parent-logins', kind)}
+              >
+                Download
+              </Button>
+              <Button variant="ghost" onClick={() => setIssued({})} title="Dismiss">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {justIssued.map((r) => {
+              const got = issued[r.id]
+              const signIn = got.signIn || r.signIn
+              return (
+                <div
+                  key={r.id}
+                  className="flex flex-col gap-3 rounded-xl border border-success/30 bg-card p-3 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border bg-surface-sunken text-[11px] font-semibold text-muted-foreground">
+                      {initials(r.name)}
+                    </span>
+                    <div>
+                      <div className="text-[13.5px] font-semibold">{r.name}</div>
+                      <div className="text-[11.5px] text-muted-foreground">{r.under} · {r.context}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-5">
+                    <div>
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Username
+                      </span>
+                      <span className="font-mono text-[13px] font-medium">{signIn}</span>
+                    </div>
+                    <span className="hidden h-6 w-px bg-border sm:block" />
+                    <div>
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        First password
+                      </span>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="rounded border border-success/40 bg-success/10 px-2 py-0.5 font-mono text-[13px] font-semibold">
+                          {got.password}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Copy the password"
+                          onClick={() => { void navigator.clipboard?.writeText(got.password).catch(() => {}) }}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* wa.me opens the person's own WhatsApp with the message
+                      written; nothing is sent from here, and nothing is stored. */}
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const text = `${r.name}, your login for the school app:
+Username: ${signIn}
+Password: ${got.password}
+You will choose your own password the first time.`
+                        window.open('https://wa.me/' + (r.code || '').replace(/\D/g, '') + '?text=' + encodeURIComponent(text), '_blank')
+                      }}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
