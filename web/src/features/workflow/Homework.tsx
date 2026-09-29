@@ -24,6 +24,9 @@ import { useDebouncedValue } from '@/lib/debounce'
    field, and a second screen would be the same list with a different heading
    drifting slowly out of sync. */
 
+/** A row's identity: the task, and for a family reader the child it is for. */
+const rowKey = (h: { id: string; student_id?: string }) => (h.student_id ? `${h.id}:${h.student_id}` : h.id)
+
 interface Homework {
   id: string
   title: string
@@ -43,6 +46,10 @@ interface Homework {
   files?: { file_id: string; name: string; content_type?: string; size_bytes?: number }[]
   my_answer?: string
   my_file_id?: string
+  /* Whose row this is, for a student or a family reader: the server sends
+     one row per child, so siblings' homework is never merged. */
+  student_id?: string
+  student_name?: string
   my_file_name?: string
 }
 
@@ -153,7 +160,8 @@ export default function Homework() {
   const [attached, setAttached] = useState<UploadedFile | null>(null)
 
   const submit = useMutation({
-    mutationFn: (id: string) => api.post(`/api/v1/homework/${id}/submit`, {
+    mutationFn: (h: Homework) => api.post(`/api/v1/homework/${h.id}/submit`, {
+      student_id: h.student_id,
       text_answer: answer.trim() || undefined,
       file_id: attached?.file_id,
     }),
@@ -172,6 +180,8 @@ export default function Homework() {
   if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   const items = data?.items ?? []
+  /* More than one child on the list: name the child on every row. */
+  const manyChildren = new Set(items.map((h) => h.student_id).filter(Boolean)).size > 1
 
   const due = items.filter((h) => !h.overdue)
   const mineOutstanding = items.filter((h) => !h.submitted && !h.overdue).length
@@ -252,7 +262,7 @@ export default function Homework() {
               <ul className="space-y-3 p-4">
                 {(showAll ? items : items.slice(0, 6)).map((h) => (
                   <li
-                    key={h.id}
+                    key={rowKey(h)}
                     className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
                   >
                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -266,6 +276,11 @@ export default function Homework() {
                           </span>
                         )}
                         <span className="text-[15px] font-semibold">{h.title}</span>
+                        {manyChildren && h.student_name && (
+                          <span className="rounded-md bg-accent px-2 py-0.5 text-[12px] font-semibold text-foreground">
+                            {h.student_name}
+                          </span>
+                        )}
                       </div>
                       {h.instructions && (
                         <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>
@@ -346,13 +361,13 @@ export default function Homework() {
                           <Button
                             size="sm"
                             onClick={() => {
-                              setAnswering(answering === h.id ? null : h.id)
+                              setAnswering(answering === rowKey(h) ? null : rowKey(h))
                               setAnswer('')
                               setAttached(null)
                             }}
                           >
                             <Send className="h-3.5 w-3.5" />
-                            {answering === h.id ? 'Close' : 'Done'}
+                            {answering === rowKey(h) ? 'Close' : 'Done'}
                           </Button>
                         </span>
                       )}
@@ -362,9 +377,9 @@ export default function Homework() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => setViewing(viewing === h.id ? null : h.id)}
+                        onClick={() => setViewing(viewing === rowKey(h) ? null : rowKey(h))}
                       >
-                        {viewing === h.id
+                        {viewing === rowKey(h)
                           ? 'Close'
                           : canPublish ? 'View submissions' : 'Open'}
                       </Button>
@@ -423,7 +438,7 @@ export default function Homework() {
                         pressed a button and the system recorded that they had
                         pressed it — nothing they wrote, nothing they photographed,
                         nothing a teacher could mark. */}
-                    {answering === h.id && (
+                    {answering === rowKey(h) && (
                       <div className="mt-3 border-t pt-4">
                         <label className="flex flex-col gap-1.5 text-[13px]">
                           <span className="text-muted-foreground">Your answer</span>
@@ -447,7 +462,7 @@ export default function Homework() {
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <Button
                             disabled={submit.isPending || (!answer.trim() && !attached)}
-                            onClick={() => submit.mutate(h.id)}
+                            onClick={() => submit.mutate(h)}
                           >
                             {submit.isPending ? 'Turning in…' : 'Turn it in'}
                           </Button>
@@ -489,7 +504,7 @@ export default function Homework() {
                 in without going back for it. Escape closes it and the page
                 behind is scroll-locked, so a phone does not lose its place. */}
             {viewing && (() => {
-              const h = items.find((x) => x.id === viewing)
+              const h = items.find((x) => rowKey(x) === viewing)
               if (!h) return null
               return (
                 <HomeworkSheet
@@ -503,7 +518,7 @@ export default function Homework() {
                   onAnswer={setAnswer}
                   attached={attached}
                   onAttach={setAttached}
-                  onSubmit={() => submit.mutate(h.id)}
+                  onSubmit={() => submit.mutate(h)}
                   onClose={() => setViewing(null)}
                 />
               )
@@ -682,6 +697,7 @@ function HomeworkSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
           <p className="text-[18px] font-medium leading-snug">{h.title}</p>
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13.5px] text-muted-foreground">
+            {h.student_name && <span className="font-medium text-foreground">For {h.student_name}</span>}
             {h.subject && <span>{h.subject}</span>}
             {h.class_name && (
               <span>
