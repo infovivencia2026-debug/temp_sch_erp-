@@ -156,18 +156,39 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         child: ch,
       }))
     }
-    return children.flatMap((ch) =>
-      ch.guardians.map((g) => ({
-        id: g.id,
-        name: g.full_name,
-        under: g.relation || 'guardian',
-        code: g.phone,
-        signIn: g.sign_in_as || g.phone,
-        hasLogin: g.has_login,
-        context: ch.name + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-'),
-        child: ch,
-      })),
-    )
+    /* ONE ROW PER PARENT, NOT ONE PER CHILD OF THEIRS.
+
+       A mother with two children in the school appeared twice, and both rows
+       carried her guardian id -- so React had two children with the same key
+       and reused the wrong one whenever the list was filtered: search for a
+       name and rows for other people stayed on screen. It was also two rows
+       offering to issue one login, and one login is all she gets: it reaches
+       every child she is guardian of.
+
+       So the guardians are merged, and the children gather into the column
+       that names them. */
+    const seen = new Map<string, Row>()
+    for (const ch of children) {
+      const where = ch.name + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-')
+      for (const g of ch.guardians) {
+        const had = seen.get(g.id)
+        if (had) {
+          had.context += '; ' + where
+          continue
+        }
+        seen.set(g.id, {
+          id: g.id,
+          name: g.full_name,
+          under: g.relation || 'guardian',
+          code: g.phone,
+          signIn: g.sign_in_as || g.phone,
+          hasLogin: g.has_login,
+          context: where,
+          child: ch,
+        })
+      }
+    }
+    return [...seen.values()]
   }, [children, kind])
 
   const shown = rows.filter((r) => {
@@ -330,7 +351,11 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
              read out loud. */
           '',
           kind === 'students' ? 'Child' : 'Parent',
-          kind === 'students' ? 'Admission no' : 'Phone',
+          /* A parent's phone, their sign-in name and their first password are
+             the same ten digits, so three columns of it made the password
+             invisible -- it read as the number repeated. The child keeps an
+             admission number column, because for a child they differ. */
+          ...(kind === 'students' ? ['Admission no'] : []),
           'Signs in as',
           'Password',
           kind === 'students' ? 'Guardians' : 'Child',
@@ -365,7 +390,9 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
                 <div className="font-medium">{r.name}</div>
                 <div className="text-[12px] text-muted-foreground">{r.under}</div>
               </Td>
-              <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
+              {kind === 'students' && (
+                <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
+              )}
               <Td className="font-mono text-[12.5px]">{got?.signIn || r.signIn || '—'}</Td>
               <Td>
                 {got?.password ? (
