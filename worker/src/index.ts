@@ -10,7 +10,7 @@ import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
 import { identityFrom, can } from './identity'
 import { errorResponse, forbidden, unauthorized } from './http'
-import { tenantDb } from './tenant'
+import { tenantSession, type TenantSession } from './tenant'
 import { handleSMSGatewayDevice } from './routes/comms/sms_gateway'
 import { handleBusTrackerDevice } from './routes/scheduling/bus_tracker'
 import { handlePublic } from './routes/comms/public'
@@ -85,10 +85,11 @@ export default {
         groupGate(id, pathname)
         passwordGate(id, m, pathname)
         await subscriptionGate(env, id, pathname)
-        let db: D1Database | null = null
+        // The school's database opens lazily, in a D1 Session (tenant.ts tenantSession: replicas + bookmark).
+        let tx: TenantSession | null = null
         let watch: ReturnType<typeof watchAuthWrites> | null = null
         const ctx = { req, env, url, params: hit.params, id,
-          get db() { if (!db) { if (!id.institution) throw forbidden('no school in scope'); watch = watchAuthWrites(tenantDb(env, id.institution)); db = watch.db } return db } }
+          get db() { if (!tx) { if (!id.institution) throw forbidden('no school in scope'); tx = tenantSession(env, id.institution, req); watch = watchAuthWrites(tx.db) } return watch!.db } }
         // Go's Idempotent middleware sits after the gates, around the handler.
         const res = await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })
         if (res.status >= 500 && res.status !== 501) await recordServerError(env, schoolId, pathname)
@@ -99,7 +100,7 @@ export default {
           if (w?.dirty() && id.institution) await bumpVersion(env, id.institution.id)
           if (id.platformAdmin) await bumpVersion(env, PLATFORM_SCOPE)
         }
-        return res
+        return (tx as TenantSession | null)?.finish(res) ?? res
       }
       if (pathname.startsWith('/api/')) return json({ error: 'not ported to Workers yet', path: pathname }, 501)
       return new Response('Not Found', { status: 404 })
