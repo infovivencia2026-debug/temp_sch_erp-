@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
-import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
+import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
 import { can } from '../../identity'
 import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
 import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
@@ -911,7 +911,12 @@ export function registerStaff(r: Router): void {
     const q = c.url.searchParams
     const section = isUUID(trim(q.get('section_id'))) ? trim(q.get('section_id')) : null
     const classId = isUUID(trim(q.get('class_id'))) ? trim(q.get('class_id')) : null
-    if (!section && !classId) throw badRequest('choose a class or a section')
+    /* NO CLASS CHOSEN MEANS THE WHOLE SCHOOL.
+       The office opening this screen wants to see who cannot sign in, and
+       making them pick a class first hides the answer behind a question
+       they do not have yet. Capped, because a roll of four hundred with
+       their guardians is a page of data and not a thing to read anyway. */
+    const cap = clampInt(c.url.searchParams.get('limit'), 500, 1, 2000)
 
     const usable = `(u.password_hash IS NOT NULL AND u.status = 'active')`
     const rows = await c.db.prepare(`
@@ -925,8 +930,9 @@ export function registerStaff(r: Router): void {
         LEFT JOIN sections sec ON sec.id = e.section_id
         LEFT JOIN users su ON su.id = st.user_id
        WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?) AND (? IS NULL OR e.class_id = ?)
-       ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`)
-      .bind(section, section, classId, classId).all<Record<string, unknown>>()
+       ORDER BY cl.name, sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no
+       LIMIT ?`)
+      .bind(section, section, classId, classId, cap).all<Record<string, unknown>>()
 
     const ids = rows.results.map((r) => String(r.id))
     /* One query for every guardian in the class rather than one per child:

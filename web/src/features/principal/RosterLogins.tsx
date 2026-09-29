@@ -64,13 +64,16 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   })
 
   const [scope, id] = target.split(':')
+  /* Everybody, until a class is chosen. The office opens this to find out who
+     cannot sign in; asking them to pick a class first hides the answer behind
+     a question they have not got yet. */
   const roster = useQuery({
     queryKey: ['login-roster', target],
     queryFn: () =>
       api.get<{ items: Child[] }>(
-        '/api/v1/setup/logins/roster?' + (scope === 'class' ? 'class_id=' : 'section_id=') + id,
+        '/api/v1/setup/logins/roster' +
+          (target ? '?' + (scope === 'class' ? 'class_id=' : 'section_id=') + id : ''),
       ),
-    enabled: !!target,
   })
 
   const issue = useMutation({
@@ -175,10 +178,10 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
       <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
         <div className="w-72">
           <Field label="Class or section">
-            <Select value={target} onChange={setTarget} options={targets} placeholder="Choose…" />
+            <Select value={target} onChange={setTarget} options={targets} placeholder="Every class" />
           </Field>
         </div>
-        {target && !roster.isLoading && (
+        {!roster.isLoading && (
           <p className="text-muted-foreground">
             {children.length} {kind === 'students' ? 'on the roll' : 'families'}; {without}{' '}
             {kind === 'students' ? 'cannot sign in yet' : 'guardians cannot sign in yet'}.
@@ -186,7 +189,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         )}
         <FormNotice error={issue.error ?? roster.error} />
 
-        {target && kind === 'students' && (
+        {kind === 'students' && (
           <Table
             head={['Roll', 'Child', 'Admission no', 'Sign in as', 'Password', '']}
             loading={roster.isLoading}
@@ -225,7 +228,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
           </Table>
         )}
 
-        {target && kind === 'guardians' && (
+        {kind === 'guardians' && (
           <Table
             head={['Child', 'Parent', 'Relation', 'Sign in as', 'Password', '']}
             loading={roster.isLoading}

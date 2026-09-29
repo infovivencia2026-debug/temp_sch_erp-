@@ -283,6 +283,35 @@ export function registerProfile(r: Router): void {
     }
     let short = trim(req.short_name)
     if (short === '') short = deriveShortName(name)
+
+    /* THE FOUR LETTERS A STAFF LOGIN ENDS IN.
+
+       One ERP serves many schools and every identifier is looked up across all
+       of them at once, so a staff number unique in one building is not unique
+       enough. 9840010005.JSMH says whose staff they are.
+
+       Checked against CONTROL, where the schools meet: uniqueness inside one
+       school's own database would be no check at all, since the collision it
+       has to prevent is with a different school. Left alone when not sent, so
+       saving the rest of this form cannot quietly drop it. */
+    const codeRaw = trim(req.school_code ?? '')
+    let school_code: string | null | undefined = undefined
+    if (req.school_code !== undefined) {
+      school_code = codeRaw === '' ? null : codeRaw.toUpperCase()
+      if (school_code !== null) {
+        if (!/^[A-Z]{4}$/.test(school_code)) {
+          throw badRequest('the school code is four letters, A to Z, and nothing else. It is read down a telephone')
+        }
+        const taken = await c.env.CONTROL.prepare(
+          `SELECT name FROM institutions WHERE UPPER(COALESCE(school_code, '')) = ? AND id <> ? LIMIT 1`)
+          .bind(school_code, instId(c)).first<{ name: string }>()
+        if (taken) throw badRequest('the code ' + school_code + ' already belongs to ' + taken.name)
+      }
+      await c.db.prepare('UPDATE institutions SET school_code = ?, updated_at = ? WHERE id = ?')
+        .bind(school_code, now(), instId(c)).run()
+      await c.env.CONTROL.prepare('UPDATE institutions SET school_code = ? WHERE id = ?')
+        .bind(school_code, instId(c)).run().catch(() => {})
+    }
     // institutions_touch trigger: updated_at is stamped here.
     await c.db.prepare(`UPDATE institutions SET name = ?, short_name = ?, udise_code = ?, affiliation_board = ?, affiliation_no = ?,
         state = ?, district = ?, mandal = ?, village_or_ward = ?, school_category = ?, management_type = ?, child_info_code = ?,
@@ -291,7 +320,7 @@ export function registerProfile(r: Router): void {
         nullStr(trim(req.state)), nullStr(trim(req.district)), nullStr(trim(req.mandal)), nullStr(trim(req.village_or_ward)),
         nullStr(trim(req.school_category)), nullStr(trim(req.management_type)), nullStr(trim(req.child_info_code)),
         req.mid_day_meal === true ? 1 : 0, now(), instId(c)).run()
-    return ok({ name, short_name: short })
+    return ok({ name, short_name: short, school_code })
   })
 
   r.get('/setup/payments', 'institution.read', async (c) => {
