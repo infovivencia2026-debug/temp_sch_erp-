@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Clock, Lock, PlayCircle } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -7,6 +8,8 @@ import {
   FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, ProgressRing, SECTIONS, SECTION_LABEL, dateRange, fmtWhen, sourceMeta,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
+import { DoneCheck, confetti, rememberPlace } from '../portal/student-kit'
+import { StudentQuiz } from './StudentQuiz'
 
 /* THE CHILD'S COURSES (worker routes/portal/lms.ts).
 
@@ -39,10 +42,13 @@ interface Todo {
   lessons: { id: string; title: string; subject: string; class_subject_id: string; unit: string }[]
 }
 
+/* The course, day and item open are in the address (?cs=&day=&item=), so the
+   home's Continue button, Back, and a reload all land in the same place. */
 export default function StudentCourses() {
-  const [open, setOpen] = useState<string | null>(null)
-  if (open) return <Course cs={open} back={() => setOpen(null)} />
-  return <List onOpen={setOpen} />
+  const [params, setParams] = useSearchParams()
+  const open = params.get('cs')
+  if (open) return <Course key={open} cs={open} initial={{ day: params.get('day'), item: params.get('item') }} back={() => setParams({})} />
+  return <List onOpen={(cs) => setParams({ cs })} />
 }
 
 function List({ onOpen }: { onOpen: (cs: string) => void }) {
@@ -124,11 +130,12 @@ function DayMark({ d, size = 40 }: { d: SDay; size?: number }) {
   return <ProgressRing pct={d.total ? Math.round((100 * d.done) / d.total) : 0} size={size} label={`${d.done} of ${d.total} done`} />
 }
 
-function Course({ cs, back }: { cs: string; back: () => void }) {
+function Course({ cs, back, initial }: { cs: string; back: () => void; initial: { day: string | null; item: string | null } }) {
   const qc = useQueryClient()
   const key = ['my-course', cs]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<Detail>(`/api/v1/portal/lms/course?class_subject_id=${cs}`) })
-  const [where, setWhere] = useState<{ day: string | null; item: string | null }>({ day: null, item: null })
+  const [where, setWhere] = useState<{ day: string | null; item: string | null }>(initial)
+  const [, setParams] = useSearchParams()
   const [expanded, setExpanded] = useState<string | null>(null)
   const [quiz, setQuiz] = useState<string | null>(null)
   const top = useRef<HTMLDivElement>(null)
@@ -139,7 +146,23 @@ function Course({ cs, back }: { cs: string; back: () => void }) {
   }, [where.day, where.item, quiz])
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['my-courses'] }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }) }
   const d = q.data
-  if (quiz) return <div ref={top}><TakeQuiz id={quiz} back={() => { setQuiz(null); refresh() }} /></div>
+  /* Keep the address and the device's "where I left off" on this place. */
+  useEffect(() => {
+    const p = new URLSearchParams({ cs })
+    if (where.day) p.set('day', where.day)
+    if (where.item) p.set('item', where.item)
+    setParams(p, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cs, where.day, where.item])
+  useEffect(() => {
+    if (!d) return
+    const [ty, iid] = (where.item ?? ':').split(':')
+    const title = ty === 'lesson' ? d.modules.flatMap((m) => m.days.flatMap((x) => x.items)).find((x) => x.id === iid)?.lesson?.title
+      : ty === 'quiz' ? d.quizzes.find((z) => z.id === iid)?.title : ty === 'assignment' ? d.assignments.find((a) => a.id === iid)?.title : undefined
+    const dayName = where.day ? d.modules.flatMap((m) => m.days).find((x) => x.key === where.day)?.name : undefined
+    rememberPlace({ cs, day: where.day, item: where.item, subject: d.course.subject, title: title ?? dayName ?? d.resume?.title ?? d.course.subject })
+  }, [cs, d, where.day, where.item])
+  if (quiz) return <div ref={top}><StudentQuiz id={quiz} back={() => { setQuiz(null); refresh() }} /></div>
 
   const modules = d?.modules ?? []
   const tops = modules.filter((m) => !m.parent_unit_id || !modules.some((x) => x.id === m.parent_unit_id))
@@ -364,7 +387,39 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
   const prev = [...stops.slice(0, idx)].reverse().find(openable) ?? null
   const next = stops.slice(idx + 1).find(openable) ?? null
   const l = it.type === 'lesson' ? it.lesson ?? null : null
-  const done = useMutation({ mutationFn: (v: boolean) => api.post(`/api/v1/portal/lms/lessons/${l!.id}/complete`, { done: v }), onSuccess: refresh })
+  const qc = useQueryClient()
+  const [pop, setPop] = useState(false)
+  const btn = useRef<HTMLDivElement>(null)
+  /* Optimistic: the tick, the day's ring and the counts move the moment it
+     is tapped; the server's answer then settles them (or rolls them back). */
+  const done = useMutation({
+    mutationFn: (v: boolean) => api.post(`/api/v1/portal/lms/lessons/${l!.id}/complete`, { done: v }),
+    onMutate: async (v: boolean) => {
+      await qc.cancelQueries({ queryKey: qkey })
+      const before = qc.getQueryData<Detail>(qkey)
+      let finished = false
+      qc.setQueryData<Detail>(qkey, (dd) => dd && {
+        ...dd,
+        modules: dd.modules.map((m) => ({
+          ...m,
+          days: m.days.map((day) => {
+            const hit = day.items.find((x) => x.type === 'lesson' && x.id === l!.id)
+            if (!hit || hit.done === v) return day
+            const items = day.items.map((x) => (x === hit ? { ...x, done: v, lesson: x.lesson ? { ...x.lesson, done: v } : x.lesson } : x))
+            const counted = hit.required || day.total === day.items.length
+            const n = Math.max(0, Math.min(day.total, day.done + (counted ? (v ? 1 : -1) : 0)))
+            const state = day.state === 'locked' ? day.state : n >= day.total && day.total > 0 ? 'done' as const : 'open' as const
+            if (state === 'done' && day.state !== 'done') finished = true
+            return { ...day, items, done: n, state }
+          }),
+        })),
+      })
+      if (v) { setPop(true); if (finished) confetti(btn.current) }
+      return { before }
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.before) qc.setQueryData(qkey, ctx.before) },
+    onSettled: refresh,
+  })
   useEffect(() => {
     if (!l || it.locked) return
     fetch(`/api/v1/portal/lms/lessons/${l.id}/view`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
@@ -406,11 +461,18 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
             )}
           </div>
           {l && (
-            <div className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
+            <div ref={btn} className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
               {autoVideo && !l.done ? <p className="text-[13px] text-muted-foreground">This is marked done by itself when you have watched 90% of the video.</p> : (
-                <Button variant={l.done ? 'secondary' : 'primary'} pending={done.isPending} onClick={() => done.mutate(!l.done)}>
-                  {l.done ? <><Check className="h-4 w-4" /> Done · undo</> : 'Mark as done'}
-                </Button>
+                l.done ? (
+                  <span className="inline-flex items-center gap-3">
+                    <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-success"><DoneCheck done pop={pop} size={32} /> Done!</span>
+                    <Button variant="ghost" size="sm" onClick={() => { setPop(false); done.mutate(false) }}>Undo</Button>
+                  </span>
+                ) : (
+                  <Button className="min-h-[48px] px-6 text-[15px]" onClick={() => done.mutate(true)}>
+                    <Check className="h-5 w-5" /> Mark as done
+                  </Button>
+                )
               )}
               <FormNotice error={done.error} />
             </div>
@@ -448,10 +510,11 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
   const [text, setText] = useState(a.text_answer ?? '')
   const [file, setFile] = useState<{ id: string; name: string } | null>(null)
   const [open, setOpen] = useState(false)
+  const [sent, setSent] = useState('')
   const canHandIn = a.allow_submission && a.status !== 'graded'
   const submit = useMutation({
     mutationFn: () => api.post<{ late: boolean }>(`/api/v1/portal/lms/assignments/${a.id}/submit`, { text_answer: text, file_id: file?.id ?? a.file_id ?? undefined }),
-    onSuccess: () => { setOpen(false); qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }) },
+    onSuccess: (r) => { setOpen(false); setSent(r.late ? 'Handed in (late). Your teacher will see it.' : 'Handed in! Your teacher will see it.'); qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }); qc.invalidateQueries({ queryKey: ['portal-student-homework'] }) },
   })
   const handed = !!a.submitted_at && a.status !== 'resubmit'
   return (
@@ -465,6 +528,7 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
               : a.overdue ? <Badge tone="danger">Overdue</Badge> : a.allow_submission ? <Badge tone="warning">To hand in</Badge> : <Badge>In your notebook</Badge>}
         {canHandIn && <Button size="sm" variant="secondary" className="ml-auto" onClick={() => setOpen(!open)}>{open ? 'Close' : handed ? 'Change what I handed in' : 'Hand in'}</Button>}
       </div>
+      {sent && <p role="status" className="flex items-center gap-2 rounded-xl bg-[color-mix(in_oklab,#10b981_12%,transparent)] px-3 py-2 font-medium text-[#065f46] dark:text-[#6ee7b7]"><DoneCheck done pop size={24} /> {sent}</p>}
       {a.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{a.instructions}</p>}
       {a.files.map((f) => <a key={f.file_id} href={`/api/v1/files/${f.file_id}`} target="_blank" rel="noreferrer" className="mr-3 text-primary hover:underline">{f.name}</a>)}
       {a.returned_at && (a.feedback || a.rubric_scores) && (
@@ -476,7 +540,10 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
       {open && (
         <div className="space-y-2">
           <Field label="Your answer"><Textarea rows={5} value={text} onChange={setText} /></Field>
-          <FilePick purpose="homework_submission" onDone={setFile} label={a.file_id ? 'Replace the file' : 'Attach a file'} />
+          <span className="flex flex-wrap gap-2">
+            <FilePick purpose="homework_submission" onDone={setFile} label="Take a photo" accept="image/*" capture />
+            <FilePick purpose="homework_submission" onDone={setFile} label={a.file_id ? 'Replace the file' : 'Attach a file'} />
+          </span>
           {a.file_id && !file && <p className="text-[13px] text-muted-foreground">Handed in with: {a.file_name}</p>}
           <div className="flex items-center gap-2">
             <Button disabled={!text.trim() && !file && !a.file_id} pending={submit.isPending} onClick={() => submit.mutate()}>Hand in</Button>
@@ -486,79 +553,5 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
         </div>
       )}
     </li>
-  )
-}
-
-interface Started {
-  attempt_id: string; deadline: string | null; server_now: string
-  quiz: { title: string; instructions?: string | null; duration_minutes?: number | null }
-  questions: { test_question_id: string; stem: string; marks: number; options: { id: string; body: string }[] }[]
-}
-
-function TakeQuiz({ id, back }: { id: string; back: () => void }) {
-  const start = useQuery({ queryKey: ['quiz-start', id], queryFn: () => api.post<Started>(`/api/v1/portal/lms/quizzes/${id}/start`, {}), staleTime: Infinity, retry: false })
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [left, setLeft] = useState<number | null>(null)
-  const s = start.data
-  const submit = useMutation({
-    mutationFn: () => api.post<{ score: number; max_score: number; timed_out: boolean; review: { test_question_id: string; correct: string | null; right: boolean }[] }>(`/api/v1/portal/lms/quizzes/${id}/submit`, { attempt_id: s!.attempt_id, answers }),
-  })
-  useEffect(() => {
-    if (!s?.deadline) return
-    const skew = Date.parse(s.server_now) - Date.now()
-    const tick = () => {
-      const ms = Date.parse(s.deadline!) - (Date.now() + skew)
-      setLeft(Math.max(0, Math.floor(ms / 1000)))
-      if (ms <= 0 && !submit.isPending && !submit.data) submit.mutate()
-    }
-    tick()
-    const t = setInterval(tick, 1000)
-    return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s?.deadline, submit.data])
-  const r = submit.data
-  return (
-    <>
-      <PageHead eyebrow="Learning · Quiz" title={s?.quiz.title ?? 'Quiz'} actions={<Button variant="secondary" onClick={back}><ChevronLeft className="h-4 w-4" /> Back to the course</Button>} />
-      <PageBody>
-        {start.error ? <ErrorState error={start.error} /> : !s ? <Loading /> : r ? (
-          <Card>
-            <div className="space-y-2 p-6 text-center">
-              <p className="text-[32px] font-semibold">{r.score} / {r.max_score}</p>
-              <p className="text-muted-foreground">{r.timed_out ? 'The time ran out before this was handed in, so the answers could not be counted.' : 'Marked. Your teacher sees this score too.'}</p>
-              {r.review.length > 0 && <p className="text-[14px]">{r.review.filter((x) => x.right).length} of {r.review.length} right.</p>}
-              <Button onClick={back}>Back to the course</Button>
-            </div>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {left !== null && (
-              <p className={`sticky top-2 z-10 inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-[15px] font-medium ${left < 60 ? 'text-destructive' : ''}`}>
-                <Clock className="h-4 w-4" /> {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')} left
-              </p>
-            )}
-            {s.quiz.instructions && <p className="text-[14px] text-muted-foreground">{s.quiz.instructions}</p>}
-            {s.questions.map((q, i) => (
-              <Card key={q.test_question_id}>
-                <fieldset className="space-y-2 p-4">
-                  <legend className="mb-2 text-[15px] font-medium">{i + 1}. {q.stem} <span className="text-[12px] text-muted-foreground">({q.marks} mark{q.marks === 1 ? '' : 's'})</span></legend>
-                  {q.options.map((o) => (
-                    <label key={o.id} className="flex items-center gap-2 text-[14px]">
-                      <input type="radio" name={q.test_question_id} checked={answers[q.test_question_id] === o.id} onChange={() => setAnswers({ ...answers, [q.test_question_id]: o.id })} />
-                      {o.body}
-                    </label>
-                  ))}
-                </fieldset>
-              </Card>
-            ))}
-            <div className="flex items-center gap-3">
-              <Button pending={submit.isPending} onClick={() => { if (Object.keys(answers).length === s.questions.length || window.confirm('Some questions have no answer. Hand in anyway?')) submit.mutate() }}>Hand in</Button>
-              <span className="text-[13px] text-muted-foreground">{Object.keys(answers).length} of {s.questions.length} answered</span>
-              <FormNotice error={submit.error} />
-            </div>
-          </div>
-        )}
-      </PageBody>
-    </>
   )
 }

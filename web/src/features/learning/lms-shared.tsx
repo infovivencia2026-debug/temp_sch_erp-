@@ -1,6 +1,6 @@
 import { Fragment, useRef, useState, type ReactNode } from 'react'
 import {
-  BookOpen, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
+  BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
 } from 'lucide-react'
 import { VideoPlayer, fmtDur } from './VideoPlayer'
 
@@ -55,18 +55,19 @@ export async function uploadFile(f: File, purpose: string): Promise<{ id: string
   return { id: made.file_id, name: made.name, size: made.size_bytes, type: made.content_type }
 }
 
-export function FilePick({ purpose, onDone, label = 'Attach a file', accept }: { purpose: string; onDone: (f: { id: string; name: string } | null) => void; label?: string; accept?: string }) {
+export function FilePick({ purpose, onDone, label = 'Attach a file', accept, capture }: { purpose: string; onDone: (f: { id: string; name: string } | null) => void; label?: string; accept?: string; capture?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [name, setName] = useState('')
   return (
     <span className="inline-flex flex-wrap items-center gap-2 text-[13px]">
-      <label className="btn inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-sm border px-3" data-variant="secondary">
-        <Paperclip className="h-4 w-4" />
+      <label className="btn inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-sm border px-3" data-variant="secondary">
+        {capture ? <Camera className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}
         {busy ? 'Uploading…' : label}
         <input
           type="file"
           accept={accept}
+          capture={capture ? 'environment' : undefined}
           className="sr-only"
           onChange={async (e) => {
             const f = e.target.files?.[0]
@@ -178,7 +179,7 @@ export function ProgressRing({ pct, size = 44, label }: { pct: number; size?: nu
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} className="stroke-muted" />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (c * p) / 100}
-          className={p >= 100 ? 'stroke-success' : 'stroke-primary'} />
+          className={`transition-[stroke-dashoffset] duration-700 ease-out ${p >= 100 ? 'stroke-success' : 'stroke-primary'}`} />
       </svg>
       <span className="absolute text-[11px] font-semibold tabular-nums">{p}%</span>
     </span>
