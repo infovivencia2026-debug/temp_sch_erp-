@@ -20,6 +20,7 @@ import { idempotent } from './idempotency'
 import { recordServerError } from './services/background/health'
 import { normalizeRequest, originRefused } from './origin'
 import { PLATFORM_SCOPE, bumpVersion, watchAuthWrites } from './idcache'
+import { consumeDeadLetters } from './services/dead_letters'
 
 export { LiveHub } from './services/live'
 
@@ -111,6 +112,8 @@ export default {
 
   /* Background jobs: see src/services/jobs.ts. */
   async queue(batch: MessageBatch<Job>, env: Env): Promise<void> {
+    // The dead-letter queue: record, alert, ack (src/services/dead_letters.ts).
+    if (batch.queue.endsWith('-dlq')) return consumeDeadLetters(batch, env)
     await runBatch(batch, env)
   },
 

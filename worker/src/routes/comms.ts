@@ -7,6 +7,8 @@ import { registerGrievances } from './comms/grievances'
 import { registerShowcase } from './comms/showcase'
 import { registerSMSGateway } from './comms/sms_gateway'
 import { registerPortalExtra } from './portal/extra'
+import { registerDelivery } from './comms/delivery'
+import { registerLiveSocket } from './comms/live_socket'
 
 /* /comms, /classroom and /sms-gateway of internal/api/api.go. */
 export function registerComms(r: Router): void {
@@ -18,4 +20,6 @@ export function registerComms(r: Router): void {
   registerShowcase(r)
   registerSMSGateway(r)
   registerPortalExtra(r)
+  registerDelivery(r)
+  registerLiveSocket(r)
 }

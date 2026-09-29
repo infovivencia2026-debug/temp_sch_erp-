@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { channelStatus, type ChannelHealth } from '../../services/delivery'
 import { explainMetaError, loadProviders as loadSendingProviders, renderTemplate, whatsappSendFor } from '../../services/messaging'
 import { HttpError, badRequest, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { institutionId, parseJSON, requireAny } from './common'
@@ -77,8 +78,19 @@ async function readPolicy(c: Ctx): Promise<Record<string, unknown>> {
   const items = (await c.db.prepare(`SELECT id, kind, raw, normalised, COALESCE(label,'') AS label, ${isoZ('created_at')} AS created_at
       FROM messaging_allowed_recipients ORDER BY kind, normalised`).all<Row>()).results
   const mode = p?.mode ?? 'everyone'
-  let sending: boolean, explanation: string
-  if (mode === 'everyone') { sending = true; explanation = 'Live. Every parent, guardian and member of staff this school messages will receive it.' }
+  let sending = false, explanation = ''
+  // Honest: "Live" only when a channel outside the app can actually deliver (services/delivery.ts).
+  const channels = await channelStatus(c.env, c.db, institutionId(c)).catch(() => [] as ChannelHealth[])
+  const outside = channels.filter((x) => x.channel !== 'in_app' && x.live)
+  if (mode === 'everyone' && outside.length === 0) {
+    sending = false
+    explanation = 'The guard is off, but no channel outside the app is live: ' + channels.filter((x) => !x.live).map((x) => `${x.label}: ${x.reason}`).join('; ') +
+      '. Families receive messages only in the app, when they open it.'
+  } else if (mode === 'everyone') {
+    sending = true
+    explanation = `Live on ${outside.map((x) => x.label).join(', ')}. Every parent, guardian and member of staff this school messages will receive it.` +
+      (channels.some((x) => !x.live && x.channel !== 'in_app') ? ' Not live: ' + channels.filter((x) => !x.live).map((x) => `${x.label} (${x.reason})`).join('; ') + '.' : '')
+  }
   else if (items.length === 0) {
     sending = false
     explanation = 'Nothing is being sent to anybody. This school is in allowlist mode and the list is empty. Every outbound message on every channel is being recorded as suppressed instead of sent.'
@@ -86,7 +98,7 @@ async function readPolicy(c: Ctx): Promise<Record<string, unknown>> {
     sending = false
     explanation = `Allowlist mode. Only the ${items.length} recipient(s) below are being messaged, on every channel. Everything else is recorded as suppressed.`
   }
-  return { mode, note: p?.note ?? '', items, sending, explanation, updated_at: u(p?.updated_at) }
+  return { mode, note: p?.note ?? '', items, sending, explanation, updated_at: u(p?.updated_at), channels }
 }
 
 async function hmacHex(secret: string, msg: string): Promise<string> {
@@ -100,7 +112,7 @@ const WA_PLACEHOLDER = /\{\{([a-z_][a-z0-9_]*)\}\}/g
 const WA_CATEGORIES: Record<string, string> = {}
 for (const k of ['attendance.absent', 'fees.overdue', 'homework.set', 'ptm.reminder', 'reportcard.published', 'payroll.payslip', 'student.remark',
   'announcement.published', 'messaging.direct', 'messaging.test', 'admissions.enquiry_link', 'admissions.portal_login', 'admissions.portal_existing',
-  'admissions.portal_ready', 'admissions.applicant_ready', 'admissions.application_received']) WA_CATEGORIES[k] = 'UTILITY'
+  'admissions.portal_ready', 'admissions.applicant_ready', 'admissions.application_received', 'digest.daily']) WA_CATEGORIES[k] = 'UTILITY'
 interface WaSubmission { name: string; body: string; params: string[]; examples: string[]; category: string }
 interface WaSubmitResult { code: string; name: string; status: string; category?: string; error?: string }
 

@@ -39,7 +39,9 @@
   // types (src/services/jobs.ts); failures after retries land in the DLQ.
   "queues": {
     "producers": [{ "binding": "JOBS", "queue": "school-erp-jobs" }],
-    "consumers": [{ "queue": "school-erp-jobs", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "school-erp-jobs-dlq" }]
+    "consumers": [{ "queue": "school-erp-jobs", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "school-erp-jobs-dlq" },
+      // The DLQ's own consumer records and alerts (src/services/dead_letters.ts); it always acks.
+      { "queue": "school-erp-jobs-dlq", "max_batch_size": 10, "max_retries": 0 }]
   },
   // Live updates (src/services/live.ts): one LiveHub per school holds its
   // open Server-Sent Events streams and fans hints to them.

@@ -1,4 +1,5 @@
 import type { Env } from '../../env'
+import { handleMessageWebhooks } from './message_webhooks'
 import { handleSMSGatewayPublic } from './sms_gateway_public'
 import { sendPublicTestMessage } from './message_test'
 import { publicErrorResponse } from './public_common'
@@ -15,6 +16,8 @@ export async function handlePublic(env: Env, req: Request, url: URL): Promise<Re
   if (!p.startsWith('/api/v1/public/')) return null
   const gw = await handleSMSGatewayPublic(env, req, p)
   if (gw) return gw
+  const hook = await handleMessageWebhooks(env, req, url, p)
+  if (hook) return hook
   if (p === '/api/v1/public/message-test' && req.method === 'POST') {
     try { return await sendPublicTestMessage(env, req) } catch (err) { return publicErrorResponse(err) }
   }
