@@ -269,3 +269,67 @@ func (s *Server) listLetterPrints(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }
+
+/*
+Read a letter back.
+
+	The school could issue a letter and record that somebody printed it, and
+	could never show it again: there was no endpoint that returned one. So the
+	Print button beside a letter printed the screen it was standing on -- the
+	joinings, the exits, the clearances -- under that letter's title, because
+	the letter itself was not on the page to print.
+
+	Nothing new is stored. The facts were written into issued_certificates.
+	snapshot when the letter was issued, deliberately frozen there so a letter
+	issued in 2026 still reads in 2031 as it did on the day. This hands that
+	same snapshot back.
+
+	Reading is open to anybody who may read staff records. Writing a letter
+	needs EmployeesWrite; being shown one the school has already issued is the
+	weaker act, and a letter nobody can retrieve is the bug this fixes.
+*/
+func (s *Server) getStaffLetter(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	serial := strings.TrimSpace(chiURLParam(r, "serial"))
+	if serial == "" {
+		httpx.BadRequest(w, r, "Say which letter.")
+		return
+	}
+
+	var out struct {
+		Serial   string          `json:"serial_no"`
+		Kind     string          `json:"kind"`
+		Name     string          `json:"letter_name"`
+		Employee string          `json:"employee"`
+		Code     string          `json:"employee_code"`
+		IssuedOn string          `json:"issued_on"`
+		Status   string          `json:"status"`
+		Snapshot json.RawMessage `json:"snapshot"`
+	}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT ic.serial_no, ct.code, ct.name,
+			       concat_ws(' ', e.first_name, e.last_name),
+			       COALESCE(e.employee_code, ''),
+			       to_char(ic.issued_on, 'YYYY-MM-DD'),
+			       ic.status, ic.snapshot
+			  FROM issued_certificates ic
+			  JOIN certificate_types ct ON ct.id = ic.certificate_type_id
+			  JOIN employees e ON e.id = ic.employee_id
+			 WHERE ic.serial_no = $1`, serial).
+			Scan(&out.Serial, &out.Kind, &out.Name, &out.Employee, &out.Code,
+				&out.IssuedOn, &out.Status, &out.Snapshot)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
