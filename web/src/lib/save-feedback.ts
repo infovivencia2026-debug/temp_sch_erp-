@@ -26,6 +26,7 @@ const QUIET: RegExp[] = [
   /\/login|\/logout|\/mfa/,
   /\/search|\/lookup|\/suggest|\/preview|\/export|\/print|\/pdf/,
   /\/assistant|\/ai\//,
+  /\/portal\/lms\/|\/homework\/[^/]+\/submit/, // the student's own screens show their own check, confetti and confirmation
   /\/outbox|\/sync|\/heartbeat|\/ping|\/beacon|\/telemetry|\/analytics/,
   /\/notifications\/read|\/read-all|\/dismiss|\/seen/,
   /\/pay(ments)?\/|\/collect|\/checkout|\/upi|\/gateway/, // money names its receipt itself
