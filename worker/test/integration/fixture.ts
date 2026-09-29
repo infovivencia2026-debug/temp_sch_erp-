@@ -47,7 +47,7 @@ export function statements(sql: string): string[] {
     if (!cur && (/^\s*--/.test(line) || !line.trim())) continue
     cur += line + '\n'
     if (/^\s*CREATE\s+TRIGGER/i.test(line)) inTrigger = true
-    const end = inTrigger ? /^\s*END\s*;\s*$/i.test(line) : /;\s*(--.*)?$/.test(line)
+    const end = inTrigger ? /(^|\s)END\s*;\s*$/i.test(line) : /;\s*(--.*)?$/.test(line)
     if (end) {
       const s = cur.trim()
       if (!/^PRAGMA\b/i.test(s)) out.push(s)
