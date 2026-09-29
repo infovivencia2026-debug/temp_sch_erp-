@@ -1183,6 +1183,7 @@ export function Button({
          the elevation ladder: a key at level 1, sunk on press, flat when
          ghost. The classes below paint colour only. */
       data-variant={level}
+      data-size={size}
       className={cn(
         'btn',
         /* nowrap because the height is fixed. A label that wraps does not make

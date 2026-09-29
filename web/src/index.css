@@ -3963,6 +3963,18 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: none !important;
 }
 .rail-tile svg, .rail-foot svg { stroke-width: 2.4; }
+/* A small button beside a field or a full-size button stood 8px shorter
+   than its neighbours, so a toolbar's edges stepped. In a row that holds
+   either, the small one takes the shared control height. */
+.flex:has(> .field, > .btn[data-size='md']) > .btn[data-size='sm'] { height: var(--control-h); }
+
+/* Keyboard focus on the rail looked exactly like the current workspace (the
+   same wash, no ring), so a Tab press seemed to do nothing. The ring every
+   other control draws says where focus is. */
+.rail-tile:focus-visible, .rail-foot > :is(button, a):focus-visible {
+  outline: 2px solid hsl(var(--ring)) !important;
+  outline-offset: 2px;
+}
 /* Thicker marks in the dock too (owner, 2026-09-28: "make the icons thicker"). */
 .bento-dock svg.lucide, .bento-corner svg.lucide { stroke-width: 2.4; }
 

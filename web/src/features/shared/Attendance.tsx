@@ -181,10 +181,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               type="date"
               value={onDate}
               onChange={(e) => { setOnDate(e.target.value); setDraft({}) }}
-              /* A finger is not a mouse pointer: the visible box is unchanged on a
-                 desk, and only a coarse pointer grows it to the 44px tap floor the
-                 Button component already keeps. */
-              className="rounded-md border bg-background px-2.5 py-1.5 text-sm [@media(pointer:coarse)]:min-h-[44px]"
+              /* The shared field: one control height (44px under a finger),
+                 the same border, fill and focus ring as every other box. */
+              aria-label="Date"
+              className="field w-auto"
             />
             {can('academics.attendance.write') && (
               <ImportButton

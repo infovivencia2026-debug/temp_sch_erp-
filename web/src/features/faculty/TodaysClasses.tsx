@@ -134,7 +134,7 @@ export default function TodaysClasses() {
             </div>
           )}
 
-          <ol className="mt-6 divide-y rounded-[14px] border bg-card">
+          <ol className="mt-6 divide-y overflow-hidden rounded-[14px] border bg-card">
             {mine.map((e) => {
               const p = bell.get(e.period_id)
               const isNow = current?.id === e.id
