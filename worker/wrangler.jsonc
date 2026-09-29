@@ -11,7 +11,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "placement": { "mode": "smart" },
+  // Smart placement never placed it (cf-placement: local-BOM, about 200 ms a D1 trip);
+  // D1 (APAC) answers fastest from Hong Kong: measured SIN vs HKG, HKG won.
+  "placement": { "mode": "targeted", "region": "aws:ap-east-1" },
   "observability": { "enabled": true },
   // The files Pages serves beside the app (the sign-in stylesheet and fonts
   // under /static, the legal pages). Needed when the Worker is visited
