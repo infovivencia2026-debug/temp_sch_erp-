@@ -702,8 +702,8 @@
      Nothing below 15px changes: measured at 14px and at 11px, opsz auto and
      opsz 14 are the same width to the pixel, which is the axis saying it has
      nothing to add down there. */
-  h1 { font-size: calc(24px * var(--font-scale)); font-weight: 600; letter-spacing: 0; line-height: 1.25; }
-  h2 { font-size: calc(18px * var(--font-scale)); font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; }
+  h1 { font-size: calc(24px * var(--font-scale)); font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
+  h2 { font-size: calc(18px * var(--font-scale)); font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
   h3 { font-size: calc(15px * var(--font-scale)); font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
 
@@ -4202,4 +4202,16 @@ main, [data-paint='workarea'] {
     0 8px 20px -8px rgb(15 15 30 / .10),
     -40px 18px 44px -26px rgb(99 102 241 / calc(.45 * var(--glow-k))),
     40px 18px 44px -26px rgb(14 165 233 / calc(.40 * var(--glow-k)));
+}
+
+/* REDUCED MOTION, EVERYWHERE. Each component honours the setting where it
+   was written; this is the net under the ones that did not. Motion becomes
+   an instant change of state, never a missing one. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
