@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, startTransition, useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -244,7 +244,7 @@ export default function TransportOffice() {
             <button
               key={k}
               type="button"
-              onClick={() => setTab(k)}
+              onClick={() => startTransition(() => setTab(k))}
               aria-current={tab === k}
               className={
                 tab === k

@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type LazyExoticComponent } from 'react'
+import { useState, useTransition, type ComponentType, type LazyExoticComponent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { segClass, SEG_BAR } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -33,11 +33,18 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
   const active = tabs.find((t) => t.key === fromUrl)?.key ?? fallback
   const Active = (tabs.find((t) => t.key === active) ?? tabs[0]).screen
 
+  /* A transition, so the tab's screen (a lazy chunk the first time) loads
+     behind the one on show. Outside one, the chunk suspended to the page's
+     own fallback and the whole page, tabs and all, blanked to a skeleton and
+     came back: every tab press looked like a reload. */
+  const [, startTransition] = useTransition()
   const pick = (key: string) => {
-    setFallback(key)
-    const q = new URLSearchParams(location.search)
-    q.set('tab', key)
-    navigate({ search: `?${q}` }, { replace: false })
+    startTransition(() => {
+      setFallback(key)
+      const q = new URLSearchParams(location.search)
+      q.set('tab', key)
+      navigate({ search: `?${q}` }, { replace: false })
+    })
   }
 
   return (

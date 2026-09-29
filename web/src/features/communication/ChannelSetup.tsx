@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, startTransition, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileText, Mail, MessageSquare, Phone, ListOrdered, CheckCheck } from 'lucide-react'
 import { PageHead, PageBody, Card, Loading, tabClass } from '@/components/ui'
@@ -121,7 +121,7 @@ export default function ChannelSetup() {
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setTab(t.id)}
+                  onClick={() => startTransition(() => setTab(t.id))}
                   className={cn(
                     
                     t.id === active
