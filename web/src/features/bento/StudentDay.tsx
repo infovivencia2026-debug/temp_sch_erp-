@@ -125,7 +125,13 @@ function daysUntil(iso: string) {
   )
 }
 
-export default function StudentDay() {
+/* The Bento layout's student home is the same easy home as the sidebar's
+   (portal/StudentHome.tsx): the owner asked for one simple "what do I need
+   today" page for students, not a board of charts to swipe through. The
+   cells below stay exported for any board that still places them. */
+export { default } from '@/features/portal/StudentHome'
+
+export function StudentDayBoard() {
   const t = useT()
   const now = useNowMinutes()
 

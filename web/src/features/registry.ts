@@ -152,7 +152,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.teaching.homework_classwork': screen(() => import('./workflow/Homework')),
   // Every course in the school, for the optional LMS Admin role.
   'lms_admin.lms.courses': screen(() => import('./faculty/TeacherLMS')),
-  'student.homework.homework_assignments': screen(() => import('./workflow/Homework')),
+  'student.homework.homework_assignments': screen(() => import('./portal/StudentHomework')),
   'parent.academics.homework_academics': screen(() => import('./workflow/Homework')),
 
   'super_admin.platform_configuration.audit_log': screen(() => import('./super_admin/AuditLog')),
@@ -169,7 +169,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.home.dashboard': screen(() => import('./principal/Dashboard')),
   'faculty.home.todays_classes': screen(() => import('./faculty/TodaysClasses')),
   'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
-  'student.home.my_day': screen(() => import('./portal/Portal')),
+  'student.home.my_day': screen(() => import('./portal/StudentHome')),
   'parent.home.dashboard': screen(() => import('./portal/Portal')),
   'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   // The seller's own mail server and SMS channel, which carry every school's
@@ -250,7 +250,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * person's to make. */
   'front_office.my_profile.my_pay': screen(() => import('./me/MyPay')),
   'student.attendance.attendance': screen(() => import('./portal/Portal')),
-  'student.timetable.timetable': screen(() => import('./shared/Timetable')),
+  'student.timetable.timetable': screen(() => import('./portal/StudentTimetable')),
   /* One Dashboard, where there were four entries.
 
      Child switcher and Child summary opened the identical screen, so the menu
