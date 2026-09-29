@@ -90,11 +90,17 @@ export async function canPlay(c: Ctx, v: VideoRow): Promise<boolean> {
   }
   const s = await resolveScope(c)
   if (!s.studentIds.length) return false
-  const hit = await c.db.prepare(`SELECT 1 AS x FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+  /* Visible AND on a day that is open for the child: in a one-by-one course
+     a video on a locked day does not stream, even to someone holding its link. */
+  const rows = (await c.db.prepare(`SELECT l.id AS lesson_id, e.student_id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
       JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active' AND (l.section_id IS NULL OR l.section_id = e.section_id)
       WHERE l.video_id = ? AND e.student_id IN (${marks()}) AND l.is_published = 1 AND su.is_active = 1
-        AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now')) LIMIT 1`).bind(v.id, js(s.studentIds)).first()
-  return !!hit
+        AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now')) LIMIT 20`).bind(v.id, js(s.studentIds))
+    .all<{ lesson_id: string; student_id: string }>()).results ?? []
+  if (!rows.length) return false
+  const { lessonOpenFor } = await import('../portal/lms')
+  for (const r of rows) if (await lessonOpenFor(c, r.student_id, r.lesson_id)) return true
+  return false
 }
 
 /** Parse one "bytes=" range against a size. null: no (usable) range; 'bad': unsatisfiable. */

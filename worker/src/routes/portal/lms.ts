@@ -49,6 +49,15 @@ async function classroom(c: Ctx, studentId: string) {
 const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
   AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 
+/** Whether a lesson's day is open for this child (the video stream asks this). */
+export async function lessonOpenFor(c: Ctx, studentId: string, lessonId: string): Promise<boolean> {
+  try {
+    const room = await classroom(c, studentId)
+    await gate(c, studentId, room.section_id, 'lesson', lessonId)
+    return true
+  } catch { return false }
+}
+
 /** One by one: refuse a child's work on a source, quiz or assignment whose day is still locked (403, code 'locked'). */
 async function gate(c: Ctx, sid: string, section: string, type: PItem['type'], id: string) {
   const row = type === 'lesson'
