@@ -2,7 +2,7 @@ import { ApiError } from '@/lib/api'
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -39,6 +39,14 @@ import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
 import { I18nProvider } from '@/lib/i18n'
 
+/* A hairline at the top of the window while anything is being fetched in the
+   background, so kept-on-screen data never looks final while it is changing.
+   Appears only after 150ms, so quick answers show nothing at all. */
+function FetchBar() {
+  const n = useIsFetching()
+  return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 ? '' : undefined} />
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -58,6 +66,13 @@ const queryClient = new QueryClient({
          Anything genuinely time-sensitive sets its own, and now has to: see
          the queries listed under refetchOnWindowFocus below. */
       staleTime: 5 * 60_000,
+      /* NO FLASH ON A FILTER CHANGE (owner, 2026-09-29: "every dropdown makes
+         the page reload"). Picking a section, a range, a class or a tab gives
+         the query a new key, and with no data under that key the screen fell
+         back to its skeleton -- the whole page blanked and came back, which
+         reads as a reload. The last answer stays on screen until the new one
+         lands; the thin bar at the top (FetchBar) says it is updating. */
+      placeholderData: keepPreviousData,
       /* A DAY IN MEMORY, SO A DAY ON DISK.
 
          gcTime was the five-minute default. The offline persister can only
@@ -620,6 +635,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <FetchBar />
       <ToastHost>
         <ReauthPrompt />
       <BrowserRouter>

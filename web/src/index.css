@@ -4215,3 +4215,16 @@ main, [data-paint='workarea'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* The background-fetch hairline (App.tsx FetchBar): a 2px bar in the school's
+   colour across the top edge, fading in only after 150ms so quick answers
+   never show it. */
+.fetch-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 90; pointer-events: none;
+  background: linear-gradient(90deg, transparent, hsl(var(--primary)) 30%, hsl(var(--primary)) 70%, transparent);
+  background-size: 200% 100%;
+  opacity: 0; transition: opacity 200ms ease;
+}
+.fetch-bar[data-on] { opacity: .85; transition-delay: 150ms; animation: fetch-bar-run 1.1s linear infinite; }
+@keyframes fetch-bar-run { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .fetch-bar[data-on] { animation: none; } }
