@@ -265,6 +265,7 @@ export default function Logins() {
         )}
 
         {record === 'student' && <StudentLoginsCard />}
+        {record === 'guardian' && <ParentLoginsCard />}
 
         <OnlineNow />
         <SignInAttempts />
@@ -1366,6 +1367,59 @@ function DayCodeCard() {
         )}
         <FormNotice error={set.error} />
       </div>
+    </Card>
+  )
+}
+
+
+/* Every parent number on file gets a login (owner, 2026-09-29). New families
+   get theirs automatically; this catches up everyone already on file, in
+   batches of 60 until none are left. No message is sent. */
+function ParentLoginsCard() {
+  const qc = useQueryClient()
+  const q = useQuery({
+    queryKey: ['parent-logins'],
+    queryFn: () => api.get<{ total: number; with_login: number; missing: number }>('/api/v1/admin/parent-logins'),
+  })
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState<{ issued: number; skipped: number } | null>(null)
+  const [err, setErr] = useState<unknown>(null)
+  const run = async () => {
+    setBusy(true); setErr(null)
+    let issued = 0, skipped = 0
+    try {
+      for (let i = 0; i < 50; i++) {
+        const r = await api.post<{ issued: number; skipped: number; remaining: number }>('/api/v1/admin/parent-logins/issue-missing')
+        issued += r.issued; skipped += r.skipped
+        if (r.remaining <= 0 || r.issued === 0) break
+      }
+      setDone({ issued, skipped })
+    } catch (e) { setErr(e) } finally {
+      setBusy(false)
+      qc.invalidateQueries({ queryKey: ['parent-logins'] })
+      qc.invalidateQueries({ queryKey: ['school-logins'] })
+    }
+  }
+  const d = q.data
+  return (
+    <Card className="p-5">
+      <p className="text-[14px] font-medium">Parent logins</p>
+      <p className="mt-1 text-[14px] text-muted-foreground">
+        Every parent number on a child's record gets a login: the phone number (or email) is both the username and the first password,
+        and they choose their own at first sign-in. New families get theirs automatically. Brothers and sisters share one account.
+      </p>
+      {d && (
+        <p className="mt-3 text-[14px]">
+          {d.with_login} of {d.total} parents have a login{d.missing > 0 ? `; ${d.missing} still need one` : ', everyone is covered'}.
+        </p>
+      )}
+      {done && <p className="mt-2 text-[14px] text-success">Issued {done.issued}{done.skipped ? `; ${done.skipped} skipped (the number already belongs to a staff account)` : ''}.</p>}
+      {err ? <div className="mt-2"><FormNotice error={err} /></div> : null}
+      {d && d.missing > 0 && (
+        <div className="mt-3">
+          <Button onClick={run} pending={busy}>Give every parent a login</Button>
+        </div>
+      )}
     </Card>
   )
 }

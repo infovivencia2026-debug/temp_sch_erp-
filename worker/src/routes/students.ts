@@ -1,5 +1,6 @@
 import type { Ctx, Router } from '../router'
-import { autoIssueFamilyLogins } from './setup/staff'
+import { autoIssueFamilyLogins, autoIssueGuardianLogin } from './setup/staff'
+import { indexLogin } from './setup/common'
 import { reply } from '../router'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
@@ -256,6 +257,8 @@ async function updateStudent(c: Ctx) {
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
+  // A parent number added or changed on the record gets its login too.
+  await autoIssueFamilyLogins(c, id)
   return ok({ id, updated: true })
 }
 
@@ -475,6 +478,8 @@ async function saveStudentGuardian(c: Ctx) {
         if (isUniqueViolation(lastErr)) throw badRequest('that phone number or email is already the sign-in of another account at this school, the parent it belongs to has to be corrected first')
         throw lastErr
       }
+      // Sign-in finds accounts through the login index: point it at the new number.
+      await indexLogin(c, prev.user_id)
     }
   } else {
     const existing = await c.db.prepare(`
@@ -514,6 +519,8 @@ async function saveStudentGuardian(c: Ctx) {
     stmts.push(c.db.prepare(`UPDATE student_guardians SET is_primary = 1 WHERE student_id = ? AND guardian_id = ?`).bind(id, guardianId))
   }
   if (stmts.length) await batch(c, stmts)
+  // A number added or changed on a parent with no login gets one now.
+  try { await autoIssueGuardianLogin(c, guardianId) } catch (e) { console.error('parent login', e) }
   return ok({ id: guardianId, full_name: name })
 }
 

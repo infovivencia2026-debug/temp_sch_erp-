@@ -1,5 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, bool, forbidden, isUUID, notFound, now, ok, readJSON, uuid, HttpError } from '../../http'
+import { indexLogin } from '../setup/common'
 import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
 import {
@@ -327,12 +328,27 @@ async function updateFamilyDetails(c: Ctx): Promise<Response> {
       .bind(s(req.blood_group).trim(), s(req.address_line1).trim(), s(req.address_line2).trim(), s(req.city).trim(),
         s(req.state).trim(), s(req.pincode).trim(), t, sid),
   ]
+  /* The number is the parent's sign-in too: when they change it here, their
+     login moves with it (phone, and the username if it was the old number),
+     so they sign in with the number the school now has. */
+  for (const g of guardians) {
+    const prev = await c.db.prepare(`SELECT COALESCE(phone,'') AS p FROM guardians WHERE id = ? AND user_id = ?`).bind(g.id.toLowerCase(), c.id.userId).first<{ p: string }>()
+    const np = String(g.phone ?? '').trim()
+    if (prev && np !== '' && np !== prev.p) {
+      const clash = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = (SELECT institution_id FROM users WHERE id = ?) AND id <> ? AND (phone = ? OR username = ?)`)
+        .bind(c.id.userId, c.id.userId, np, np).first()
+      if (clash) throw badRequest('that number already signs in another account at this school; ask the office to sort it out')
+      stmts.push(c.db.prepare(`UPDATE users SET phone = ?, username = CASE WHEN username = ? THEN ? ELSE username END WHERE id = ?`)
+        .bind(np, prev.p, np, c.id.userId))
+    }
+  }
   for (const g of guardians) {
     stmts.push(c.db.prepare(`UPDATE guardians SET full_name = ?, phone = ?, email = NULLIF(?, ''), occupation = NULLIF(?, '')
         WHERE id = ? AND user_id = ? AND EXISTS (SELECT 1 FROM student_guardians sg WHERE sg.guardian_id = guardians.id AND sg.student_id = ?)`)
       .bind(g.full_name, g.phone, g.email, g.occupation, g.id.toLowerCase(), c.id.userId, sid))
   }
   await c.db.batch(stmts)
+  await indexLogin(c, c.id.userId)
   return ok({ ok: true })
 }
 

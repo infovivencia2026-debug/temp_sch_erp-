@@ -2,7 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, now, ok, readJSON } from '../../http'
 import { auditStmt, institutionId } from './common'
 import { MODULE, studentLoginPolicy } from '../../services/student_logins'
-import { autoIssueStudentLogin } from '../setup/staff'
+import { autoIssueStudentLogin, autoIssueGuardianLogin } from '../setup/staff'
 
 /* The school's "Student logins" switch (services/student_logins.ts).
    Reading needs access.users.read, changing it access.users.write, the keys
@@ -66,5 +66,33 @@ export function registerStudentLogins(r: Router) {
       remaining = Math.max(0, missing.length - issued)
     }
     return ok({ ...(await studentLoginPolicy(c.db)), signed_out: signedOut, logins_issued: issued, logins_remaining: remaining })
+  })
+
+  /* Every parent number on file gets a login (owner, 2026-09-29): guardians of
+     active students with a phone or email and no login yet. Up to 60 per call
+     so the request stays quick; `remaining` says how many are left, and the
+     screen calls again until it is 0. No message is sent. */
+  r.get('/admin/parent-logins', 'access.users.read', async (c) => {
+    const row = await c.db.prepare(`SELECT count(DISTINCT g.id) AS total,
+        count(DISTINCT CASE WHEN g.user_id IS NOT NULL THEN g.id END) AS with_login,
+        count(DISTINCT CASE WHEN g.user_id IS NULL AND (TRIM(COALESCE(g.phone,'')) <> '' OR TRIM(COALESCE(g.email,'')) <> '') THEN g.id END) AS missing
+      FROM guardians g JOIN student_guardians sg ON sg.guardian_id = g.id JOIN students st ON st.id = sg.student_id AND st.status = 'active'`)
+      .first<{ total: number; with_login: number; missing: number }>()
+    return ok({ total: row?.total ?? 0, with_login: row?.with_login ?? 0, missing: row?.missing ?? 0 })
+  })
+  r.post('/admin/parent-logins/issue-missing', 'access.users.write', async (c) => {
+    const ids = (await c.db.prepare(`SELECT DISTINCT g.id FROM guardians g JOIN student_guardians sg ON sg.guardian_id = g.id
+        JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+        WHERE g.user_id IS NULL AND (TRIM(COALESCE(g.phone,'')) <> '' OR TRIM(COALESCE(g.email,'')) <> '')
+        ORDER BY g.id`).all<{ id: string }>()).results ?? []
+    let issued = 0, skipped = 0
+    for (const g of ids.slice(0, 60)) {
+      try { if (await autoIssueGuardianLogin(c, g.id)) issued++; else skipped++ } catch (e) { skipped++; console.error('parent login', e) }
+    }
+    const left = await c.db.prepare(`SELECT count(DISTINCT g.id) AS n FROM guardians g JOIN student_guardians sg ON sg.guardian_id = g.id
+        JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+        WHERE g.user_id IS NULL AND (TRIM(COALESCE(g.phone,'')) <> '' OR TRIM(COALESCE(g.email,'')) <> '')`).first<{ n: number }>()
+    await auditStmt(c, 'parent_logins.issue_missing', 'guardians', null, null, { issued, skipped }).run()
+    return ok({ issued, skipped, remaining: Math.max(0, (left?.n ?? 0) - skipped) })
   })
 }
