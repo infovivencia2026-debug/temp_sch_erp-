@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { EmbeddedPage } from '@/components/ui'
+import { EmbeddedPage, Loading } from '@/components/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -204,7 +204,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
             {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[102px] rounded-xl" />)}
           </div>
         </section>
-        {afterToday && <section><EmbeddedPage.Provider value><Suspense fallback={null}>{afterToday}</Suspense></EmbeddedPage.Provider></section>}
+        <Suspense fallback={<Loading shape="cards" rows={3} />}>{afterToday && <section><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}</Suspense>
       </div>
     )
   }
@@ -333,7 +333,12 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
 
       {/* The role's own overview (the head's executive figures), directly
           under Today and in its own layout. */}
-      {afterToday && <section><EmbeddedPage.Provider value><Suspense fallback={null}>{afterToday}</Suspense></EmbeddedPage.Provider></section>}
+      {/* One boundary for the overview AND everything under it. With the
+          overview alone in a boundary, the shortcuts and the alerts drew
+          first and were then pushed half a screen down when the overview's
+          code arrived. Now the rest waits for it, under a skeleton. */}
+      <Suspense fallback={<Loading shape="cards" rows={3} />}>
+      {afterToday && <section><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
 
       {/* WHAT SOMEBODY PUT HERE THEMSELVES.
        *
@@ -482,6 +487,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
           </div>
         </section>
       )}
+      </Suspense>
     </div>
   )
 }
