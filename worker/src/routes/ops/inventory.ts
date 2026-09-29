@@ -1,5 +1,5 @@
 import type { Router } from '../../router'
-import { badRequest, bool, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
+import { badRequest, bool, conflict, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { instId } from './common'
 
 /* Port of the inventory pair in internal/api/mod_ops.go: the stock list and
@@ -13,6 +13,44 @@ export function registerInventory(r: Router) {
     return ok({ items: rows.results.map((v) => ({
       id: v.id, code: v.code, name: v.name, category: v.category ?? undefined, unit: v.unit,
       on_hand: v.on_hand, reorder_level: v.reorder_level, below_reorder: bool(v.below_reorder) })) })
+  })
+
+  /* THE ITEM ITSELF, WHICH NOTHING COULD CREATE.
+
+     The stores screen could record a receipt, an issue, a return and a
+     correction -- against items that had to already exist. Nothing in the
+     product made one: the only INSERT into inventory_items in either backend
+     was the demo seeder. So a real school could open the screen, see an empty
+     list, and have no way to put its first box of chalk in it, and because
+     the shop's catalogue reads stock through this table, it could not stock
+     the shop either.
+
+     No opening balance is taken here. A count is a movement -- a receipt --
+     and letting an item be born holding forty of something would put a number
+     in the balance that no line of the ledger accounts for, which is the one
+     thing the movements design is careful never to do. The item starts at
+     zero and the first receipt says where the forty came from. */
+  r.post('/ops/inventory/items', 'operations.inventory.write', async (c) => {
+    const req = await readJSON<{ code?: string; name?: string; category?: string; unit?: string; reorder_level?: number }>(c.req)
+    const code = (req.code ?? '').trim()
+    const name = (req.name ?? '').trim()
+    if (!code) throw badRequest('every item needs a code, it is what a stores register is read by')
+    if (!name) throw badRequest('every item needs a name')
+    const reorder = Number(req.reorder_level ?? 0)
+    if (!Number.isInteger(reorder) || reorder < 0) throw badRequest('the reorder level must be zero or more')
+
+    // Named, not merely refused: the clerk needs to know it is already there.
+    const clash = await c.db.prepare('SELECT name FROM inventory_items WHERE institution_id = ? AND code = ?')
+      .bind(instId(c), code).first<{ name: string }>()
+    if (clash) throw conflict(`the code ${code} is already ${clash.name}`)
+
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO inventory_items (id, institution_id, code, name, category, unit, reorder_level, on_hand)
+                        VALUES (?,?,?,?,?,?,?,0)`)
+      .bind(id, instId(c), code, name, (req.category ?? '').trim() || null, (req.unit ?? '').trim() || 'nos', reorder)
+      .run()
+    return created({ id, code, name, category: (req.category ?? '').trim() || undefined,
+      unit: (req.unit ?? '').trim() || 'nos', reorder_level: reorder, on_hand: 0, below_reorder: reorder >= 0 })
   })
 
   r.post('/ops/inventory/movements', 'operations.inventory.write', async (c) => {
