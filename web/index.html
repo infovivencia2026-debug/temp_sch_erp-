@@ -62,6 +62,9 @@
         if (p && p !== 'classic') document.documentElement.dataset.personality = p
       } catch (e) {}
     </script>
+    <!-- The ground from the very first frame, before the stylesheet arrives,
+         so a load never flashes white and then tints. -->
+    <style>html{background:#eef0f6}html.dark{background:#08080a}</style>
   </head>
   <body class="h-full">
     <div id="root" class="h-full"></div>

@@ -71,7 +71,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
      cold load shows: this is the state a person sees every time a workspace
      loads -- after sign-in, on every school switch -- and it used to be the
      words "Loading workspace…" alone in the middle of a blank page. */
-  if (isLoading) return <WorkspaceLoading label="Loading your workspace" />
+  if (isLoading) return <WorkspaceLoading />
   if (isError || !data) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">

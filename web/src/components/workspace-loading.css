@@ -14,13 +14,18 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  --ws-bg: #fff;
+  --ws-bg: #eef0f6;
   --ws-ink: 17, 17, 20;
-  background: var(--ws-bg);
+  /* The same ground the app paints (index.css), so opening -> app is one
+     surface and nothing flashes white in between. */
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgb(99 102 241 / 0.07), transparent 60%),
+    radial-gradient(50rem 35rem at 95% 0%, rgb(14 165 233 / 0.06), transparent 55%),
+    var(--ws-bg);
   color: rgb(var(--ws-ink));
   padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
 }
-.ws-opening[data-dark] { --ws-bg: #000; --ws-ink: 255, 255, 255; }
+.ws-opening[data-dark] { --ws-bg: #08080a; --ws-ink: 255, 255, 255; }
 .ws-opening[data-leaving] {
   animation: ws-leave 400ms ease forwards;
   pointer-events: none;
@@ -124,3 +129,8 @@
   .ws-opening .ws-rule::after { animation: none; }
   .ws-opening[data-leaving] { animation-duration: 1ms; }
 }
+
+/* A second opening straight after the first (the catalogue loading after
+   the session) carries on where the first left off: no fade-in, no rise,
+   so the mark does not blink out and back. */
+.ws-opening[data-continued], .ws-opening[data-continued] .ws-mark { animation: none !important; }

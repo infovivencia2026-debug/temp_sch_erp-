@@ -11,6 +11,11 @@ import './workspace-loading.css'
    name as the last session on this device left them (lib/brand.ts
    readSchoolMark). A device that has never signed in shows no name at all,
    only the light, rather than the product's name to a school's families. */
+/* When the last opening was on screen. A second one within a few seconds is
+   the same wait continuing (session, then catalogue), so it must not replay
+   its entrance. */
+let lastShownAt = 0
+
 export function WorkspaceLoading({
   leaving = false,
   label = 'Opening your workspace',
@@ -20,6 +25,8 @@ export function WorkspaceLoading({
   label?: string
 }) {
   const mark = readSchoolMark()
+  const continued = typeof performance !== 'undefined' && performance.now() - lastShownAt < 4000 && lastShownAt > 0
+  if (typeof performance !== 'undefined') lastShownAt = performance.now()
   /* White unless this person has chosen a theme that is dark. A first visit,
      or someone who never picked, gets white whatever their machine prefers. */
   let dark = false
@@ -35,6 +42,7 @@ export function WorkspaceLoading({
       className="ws-opening"
       data-leaving={leaving ? '' : undefined}
       data-dark={dark ? '' : undefined}
+      data-continued={continued ? '' : undefined}
       role="status"
       aria-live="polite"
       aria-label={leaving ? undefined : label}
