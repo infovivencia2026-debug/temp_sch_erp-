@@ -18,7 +18,7 @@ interface Policy {
 }
 interface Section { id: string; class_id: string; class_name: string; name: string }
 interface Row {
-  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string
+  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string; child_name?: string
   admission_no?: string; class_name?: string; section_name?: string; roll_no?: number
 }
 interface Bulk { created: number; existing: number; skipped: number; rows: Row[]; note: string }
@@ -40,13 +40,25 @@ const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 export const passwordOrNote = (r: Row) =>
   r.password ?? 'Already set. Ask the office to reset it if it is lost.'
 
-export function downloadLogins(rows: Row[], stem: string) {
-  const head = ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'First password']
+/* THE COLUMNS THAT AUDIENCE ACTUALLY HAS.
+
+   One student-shaped header was used for all three, so a sheet of staff logins
+   opened in Excel with Class, Section, Roll and Admission empty down every row,
+   and a sheet of parents had no way of saying whose parent each one is -- which
+   is the only thing a class teacher can sort them by. */
+export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'guardians' | 'staff' = 'students') {
+  const head = kind === 'students'
+    ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'First password']
+    : kind === 'guardians'
+    ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'First password']
+    : ['Name', 'Sign in as', 'First password']
+  const cells = (r: Row) => kind === 'students'
+    ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, passwordOrNote(r)]
+    : kind === 'guardians'
+    ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, passwordOrNote(r)]
+    : [r.name, r.sign_in_as, passwordOrNote(r)]
   const lines = [head.map(csvCell).join(',')]
-  for (const r of rows) {
-    lines.push([r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, passwordOrNote(r)]
-      .map(csvCell).join(','))
-  }
+  for (const r of rows) lines.push(cells(r).map(csvCell).join(','))
   // The BOM is what makes Excel read the file as UTF-8 rather than mangling it.
   const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -69,7 +81,7 @@ export function printSlips(rows: Row[], title: string) {
     .k{font-family:ui-monospace,monospace;font-size:15px}.m{color:#555;font-size:11px}
     @media print{h1{display:none}}</style>
     <h1>${esc(title)}, cut along the lines</h1><div class="g">${rows.map((r) => `<div class="s">
-    <div class="n">${esc(r.name)}</div><div class="m">${esc([r.class_name, r.section_name].filter(Boolean).join(' '))}${r.roll_no ? ` · Roll ${esc(r.roll_no)}` : ''}${r.admission_no ? ` · ${esc(r.admission_no)}` : ''}</div>
+    <div class="n">${esc(r.name)}</div><div class="m">${esc([r.child_name, r.class_name, r.section_name].filter(Boolean).join(' '))}${r.roll_no ? ` · Roll ${esc(r.roll_no)}` : ''}${r.admission_no ? ` · ${esc(r.admission_no)}` : ''}</div>
     <div>Sign in as: <span class="k">${esc(r.sign_in_as)}</span></div>${r.password
       ? `<div>Password: <span class="k">${esc(r.password)}</span></div>
     <div class="m">Sign in at ${esc(site)}. You will choose your own password the first time.</div>`
@@ -220,7 +232,7 @@ export function StudentLoginsCard() {
             {sheet.length > 0 && (
               <div className="flex gap-2">
                 <Button onClick={() => printSlips(sheet, 'Student logins')}>Print slips for the class teacher</Button>
-                <Button variant="secondary" onClick={() => downloadLogins(sheet, 'student-logins')}>Download CSV</Button>
+                <Button variant="secondary" onClick={() => downloadLogins(sheet, 'student-logins', 'students')}>Download CSV</Button>
               </div>
             )}
             <Table head={['Name', 'Class', 'Sign in as', 'Temporary password']} empty={!result.rows.length}>
@@ -340,16 +352,16 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
                 <Button onClick={() => printSlips(sheet, kind === 'staff' ? 'Staff logins' : 'Parent logins')}>
                   Print the slips
                 </Button>
-                <Button variant="secondary" onClick={() => downloadLogins(sheet, `${kind}-logins`)}>
+                <Button variant="secondary" onClick={() => downloadLogins(sheet, `${kind}-logins`, kind)}>
                   Download CSV
                 </Button>
               </div>
             )}
-            <Table head={['Name', 'Belongs to', 'Sign in as', 'First password']} empty={!result.rows.length}>
+            <Table head={[kind === 'staff' ? 'Name' : 'Parent', kind === 'staff' ? 'Role' : 'Child', 'Sign in as', 'First password']} empty={!result.rows.length}>
               {result.rows.map((r, i) => (
                 <tr key={i}>
                   <Td>{r.name}</Td>
-                  <Td>{[r.class_name, r.section_name].filter(Boolean).join(' ') || '—'}</Td>
+                  <Td>{[r.child_name, r.class_name, r.section_name].filter(Boolean).join(' ') || '—'}</Td>
                   <Td>{r.sign_in_as ?? '—'}</Td>
                   <Td>
                     {r.password

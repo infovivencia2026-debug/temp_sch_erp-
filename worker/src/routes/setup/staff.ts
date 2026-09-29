@@ -921,7 +921,27 @@ export function registerStaff(r: Router): void {
             ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
         break
       case 'guardians':
+        /* WHOSE PARENT THIS IS.
+
+           The list came back as a column of grown-ups' names and a phone
+           number each, which is the one thing a class teacher handing slips out
+           cannot use: parents are known at a school by their child. The child,
+           the class and the section now travel with the row, and a parent of
+           two children in scope carries both names rather than appearing
+           twice. */
         sql = `SELECT g.id, g.full_name AS name, g.user_id, COALESCE(g.phone, '') AS username, COALESCE(g.email, '') AS email, COALESCE(g.phone, '') AS phone,
+            (SELECT group_concat(st.first_name || ' ' || COALESCE(st.last_name, ''), ', ')
+               FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?)) AS child_name,
+            (SELECT cl.name FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+               JOIN classes cl ON cl.id = e.class_id
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?) LIMIT 1) AS class_name,
+            (SELECT sec.name FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+               JOIN sections sec ON sec.id = e.section_id
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?) LIMIT 1) AS section_name,
             ${usable.replace('%COL%', 'g.user_id')} FROM guardians g WHERE EXISTS (SELECT 1 FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
             LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active' WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?)) ORDER BY g.id`
         break
@@ -932,11 +952,25 @@ export function registerStaff(r: Router): void {
       default:
         throw badRequest('kind must be students, guardians or staff')
     }
-    const people = await c.db.prepare(sql).bind(section, section).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number
-      admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }>()
+    /* The guardian query asks the section four times over -- once for the
+       children's names and once each for the class and the section, plus
+       the EXISTS that scopes the guardian -- so the binding is counted
+       from the statement rather than assumed to be a pair. */
+    const marks = (sql.match(/\?/g) ?? []).length
+    const people = await c.db.prepare(sql).bind(...Array(marks).fill(section)).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number
+      admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null; child_name?: string | null }>()
     /* The class teacher's credentials sheet needs to know whose slip is whose. */
-    const studentCols = (p: { admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }) => kind !== 'students' ? {}
-      : { admission_no: p.admission_no, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined, roll_no: p.roll_no ?? undefined }
+    /* WHAT EACH AUDIENCE NEEDS BESIDE THE NAME.
+       A child is placed by class, section, roll and admission number. A
+       parent is placed by their child -- a column of grown-ups' names is
+       the one thing a class teacher cannot hand out. A member of staff is
+       placed by neither, and carried the child's columns empty until now. */
+    const studentCols = (p: { admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null; child_name?: string | null }) =>
+      kind === 'students'
+        ? { admission_no: p.admission_no, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined, roll_no: p.roll_no ?? undefined }
+        : kind === 'guardians'
+        ? { child_name: p.child_name ?? undefined, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined }
+        : {}
     const out = { created: 0, existing: 0, skipped: 0, rows: [] as Record<string, unknown>[], note: '', sent: 0 }
     const t = now()
     const ms = new Messenger(scopeOf(c))

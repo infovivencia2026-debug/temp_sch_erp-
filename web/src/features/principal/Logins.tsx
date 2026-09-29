@@ -208,10 +208,20 @@ export default function Logins() {
         title="Logins & access"
         description="Every account that can sign in to this school, what it can reach, and the devices it is signed in on right now."
         actions={
-          <Button onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
-            {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-            {creating ? 'Cancel' : 'Issue a login'}
-          </Button>
+          /* THIS ONE BUILDS AN ACCOUNT FROM NOTHING: a name, a contact, a set of
+             roles. That is how an office account or a one-off is made, and it
+             is the wrong instrument for a child or a parent -- both of those
+             already exist as a record with a name and a number, and their login
+             is issued FROM that record so the two stay joined. Offering it on
+             the Students and Parents tabs invited somebody to type a child's
+             name in by hand and create a second, unlinked account for a child
+             the school already has. */
+          record === '' || record === 'staff' ? (
+            <Button onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
+              {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {creating ? 'Cancel' : 'Issue a login'}
+            </Button>
+          ) : undefined
         }
       />
       <PageBody>
@@ -300,7 +310,7 @@ export default function Logins() {
           </>
         )}
 
-        {creating && (
+        {creating && (record === '' || record === 'staff') && (
           <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
         )}
         {editing && (
