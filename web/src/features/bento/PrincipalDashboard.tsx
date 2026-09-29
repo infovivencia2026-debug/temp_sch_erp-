@@ -447,7 +447,7 @@ function MicroStat({ label, value }: { label: string; value: string }) {
       <p className="truncate text-[length:min(var(--card-sub,8.5px),12px)] font-normal uppercase leading-none tracking-[0.07em] text-[var(--bento-muted)]">
         {label}
       </p>
-      <p className="mt-1 truncate text-[length:min(var(--card-change,12px),16px)] leading-none tabular-nums [font-weight:650]">{value}</p>
+      <p className="mt-1 truncate text-[length:min(var(--card-change,12px),16px)] leading-none tabular-nums font-semibold">{value}</p>
     </div>
   )
 }

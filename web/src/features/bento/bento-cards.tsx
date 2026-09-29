@@ -493,7 +493,7 @@ export function CardShell({
                Inter is variable here, so 650 is a real weight, not synthesised
                from two. */
             /* `card-fig`: the hook the lead/supporting weight rules in bento-theme.css key on. */
-            'card-fig truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:650]',
+            'card-fig truncate pb-[0.06em] tracking-[-0.035em] tabular-nums font-semibold',
             /* A QUIET CARD DOES NOT SHOUT ITS ZERO.
 
                An empty school renders "0" and "₹0", and at the figure's own
@@ -529,7 +529,7 @@ export function CardShell({
             need the sentence repeating it. */}
         {delta && (
           <p className="shrink-0 text-right leading-tight">
-            <span className="block tabular-nums [font-weight:650]
+            <span className="block tabular-nums font-semibold
                              text-[length:var(--card-change,11px)]">
               {delta}
             </span>
@@ -1184,7 +1184,7 @@ export function Rows({ items, srLabel, formatValue }: {
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="text-[length:min(10px,var(--card-note,10px))] leading-none
-                        tabular-nums [font-weight:650]">{fmt(it.value)}</b>
+                        tabular-nums font-semibold">{fmt(it.value)}</b>
           </Fragment>
       ))}
     </div>
@@ -1234,7 +1234,7 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
             />
           )}
         </svg>
-        <span className="relative text-[15px] tabular-nums tracking-[-0.03em] [font-weight:650]">
+        <span className="relative text-[15px] tabular-nums tracking-[-0.03em] font-semibold">
           {pct}
           <span className="ml-[1px] align-baseline text-[0.55em] opacity-75
                            [font-family:var(--bento-mono)]">%</span>
@@ -1565,7 +1565,7 @@ export function Segments({
           <li key={p.label} className="flex items-center gap-1">
             <span className="h-2 w-2 shrink-0" style={{ background: ink(88 - i * 20) }} />
             <span className="truncate font-normal">{p.label}</span>
-            <b className="tabular-nums [font-weight:650]">
+            <b className="tabular-nums font-semibold">
               {Math.round((num(p.value) / sum) * 100)}%
             </b>
           </li>
@@ -1715,7 +1715,7 @@ export function Ranked({
       {shown.map((it, i) => (
         <div key={it.label} className="min-w-0 flex-1">
           <b className="block leading-none tracking-[-0.04em] tabular-nums
-                        text-[length:min(var(--card-fig,22px),22px)] [font-weight:650]">
+                        text-[length:min(var(--card-fig,22px),22px)] font-semibold">
             {String(i + 1).padStart(2, '0')}
           </b>
           <span className="mt-0.5 block truncate font-normal text-[length:min(8px,var(--card-note,8px))]
@@ -1771,7 +1771,7 @@ export function Rings({
             )
           })}
         </svg>
-        <span className="relative text-[13px] tabular-nums tracking-[-0.03em] [font-weight:650]">
+        <span className="relative text-[13px] tabular-nums tracking-[-0.03em] font-semibold">
           {Math.round((num(usable[0].value) / num(usable[0].total)) * 100)}
           <span className="ml-px align-baseline text-[0.55em] opacity-75
                            [font-family:var(--bento-mono)]">%</span>

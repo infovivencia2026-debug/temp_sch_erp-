@@ -52,7 +52,7 @@ export const WASH = 'hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparen
     somebody opens *because* they cannot see. The ink always wins against the
     card it is drawn on. */
 export const RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink,hsl(var(--ring)))]'
 
 /** Chosen. It was inverted -- a slab of ink with the card as its word --
     because the accent-on-its-own-tint pairing it wore before measured

@@ -3242,18 +3242,18 @@ body[data-scroll-lock] {
      -- the nearest step up, and nothing is below the 12px floor. The class
      names stay so no call site changes; the value is what they now mean. */
   html .text-\[8px\] { font-size: calc(12px * var(--font-scale)); }
-  html .text-\[8.5px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[8\.5px\] { font-size: calc(12px * var(--font-scale)); }
   html .text-\[9px\] { font-size: calc(12px * var(--font-scale)); }
   html .text-\[10px\] { font-size: calc(12px * var(--font-scale)); }
-  html .text-\[10.5px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[10\.5px\] { font-size: calc(12px * var(--font-scale)); }
   html .text-\[11px\] { font-size: calc(12px * var(--font-scale)); }
-  html .text-\[11.5px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[11\.5px\] { font-size: calc(12px * var(--font-scale)); }
   html .text-\[12px\] { font-size: calc(12px * var(--font-scale)); }
-  html .text-\[12.5px\] { font-size: calc(13px * var(--font-scale)); }
+  html .text-\[12\.5px\] { font-size: calc(13px * var(--font-scale)); }
   html .text-\[13px\] { font-size: calc(13px * var(--font-scale)); }
-  html .text-\[13.5px\] { font-size: calc(14px * var(--font-scale)); }
+  html .text-\[13\.5px\] { font-size: calc(14px * var(--font-scale)); }
   html .text-\[14px\] { font-size: calc(14px * var(--font-scale)); }
-  html .text-\[14.5px\] { font-size: calc(15px * var(--font-scale)); }
+  html .text-\[14\.5px\] { font-size: calc(15px * var(--font-scale)); }
   html .text-\[15px\] { font-size: calc(15px * var(--font-scale)); }
   html .text-\[16px\] { font-size: calc(16px * var(--font-scale)); }
   html .text-\[17px\] { font-size: calc(18px * var(--font-scale)); }
