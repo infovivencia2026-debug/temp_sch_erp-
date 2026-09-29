@@ -263,3 +263,18 @@ html[data-printing] { overflow: hidden; }
 /* A card's title stays with the first rows of its table rather than being
    left alone at the foot of a page. */
 .print-sheet__body .card > :first-child { break-after: avoid; }
+
+/* A4 IS NOT 1280px (merged from main, 4da3ce92). The screen's four-across
+   metric row gives each figure ~40mm on paper and broke a fee total over two
+   lines; two across keeps every number whole. Other side-by-side panels come
+   back to one column, so the second panel's last column is not lost off the
+   edge. */
+.print-sheet__body .cell-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.print-sheet__body .cell { padding: 10pt 12pt; }
+.print-sheet__body .stat { font-size: 15pt; white-space: nowrap; margin-top: 4pt; }
+.print-sheet__body [class*="grid-cols-"]:not(.cell-grid) { grid-template-columns: minmax(0, 1fr) !important; }
+.print-sheet__body th, .print-sheet__body td { padding: 3pt 5pt; }
+.print-sheet__body [class*="overflow-x"] { overflow: visible !important; }
+/* Paper is white: the on-screen colour washes and glows do not print. */
+.print-sheet__body .cell-grid > .cell,
+.print-sheet__body .tint-grid > * { background: #fff !important; box-shadow: none !important; }
