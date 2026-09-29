@@ -114,6 +114,7 @@ export default function StudentHome() {
             <h1 className="text-[22px] font-semibold leading-tight">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
             <p className="text-[13px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
+          {streak.isLoading && <div className="flex gap-2" aria-hidden><Bone className="h-11 w-[64px] rounded-full" /><Bone className="h-11 w-[64px] rounded-full" /></div>}
           {streak.data && (
             <div className="flex gap-2">
               <Chip to={toStreak} label={`${streak.data.open_streak} day streak`}>
