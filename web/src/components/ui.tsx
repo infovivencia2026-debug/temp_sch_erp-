@@ -588,7 +588,15 @@ function cellText(node: ReactNode): string {
   if (!isValidElement(node)) return ''
   const el = node as { type: unknown; props: { children?: ReactNode; className?: string } }
   // What exists to be pressed is not part of the register.
-  if (el.type === Button || el.type === 'button' || el.type === 'input' || el.type === 'select') return ''
+  /* Every shape a control takes in these cells. Checking Button alone let
+     ConfirmButton through, and the actions column of the logins register
+     exported as "Reset password Deactivate" for every row -- the labels of
+     the two buttons standing there, in a column headed nothing. Compared by
+     identity rather than by name: the build mangles names, so a check on
+     el.type.name would pass in development and quietly fail in production.
+     A Link is left alone; it usually carries the row's own text. */
+  if (el.type === Button || el.type === ConfirmButton || el.type === 'button' ||
+      el.type === 'input' || el.type === 'select' || el.type === 'textarea') return ''
   if (typeof el.props?.className === 'string' && el.props.className.includes('no-print')) return ''
   return cellText(el.props?.children)
 }
