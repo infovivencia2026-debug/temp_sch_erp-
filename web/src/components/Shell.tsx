@@ -17,6 +17,8 @@ import { useOfflineWarm } from '@/lib/offline-warm'
    has painted, in their own chunks. */
 const AssistantTab = lazy(() => import('@/components/AssistantTab').then((m) => ({ default: m.AssistantTab })))
 const FirstRunTour = lazy(() => import('./FirstRunTour'))
+// A student's phone gets a five-tab bar (features/portal/student-kit.tsx).
+const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m) => ({ default: m.StudentTabBar })))
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -1245,6 +1247,9 @@ export function Shell({
             )}
             <BentoDock />
           </main>
+          {role?.key === 'student' && viewport === 'phone' && (
+            <Suspense fallback={null}><StudentTabBar onMore={chromeless ? undefined : () => setNavOpen(true)} /></Suspense>
+          )}
           {/* A small corner tab, not a screen. A question is nearly always about
               what is already on screen, so an assistant that covers it makes
               somebody leave the thing they wanted to ask about. Mounted outside
