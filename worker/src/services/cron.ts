@@ -29,7 +29,7 @@ export const SCHEDULES: Schedule[] = [
   { name: 'attendance_rollup', spec: '30 0 * * *', kind: 'attendance:rollup', perInstitution: true, payload: env0 },
   { name: 'fee_reminders', spec: '0 9 * * *', kind: 'fee:reminder_fanout', perInstitution: true,
     payload: (i, j) => ({ ...env0(i, j), template_key: 'fee.overdue', overdue_since: new Date().toISOString() }) },
-  { name: 'session_prune', spec: '0 3 * * 0', kind: 'session:prune', perInstitution: false, payload: () => ({}) },
+  { name: 'session_prune', spec: '0 3 * * *', kind: 'session:prune', perInstitution: false, payload: () => ({}) },
   { name: 'diary_reminders', spec: '*/5 * * * *', kind: 'diary:reminders', perInstitution: false, payload: () => ({}) },
   // Go's message:dispatch; the messaging port's drain job is 'message.send'.
   { name: 'message_dispatch', spec: '* * * * *', kind: 'message.send', perInstitution: true,
@@ -61,6 +61,8 @@ export const SCHEDULES: Schedule[] = [
   { name: 'ai_warnings_nightly', spec: '15 2 * * *', kind: 'ai:warnings_nightly', perInstitution: true, payload: env0 },
   { name: 'ai_warnings_digest', spec: '30 7 * * 1', kind: 'ai:warnings_digest', perInstitution: true, payload: env0 },
   { name: 'backup_nightly', spec: '30 1 * * *', kind: 'backup:fanout', perInstitution: false, payload: () => ({}) },
+  // Weekly D1-export-API copies to R2, 8 kept (services/background/weekly_export.ts). Sat 21:00 UTC = Sun 02:30 IST.
+  { name: 'backup_weekly', spec: '0 21 * * 6', kind: 'backup:weekly_fanout', perInstitution: false, payload: () => ({}) },
 ]
 
 // ---- five-field cron matching ------------------------------------------------

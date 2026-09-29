@@ -10,6 +10,12 @@ import { purgeSessionActivity } from '../session_activity'
 registerJob('session:prune', async (env) => {
   const s = await env.CONTROL.prepare(`DELETE FROM sessions WHERE expires_at < ?`).bind(daysAgo(7)).run()
   console.log('pruned sessions', { rows: s.meta.changes })
+  /* Sign-in throttle rows past their window and any lock (login.ts keeps a
+     5-minute window; a day is ample). Without this the table only grows. */
+  const nowIso = new Date().toISOString()
+  const th = await env.CONTROL.prepare(`DELETE FROM login_throttle WHERE window_started_at < ? AND (locked_until IS NULL OR locked_until < ?)`)
+    .bind(daysAgo(1), nowIso).run()
+  console.log('pruned login throttle', { rows: th.meta.changes })
   // The offline outbox's receipts: fourteen days, twice the client's retry window.
   let receipts = 0
   await forEachSchool(env, async (_inst, db) => {

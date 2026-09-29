@@ -107,7 +107,7 @@ function csvCell(v: unknown): string {
 // --- streaming gzip to R2 ----------------------------------------------------------
 
 /** Text in, gzip out, into an R2 multipart upload, with a SHA-256 of the object. */
-class GzipToR2 {
+export class GzipToR2 {
   private cs = new CompressionStream('gzip')
   private writer = this.cs.writable.getWriter()
   private enc = new TextEncoder()
@@ -372,3 +372,6 @@ export async function expireExports(env: Env): Promise<number> {
   }
   return (r.results ?? []).length
 }
+
+// The weekly D1-export copies (weekly_export.ts) register their jobs with these.
+import './weekly_export'
