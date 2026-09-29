@@ -152,11 +152,27 @@ export async function autoIssueGuardianLogin(c: Ctx, guardianId: string): Promis
   if (!g || g.user_id) return false
   const email = nullStr(g.email), phone = nullStr(g.phone)
   if (!email && !phone) return false
+  /* A TEACHER WHOSE CHILD IS AT THE SCHOOL.
+
+     This asked for an account that already held the parent role, so a member of
+     staff -- who holds faculty and not parent -- was never matched. The clash
+     check below then refused to make a second account on the same number, and
+     the run reported them as "skipped: the number already belongs to a staff
+     account". Twenty-one of them at one school, and no way for the office to
+     do anything about it.
+
+     One person, one login, both roles: the guardian record is attached to the
+     account the number already opens, and the parent role is added to it, so
+     the same sign-in now reaches their classes and their own child. Any account
+     on that number is the same human being -- the unique index on
+     (institution_id, phone) is what guarantees it. */
   const attach = await c.db.prepare(`SELECT u.id FROM users u WHERE u.institution_id = ? AND ((? IS NOT NULL AND u.email = ?) OR (? IS NOT NULL AND u.phone = ?))
-      AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key = 'parent') ORDER BY u.created_at LIMIT 1`)
+      ORDER BY u.created_at LIMIT 1`)
     .bind(instId(c), email, email, phone, phone).first<{ id: string }>()
   if (attach) {
     await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ? AND user_id IS NULL`).bind(attach.id, guardianId).run()
+    // The role is what turns their existing login into a parent's as well.
+    await grantRole(c, attach.id, 'parent')
     return true
   }
   const clash = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND ((? IS NOT NULL AND email = ?) OR (? IS NOT NULL AND phone = ?))`)
@@ -845,11 +861,15 @@ export function registerStaff(r: Router): void {
         throw badRequest('this person has no email or phone on their record. Add one first, or they will have nothing to sign in with and nowhere to receive a reset')
       }
       // The number already signs a parent in: attach this guardian to that account.
+      /* Any account on that number, not only one that is already a parent's:
+         see the note in autoIssueGuardianLogin. A teacher whose child is at the
+         school keeps one login and gains the parent role on it. */
       const attach = await c.db.prepare(`SELECT u.id FROM users u WHERE u.institution_id = ? AND ((? IS NOT NULL AND u.email = ?) OR (? IS NOT NULL AND u.phone = ?))
-          AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key = 'parent') ORDER BY u.created_at LIMIT 1`)
+          ORDER BY u.created_at LIMIT 1`)
         .bind(instId(c), email, email, phone, phone).first<{ id: string }>()
       if (attach) {
         await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ?`).bind(attach.id, guardianId).run()
+        await grantRole(c, attach.id, 'parent')
         out.existing = true
         if (reset) {
           await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(pwHash, known ? 1 : 0, t, attach.id).run()
