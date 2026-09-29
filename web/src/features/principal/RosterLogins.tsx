@@ -1,26 +1,27 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { KeyRound, Printer, RotateCcw } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Badge, Button, Card, CardHeader, Field, FormNotice, Select, Table, Td,
+  Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
 } from '@/components/ui'
+import { downloadLogins, printSlips } from './StudentLoginsCard'
 
 /* THE CLASS AS IT STANDS, NOT THE ACCOUNTS THAT HAPPEN TO EXIST.
  *
  * Logins & access listed logins, so a school whose children have none saw
- * "Students 0" and had nothing to act on -- which is the very school that needs
- * the screen. This lists the roll instead: every child in a class or section,
- * each with their guardians beside them, and against each of them whether they
- * can sign in and what they would type.
+ * "Students 0" and had nothing to act on -- which is the school that needs this
+ * screen most. This lists the roll: every child in a class or section, each
+ * with their guardians, and against each of them whether they can sign in.
  *
- * A mother and a father appear as two rows under their child rather than two
- * strangers in an alphabetical list, because that is the sheet a class teacher
- * hands out: one family at a time.
+ * WHY A TICK BOX PER ROW. The errand is almost never "everybody" or "one".
+ * It is the eleven children in 6-B who were admitted after the logins went out,
+ * and issuing to the whole class to reach them resets the twenty-seven who are
+ * already using theirs. Choose, then act on the chosen.
  *
  * A password is shown once and cannot be read back, so the ones issued in this
- * sitting are held here beside the person until the page is left. That is also
- * what the download carries: a family to a line, both parents' names, sign-ins
- * and passwords side by side, in the roll's own order.
+ * sitting stay on screen beside the person until the page is left -- and that
+ * is what the print and the download carry.
  */
 
 interface Guardian {
@@ -49,11 +50,27 @@ interface Section {
   name: string
 }
 
-const csvCell = (v: unknown) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+/** One person as this screen deals with them, child or guardian alike. */
+interface Row {
+  id: string
+  name: string
+  /** Roll and class for a child; the relation for a guardian. */
+  under: string
+  /** Admission number for a child, phone for a guardian. */
+  code: string
+  signIn: string
+  hasLogin: boolean
+  /** Whose parent, or which parents. The column the office reads down. */
+  context: string
+  child: Child
+}
 
 export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   const qc = useQueryClient()
   const [target, setTarget] = useState('')
+  const [needle, setNeedle] = useState('')
+  const [status, setStatus] = useState('')
+  const [picked, setPicked] = useState<Record<string, true>>({})
   /* What was issued in this sitting, by person id. The server will not say it
      twice and the page cannot ask again. */
   const [issued, setIssued] = useState<Record<string, { signIn: string; password: string }>>({})
@@ -64,9 +81,6 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   })
 
   const [scope, id] = target.split(':')
-  /* Everybody, until a class is chosen. The office opens this to find out who
-     cannot sign in; asking them to pick a class first hides the answer behind
-     a question they have not got yet. */
   const roster = useQuery({
     queryKey: ['login-roster', target],
     queryFn: () =>
@@ -77,16 +91,27 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   })
 
   const issue = useMutation({
-    mutationFn: (v: { id: string; who: 'student' | 'guardian'; reset: boolean }) =>
-      api
-        .post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
-          '/api/v1/setup/' + (v.who === 'student' ? 'students' : 'guardians') + '/' + v.id +
+    mutationFn: async (v: { ids: string[]; reset: boolean }) => {
+      const out: { id: string; signIn: string; password: string }[] = []
+      /* One at a time on purpose. The endpoint is per person, and a school's
+         section is forty rows: a burst of forty parallel writes against D1 is
+         how a batch half-succeeds and nobody can tell which half. */
+      for (const personID of v.ids) {
+        const r = await api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
+          '/api/v1/setup/' + (kind === 'students' ? 'students' : 'guardians') + '/' + personID +
             '/login' + (v.reset ? '?reset=true' : ''),
           {},
         )
-        .then((r) => ({ id: v.id, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })),
-    onSuccess: (r) => {
-      setIssued((m) => ({ ...m, [r.id]: { signIn: r.signIn, password: r.password } }))
+        out.push({ id: personID, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })
+      }
+      return out
+    },
+    onSuccess: (list) => {
+      setIssued((m) => {
+        const next = { ...m }
+        for (const r of list) next[r.id] = { signIn: r.signIn, password: r.password }
+        return next
+      })
       void qc.invalidateQueries({ queryKey: ['login-roster', target] })
       void qc.invalidateQueries({ queryKey: ['admin-users'] })
     },
@@ -102,61 +127,72 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   ]
   const children = roster.data?.items ?? []
 
-  /* What to show for one person: whatever was issued a moment ago, otherwise
-     the sign-in name the account already had. */
-  const shown = (personID: string, fallback: string) => {
-    const got = issued[personID]
-    return { signIn: got?.signIn || fallback, password: got?.password ?? '' }
-  }
-  const note = (password: string, has: boolean) =>
-    password || (has ? 'already set' : 'no login yet')
-
-  const download = () => {
-    const head =
-      kind === 'students'
-        ? ['Class', 'Section', 'Roll', 'Admission no', 'Child', 'Sign in as', 'Password']
-        : ['Class', 'Section', 'Child', 'Parent 1', 'Relation', 'Sign in as', 'Password',
-           'Parent 2', 'Relation', 'Sign in as', 'Password']
-    const lines = [head.map(csvCell).join(',')]
-    for (const ch of children) {
-      if (kind === 'students') {
-        const v = shown(ch.id, ch.sign_in_as)
-        lines.push(
-          [ch.class_name, ch.section_name, ch.roll_no, ch.admission_no, ch.name, v.signIn,
-           note(v.password, ch.has_login)].map(csvCell).join(','),
-        )
-      } else {
-        const a = ch.guardians[0]
-        const b = ch.guardians[1]
-        const va = a ? shown(a.id, a.sign_in_as || a.phone) : null
-        const vb = b ? shown(b.id, b.sign_in_as || b.phone) : null
-        lines.push(
-          [ch.class_name, ch.section_name, ch.name,
-           a?.full_name, a?.relation, va?.signIn, a && va ? note(va.password, a.has_login) : '',
-           b?.full_name, b?.relation, vb?.signIn, b && vb ? note(vb.password, b.has_login) : '',
-          ].map(csvCell).join(','),
-        )
-      }
+  /* One flat list of people, whichever tab this is. A child's row is the child;
+     a family's rows are its guardians, each carrying the child's name so the
+     column can be read straight down. */
+  const rows: Row[] = useMemo(() => {
+    if (kind === 'students') {
+      return children.map((ch) => ({
+        id: ch.id,
+        name: ch.name,
+        under: 'Roll ' + (ch.roll_no ?? '—') + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-'),
+        code: ch.admission_no,
+        signIn: ch.sign_in_as,
+        hasLogin: ch.has_login,
+        context: ch.guardians.map((g) => g.full_name).join(', ') || 'No guardian on record',
+        child: ch,
+      }))
     }
-    // The BOM is what makes Excel read this as UTF-8 rather than mangling it.
-    const url = URL.createObjectURL(
-      new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }),
+    return children.flatMap((ch) =>
+      ch.guardians.map((g) => ({
+        id: g.id,
+        name: g.full_name,
+        under: g.relation || 'guardian',
+        code: g.phone,
+        signIn: g.sign_in_as || g.phone,
+        hasLogin: g.has_login,
+        context: ch.name + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-'),
+        child: ch,
+      })),
     )
-    const a = document.createElement('a')
-    a.href = url
-    a.download =
-      (kind === 'students' ? 'student' : 'parent') + '-logins-' +
-      new Date().toISOString().slice(0, 10) + '.csv'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 0)
-  }
+  }, [children, kind])
 
-  const without =
-    kind === 'students'
-      ? children.filter((c) => !c.has_login).length
-      : children.reduce((n, c) => n + c.guardians.filter((g) => !g.has_login).length, 0)
+  const shown = rows.filter((r) => {
+    if (status === 'issued' && !r.hasLogin) return false
+    if (status === 'not' && r.hasLogin) return false
+    const t = needle.trim().toLowerCase()
+    if (!t) return true
+    return (r.name + ' ' + r.code + ' ' + r.under + ' ' + r.context).toLowerCase().includes(t)
+  })
+  const chosen = shown.filter((r) => picked[r.id])
+  const allOn = shown.length > 0 && chosen.length === shown.length
+  const without = rows.filter((r) => !r.hasLogin).length
+
+  const toggleAll = () =>
+    setPicked(allOn ? {} : Object.fromEntries(shown.map((r) => [r.id, true as const])))
+
+  /* What print and download are handed: the people on screen, with whatever was
+     issued a moment ago filled in beside them. */
+  const sheet = shown.map((r) => ({
+    name: r.name,
+    sign_in_as: issued[r.id]?.signIn || r.signIn,
+    password: issued[r.id]?.password,
+    existing: r.hasLogin,
+    child_name: kind === 'guardians' ? r.child.name : undefined,
+    admission_no: r.child.admission_no,
+    class_name: r.child.class_name,
+    section_name: r.child.section_name,
+    roll_no: r.child.roll_no,
+  }))
+
+  const act = (reset: boolean) => {
+    const ids = (chosen.length ? chosen : []).map((r) => r.id)
+    if (!ids.length) return
+    const word = reset ? 'Give these ' + ids.length + ' a new password? The one they hold now stops working.'
+      : 'Issue a login for these ' + ids.length + '?'
+    if (!window.confirm(word)) return
+    issue.mutate({ ids, reset })
+  }
 
   return (
     <Card>
@@ -165,121 +201,154 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         description={
           kind === 'students'
             ? 'Every child on the roll, whether or not they can sign in yet.'
-            : 'Every child with their guardians beside them, whether or not they can sign in yet.'
-        }
-        action={
-          children.length > 0 ? (
-            <Button variant="secondary" onClick={download}>
-              Download CSV
-            </Button>
-          ) : undefined
+            : 'Every guardian of the children on the roll, whether or not they can sign in yet.'
         }
       />
-      <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
-        <div className="w-72">
+
+      {/* The class, and what to do to it. */}
+      <div className="flex flex-wrap items-end gap-3 border-b px-[var(--card-pad)] py-4">
+        <div className="w-64">
           <Field label="Class or section">
             <Select value={target} onChange={setTarget} options={targets} placeholder="Every class" />
           </Field>
         </div>
-        {!roster.isLoading && (
-          <p className="text-muted-foreground">
-            {children.length} {kind === 'students' ? 'on the roll' : 'families'}; {without}{' '}
-            {kind === 'students' ? 'cannot sign in yet' : 'guardians cannot sign in yet'}.
-          </p>
-        )}
-        <FormNotice error={issue.error ?? roster.error} />
-
-        {kind === 'students' && (
-          <Table
-            head={['Roll', 'Child', 'Admission no', 'Sign in as', 'Password', '']}
-            loading={roster.isLoading}
-            empty={!children.length}
-            emptyLabel="Nobody on this roll."
-          >
-            {children.map((ch) => {
-              const v = shown(ch.id, ch.sign_in_as)
-              return (
-                <tr key={ch.id}>
-                  <Td className="tabular-nums text-muted-foreground">{ch.roll_no ?? '—'}</Td>
-                  <Td className="font-medium">{ch.name}</Td>
-                  <Td className="tabular-nums">{ch.admission_no}</Td>
-                  <Td className="font-mono">{v.signIn || '—'}</Td>
-                  <Td>
-                    {v.password ? (
-                      <span className="font-mono">{v.password}</span>
-                    ) : ch.has_login ? (
-                      <Badge tone="success">already set</Badge>
-                    ) : (
-                      <Badge>no login</Badge>
-                    )}
-                  </Td>
-                  <Td className="whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      disabled={issue.isPending}
-                      onClick={() => issue.mutate({ id: ch.id, who: 'student', reset: ch.has_login })}
-                    >
-                      {ch.has_login ? 'Reset' : 'Issue'}
-                    </Button>
-                  </Td>
-                </tr>
-              )
-            })}
-          </Table>
-        )}
-
-        {kind === 'guardians' && (
-          <Table
-            head={['Child', 'Parent', 'Relation', 'Sign in as', 'Password', '']}
-            loading={roster.isLoading}
-            empty={!children.length}
-            emptyLabel="Nobody on this roll."
-          >
-            {children.flatMap((ch) =>
-              ch.guardians.length === 0
-                ? [
-                    <tr key={ch.id}>
-                      <Td className="font-medium">{ch.name}</Td>
-                      <Td className="text-muted-foreground">No guardian on record.</Td>
-                      <Td>—</Td>
-                      <Td>—</Td>
-                      <Td>—</Td>
-                      <Td>—</Td>
-                    </tr>,
-                  ]
-                : ch.guardians.map((g, i) => {
-                    const v = shown(g.id, g.sign_in_as || g.phone)
-                    return (
-                      <tr key={g.id}>
-                        <Td className="font-medium">{i === 0 ? ch.name : ''}</Td>
-                        <Td>{g.full_name}</Td>
-                        <Td className="text-muted-foreground">{g.relation || '—'}</Td>
-                        <Td className="font-mono">{v.signIn || '—'}</Td>
-                        <Td>
-                          {v.password ? (
-                            <span className="font-mono">{v.password}</span>
-                          ) : g.has_login ? (
-                            <Badge tone="success">already set</Badge>
-                          ) : (
-                            <Badge>no login</Badge>
-                          )}
-                        </Td>
-                        <Td className="whitespace-nowrap">
-                          <Button
-                            size="sm"
-                            disabled={issue.isPending}
-                            onClick={() => issue.mutate({ id: g.id, who: 'guardian', reset: g.has_login })}
-                          >
-                            {g.has_login ? 'Reset' : 'Issue'}
-                          </Button>
-                        </Td>
-                      </tr>
-                    )
-                  }),
-            )}
-          </Table>
-        )}
+        <div className="mr-auto text-[13px] text-muted-foreground">
+          <span className="text-[15px] font-semibold text-foreground">
+            {rows.length - without} / {rows.length}
+          </span>{' '}
+          can sign in
+          <div className="text-[12px]">
+            {kind === 'students'
+              ? 'First password is the admission number.'
+              : 'First password is their own phone number.'}
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          disabled={!chosen.length || issue.isPending}
+          onClick={() => act(true)}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset selected{chosen.length ? ' (' + chosen.length + ')' : ''}
+        </Button>
+        <Button disabled={!chosen.length || issue.isPending} onClick={() => act(false)}>
+          <KeyRound className="h-3.5 w-3.5" />
+          {issue.isPending ? 'Issuing…' : 'Issue selected' + (chosen.length ? ' (' + chosen.length + ')' : '')}
+        </Button>
       </div>
+
+      {/* Narrow the list, and take it away. */}
+      <div className="flex flex-wrap items-center gap-2 border-b bg-surface-sunken/40 px-[var(--card-pad)] py-3">
+        <div className="w-64">
+          <Input
+            value={needle}
+            onChange={setNeedle}
+            srLabel="Search this roll"
+            placeholder={kind === 'students' ? 'Name, roll or admission no' : 'Parent, child or phone'}
+          />
+        </div>
+        <Select
+          value={status}
+          onChange={setStatus}
+          placeholder="Any status"
+          options={[
+            { value: 'issued', label: 'Can sign in' },
+            { value: 'not', label: 'No login yet' },
+          ]}
+        />
+        <Button variant="ghost" disabled={!shown.length} onClick={toggleAll}>
+          {allOn ? 'Clear all' : 'Choose all ' + shown.length}
+        </Button>
+        <span className="mr-auto text-[12.5px] text-muted-foreground">
+          {shown.length} of {rows.length}
+        </span>
+        <Button
+          variant="secondary"
+          disabled={!sheet.length}
+          onClick={() => printSlips(sheet, kind === 'students' ? 'Student logins' : 'Parent logins')}
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Print slips
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={!sheet.length}
+          onClick={() => downloadLogins(sheet, kind === 'students' ? 'student-logins' : 'parent-logins', kind)}
+        >
+          Export CSV
+        </Button>
+      </div>
+
+      <FormNotice error={issue.error ?? roster.error} />
+
+      <Table
+        head={[
+          /* A column header is a string here, not markup, so choosing
+             everybody lives in the toolbar above where its count can be
+             read out loud. */
+          '',
+          kind === 'students' ? 'Child' : 'Parent',
+          kind === 'students' ? 'Admission no' : 'Phone',
+          'Signs in as',
+          'Password',
+          kind === 'students' ? 'Guardians' : 'Child',
+          '',
+        ]}
+        loading={roster.isLoading}
+        empty={!shown.length}
+        emptyLabel={
+          rows.length ? 'Nobody matches those filters.' : 'Nobody on this roll.'
+        }
+      >
+        {shown.map((r) => {
+          const got = issued[r.id]
+          return (
+            <tr key={r.id}>
+              <Td>
+                <Checkbox
+                  checked={!!picked[r.id]}
+                  onChange={() =>
+                    setPicked((m) => {
+                      const next = { ...m }
+                      if (next[r.id]) delete next[r.id]
+                      else next[r.id] = true
+                      return next
+                    })
+                  }
+                  label=""
+                  srLabel={'Choose ' + r.name}
+                />
+              </Td>
+              <Td>
+                <div className="font-medium">{r.name}</div>
+                <div className="text-[12px] text-muted-foreground">{r.under}</div>
+              </Td>
+              <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
+              <Td className="font-mono text-[12.5px]">{got?.signIn || r.signIn || '—'}</Td>
+              <Td>
+                {got?.password ? (
+                  <span className="font-mono">{got.password}</span>
+                ) : r.hasLogin ? (
+                  <Badge tone="success">can sign in</Badge>
+                ) : (
+                  <Badge tone="warning">no login yet</Badge>
+                )}
+              </Td>
+              <Td className="text-[12.5px] text-muted-foreground">{r.context}</Td>
+              <Td className="whitespace-nowrap">
+                <Button
+                  size="sm"
+                  variant={r.hasLogin ? 'secondary' : 'primary'}
+                  disabled={issue.isPending}
+                  onClick={() => issue.mutate({ ids: [r.id], reset: r.hasLogin })}
+                >
+                  {r.hasLogin ? 'Reset' : 'Issue now'}
+                </Button>
+              </Td>
+            </tr>
+          )
+        })}
+      </Table>
     </Card>
   )
 }
