@@ -1,4 +1,4 @@
--- 0015_query_indexes (tenant: every school database).
+-- 0018_query_indexes (tenant: every school database).
 -- Indexes for the predicates the Worker actually runs. The baseline copied
 -- Postgres's indexes, most of which start with institution_id; D1 queries do
 -- not filter on it (the database is the school), so SQLite could not use them

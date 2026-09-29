@@ -15,5 +15,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 11, name: 'lms_modules', checksum: '186f731b38bac89604e9f5412f26501c0fe88b80f97f851e3773567a6d1d4906' },
   { version: 12, name: 'lms_progression', checksum: '4f6511af475fbf4fb76bdabf8185f9f3cfda1275070a90361570eca894b95599' },
   { version: 14, name: 'messaging_delivery', checksum: '93c01ff8c7ca13f052e16a097c7ae407bf335a3e6dc70e8bdd254c6e14e9c00d' },
-  { version: 15, name: 'query_indexes', checksum: '7c9aa0d04c1b91ae50c0bc4e864d0779768b78b2675d9f7100505d2aa0e0dbf2' },
+  { version: 18, name: 'query_indexes', checksum: 'f0ab999278b998b5fada5bb923aede89465ef2b12834fafbf0840b60cab8201e' },
 ]

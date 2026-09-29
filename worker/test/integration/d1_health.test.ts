@@ -1,6 +1,6 @@
 /* D1 health (docs/d1-health.md): the read-replica session with its bookmark
    (tenant.ts tenantSession) and the reference-data cache with its version key
-   (services/refcache.ts, tenant migration 0015). */
+   (services/refcache.ts, tenant migration 0018). */
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { seed, api, call, as, E, IDS } from './fixture'
 import { BOOKMARK_HEADER, bookmarkFrom, tenantSession, type Institution } from '../../src/tenant'

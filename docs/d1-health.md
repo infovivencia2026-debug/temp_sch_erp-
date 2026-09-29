@@ -2,7 +2,7 @@
 
 How the school databases (one D1 per school, plus CONTROL) stay fast and safe as they grow.
 Code: `worker/src/tenant.ts` (sessions), `worker/src/services/refcache.ts` (cache),
-`worker/migrations/tenant/0015_query_indexes.sql`, `worker/migrations/control/0012_housekeeping_indexes.sql`,
+`worker/migrations/tenant/0018_query_indexes.sql`, `worker/migrations/control/0012_housekeeping_indexes.sql`,
 `worker/src/services/background/weekly_export.ts`, `worker/scripts/archive-year.mjs`, `worker/scripts/restore-rehearsal.mjs`.
 
 ## Index audit
@@ -168,7 +168,7 @@ Until then sessions still work and simply read the primary. CONTROL is read dire
 
 `services/refcache.ts` keeps, per school and per isolate: academic years (and the default
 working year), each person's chosen working year, and /ref-data's classes, sections and subjects.
-They are keyed on `ref_versions.version` (tenant migration 0015), which triggers bump on
+They are keyed on `ref_versions.version` (tenant migration 0018), which triggers bump on
 any INSERT/UPDATE/DELETE of classes, sections, subjects, academic_years, user_working_years.
 The version is re-read at most every 10 s; a write request in the same isolate drops the
 school's entry at once, so the writer always reads its own change. Other isolates can lag by

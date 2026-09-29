@@ -2,7 +2,7 @@
 
    Classes, sections, subjects, academic years and the working year are read
    on most requests and change a few times a term. Each school database has a
-   version number (ref_versions, tenant migration 0015) that triggers bump on
+   version number (ref_versions, tenant migration 0018) that triggers bump on
    ANY write to classes, sections, subjects, academic_years or
    user_working_years, whoever makes it. A cached value is served while the
    version it was loaded under is still the school's version.
@@ -39,7 +39,7 @@ async function readVersion(db: D1Database | D1DatabaseSession): Promise<number |
   try {
     const r = await db.prepare(`SELECT version FROM ref_versions WHERE key = 'ref'`).first<{ version: number }>()
     return r ? Number(r.version) : null
-  } catch { return null } // before migration 0015: no caching
+  } catch { return null } // before migration 0018: no caching
 }
 
 async function entryFor(db: D1Database | D1DatabaseSession, school: string): Promise<Entry | null> {
