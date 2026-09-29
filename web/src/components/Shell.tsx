@@ -237,7 +237,7 @@ export function Shell({
 
   /* THE SCHOOL'S NAME IN THE BROWSER TAB, AND ITS ICON.
 
-     The tab said "WISEN" on every screen a parent or a clerk had open,
+     The tab said "XULO" on every screen a parent or a clerk had open,
      which is the product's name, not the school's -- the one piece of the
      vendor that showed through on every single page. The title follows the
      session now: the school's own name, its display name where it has set
@@ -249,7 +249,7 @@ export function Shell({
   const brandName =
     session.institution?.display_name?.trim() ||
     session.institution?.name ||
-    'WISEN'
+    'XULO'
   const faviconKey = session.institution?.favicon_key
   useEffect(() => {
     const prevTitle = document.title

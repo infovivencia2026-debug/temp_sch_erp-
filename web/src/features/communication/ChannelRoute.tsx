@@ -37,7 +37,7 @@ export default function ChannelRoute({
      that is the route in force.
      
      Left out entirely on our route rather than disabled, because those panels
-     describe a different arrangement and say so at length. On the WISEN
+     describe a different arrangement and say so at length. On the XULO
      route the SMS panel was still reporting "the paired phone has never
      reported in" — the archived handset gateway's reason, about a device this
      school does not use, under a heading saying messages go through us. A
@@ -61,7 +61,7 @@ export default function ChannelRoute({
       <Card>
         <CardHeader
           title={`How ${name} is sent`}
-          action={<Badge tone={onOwn ? 'info' : 'neutral'}>{onOwn ? 'Own account' : 'WISEN'}</Badge>}
+          action={<Badge tone={onOwn ? 'info' : 'neutral'}>{onOwn ? 'Own account' : 'XULO'}</Badge>}
         />
         <div className="px-5 pb-5 pt-4">
           {mayChoose ? (
@@ -72,7 +72,7 @@ export default function ChannelRoute({
                 disabled={setRoute.isPending}
                 onClick={() => setRoute.mutate({ route: 'edu_cloud' })}
               >
-                Send through WISEN
+                Send through XULO
               </Button>
               <Button
                 variant={onOwn ? 'primary' : 'secondary'}
@@ -94,12 +94,12 @@ export default function ChannelRoute({
               </>
             ) : channel === 'email' ? (
               <>
-                Sending through WISEN&rsquo;s mail server. There is nothing to configure
+                Sending through XULO&rsquo;s mail server. There is nothing to configure
                 below, and email costs nothing per message.
               </>
             ) : (
               <>
-                Sending through WISEN. We hold the vendor account
+                Sending through XULO. We hold the vendor account
                 {channel === 'sms' ? ' and the DLT registration' : ''}, there is nothing to
                 configure below, and each message comes out of the credits underneath.
               </>

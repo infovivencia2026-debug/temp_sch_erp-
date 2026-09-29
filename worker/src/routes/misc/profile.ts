@@ -235,7 +235,7 @@ export function registerProfile(r: Router): void {
     const u = await c.db.prepare(`SELECT COALESCE(email, phone, username, full_name) AS account FROM users WHERE id = ?`).bind(c.id.userId)
       .first<{ account: string }>()
     const account = u?.account ?? c.id.fullName
-    const issuer = c.id.institution?.short_name || c.id.institution?.name || 'WISEN'
+    const issuer = c.id.institution?.short_name || c.id.institution?.name || 'XULO'
     const q = new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' })
     const uri = 'otpauth://totp/' + encodeURIComponent(issuer + ':' + account) + '?' + q.toString()
     const cookieVal = (await sign(c.env.PASSWORD_PEPPER, 'mfa-setup', c.id.userId)) + '.' + secret

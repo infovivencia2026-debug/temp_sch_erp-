@@ -59,7 +59,7 @@ describe('printDocument', () => {
     expect(sheet.querySelector('.print-sheet__logo')).toBeNull()
     expect(sheet.querySelector('.print-sheet__contact')).toBeNull()
     expect(sheet.querySelector('.print-sheet__school')?.textContent).toBe('Plain School')
-    expect(sheet.textContent).not.toMatch(/wisen/i)
+    expect(sheet.textContent).not.toMatch(/wisen|xulo/i)
   })
 
   it('drops what only exists to be clicked and flattens form controls to their value', () => {

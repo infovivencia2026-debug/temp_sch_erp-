@@ -34,7 +34,7 @@ function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: s
   const headers = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
   headers.append('set-cookie', `${CSRF}=${tok}; Path=${action}; HttpOnly; SameSite=Lax; Max-Age=900${secure}`)
   /* A visit to a school's own page makes it this browser's home: /login and
-     /logout send the browser back here, so a parent never meets the WISEN page. */
+     /logout send the browser back here, so a parent never meets the XULO page. */
   if (opts.school && action !== '/login' && opts.remember !== false) headers.append('set-cookie', `${HOME}=${encodeURIComponent(action)}; Path=/; SameSite=Lax; Max-Age=31536000${secure}`)
   return new Response(html, { status: opts.status ?? 200, headers })
 }
@@ -215,7 +215,7 @@ export async function login(env: Env, req: Request, school?: Institution | null,
     await failed(env, 'ip:' + ip, 1 / 5)
     await record(env, req, identifier, r.outcome, null, null)
     let msg = 'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.'
-    if (r.outcome === 'school_paused') msg = "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs WISEN for the school, to switch it back on."
+    if (r.outcome === 'school_paused') msg = "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on."
     if (r.outcome === 'ambiguous') msg = 'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.'
     return page(env, { error: msg, next, identifier, status: 401 })
   }

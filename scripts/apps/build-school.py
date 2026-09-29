@@ -18,7 +18,7 @@ What needs a rebuild and what does not:
     upload. The store id must not change after the first upload.
 
 Each shell is copied to dist/whitelabel/<slug>/<platform> and changed there,
-so the tracked sources stay the WISEN app and no school is ever committed.
+so the tracked sources stay the XULO app and no school is ever committed.
 Icons are made with sips, so this runs on a Mac (the iPhone build needs one
 anyway).
 """
@@ -104,7 +104,7 @@ def android(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args
     app = work / 'android'
     copy(ANDROID, app)
     res = app / 'app/src/main/res'
-    replace(res / 'values/strings.xml', '<string name="app_name">WISEN</string>',
+    replace(res / 'values/strings.xml', '<string name="app_name">XULO</string>',
             f'<string name="app_name">{escape(cfg["short_name"])}</string>')
     colors = res / 'values/colors.xml'
     s = colors.read_text()
@@ -146,7 +146,7 @@ MARKETING_VERSION = {ver[1]}
 CURRENT_PROJECT_VERSION = {ver[0]}
 DEVELOPMENT_TEAM = {args.team or ""}
 ''')
-    replace(app / 'Config/Info.plist', '<key>CFBundleDisplayName</key>\n\t<string>WISEN</string>',
+    replace(app / 'Config/Info.plist', '<key>CFBundleDisplayName</key>\n\t<string>XULO</string>',
             f'<key>CFBundleDisplayName</key>\n\t<string>{escape(cfg["short_name"])}</string>')
     ios_icon = app / 'ParentApp/Assets.xcassets/AppIcon.appiconset/icon-1024.png'
     if icon(logo, ios_icon, 1024, cfg['primary_color'], 0.7):
@@ -211,7 +211,7 @@ def main() -> None:
         logo = work / 'logo'
         logo.write_bytes(fetch(cfg['logo_url']))
     else:
-        print('  no logo set in Branding: the apps keep the WISEN icon')
+        print('  no logo set in Branding: the apps keep the XULO icon')
 
     for name in [s.strip() for s in args.only.split(',') if s.strip()]:
         print(f'\n== {name}')
