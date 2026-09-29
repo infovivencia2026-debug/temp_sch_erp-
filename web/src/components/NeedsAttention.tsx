@@ -188,6 +188,26 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
     refetchOnWindowFocus: true,
   })
 
+  /* While the attention probe is out, the page keeps its shape: the greeting
+     line, the role note and a row of figure tiles at their real sizes, and the
+     role's own overview underneath. It used to render nothing, so Home was a
+     blank ground for a second or more and then everything arrived at once,
+     pushing the overview down as the greeting landed above it. */
+  if (q.isLoading) {
+    return (
+      <div className="flex flex-col gap-6" aria-busy="true">
+        <div className="flex h-[34px] items-center"><div className="skeleton h-6 w-72 max-w-full rounded-md" /></div>
+        {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
+        <section>
+          <p className="eyebrow mb-2.5">Today</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[102px] rounded-xl" />)}
+          </div>
+        </section>
+        {afterToday && <section><EmbeddedPage.Provider value><Suspense fallback={null}>{afterToday}</Suspense></EmbeddedPage.Provider></section>}
+      </div>
+    )
+  }
   if (q.isLoading || q.error || !q.data) return null
   /* Defaulted at the point of use as well as on the server.
 

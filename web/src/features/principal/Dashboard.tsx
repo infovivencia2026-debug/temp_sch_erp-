@@ -164,7 +164,6 @@ export default function PrincipalDashboard() {
             />
           )}
         </CellGrid>
-        <SetupProgress />
         <NeedsAttentionPanel limit={5} />
         <PrincipalBriefCard />
 
@@ -222,6 +221,9 @@ export default function PrincipalDashboard() {
             )}
           </div>
         </Card>
+        {/* Last on the page: it arrives after the figures, and above them it
+            pushed every card down as it appeared. */}
+        <SetupProgress />
       </PageBody>
     </>
   )

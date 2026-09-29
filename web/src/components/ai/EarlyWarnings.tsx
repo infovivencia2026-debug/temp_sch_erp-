@@ -126,7 +126,7 @@ export function NeedsAttentionPanel({ limit, sectionId, title = 'Early warnings'
           <Button size="sm" variant={status === 'resolved' ? 'secondary' : 'ghost'} onClick={() => setStatus('resolved')}>Resolved</Button>
         </div>
       </div>
-      {q.isLoading ? <div className="p-4"><Loading /></div>
+      {q.isLoading ? <div className="p-4"><Loading shape="table" rows={1} /></div>
         : q.error ? <div className="p-4"><ErrorState error={q.error} /></div>
         : shown.length === 0 ? <p className="px-4 py-6 text-[13px] text-muted-foreground">{status === 'active' ? 'Nothing needs attention. The checks run every night.' : 'Nothing resolved yet.'}</p>
         : <ul>{shown.map((w) => <WarningRow key={w.id} w={w} />)}</ul>}
