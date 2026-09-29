@@ -938,7 +938,7 @@ export function Table({
           /* `tap-inline`: a 44px target on touch without a 44px box. Grown
              to 44 by the coarse-pointer rule, the square was taller than the
              header row and sat over the first row's last cell as well. */
-          className="tap-inline absolute right-2 top-1 z-10 grid size-8 place-items-center rounded-[3px]
+          className="tap-inline absolute right-2 top-1 z-10 grid size-8 place-items-center rounded-sm
                      border border-border bg-card text-muted-foreground opacity-60
                      transition-opacity hover:text-foreground hover:opacity-100
                      focus-visible:opacity-100 group-hover/table:opacity-100"
