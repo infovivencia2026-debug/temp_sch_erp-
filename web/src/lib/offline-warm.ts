@@ -28,10 +28,21 @@ import { preloadScreen } from '@/lib/screen'
    the next dead spot, not a download manager. On a slow line it simply stops
    where it got to and tries again next time. */
 
+/* Never alongside the first screen: the warm-up waits for the page's own load
+   plus a few seconds, then for idle. On an 8s idle timeout it used to start
+   while the dashboard's own chunks and reads were still arriving on 4G, and
+   competed with them. Skipped altogether when the phone asks to save data or
+   is on 2G, where prefetching a menu is the wrong use of the line. */
 const idle = (fn: () => void) => {
   const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
-  if (w.requestIdleCallback) w.requestIdleCallback(fn, { timeout: 8000 })
-  else setTimeout(fn, 2500)
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+  if (conn?.saveData || /2g/.test(conn?.effectiveType ?? '')) return
+  const later = () => setTimeout(() => {
+    if (w.requestIdleCallback) w.requestIdleCallback(fn, { timeout: 10000 })
+    else fn()
+  }, 5000)
+  if (document.readyState === 'complete') later()
+  else window.addEventListener('load', later, { once: true })
 }
 
 const CHUNK_BUDGET = 60
