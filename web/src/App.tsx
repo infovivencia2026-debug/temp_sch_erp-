@@ -5,11 +5,14 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
-  indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE,
+  indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
 } from '@/lib/query-persist-idb'
 import { SessionProvider, useSession } from '@/lib/session'
-import ApplyForm from '@/features/public/ApplyForm'
-import AccountPage from '@/features/shared/Profile'
+/* Lazy: the public apply form is for visitors, and the account page (profile,
+   security cards, growth, concerns) is opened from a menu — neither belongs in
+   the chunk every signed-in screen waits for. */
+const ApplyForm = lazy(() => import('@/features/public/ApplyForm'))
+const AccountPage = lazy(() => import('@/features/shared/Profile'))
 /* Lazy like every feature screen: Settings pulls the whole settings window
    module behind it, which nobody needs until they open Settings. */
 const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
@@ -447,7 +450,7 @@ export function AppRoutes({ location }: { location?: string }) {
           role — and only faculty had a catalogue entry for it, so
           eight roles out of nine could not reach the screen that
           already existed to change their own password. */}
-      <Route path="/account" element={<AccountPage />} />
+      <Route path="/account" element={<Suspense fallback={<SkeletonPage />}><AccountPage /></Suspense>} />
       {/* Settings, as a destination rather than an overlay.
 
           The dock's four items read as a tab bar and three of them were
@@ -543,6 +546,10 @@ function PersistGate({ children }: { children: ReactNode }) {
   const institutionId = session.institution?.id
 
   const namespace = userId ? persistNamespace(userId, institutionId) : ''
+  // Only the signed-in person's answers stay on the device.
+  useEffect(() => {
+    if (namespace && indexedDbAvailable()) forgetOtherPersisted(namespace)
+  }, [namespace])
   const persistOptions = useMemo(
     () =>
       userId
@@ -604,7 +611,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
-            <Route path="/admissions/apply/:slug" element={<ApplyForm />} />
+            <Route path="/admissions/apply/:slug" element={<Suspense fallback={null}><ApplyForm /></Suspense>} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>

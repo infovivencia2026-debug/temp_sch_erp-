@@ -1,12 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { Suspense, createContext, lazy, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
 import { forgetCachedDataOnUserChange } from './sw-data'
 import { adoptPersistedQueries, forgetPersistedQueries } from './query-persist'
 import { registerPushToken } from './push'
-import SetYourPassword from '@/features/shared/SetYourPassword'
-import { Landing } from '@/features/landing/Landing'
+/* Both are seen by someone who is not yet in the app (a visitor on /, a first
+   sign-in setting a password), so they load on their own, not with the shell. */
+const SetYourPassword = lazy(() => import('@/features/shared/SetYourPassword'))
+const Landing = lazy(() => import('@/features/landing/Landing').then((m) => ({ default: m.Landing })))
 import { claimTabs } from './tabs'
 import { applyBrand, rememberSchoolMark } from './brand'
 import { setPrintLetterhead } from './print'
@@ -90,7 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        link to a fee receipt wants the receipt, so any deeper address still
        goes to the form and comes back to where they were pointed, which is
        what `next` carries below. */
-    if (location.pathname === '/' && !location.search) return <Landing />
+    if (location.pathname === '/' && !location.search) return <Suspense fallback={null}><Landing /></Suspense>
     // Full navigation, not a client route: /login is server-rendered by the Go
     // binary and must mint the cookie itself.
     const next = encodeURIComponent(location.pathname + location.search)
@@ -113,7 +115,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      no tab and no back button that reaches anything else. The API refuses the
      same requests regardless; this is the half that explains why. */
   if (data.user?.must_change_password) {
-    return <SetYourPassword signInName={data.user.full_name} />
+    return <Suspense fallback={null}><SetYourPassword signInName={data.user.full_name} /></Suspense>
   }
 
   /* The tab strip belongs to whoever is signed in.
@@ -227,6 +229,11 @@ function Locked({ session }: { session: SessionResponse }) {
       </div>
     </div>
   )
+}
+
+/** The session, or null outside SessionProvider (tests mount pieces bare). */
+export function useSessionIfAny(): SessionResponse | null {
+  return useContext(SessionContext)
 }
 
 export function useSession(): SessionResponse {

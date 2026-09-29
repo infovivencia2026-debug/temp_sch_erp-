@@ -4,7 +4,7 @@ import { useLayout, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
 import { buzz } from '@/lib/haptics'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { INK_HERE_FROM_PAGE } from './ColourDialog'
+import { INK_HERE_FROM_PAGE } from './bento-ink'
 
 /* THE PHONE'S REORDER LIST: A SHEET, OPENED FROM THE CUSTOMIZE BAR.
 

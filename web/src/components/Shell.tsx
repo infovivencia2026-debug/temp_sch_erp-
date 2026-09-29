@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
@@ -12,8 +12,11 @@ import Outbox from '@/components/Outbox'
 import { LiveToasts } from '@/components/LiveToasts'
 import { AnnouncementsBanner } from '@/features/seller/AnnouncementsBanner'
 import { useOfflineWarm } from '@/lib/offline-warm'
-import { AssistantTab } from '@/components/AssistantTab'
-import FirstRunTour from './FirstRunTour'
+/* Both are corner furniture, not the screen: the assistant (with its markdown,
+   speech and import code) and the once-per-person tour load after the shell
+   has painted, in their own chunks. */
+const AssistantTab = lazy(() => import('@/components/AssistantTab').then((m) => ({ default: m.AssistantTab })))
+const FirstRunTour = lazy(() => import('./FirstRunTour'))
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -543,7 +546,7 @@ export function Shell({
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
-      <FirstRunTour />
+      <Suspense fallback={null}><FirstRunTour /></Suspense>
       {/* --- one sidebar --------------------------------------------------
 
           The icon rail is gone. A 56px column of role icons beside a 248px
@@ -1248,7 +1251,7 @@ export function Shell({
               <main> so it stays put while a long register scrolls. */}
           {/* The assistant is back: its service now runs in-process on Gemini
              (internal/api/assistant_chat.go), so the corner tab returns. */}
-          <AssistantTab />
+          <Suspense fallback={null}><AssistantTab /></Suspense>
           {/* Mounted here for the same reason as the tab: what is queued was
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}

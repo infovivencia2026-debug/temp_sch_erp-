@@ -5,7 +5,7 @@ import { useT } from '@/lib/i18n'
 import { useViewport } from '@/lib/viewport'
 import { useFullScreenInvite } from '@/lib/fullscreen'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, SEAM } from './ColourDialog'
+import { INK, EDGE, WASH, RING, SEAM } from './bento-ink'
 import {
   SettingsPane, SettingsSectionList, useSettingsItems, useSettingsValues,
   type SettingsTab,

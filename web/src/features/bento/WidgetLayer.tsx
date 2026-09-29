@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
@@ -23,7 +23,10 @@ import { usePhone } from '@/lib/viewport'
 import { COL, ROW, spanFor, clampSpan, clampRows, useReduceMotion, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { useClassicSkin } from '@/lib/classic-skin'
-import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
+import { INK_HERE_FROM_PAGE } from './bento-ink'
+/* The wheel only draws once somebody opens a colour popover, so the dialog
+   module behind it (and its canvas code) loads then, not with the dashboard. */
+const WheelCanvas = lazy(() => import('./ColourDialog').then((m) => ({ default: m.WheelCanvas })))
 import { ArrangeSheet } from './ArrangeSheet'
 import type { Hsl } from '@/lib/paint'
 import { useT, type MessageKey } from '@/lib/i18n'
@@ -1332,7 +1335,7 @@ export function ColourPick({
           }
           className="bento-colour-pop"
         >
-          <WheelCanvas value={current} onPick={(h, s2) => sample({ ...current, h, s: s2 })} />
+          <Suspense fallback={<div style={{ width: 220, height: 220 }} />}><WheelCanvas value={current} onPick={(h, s2) => sample({ ...current, h, s: s2 })} /></Suspense>
           <input
             type="range"
             min={5}

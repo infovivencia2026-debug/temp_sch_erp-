@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './ColourDialog'
+import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.

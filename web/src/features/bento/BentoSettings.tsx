@@ -12,7 +12,7 @@ const AppearanceDialog = lazy(() =>
   import('./AppearanceDialog').then((m) => ({ default: m.AppearanceDialog })),
 )
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH } from './ColourDialog'
+import { INK, EDGE, WASH } from './bento-ink'
 import './dock-menus.css'
 
 /* Settings, from inside a layout that has no header to put them in.
