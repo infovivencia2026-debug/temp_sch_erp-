@@ -518,7 +518,18 @@ export function registerStaff(r: Router): void {
         'service and their old attendance are all still here, and then a login can be issued.')
     }
     const errNoContact = 'this person has no staff number, email or phone on their record, add one first, or they will have nothing to sign in with'
-    const staffNoText = e.staff_number === null ? null : String(e.staff_number)
+    /* THE CODE ON THE BADGE, NOT THE ROW NUMBER.
+
+       A member of staff signed in as their staff_number -- 1010 -- which is an
+       ordinal the school never says out loud. Their employee code is what is on
+       the badge, in the register and on every letter, so that is what they are
+       asked to type. It is unique per school by the same index that stops two
+       staff records sharing one, which is what makes it safe as a sign-in name.
+
+       Falls back to the old number, then to nothing, so a record without a code
+       still gets a login on its phone or email rather than being refused. */
+    const staffNoText = String(e.employee_code ?? '').trim() ||
+      (e.staff_number === null ? null : String(e.staff_number))
     const { password, known } = issuedPassword(e.phone ?? '', e.email ?? '')
     const pwHash = await hash(c, password)
     let userId = e.user_id
