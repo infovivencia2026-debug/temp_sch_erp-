@@ -45,6 +45,26 @@ export function StudentLoginsCard() {
     onSuccess: (r) => { setResult(r); qc.invalidateQueries({ queryKey: ['student-logins'] }) },
   })
 
+  /* Every eligible student at once, 60 per call until none are left. */
+  const [fillBusy, setFillBusy] = useState(false)
+  const [fillDone, setFillDone] = useState<{ issued: number; skipped: number } | null>(null)
+  const [fillErr, setFillErr] = useState<unknown>(null)
+  const fill = {
+    busy: fillBusy, done: fillDone, err: fillErr,
+    run: async () => {
+      setFillBusy(true); setFillErr(null)
+      let issued = 0, skipped = 0
+      try {
+        for (let i = 0; i < 100; i++) {
+          const r = await api.post<{ issued: number; skipped: number; remaining: number }>('/api/v1/admin/student-logins/issue-missing')
+          issued += r.issued; skipped += r.skipped
+          if (r.remaining <= 0 || r.issued === 0) break
+        }
+        setFillDone({ issued, skipped })
+      } catch (e) { setFillErr(e) } finally { setFillBusy(false); qc.invalidateQueries({ queryKey: ['student-logins'] }); qc.invalidateQueries({ queryKey: ['school-logins'] }) }
+    },
+  }
+
   const p = policy.data
   if (!p) return null
   const level = minLevel ?? (p.min_level === null ? '' : String(p.min_level))
@@ -110,6 +130,13 @@ export function StudentLoginsCard() {
         <p className="text-muted-foreground">
           {p.with_login} of {p.students} students have a login; {p.eligible} are in a class that may have one.
         </p>
+        {p.enabled && p.with_login < p.eligible && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button pending={fill.busy} onClick={fill.run}>Give every student a login</Button>
+            {fill.done && <span className="text-success">Issued {fill.done.issued}{fill.done.skipped ? `; ${fill.done.skipped} skipped` : ''}.</span>}
+            {fill.err ? <FormNotice error={fill.err} /> : null}
+          </div>
+        )}
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-64">
             <Field label="Lowest class that gets a login">

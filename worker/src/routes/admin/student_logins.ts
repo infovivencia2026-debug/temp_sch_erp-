@@ -95,4 +95,20 @@ export function registerStudentLogins(r: Router) {
     await auditStmt(c, 'parent_logins.issue_missing', 'guardians', null, null, { issued, skipped }).run()
     return ok({ issued, skipped, remaining: Math.max(0, (left?.n ?? 0) - skipped) })
   })
+
+  /* Every eligible student without a login gets one, 60 per call; the screen
+     calls again until `remaining` is 0. Same rules as the switch. */
+  r.post('/admin/student-logins/issue-missing', 'access.users.write', async (c) => {
+    const p = await studentLoginPolicy(c.db)
+    if (!p.enabled) throw badRequest('switch student logins on first')
+    const q = `FROM students st LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active' LEFT JOIN classes cl ON cl.id = e.class_id
+        WHERE st.status = 'active' AND st.user_id IS NULL AND TRIM(COALESCE(st.admission_no, '')) <> ''
+          AND (? IS NULL OR (cl.level IS NOT NULL AND cl.level >= ?))`
+    const ids = (await c.db.prepare(`SELECT st.id ${q} ORDER BY cl.level, st.admission_no LIMIT 60`).bind(p.min_level, p.min_level).all<{ id: string }>()).results ?? []
+    let issued = 0, skipped = 0
+    for (const m of ids) { try { if (await autoIssueStudentLogin(c, m.id)) issued++; else skipped++ } catch (e) { skipped++; console.error('student login', e) } }
+    const left = await c.db.prepare(`SELECT count(*) AS n ${q}`).bind(p.min_level, p.min_level).first<{ n: number }>()
+    await auditStmt(c, 'student_logins.issue_missing', 'students', null, null, { issued, skipped }).run()
+    return ok({ issued, skipped, remaining: Math.max(0, (left?.n ?? 0) - skipped) })
+  })
 }
