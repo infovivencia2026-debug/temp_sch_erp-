@@ -925,6 +925,69 @@ export function registerStaff(r: Router): void {
      usable, not merely "has a user row": an account that exists but was never
      given a password cannot sign in, and telling the office it can is how a
      parent is left at a login page being told they are wrong. */
+  /* SEND THE ONE THAT IS STILL ON SCREEN.
+
+     Credentials already go out by email the moment a login is issued, so this
+     is not the usual path -- it is for the parent who says the mail never
+     arrived, and for the office that issued a class and wants to send one of
+     them again.
+
+     The password comes from the caller, which looks odd and is the only way
+     that can work: it is hashed the moment it is set and cannot be read back,
+     so the only copy is the one the screen is holding from the issue a moment
+     ago. That is also why this cannot resend last week's -- there is nothing
+     left to resend, and the honest answer then is to reset.
+
+     Whoever may issue a login may send it, which is the same act one step
+     later; a caller who could not issue cannot get a password to send. */
+  r.post('/setup/credentials/email', 'auth', async (c) => {
+    requireInstitution(c)
+    const req = await readJSON<{ kind?: string; id?: string; sign_in_as?: string; password?: string }>(c.req)
+    const kind = str(req.kind)
+    if (!['students', 'guardians', 'employees'].includes(kind)) throw badRequest('kind must be students, guardians or employees')
+    if (!can(c.id, kind === 'employees' ? 'hr.employees.write' : 'students.write')) {
+      throw forbidden('missing permission: sending logins for ' + kind)
+    }
+    if (!isUUID(trim(req.id))) throw badRequest('id must be a uuid')
+    const signIn = trim(req.sign_in_as)
+    const password = trim(req.password)
+    if (signIn === '' || password === '') throw badRequest('nothing to send: the sign-in name and password are both needed')
+
+    const table = kind === 'students' ? 'students' : kind === 'guardians' ? 'guardians' : 'employees'
+    const nameCol = kind === 'guardians' ? 'full_name'
+      : "TRIM(first_name || ' ' || COALESCE(last_name, ''))"
+    const who = await c.db.prepare(
+      `SELECT ${nameCol} AS name, COALESCE(email, '') AS email FROM ${table} WHERE id = ?`)
+      .bind(trim(req.id)).first<{ name: string; email: string }>()
+    if (!who) throw notFound('no such person')
+    if (who.email.trim() === '') {
+      throw badRequest('there is no email address on this record, so there is nowhere to send it. Print the slip instead')
+    }
+
+    const inst = await c.db.prepare('SELECT name FROM institutions WHERE id = ?').bind(instId(c))
+      .first<{ name: string }>()
+    const m = new Messenger(scopeOf(c))
+    await m.queue({
+      channel: 'email',
+      template_code: 'admissions.portal_login',
+      vars: {
+        school_name: inst?.name ?? '',
+        parent_name: who.name || 'Sir/Madam',
+        sign_in_as: signIn,
+        password,
+        portal_url: new URL(c.req.url).origin + '/login',
+      },
+      recipient: who.email.trim(),
+      source_kind: kind === 'guardians' ? 'guardian_login' : kind === 'students' ? 'student_login' : 'staff_login',
+      source_id: trim(req.id),
+      /* The clock, so sending it twice on purpose is two messages and not one
+         swallowed as a duplicate of itself. */
+      occurrence_key: now(),
+    })
+    await m.kick()
+    return ok({ sent_to: who.email.trim() })
+  })
+
   r.get('/setup/logins/roster', 'auth', async (c) => {
     requireInstitution(c)
     if (!can(c.id, 'students.write')) throw forbidden('missing permission: reading the login roster')

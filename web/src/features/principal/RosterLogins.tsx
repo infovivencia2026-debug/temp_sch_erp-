@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, MessageCircle, Printer, RotateCcw, X } from 'lucide-react'
+import { Copy, KeyRound, Mail, Printer, RotateCcw, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
@@ -222,6 +222,17 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   /* Only those whose password this sitting actually produced: resetting is what
      yields one, and a row that merely already had a login has nothing to show. */
   const justIssued = rows.filter((r) => issued[r.id]?.password)
+  const [mailed, setMailed] = useState<Record<string, true>>({})
+  const mail = useMutation({
+    mutationFn: (v: { id: string; signIn: string; password: string }) =>
+      api.post<{ sent_to: string }>('/api/v1/setup/credentials/email', {
+        kind: kind === 'students' ? 'students' : 'guardians',
+        id: v.id,
+        sign_in_as: v.signIn,
+        password: v.password,
+      }).then((r) => ({ id: v.id, to: r.sent_to })),
+    onSuccess: (r) => setMailed((m) => ({ ...m, [r.id]: true })),
+  })
 
   const initials = (name: string) =>
     name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
@@ -418,22 +429,19 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
                     </div>
                   </div>
 
-                  {/* wa.me opens the person's own WhatsApp with the message
-                      written; nothing is sent from here, and nothing is stored. */}
+                  {/* Credentials already go out by email the moment a login is
+                      issued. This is for the parent who says it never arrived,
+                      and it can only send what the screen is still holding --
+                      the password is hashed the moment it is set. */}
                   <div className="flex items-center justify-end gap-2">
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => {
-                        const text = `${r.name}, your login for the school app:
-Username: ${signIn}
-Password: ${got.password}
-You will choose your own password the first time.`
-                        window.open('https://wa.me/' + (r.code || '').replace(/\D/g, '') + '?text=' + encodeURIComponent(text), '_blank')
-                      }}
+                      disabled={mail.isPending}
+                      onClick={() => mail.mutate({ id: r.id, signIn, password: got.password })}
                     >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      WhatsApp
+                      <Mail className="h-3.5 w-3.5" />
+                      {mailed[r.id] ? 'Sent' : 'Email it'}
                     </Button>
                   </div>
                 </div>
@@ -443,7 +451,7 @@ You will choose your own password the first time.`
         </div>
       )}
 
-      <FormNotice error={issue.error ?? roster.error} />
+      <FormNotice error={issue.error ?? mail.error ?? roster.error} />
 
       <Table
         head={[
