@@ -49,7 +49,7 @@ interface Pass {
 
 export default function StudentIDCard() {
   const t = useT()
-  const { children, studentId, chosen, setChosen } = useChildren()
+  const { children, studentId, chosen, setChosen, query: kids } = useChildren()
   /* One card, one child. The endpoint resolves it with whichChild
      (portal_school_life.go:1424), which answers for the eldest when no
      student_id is sent — so a guardian of three was shown one child's card,
@@ -88,7 +88,11 @@ export default function StudentIDCard() {
     </Card>
   )
 
-  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.student_id_card.loading')} />
+  /* Still finding out who the children are: that is loading, not a question
+     for the parent. "Choose a child" flashed on every open for a family with
+     one child while the list was on its way. */
+  if ((query.isLoading && !query.data) || (!ready && children.length === 0 && kids.isPending))
+    return <ScreenSkeleton label={t('portal.student_id_card.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
   if (!ready)
     return (
