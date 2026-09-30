@@ -43,10 +43,11 @@ interface AttendanceDay {
 }
 
 const DOT: Record<string, string> = {
-  present: 'bg-success',
-  late: 'bg-warning',
-  absent: 'bg-destructive',
-  half_day: 'bg-warning/60',
+  /* The owner's mock colours: a bright green, not the theme's forest. */
+  present: 'bg-[#16a34a]',
+  late: 'bg-[#d97706]',
+  absent: 'bg-[#dc2626]',
+  half_day: 'bg-[#d97706]/60',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
 }
@@ -293,7 +294,7 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
       </div>
       <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
         <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
-          {mini('Present', days1(m.present), 'text-success')}
+          {mini('Present', days1(m.present), 'text-[#16a34a]')}
           {mini('Absent', days1(m.absent), m.absent ? 'text-destructive' : undefined)}
           {mini('This month', m.pct === null ? '-' : `${m.pct}%`)}
           {mini('Year so far', yearPct === null ? '-' : `${yearPct}%`)}
