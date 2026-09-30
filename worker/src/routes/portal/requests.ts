@@ -546,9 +546,17 @@ async function reachableTeachers(c: Ctx, sid: string): Promise<TeacherRow[]> {
             LEFT JOIN subjects sub ON sub.id = cs.subject_id
            WHERE te.section_id = (SELECT section_id FROM child_section)
              AND te.teacher_user_id IS NOT NULL
+             /* The subject teacher the school ASSIGNED for this section wins
+                (the same assignment the staff record shows). The timetable
+                only fills a subject nobody is assigned to; an older timetable
+                entry named a teacher who no longer takes the class. */
+             AND NOT EXISTS (SELECT 1 FROM section_subject_teachers s2
+                              WHERE s2.section_id = te.section_id AND s2.class_subject_id = te.class_subject_id)
       ) t
       JOIN users u ON u.id = t.user_id
-     WHERE u.status = 'active'
+     /* A teacher whose login is still being set up (invited) is still the
+        child's teacher; leaving them off showed the wrong person instead. */
+     WHERE u.status IN ('active', 'invited')
      GROUP BY t.user_id, u.full_name, t.subject
      ORDER BY MAX(t.class_teacher) DESC, u.full_name`).bind(sid, c.id.userId).all<TeacherRow>()
   return rows.results
