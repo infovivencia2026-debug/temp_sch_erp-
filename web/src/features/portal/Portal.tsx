@@ -43,11 +43,11 @@ interface AttendanceDay {
 }
 
 const DOT: Record<string, string> = {
-  /* The owner's mock colours: a bright green, not the theme's forest. */
-  present: 'bg-[#16a34a]',
-  late: 'bg-[#d97706]',
-  absent: 'bg-[#dc2626]',
-  half_day: 'bg-[#d97706]/60',
+  /* Light tints: the owner found the solid forest green ugly. */
+  present: 'bg-[#dcfce7] border-[#86efac]',
+  late: 'bg-[#fef3c7] border-[#fcd34d]',
+  absent: 'bg-[#fee2e2] border-[#fca5a5]',
+  half_day: 'bg-[#ffedd5] border-[#fdba74]',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
 }
@@ -117,7 +117,6 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
           if (day === null) return <div key={`pad-${i}`} />
           const d = byDate.get(iso(day))
           const status = d?.status || undefined
-          const marked = status && status !== 'holiday'
           /* A Sunday nobody marked is a day the school is shut, and the key says so. */
           const sunday = !status && new Date(year, month, day).getDay() === 0
           return (
@@ -139,8 +138,9 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
                 status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-muted-foreground' : 'text-muted-foreground',
-                marked && (status === 'present' || status === 'absent')
-                  ? 'font-medium text-white'
+                status === 'present' ? 'font-semibold text-[#15803d]'
+                  : status === 'absent' ? 'font-semibold text-[#b91c1c]'
+                  : status === 'late' || status === 'half_day' ? 'font-semibold text-[#b45309]'
                   : status ? 'text-foreground' : '',
               )}
             >
