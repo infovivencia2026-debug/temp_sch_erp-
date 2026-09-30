@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { Fragment, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Check, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
+  Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -57,6 +57,11 @@ interface AdminUser {
   roles: string[]
   role_keys: string[]
   active_sessions: number
+  /** Whose child, and in which class. Empty for staff. */
+  about?: string
+  /** What they type to sign in, and the account's own ten characters. */
+  sign_in_as?: string
+  login_code?: string
   /** 'staff' | 'student' | 'guardian' | 'none' */
   record: string
 }
@@ -177,11 +182,24 @@ export default function Logins() {
   /* The new password exists for one moment. It is shown until dismissed rather
      than in a toast that takes it away again while somebody is writing it on a
      slip of paper. */
-  const [issued, setIssued] = useState<{ name: string; password: string } | null>(null)
+  const [issued, setIssued] = useState<
+    { id: string; name: string; password: string; signIn: string; code: string } | null
+  >(null)
   const resetPw = useMutation({
     mutationFn: (u: AdminUser) =>
       api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${u.id}/reset-password`, {})
-        .then((r) => ({ name: u.full_name, password: r.temporary_password ?? '' })),
+        .then((r) => ({
+          id: u.id,
+          name: u.full_name,
+          password: r.temporary_password ?? '',
+          /* THE PASSWORD ALONE IS HALF AN ANSWER.
+             The card showed ten digits and nothing to type them into. A
+             parent's password and their sign-in name are often the same
+             number, which is exactly when saying only one of them is
+             useless. */
+          signIn: u.sign_in_as || u.phone || u.email || '',
+          code: u.login_code || '',
+        })),
     onSuccess: (r) => setIssued(r),
   })
 
@@ -270,6 +288,14 @@ export default function Logins() {
             zero and the roll is the only part worth reading. */}
         {record === 'student' && <RosterLogins kind="students" />}
         {record === 'guardian' && <RosterLogins kind="guardians" />}
+        {/* THE STAFF ROLL, WHICH DID NOT EXIST.
+
+            Children and parents were listed from the register; staff were
+            listed from the accounts, so the twenty teachers on JSM's books who
+            had no login were on no list at all and the tab read "no staff".
+            Same component, third audience: the roll first, the issue cards
+            underneath it. */}
+        {record === 'staff' && <RosterLogins kind="staff" />}
         <CellGrid cols={4}>
           <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
           <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${users.length - active} cannot`} />
@@ -352,11 +378,57 @@ export default function Logins() {
 
         {issued && (
           <Card className="p-5">
-            <p className="text-[14px] font-medium">{issued.name} can sign in with this password</p>
-            <p className="mt-1 font-mono text-[18px]">{issued.password || 'sent to them instead'}</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
+            <p className="text-[14px] font-medium">{issued.name} can now sign in</p>
+            {/* Both halves, labelled and apart. Run together they are two rows
+                of digits and nobody can tell which is which -- and for a parent
+                they are frequently the same digits. */}
+            <div className="mt-3 flex flex-wrap items-start gap-6">
+              <div>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Signs in as
+                </span>
+                <span className="font-mono text-[16px] font-medium">{issued.signIn || '—'}</span>
+              </div>
+              {issued.code && (
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Account ID
+                  </span>
+                  <span className="font-mono text-[16px] text-muted-foreground">{issued.code}</span>
+                </div>
+              )}
+              <div>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Password
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="rounded border border-success/40 bg-success/10 px-2 py-0.5 font-mono text-[16px] font-semibold">
+                    {issued.password || 'sent to them instead'}
+                  </span>
+                  {issued.password && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Copy the password"
+                      onClick={() => { void navigator.clipboard?.writeText(issued.password).catch(() => {}) }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </span>
+              </div>
+            </div>
+            <p className="mt-3 text-[13px] text-muted-foreground">
               Shown once. Write it down or send it now; it cannot be read back.
             </p>
+            {/* NO "EMAIL IT" BUTTON HERE, ON PURPOSE.
+
+                Issuing a login already sends the credentials on every channel
+                the person has -- a second button re-sends what went out
+                seconds earlier, is greyed out for the majority of parents who
+                have no address on record, and puts a plaintext password in an
+                inbox for good. The office copies it, prints it, or reads it
+                down the phone. */}
             <div className="mt-3">
               <Button size="sm" variant="secondary" onClick={() => setIssued(null)}>Done</Button>
             </div>
@@ -394,7 +466,7 @@ export default function Logins() {
             }
           />
           {isLoading ? (
-            <SkeletonTable columns={8} />
+            <SkeletonTable columns={simple ? 6 : 9} />
           ) : error ? (
             <ErrorState error={error} />
           ) : (
@@ -404,8 +476,8 @@ export default function Logins() {
                  Student", twice down four hundred rows. Devices and the last
                  sign-in belong to somebody who works here. */
               head={simple
-                ? ['Name', 'Belongs to', 'Last sign-in', 'Status', '']
-                : ['Name', 'Contact', 'Belongs to', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}
+                ? ['Name', 'Belongs to', 'Child & class', 'Last sign-in', 'Status', '']
+                : ['Name', 'Contact', 'Belongs to', 'Child & class', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}
               empty={!users.length}
               emptyLabel="No logins match those filters."
             >
@@ -426,6 +498,15 @@ export default function Logins() {
                       {RECORD_LABEL[u.record] ?? u.record}
                     </Badge>
                   </Td>
+                  {/* SIX ROWS CALLED "SURESH SHARMA".
+
+                      A school's parents share names, and searching this list
+                      gave nothing to tell them apart but a phone number nobody
+                      knows by heart. A parent is known at a school by their
+                      child, so the child, the class and the section say which
+                      Suresh Sharma this is -- both of them, for a parent with
+                      two on the roll. A child's own row carries their class. */}
+                  <Td className="text-[12.5px] text-muted-foreground">{u.about || '—'}</Td>
                   {!simple && (
                     <Td>
                       <div className="flex flex-wrap gap-1">

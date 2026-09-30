@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, Mail, Printer, RotateCcw, X } from 'lucide-react'
+import { Copy, KeyRound, Printer, RotateCcw, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
@@ -69,7 +69,13 @@ interface Row {
   child: Child
 }
 
-export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
+/* Which endpoint issues a login for each audience. They differ by more than
+   the word: a child's first password is their admission number, a parent's is
+   their phone, and a member of staff's is phone-then-email -- each route knows
+   its own rule, so the screen only has to know which to call. */
+const ROUTE = { students: 'students', guardians: 'guardians', staff: 'employees' } as const
+
+export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff' }) {
   const qc = useQueryClient()
   const [target, setTarget] = useState('')
   const [needle, setNeedle] = useState('')
@@ -85,12 +91,19 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   })
 
   const [scope, id] = target.split(':')
+  /* Staff sit in no class, so the picker above does not apply to them and the
+     whole roll comes back in one go. Keeping `target` in the key regardless
+     costs nothing and means the three tabs never read each other's cache. */
   const roster = useQuery({
-    queryKey: ['login-roster', target],
+    queryKey: ['login-roster', kind, target],
     queryFn: () =>
       api.get<{ items: Child[] }>(
         '/api/v1/setup/logins/roster' +
-          (target ? '?' + (scope === 'class' ? 'class_id=' : 'section_id=') + id : ''),
+          (kind === 'staff'
+            ? '?kind=staff'
+            : target
+            ? '?' + (scope === 'class' ? 'class_id=' : 'section_id=') + id
+            : ''),
       ),
   })
 
@@ -102,7 +115,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
          how a batch half-succeeds and nobody can tell which half. */
       for (const personID of v.ids) {
         const r = await api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
-          '/api/v1/setup/' + (kind === 'students' ? 'students' : 'guardians') + '/' + personID +
+          '/api/v1/setup/' + ROUTE[kind] + '/' + personID +
             '/login' + (v.reset ? '?reset=true' : ''),
           {},
         )
@@ -116,7 +129,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         for (const r of list) next[r.id] = { signIn: r.signIn, password: r.password }
         return next
       })
-      void qc.invalidateQueries({ queryKey: ['login-roster', target] })
+      void qc.invalidateQueries({ queryKey: ['login-roster', kind, target] })
       void qc.invalidateQueries({ queryKey: ['admin-users'] })
     },
   })
@@ -148,6 +161,22 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
      a family's rows are its guardians, each carrying the child's name so the
      column can be read straight down. */
   const rows: Row[] = useMemo(() => {
+    /* A member of staff is one person and one row, like a child, but placed by
+       what they do rather than where they sit: designation on the name, and
+       the department in the column the other tabs give to family. */
+    if (kind === 'staff') {
+      return children.map((p) => ({
+        id: p.id,
+        name: p.name,
+        under: p.class_name || 'Staff',
+        code: p.admission_no,
+        signIn: p.sign_in_as,
+        hasLogin: p.has_login,
+        loginCode: p.login_code,
+        context: p.section_name || '—',
+        child: p,
+      }))
+    }
     if (kind === 'students') {
       return children.map((ch) => ({
         id: ch.id,
@@ -220,6 +249,8 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
     login_code: r.loginCode,
     existing: r.hasLogin,
     child_name: kind === 'guardians' ? r.child.name : undefined,
+    /* Designation and department, not class and section, but the same two
+       columns underneath -- the sheet is one shape for all three audiences. */
     admission_no: r.child.admission_no,
     class_name: r.child.class_name,
     section_name: r.child.section_name,
@@ -229,20 +260,19 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   /* Only those whose password this sitting actually produced: resetting is what
      yields one, and a row that merely already had a login has nothing to show. */
   const justIssued = rows.filter((r) => issued[r.id]?.password)
-  const [mailed, setMailed] = useState<Record<string, true>>({})
-  const mail = useMutation({
-    mutationFn: (v: { id: string; signIn: string; password: string }) =>
-      api.post<{ sent_to: string }>('/api/v1/setup/credentials/email', {
-        kind: kind === 'students' ? 'students' : 'guardians',
-        id: v.id,
-        sign_in_as: v.signIn,
-        password: v.password,
-      }).then((r) => ({ id: v.id, to: r.sent_to })),
-    onSuccess: (r) => setMailed((m) => ({ ...m, [r.id]: true })),
-  })
 
   const initials = (name: string) =>
     name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+
+  /* The words this audience is called by, in one place: the print heading, the
+     file name and the two columns that change. Three tabs' worth of ternaries
+     down the render was how "Parent logins" ended up printed over a staff
+     sheet the first time staff were added. */
+  const WORDS = {
+    students: { title: 'Student logins', file: 'student-logins', who: 'Child', beside: 'Guardians', id: 'Admission no' },
+    guardians: { title: 'Parent logins', file: 'parent-logins', who: 'Parent', beside: 'Child', id: '' },
+    staff: { title: 'Staff logins', file: 'staff-logins', who: 'Name', beside: 'Department', id: 'Staff code' },
+  }[kind]
 
   const act = (reset: boolean) => {
     const ids = (chosen.length ? chosen : []).map((r) => r.id)
@@ -256,21 +286,32 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   return (
     <Card>
       <CardHeader
-        title={kind === 'students' ? 'The class, child by child' : 'The class, family by family'}
+        title={
+          kind === 'students' ? 'The class, child by child'
+            : kind === 'guardians' ? 'The class, family by family'
+            : 'The staff roll, person by person'
+        }
         description={
           kind === 'students'
             ? 'Every child on the roll, whether or not they can sign in yet.'
-            : 'Every guardian of the children on the roll, whether or not they can sign in yet.'
+            : kind === 'guardians'
+            ? 'Every guardian of the children on the roll, whether or not they can sign in yet.'
+            : 'Everybody on the staff register, whether or not they can sign in yet.'
         }
       />
 
       {/* The class, and what to do to it. */}
       <div className="flex flex-wrap items-end gap-3 border-b px-[var(--card-pad)] py-4">
-        <div className="w-64">
-          <Field label="Class or section">
-            <Select value={target} onChange={setTarget} options={targets} placeholder="Every class" />
-          </Field>
-        </div>
+        {/* A member of staff is in no class, so there is nothing here to
+            narrow by. A picker that cannot change the list is worse than no
+            picker: it reads as the reason the list is empty. */}
+        {kind !== 'staff' && (
+          <div className="w-64">
+            <Field label="Class or section">
+              <Select value={target} onChange={setTarget} options={targets} placeholder="Every class" />
+            </Field>
+          </div>
+        )}
         <div className="mr-auto text-[13px] text-muted-foreground">
           <span className="text-[15px] font-semibold text-foreground">
             {rows.length - without} / {rows.length}
@@ -279,7 +320,9 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
           <div className="text-[12px]">
             {kind === 'students'
               ? 'First password is the admission number.'
-              : 'First password is their own phone number.'}
+              : kind === 'guardians'
+              ? 'First password is their own phone number.'
+              : 'First password is their phone number, or their email if they have no phone.'}
           </div>
         </div>
         <Button
@@ -303,7 +346,11 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
             value={needle}
             onChange={setNeedle}
             srLabel="Search this roll"
-            placeholder={kind === 'students' ? 'Name, roll or admission no' : 'Parent, child or phone'}
+            placeholder={
+              kind === 'students' ? 'Name, roll or admission no'
+                : kind === 'guardians' ? 'Parent, child or phone'
+                : 'Name, staff code or designation'
+            }
           />
         </div>
         <Select
@@ -324,7 +371,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         <Button
           variant="secondary"
           disabled={!sheet.length}
-          onClick={() => printSlips(sheet, kind === 'students' ? 'Student logins' : 'Parent logins')}
+          onClick={() => printSlips(sheet, WORDS.title)}
         >
           <Printer className="h-3.5 w-3.5" />
           Print slips
@@ -332,7 +379,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         <Button
           variant="secondary"
           disabled={!sheet.length}
-          onClick={() => downloadLogins(sheet, kind === 'students' ? 'student-logins' : 'parent-logins', kind)}
+          onClick={() => downloadLogins(sheet, WORDS.file, kind)}
         >
           Export CSV
         </Button>
@@ -373,13 +420,13 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-              <Button variant="secondary" onClick={() => printSlips(sheet, kind === 'students' ? 'Student logins' : 'Parent logins')}>
+              <Button variant="secondary" onClick={() => printSlips(sheet, WORDS.title)}>
                 <Printer className="h-3.5 w-3.5" />
                 Print slips
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => downloadLogins(sheet, kind === 'students' ? 'student-logins' : 'parent-logins', kind)}
+                onClick={() => downloadLogins(sheet, WORDS.file, kind)}
               >
                 Download
               </Button>
@@ -436,21 +483,15 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
                     </div>
                   </div>
 
-                  {/* Credentials already go out by email the moment a login is
-                      issued. This is for the parent who says it never arrived,
-                      and it can only send what the screen is still holding --
-                      the password is hashed the moment it is set. */}
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={mail.isPending}
-                      onClick={() => mail.mutate({ id: r.id, signIn, password: got.password })}
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      {mailed[r.id] ? 'Sent' : 'Email it'}
-                    </Button>
-                  </div>
+                  {/* NO "EMAIL IT" BUTTON HERE, ON PURPOSE.
+
+                      Issuing a login already sends the credentials on every
+                      channel the person has, so a button beside the password
+                      re-sends what went out seconds earlier. It is also greyed
+                      out for the majority of parents, who have no address on
+                      record, and what it does send is a plaintext password
+                      that stays in an inbox for good. Copy it, print the slip,
+                      or read it down the phone. */}
                 </div>
               )
             })}
@@ -458,7 +499,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         </div>
       )}
 
-      <FormNotice error={issue.error ?? mail.error ?? roster.error} />
+      <FormNotice error={issue.error ?? roster.error} />
 
       <Table
         head={[
@@ -466,12 +507,12 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
              everybody lives in the toolbar above where its count can be
              read out loud. */
           '',
-          kind === 'students' ? 'Child' : 'Parent',
+          WORDS.who,
           /* A parent's phone, their sign-in name and their first password are
              the same ten digits, so three columns of it made the password
              invisible -- it read as the number repeated. The child keeps an
              admission number column, because for a child they differ. */
-          ...(kind === 'students' ? ['Admission no'] : []),
+          ...(WORDS.id ? [WORDS.id] : []),
           'Signs in as',
           /* The permanent one, beside the one they type. A phone changes
              and an admission number is reissued; this never does, and it
@@ -479,13 +520,17 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
              password has gone. */
           'Account ID',
           'Password',
-          kind === 'students' ? 'Guardians' : 'Child',
+          WORDS.beside,
           '',
         ]}
         loading={roster.isLoading}
         empty={!shown.length}
         emptyLabel={
-          rows.length ? 'Nobody matches those filters.' : 'Nobody on this roll.'
+          rows.length
+            ? 'Nobody matches those filters.'
+            : kind === 'staff'
+            ? 'Nobody is on the staff register yet.'
+            : 'Nobody on this roll.'
         }
       >
         {shown.map((r) => {
@@ -511,7 +556,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
                 <div className="font-medium">{r.name}</div>
                 <div className="text-[12px] text-muted-foreground">{r.under}</div>
               </Td>
-              {kind === 'students' && (
+              {WORDS.id !== '' && (
                 <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
               )}
               <Td className="font-mono text-[12.5px]">{got?.signIn || r.signIn || '—'}</Td>
