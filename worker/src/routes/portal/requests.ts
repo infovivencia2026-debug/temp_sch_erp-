@@ -145,6 +145,42 @@ async function cancelPortalLeave(c: Ctx): Promise<Response> {
 }
 
 /** One tap on the morning a child wakes up ill: today, or up to a week back. */
+/* WHO IS TOLD WHEN A CHILD IS OFF.
+ *
+ * Nobody was, until now. Reporting an absence or applying for leave wrote a
+ * pending row and stopped: if no member of staff happened to open the leave
+ * list, the reason a parent had typed at seven in the morning sat in a table
+ * and the child was marked absent-unexplained. From the family's side that is
+ * indistinguishable from the message never having been sent.
+ *
+ * It goes to the people who act on it, which is not a question a parent should
+ * be asked. First the class teacher -- they mark the register, and an absence
+ * they do not know about becomes an unexplained one. Then whoever chases
+ * absentees by telephone, because a parent who told the school at seven and is
+ * rung at ten to be asked why is a school that looks careless.
+ *
+ * The head is deliberately not on this list. Forty of these a day is not a
+ * thing anybody runs a school by reading, and the pattern is already on their
+ * dashboard.
+ */
+async function attendanceOwners(c: Ctx, studentId: string): Promise<string[]> {
+  const rows = await c.db.prepare(`
+    SELECT DISTINCT u.id
+      FROM users u
+     WHERE u.status = 'active' AND (
+       /* the class teacher of the section this child is enrolled in */
+       u.id = (SELECT sec.class_teacher_id FROM enrollments e
+                 JOIN sections sec ON sec.id = e.section_id
+                WHERE e.student_id = ?1 AND e.status = 'active'
+                ORDER BY e.enrolled_on DESC LIMIT 1)
+       /* or whoever chases absentees: the permission that names the errand,
+          not a role key, so a school that renamed its roles still routes. */
+       OR EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
+                   WHERE ur.user_id = u.id AND rp.permission_key = 'academics.attendance.write.any')
+     )`).bind(studentId).all<{ id: string }>().catch(() => null)
+  return (rows?.results ?? []).map((r) => r.id).filter(Boolean)
+}
+
 async function reportChildAbsence(c: Ctx): Promise<Response> {
   const body = await readJSON<Record<string, unknown>>(c.req)
   const { studentId: sid } = await portalChild(c, raw(body.student_id))
@@ -180,7 +216,20 @@ async function reportChildAbsence(c: Ctx): Promise<Response> {
     throw badRequest(errMsg(e))
   }
   if (!res.meta.changes) throw coded(409, 'already_reported', 'that day is already covered by an application')
-  return created({ id: newID, on_date: on })
+
+  const who = await c.db.prepare(`SELECT ${nameFL('st')} AS name FROM students st WHERE st.id = ?`)
+    .bind(sid).first<{ name: string }>().catch(() => null)
+  const told = await attendanceOwners(c, sid)
+  if (told.length) {
+    await c.db.batch(told.map((uid) => notifyStmt(
+      c, uid, sid, 'attendance.absence_reported',
+      `${who?.name ?? 'A child'} is absent today`,
+      reason.slice(0, 200),
+      '/faculty/attendance/absentee_followup',
+      'leave_request', newID,
+    ))).catch(() => { /* the absence is recorded; a failed bell must not undo it */ })
+  }
+  return created({ id: newID, on_date: on, told: told.length })
 }
 
 // ---------------------------------------------------------------------------
