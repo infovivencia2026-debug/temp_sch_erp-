@@ -182,12 +182,15 @@ export default function Approvals() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {/* On a phone: the note on its own line, Approve and
+                          Reject as an even pair under it. It wrapped into
+                          note + Approve with Reject stranded on a third line. */}
+                      <div className="grid w-full shrink-0 grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
                         <Input
                           value={note[it.id] ?? ''}
                           onChange={(x) => setNote({ ...note, [it.id]: x })}
                           placeholder="Note (optional)"
-                          className="w-40"
+                          className="col-span-2 w-full sm:w-40"
                         />
                         <Button
                           size="sm"
