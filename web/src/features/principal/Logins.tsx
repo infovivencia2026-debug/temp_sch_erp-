@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard, downloadLogins, printSlips } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
 
 /* Who can sign in to this school.
@@ -157,6 +157,8 @@ export default function Logins() {
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['school-logins', params.toString()],
+    /* Live: who is signed in changes by the minute, so the list keeps itself current. */
+    refetchInterval: 30_000,
     // Walked to the END, page by page. The endpoint returns 200 at a time; a
     // school whose students each have a login runs well past that, and a single
     // fetch showed only the first 200 -- so people were simply missing from the
@@ -188,6 +190,7 @@ export default function Logins() {
      filters leave. */
   const totals = useQuery({
     queryKey: ['school-logins-totals'],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const items: AdminUser[] = []
       for (let offset = 0; ; offset += 200) {
@@ -234,6 +237,23 @@ export default function Logins() {
     onSuccess: (r) => setIssued(r),
   })
 
+  /* EVERYBODY WHO WAS NEVER GIVEN A PASSWORD, IN ONE GO.
+     Only logins still "invited": a disabled login is usually somebody who has
+     left, and switching them back on is a decision for the office, one at a time. */
+  const [bulk, setBulk] = useState<{ name: string; sign_in_as: string; password: string; existing: boolean; login_code?: string }[] | null>(null)
+  const issueAll = useMutation({
+    mutationFn: async (list: AdminUser[]) => {
+      const out: { name: string; sign_in_as: string; password: string; existing: boolean; login_code?: string }[] = []
+      for (const u of list) {
+        const r = await api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${u.id}/reset-password`, {})
+        out.push({ name: u.full_name, sign_in_as: u.sign_in_as || u.phone || u.email || '', password: r.temporary_password ?? '', existing: false, login_code: u.login_code || undefined })
+        setBulk([...out])
+      }
+      return out
+    },
+    onSuccess: (r) => { setBulk(r); qc.invalidateQueries({ queryKey: ['school-logins'] }); qc.invalidateQueries({ queryKey: ['school-logins-totals'] }) },
+  })
+
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.put(`/api/v1/admin/users/${id}/status`, { status }),
@@ -258,6 +278,7 @@ export default function Logins() {
     : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
   const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
+  const invited = users.filter((u) => u.status === 'invited')
 
   /* A NUMBER YOU CANNOT OPEN IS A NUMBER YOU CANNOT ACT ON.
 
@@ -363,14 +384,14 @@ export default function Logins() {
           <Stat
             label="Can sign in"
             value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active}
-            hint={isLoading ? '\u00a0' : `${users.length - active} cannot — open them`}
-            active={lens === 'can' || lens === 'cannot'}
-            onClick={() => setTileLens(lens === 'can' ? 'cannot' : lens === 'cannot' ? '' : 'can')}
+            hint={isLoading ? '\u00a0' : users.length - active === 0 ? 'Everybody can sign in' : `${users.length - active} cannot, show them`}
+            active={lens === 'cannot'}
+            onClick={() => setTileLens(lens === 'cannot' ? '' : 'cannot')}
           />
           <Stat
             label="Signed in now"
             value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn}
-            hint="Holding a live session"
+            hint="Active in the last 10 minutes"
             active={lens === 'live'}
             onClick={() => setTileLens(lens === 'live' ? '' : 'live')}
           />
@@ -383,6 +404,38 @@ export default function Logins() {
             onClick={() => setTileLens(lens === 'orphan' ? '' : 'orphan')}
           />
         </CellGrid>
+
+        {lens === 'cannot' && (invited.length > 0 || bulk) && (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] py-4">
+              <div className="text-[14px]">
+                <b>{invited.length}</b> {invited.length === 1 ? 'has' : 'have'} never been given a password.
+                <span className="block text-[12.5px] text-muted-foreground">Disabled logins are not included: switch those back on one at a time from their row.</span>
+              </div>
+              <Button disabled={!invited.length || issueAll.isPending}
+                onClick={() => { if (window.confirm(`Give all ${invited.length} a password now? Each one is shown here once.`)) { setBulk([]); issueAll.mutate(invited) } }}>
+                <KeyRound className="h-3.5 w-3.5" />
+                {issueAll.isPending ? `Issuing ${bulk?.length ?? 0} of ${invited.length}…` : `Give all ${invited.length} a password`}
+              </Button>
+            </div>
+            <FormNotice error={issueAll.error} />
+            {bulk && bulk.length > 0 && (
+              <div className="border-t px-[var(--card-pad)] py-3">
+                <div className="mb-2 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => printSlips(bulk, 'Logins')}>Print slips</Button>
+                  <Button size="sm" variant="secondary" onClick={() => downloadLogins(bulk, 'logins', record === 'student' ? 'students' : record === 'guardian' ? 'guardians' : 'staff')}>Download CSV</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setBulk(null)}>Done</Button>
+                </div>
+                <Table head={['Name', 'Sign in as', 'Password']}>
+                  {bulk.map((r, i) => (
+                    <tr key={i}><Td>{r.name}</Td><Td>{r.sign_in_as || '-'}</Td><Td><span className="font-mono">{r.password}</span></Td></tr>
+                  ))}
+                </Table>
+                <p className="mt-2 text-[12.5px] text-muted-foreground">Shown once. Print or download before leaving this page.</p>
+              </div>
+            )}
+          </Card>
+        )}
 
         {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
