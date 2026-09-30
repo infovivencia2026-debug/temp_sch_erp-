@@ -211,7 +211,10 @@ export default function SettingsPage() {
        * token cancels it exactly whatever the root font size is. Writing the
        * pixel value would be right at 14px and wrong the moment somebody
        * changes the text size — which this very screen offers. */
-      '-mx-[16px] -mt-6 -mb-6 w-[calc(100%+32px)] py-0',
+      /* Bleeding past the outlet's padding is only right in Focus, which has
+         it; the classic phone layout has none, so there the bleed cut the
+         title off at the top and pushed the rows past both edges. */
+      'py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:-mb-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
       'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
     )}>
       <div

@@ -33,7 +33,7 @@ export function CardHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-[var(--card-pad)] py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-[var(--card-pad)] py-4">
       <div className="min-w-0">
         <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
         {/* Card descriptions are no longer drawn either.
@@ -58,7 +58,7 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
+      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
