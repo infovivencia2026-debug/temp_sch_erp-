@@ -17,6 +17,23 @@ import { useOfflineWarm } from '@/lib/offline-warm'
    has painted, in their own chunks. */
 const AssistantTab = lazy(() => import('@/components/AssistantTab').then((m) => ({ default: m.AssistantTab })))
 const FirstRunTour = lazy(() => import('./FirstRunTour'))
+
+/* True once the first screen has had its chance: a few seconds after mount and
+   then the browser's next idle moment. The corner assistant and the first-run
+   tour wait for it, so on a slow phone their code (and the import tools the
+   assistant brings) never competes with the home's first figures. */
+function useAfterFirstScreen(): boolean {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+    const t = setTimeout(() => {
+      if (w.requestIdleCallback) w.requestIdleCallback(() => setReady(true), { timeout: 3000 })
+      else setReady(true)
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [])
+  return ready
+}
 // A student's phone gets a five-tab bar (features/portal/student-kit.tsx).
 const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m) => ({ default: m.StudentTabBar })))
 import { CommandSearch } from './CommandSearch'
@@ -211,6 +228,7 @@ export function Shell({
 }) {
   const catalog = useCatalog()
   const session = useSession()
+  const later = useAfterFirstScreen()
   /* Fetch this person's own screens and, for a family, their everyday data
      while the phone is idle and online — so the next dead spot still paints.
      See lib/offline-warm.ts. */
@@ -548,7 +566,7 @@ export function Shell({
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
-      <Suspense fallback={null}><FirstRunTour /></Suspense>
+      {later && <Suspense fallback={null}><FirstRunTour /></Suspense>}
       {/* --- one sidebar --------------------------------------------------
 
           The icon rail is gone. A 56px column of role icons beside a 248px
@@ -1256,7 +1274,7 @@ export function Shell({
               <main> so it stays put while a long register scrolls. */}
           {/* The assistant is back: its service now runs in-process on Gemini
              (internal/api/assistant_chat.go), so the corner tab returns. */}
-          <Suspense fallback={null}><AssistantTab /></Suspense>
+          {later && <Suspense fallback={null}><AssistantTab /></Suspense>}
           {/* Mounted here for the same reason as the tab: what is queued was
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}

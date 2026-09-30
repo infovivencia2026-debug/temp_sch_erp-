@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
+
+const AttendanceTrendChart = lazy(() => import('./AttendanceTrendChart'))
 import { useQuery } from '@tanstack/react-query'
-import {
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
-} from 'recharts'
 import { GraduationCap, Users, Wallet, ClipboardCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -194,30 +193,12 @@ export default function PrincipalDashboard() {
                 No attendance recorded in the last 30 days.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trend.data.items} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
-                  <defs>
-                    <linearGradient id="att" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 8, fontSize: 12,
-                    }}
-                  />
-                  <Area
-                    type="monotone" dataKey="pct" name="Present %"
-                    stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#att)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              /* The chart library is ~100KB compressed; it loads when there is a
+                 chart to draw, into a placeholder the chart's own size, so the
+                 home's figures never wait for it and nothing moves when it lands. */
+              <Suspense fallback={<div className="skeleton h-full w-full rounded-lg" aria-hidden />}>
+                <AttendanceTrendChart items={trend.data.items} />
+              </Suspense>
             )}
           </div>
         </Card>

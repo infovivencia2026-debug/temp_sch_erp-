@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
+
+/* The charts, and recharts with them, load only when a record has marks to draw. */
+const Bars = lazy(() => import('./StaffRecordCharts').then((m) => ({ default: m.Bars })))
+const ExamTrend = lazy(() => import('./StaffRecordCharts').then((m) => ({ default: m.ExamTrend })))
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  BarChart, Bar, AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
-} from 'recharts'
 import { X, BookOpen, Layers, GraduationCap, CalendarClock, Printer } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
@@ -49,13 +50,6 @@ interface Overview {
 
 /* The tooltip and axes the principal dashboard uses, so both charts read the
    same way and neither hard-codes a colour that breaks in dark mode. */
-const AXIS = { fontSize: 11 } as const
-const TIP = {
-  background: 'hsl(var(--popover))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: 8,
-  fontSize: 12,
-} as const
 
 function StaffOverview({ employeeID }: { employeeID: string }) {
   const overview = useQuery({
@@ -109,15 +103,9 @@ function OverviewBody({ o }: { o: Overview }) {
           <p className="eyebrow mb-3 text-muted-foreground">Average % by subject</p>
           {marks.has_marks && marks.by_subject.length > 0 ? (
             <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marks.by_subject} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="subject" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip contentStyle={TIP} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
-                  <Bar dataKey="avg_pct" name="Average %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="skeleton h-full w-full rounded-lg" aria-hidden />}>
+                <Bars xKey="subject" data={marks.by_subject} />
+              </Suspense>
             </div>
           ) : (
             <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
@@ -147,22 +135,9 @@ function OverviewBody({ o }: { o: Overview }) {
           <p className="eyebrow mb-3 text-muted-foreground">Performance across exams</p>
           {marks.has_marks && marks.trend.length > 0 ? (
             <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={marks.trend} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
-                  <defs>
-                    <linearGradient id="staff-trend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="exam" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip contentStyle={TIP} />
-                  <Area type="monotone" dataKey="avg_pct" name="Average %"
-                    stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#staff-trend)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="skeleton h-full w-full rounded-lg" aria-hidden />}>
+                <ExamTrend data={marks.trend} />
+              </Suspense>
             </div>
           ) : (
             <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
@@ -182,18 +157,9 @@ function OverviewBody({ o }: { o: Overview }) {
         <div className="rounded-lg border p-4">
           <p className="eyebrow mb-3 text-muted-foreground">Average % by section</p>
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={marks.by_section.map((s) => ({ ...s, label: `${s.class}-${s.section}` }))}
-                margin={{ top: 4, right: 8, bottom: 4, left: -22 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={TIP} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
-                <Bar dataKey="avg_pct" name="Average %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="skeleton h-full w-full rounded-lg" aria-hidden />}>
+              <Bars xKey="label" data={marks.by_section.map((s) => ({ ...s, label: `${s.class}-${s.section}` }))} />
+            </Suspense>
           </div>
         </div>
       )}
