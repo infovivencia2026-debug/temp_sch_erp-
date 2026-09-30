@@ -11,6 +11,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { SentTo } from './SentTo'
 
 /* Leave a family has asked for, and the form for asking.
 
@@ -257,6 +258,7 @@ function ApplyForLeave() {
             />
           </Field>
         </FormGrid>
+        <SentTo studentId={studentId} />
         <div className="mt-4">
           <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
             {apply.isPending ? t('portal.leave_requests.sending') : t('portal.leave_requests.action_send')}

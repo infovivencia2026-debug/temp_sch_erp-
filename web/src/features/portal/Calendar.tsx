@@ -268,9 +268,12 @@ export default function Calendar() {
             <button
               type="button"
               onClick={goToday}
+              title="Back to this month"
               className="inline-flex h-9 items-center rounded-full border bg-card px-3.5 text-[13px] font-semibold shadow-sm transition-colors hover:bg-accent"
             >
-              Today
+              {/* The month on screen, not "Today" (the owner's ask); a tap
+                  still brings the calendar back to this month. */}
+              {new Date(cursor.y, cursor.m, 1).toLocaleString('en-IN', { month: 'long' })}
             </button>
             <button
               type="button"
