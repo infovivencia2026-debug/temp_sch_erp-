@@ -327,7 +327,9 @@ export default function Calendar() {
             Below that it is six rows of seven 44px cells, which cannot hold a
             word, so the phone gets the week strip underneath instead. Drawing
             both and hiding one costs nothing: they read the same arrays. */}
-        <Card className="hidden overflow-hidden p-0 md:block">
+        {/* On a phone too, now: the owner wanted the whole month, not one
+            week. The cells shrink and the entries become dots. */}
+        <Card className="overflow-hidden p-0">
           <div className="grid grid-cols-7 border-b bg-surface-sunken/60 text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground">
             {WEEK.map((d) => <div key={d} className="py-2.5">{d}</div>)}
           </div>
@@ -343,7 +345,7 @@ export default function Calendar() {
                   type="button"
                   onClick={() => setPicked(day)}
                   className={cn(
-                    'flex min-h-[104px] flex-col items-stretch gap-1 border-b border-r p-2 text-left transition-colors last:border-r-0',
+                    'flex min-h-[52px] flex-col items-center gap-1 border-b border-r p-1 text-left md:min-h-[104px] md:items-stretch md:p-2 transition-colors last:border-r-0',
                     outside ? 'bg-surface-sunken/40 opacity-45' : weekend ? 'bg-surface-sunken/30' : 'bg-card',
                     picked === day && 'ring-2 ring-inset ring-primary',
                     'hover:bg-accent/40',
@@ -357,12 +359,19 @@ export default function Calendar() {
                   >
                     {d.getDate()}
                   </span>
+                  {on.length > 0 && (
+                    <span className="flex gap-0.5 md:hidden">
+                      {on.slice(0, 3).map((e, i) => (
+                        <span key={i} className={cn('h-1.5 w-1.5 rounded-full', FAMILY[familyOf(e.kind)].dot)} />
+                      ))}
+                    </span>
+                  )}
                   {on.slice(0, 3).map((e, i) => (
                     <span
                       key={`${e.ref_id ?? e.title}-${i}`}
                       title={e.title}
                       className={cn(
-                        'truncate rounded px-1.5 py-[3px] text-[11px] font-semibold',
+                        'hidden truncate rounded md:block px-1.5 py-[3px] text-[11px] font-semibold',
                         FAMILY[familyOf(e.kind)].chip,
                       )}
                     >
@@ -370,7 +379,7 @@ export default function Calendar() {
                     </span>
                   ))}
                   {on.length > 3 && (
-                    <span className="px-1 text-[10.5px] font-semibold text-muted-foreground">
+                    <span className="hidden px-1 text-[10.5px] font-semibold text-muted-foreground md:block">
                       +{on.length - 3} more
                     </span>
                   )}
@@ -386,7 +395,7 @@ export default function Calendar() {
             something on it. A dot rather than the entry itself: the entry is
             three words at least and the cell is a thumb wide, so the strip
             says WHERE to look and the agenda below says what. */}
-        <Card className="overflow-hidden p-0 md:hidden">
+        <Card className="hidden">
           <div className="flex justify-between gap-1 px-3 py-3">
             {week.map((d) => {
               const day = iso(d)
