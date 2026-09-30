@@ -79,6 +79,20 @@ function dayOf(iso: string): string {
   return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
 }
 
+function dateOf(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/* The filter row: what a parent sorts a feed by. */
+const FILTERS: { key: string; label: string; kinds?: string[] }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'message', label: 'Messages', kinds: ['message', 'chat'] },
+  { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'attendance', 'leave'] },
+  { key: 'fees', label: 'Fees', kinds: ['fee', 'fees', 'payment'] },
+  { key: 'other', label: 'Other' },
+]
+
 function timeOf(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
@@ -94,6 +108,7 @@ export default function Notifications() {
      rather than as leaving. `closing` holds it on screen long enough to slide
      back out the way it came. */
   const [closing, setClosing] = useState(false)
+  const [filter, setFilter] = useState('all')
   const qc = useQueryClient()
 
   const feed = useQuery({
@@ -204,13 +219,19 @@ export default function Notifications() {
   /* Grouped as it is read: newest day first, in the order the server sent.
      Re-sorting here would fight an endpoint that already knows what is
      urgent. */
+  const listed = FILTERS.flatMap((x) => x.kinds ?? [])
+  const inFilter = (n: Note) => filter === 'all' ? true
+    : filter === 'other' ? !listed.includes(n.kind)
+    : (FILTERS.find((x) => x.key === filter)?.kinds ?? []).includes(n.kind)
   const groups: { day: string; notes: Note[] }[] = []
-  for (const n of items) {
+  for (const n of items.filter(inFilter)) {
     const day = dayOf(n.created_at)
     const last = groups[groups.length - 1]
     if (last && last.day === day) last.notes.push(n)
     else groups.push({ day, notes: [n] })
   }
+
+  const shownGroups = groups
 
   return (
     <>
@@ -248,7 +269,7 @@ export default function Notifications() {
       {(open || closing) && createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[60] flex justify-end',
+            'fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -259,81 +280,65 @@ export default function Notifications() {
             role="dialog"
             aria-modal="true"
             aria-label="Notifications"
-            /* data-side is what index.css reads to bring this in from the
-               right rather than down from above — a 400px column that rises
-               reads as the wrong gesture for something that lives at the edge. */
             data-side="right"
             data-closing={closing && !open ? '' : undefined}
             onAnimationEnd={() => { if (!open) setClosing(false) }}
             onClick={(e) => e.stopPropagation()}
-            /* FULL WIDTH ON A PHONE, A DRAWER ON EVERYTHING ELSE.
-
-               This was `w-[min(26rem,100vw)]`, written to mean "26rem, or the
-               whole screen if that is narrower". It never reached the whole
-               screen: index.css pins the root font to 14px for the dense
-               desktop baseline, so 26rem is 364px rather than the 416 the
-               figure suggests, and on a 390px phone the drawer stopped 26px
-               short. What was left was a sliver of the dashboard down one edge
-               and no way to press it, which reads as a panel that failed to
-               finish opening rather than as a drawer.
-
-               The same 14px root turned a 44px touch minimum written in rem
-               into 38.5px elsewhere in this product. A length that has to
-               clear a device edge is stated in pixels here for that reason. */
-            className="flex h-full w-full flex-col border-l bg-card shadow-[var(--lift-float)] sm:w-[416px]"
-            /* Fixed to the viewport, so the body's notch padding does not reach it:
-               in the iPhone app the header sat under the clock and the list ran
-               under the home indicator. Zero in a browser and on Android. */
+            /* THE OWNER'S MOCK: a quiet header with a count pill, a segmented
+               filter, day groups with the date on the right, and each
+               notification a card. No unread dot (they asked for none): an
+               unread card is picked out by its border and bolder title.
+               Full screen on a phone -- 100dvh, above the app header -- so it
+               no longer starts under the top bar. */
+            className="flex h-[100dvh] w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[15px] font-semibold">Notifications</h2>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  {unread > 0 ? `${unread} unread` : 'Everything here has been read'}
-                </p>
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-5 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="text-[15px] font-bold tracking-tight">Notifications</h2>
+                {unread > 0 && (
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    {unread} new
+                  </span>
+                )}
               </div>
-              {unread > 0 && (
-                <button
-                  onClick={() => readAll.mutate()}
-                  className="shrink-0 rounded-[7px] px-2 py-1 text-[12px] text-muted-foreground
-                             hover:bg-surface-hover hover:text-foreground"
-                >
-                  Mark all read
+              <div className="flex shrink-0 items-center gap-1">
+                {unread > 0 && (
+                  <button onClick={() => readAll.mutate()}
+                    className="rounded-lg px-2.5 py-1 text-[12px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                    Mark read
+                  </button>
+                )}
+                {items.length > 0 && (
+                  <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
+                    className="rounded-lg px-2.5 py-1 text-[12px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50">
+                    {clearAll.isPending ? 'Clearing…' : 'Clear'}
+                  </button>
+                )}
+                <button onClick={dismiss} aria-label="Close notifications"
+                  className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X className="size-4" />
                 </button>
-              )}
-              {items.length > 0 && (
-                <button
-                  onClick={() => clearAll.mutate()}
-                  disabled={clearAll.isPending}
-                  aria-label="Clear all notifications"
-                  className="shrink-0 rounded-[7px] px-2 py-1 text-[12px] text-muted-foreground
-                             hover:bg-surface-hover hover:text-foreground disabled:opacity-50"
-                >
-                  {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                </button>
-              )}
-              <button
-                onClick={dismiss}
-                aria-label="Close notifications"
-                className="grid size-8 shrink-0 place-items-center rounded-[7px] text-muted-foreground
-                           hover:bg-surface-hover hover:text-foreground"
-              >
-                <X className="size-4" />
-              </button>
+              </div>
             </header>
 
-            {/* Same reason as the settings dialog: a panel is not a page, and
-                a fortnight's feed is longer than one. */}
-            <div className="scroll-y min-h-0 flex-1 overscroll-contain">
+            {items.length > 0 && (
+              <div className="flex shrink-0 gap-1 overflow-x-auto border-b bg-muted/40 px-4 py-2">
+                {FILTERS.map((f) => (
+                  <button key={f.key} type="button" onClick={() => setFilter(f.key)}
+                    className={cn('shrink-0 rounded-md px-3 py-1 text-[12px] transition-colors',
+                      filter === f.key ? 'border bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground hover:text-foreground')}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
               {items.length === 0 ? (
-                /* Centred in the panel, not sitting near its top. An empty
-                   state anchored to the first sixth of a full-height sheet
-                   leaves a thousand pixels of nothing under two lines of
-                   text, which is what the drawer looked like on a phone. */
                 <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
                   <p className="text-[14px] font-medium">Nothing yet</p>
                   <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] text-muted-foreground">
@@ -341,79 +346,42 @@ export default function Notifications() {
                     the school sends them.
                   </p>
                 </div>
+              ) : shownGroups.length === 0 ? (
+                <p className="py-16 text-center text-[13px] text-muted-foreground">Nothing in this filter.</p>
               ) : (
-                groups.map((g) => (
+                shownGroups.map((g) => (
                   <section key={g.day}>
-                    {/* Sticky, because a fortnight's feed is longer than the
-                        panel and a day heading that has scrolled away leaves
-                        every row below it undated. */}
-                    <h3 className="sticky top-0 z-10 border-b bg-surface-subtle px-5 py-1.5
-                                   text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {g.day}
-                    </h3>
-                    <ul className="divide-y">
+                    <div className="mb-2.5 flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{g.day}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">{dateOf(g.notes[0].created_at)}</span>
+                    </div>
+                    <div className="space-y-2">
                       {g.notes.map((n) => {
                         const { icon: Icon, label } = kindOf(n.kind)
                         return (
-                          <li key={n.id}>
-                            <button
-                              type="button"
-                              onClick={() => openNote(n)}
-                              className={cn(
-                                'flex w-full gap-3 px-5 py-3.5 text-left hover:bg-accent',
-                                !n.read_at && 'bg-surface-hover',
+                          <button key={n.id} type="button" onClick={() => openNote(n)}
+                            className={cn('flex w-full items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all hover:shadow-md',
+                              n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
+                            <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
+                              n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
+                              <Icon className="size-3.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className={cn('min-w-0 truncate text-[13px]', n.read_at ? 'font-semibold' : 'font-bold')}>{n.title}</span>
+                                <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
+                              </span>
+                              <span className="block text-[11.5px] font-medium text-primary">
+                                <span className="capitalize">{label}</span>{n.student_name ? ` · ${n.student_name}` : ''}
+                              </span>
+                              {n.body && (
+                                <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{n.body}</span>
                               )}
-                            >
-                              <span
-                                className={cn(
-                                  'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full',
-                                  n.read_at
-                                    ? 'bg-surface-subtle text-muted-foreground'
-                                    : 'bg-primary/10 text-primary',
-                                )}
-                                aria-hidden
-                              >
-                                <Icon className="size-3.5" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="flex items-baseline gap-2">
-                                  <span className="min-w-0 flex-1 text-[13.5px] font-medium">
-                                    {n.title}
-                                  </span>
-                                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                                    {timeOf(n.created_at)}
-                                  </span>
-                                </span>
-                                {/* Three lines, not one. The body is the
-                                    message; clamping it to a single line meant
-                                    every notification had to be opened to be
-                                    read, including the ones that had nowhere
-                                    to open to. */}
-                                {n.body && (
-                                  <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">
-                                    {n.body}
-                                  </span>
-                                )}
-                                <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                  <span className="capitalize">{label}</span>
-                                  {n.student_name && (
-                                    <>
-                                      <span aria-hidden>·</span>
-                                      <span className="truncate">{n.student_name}</span>
-                                    </>
-                                  )}
-                                  {!n.read_at && (
-                                    <span className="ml-auto shrink-0 rounded-md bg-primary/12 px-1.5 py-px text-[11px] font-semibold text-primary">
-                                      New
-                                    </span>
-                                  )}
-                                </span>
-                              </span>
-                            </button>
-                          </li>
+                            </span>
+                          </button>
                         )
                       })}
-                    </ul>
+                    </div>
                   </section>
                 ))
               )}
