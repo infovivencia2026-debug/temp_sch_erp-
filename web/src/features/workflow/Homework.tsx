@@ -119,24 +119,26 @@ export default function Homework() {
 function Diary({ canPublish }: { canPublish: boolean }) {
   const qc = useQueryClient()
   const today = iso(new Date())
-  const [day, setDay] = useState(today)
+  /* No day chosen means every piece of work, newest first. The diary opened
+     on today alone, and work given on any earlier day vanished from view. */
+  const [day, setDay] = useState<string | null>(null)
+  const [weekOf, setWeekOf] = useState(mondayOf(today))
   const [kind, setKind] = useState('')
   const [viewing, setViewing] = useState<string | null>(null)
   const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
   const [answer, setAnswer] = useState('')
   const [attached, setAttached] = useState<UploadedFile | null>(null)
   const [composing, setComposing] = useState(false)
-  /* A teacher opens on the work they set themselves; the whole section is one press away. */
-  const [onlyMine, setOnlyMine] = useState(true)
+  /* Everything set for the teacher's sections by default; their own is one press away. */
+  const [onlyMine, setOnlyMine] = useState(false)
   const mine = canPublish && onlyMine
 
-  const from = mondayOf(day)
-  const to = addDays(from, 6)
+  const from = weekOf
   const week = Array.from({ length: 7 }, (_, i) => addDays(from, i))
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['homework', 'week', from, mine],
-    queryFn: () => api.get<List<Homework>>(`/api/v1/homework?from=${from}&to=${to}${mine ? '&mine=1' : ''}`),
+    queryKey: ['homework', 'diary', mine],
+    queryFn: () => api.get<List<Homework>>(`/api/v1/homework${mine ? '?mine=1' : ''}`),
   })
 
   const submit = useMutation({
@@ -154,12 +156,12 @@ function Diary({ canPublish }: { canPublish: boolean }) {
   })
 
   const all = data?.items ?? []
-  const onDay = all.filter((h) => h.assigned_on.slice(0, 10) === day)
+  const onDay = day ? all.filter((h) => h.assigned_on.slice(0, 10) === day) : all
   const shown = kind ? onDay.filter((h) => h.kind === kind) : onDay
   const hasWork = new Set(all.map((h) => h.assigned_on.slice(0, 10)))
   const manyChildren = new Set(all.map((h) => h.student_id).filter(Boolean)).size > 1
   const count = (k: string) => onDay.filter((h) => h.kind === k).length
-  const dayTitle = new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+  const dayTitle = day ? new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' }) + (day === today ? ' (today)' : '') : 'All work, newest first'
 
   return (
     <>
@@ -190,7 +192,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         <Card>
           {/* The week, one day to press. */}
           <div className="flex items-center gap-1 px-2 py-3">
-            <button type="button" aria-label="Previous week" onClick={() => setDay(addDays(from, -7))}
+            <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
               className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -199,7 +201,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')
                 return (
-                  <button key={d} type="button" onClick={() => setDay(d)} aria-pressed={active}
+                  <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
                       'flex min-w-[44px] flex-1 flex-col items-center rounded-lg border px-1 py-2 transition-colors',
                       active ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-muted',
@@ -214,15 +216,15 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 )
               })}
             </div>
-            <button type="button" aria-label="Next week" onClick={() => setDay(addDays(from, 7))}
+            <button type="button" aria-label="Next week" onClick={() => setWeekOf(addDays(from, 7))}
               className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
               <ChevronLeft className="h-4 w-4 rotate-180" />
             </button>
           </div>
-          {day !== today && (
-            <button type="button" onClick={() => setDay(today)}
+          {day && (
+            <button type="button" onClick={() => setDay(null)}
               className="w-full border-t px-4 py-2 text-left text-[12.5px] font-medium text-primary hover:bg-muted/40">
-              Back to today
+              Show all days
             </button>
           )}
         </Card>
@@ -245,7 +247,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         </div>
 
         <p className="text-[14px] font-semibold">
-          {dayTitle}{day === today ? ' (today)' : ''}
+          {dayTitle}
           <span className="ml-2 font-normal text-muted-foreground">
             {shown.length === 0 ? 'nothing set' : `${shown.length} ${shown.length === 1 ? 'task' : 'tasks'}`}
           </span>
@@ -254,7 +256,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         {isLoading ? <SkeletonTiles count={3} /> : error ? <ErrorState error={error} /> : shown.length === 0 ? (
           <Card>
             <EmptyState
-              title={kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day'}
+              title={day ? (kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day') : (kind ? `No ${kindLabel(kind).toLowerCase()} yet` : 'Nothing set yet')}
               body={canPublish ? 'Press Set homework to give this class some work. Days with work have a dot under the date.' : 'Days with work have a dot under the date.'}
             />
           </Card>
@@ -284,6 +286,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                   ) : null}
                 </div>
                 <h3 className="mt-2 text-[15px] font-semibold leading-snug">{h.title}</h3>
+                {!day && <p className="mt-0.5 text-[12px] text-muted-foreground">Set on {formatDate(h.assigned_on.slice(0, 10))}</p>}
                 {h.instructions && <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>}
                 {!!h.files?.length && (
                   <div className="mt-3 flex flex-wrap gap-2">
