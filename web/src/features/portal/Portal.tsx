@@ -223,12 +223,22 @@ const thisMonth = () => {
 const monthName = (m: string) =>
   new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
+/* A stronger edge on the key, so each colour reads at a glance. */
+const KEY: Record<string, string> = {
+  present: 'border-[#16a34a]',
+  late: 'border-[#d97706]',
+  absent: 'border-[#dc2626]',
+  half_day: 'border-[#f97316]',
+  holiday: 'border-muted-foreground/40',
+}
+
 function Legend() {
   return (
-    <div className="flex flex-wrap gap-3 text-[12px] text-muted-foreground">
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-[14px] font-medium text-foreground">
       {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
         <span key={k} className="inline-flex items-center gap-2">
-          <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
+          {/* The same tint and edge as the day it names, big enough to see. */}
+          <span className={cn('h-4 w-4 rounded-full border-2', cls, KEY[k])} />
           {k === 'holiday' ? 'holiday / Sunday' : k.replace('_', ' ')}
         </span>
       ))}
