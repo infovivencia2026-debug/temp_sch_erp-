@@ -463,35 +463,14 @@
     padding: 0 20px;
   }
 
-  /* Rows, not cards inside cards.
-
-     index.css folds every table into one bordered card per row, with a
-     0.75rem margin around each -- a desktop table wearing a phone's clothes.
-     Inside a parent's card those margins made a card of cards. Rows here are
-     what a phone list is: full-width, a hairline between, 44px or taller, and
-     the row's subject on its own line in the body size with its details
-     under it. */
+  /* Rows, not cards inside cards -- written when index.css folded every
+     table into one card per row. Tables no longer stack: a phone gets the
+     same scrolling table as a tablet, with a frozen first column. The old
+     list-row overrides (3px cell padding, a 16px first cell) squeezed that
+     table into cramped lines of uneven type, so the shared cell padding and
+     14px type now stand. */
   [data-role='parent'] .responsive-table tr {
-    margin: 0;
-    padding: 10px 0;
-    border: 0;
-    border-top: 1px solid color-mix(in srgb, currentColor 7%, transparent);
-    border-radius: 0;
-    background: transparent;
-    min-height: 44px;
     transition: background-color var(--motion-press, 90ms) ease-out;
-  }
-  [data-role='parent'] .responsive-table tr:first-child {
-    border-top: 0;
-  }
-  [data-role='parent'] .responsive-table td {
-    padding: 3px 16px;
-    font-size: 15px;
-    line-height: 1.35;
-  }
-  [data-role='parent'] .responsive-table td:first-child {
-    padding-top: 2px;
-    font-size: 16px;
   }
   [data-role='parent'] .responsive-table td[data-label]::before {
     font-size: 13px;

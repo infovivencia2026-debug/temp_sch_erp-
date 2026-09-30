@@ -168,15 +168,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         title="Attendance register"
         description={sectionId ? `${students.length} students` : 'Choose a section to begin'}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
+          /* A tidy two-column grid on a phone: the five controls used to
+             wrap into a ragged staircase of odd widths. */
+          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap [&>*]:min-w-0 [&_button]:w-full sm:[&_button]:w-auto">
+            <div className="col-span-2 sm:col-span-1"><Select
               value={sectionId}
               onChange={(v) => { setSectionId(v); setDraft({}) }}
               placeholder="Select section"
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))}
-            />
+            /></div>
             <input
               type="date"
               value={onDate}
@@ -184,7 +186,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               /* The shared field: one control height (44px under a finger),
                  the same border, fill and focus ring as every other box. */
               aria-label="Date"
-              className="field w-auto"
+              className="field w-full sm:w-auto"
             />
             {can('academics.attendance.write') && (
               <ImportButton
@@ -203,7 +205,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               onClick={() => window.location.assign(`/api/v1/attendance/day.csv?on_date=${onDate}`)}
               title={`Every section for ${onDate}, as a spreadsheet`}
             >
-              Export day (all sections)
+              <span className="sm:hidden">Export day</span><span className="hidden sm:inline">Export day (all sections)</span>
             </Button>
             {/* The whole register the school's scope allows, not just the
                 section on screen — what an inspector asks for by date. */}

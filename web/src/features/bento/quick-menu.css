@@ -25,8 +25,12 @@
 }
 /* A fingertip's target on a phone, the size the arrow already takes there. */
 @media (max-width: 767px) {
-  [data-layout='bento'] .bento-widget > .bento-more { width: 2.75rem; height: 2.75rem; }
-  [data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) { right: 2.75rem; }
+  /* The arrow sits inside the card's 1rem padding, the "..." sat on the
+     card's outer corner: 16px higher and flush right, so the two read as a
+     broken, overlapping tab. Both now sit on the padded corner, side by
+     side, the same 44px square. */
+  [data-layout='bento'] .bento-widget > .bento-more { width: 2.75rem; height: 2.75rem; top: 1rem; right: 1rem; }
+  [data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) { right: 2.75rem; width: 2.75rem; height: 2.75rem; }
 }
 [data-layout='bento'] .bento-more[aria-expanded='true'] {
   background: color-mix(in srgb, currentColor 16%, transparent);
