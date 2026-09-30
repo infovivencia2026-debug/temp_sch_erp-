@@ -11,6 +11,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 import WriteWithAI from '@/components/ai/WriteWithAI'
+import { usePhone } from '@/lib/viewport'
 
 /* Writing to your child's teacher.
 
@@ -56,6 +57,9 @@ export default function TeacherMessages() {
   const { children, studentId, chosen, setChosen, query } = useChildren()
   const [teacher, setTeacher] = useState('')
   const me = useSession().user?.id
+  /* On a computer the conversation sits beside the list, the way WhatsApp Web
+     does; on a phone it takes the screen, with Back. */
+  const phone = usePhone()
 
   /* A tap on the bell lands HERE, in the conversation it was about.
 
@@ -81,6 +85,13 @@ export default function TeacherMessages() {
     enabled: studentId !== '',
   })
 
+  /* On a computer a pane with nobody in it is wasted: the first teacher (the
+     class teacher) opens by default. */
+  useEffect(() => {
+    const first = teachers.data?.items?.[0]?.user_id
+    if (!phone && !teacher && first) setTeacher(first)
+  }, [phone, teacher, teachers.data])
+
   const thread = useQuery({
     queryKey: ['portal-thread', studentId, teacher],
     queryFn: () =>
@@ -89,6 +100,14 @@ export default function TeacherMessages() {
       ),
     enabled: studentId !== '' && teacher !== '',
   })
+
+  /* Opening a conversation marks it read on the server. On a phone Back
+     refreshes the list's badges; beside the list there is no Back, so the
+     badges refresh when the conversation has loaded. */
+  useEffect(() => {
+    if (!phone && thread.data) qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread.dataUpdatedAt])
 
   const send = useMutation({
     mutationFn: (m: { body: string; attachments: Attachment[] }) =>
@@ -110,114 +129,12 @@ export default function TeacherMessages() {
   const list = teachers.data?.items ?? []
   const chosenTeacher = list.find((x) => x.user_id === teacher)
   const messages = thread.data?.items ?? []
-
-  return (
-    <>
-      <PageHead
-        eyebrow={t('portal.teacher_messages.eyebrow')}
-        title={t('portal.teacher_messages.title')}
-        description={t('portal.teacher_messages.description')}
-      />
-      <Freshness query={query} />
-      <PageBody>
-        {/* Only a family with more than one child has anything to choose
-            here; with one, the card was a heading over an empty box. */}
-        {children.length > 1 && (
-        <Card>
-          <CardHeader title={t('portal.teacher_messages.picker_title')} />
-          <div className="grid gap-5 p-4 sm:grid-cols-2">
-            {(
-              <Field label={t('portal.teacher_messages.field_child')}>
-                <Select
-                  value={chosen}
-                  onChange={(v) => {
-                    setChosen(v)
-                    setTeacher('')
-                  }}
-                  placeholder={t('portal.teacher_messages.child_placeholder')}
-                  options={childOptions(children)}
-                />
-              </Field>
-            )}
-          </div>
-        </Card>
-        )}
-
-        {studentId === '' ? (
-          <EmptyState
-            title={t('portal.teacher_messages.empty_child_title')}
-            body={t('portal.teacher_messages.empty_child_body')}
-          />
-        ) : list.length === 0 && !teachers.isLoading ? (
-          <EmptyState
-            title={t('portal.teacher_messages.empty_teachers_title')}
-            body={t('portal.teacher_messages.empty_teachers_body')}
-          />
-        ) : (
-          <Card>
-            {/* The teachers as a list to tap, the way a phone lists chats:
-                the class teacher first, then everyone timetabled to the
-                child's section, with an unread count. Tapping one opens the
-                conversation on its own screen; Back returns here. */}
-            <CardHeader title={t('portal.teacher_messages.field_teacher')} />
-            <ul className="divide-y">
-              {list.map((x) => (
-                <li key={x.user_id}>
-                  <button
-                    type="button"
-                    onClick={() => setTeacher(x.user_id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
-                  >
-                    {/* The face first. A parent knows the maths sir by sight
-                        long before they know his name, and a column of six
-                        names tells them nothing about which is which. */}
-                    <PersonAvatar name={x.full_name} photoId={x.photo} size={44} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-medium">
-                        {x.class_teacher
-                          ? t('portal.teacher_messages.option_class_teacher', { name: x.full_name })
-                          : x.full_name}
-                      </span>
-                      <span className="block truncate text-[12.5px] text-muted-foreground">
-                        {x.class_teacher
-                          ? t('portal.teacher_messages.thread_class_teacher')
-                          : x.subject
-                            ? t('portal.teacher_messages.thread_teaches', { subject: x.subject })
-                            : ''}
-                      </span>
-                    </span>
-                    {x.unread > 0 && (
-                      <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-primary-foreground">
-                        {x.unread}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
-        <ChatScreen
-          open={teacher !== ''}
-          title={chosenTeacher?.full_name ?? t('portal.teacher_messages.thread_title')}
-          photoId={chosenTeacher?.photo}
-          subtitle={
-            chosenTeacher?.class_teacher
-              ? t('portal.teacher_messages.thread_class_teacher')
-              : chosenTeacher?.subject
-                ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
-                : undefined
-          }
-          onBack={() => {
-            setTeacher('')
-            /* Opening the thread marked it read on the server; the badge on
-               the list is from before that. Without this it stayed until the
-               30-second poll, so a parent came back to a count they had just
-               read. */
-            qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
-          }}
-        >
+  const subtitle = chosenTeacher?.class_teacher
+    ? t('portal.teacher_messages.thread_class_teacher')
+    : chosenTeacher?.subject
+      ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
+      : undefined
+  const chat = (
           <ChatThread
             live={studentId && teacher && me
               ? { scope: 'parent', student: studentId, parent: me, teacher }
@@ -270,7 +187,132 @@ export default function TeacherMessages() {
             placeholder={t('portal.teacher_messages.draft_placeholder')}
             height="min-h-0"
           />
-        </ChatScreen>
+  )
+
+  return (
+    <>
+      <PageHead
+        eyebrow={t('portal.teacher_messages.eyebrow')}
+        title={t('portal.teacher_messages.title')}
+        description={t('portal.teacher_messages.description')}
+      />
+      <Freshness query={query} />
+      <PageBody>
+        {/* Only a family with more than one child has anything to choose
+            here; with one, the card was a heading over an empty box. */}
+        {children.length > 1 && (
+        <Card>
+          <CardHeader title={t('portal.teacher_messages.picker_title')} />
+          <div className="grid gap-5 p-4 sm:grid-cols-2">
+            {(
+              <Field label={t('portal.teacher_messages.field_child')}>
+                <Select
+                  value={chosen}
+                  onChange={(v) => {
+                    setChosen(v)
+                    setTeacher('')
+                  }}
+                  placeholder={t('portal.teacher_messages.child_placeholder')}
+                  options={childOptions(children)}
+                />
+              </Field>
+            )}
+          </div>
+        </Card>
+        )}
+
+        {studentId === '' ? (
+          <EmptyState
+            title={t('portal.teacher_messages.empty_child_title')}
+            body={t('portal.teacher_messages.empty_child_body')}
+          />
+        ) : list.length === 0 && !teachers.isLoading ? (
+          <EmptyState
+            title={t('portal.teacher_messages.empty_teachers_title')}
+            body={t('portal.teacher_messages.empty_teachers_body')}
+          />
+        ) : (
+          <div className={phone ? undefined : 'grid items-start gap-4 lg:grid-cols-[340px_1fr]'}>
+          <Card>
+            {/* The teachers as a list to tap, the way a phone lists chats:
+                the class teacher first, then everyone timetabled to the
+                child's section, with an unread count. Tapping one opens the
+                conversation on its own screen; Back returns here. */}
+            <CardHeader title={t('portal.teacher_messages.field_teacher')} />
+            <ul className="divide-y">
+              {list.map((x) => (
+                <li key={x.user_id}>
+                  <button
+                    type="button"
+                    onClick={() => setTeacher(x.user_id)}
+                    aria-current={!phone && x.user_id === teacher ? 'true' : undefined}
+                    className={'flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60' + (!phone && x.user_id === teacher ? ' bg-muted' : '')}
+                  >
+                    {/* The face first. A parent knows the maths sir by sight
+                        long before they know his name, and a column of six
+                        names tells them nothing about which is which. */}
+                    <PersonAvatar name={x.full_name} photoId={x.photo} size={44} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-medium">
+                        {x.class_teacher
+                          ? t('portal.teacher_messages.option_class_teacher', { name: x.full_name })
+                          : x.full_name}
+                      </span>
+                      <span className="block truncate text-[12.5px] text-muted-foreground">
+                        {x.class_teacher
+                          ? t('portal.teacher_messages.thread_class_teacher')
+                          : x.subject
+                            ? t('portal.teacher_messages.thread_teaches', { subject: x.subject })
+                            : ''}
+                      </span>
+                    </span>
+                    {x.unread > 0 && (
+                      <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-primary-foreground">
+                        {x.unread}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          {!phone && (
+            <Card className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden">
+              {chosenTeacher ? (
+                <>
+                  <div className="flex items-center gap-3 border-b px-4 py-3">
+                    <PersonAvatar name={chosenTeacher.full_name} photoId={chosenTeacher.photo} size={40} />
+                    <div className="min-w-0">
+                      <div className="truncate text-[15px] font-semibold">{chosenTeacher.full_name}</div>
+                      {subtitle && <div className="truncate text-[12.5px] text-muted-foreground">{subtitle}</div>}
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-1 flex-col">{chat}</div>
+                </>
+              ) : (
+                <EmptyState title="Choose a teacher" body="Their conversation opens here." />
+              )}
+            </Card>
+          )}
+          </div>
+        )}
+
+        {phone && <ChatScreen
+          open={teacher !== ''}
+          title={chosenTeacher?.full_name ?? t('portal.teacher_messages.thread_title')}
+          photoId={chosenTeacher?.photo}
+          subtitle={subtitle}
+          onBack={() => {
+            setTeacher('')
+            /* Opening the thread marked it read on the server; the badge on
+               the list is from before that. Without this it stayed until the
+               30-second poll, so a parent came back to a count they had just
+               read. */
+            qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
+          }}
+        >
+          {chat}
+        </ChatScreen>}
       </PageBody>
     </>
   )

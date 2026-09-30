@@ -2665,6 +2665,16 @@ html:active-view-transition [data-page-enter] { animation: none; }
 }
 .overflow-x-auto::-webkit-scrollbar { height: 0; }
 
+/* A TABLE SAYS SO FOR ITSELF. With a mouse there is no swipe, and a table
+   whose last column (Reset password, the row's actions) sits past the edge
+   could not be reached at all. So a table's scroller keeps a thin bar on a
+   pointer device; touch screens still swipe and show none. */
+@media (pointer: fine) {
+  .table-frame > .scroll-x { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+  .table-frame > .scroll-x::-webkit-scrollbar { height: 10px; }
+  .table-frame > .scroll-x::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+}
+
 /* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
 
    The rule above leaves vertical scrolling to the platform, and for the
