@@ -88,7 +88,7 @@ function dateOf(iso: string): string {
 const FILTERS: { key: string; label: string; kinds?: string[] }[] = [
   { key: 'all', label: 'All' },
   { key: 'message', label: 'Messages', kinds: ['message', 'chat'] },
-  { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'attendance', 'leave'] },
+  { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'report', 'attendance', 'leave'] },
   { key: 'fees', label: 'Fees', kinds: ['fee', 'fees', 'payment'] },
   { key: 'other', label: 'Other' },
 ]
@@ -221,8 +221,9 @@ export default function Notifications() {
      urgent. */
   const listed = FILTERS.flatMap((x) => x.kinds ?? [])
   const inFilter = (n: Note) => filter === 'all' ? true
-    : filter === 'other' ? !listed.includes(n.kind)
-    : (FILTERS.find((x) => x.key === filter)?.kinds ?? []).includes(n.kind)
+    : filter === 'other' ? !inKinds(n.kind, listed)
+    /* By prefix: the server sends fee_due, fee_overdue, report_card and so on. */
+    : (FILTERS.find((x) => x.key === filter)?.kinds ?? []).some((k) => n.kind === k || n.kind.startsWith(k + '_') || n.kind.startsWith(k.replace(/s$/, '') + '_'))
   const groups: { day: string; notes: Note[] }[] = []
   for (const n of items.filter(inFilter)) {
     const day = dayOf(n.created_at)
