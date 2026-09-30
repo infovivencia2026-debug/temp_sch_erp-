@@ -1958,6 +1958,7 @@ export function Input({
   srLabel,
   onFocus,
   onBlur,
+  autoComplete,
 }: {
   value: string
   onChange: (v: string) => void
@@ -1977,6 +1978,15 @@ export function Input({
      arrived and when they left. */
   onFocus?: () => void
   onBlur?: () => void
+  /* WHAT THE BROWSER MAY PUT IN HERE BY ITSELF.
+
+     This was never set, and on a type="password" box a browser takes that as
+     permission to fill in the one it has saved for the site. An administrator
+     opening a member of staff's access found the password field already
+     holding THEIR OWN password, and "Set this password" would have handed it
+     to that person. Pass "new-password" on any box that sets somebody else's
+     password, and "off" where a suggestion is merely noise. */
+  autoComplete?: string
 }) {
   /* A password can be looked at.
    *
@@ -1996,6 +2006,10 @@ export function Input({
       list={list}
       onFocus={onFocus}
       onBlur={onBlur}
+      /* Named explicitly, and defaulting to off on a password box: see the
+         note on the prop. A browser filling in the administrator's own
+         password is the one autofill nobody wants. */
+      autoComplete={autoComplete ?? (isPassword ? 'new-password' : undefined)}
       aria-label={srLabel || undefined}
       /* 16px on a touch device, not the 14px the design calls for.
          Safari on iOS zooms the whole page in when a focused box has text

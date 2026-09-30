@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
-import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
+import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
 import { can } from '../../identity'
 import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
 import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
@@ -152,11 +152,27 @@ export async function autoIssueGuardianLogin(c: Ctx, guardianId: string): Promis
   if (!g || g.user_id) return false
   const email = nullStr(g.email), phone = nullStr(g.phone)
   if (!email && !phone) return false
+  /* A TEACHER WHOSE CHILD IS AT THE SCHOOL.
+
+     This asked for an account that already held the parent role, so a member of
+     staff -- who holds faculty and not parent -- was never matched. The clash
+     check below then refused to make a second account on the same number, and
+     the run reported them as "skipped: the number already belongs to a staff
+     account". Twenty-one of them at one school, and no way for the office to
+     do anything about it.
+
+     One person, one login, both roles: the guardian record is attached to the
+     account the number already opens, and the parent role is added to it, so
+     the same sign-in now reaches their classes and their own child. Any account
+     on that number is the same human being -- the unique index on
+     (institution_id, phone) is what guarantees it. */
   const attach = await c.db.prepare(`SELECT u.id FROM users u WHERE u.institution_id = ? AND ((? IS NOT NULL AND u.email = ?) OR (? IS NOT NULL AND u.phone = ?))
-      AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key = 'parent') ORDER BY u.created_at LIMIT 1`)
+      ORDER BY u.created_at LIMIT 1`)
     .bind(instId(c), email, email, phone, phone).first<{ id: string }>()
   if (attach) {
     await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ? AND user_id IS NULL`).bind(attach.id, guardianId).run()
+    // The role is what turns their existing login into a parent's as well.
+    await grantRole(c, attach.id, 'parent')
     return true
   }
   const clash = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND ((? IS NOT NULL AND email = ?) OR (? IS NOT NULL AND phone = ?))`)
@@ -845,11 +861,15 @@ export function registerStaff(r: Router): void {
         throw badRequest('this person has no email or phone on their record. Add one first, or they will have nothing to sign in with and nowhere to receive a reset')
       }
       // The number already signs a parent in: attach this guardian to that account.
+      /* Any account on that number, not only one that is already a parent's:
+         see the note in autoIssueGuardianLogin. A teacher whose child is at the
+         school keeps one login and gains the parent role on it. */
       const attach = await c.db.prepare(`SELECT u.id FROM users u WHERE u.institution_id = ? AND ((? IS NOT NULL AND u.email = ?) OR (? IS NOT NULL AND u.phone = ?))
-          AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key = 'parent') ORDER BY u.created_at LIMIT 1`)
+          ORDER BY u.created_at LIMIT 1`)
         .bind(instId(c), email, email, phone, phone).first<{ id: string }>()
       if (attach) {
         await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ?`).bind(attach.id, guardianId).run()
+        await grantRole(c, attach.id, 'parent')
         out.existing = true
         if (reset) {
           await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(pwHash, known ? 1 : 0, t, attach.id).run()
@@ -888,6 +908,154 @@ export function registerStaff(r: Router): void {
     return ok(out)
   })
 
+  /* THE CLASS AS IT STANDS, BEFORE ANYBODY ISSUES ANYTHING.
+
+     Logins & access could only show accounts that already existed, so a school
+     of four hundred children with no logins yet saw "Students 0" and had
+     nothing to act on -- the very school that needs the screen most. The
+     question an office actually asks is the other way round: here is 6-B, who
+     in it can sign in and who cannot, and give me the ones who cannot.
+
+     So this answers with the roll, not the register: every child in the class
+     or section, each with their guardians beside them, and for each of them
+     whether a login exists and what they would type. A child with a mother and
+     a father comes back with both, because that is the sheet the class teacher
+     needs -- one line per family, not one per account.
+
+     usable, not merely "has a user row": an account that exists but was never
+     given a password cannot sign in, and telling the office it can is how a
+     parent is left at a login page being told they are wrong. */
+  /* SEND THE ONE THAT IS STILL ON SCREEN.
+
+     Credentials already go out by email the moment a login is issued, so this
+     is not the usual path -- it is for the parent who says the mail never
+     arrived, and for the office that issued a class and wants to send one of
+     them again.
+
+     The password comes from the caller, which looks odd and is the only way
+     that can work: it is hashed the moment it is set and cannot be read back,
+     so the only copy is the one the screen is holding from the issue a moment
+     ago. That is also why this cannot resend last week's -- there is nothing
+     left to resend, and the honest answer then is to reset.
+
+     Whoever may issue a login may send it, which is the same act one step
+     later; a caller who could not issue cannot get a password to send. */
+  r.post('/setup/credentials/email', 'auth', async (c) => {
+    requireInstitution(c)
+    const req = await readJSON<{ kind?: string; id?: string; sign_in_as?: string; password?: string }>(c.req)
+    const kind = str(req.kind)
+    if (!['students', 'guardians', 'employees'].includes(kind)) throw badRequest('kind must be students, guardians or employees')
+    if (!can(c.id, kind === 'employees' ? 'hr.employees.write' : 'students.write')) {
+      throw forbidden('missing permission: sending logins for ' + kind)
+    }
+    if (!isUUID(trim(req.id))) throw badRequest('id must be a uuid')
+    const signIn = trim(req.sign_in_as)
+    const password = trim(req.password)
+    if (signIn === '' || password === '') throw badRequest('nothing to send: the sign-in name and password are both needed')
+
+    const table = kind === 'students' ? 'students' : kind === 'guardians' ? 'guardians' : 'employees'
+    const nameCol = kind === 'guardians' ? 'full_name'
+      : "TRIM(first_name || ' ' || COALESCE(last_name, ''))"
+    const who = await c.db.prepare(
+      `SELECT ${nameCol} AS name, COALESCE(email, '') AS email FROM ${table} WHERE id = ?`)
+      .bind(trim(req.id)).first<{ name: string; email: string }>()
+    if (!who) throw notFound('no such person')
+    if (who.email.trim() === '') {
+      throw badRequest('there is no email address on this record, so there is nowhere to send it. Print the slip instead')
+    }
+
+    const inst = await c.db.prepare('SELECT name FROM institutions WHERE id = ?').bind(instId(c))
+      .first<{ name: string }>()
+    const m = new Messenger(scopeOf(c))
+    await m.queue({
+      channel: 'email',
+      template_code: 'admissions.portal_login',
+      vars: {
+        school_name: inst?.name ?? '',
+        parent_name: who.name || 'Sir/Madam',
+        sign_in_as: signIn,
+        password,
+        portal_url: new URL(c.req.url).origin + '/login',
+      },
+      recipient: who.email.trim(),
+      source_kind: kind === 'guardians' ? 'guardian_login' : kind === 'students' ? 'student_login' : 'staff_login',
+      source_id: trim(req.id),
+      /* The clock, so sending it twice on purpose is two messages and not one
+         swallowed as a duplicate of itself. */
+      occurrence_key: now(),
+    })
+    await m.kick()
+    return ok({ sent_to: who.email.trim() })
+  })
+
+  r.get('/setup/logins/roster', 'auth', async (c) => {
+    requireInstitution(c)
+    if (!can(c.id, 'students.write')) throw forbidden('missing permission: reading the login roster')
+    const q = c.url.searchParams
+    const section = isUUID(trim(q.get('section_id'))) ? trim(q.get('section_id')) : null
+    const classId = isUUID(trim(q.get('class_id'))) ? trim(q.get('class_id')) : null
+    /* NO CLASS CHOSEN MEANS THE WHOLE SCHOOL.
+       The office opening this screen wants to see who cannot sign in, and
+       making them pick a class first hides the answer behind a question
+       they do not have yet. Capped, because a roll of four hundred with
+       their guardians is a page of data and not a thing to read anyway. */
+    const cap = clampInt(c.url.searchParams.get('limit'), 500, 1, 2000)
+
+    const usable = `(u.password_hash IS NOT NULL AND u.status = 'active')`
+    const rows = await c.db.prepare(`
+      SELECT st.id, TRIM(st.first_name || ' ' || COALESCE(st.last_name, '')) AS name, st.admission_no,
+             e.roll_no, cl.name AS class_name, sec.name AS section_name,
+             st.user_id AS student_user, COALESCE(su.username, su.phone, su.email, '') AS student_sign_in,
+             COALESCE(su.login_code, '') AS student_code,
+             COALESCE(${usable.replace(/u\./g, 'su.')}, 0) AS student_usable
+        FROM students st
+        JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+        JOIN classes cl ON cl.id = e.class_id
+        LEFT JOIN sections sec ON sec.id = e.section_id
+        LEFT JOIN users su ON su.id = st.user_id
+       WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?) AND (? IS NULL OR e.class_id = ?)
+       ORDER BY cl.name, sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no
+       LIMIT ?`)
+      .bind(section, section, classId, classId, cap).all<Record<string, unknown>>()
+
+    const ids = rows.results.map((r) => String(r.id))
+    /* One query for every guardian in the class rather than one per child:
+       D1 takes at most a hundred bound parameters, so the ids go in as JSON
+       and json_each unpacks them. */
+    const guardians = ids.length === 0 ? { results: [] as Record<string, unknown>[] } : await c.db.prepare(`
+      SELECT sg.student_id, g.id, g.full_name, g.relation, COALESCE(g.phone, '') AS phone,
+             g.user_id, COALESCE(gu.username, gu.phone, gu.email, '') AS sign_in,
+             COALESCE(gu.login_code, '') AS login_code,
+             COALESCE(${usable.replace(/u\./g, 'gu.')}, 0) AS usable
+        FROM student_guardians sg
+        JOIN guardians g ON g.id = sg.guardian_id
+        LEFT JOIN users gu ON gu.id = g.user_id
+       WHERE sg.student_id IN (SELECT value FROM json_each(?))
+       ORDER BY sg.is_primary DESC, g.full_name`).bind(JSON.stringify(ids)).all<Record<string, unknown>>()
+
+    const byStudent = new Map<string, Record<string, unknown>[]>()
+    for (const g of guardians.results) {
+      const k = String(g.student_id)
+      if (!byStudent.has(k)) byStudent.set(k, [])
+      byStudent.get(k)!.push(g)
+    }
+
+    return ok({ items: rows.results.map((r) => ({
+      id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
+      roll_no: r.roll_no ?? undefined, class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
+      has_login: bool(r.student_usable), sign_in_as: String(r.student_sign_in ?? ''),
+      /* The account's own ten characters. Every other identifier is
+         borrowed from something that can change; this one cannot, and
+         unlike the password it can always be read back. */
+      login_code: String(r.student_code ?? ''),
+      guardians: (byStudent.get(String(r.id)) ?? []).map((g) => ({
+        id: String(g.id), full_name: String(g.full_name), relation: String(g.relation ?? ''),
+        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: String(g.sign_in ?? ''),
+        login_code: String(g.login_code ?? ''),
+      })),
+    })) })
+  })
+
   r.post('/setup/logins/bulk', 'auth', async (c) => {
     requireInstitution(c)
     const req = await readJSON<{ kind?: string; section_id?: string; class_id?: string; reset?: boolean }>(c.req)
@@ -921,7 +1089,27 @@ export function registerStaff(r: Router): void {
             ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
         break
       case 'guardians':
+        /* WHOSE PARENT THIS IS.
+
+           The list came back as a column of grown-ups' names and a phone
+           number each, which is the one thing a class teacher handing slips out
+           cannot use: parents are known at a school by their child. The child,
+           the class and the section now travel with the row, and a parent of
+           two children in scope carries both names rather than appearing
+           twice. */
         sql = `SELECT g.id, g.full_name AS name, g.user_id, COALESCE(g.phone, '') AS username, COALESCE(g.email, '') AS email, COALESCE(g.phone, '') AS phone,
+            (SELECT group_concat(st.first_name || ' ' || COALESCE(st.last_name, ''), ', ')
+               FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?)) AS child_name,
+            (SELECT cl.name FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+               JOIN classes cl ON cl.id = e.class_id
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?) LIMIT 1) AS class_name,
+            (SELECT sec.name FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+               JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+               JOIN sections sec ON sec.id = e.section_id
+              WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?) LIMIT 1) AS section_name,
             ${usable.replace('%COL%', 'g.user_id')} FROM guardians g WHERE EXISTS (SELECT 1 FROM student_guardians sg JOIN students st ON st.id = sg.student_id AND st.status = 'active'
             LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active' WHERE sg.guardian_id = g.id AND (? IS NULL OR e.section_id = ?)) ORDER BY g.id`
         break
@@ -932,11 +1120,25 @@ export function registerStaff(r: Router): void {
       default:
         throw badRequest('kind must be students, guardians or staff')
     }
-    const people = await c.db.prepare(sql).bind(section, section).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number
-      admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }>()
+    /* The guardian query asks the section four times over -- once for the
+       children's names and once each for the class and the section, plus
+       the EXISTS that scopes the guardian -- so the binding is counted
+       from the statement rather than assumed to be a pair. */
+    const marks = (sql.match(/\?/g) ?? []).length
+    const people = await c.db.prepare(sql).bind(...Array(marks).fill(section)).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number
+      admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null; child_name?: string | null }>()
     /* The class teacher's credentials sheet needs to know whose slip is whose. */
-    const studentCols = (p: { admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }) => kind !== 'students' ? {}
-      : { admission_no: p.admission_no, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined, roll_no: p.roll_no ?? undefined }
+    /* WHAT EACH AUDIENCE NEEDS BESIDE THE NAME.
+       A child is placed by class, section, roll and admission number. A
+       parent is placed by their child -- a column of grown-ups' names is
+       the one thing a class teacher cannot hand out. A member of staff is
+       placed by neither, and carried the child's columns empty until now. */
+    const studentCols = (p: { admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null; child_name?: string | null }) =>
+      kind === 'students'
+        ? { admission_no: p.admission_no, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined, roll_no: p.roll_no ?? undefined }
+        : kind === 'guardians'
+        ? { child_name: p.child_name ?? undefined, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined }
+        : {}
     const out = { created: 0, existing: 0, skipped: 0, rows: [] as Record<string, unknown>[], note: '', sent: 0 }
     const t = now()
     const ms = new Messenger(scopeOf(c))

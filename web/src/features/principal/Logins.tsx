@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/Skeleton'
-import { Fragment, useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
@@ -16,7 +16,8 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard } from './StudentLoginsCard'
+import { RosterLogins } from './RosterLogins'
 
 /* Who can sign in to this school.
 
@@ -197,6 +198,15 @@ export default function Logins() {
      filtering the one list keeps the headline number and the rows below it
      describing the same thing. */
   const users = record ? all.filter((u) => u.record === record) : all
+  /* A tab about children or families. Their rows carry less, and the actions
+     that only make sense for staff are not offered. */
+  const simple = record === 'student' || record === 'guardian'
+  /* The devices column, or nothing at all. A child signs in from the one tablet
+     the school lends them and a parent from their own phone; the column exists
+     for somebody who might be signed in in three places at once. */
+  const TdDevices = simple
+    ? ({ children: _c }: { children?: ReactNode }) => null
+    : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
   const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
   const orphans = all.filter((u) => u.record === 'none' && u.status === 'active')
@@ -208,10 +218,20 @@ export default function Logins() {
         title="Logins & access"
         description="Every account that can sign in to this school, what it can reach, and the devices it is signed in on right now."
         actions={
-          <Button onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
-            {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-            {creating ? 'Cancel' : 'Issue a login'}
-          </Button>
+          /* THIS ONE BUILDS AN ACCOUNT FROM NOTHING: a name, a contact, a set of
+             roles. That is how an office account or a one-off is made, and it
+             is the wrong instrument for a child or a parent -- both of those
+             already exist as a record with a name and a number, and their login
+             is issued FROM that record so the two stay joined. Offering it on
+             the Students and Parents tabs invited somebody to type a child's
+             name in by hand and create a second, unlinked account for a child
+             the school already has. */
+          record === '' || record === 'staff' ? (
+            <Button onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
+              {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {creating ? 'Cancel' : 'Issue a login'}
+            </Button>
+          ) : undefined
         }
       />
       <PageBody>
@@ -241,6 +261,15 @@ export default function Logins() {
           })}
         </div>
 
+        {/* THE WORK FIRST, THE NUMBERS AFTER.
+
+            Somebody opens this tab to give a class their logins. Four tiles
+            counting accounts, then a policy switch, then the roll, is three
+            screens of scrolling before the thing they came to do -- and on a
+            tab whose answer is usually "nobody has one yet", the tiles all read
+            zero and the roll is the only part worth reading. */}
+        {record === 'student' && <RosterLogins kind="students" />}
+        {record === 'guardian' && <RosterLogins kind="guardians" />}
         <CellGrid cols={4}>
           <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
           <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? '\u00a0' : `${users.length - active} cannot`} />
@@ -253,9 +282,13 @@ export default function Logins() {
           />
         </CellGrid>
 
-        {record === 'student' && <StudentLoginsCard />}
+        {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
-        {record === 'guardian' && <IssueLoginsCard kind="guardians" />}
+        {/* The parents' bulk card is gone: the roll above it has the same
+            class-and-section filter and issues from the row, so this was a
+            second way to do one thing, with its own answer about who was
+            covered. Staff keep theirs -- they have no roll to stand on. */}
+        {record === 'staff' && <IssueOneStaffCard />}
         {record === 'staff' && <IssueLoginsCard kind="staff" />}
 
         {record === 'sessions' && (
@@ -267,7 +300,7 @@ export default function Logins() {
           </>
         )}
 
-        {creating && (
+        {creating && (record === '' || record === 'staff') && (
           <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
         )}
         {editing && (
@@ -296,7 +329,13 @@ export default function Logins() {
         )}
         <FormNotice error={resetPw.error} />
 
-        {record !== 'sessions' && (
+        {/* FOUR CARDS WERE DOING ONE JOB.
+            The roll searches, filters by class and section, issues, resets,
+            prints and exports. Beside it sat a single-person search, a second
+            class picker, and an account table that showed the same people
+            again -- minus the ones with no login, who are the half the office
+            came for. On a children's or families' tab the roll is the screen. */}
+        {record !== 'sessions' && !simple && (
         <Card>
           <CardHeader
             title="Logins"
@@ -325,7 +364,13 @@ export default function Logins() {
             <ErrorState error={error} />
           ) : (
             <Table
-              head={['Name', 'Contact', 'Belongs to', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}
+              /* A child has one role and a parent has one role, and the column
+                 beside it already says so -- "Belongs to: Student", "Roles:
+                 Student", twice down four hundred rows. Devices and the last
+                 sign-in belong to somebody who works here. */
+              head={simple
+                ? ['Name', 'Belongs to', 'Last sign-in', 'Status', '']
+                : ['Name', 'Contact', 'Belongs to', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}
               empty={!users.length}
               emptyLabel="No logins match those filters."
             >
@@ -340,23 +385,25 @@ export default function Logins() {
                       />
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{u.email ?? u.phone ?? '-'}</Td>
+                  {!simple && <Td className="text-muted-foreground">{u.email ?? u.phone ?? '-'}</Td>}
                   <Td>
                     <Badge tone={u.record === 'none' ? 'danger' : 'neutral'}>
                       {RECORD_LABEL[u.record] ?? u.record}
                     </Badge>
                   </Td>
-                  <Td>
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.length ? (
-                        u.roles.slice(0, 3).map((r) => <Badge key={r}>{r}</Badge>)
-                      ) : (
-                        <span className="text-muted-foreground">none</span>
-                      )}
-                      {u.roles.length > 3 && <Badge>+{u.roles.length - 3}</Badge>}
-                    </div>
-                  </Td>
-                  <Td>
+                  {!simple && (
+                    <Td>
+                      <div className="flex flex-wrap gap-1">
+                        {u.roles.length ? (
+                          u.roles.slice(0, 3).map((r) => <Badge key={r}>{r}</Badge>)
+                        ) : (
+                          <span className="text-muted-foreground">none</span>
+                        )}
+                        {u.roles.length > 3 && <Badge>+{u.roles.length - 3}</Badge>}
+                      </div>
+                    </Td>
+                  )}
+                  <TdDevices>
                     {u.active_sessions ? (
                       <Button
                         size="sm"
@@ -369,7 +416,7 @@ export default function Logins() {
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
-                  </Td>
+                  </TdDevices>
                   <Td className="text-muted-foreground">{formatDate(u.last_login_at)}</Td>
                   <Td>
                     <Badge tone={STATUS_TONE[u.status] ?? 'neutral'}>{u.status}</Badge>
@@ -388,14 +435,19 @@ export default function Logins() {
                     >
                       <KeyRound className="h-3.5 w-3.5" /> Reset password
                     </ConfirmButton>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      title="Change roles"
-                      onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" /> Roles
-                    </Button>
+                    {/* A child has one role and a parent has one role, and neither
+                        is a thing the office changes from here. The button opened a
+                        drawer of permission switches over somebody who has none. */}
+                    {!simple && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Change roles"
+                        onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Roles
+                      </Button>
+                    )}
                     {u.status === 'active' ? (
                       /* Deactivating signs the person out of every device in
                          the same transaction on the server. It is still a real

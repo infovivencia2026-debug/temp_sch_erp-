@@ -296,6 +296,8 @@ interface Options {
 interface Profile {
   name: string
   short_name: string
+  /** Four capitals, unique across the whole ERP. See the field below. */
+  school_code?: string
   udise_code?: string
   affiliation_board?: string
   affiliation_no?: string
@@ -433,6 +435,23 @@ function ProfilePanel({ onDone }: PanelProps) {
             onChange={(x) => set('management_type', x)}
             placeholder="Choose"
             options={opts?.management_types ?? []}
+          />
+        </Field>
+        {/* THE FOUR LETTERS A STAFF LOGIN ENDS IN.
+
+            One ERP serves many schools and every sign-in name is looked up
+            across all of them at once, so a staff number that is unique in this
+            building is not unique enough. This is the part that says whose
+            staff they are: 9840010005.JSMH. Read down a telephone more often
+            than it is typed, which is why it is four letters and not a UUID. */}
+        <Field
+          label="School code"
+          hint="Four letters, A to Z. It ends every staff sign-in name, so it must not be one another school already uses."
+        >
+          <Input
+            value={v.school_code ?? ''}
+            onChange={(x) => set('school_code', x.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4))}
+            placeholder="JSMH"
           />
         </Field>
         <Field label="UDISE+ code" hint="Eleven digits. Needed before the annual return.">

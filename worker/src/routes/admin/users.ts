@@ -278,7 +278,22 @@ const featureSlug = (key: string) => key.slice(key.lastIndexOf('.') + 1)
 const SCOPE_LABELS: Record<string, string> = { platform: 'Every school', institution: 'Whole school', campus: 'Their campus', department: 'Their department', assigned_classes: 'Their classes', own: 'Only their own', linked_children: 'Their children' }
 const APPROVE_NOTES: Record<string, string> = { students: 'Archive and withdraw a student record.', marks: 'Issue report cards.', fees: 'Issue refunds against a paid invoice.', staff: 'Approve or reject leave requests.' }
 
-const USER_FILTER = `(?1 IS NULL OR u.status = ?1) AND (?2 IS NULL OR u.full_name LIKE ?2 ESCAPE '\\' OR u.email LIKE ?2 ESCAPE '\\' OR u.phone LIKE ?2 ESCAPE '\\')`
+/* A SCHOOL SEES ITS OWN PEOPLE AND NOBODY ELSE'S.
+
+   Each school has its own database, so this list could never reach another
+   school's users. What it did reach was the platform's: every tenant carries a
+   placeholder row for the operator -- "Platform staff (signs in through
+   CONTROL)" -- and it sat in the register with a Reset password button beside
+   it, under a tab the school reads as "No record". A school has no business
+   seeing the people who run the ERP, nor being offered a button that looks like
+   it resets them.
+
+   The role is the test rather than the name: a name is a label somebody can
+   change, the role is what the row is for. */
+const NOT_PLATFORM = `NOT EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+    WHERE ur.user_id = u.id AND r.key IN ('seller_admin','super_admin','support_admin'))`
+
+const USER_FILTER = `${NOT_PLATFORM} AND (?1 IS NULL OR u.status = ?1) AND (?2 IS NULL OR u.full_name LIKE ?2 ESCAPE '\\' OR u.email LIKE ?2 ESCAPE '\\' OR u.phone LIKE ?2 ESCAPE '\\')`
 
 async function userExists(c: Ctx, id: string): Promise<void> {
   const u = await c.db.prepare(`SELECT 1 AS x FROM users WHERE id = ?`).bind(id).first()

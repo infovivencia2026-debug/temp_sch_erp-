@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Badge, Button, Card, CardHeader, Field, FormNotice, Select, Table, Td } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, Field, FormNotice, Select, Table, Td, Input } from '@/components/ui'
 
 /* STUDENT LOGINS: the school's switch, the lowest class, and issuing a class
    or section in one go (worker routes/admin/student_logins.ts and
@@ -18,7 +18,7 @@ interface Policy {
 }
 interface Section { id: string; class_id: string; class_name: string; name: string }
 interface Row {
-  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string
+  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string; child_name?: string; login_code?: string
   admission_no?: string; class_name?: string; section_name?: string; roll_no?: number
 }
 interface Bulk { created: number; existing: number; skipped: number; rows: Row[]; note: string }
@@ -40,13 +40,25 @@ const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 export const passwordOrNote = (r: Row) =>
   r.password ?? 'Already set. Ask the office to reset it if it is lost.'
 
-export function downloadLogins(rows: Row[], stem: string) {
-  const head = ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'First password']
+/* THE COLUMNS THAT AUDIENCE ACTUALLY HAS.
+
+   One student-shaped header was used for all three, so a sheet of staff logins
+   opened in Excel with Class, Section, Roll and Admission empty down every row,
+   and a sheet of parents had no way of saying whose parent each one is -- which
+   is the only thing a class teacher can sort them by. */
+export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'guardians' | 'staff' = 'students') {
+  const head = kind === 'students'
+    ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'Account ID', 'First password']
+    : kind === 'guardians'
+    ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'Account ID', 'First password']
+    : ['Name', 'Sign in as', 'Account ID', 'First password']
+  const cells = (r: Row) => kind === 'students'
+    ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
+    : kind === 'guardians'
+    ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
+    : [r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
   const lines = [head.map(csvCell).join(',')]
-  for (const r of rows) {
-    lines.push([r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, passwordOrNote(r)]
-      .map(csvCell).join(','))
-  }
+  for (const r of rows) lines.push(cells(r).map(csvCell).join(','))
   // The BOM is what makes Excel read the file as UTF-8 rather than mangling it.
   const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -69,7 +81,7 @@ export function printSlips(rows: Row[], title: string) {
     .k{font-family:ui-monospace,monospace;font-size:15px}.m{color:#555;font-size:11px}
     @media print{h1{display:none}}</style>
     <h1>${esc(title)}, cut along the lines</h1><div class="g">${rows.map((r) => `<div class="s">
-    <div class="n">${esc(r.name)}</div><div class="m">${esc([r.class_name, r.section_name].filter(Boolean).join(' '))}${r.roll_no ? ` · Roll ${esc(r.roll_no)}` : ''}${r.admission_no ? ` · ${esc(r.admission_no)}` : ''}</div>
+    <div class="n">${esc(r.name)}</div><div class="m">${esc([r.child_name, r.class_name, r.section_name].filter(Boolean).join(' '))}${r.roll_no ? ` · Roll ${esc(r.roll_no)}` : ''}${r.admission_no ? ` · ${esc(r.admission_no)}` : ''}</div>
     <div>Sign in as: <span class="k">${esc(r.sign_in_as)}</span></div>${r.password
       ? `<div>Password: <span class="k">${esc(r.password)}</span></div>
     <div class="m">Sign in at ${esc(site)}. You will choose your own password the first time.</div>`
@@ -80,7 +92,11 @@ export function printSlips(rows: Row[], title: string) {
   w.print()
 }
 
-export function StudentLoginsCard() {
+/* policyOnly: the class picker below is a second copy of the one on the roll
+   above this card, and two filters on one tab are two answers to "who did I
+   just give logins to". What only this card does -- whether children may
+   have a login at all, and from which class up -- stays either way. */
+export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean }) {
   const qc = useQueryClient()
   const policy = useQuery({ queryKey: ['student-logins'], queryFn: () => api.get<Policy>('/api/v1/admin/student-logins') })
   const sections = useQuery({ queryKey: ['academics-sections'], queryFn: () => api.get<{ items: Section[] }>('/api/v1/academics/sections') })
@@ -189,7 +205,7 @@ export function StudentLoginsCard() {
         </div>
         <FormNotice error={save.error} />
 
-        {p.enabled && (
+        {p.enabled && !policyOnly && (
           <div className="space-y-3 border-t pt-4">
             <p className="font-medium">Issue logins for a class or section</p>
             <p className="text-muted-foreground">
@@ -212,7 +228,7 @@ export function StudentLoginsCard() {
           </div>
         )}
 
-        {result && (
+        {result && !policyOnly && (
           <div className="space-y-3 border-t pt-4">
             <p>
               <strong>{result.created}</strong> issued, {result.existing} already had one{result.skipped ? `, ${result.skipped} skipped` : ''}. {result.note}
@@ -220,7 +236,7 @@ export function StudentLoginsCard() {
             {sheet.length > 0 && (
               <div className="flex gap-2">
                 <Button onClick={() => printSlips(sheet, 'Student logins')}>Print slips for the class teacher</Button>
-                <Button variant="secondary" onClick={() => downloadLogins(sheet, 'student-logins')}>Download CSV</Button>
+                <Button variant="secondary" onClick={() => downloadLogins(sheet, 'student-logins', 'students')}>Download CSV</Button>
               </div>
             )}
             <Table head={['Name', 'Class', 'Sign in as', 'Temporary password']} empty={!result.rows.length}>
@@ -340,16 +356,16 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
                 <Button onClick={() => printSlips(sheet, kind === 'staff' ? 'Staff logins' : 'Parent logins')}>
                   Print the slips
                 </Button>
-                <Button variant="secondary" onClick={() => downloadLogins(sheet, `${kind}-logins`)}>
+                <Button variant="secondary" onClick={() => downloadLogins(sheet, `${kind}-logins`, kind)}>
                   Download CSV
                 </Button>
               </div>
             )}
-            <Table head={['Name', 'Belongs to', 'Sign in as', 'First password']} empty={!result.rows.length}>
+            <Table head={[kind === 'staff' ? 'Name' : 'Parent', kind === 'staff' ? 'Role' : 'Child', 'Sign in as', 'First password']} empty={!result.rows.length}>
               {result.rows.map((r, i) => (
                 <tr key={i}>
                   <Td>{r.name}</Td>
-                  <Td>{[r.class_name, r.section_name].filter(Boolean).join(' ') || '—'}</Td>
+                  <Td>{[r.child_name, r.class_name, r.section_name].filter(Boolean).join(' ') || '—'}</Td>
                   <Td>{r.sign_in_as ?? '—'}</Td>
                   <Td>
                     {r.password
@@ -359,6 +375,230 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
                 </tr>
               ))}
             </Table>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/* ONE CHILD, OR ONE PARENT, WITHOUT LEAVING THIS SCREEN.
+
+   Issuing for a single person lived only on Student 360: to give one parent
+   their login you opened the child, found the guardian and pressed it there.
+   That is a reasonable place for it and a hopeless place to look for it, and
+   the question people arrive at this screen holding is nearly always about one
+   person -- somebody rang the office because they cannot get in.
+
+   Search is the child either way, because that is what the office knows. For a
+   parent the child's guardians are listed once a child is chosen, since a
+   guardian is reached through their child and not out of a directory of
+   grown-ups. */
+export function IssueOneCard({ kind }: { kind: 'students' | 'guardians' }) {
+  const qc = useQueryClient()
+  const [needle, setNeedle] = useState('')
+  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
+  const [done, setDone] = useState<{ name: string; signIn: string; password: string } | null>(null)
+
+  const found = useQuery({
+    queryKey: ['issue-one', needle],
+    queryFn: () => api.get<{ items: { id: string; full_name: string; admission_no?: string; class_name?: string; section_name?: string }[] }>(
+      `/api/v1/students?q=${encodeURIComponent(needle.trim())}&status=active&limit=8`),
+    enabled: needle.trim().length >= 2 && !picked,
+  })
+  const child = useQuery({
+    queryKey: ['issue-one-child', picked?.id],
+    queryFn: () => api.get<{ guardians: { id: string; full_name: string; relation: string; phone?: string }[] }>(
+      `/api/v1/students/${picked!.id}`),
+    enabled: !!picked && kind === 'guardians',
+  })
+
+  const issue = useMutation({
+    mutationFn: (v: { id: string; name: string; reset: boolean }) =>
+      api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
+        `/api/v1/setup/${kind === 'students' ? 'students' : 'guardians'}/${v.id}/login${v.reset ? '?reset=true' : ''}`, {})
+        .then((r) => ({ name: v.name, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })),
+    onSuccess: (r) => { setDone(r); qc.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+
+  const clear = () => { setPicked(null); setNeedle(''); setDone(null) }
+  const guardians = child.data?.guardians ?? []
+
+  return (
+    <Card>
+      <CardHeader
+        title={kind === 'students' ? 'Issue a login for one child' : 'Issue a login for one parent'}
+        description="Search the child by name or admission number."
+        action={picked ? <Button variant="ghost" onClick={clear}>Start again</Button> : undefined}
+      />
+      <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
+        {!picked && (
+          <>
+            <Field label="Child">
+              <Input value={needle} onChange={setNeedle} placeholder="Name or admission number" />
+            </Field>
+            {needle.trim().length >= 2 && (
+              <Table head={['Child', 'Class', '']} empty={!(found.data?.items ?? []).length}
+                     emptyLabel={found.isLoading ? 'Looking…' : 'Nobody matches that.'}>
+                {(found.data?.items ?? []).map((st) => (
+                  <tr key={st.id}>
+                    <Td>{st.full_name}<span className="ml-2 text-muted-foreground">{st.admission_no}</span></Td>
+                    <Td>{[st.class_name, st.section_name].filter(Boolean).join(' ') || '—'}</Td>
+                    <Td>
+                      <Button size="sm" variant="secondary" onClick={() => setPicked({ id: st.id, name: st.full_name })}>
+                        Choose
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+          </>
+        )}
+
+        {picked && kind === 'students' && !done && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-medium">{picked.name}</p>
+            <Button pending={issue.isPending} onClick={() => issue.mutate({ id: picked.id, name: picked.name, reset: false })}>
+              Issue the login
+            </Button>
+            <Button variant="secondary" pending={issue.isPending}
+              onClick={() => { if (window.confirm(`Give ${picked.name} a new password? The one they hold now stops working.`)) issue.mutate({ id: picked.id, name: picked.name, reset: true }) }}>
+              Reset the password
+            </Button>
+          </div>
+        )}
+
+        {picked && kind === 'guardians' && !done && (
+          <>
+            <p className="font-medium">{picked.name}&rsquo;s family</p>
+            <Table head={['Parent', 'Relation', 'Phone', '']} empty={!guardians.length}
+                   emptyLabel={child.isLoading ? 'Reading the family…' : 'This child has no guardian on record.'}>
+              {guardians.map((g) => (
+                <tr key={g.id}>
+                  <Td>{g.full_name}</Td>
+                  <Td className="text-muted-foreground">{g.relation}</Td>
+                  <Td>{g.phone ?? '—'}</Td>
+                  <Td className="whitespace-nowrap">
+                    <Button size="sm" pending={issue.isPending} onClick={() => issue.mutate({ id: g.id, name: g.full_name, reset: false })}>
+                      Issue
+                    </Button>
+                    <Button size="sm" variant="secondary" pending={issue.isPending}
+                      onClick={() => { if (window.confirm(`Give ${g.full_name} a new password? The one they hold now stops working.`)) issue.mutate({ id: g.id, name: g.full_name, reset: true }) }}>
+                      Reset
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </>
+        )}
+
+        <FormNotice error={issue.error} />
+
+        {done && (
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-medium">{done.name} can sign in</p>
+            <p>Sign in as: <span className="font-mono">{done.signIn || '—'}</span></p>
+            <p>
+              Password:{' '}
+              {done.password
+                ? <span className="font-mono text-[16px]">{done.password}</span>
+                : <span className="text-muted-foreground">already set, reset it to see one</span>}
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              Shown once. Write it down or send it now; it cannot be read back.
+            </p>
+            <Button size="sm" variant="secondary" onClick={clear}>Do another</Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/* ONE MEMBER OF STAFF, FROM THE SAME SCREEN.
+
+   The staff equivalent lived on HR > Employees, which is the right place for
+   somebody already working through the roll and the wrong place for somebody
+   answering the phone to a teacher who cannot get in.
+
+   The roll is fetched whole and filtered here rather than asked for by name,
+   because GET /hr/employees has no text search and a school has tens of staff,
+   not thousands: two hundred rows is a smaller thing to ask of the server than
+   a new endpoint, and it lets the code, the name and the phone all match. */
+export function IssueOneStaffCard() {
+  const qc = useQueryClient()
+  const [needle, setNeedle] = useState('')
+  const [done, setDone] = useState<{ name: string; signIn: string; password: string } | null>(null)
+
+  const staff = useQuery({
+    queryKey: ['issue-one-staff'],
+    queryFn: () => api.get<{ items: { id: string; employee_code?: string; name?: string; full_name?: string; phone?: string }[] }>(
+      '/api/v1/hr/employees?status=active&limit=200&with_total=0'),
+  })
+
+  const issue = useMutation({
+    mutationFn: (v: { id: string; name: string; reset: boolean }) =>
+      api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
+        `/api/v1/setup/employees/${v.id}/login${v.reset ? '?reset=true' : ''}`, {})
+        .then((r) => ({ name: v.name, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })),
+    onSuccess: (r) => { setDone(r); qc.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+
+  const term = needle.trim().toLowerCase()
+  const rows = (staff.data?.items ?? [])
+    .map((e) => ({ ...e, label: e.full_name ?? e.name ?? '' }))
+    .filter((e) => !term || `${e.label} ${e.employee_code ?? ''} ${e.phone ?? ''}`.toLowerCase().includes(term))
+    .slice(0, 8)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Issue a login for one member of staff"
+        description="Search by name, staff code or phone."
+      />
+      <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
+        <Field label="Member of staff">
+          <Input value={needle} onChange={setNeedle} placeholder="Name, code or phone" />
+        </Field>
+        {term.length >= 2 && (
+          <Table head={['Name', 'Code', 'Phone', '']} empty={!rows.length}
+                 emptyLabel={staff.isLoading ? 'Reading the roll…' : 'Nobody matches that.'}>
+            {rows.map((e) => (
+              <tr key={e.id}>
+                <Td>{e.label}</Td>
+                <Td className="text-muted-foreground">{e.employee_code ?? '—'}</Td>
+                <Td>{e.phone ?? '—'}</Td>
+                <Td className="whitespace-nowrap">
+                  <Button size="sm" pending={issue.isPending}
+                    onClick={() => issue.mutate({ id: e.id, name: e.label, reset: false })}>
+                    Issue
+                  </Button>
+                  <Button size="sm" variant="secondary" pending={issue.isPending}
+                    onClick={() => { if (window.confirm(`Give ${e.label} a new password? The one they hold now stops working.`)) issue.mutate({ id: e.id, name: e.label, reset: true }) }}>
+                    Reset
+                  </Button>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        <FormNotice error={issue.error} />
+        {done && (
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-medium">{done.name} can sign in</p>
+            <p>Sign in as: <span className="font-mono">{done.signIn || '—'}</span></p>
+            <p>
+              Password:{' '}
+              {done.password
+                ? <span className="font-mono text-[16px]">{done.password}</span>
+                : <span className="text-muted-foreground">already set, reset it to see one</span>}
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              Shown once. Write it down or send it now; it cannot be read back.
+            </p>
+            <Button size="sm" variant="secondary" onClick={() => { setDone(null); setNeedle('') }}>Do another</Button>
           </div>
         )}
       </div>
