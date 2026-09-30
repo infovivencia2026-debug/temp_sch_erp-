@@ -1006,6 +1006,7 @@ export function registerStaff(r: Router): void {
       SELECT st.id, TRIM(st.first_name || ' ' || COALESCE(st.last_name, '')) AS name, st.admission_no,
              e.roll_no, cl.name AS class_name, sec.name AS section_name,
              st.user_id AS student_user, COALESCE(su.username, su.phone, su.email, '') AS student_sign_in,
+             COALESCE(su.login_code, '') AS student_code,
              COALESCE(${usable.replace(/u\./g, 'su.')}, 0) AS student_usable
         FROM students st
         JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
@@ -1024,6 +1025,7 @@ export function registerStaff(r: Router): void {
     const guardians = ids.length === 0 ? { results: [] as Record<string, unknown>[] } : await c.db.prepare(`
       SELECT sg.student_id, g.id, g.full_name, g.relation, COALESCE(g.phone, '') AS phone,
              g.user_id, COALESCE(gu.username, gu.phone, gu.email, '') AS sign_in,
+             COALESCE(gu.login_code, '') AS login_code,
              COALESCE(${usable.replace(/u\./g, 'gu.')}, 0) AS usable
         FROM student_guardians sg
         JOIN guardians g ON g.id = sg.guardian_id
@@ -1042,9 +1044,14 @@ export function registerStaff(r: Router): void {
       id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
       roll_no: r.roll_no ?? undefined, class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
       has_login: bool(r.student_usable), sign_in_as: String(r.student_sign_in ?? ''),
+      /* The account's own ten characters. Every other identifier is
+         borrowed from something that can change; this one cannot, and
+         unlike the password it can always be read back. */
+      login_code: String(r.student_code ?? ''),
       guardians: (byStudent.get(String(r.id)) ?? []).map((g) => ({
         id: String(g.id), full_name: String(g.full_name), relation: String(g.relation ?? ''),
         phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: String(g.sign_in ?? ''),
+        login_code: String(g.login_code ?? ''),
       })),
     })) })
   })

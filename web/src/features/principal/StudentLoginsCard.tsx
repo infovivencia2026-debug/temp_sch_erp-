@@ -18,7 +18,7 @@ interface Policy {
 }
 interface Section { id: string; class_id: string; class_name: string; name: string }
 interface Row {
-  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string; child_name?: string
+  name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string; child_name?: string; login_code?: string
   admission_no?: string; class_name?: string; section_name?: string; roll_no?: number
 }
 interface Bulk { created: number; existing: number; skipped: number; rows: Row[]; note: string }
@@ -48,15 +48,15 @@ export const passwordOrNote = (r: Row) =>
    is the only thing a class teacher can sort them by. */
 export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'guardians' | 'staff' = 'students') {
   const head = kind === 'students'
-    ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'First password']
+    ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'Account ID', 'First password']
     : kind === 'guardians'
-    ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'First password']
-    : ['Name', 'Sign in as', 'First password']
+    ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'Account ID', 'First password']
+    : ['Name', 'Sign in as', 'Account ID', 'First password']
   const cells = (r: Row) => kind === 'students'
-    ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, passwordOrNote(r)]
+    ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
     : kind === 'guardians'
-    ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, passwordOrNote(r)]
-    : [r.name, r.sign_in_as, passwordOrNote(r)]
+    ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
+    : [r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
   const lines = [head.map(csvCell).join(',')]
   for (const r of rows) lines.push(cells(r).map(csvCell).join(','))
   // The BOM is what makes Excel read the file as UTF-8 rather than mangling it.

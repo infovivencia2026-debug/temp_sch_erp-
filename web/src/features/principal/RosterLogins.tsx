@@ -31,6 +31,7 @@ interface Guardian {
   phone: string
   has_login: boolean
   sign_in_as: string
+  login_code: string
 }
 interface Child {
   id: string
@@ -41,6 +42,7 @@ interface Child {
   section_name: string
   has_login: boolean
   sign_in_as: string
+  login_code: string
   guardians: Guardian[]
 }
 interface Section {
@@ -60,6 +62,8 @@ interface Row {
   code: string
   signIn: string
   hasLogin: boolean
+  /** The account's own ten characters, once it has one. */
+  loginCode: string
   /** Whose parent, or which parents. The column the office reads down. */
   context: string
   child: Child
@@ -152,6 +156,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
         code: ch.admission_no,
         signIn: ch.sign_in_as,
         hasLogin: ch.has_login,
+        loginCode: ch.login_code,
         context: ch.guardians.map((g) => g.full_name).join(', ') || 'No guardian on record',
         child: ch,
       }))
@@ -183,6 +188,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
           code: g.phone,
           signIn: g.sign_in_as || g.phone,
           hasLogin: g.has_login,
+          loginCode: g.login_code,
           context: where,
           child: ch,
         })
@@ -211,6 +217,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
     name: r.name,
     sign_in_as: issued[r.id]?.signIn || r.signIn,
     password: issued[r.id]?.password,
+    login_code: r.loginCode,
     existing: r.hasLogin,
     child_name: kind === 'guardians' ? r.child.name : undefined,
     admission_no: r.child.admission_no,
@@ -466,6 +473,11 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
              admission number column, because for a child they differ. */
           ...(kind === 'students' ? ['Admission no'] : []),
           'Signs in as',
+          /* The permanent one, beside the one they type. A phone changes
+             and an admission number is reissued; this never does, and it
+             is the only identifier that can still be read back after the
+             password has gone. */
+          'Account ID',
           'Password',
           kind === 'students' ? 'Guardians' : 'Child',
           '',
@@ -503,6 +515,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
                 <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
               )}
               <Td className="font-mono text-[12.5px]">{got?.signIn || r.signIn || '—'}</Td>
+              <Td className="font-mono text-[12.5px] text-muted-foreground">{r.loginCode || '—'}</Td>
               <Td>
                 {got?.password ? (
                   <span className="font-mono">{got.password}</span>
