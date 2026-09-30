@@ -262,7 +262,9 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
   })()
   const months: string[] = []
   {
-    const start = earliest < elevenBack ? elevenBack : earliest
+    /* Every month back to the first mark: a year picker in front of the
+       month keeps the list short, so the eleven-month cap is not needed. */
+    const start = earliest < currentYm ? earliest : elevenBack
     const [fy, fm] = start.split('-').map(Number)
     const [ty, tm] = currentYm.split('-').map(Number)
     for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
@@ -294,13 +296,26 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
           <h2 className="text-[17px] font-bold">Attendance report</h2>
           {childLabel && <p className="text-[13px] text-muted-foreground">{childLabel}</p>}
         </div>
+        <div className="flex gap-2">
+        {/* The year first, once there is more than one: three years of
+            months in one list was too long to scroll. */}
+        {new Set(months.map((x) => x.slice(0, 4))).size > 1 && (
+          <PickerMenu
+            value={ym.slice(0, 4)}
+            ariaLabel="Year"
+            align="end"
+            onChange={(y) => setPicked(months.find((x) => x.startsWith(y)) ?? ym)}
+            options={[...new Set(months.map((x) => x.slice(0, 4)))].map((y) => ({ value: y, label: y }))}
+          />
+        )}
         <PickerMenu
           value={ym}
           ariaLabel="Month"
           align="end"
           onChange={setPicked}
-          options={months.map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
+          options={months.filter((x) => x.startsWith(ym.slice(0, 4))).map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
         />
+        </div>
       </div>
       <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
         <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
