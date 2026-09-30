@@ -206,7 +206,7 @@ export default function Logins() {
      shows, so a tab and its cards never disagree. */
   const rollOf = (kind: 'staff' | 'students' | 'guardians') => ({
     queryKey: ['login-roster', kind, ''],
-    queryFn: () => api.get<{ items: { id: string; guardians?: { id: string }[] }[] }>('/api/v1/setup/logins/roster' + (kind === 'staff' ? '?kind=staff' : '')),
+    queryFn: () => api.get<{ items: { id: string; has_login: boolean; guardians?: { id: string; has_login: boolean }[] }[] }>('/api/v1/setup/logins/roster' + (kind === 'staff' ? '?kind=staff' : '')),
   })
   const rollStaff = useQuery(rollOf('staff'))
   const rollStudents = useQuery(rollOf('students'))
@@ -216,13 +216,30 @@ export default function Logins() {
     student: rollStudents.data?.items.length,
     guardian: rollGuardians.data ? new Set(rollGuardians.data.items.flatMap((c) => (c.guardians ?? []).map((g) => g.id))).size : undefined,
   } as Record<string, number | undefined>
+  /* NOT ISSUED: people on the roll with no working login yet. The one number
+     the office acts on, counted the same way the roll counts it. */
+  const guardiansOnRoll = new Map<string, boolean>()
+  for (const c of rollGuardians.data?.items ?? []) for (const g of c.guardians ?? []) guardiansOnRoll.set(g.id, g.has_login)
+  const notIssued = {
+    staff: (rollStaff.data?.items ?? []).filter((p) => !p.has_login).length,
+    student: (rollStudents.data?.items ?? []).filter((p) => !p.has_login).length,
+    guardian: [...guardiansOnRoll.values()].filter((h) => !h).length,
+  }
+  const notIssuedTotal = notIssued.staff + notIssued.student + notIssued.guardian
+  /* Which tab to open on "Not issued", and that its roll opens on those people. */
+  const [rollFilter, setRollFilter] = useState('')
+  const openNotIssued = () => {
+    const k = (['staff', 'student', 'guardian'] as const).find((x) => notIssued[x] > 0)
+    if (!k) return
+    setTileLens(''); setRollFilter('not'); setRecord(k)
+  }
 
   /** Which tile is open, if any: '' | 'can' | 'cannot' | 'live' | 'orphan'. */
   const [tileLens, setTileLens] = useState('')
   /* Opening Parents while "1 cannot sign in" was still held from Staff showed
      a table of parents under a heading nobody had asked for. A tile belongs to
      the tab it was pressed on. */
-  const pickTab = (k: string) => { setTileLens(''); setRecord(k) }
+  const pickTab = (k: string) => { setTileLens(''); setRollFilter(''); setRecord(k) }
 
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
@@ -291,7 +308,6 @@ export default function Logins() {
   const TdDevices = simple
     ? ({ children: _c }: { children?: ReactNode }) => null
     : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
-  const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
   const invited = users.filter((u) => u.status === 'invited')
 
@@ -375,8 +391,8 @@ export default function Logins() {
             screens of scrolling before the thing they came to do -- and on a
             tab whose answer is usually "nobody has one yet", the tiles all read
             zero and the roll is the only part worth reading. */}
-        {record === 'student' && <RosterLogins kind="students" signedIn={signedIn} />}
-        {record === 'guardian' && <RosterLogins kind="guardians" signedIn={signedIn} />}
+        {record === 'student' && <RosterLogins key={'students' + rollFilter} kind="students" signedIn={signedIn} initialStatus={rollFilter} />}
+        {record === 'guardian' && <RosterLogins key={'guardians' + rollFilter} kind="guardians" signedIn={signedIn} initialStatus={rollFilter} />}
         {/* THE STAFF ROLL, WHICH DID NOT EXIST.
 
             Children and parents were listed from the register; staff were
@@ -384,7 +400,7 @@ export default function Logins() {
             had no login were on no list at all and the tab read "no staff".
             Same component, third audience: the roll first, the issue cards
             underneath it. */}
-        {record === 'staff' && <RosterLogins kind="staff" signedIn={signedIn} />}
+        {record === 'staff' && <RosterLogins key={'staff' + rollFilter} kind="staff" signedIn={signedIn} initialStatus={rollFilter} />}
         {/* Each tile opens the rows it counts. Pressing the open one again
             closes it, so there is always a way back to the whole list without
             hunting for a separate control that says 'clear'. */}
@@ -399,11 +415,10 @@ export default function Logins() {
             onClick={() => setTileLens('')}
           />
           <Stat
-            label="Can sign in"
-            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active}
-            hint={isLoading ? '\u00a0' : users.length - active === 0 ? 'Everybody can sign in' : `${users.length - active} cannot, show them`}
-            active={lens === 'cannot'}
-            onClick={() => setTileLens(lens === 'cannot' ? '' : 'cannot')}
+            label="Not issued"
+            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : notIssuedTotal}
+            hint={notIssuedTotal === 0 ? 'Everybody on the roll has a login' : `Staff ${notIssued.staff} · Students ${notIssued.student} · Parents ${notIssued.guardian}, show them`}
+            onClick={openNotIssued}
           />
           <Stat
             label="Signed in now"
