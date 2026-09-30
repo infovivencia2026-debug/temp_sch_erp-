@@ -126,7 +126,7 @@ export default function ProfileView() {
        PageBody also gives it the same vertical rhythm as the rest, so the gap
        between its cards stops being a hand-written mt-4 that matches nothing
        else. */
-    <PageBody>
+    <PageBody top>
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader

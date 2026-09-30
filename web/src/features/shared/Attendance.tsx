@@ -165,7 +165,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   /* The page gutter: without it this screen's card started at the pixel
      the sidebar ended and ran to the window's right edge. */
   return (
-    <PageBody>
+    <PageBody top>
     <Card>
       <CardHeader
         title="Attendance register"

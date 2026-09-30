@@ -55,7 +55,7 @@ export default function Timetable() {
        pixel the sidebar ended and ran to the window's edge on the right.
        Every other screen gets it from PageBody; the ones built out of a
        bare Card never did. */
-    <PageBody>
+    <PageBody top>
     <Card>
       <CardHeader title="Timetable" />
       <div className={cn('flex gap-1 border-b px-3 pt-2', tabs.length === 1 && 'hidden')}>

@@ -227,6 +227,14 @@ export default function TeacherMessages() {
           />
         ) : (
           <div className={phone ? undefined : 'grid items-start gap-4 lg:grid-cols-[340px_1fr]'}>
+          {/* ON A PHONE THE LIST GOES AWAY WHILE A CHAT IS OPEN.
+
+              The conversation opens as a screen over the top, but the list
+              stayed mounted underneath it -- so scrolling past the message box
+              revealed the other five teachers sitting below it, as if they
+              were part of the conversation. Two screens at once, one of which
+              the reader had explicitly left. */}
+          {(!phone || teacher === '') && (
           <Card>
             {/* The teachers as a list to tap, the way a phone lists chats:
                 the class teacher first, then everyone timetabled to the
@@ -270,6 +278,7 @@ export default function TeacherMessages() {
               ))}
             </ul>
           </Card>
+          )}
           {!phone && (
             <Card className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden">
               {chosenTeacher ? (

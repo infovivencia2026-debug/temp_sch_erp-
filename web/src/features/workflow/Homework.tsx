@@ -239,9 +239,14 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                   <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
                       'flex min-w-0 flex-1 flex-col items-center rounded-lg border px-0.5 py-2 transition-colors',
-                      active ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-muted',
+                      /* THE TINT IS THE HIGHLIGHT. A selected day was filled solid
+                         and its wording turned white, so the day you are looking at
+                         was the one day you could not read at a glance -- reversed
+                         out of a saturated block at 10.5px. A tint and a border say
+                         'this one' perfectly well and leave the words alone. */
+                      active ? 'border-primary bg-primary/10 font-semibold' : 'border-transparent hover:bg-muted',
                     )}>
-                    <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary-foreground' : 'text-muted-foreground')}>
+                    <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary' : 'text-muted-foreground')}>
                       {WEEKDAY[dt.getDay()]}
                     </span>
                     <span className="mt-0.5 text-[16px] font-bold tabular-nums">{dt.getDate()}</span>
@@ -286,7 +291,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
               <button key={k.value || 'all'} type="button" onClick={() => setKind(k.value)} aria-pressed={active}
                 className={cn(
                   'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[12.5px] font-semibold transition-colors',
-                  active ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+                  active ? 'border-primary bg-primary/10 font-semibold text-primary' : 'bg-card text-muted-foreground hover:text-foreground',
                 )}>
                 {k.label} ({n})
               </button>

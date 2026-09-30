@@ -177,9 +177,19 @@ const WIDTH: Record<Width, string> = {
 export function PageBody({
   children,
   width = 'operational',
+  top,
 }: {
   children: ReactNode
   width?: Width
+  /* SPACE ABOVE, FOR A PAGE THAT HAS NO HEAD.
+
+     Almost every screen opens with PageHead, and the head's own padding is
+     what holds the first card off the top of the work area. A screen built
+     without one -- the timetable, the attendance register, the account page --
+     had nothing there at all, so its first card sat against the top edge in
+     exactly the way its sides sat against the sidebar. Same omission, second
+     axis, and reported as one complaint about margins because it is one. */
+  top?: boolean
 }) {
   /* The gutter is a token (index.css, --page-gutter), shared with PageHead.
      It used to be px-2 here and px-5 there, so on a phone the title sat 10px
@@ -188,7 +198,18 @@ export function PageBody({
      not stack to 36px a side on a 390px screen. */
   const embedded = useContext(EmbeddedPage)
   if (embedded) return <div className="mt-2.5 space-y-[var(--section-gap)]">{children}</div>
-  return <div data-page-enter="" className={cn('space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10', WIDTH[width])}>{children}</div>
+  return (
+    <div
+      data-page-enter=""
+      className={cn(
+        'space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10',
+        top && 'pt-[var(--page-gutter)]',
+        WIDTH[width],
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 /* A panel: white where content needs containing, and nothing where it does

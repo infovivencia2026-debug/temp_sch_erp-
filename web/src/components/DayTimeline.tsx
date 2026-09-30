@@ -157,7 +157,9 @@ export default function DayTimeline({
               className={cn(
                 'h-11 min-w-[48px] flex-1 rounded-lg text-[12px] font-semibold',
                 day === d
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  /* Tint, not a solid fill: the chosen day should be the
+                     easiest to read, not the hardest. */
+                  ? 'border border-primary bg-primary/10 font-semibold text-primary'
                   : 'bg-muted text-muted-foreground',
                 d === today && day !== d && 'ring-1 ring-primary/40',
               )}
