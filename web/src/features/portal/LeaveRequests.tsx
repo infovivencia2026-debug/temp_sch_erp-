@@ -74,7 +74,7 @@ export default function LeaveRequests() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-leave'] }),
   })
 
-  if (leave.isLoading) return <ScreenSkeleton label={t('portal.leave_requests.loading')} />
+  if (leave.isLoading && !leave.data) return <ScreenSkeleton label={t('portal.leave_requests.loading')} />
   if (leave.error && !leave.data) return <ScreenError error={leave.error} />
 
   const rows = leave.data?.items ?? []

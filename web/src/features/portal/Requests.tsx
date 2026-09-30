@@ -99,7 +99,7 @@ export default function Requests() {
     },
   })
 
-  if (requests.isLoading) return <ScreenSkeleton label={t('portal.requests.loading')} />
+  if (requests.isLoading && !requests.data) return <ScreenSkeleton label={t('portal.requests.loading')} />
   if (requests.error && !requests.data) return <ScreenError error={requests.error} />
 
   const rows = requests.data?.items ?? []

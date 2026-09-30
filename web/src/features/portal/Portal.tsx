@@ -440,7 +440,7 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
-  if (children.isLoading) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
@@ -503,9 +503,26 @@ export default function Portal() {
             so drawing it again here gave a parent the same two rows twice on
             one screen — the second copy reading as a different list until you
             compared them line by line. */}
-        {summary.isLoading ? (
+        {/* ONCE THERE ARE FIGURES, THEY STAY ON SCREEN.
+
+            This was `summary.isLoading`, which is true again for every reload
+            of the query, not only the first -- so each refresh tore the report
+            down to a skeleton and built it back. That is the blinking: the
+            page flashing grey and filling in, over and over, with nothing
+            wrong and nothing changing.
+
+            It also lost the month. AttendanceReport holds the chosen month in
+            its own state, and a component that unmounts does not hold
+            anything: every reload put a parent back on the current month a
+            moment after they had picked another, which reads exactly like a
+            picker that does not work.
+
+            So the skeleton is for the first load only -- when there is nothing
+            to show yet. A reload keeps the figures up while it runs, and the
+            freshness line says one is in flight. */}
+        {summary.isLoading && !summary.data ? (
           <SkeletonTiles count={5} />
-        ) : summary.error ? (
+        ) : summary.error && !summary.data ? (
           /* `!s` used to fall through to the spinner, so a summary that came
              back 403 or 500 left a parent watching "Loading…" for the rest of
              the session. The failure has a message; show it. */

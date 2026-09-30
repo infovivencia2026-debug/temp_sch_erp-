@@ -112,7 +112,7 @@ export default function AdmissionStatus() {
     queryFn: () => api.get<List<Admission>>('/api/v1/portal/admission'),
   })
 
-  if (q.isLoading) return <ScreenSkeleton label={t('portal.admission.loading')} />
+  if (q.isLoading && !q.data) return <ScreenSkeleton label={t('portal.admission.loading')} />
   if (q.error && !q.data) return <ScreenError error={q.error} />
 
   const rows = q.data?.items ?? []

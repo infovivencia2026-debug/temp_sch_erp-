@@ -77,7 +77,7 @@ export default function ReportAbsence() {
     },
   })
 
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.report_absence.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.report_absence.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const ready = studentId !== '' && (reason !== 'Other' || detail.trim() !== '')

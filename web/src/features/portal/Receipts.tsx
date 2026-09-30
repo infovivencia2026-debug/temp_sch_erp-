@@ -65,7 +65,7 @@ export default function Receipts() {
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),
   })
 
-  if (receipts.isLoading) return <ScreenSkeleton label={t('portal.receipts.loading')} />
+  if (receipts.isLoading && !receipts.data) return <ScreenSkeleton label={t('portal.receipts.loading')} />
   if (receipts.error && !receipts.data) return <ScreenError error={receipts.error} />
 
   const rows = receipts.data?.items ?? []

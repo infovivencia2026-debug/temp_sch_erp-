@@ -88,7 +88,7 @@ export default function Consent() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
 
-  if (passes.isLoading) return <ScreenSkeleton label={t('portal.consent.loading')} />
+  if (passes.isLoading && !passes.data) return <ScreenSkeleton label={t('portal.consent.loading')} />
   if (passes.error && !passes.data) return <ScreenError error={passes.error} />
 
   const allPasses = passes.data?.items ?? []

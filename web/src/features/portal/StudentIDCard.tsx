@@ -88,7 +88,7 @@ export default function StudentIDCard() {
     </Card>
   )
 
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.student_id_card.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.student_id_card.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
   if (!ready)
     return (

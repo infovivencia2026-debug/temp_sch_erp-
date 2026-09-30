@@ -98,7 +98,7 @@ export default function Calendar() {
 
   // Only the very first load blanks the page; a month change is drawn by the
   // grid's own dimming, so the screen does not flash on every arrow press.
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.calendar.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.calendar.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))

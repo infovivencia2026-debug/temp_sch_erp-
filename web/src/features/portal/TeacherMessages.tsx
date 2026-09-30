@@ -104,7 +104,7 @@ export default function TeacherMessages() {
     },
   })
 
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.teacher_messages.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.teacher_messages.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const list = teachers.data?.items ?? []

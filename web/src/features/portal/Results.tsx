@@ -83,7 +83,7 @@ export default function PortalResults() {
      `!child` held the spinner forever because the results query never starts
      without a child, and a query that never starts never stops being pending.
      A parent is owed the reason. */
-  if (children.isLoading) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
@@ -97,7 +97,7 @@ export default function PortalResults() {
         </PageBody>
       </>
     )
-  if (isLoading) return <ScreenSkeleton />
+  if (isLoading && !data) return <ScreenSkeleton />
   if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (

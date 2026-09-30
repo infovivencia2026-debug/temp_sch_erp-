@@ -93,7 +93,7 @@ export default function Concerns() {
     },
   })
 
-  if (concerns.isLoading) return <ScreenSkeleton label={t('portal.concerns.loading')} />
+  if (concerns.isLoading && !concerns.data) return <ScreenSkeleton label={t('portal.concerns.loading')} />
   if (concerns.error && !concerns.data) return <ScreenError error={concerns.error} />
 
   const rows = concerns.data?.items ?? []
