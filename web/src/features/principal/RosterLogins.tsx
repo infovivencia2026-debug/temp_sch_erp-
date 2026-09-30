@@ -187,7 +187,12 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
       return children.map((ch) => ({
         id: ch.id,
         name: ch.name,
-        under: 'Roll ' + (ch.roll_no ?? '—') + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-'),
+        /* A child with no active enrolment has no class, no section and no
+           roll, and "Roll — · " read as a broken row rather than an unplaced
+           one. The state has a name; the row says it. */
+        under: ch.class_name
+          ? 'Roll ' + (ch.roll_no ?? '—') + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-')
+          : 'Not in a class yet',
         code: ch.admission_no,
         signIn: ch.sign_in_as,
         hasLogin: ch.has_login,

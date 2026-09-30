@@ -201,6 +201,10 @@ export default function Logins() {
 
   /** Which tile is open, if any: '' | 'can' | 'cannot' | 'live' | 'orphan'. */
   const [tileLens, setTileLens] = useState('')
+  /* Opening Parents while "1 cannot sign in" was still held from Staff showed
+     a table of parents under a heading nobody had asked for. A tile belongs to
+     the tab it was pressed on. */
+  const pickTab = (k: string) => { setTileLens(''); setRecord(k) }
 
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
@@ -318,7 +322,7 @@ export default function Logins() {
               : everyone.length
             const on = record === k
             return (
-              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => setRecord(k)}
+              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
                 className={cn('min-h-9 flex-1 rounded-full px-4 text-[13.5px] font-medium transition-colors sm:flex-none',
                   on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                 {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
@@ -479,7 +483,15 @@ export default function Logins() {
             class picker, and an account table that showed the same people
             again -- minus the ones with no login, who are the half the office
             came for. On a children's or families' tab the roll is the screen. */}
-        {record !== 'sessions' && !simple && (
+        {/* A TILE MUST HAVE SOMEWHERE TO LAND.
+
+            The accounts table is hidden on the children's and families' tabs,
+            because the roll above is the screen there. That made the four
+            tiles dead on those two tabs: pressing "1 cannot sign in" narrowed
+            a list nobody could see, so the answer was that nothing happened.
+            An opened tile brings the table back for exactly as long as it is
+            open, which is the only moment anybody wants it there. */}
+        {record !== 'sessions' && (!simple || lens !== '') && (
         <Card>
           <CardHeader
             title="Logins"
