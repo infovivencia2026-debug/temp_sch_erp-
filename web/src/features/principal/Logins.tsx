@@ -199,6 +199,9 @@ export default function Logins() {
     },
   })
 
+  /** Which tile is open, if any: '' | 'can' | 'cannot' | 'live' | 'orphan'. */
+  const [tileLens, setTileLens] = useState('')
+
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
@@ -251,6 +254,22 @@ export default function Logins() {
     : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
   const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
+
+  /* A NUMBER YOU CANNOT OPEN IS A NUMBER YOU CANNOT ACT ON.
+
+     The four tiles said 84, 83, 0 and 0 and stopped there. "1 cannot sign in"
+     is the most useful sentence on the page and there was no way to ask which
+     one -- somebody had to guess a search term and hope. Each tile now names
+     the rows behind it and narrows the table to them; pressing the same tile
+     again puts the whole list back. The tiles stay within whichever tab is
+     open, so "can sign in" on Parents means parents. */
+  const lens = tileLens
+  const shownUsers = users.filter((u) =>
+    lens === 'can' ? u.status === 'active'
+      : lens === 'cannot' ? u.status !== 'active'
+      : lens === 'live' ? u.active_sessions > 0
+      : lens === 'orphan' ? u.record === 'none' && u.status === 'active'
+      : true)
   /* Whether the tab exists at all is the school's business too, not the
      search box's: it blinked out of the strip while somebody typed. */
   const orphans = (totals.data ?? all).filter((u) => u.record === 'none' && u.status === 'active')
@@ -325,15 +344,39 @@ export default function Logins() {
             Same component, third audience: the roll first, the issue cards
             underneath it. */}
         {record === 'staff' && <RosterLogins kind="staff" />}
+        {/* Each tile opens the rows it counts. Pressing the open one again
+            closes it, so there is always a way back to the whole list without
+            hunting for a separate control that says 'clear'. */}
         <CellGrid cols={4}>
-          <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
-          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? '\u00a0' : `${users.length - active} cannot`} />
-          <Stat label="Signed in now" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn} hint="Holding a live session" />
+          <Stat
+            label="Logins"
+            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length}
+            icon={ShieldCheck}
+            hint={lens ? 'Show all of them again' : 'Everybody on this tab'}
+            active={lens === ''}
+            onClick={() => setTileLens('')}
+          />
+          <Stat
+            label="Can sign in"
+            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active}
+            hint={isLoading ? '\u00a0' : `${users.length - active} cannot — open them`}
+            active={lens === 'can' || lens === 'cannot'}
+            onClick={() => setTileLens(lens === 'can' ? 'cannot' : lens === 'cannot' ? '' : 'can')}
+          />
+          <Stat
+            label="Signed in now"
+            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn}
+            hint="Holding a live session"
+            active={lens === 'live'}
+            onClick={() => setTileLens(lens === 'live' ? '' : 'live')}
+          />
           <Stat
             label="No linked record"
             value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : orphans.length}
             icon={ShieldAlert}
             hint="Active logins whose person is gone"
+            active={lens === 'orphan'}
+            onClick={() => setTileLens(lens === 'orphan' ? '' : 'orphan')}
           />
         </CellGrid>
 
@@ -472,10 +515,15 @@ export default function Logins() {
               head={simple
                 ? ['Name', 'Belongs to', 'Child & class', 'Last sign-in', 'Status', '']
                 : ['Name', 'Contact', 'Belongs to', 'Child & class', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}
-              empty={!users.length}
-              emptyLabel="No logins match those filters."
+              empty={!shownUsers.length}
+              emptyLabel={
+                lens === 'cannot' ? 'Everybody here can sign in.'
+                  : lens === 'live' ? 'Nobody here is signed in at the moment.'
+                  : lens === 'orphan' ? 'Every login here still has a person behind it.'
+                  : 'No logins match those filters.'
+              }
             >
-              {users.map((u) => (
+              {shownUsers.map((u) => (
                 <tr key={u.id}>
                   <Td className="font-medium">
                     {u.full_name}
