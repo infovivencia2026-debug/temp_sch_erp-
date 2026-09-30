@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { PageHead, PageBody, Card, Select, Field, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
@@ -464,17 +464,6 @@ export default function Calendar() {
           )}
         </div>
 
-        {/* Nothing to press unless there is something to take away. */}
-        {all.length > 0 && (
-          <button
-            type="button"
-            onClick={() => downloadICS(all, monthName)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[13px] font-bold text-background transition-opacity hover:opacity-90 md:w-auto md:self-start"
-          >
-            <CalendarPlus className="h-4 w-4" />
-            Add these dates to your phone calendar
-          </button>
-        )}
       </PageBody>
     </>
   )
@@ -509,54 +498,4 @@ function EventCard({ e, t }: { e: Entry; t: ReturnType<typeof useT> }) {
       </div>
     </div>
   )
-}
-
-/* TAKING THE DATES AWAY.
- *
- * The mockup's button said "sync to Google / Apple Calendar", and a real sync
- * is an OAuth grant, a background job and a two-way reconciliation nobody has
- * asked for. An .ics file is what both of those apps open, offline, with no
- * account and no permission -- one tap on a phone, a double-click on a desk --
- * and it is the whole of what the button promised.
- *
- * Written by hand rather than with a library: the format is six lines, and the
- * one thing that matters is escaping, since a title containing a comma or a
- * newline silently corrupts every event after it.
- */
-function downloadICS(items: Entry[], name: string) {
-  const esc = (v: string) => v.replace(/\\/g, '\\\\').replace(/[,;]/g, (m) => '\\' + m).replace(/\r?\n/g, '\\n')
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')
-  const ymd = (d: string) => d.replace(/-/g, '')
-  /* DTEND on an all-day event is exclusive, so a one-day holiday ends the
-     following morning. Without the +1 the day vanishes from every calendar
-     app that reads the file. */
-  const nextDay = (d: string) => {
-    const x = new Date(d + 'T00:00:00')
-    x.setDate(x.getDate() + 1)
-    return ymd(iso(x))
-  }
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//School ERP//Calendar//EN', 'CALSCALE:GREGORIAN']
-  for (const [i, e] of items.entries()) {
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:${e.ref_id ?? `${ymd(e.date)}-${i}`}@school-erp`,
-      `DTSTAMP:${stamp}`,
-      `DTSTART;VALUE=DATE:${ymd(e.date)}`,
-      `DTEND;VALUE=DATE:${nextDay(e.end_date ?? e.date)}`,
-      `SUMMARY:${esc(e.title)}`,
-    )
-    const detail = [e.detail, e.venue, e.student_name].filter(Boolean).join(' - ')
-    if (detail) lines.push(`DESCRIPTION:${esc(detail)}`)
-    if (e.venue) lines.push(`LOCATION:${esc(e.venue)}`)
-    lines.push('END:VEVENT')
-  }
-  lines.push('END:VCALENDAR')
-  const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name.replace(/\s+/g, '-').toLowerCase()}.ics`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
 }

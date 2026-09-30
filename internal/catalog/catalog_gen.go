@@ -1709,7 +1709,7 @@ var Roles = []Role{
 				Name:      "Consent & Permissions",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Permission Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every slip the school needs signed, trips, medical, photography, data, with what you have already agreed to and when. Signing is one tap and the record is kept."},
+					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Consents & Circulars", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every circular and consent the school needs you to sign, with what you have already agreed to and when. Signing is one tap and the record is kept. Trip permissions appear here too, at a school that boards children."},
 				},
 			},
 			{
