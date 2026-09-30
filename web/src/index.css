@@ -2517,11 +2517,12 @@ dialog,
    is a short fade and nothing else, and the frame that doesn't change between
    screens is lifted out of the crossing (named below) so it stays perfectly
    still while only the page underneath changes. */
-::view-transition-old(root) {
-  animation: vt-leave 120ms linear both;
-}
+/* No fade at all between pages: even a short one read as the screen
+   blinking on every click (the account button, the rail). The page is swapped
+   in place, and the frame never moves. */
+::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: vt-arrive 160ms linear both;
+  animation: none;
 }
 @keyframes vt-leave {
   to { opacity: 0; }
