@@ -9,7 +9,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff,
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
   Maximize2, Printer, RefreshCw, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,7 +58,10 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
+      {/* A search box in the toolbar is a full-width .field, so from sm up it
+          took the whole toolbar row and pushed its own filters onto a second
+          line under it. It gets a search box's width there instead. */}
+      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end sm:[&>input.field]:w-60">{action}</div>}
     </div>
   )
 }
@@ -284,11 +287,12 @@ export function UnavailableState({
    honest number is the one after those have resolved. toArray drops the nulls
    and booleans those produce, which count() alone would include. */
 
-type Bp = 'sm' | 'md' | 'xl'
+type Bp = 'base' | 'sm' | 'md' | 'xl'
 
 /* Written out rather than composed, because Tailwind reads this file as text:
    a class name assembled at runtime is a class name that never gets built. */
 const TRACKS: Record<Bp, Record<number, string>> = {
+  base: { 1: 'grid-cols-1', 2: 'grid-cols-2' },
   sm: { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5', 6: 'sm:grid-cols-6' },
   md: { 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-5', 6: 'md:grid-cols-6' },
   xl: { 1: 'xl:grid-cols-1', 2: 'xl:grid-cols-2', 3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6' },
@@ -302,6 +306,7 @@ const TRACKS: Record<Bp, Record<number, string>> = {
    tiles in it and a lit gap on the end, the exact defect this is here to
    remove. Each breakpoint overrides the one below it. */
 const SPAN: Record<Bp, Record<number, string>> = {
+  base: { 1: 'col-span-1', 2: 'col-span-2' },
   sm: { 1: 'sm:col-span-1', 2: 'sm:col-span-2', 3: 'sm:col-span-3', 4: 'sm:col-span-4', 5: 'sm:col-span-5', 6: 'sm:col-span-6' },
   md: { 1: 'md:col-span-1', 2: 'md:col-span-2', 3: 'md:col-span-3', 4: 'md:col-span-4', 5: 'md:col-span-5', 6: 'md:col-span-6' },
   xl: { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 3: 'xl:col-span-3', 4: 'xl:col-span-4', 5: 'xl:col-span-5', 6: 'xl:col-span-6' },
@@ -329,7 +334,11 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const grid: string[] = []
   const span: string[] = []
   let widest = 1
+  /* Two across on a phone too. One tile per row made four or five tall
+     tiles fill the whole first screen (Approvals, Results, Requests), so the
+     page's actual content started below the fold. */
   const plan: [Bp, number, boolean][] = [
+    ['base', 2, false],
     ['sm', 2, false],
     ['md', 3, false],
     ['xl', cols, true],
@@ -349,7 +358,7 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const closes = widest > 1
 
   return (
-    <div className={cn('cell-grid reveal grid-cols-1', ...grid)}>
+    <div className={cn('cell-grid reveal', ...grid)}>
       {closes ? kids.slice(0, -1) : kids}
       {closes && (
         /* A grid wrapper, not a plain one: the cell inside has to stretch to
@@ -974,6 +983,11 @@ export function Table({
           ) : empty ? (
             <tr>
               <td colSpan={head.length} className="px-[var(--card-pad)] py-12 text-center text-[14px] text-muted-foreground">
+                {/* A quiet line glyph over the sentence, so an empty table reads
+                    as "nothing here yet" rather than as a table that broke. */}
+                <span className="mx-auto mb-2 grid size-10 place-items-center rounded-full bg-muted/70">
+                  <Inbox className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                </span>
                 {emptyLabel}
               </td>
             </tr>
