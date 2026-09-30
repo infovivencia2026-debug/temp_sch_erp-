@@ -1330,6 +1330,8 @@ function registerHomework(r: Router) {
   r.get('/homework/{id}/submissions', 'auth', listHomeworkSubmissions)
 }
 
+const WORK_KINDS: Record<string, string> = { homework: 'Homework', classwork: 'Classwork', assignment: 'Assignment', project: 'Project' }
+
 async function publishHomework(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
   const req = await readJSON<{ section_id?: string; class_subject_id?: string; subject_id?: string; kind?: string; title?: string; instructions?: string;
@@ -1338,7 +1340,10 @@ async function publishHomework(c: Ctx): Promise<Response> {
   if (!isUUID(sectionId)) throw badRequest('section_id must be a uuid')
   const title = req.title ?? ''
   if (!title.trim()) throw badRequest('a title is required')
+  /* The type of work is chosen from a fixed list on the teacher's form, and
+     parents filter their diary by it, so only those four are accepted. */
   const kind = req.kind || 'homework'
+  if (!WORK_KINDS[kind]) throw badRequest('type of work must be one of: homework, classwork, assignment, project')
   const res = await resolveScope(c)
   if (!canMarkSection(res, sectionId)) throw forbidden('missing permission: homework for this section')
   const allow = req.allow_submission ?? true
@@ -1372,7 +1377,7 @@ async function publishHomework(c: Ctx): Promise<Response> {
       JOIN student_guardians sg ON sg.student_id = st.id
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
      WHERE e.section_id = ? AND e.status = 'active'`).bind(sectionId).all<{ uid: string; student: string; name: string }>()
-  const label = kind === 'classwork' ? 'Classwork' : 'Homework'
+  const label = WORK_KINDS[kind]
   for (const t of targets.results) {
     stmts.push(notifyStmt(c, t.uid, t.student, 'homework', `${label} set for ${t.name}`, `${title}, due ${due}`, '/go/homework', 'homework', newId))
   }
