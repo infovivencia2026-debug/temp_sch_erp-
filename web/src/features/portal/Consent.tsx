@@ -120,7 +120,14 @@ export default function Consent() {
       <PageHead
         eyebrow={t('portal.consent.eyebrow')}
         title={t('portal.consent.title')}
-        description={t('portal.consent.description')}
+        /* The description named trips, which a day school does not have --
+           the one sentence at the top of the screen describing the half
+           that had just been hidden from it. */
+        description={
+          boards
+            ? t('portal.consent.description')
+            : 'Circulars the school has asked you to read and sign. Signing is one tap, and the date is kept.'
+        }
       />
       <Freshness query={passes} />
       <PageBody>
