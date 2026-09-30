@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -191,7 +191,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
           {/* The week, one day to press. */}
           <div className="flex items-center gap-1 px-2 py-3">
             <button type="button" aria-label="Previous week" onClick={() => setDay(addDays(from, -7))}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="flex flex-1 justify-between gap-1 overflow-x-auto">
@@ -215,15 +215,28 @@ function Diary({ canPublish }: { canPublish: boolean }) {
               })}
             </div>
             <button type="button" aria-label="Next week" onClick={() => setDay(addDays(from, 7))}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
               <ChevronLeft className="h-4 w-4 rotate-180" />
             </button>
           </div>
+          {/* A way back, not a banner announcing itself.
+
+              This was a full-width strip of primary-coloured text along the
+              bottom of the card, left aligned under a centred week -- it read
+              as a warning bar rather than the small convenience it is. Centred,
+              quieted to muted, and given the calendar icon so it is recognised
+              before it is read. */}
           {day !== today && (
-            <button type="button" onClick={() => setDay(today)}
-              className="w-full border-t px-4 py-2 text-left text-[12.5px] font-medium text-primary hover:bg-muted/40">
-              Back to today
-            </button>
+            <div className="flex justify-center border-t px-4 py-2">
+              <button
+                type="button"
+                onClick={() => setDay(today)}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Back to today
+              </button>
+            </div>
           )}
         </Card>
 

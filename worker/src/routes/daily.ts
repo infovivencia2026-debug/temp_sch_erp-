@@ -1404,7 +1404,21 @@ async function listHomework(c: Ctx): Promise<Response> {
     args.push(...x.args)
   } else if (res.allAttendance) where = 'TRUE'
   else if (res.sectionIds.length) { const x = inList('h.section_id', res.sectionIds); where = x.sql; args.push(...x.args) }
-  else where = 'FALSE'
+  /* A TEACHER WITH NO SECTION COULD NOT SEE THEIR OWN HOMEWORK.
+
+     This was FALSE, and the "only mine" clause below is ANDed onto it, so
+     somebody holding no section at all saw an empty list -- including the
+     work they had published minutes earlier, from this screen, successfully.
+     Nothing had failed to save; there was simply no clause under which their
+     own row could come back, and an empty list after a successful publish is
+     indistinguishable from a publish that silently did nothing.
+
+     A section is how a teacher is normally reached, but it is not the only
+     way somebody comes to own a piece of homework: a member of staff between
+     postings, a head who sets work for a class they do not teach, anybody
+     whose timetable has not been entered yet. What they wrote is theirs to
+     read whatever their timetable says. */
+  else { where = 'h.created_by = ?'; args.push(c.id.userId) }
 
   const q = c.url.searchParams
   const filter = (clause: string, value: string | null) => { if (!trim(value)) return; args.push(value); where += ' AND ' + clause }

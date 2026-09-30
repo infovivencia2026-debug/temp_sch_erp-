@@ -2157,7 +2157,25 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     )
   }
   if (error) {
-    const msg = error instanceof Error ? error.message : 'Could not save'
+    /* AN ERROR BAR THAT SAYS NOTHING IS WORSE THAN NO ERROR BAR.
+
+       This took error.message and printed it, and an error whose message is
+       empty -- a refusal with no body, a request cut off mid-flight, a failure
+       thrown by something that never set one -- rendered as a thin red strip
+       with no words in it. Logins & access showed exactly that above an empty
+       roll: a stripe of colour saying something was wrong, and no way to learn
+       what, on a screen whose data was sitting in the database all along.
+
+       So a blank message falls back to a sentence, and where the server gave
+       a status it is named. "Could not read this (403)" is something a person
+       can act on or repeat down a telephone; a coloured rectangle is not. */
+    const said = error instanceof Error ? error.message.trim() : ''
+    const status = error instanceof ApiError ? error.status : 0
+    const msg = said
+      || (status === 401 ? 'Your session has ended. Sign in again.'
+        : status === 403 ? 'You do not have permission to see this.'
+        : status ? `The server refused this (${status}). Try again, or reload the page.`
+        : 'Something went wrong. Try again, or reload the page.')
     return (
       <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
         {msg}

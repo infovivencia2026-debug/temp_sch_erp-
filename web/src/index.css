@@ -2633,27 +2633,37 @@ html:active-view-transition [data-page-enter] { animation: none; }
   background-attachment: local, local, scroll, scroll;
 }
 
-/* And the bar itself, drawn rather than borrowed.
+/* THE BAR ITSELF IS GONE. IT STILL SCROLLS.
 
-   Thin and always present on the scrollers that can move sideways, because a
-   horizontal scrollbar is not clutter — it is the only thing on screen that
-   states how much of the table you are looking at. Vertical bars are left to
-   the platform: a page scrolls, everybody knows a page scrolls. */
+   It used to be drawn thin and always present, on the argument that a
+   horizontal scrollbar states how much of a table you are looking at. That
+   argument loses to the thing actually on screen: a grey line ruled under
+   every wide strip in the product — tab strips, chip rows, week pickers, a
+   dozen tables — reading as a divider somebody forgot to remove, or worse as
+   an underline beneath a heading that has none.
+
+   The fade at both edges above says there is more in that direction, and says
+   it in the content rather than in furniture below it. That is the honest
+   signal, and it is already there. So the bar goes and the scrolling stays:
+   wheel, trackpad, touch, drag and keyboard all work exactly as before, in
+   every browser. An older browser that knows neither property simply keeps
+   its own bar, which is no worse than what it had.
+
+   Kept on nothing. If a surface genuinely needs a visible bar, it should say
+   so for itself rather than every sideways scroller inheriting one. */
 .scroll-x {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* old Edge, IE */
 }
-.scroll-x::-webkit-scrollbar { height: 10px; }
-.scroll-x::-webkit-scrollbar-track { background: transparent; }
-.scroll-x::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 9999px;
+.scroll-x::-webkit-scrollbar { height: 0; width: 0; }
+
+/* Same for the strips Tailwind scrolls directly, which never carried .scroll-x
+   and so drew the platform's own bar under every chip row on the page. */
+.overflow-x-auto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-@media (hover: hover) {
-  .scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
-}
+.overflow-x-auto::-webkit-scrollbar { height: 0; }
 
 /* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
 
