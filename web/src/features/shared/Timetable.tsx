@@ -173,8 +173,9 @@ function Grid({ isStaff }: { isStaff: boolean }) {
       )}
 
       {phone ? (
-        <div className="p-3">
+        <div className="px-1 pb-2">
           <DayTimeline
+            bare
             who={title}
             where={view.mode === 'me' ? 'Every period you teach, across all your classes' : 'The whole week for this class'}
             breaks={view.mode !== 'me'}
