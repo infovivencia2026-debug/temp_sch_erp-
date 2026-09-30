@@ -202,6 +202,21 @@ export default function Logins() {
     },
   })
 
+  /* THE TAB COUNTS ARE PEOPLE ON THE ROLL, the same numbers the roll below
+     shows, so a tab and its cards never disagree. */
+  const rollOf = (kind: 'staff' | 'students' | 'guardians') => ({
+    queryKey: ['login-roster', kind, ''],
+    queryFn: () => api.get<{ items: { id: string; guardians?: { id: string }[] }[] }>('/api/v1/setup/logins/roster' + (kind === 'staff' ? '?kind=staff' : '')),
+  })
+  const rollStaff = useQuery(rollOf('staff'))
+  const rollStudents = useQuery(rollOf('students'))
+  const rollGuardians = useQuery(rollOf('guardians'))
+  const rollCount = {
+    staff: rollStaff.data?.items.length,
+    student: rollStudents.data?.items.length,
+    guardian: rollGuardians.data ? new Set(rollGuardians.data.items.flatMap((c) => (c.guardians ?? []).map((g) => g.id))).size : undefined,
+  } as Record<string, number | undefined>
+
   /** Which tile is open, if any: '' | 'can' | 'cannot' | 'live' | 'orphan'. */
   const [tileLens, setTileLens] = useState('')
   /* Opening Parents while "1 cannot sign in" was still held from Staff showed
@@ -339,6 +354,7 @@ export default function Logins() {
           ] as [string, string][]).map(([k, label]) => {
             const everyone = totals.data ?? all
             const n = k === 'sessions' ? null
+              : k && rollCount[k] !== undefined ? rollCount[k]!
               : k ? everyone.filter((u) => u.record === k).length
               : everyone.length
             const on = record === k
@@ -359,8 +375,8 @@ export default function Logins() {
             screens of scrolling before the thing they came to do -- and on a
             tab whose answer is usually "nobody has one yet", the tiles all read
             zero and the roll is the only part worth reading. */}
-        {record === 'student' && <RosterLogins kind="students" />}
-        {record === 'guardian' && <RosterLogins kind="guardians" />}
+        {record === 'student' && <RosterLogins kind="students" signedIn={signedIn} />}
+        {record === 'guardian' && <RosterLogins kind="guardians" signedIn={signedIn} />}
         {/* THE STAFF ROLL, WHICH DID NOT EXIST.
 
             Children and parents were listed from the register; staff were
@@ -368,10 +384,11 @@ export default function Logins() {
             had no login were on no list at all and the tab read "no staff".
             Same component, third audience: the roll first, the issue cards
             underneath it. */}
-        {record === 'staff' && <RosterLogins kind="staff" />}
+        {record === 'staff' && <RosterLogins kind="staff" signedIn={signedIn} />}
         {/* Each tile opens the rows it counts. Pressing the open one again
             closes it, so there is always a way back to the whole list without
             hunting for a separate control that says 'clear'. */}
+        {(record === '' || record === 'none') && (<>
         <CellGrid cols={4}>
           <Stat
             label="Logins"
@@ -423,7 +440,7 @@ export default function Logins() {
               <div className="border-t px-[var(--card-pad)] py-3">
                 <div className="mb-2 flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => printSlips(bulk, 'Logins')}>Print slips</Button>
-                  <Button size="sm" variant="secondary" onClick={() => downloadLogins(bulk, 'logins', record === 'student' ? 'students' : record === 'guardian' ? 'guardians' : 'staff')}>Download CSV</Button>
+                  <Button size="sm" variant="secondary" onClick={() => downloadLogins(bulk, 'logins', 'staff')}>Download CSV</Button>
                   <Button size="sm" variant="ghost" onClick={() => setBulk(null)}>Done</Button>
                 </div>
                 <Table head={['Name', 'Sign in as', 'Password']}>
@@ -436,6 +453,7 @@ export default function Logins() {
             )}
           </Card>
         )}
+        </>)}
 
         {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
