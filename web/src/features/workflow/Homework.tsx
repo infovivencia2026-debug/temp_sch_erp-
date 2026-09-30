@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, ChevronLeft, Clock, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   SkeletonTable, SkeletonTiles, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
@@ -13,7 +13,6 @@ import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDebouncedValue } from '@/lib/debounce'
 
 /* The homework diary, from both ends.
 
@@ -53,17 +52,6 @@ interface Homework {
   my_file_name?: string
 }
 
-interface Filters {
-  kind: string
-  class_id: string
-  section_id: string
-  subject_id: string
-  from: string
-  to: string
-}
-
-const NO_FILTERS: Filters = { kind: '', class_id: '', section_id: '', subject_id: '', from: '', to: '' }
-
 /* How long is left, in the words somebody would use.
 
    "03 Sep 2026" makes a reader do the subtraction, and the thing they are
@@ -85,79 +73,71 @@ function dueSoon(iso: string) {
   return days >= 0 && days <= 3
 }
 
+
+/* THE KINDS OF WORK A TEACHER SETS, one list for the form, the filter and the
+   family's diary. The teacher chooses from these and nothing else, so the
+   parent's filter always matches what was chosen. */
+const WORK_KINDS = [
+  { value: 'homework', label: 'Homework' },
+  { value: 'classwork', label: 'Classwork' },
+  { value: 'assignment', label: 'Assignment' },
+  { value: 'project', label: 'Project' },
+]
+const kindLabel = (k: string) => WORK_KINDS.find((x) => x.value === k)?.label ?? 'Homework'
+
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const addDays = (s: string, n: number) => {
+  const d = new Date(s + 'T00:00:00')
+  d.setDate(d.getDate() + n)
+  return iso(d)
+}
+/** Monday of the week the day falls in. */
+const mondayOf = (s: string) => {
+  const d = new Date(s + 'T00:00:00')
+  return addDays(s, -((d.getDay() + 6) % 7))
+}
+const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 export default function Homework() {
-  const qc = useQueryClient()
-  const [composing, setComposing] = useState(false)
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  /* WHICH ROW IS OPEN IN FULL.
-
-     The list is `max-h-[34rem] overflow-y-auto` with every row truncated to
-     fit, so a task whose title is "complete ex : 4.2 1 to 9 problems" is cut
-     mid-sentence and the instructions under it are never shown at all. That is
-     right for a list — twenty tasks each showing three lines is not a list —
-     but it left nowhere to read the whole thing.
-
-     View opens one row in full: the title unclipped, the instructions the
-     teacher wrote, every worksheet, and what was sent back. */
-  const [viewing, setViewing] = useState<string | null>(null)
-  /* The attachment somebody is reading, if any. Separate from `viewing`, which
-     is the homework row that is expanded — two different "open". */
-  const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
-  // The whole history, as a page of its own.
-  const [showAll, setShowAll] = useState(false)
-
-  /* Filtering happens on the server, and the query key carries the filters so
-     the cache does not serve one narrowing's answer to another's question.
-     The list is capped at a hundred rows there, which is the reason this is
-     not a filter over what has already arrived: narrowing a page that has
-     already dropped the rows being looked for finds nothing and looks like an
-     empty term. */
-  const { data: session } = useQuery({
+  const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
-    queryFn: () =>
-      api.call('GET /session'),
+    queryFn: () => api.call('GET /session'),
   })
+  if (isLoading) return <SkeletonTiles count={4} />
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
+  return <Diary canPublish={canPublish} />
+}
 
-  /* Only the child turns their own work in.
+/* THE FAMILY'S DIARY.
 
-     The screen decided what to show from one flag: if you cannot publish
-     homework you must be a student, so a PARENT was handed a Turn-in button
-     and could mark their child's homework done. The endpoint allowed it too —
-     a guardian has the child in scope — so nothing stopped it.
-
-     A parent needs to see what was set and whether it has been turned in.
-     Doing it for them is not a convenience; it is the one part of homework
-     that only means something if the child did it. */
-
-  /* A teacher's diary is the work that teacher set.
-
-     The list showed everything set for any section the caller touches, and
-     touch is not teach: a head of department who takes one Maths class read a
-     list mostly belonging to the colleagues who share those sections. Opening
-     on your own and widening is the right way round — the whole-section view
-     is what a class teacher and the office want, so it stays one click away
-     rather than being taken off them. */
+   A parent opens homework to answer "what was given today, and is it done".
+   So the page is a week of days across the top, with a dot on every day that
+   has work, the kinds of work as filters under it, and the chosen day's work
+   as cards. The colours are the school's own theme; the kinds are the ones the
+   teacher picked from the list when setting the work. */
+function Diary({ canPublish }: { canPublish: boolean }) {
+  const qc = useQueryClient()
+  const today = iso(new Date())
+  const [day, setDay] = useState(today)
+  const [kind, setKind] = useState('')
+  const [viewing, setViewing] = useState<string | null>(null)
+  const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
+  const [answer, setAnswer] = useState('')
+  const [attached, setAttached] = useState<UploadedFile | null>(null)
+  const [composing, setComposing] = useState(false)
+  /* A teacher opens on the work they set themselves; the whole section is one press away. */
   const [onlyMine, setOnlyMine] = useState(true)
   const mine = canPublish && onlyMine
 
-  // Debounced: the date filters are typed, and each keystroke was a request.
-  const query = useDebouncedValue(
-    new URLSearchParams([
-      ...Object.entries(filters).filter(([, v]) => v !== ''),
-      ...(mine ? [['mine', '1'] as [string, string]] : []),
-    ]).toString(),
-  )
+  const from = mondayOf(day)
+  const to = addDays(from, 6)
+  const week = Array.from({ length: 7 }, (_, i) => addDays(from, i))
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['homework', query],
-    queryFn: () => api.get<List<Homework>>('/api/v1/homework' + (query ? `?${query}` : '')),
+    queryKey: ['homework', 'week', from, mine],
+    queryFn: () => api.get<List<Homework>>(`/api/v1/homework?from=${from}&to=${to}${mine ? '&mine=1' : ''}`),
   })
-
-  /* Which task is open for answering, and what has been written into it. */
-  const [answering, setAnswering] = useState<string | null>(null)
-  const [answer, setAnswer] = useState('')
-  const [attached, setAttached] = useState<UploadedFile | null>(null)
 
   const submit = useMutation({
     mutationFn: (h: Homework) => api.post(`/api/v1/homework/${h.id}/submit`, {
@@ -166,437 +146,202 @@ export default function Homework() {
       file_id: attached?.file_id,
     }),
     onSuccess: () => {
-      setAnswering(null)
       setAnswer('')
       setAttached(null)
-      /* Close the sheet too. Submitting from inside it and being left looking
-         at the form you have just emptied reads as though nothing happened;
-         the list behind now shows the row marked Done, which is the answer. */
       setViewing(null)
       qc.invalidateQueries({ queryKey: ['homework'] })
     },
   })
 
-  if (isLoading) return <SkeletonTiles count={4} />
-  if (error) return <ErrorState error={error} />
-  const items = data?.items ?? []
-  /* More than one child on the list: name the child on every row. */
-  const manyChildren = new Set(items.map((h) => h.student_id).filter(Boolean)).size > 1
-
-  const due = items.filter((h) => !h.overdue)
-  const mineOutstanding = items.filter((h) => !h.submitted && !h.overdue).length
-
-  /* Drawn once, placed on either side of the tiles. */
-  const list = (
-          <Card>
-            <CardHeader
-              /* Not "Diary".
-
-                 The product has a diary — the digital diary a child reads at
-                 home — and this is the homework register on the homework screen.
-                 One word for two things is how a teacher ends up looking for
-                 yesterday's classwork in the wrong place. */
-              title={canPublish ? 'Homework set' : 'Homework you have been set'}
-              action={
-                /* Two choices, both drawn, one selected.
-
-                   It was one button labelled with the state it was already in —
-                   "Only mine" — so the label read as a description and pressing
-                   it did something nobody could predict. What it does and what
-                   it is doing are different questions, and a single toggle
-                   answers whichever one the reader guesses at.
-
-                   Only where there is a distinction to make: a student's list is
-                   their own by definition, and offering to widen it would offer
-                   them somebody else's homework. */
-                canPublish ? (
-                  <span className="flex items-center gap-2">
-                    <span className="text-[13px] text-muted-foreground">
-                      {items.length} showing
-                    </span>
-                    <span className="flex overflow-hidden rounded-sm border">
-                      <Button
-                        size="sm"
-                        variant={mine ? 'primary' : 'ghost'}
-                        onClick={() => setOnlyMine(true)}
-                        title="Only the homework you set yourself"
-                      >
-                        Set by me
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={!mine ? 'primary' : 'ghost'}
-                        onClick={() => setOnlyMine(false)}
-                        title="Everything set for these sections, by any teacher"
-                      >
-                        Set by anyone
-                      </Button>
-                    </span>
-                  </span>
-                ) : undefined
-              }
-            />
-            {items.length === 0 ? (
-              <EmptyState
-                title="Nothing set"
-                body={
-                  canPublish
-                    ? 'Homework you publish appears here, with a running count of who has submitted.'
-                    : 'When a teacher sets work it shows up here and in your parents’ portal.'
-                }
-              />
-            ) : (
-              /* A term is a few hundred rows. Left to grow, the list runs past
-                 the filters above it, and the filters are what somebody came
-                 back to the top for. */
-              /* Capped, with a way past the cap.
-
-                 Every day adds a row and nothing ever leaves, so by the third
-                 week the card was longer than the screen and the page below it
-                 — the stats, the filters, anything else on the screen — had been
-                 pushed out of reach by a list nobody was reading to the end of.
-                 Six rows is a fortnight of homework at the rate a section
-                 actually gets it; the rest is one press away and opens as its
-                 own scrolling page. */
-              <>
-              <ul className="space-y-3 p-4">
-                {(showAll ? items : items.slice(0, 6)).map((h) => (
-                  <li
-                    key={rowKey(h)}
-                    className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-[var(--lift-float)]"
-                  >
-                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* The subject as a chip, because it is the first thing
-                            scanned for and was reading as part of the title. */}
-                        {h.subject && (
-                          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
-                            {h.subject}
-                          </span>
-                        )}
-                        <span className="text-[15px] font-semibold">{h.title}</span>
-                        {manyChildren && h.student_name && (
-                          <span className="rounded-md bg-accent px-2 py-0.5 text-[12px] font-semibold text-foreground">
-                            {h.student_name}
-                          </span>
-                        )}
-                      </div>
-                      {h.instructions && (
-                        <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>
-                      )}
-                      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-                        {h.class_name && (
-                          <span>
-                            {h.class_name}
-                            {h.section_name && `-${h.section_name}`}
-                          </span>
-                        )}
-                        {h.teacher && <><span aria-hidden>·</span><span>set by {h.teacher}</span></>}
-                        <span aria-hidden>·</span>
-                        {/* The state, not the arithmetic. A date leaves the
-                            reader to work out whether it has passed; a teacher
-                            scanning fifteen rows should not have to. */}
-                        {h.due_on ? (
-                          <span
-                            className={cn(
-                              'font-medium',
-                              h.overdue ? 'text-destructive' : dueSoon(h.due_on) ? 'text-warning' : '',
-                            )}
-                          >
-                            {h.overdue
-                              ? `Overdue, was due ${formatDate(h.due_on)}`
-                              : `${dueIn(h.due_on)} (${formatDate(h.due_on)})`}
-                          </span>
-                        ) : (
-                          <span>no due date</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      {/* ONE BUTTON, AND A FIGURE THAT IS NOT ONE.
-
-                          The row carried two bordered buttons of equal weight —
-                          "View" and "14/32 submitted" — so a count sat there
-                          looking like a control, and the eye had to choose
-                          between two things that were not alternatives. The
-                          count is a fact and is now written as one; Open is the
-                          only thing to press. The register it used to lead to is
-                          on the sheet Open shows, which is where somebody asking
-                          "who has not done it" was going anyway. */}
-                      {canPublish ? (
-                        <span
-                          className={cn(
-                            'rounded-lg bg-muted px-3 py-1.5 text-[13px] font-medium tabular-nums',
-                            h.submissions === 0
-                              ? 'text-muted-foreground'
-                              : h.submissions >= h.strength
-                                ? 'text-success'
-                                : 'text-foreground',
-                          )}
-                        >
-                          <Users className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
-                          {h.submissions} / {h.strength} turned in
-                        </span>
-                      ) : h.submitted ? (
-                        /* "Done", matching the button that gets you here. A
-                           child who presses Done and is then told "Turned in"
-                           has to work out that those are the same word. */
-                        <Badge tone="success">
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Done
-                        </Badge>
-                      ) : (
-                        /* The child, or the family on their behalf.
-
-                           A parent used to see the state and nothing else, on
-                           the grounds that handing work in for a child is not a
-                           convenience. True, and it did not stop the work being
-                           done for them — it stopped it being handed in, from a
-                           house where the phone belongs to a parent and the
-                           nine-year-old has no login. The row records who
-                           submitted, so a teacher can still tell. */
-                        <span className="flex items-center gap-2">
-                          {h.overdue && !h.submitted && <Badge tone="danger">Overdue</Badge>}
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setAnswering(answering === rowKey(h) ? null : rowKey(h))
-                              setAnswer('')
-                              setAttached(null)
-                            }}
-                          >
-                            <Send className="h-3.5 w-3.5" />
-                            {answering === rowKey(h) ? 'Close' : 'Done'}
-                          </Button>
-                        </span>
-                      )}
-                      {/* The one control on the row. It opens the sheet: the
-                          question in full, the worksheet, and — for whoever set
-                          it — the register naming who has turned it in. */}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setViewing(viewing === rowKey(h) ? null : rowKey(h))}
-                      >
-                        {viewing === rowKey(h)
-                          ? 'Close'
-                          : canPublish ? 'View submissions' : 'Open'}
-                      </Button>
-                    </div>
-                   </div>
-                    {/* The worksheet the teacher set.
-
-                        homework_attachments existed from the first migration and
-                        nothing ever wrote to it, so "here is the sheet" — which
-                        is most of what setting homework means — had nowhere to
-                        live. */}
-                    {!!h.files?.length && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {/* Opened, not downloaded. Checking that the worksheet
-                            you attached is the right one should not mean going
-                            to a Downloads folder to find out, and a parent on a
-                            phone should not have to save a school record to read
-                            one line of it. Download is still there, inside. */}
-                        {h.files.map((f) => (
-                          <button
-                            key={f.file_id}
-                            type="button"
-                            onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-primary/20"
-                          >
-                            <Paperclip className="h-3.5 w-3.5" />
-                            {f.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* What this child turned in, once they have. */}
-                    {h.submitted && (h.my_answer || h.my_file_id) && (
-                      <div className="mt-3 border-t pt-3 text-[13px]">
-                        <p className="text-muted-foreground">What you sent</p>
-                        {h.my_answer && <p className="mt-1 whitespace-pre-wrap">{h.my_answer}</p>}
-                        {h.my_file_id && (
-                          <button
-                            type="button"
-                            onClick={() => setViewFile({
-                              file_id: h.my_file_id!, name: h.my_file_name ?? 'your file',
-                            })}
-                            className="mt-1 inline-flex items-center gap-1.5 text-primary"
-                          >
-                            <Paperclip className="h-3.5 w-3.5" />
-                            {h.my_file_name ?? 'your file'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Answering it.
-
-                        This used to post the literal word "Submitted". The child
-                        pressed a button and the system recorded that they had
-                        pressed it — nothing they wrote, nothing they photographed,
-                        nothing a teacher could mark. */}
-                    {answering === rowKey(h) && (
-                      <div className="mt-3 border-t pt-4">
-                        <label className="flex flex-col gap-1.5 text-[13px]">
-                          <span className="text-muted-foreground">Your answer</span>
-                          <Textarea
-                            value={answer}
-                            onChange={setAnswer}
-                            rows={4}
-                            placeholder="Type your answer, or attach a photo of the page below."
-                          />
-                        </label>
-                        <div className="mt-3 max-w-sm">
-                          <FilePicker
-                            value={attached}
-                            onChange={setAttached}
-                            purpose="homework_submission"
-                            label="Attach your work"
-                            hint="A photo of the page is fine."
-                          />
-                        </div>
-                        <FormNotice error={submit.error} />
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Button
-                            disabled={submit.isPending || (!answer.trim() && !attached)}
-                            onClick={() => submit.mutate(h)}
-                          >
-                            {submit.isPending ? 'Turning in…' : 'Turn it in'}
-                          </Button>
-                          <Button variant="ghost" onClick={() => setAnswering(null)}>Cancel</Button>
-                          {!answer.trim() && !attached && (
-                            <span className="text-[12.5px] text-muted-foreground">
-                              Write something or attach a page &mdash; an empty submission
-                              tells your teacher nothing.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                  </li>
-                ))}
-              </ul>
-              {items.length > 6 && !showAll && (
-                /* The rest of the history, without it sitting on the page. */
-                <button
-                  type="button"
-                  onClick={() => setShowAll(true)}
-                  className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
-                >
-                  Show all {items.length}, including {items.length - 6} older
-                </button>
-              )}
-              </>
-            )}
-            {/* THE WHOLE TASK, NEARLY FULL SCREEN.
-
-                It was an inline panel under its own row, which kept the list in
-                view and made the thing you opened compete with it for width. A
-                worksheet title, the instructions and three attachments do not
-                read well in a 34rem box that is already scrolling.
-
-                A sheet at 94vw by 92vh instead, with the two controls a person
-                actually wants there: Back to the list, and Done to hand the work
-                in without going back for it. Escape closes it and the page
-                behind is scroll-locked, so a phone does not lose its place. */}
-            {viewing && (() => {
-              const h = items.find((x) => rowKey(x) === viewing)
-              if (!h) return null
-              return (
-                <HomeworkSheet
-                  h={h}
-                  onViewFile={setViewFile}
-                  showRegister={canPublish}
-                  canSubmit={!canPublish && !h.submitted}
-                  pending={submit.isPending}
-                  error={submit.error}
-                  answer={answer}
-                  onAnswer={setAnswer}
-                  attached={attached}
-                  onAttach={setAttached}
-                  onSubmit={() => submit.mutate(h)}
-                  onClose={() => setViewing(null)}
-                />
-              )
-            })()}
-
-            {submit.isError && (
-              <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
-                {submit.error instanceof Error ? submit.error.message : 'Could not submit'}
-              </p>
-            )}
-          </Card>
-  )
+  const all = data?.items ?? []
+  const onDay = all.filter((h) => h.assigned_on.slice(0, 10) === day)
+  const shown = kind ? onDay.filter((h) => h.kind === kind) : onDay
+  const hasWork = new Set(all.map((h) => h.assigned_on.slice(0, 10)))
+  const manyChildren = new Set(all.map((h) => h.student_id).filter(Boolean)).size > 1
+  const count = (k: string) => onDay.filter((h) => h.kind === k).length
+  const dayTitle = new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
 
   return (
     <>
       {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
       <PageHead
         eyebrow="Homework & diary"
-        title={canPublish ? 'Work you have set' : 'Your homework'}
-        description={
-          canPublish
-            ? 'Published straight to the class and their parents. Submission counts update as they come in.'
-            : 'Everything set for your class, newest first.'
-        }
-        actions={
-          canPublish && (
-            <Button onClick={() => setComposing((c) => !c)}>
-              <Plus className="h-3.5 w-3.5" />
-              {composing ? 'Close' : 'Set homework'}
-            </Button>
-          )
-        }
+        title={canPublish ? 'Work you have set' : 'School diary'}
+        description={canPublish
+          ? 'Published straight to the class and their parents. Pick a day to see what was set and who has turned it in.'
+          : 'The work set for each day, and whether it has been done.'}
+        actions={canPublish && (
+          <Button onClick={() => setComposing((c) => !c)}>
+            <Plus className="h-3.5 w-3.5" />
+            {composing ? 'Close' : 'Set homework'}
+          </Button>
+        )}
       />
       <PageBody>
-        {/* THE HOMEWORK FIRST, FOR WHOEVER CAME TO READ IT.
-
-            A parent opens this to answer one question -- what is due -- and
-            met three summary tiles and a filter bar before the first line of
-            it, which on a phone is most of a screen of scrolling to reach the
-            thing they came for. The counts are a glance, not an errand, so for
-            a parent or a child they now sit under the list.
-
-            A teacher keeps the old order deliberately. Theirs is a working
-            screen: Set homework and the filters are what they came to use, and
-            the list is what they check afterwards. */}
-        {!canPublish && list}
-
-        <CellGrid cols={3}>
-          <Stat label="Open" value={due.length} icon={BookOpen} />
-          <Stat label="Overdue" value={items.length - due.length} icon={Clock} />
-          {canPublish ? (
-            <Stat
-              label="Submissions"
-              value={items.reduce((n, h) => n + h.submissions, 0)}
-              hint="Across everything you have set"
-            />
-          ) : (
-            <Stat
-              label="Not yet turned in"
-              value={mineOutstanding}
-              delta={{ value: mineOutstanding === 0 ? 'All done' : 'Still owing', positive: mineOutstanding === 0 }}
-            />
-          )}
-        </CellGrid>
-
         {composing && <Compose canPublish={canPublish} onClose={() => setComposing(false)} />}
+        {canPublish && (
+          <div className="flex items-center justify-end">
+            <span className="flex overflow-hidden rounded-sm border">
+              <Button size="sm" variant={mine ? 'primary' : 'ghost'} onClick={() => setOnlyMine(true)} title="Only the work you set yourself">Set by me</Button>
+              <Button size="sm" variant={!mine ? 'primary' : 'ghost'} onClick={() => setOnlyMine(false)} title="Everything set for these sections, by any teacher">Set by anyone</Button>
+            </span>
+          </div>
+        )}
+        <Card>
+          {/* The week, one day to press. */}
+          <div className="flex items-center gap-1 px-2 py-3">
+            <button type="button" aria-label="Previous week" onClick={() => setDay(addDays(from, -7))}
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex flex-1 justify-between gap-1 overflow-x-auto">
+              {week.map((d) => {
+                const active = d === day
+                const dt = new Date(d + 'T00:00:00')
+                return (
+                  <button key={d} type="button" onClick={() => setDay(d)} aria-pressed={active}
+                    className={cn(
+                      'flex min-w-[44px] flex-1 flex-col items-center rounded-lg border px-1 py-2 transition-colors',
+                      active ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-muted',
+                    )}>
+                    <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary-foreground' : 'text-muted-foreground')}>
+                      {WEEKDAY[dt.getDay()]}
+                    </span>
+                    <span className="mt-0.5 text-[16px] font-bold tabular-nums">{dt.getDate()}</span>
+                    <span className={cn('mt-1 h-1.5 w-1.5 rounded-full',
+                      hasWork.has(d) ? (active ? 'bg-primary-foreground' : 'bg-primary') : 'bg-transparent')} />
+                  </button>
+                )
+              })}
+            </div>
+            <button type="button" aria-label="Next week" onClick={() => setDay(addDays(from, 7))}
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+              <ChevronLeft className="h-4 w-4 rotate-180" />
+            </button>
+          </div>
+          {day !== today && (
+            <button type="button" onClick={() => setDay(today)}
+              className="w-full border-t px-4 py-2 text-left text-[12.5px] font-medium text-primary hover:bg-muted/40">
+              Back to today
+            </button>
+          )}
+        </Card>
 
-        <FilterBar
-          canPublish={canPublish}
-          value={filters}
-          onChange={setFilters}
-        />
+        {/* The kinds of work, as the teacher chose them. */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[{ value: '', label: 'All' }, ...WORK_KINDS].map((k) => {
+            const n = k.value ? count(k.value) : onDay.length
+            const active = kind === k.value
+            return (
+              <button key={k.value || 'all'} type="button" onClick={() => setKind(k.value)} aria-pressed={active}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[12.5px] font-semibold transition-colors',
+                  active ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+                )}>
+                {k.label} ({n})
+              </button>
+            )
+          })}
+        </div>
 
-        {canPublish && list}
+        <p className="text-[14px] font-semibold">
+          {dayTitle}{day === today ? ' (today)' : ''}
+          <span className="ml-2 font-normal text-muted-foreground">
+            {shown.length === 0 ? 'nothing set' : `${shown.length} ${shown.length === 1 ? 'task' : 'tasks'}`}
+          </span>
+        </p>
+
+        {isLoading ? <SkeletonTiles count={3} /> : error ? <ErrorState error={error} /> : shown.length === 0 ? (
+          <Card>
+            <EmptyState
+              title={kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day'}
+              body={canPublish ? 'Press Set homework to give this class some work. Days with work have a dot under the date.' : 'Days with work have a dot under the date.'}
+            />
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {shown.map((h) => (
+              <article key={rowKey(h)} className="rounded-xl border bg-card p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Badge>{kindLabel(h.kind)}</Badge>
+                    {h.subject && <span className="text-[12.5px] font-semibold text-primary">{h.subject}</span>}
+                    {manyChildren && h.student_name && (
+                      <span className="rounded-md bg-accent px-2 py-0.5 text-[12px] font-semibold">{h.student_name}</span>
+                    )}
+                  </div>
+                  {canPublish ? (
+                    <span className={cn('shrink-0 rounded-md bg-muted px-2 py-0.5 text-[12px] font-medium tabular-nums',
+                      h.submissions === 0 ? 'text-muted-foreground' : h.submissions >= h.strength ? 'text-success' : 'text-foreground')}>
+                      <Users className="mr-1 inline h-3 w-3 align-[-2px]" aria-hidden />{h.submissions} / {h.strength} turned in
+                    </span>
+                  ) : h.submitted ? (
+                    <Badge tone="success"><CheckCircle2 className="mr-1 h-3 w-3" />Done</Badge>
+                  ) : h.due_on ? (
+                    <Badge tone={h.overdue ? 'danger' : dueSoon(h.due_on) ? 'warning' : 'neutral'}>
+                      {h.overdue ? `Overdue, due ${formatDate(h.due_on)}` : dueIn(h.due_on)}
+                    </Badge>
+                  ) : null}
+                </div>
+                <h3 className="mt-2 text-[15px] font-semibold leading-snug">{h.title}</h3>
+                {h.instructions && <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>}
+                {!!h.files?.length && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {h.files.map((f) => (
+                      <button key={f.file_id} type="button" onClick={() => setViewFile({ file_id: f.file_id, name: f.name })}
+                        className="inline-flex max-w-full items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-[12px] hover:bg-muted">
+                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
+                  <span className="text-[12px] text-muted-foreground">
+                    {canPublish
+                      ? [h.class_name && `${h.class_name}${h.section_name ? '-' + h.section_name : ''}`, h.due_on && (h.overdue ? `was due ${formatDate(h.due_on)}` : dueIn(h.due_on))].filter(Boolean).join(' · ')
+                      : h.teacher ? `Set by ${h.teacher}` : ''}
+                  </span>
+                  <div className="flex gap-2">
+                    {!canPublish && !h.submitted && (
+                      <Button size="sm" variant="secondary" onClick={() => { setAnswer(''); setAttached(null); setViewing(rowKey(h)) }}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Done
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => setViewing(rowKey(h))}>{canPublish ? 'View submissions' : 'Open'}</Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {viewing && (() => {
+          const h = all.find((x) => rowKey(x) === viewing)
+          if (!h) return null
+          return (
+            <HomeworkSheet
+              h={h}
+              onViewFile={setViewFile}
+              showRegister={canPublish}
+              canSubmit={!canPublish && !h.submitted}
+              pending={submit.isPending}
+              error={submit.error}
+              answer={answer}
+              onAnswer={setAnswer}
+              attached={attached}
+              onAttach={setAttached}
+              onSubmit={() => submit.mutate(h)}
+              onClose={() => setViewing(null)}
+            />
+          )
+        })()}
       </PageBody>
     </>
   )
 }
+
+
 
 /**
  * Setting work.
@@ -869,6 +614,13 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
         }}
       >
         <FormGrid>
+          <Field label="Type of work" required hint="Parents filter the diary by this.">
+            <Select
+              value={f.kind}
+              onChange={(x) => setF({ ...f, kind: x })}
+              options={WORK_KINDS}
+            />
+          </Field>
           <Field label="Section" required>
             <Select
               value={f.section_id}
@@ -888,7 +640,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
               options={(subjects?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
           </Field>
-          <Field label="What to do" required wide>
+          <Field label="Name of the work" required wide>
             <Input
               value={f.title}
               onChange={(x) => setF({ ...f, title: x })}
@@ -917,23 +669,6 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
               label="Attach the sheet"
             />
           </Field>
-          <Field label="Kind">
-            <Select
-              value={f.kind}
-              onChange={(x) => setF({ ...f, kind: x })}
-              /* 'notice' was offered here and the homework table's CHECK
-                 constraint does not allow it, so choosing "Diary note" failed
-                 the insert. Classwork was missing and is the entry a teacher
-                 makes most days — the diary is now this list rather than a
-                 separate screen, which is the other half of the same fix. */
-              options={[
-                { value: 'homework', label: 'Homework' },
-                { value: 'classwork', label: 'Classwork (today’s diary)' },
-                { value: 'assignment', label: 'Assignment' },
-                { value: 'project', label: 'Project' },
-              ]}
-            />
-          </Field>
         </FormGrid>
         <FormNotice error={publish.error} />
         <div className="mt-4 flex items-center gap-2">
@@ -953,115 +688,6 @@ function tomorrow() {
   const d = new Date()
   d.setDate(d.getDate() + 1)
   return d.toISOString().slice(0, 10)
-}
-
-/**
- * Narrowing the diary.
- *
- * Six filters, all optional, all applied by the server. A teacher with five
- * sections and three subjects sets a few hundred tasks a term and was shown
- * the most recent hundred of all of them together; "Class 8B, maths, this
- * week" is how anybody actually looks for one.
- *
- * A family gets the date range and nothing else. Class, section and subject
- * are lists of the school's own records, which is staff data, and a child has
- * exactly one section anyway — the filter would narrow a list to itself.
- */
-function FilterBar({
-  canPublish,
-  value,
-  onChange,
-}: {
-  canPublish: boolean
-  value: Filters
-  onChange: (f: Filters) => void
-}) {
-  const { data: sections } = useQuery({
-    queryKey: ['sections', 'mine'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
-    enabled: canPublish,
-  })
-  const { data: subjects } = useQuery({
-    queryKey: ['subjects','mine'],
-    /* What this person can actually set, not the whole prospectus. A Maths
-       teacher offered Sanskrit is offered a filter that only ever returns
-       nothing; a class teacher still gets every subject their section takes,
-       because they answer for the whole diary. */
-    queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects?mine=true'),
-    enabled: canPublish,
-  })
-
-  const set = (k: keyof Filters) => (v: string) => onChange({ ...value, [k]: v })
-  const active = Object.values(value).some((v) => v !== '')
-
-  return (
-    <Card>
-      <CardHeader
-        title="Find"
-        description="Every box is optional. Leave them all blank for everything."
-      />
-      <div className="px-5 pb-5 pt-4">
-        <FormGrid>
-          <Field label="Kind">
-            <Select
-              value={value.kind}
-              onChange={set('kind')}
-              placeholder="Any kind"
-              options={[
-                { value: '', label: 'Any kind' },
-                { value: 'homework', label: 'Homework' },
-                { value: 'classwork', label: 'Classwork' },
-                { value: 'assignment', label: 'Assignment' },
-                { value: 'project', label: 'Project' },
-              ]}
-            />
-          </Field>
-          {canPublish && (
-            <>
-              <Field label="Class and section">
-                <Select
-                  value={value.section_id}
-                  onChange={set('section_id')}
-                  placeholder="Any section"
-                  options={[
-                    { value: '', label: 'Any section' },
-                    ...(sections?.items ?? []).map((x) => ({
-                      value: x.id,
-                      label: `${x.class_name}-${x.name}`,
-                    })),
-                  ]}
-                />
-              </Field>
-              <Field label="Subject">
-                <Select
-                  value={value.subject_id}
-                  onChange={set('subject_id')}
-                  placeholder="Any subject"
-                  options={[
-                    { value: '', label: 'Any subject' },
-                    ...(subjects?.items ?? []).map((x) => ({ value: x.id, label: x.name })),
-                  ]}
-                />
-              </Field>
-            </>
-          )}
-          <Field label="Set on or after">
-            <Input type="date" value={value.from} onChange={set('from')} />
-          </Field>
-          <Field label="Set on or before">
-            <Input type="date" value={value.to} onChange={set('to')} />
-          </Field>
-        </FormGrid>
-        {active && (
-          <div className="mt-3">
-            <Button size="sm" variant="ghost" onClick={() => onChange(NO_FILTERS)}>
-              Clear filters
-            </Button>
-          </div>
-        )}
-      </div>
-    </Card>
-  )
 }
 
 /**

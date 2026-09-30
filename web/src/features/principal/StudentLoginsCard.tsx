@@ -51,12 +51,12 @@ export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'gu
     ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'Account ID', 'First password']
     : kind === 'guardians'
     ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'Account ID', 'First password']
-    : ['Name', 'Sign in as', 'Account ID', 'First password']
+    : ['Staff code', 'Name', 'Designation', 'Department', 'Sign in as', 'Account ID', 'First password']
   const cells = (r: Row) => kind === 'students'
     ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
     : kind === 'guardians'
     ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
-    : [r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
+    : [r.admission_no, r.name, r.class_name, r.section_name, r.sign_in_as, r.login_code, passwordOrNote(r)]
   const lines = [head.map(csvCell).join(',')]
   for (const r of rows) lines.push(cells(r).map(csvCell).join(','))
   // The BOM is what makes Excel read the file as UTF-8 rather than mangling it.

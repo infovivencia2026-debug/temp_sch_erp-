@@ -990,7 +990,49 @@ export function registerStaff(r: Router): void {
 
   r.get('/setup/logins/roster', 'auth', async (c) => {
     requireInstitution(c)
-    if (!can(c.id, 'students.write')) throw forbidden('missing permission: reading the login roster')
+    /* STAFF ARE A ROLL TOO.
+
+       This route answered only for children and their guardians, so the Staff
+       tab of Logins & access had no list behind it at all -- a school with
+       twenty teachers on the books read as a school with none, and the two
+       issue cards underneath were the only way to reach anybody.
+
+       Staff belong to no class, so there is nothing to narrow by: the whole
+       roll comes back, ordered as the staff register orders it. Designation
+       and department ride in the columns a child uses for class and section,
+       because they answer the same question -- where in the school is this
+       person -- and the screen then needs no second shape for them.
+
+       Its own permission, because a head of HR holds hr.employees.* and not
+       students.write, and had no business being refused their own staff. */
+    const rollKind = trim(c.url.searchParams.get('kind')) === 'staff' ? 'staff' : 'students'
+    if (!can(c.id, rollKind === 'staff' ? 'hr.employees.read' : 'students.write')) {
+      throw forbidden('missing permission: reading the login roster')
+    }
+    if (rollKind === 'staff') {
+      const staffCap = clampInt(c.url.searchParams.get('limit'), 500, 1, 2000)
+      const staff = await c.db.prepare(`
+        SELECT emp.id, TRIM(emp.first_name || ' ' || COALESCE(emp.last_name, '')) AS name,
+               COALESCE(emp.employee_code, '') AS admission_no,
+               COALESCE(d.name, '') AS class_name, COALESCE(dept.name, '') AS section_name,
+               COALESCE(eu.username, eu.phone, eu.email, '') AS sign_in,
+               COALESCE(eu.login_code, '') AS login_code,
+               COALESCE((eu.password_hash IS NOT NULL AND eu.status = 'active'), 0) AS usable
+          FROM employees emp
+          LEFT JOIN users eu ON eu.id = emp.user_id
+          LEFT JOIN designations d ON d.id = emp.designation_id
+          LEFT JOIN departments dept ON dept.id = emp.department_id
+         WHERE emp.status = 'active'
+         ORDER BY emp.employee_code
+         LIMIT ?`).bind(staffCap).all<Record<string, unknown>>()
+      return ok({ items: staff.results.map((r) => ({
+        id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
+        class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
+        has_login: bool(r.usable), sign_in_as: String(r.sign_in ?? ''),
+        login_code: String(r.login_code ?? ''), guardians: [],
+      })) })
+    }
+
     const q = c.url.searchParams
     const section = isUUID(trim(q.get('section_id'))) ? trim(q.get('section_id')) : null
     const classId = isUUID(trim(q.get('class_id'))) ? trim(q.get('class_id')) : null

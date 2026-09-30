@@ -313,12 +313,51 @@ export function registerAdminUsers(r: Router): void {
     const searchArg = search ? like(search) : null
     const rows = await c.db.prepare(`
       SELECT u.id, u.full_name, u.email, u.phone, u.status, u.mfa_secret IS NOT NULL AS mfa, u.last_login_at,
+             /* What they actually type, and the ten characters that never
+                change. A password cannot be read back; the account id always
+                can, which is what makes it the thing to quote on the phone. */
+             COALESCE(u.username, u.phone, u.email, '') AS sign_in_as,
+             COALESCE(u.login_code, '') AS login_code,
              CASE WHEN EXISTS (SELECT 1 FROM employees e WHERE e.user_id = u.id) THEN 'staff'
                   WHEN EXISTS (SELECT 1 FROM students st WHERE st.user_id = u.id) THEN 'student'
                   WHEN EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = u.id) THEN 'guardian' ELSE 'none' END AS record
         FROM users u WHERE ${USER_FILTER} ORDER BY u.full_name LIMIT ?3 OFFSET ?4`).bind(status, searchArg, pageSize, offset)
-      .all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; mfa: number; last_login_at: string | null; record: string }>()
+      .all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; mfa: number; last_login_at: string | null; record: string; sign_in_as: string; login_code: string }>()
     const ids = rows.results.map((u) => u.id)
+    /* WHOSE PARENT THIS IS, AND WHICH CLASS THEY ARE IN.
+
+       The list named the grown-up and stopped: six rows reading "Suresh
+       Sharma, Guardian, active" with nothing to tell them apart but a phone
+       number. A parent is known at a school by their child, so the child's
+       name, class and section travel with the row -- and for a child's own
+       account, their own class. A parent of two children carries both.
+
+       One query for the whole page rather than one per row, and only for the
+       ids actually on it. */
+    const placed = ids.length ? await c.db.prepare(`
+      SELECT g.user_id AS uid,
+             group_concat(TRIM(st.first_name || ' ' || COALESCE(st.last_name, '')) ||
+               COALESCE(' · ' || cl.name, '') || COALESCE('-' || sec.name, ''), '; ') AS about
+        FROM guardians g
+        JOIN student_guardians sg ON sg.guardian_id = g.id
+        JOIN students st ON st.id = sg.student_id AND st.status = 'active'
+        LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+        LEFT JOIN classes cl ON cl.id = e.class_id
+        LEFT JOIN sections sec ON sec.id = e.section_id
+       WHERE g.user_id IN ${inList(ids).sql}
+       GROUP BY g.user_id
+       UNION ALL
+      SELECT st.user_id AS uid,
+             COALESCE(cl.name, '') || COALESCE('-' || sec.name, '') AS about
+        FROM students st
+        LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+        LEFT JOIN classes cl ON cl.id = e.class_id
+        LEFT JOIN sections sec ON sec.id = e.section_id
+       WHERE st.user_id IN ${inList(ids).sql}`)
+      .bind(...inList(ids).args, ...inList(ids).args).all<{ uid: string; about: string }>() : { results: [] as { uid: string; about: string }[] }
+    const aboutBy = new Map<string, string>()
+    for (const a of placed.results) if (a.uid && String(a.about ?? '').trim() !== '') aboutBy.set(String(a.uid), String(a.about))
+
     const roleRows = ids.length ? await c.db.prepare(`SELECT ur.user_id, ro.name, ro.key FROM user_roles ur JOIN roles ro ON ro.id = ur.role_id WHERE ur.user_id IN ${inList(ids).sql} ORDER BY ro.name`)
       .bind(JSON.stringify(ids)).all<{ user_id: string; name: string; key: string }>() : { results: [] as { user_id: string; name: string; key: string }[] }
     const roles = new Map<string, { names: Set<string>; keys: Set<string> }>()
@@ -334,6 +373,8 @@ export function registerAdminUsers(r: Router): void {
         id: u.id, full_name: u.full_name, email: u.email ?? undefined, phone: u.phone ?? undefined, status: u.status, mfa_enabled: !!u.mfa,
         last_login_at: u.last_login_at ?? undefined, roles: [...(roles.get(u.id)?.names ?? [])].sort(), role_keys: [...(roles.get(u.id)?.keys ?? [])].sort(),
         institution: instName, active_sessions: sessions.get(u.id) ?? 0, record: u.record,
+        about: aboutBy.get(u.id) ?? '',
+        sign_in_as: u.sign_in_as ?? '', login_code: u.login_code ?? '',
       })),
       total: total?.n ?? offset + rows.results.length,
     })
