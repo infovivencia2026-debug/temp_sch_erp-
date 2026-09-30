@@ -175,6 +175,30 @@ export default function Logins() {
     },
   })
 
+  /* WHAT THE TABS COUNT.
+
+     They counted the rows the search had left, so typing three letters turned
+     "Everyone 179 · Staff 21 · Students 84 · Parents 74" into "Everyone 4 ·
+     Staff 1 · Students 2 · Parents 1" -- which reads as a school that has lost
+     its people, not as a search that found four. A tab count answers "how many
+     are there", and that question does not change while somebody types.
+
+     So it has a query of its own, with no q and no status on it, cached under
+     its own key and asked once. The table below still shows exactly what the
+     filters leave. */
+  const totals = useQuery({
+    queryKey: ['school-logins-totals'],
+    queryFn: async () => {
+      const items: AdminUser[] = []
+      for (let offset = 0; ; offset += 200) {
+        const page = await api.get<List<AdminUser>>(`/api/v1/admin/users?limit=200&offset=${offset}`)
+        items.push(...(page.items ?? []))
+        if ((page.items?.length ?? 0) < 200) break
+      }
+      return items
+    },
+  })
+
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
@@ -227,7 +251,9 @@ export default function Logins() {
     : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
   const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
-  const orphans = all.filter((u) => u.record === 'none' && u.status === 'active')
+  /* Whether the tab exists at all is the school's business too, not the
+     search box's: it blinked out of the strip while somebody typed. */
+  const orphans = (totals.data ?? all).filter((u) => u.record === 'none' && u.status === 'active')
 
   return (
     <>
@@ -267,7 +293,10 @@ export default function Logins() {
                now their own tab. */
             ['sessions', 'Sessions & security'] as [string, string],
           ] as [string, string][]).map(([k, label]) => {
-            const n = k === 'sessions' ? null : k ? all.filter((u) => u.record === k).length : all.length
+            const everyone = totals.data ?? all
+            const n = k === 'sessions' ? null
+              : k ? everyone.filter((u) => u.record === k).length
+              : everyone.length
             const on = record === k
             return (
               <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => setRecord(k)}
