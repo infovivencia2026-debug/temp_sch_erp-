@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type TimetableEntry } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTable, ErrorState, tabClass } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTable, ErrorState, tabClass, PageBody } from '@/components/ui'
 import { Printer } from 'lucide-react'
 import { printDocument } from '@/lib/print'
 import { WEEKDAYS } from '@/lib/utils'
@@ -51,6 +51,11 @@ export default function Timetable() {
       ]
     : [{ id: 'grid', label: isStaff ? 'My week' : 'My week' }]
   return (
+    /* The page gutter. Without it this screen's card began at the exact
+       pixel the sidebar ended and ran to the window's edge on the right.
+       Every other screen gets it from PageBody; the ones built out of a
+       bare Card never did. */
+    <PageBody>
     <Card>
       <CardHeader title="Timetable" />
       <div className={cn('flex gap-1 border-b px-3 pt-2', tabs.length === 1 && 'hidden')}>
@@ -69,6 +74,7 @@ export default function Timetable() {
       </div>
       {tabId === 'grid' || !mayPlan ? <Grid isStaff={isStaff} /> : <Workload />}
     </Card>
+    </PageBody>
   )
 }
 
