@@ -254,7 +254,8 @@ export function printFeeStatement(v: StatementInput) {
 
   const doc = '<!doctype html><html><head><meta charset="utf-8">'
     + '<title>Fee statement ' + DASH + ' ' + esc(v.student.name) + '</title>'
-    + '<style>' + CSS + '</style></head><body><div class="sheet">'
+    /* The statement opens in its own tab; the tab had no way back to the app. */
+    + '<style>' + CSS + '.erp-back{position:fixed;top:12px;left:12px;z-index:9;padding:8px 14px;border:1px solid #ccc;border-radius:999px;background:#fff;font:600 14px system-ui;cursor:pointer}@media print{.erp-back{display:none}}</style></head><body><button class="erp-back" onclick="window.close();setTimeout(function(){history.length>1?history.back():location.href=\x27/\x27},200)">← Back</button><div class="sheet">'
     + '<header>' + logo + '<div class="sch"><h1>' + esc(v.school.name) + '</h1><div class="sub">'
     + (v.school.affiliation ? esc(v.school.affiliation) + '<br>' : '')
     + (v.school.address ? esc(v.school.address) + '<br>' : '')
@@ -320,6 +321,8 @@ export function printFeeStatement(v: StatementInput) {
   w.document.write(doc)
   w.document.close()
   w.focus()
+  /* Printed or cancelled: the tab closes and they are back where they pressed Print. */
+  w.addEventListener('afterprint', () => { try { w.close() } catch { /* already closed */ } })
 
   /* The logo and the QR are images, and printing before they decode prints
      their alt text into the letterhead. Waiting for load covers it; the
