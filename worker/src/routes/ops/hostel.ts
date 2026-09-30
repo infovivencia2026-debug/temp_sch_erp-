@@ -94,9 +94,25 @@ export function registerHostel(r: Router): void {
     const scope = await scopeOf(c, HOSTEL_READ)
     const status = optStr(c.url.searchParams.get('status'))
     const args: unknown[] = [status, status]
+    /* WHETHER THIS SCHOOL HAS A HOSTEL AT ALL.
+
+       An outpass is a boarder leaving a hostel, and a day school has neither.
+       Both schools on this platform have nought rooms, nought boarders and
+       nought outpasses ever raised, and their parents were still shown a
+       permission-slip panel that could never hold anything -- a card that
+       exists only to be empty, on a screen a family opens when it wants
+       something done. The parent cannot tell that from a panel that is broken.
+
+       One room is enough to mean the school boards children. Said here rather
+       than guessed from an empty list, because "no outpasses today" and "this
+       school has no hostel" are different facts and only one of them means
+       the panel should be gone. */
+    const hostel = await c.db.prepare(`SELECT 1 AS x FROM hostel_rooms LIMIT 1`)
+      .first<{ x: number }>().catch(() => null)
+    const hasHostel = !!hostel
     let mine = 'TRUE'
     if (!scope.all) {
-      if (scope.studentIds.length === 0) return ok({ items: [] })
+      if (scope.studentIds.length === 0) return ok({ items: [], has_hostel: hasHostel })
       mine = `o.student_id IN (SELECT value FROM json_each(?))`
       args.push(JSON.stringify(scope.studentIds))
     }
@@ -129,7 +145,7 @@ export function registerHostel(r: Router): void {
         overdue: v.status === 'out' && !Number.isNaN(inMs) && inMs < nowMs,
         overdue_minutes: late,
       }
-    }) })
+    }), has_hostel: hasHostel })
   })
 
   r.post('/ops/hostel/outpasses', 'auth', async (c) => {

@@ -67,7 +67,7 @@ export default function Consent() {
 
   const passes = useQuery({
     queryKey: ['outpasses'],
-    queryFn: () => api.get<List<Outpass>>('/api/v1/ops/hostel/outpasses'),
+    queryFn: () => api.get<List<Outpass> & { has_hostel?: boolean }>('/api/v1/ops/hostel/outpasses'),
   })
   const circulars = useQuery({
     queryKey: ['circulars'],
@@ -92,6 +92,22 @@ export default function Consent() {
   if (passes.error && !passes.data) return <ScreenError error={passes.error} />
 
   const allPasses = passes.data?.items ?? []
+  /* A DAY SCHOOL HAS NO PERMISSION SLIPS.
+
+     An outpass is a boarder leaving a hostel. Both schools on this platform
+     have nought rooms, nought boarders and nought outpasses ever raised, and
+     their parents were still shown the panel, the "trips awaiting you" tile
+     and a form for requesting one -- three pieces of furniture that could
+     never hold anything, on a screen a family opens when it wants something
+     done. A parent cannot tell an empty panel from a broken one.
+
+     The server says whether the school boards children at all, rather than
+     this being guessed from an empty list: "no outpasses today" and "this
+     school has no hostel" are different facts and only the second means the
+     panel should not be drawn. Undefined counts as yes, so an older server
+     that does not send the flag keeps the panel rather than hiding a boarding
+     school's consents. */
+  const boards = passes.data?.has_hostel !== false
   const needConsent = allPasses.filter(
     (p) => !p.guardian_consent_by && (p.status === 'requested' || p.status === 'approved'),
   )
@@ -108,12 +124,15 @@ export default function Consent() {
       />
       <Freshness query={passes} />
       <PageBody>
-        <CellGrid cols={3}>
-          <Stat label={t('portal.consent.stat_trips')} value={needConsent.length} icon={ShieldCheck} />
+        {/* One tile left on a day school, so the grid does not stretch it
+            across the page as though a figure were missing beside it. */}
+        <CellGrid cols={boards ? 3 : 2}>
+          {boards && <Stat label={t('portal.consent.stat_trips')} value={needConsent.length} icon={ShieldCheck} />}
           <Stat label={t('portal.consent.stat_circulars')} value={unsigned.length} icon={FileSignature} />
-          <Stat label={t('portal.consent.stat_out_now')} value={allPasses.filter((p) => p.status === 'out').length} />
+          {boards && <Stat label={t('portal.consent.stat_out_now')} value={allPasses.filter((p) => p.status === 'out').length} />}
         </CellGrid>
 
+        {boards && (
         <Card>
           <CardHeader
             title={t('portal.consent.trips_title')}
@@ -161,8 +180,9 @@ export default function Consent() {
           )}
           <FormNotice error={consent.error} />
         </Card>
+        )}
 
-        <RequestTrip children_={children.data?.items ?? []} />
+        {boards && <RequestTrip children_={children.data?.items ?? []} />}
 
         <Card>
           <CardHeader
