@@ -98,7 +98,20 @@ export default function ProfileView() {
     },
   })
 
-  if (isLoading || extras.some((q) => q.isLoading)) return <Loading />
+  /* BLANK THE PAGE ONCE, NOT ON EVERY RELOAD.
+
+     This was `isLoading || extras.some(q => q.isLoading)`, and isLoading
+     is true for EVERY load of a query, not only the first -- so any one
+     of these four refetching replaced a page that was already drawn with
+     a sheet of grey bars and then drew it again. Four queries means four
+     chances of that per refresh, and three of them 403 for a parent, so
+     the page flashed on its own with nothing wrong and nothing changing.
+
+     isFetched is the honest test: false until a query has settled once,
+     true forever after, including for one that settled by failing. A
+     card whose own list is refused says so itself; it does not get to
+     hold the whole screen at a skeleton. */
+  if ((isLoading && !data) || extras.some((q) => !q.isFetched)) return <Loading />
   if (error) return <ErrorState error={error} />
 
   return (

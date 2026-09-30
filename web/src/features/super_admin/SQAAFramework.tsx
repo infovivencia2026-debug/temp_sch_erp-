@@ -48,7 +48,7 @@ export default function SQAAFramework() {
   const [sWeight, setSWeight] = useState('0')
   const [sEvidence, setSEvidence] = useState(false)
 
-  if (isLoading) return <SkeletonTable columns={7} />
+  if (isLoading && !data) return <SkeletonTable columns={7} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

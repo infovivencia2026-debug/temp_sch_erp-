@@ -72,7 +72,7 @@ export default function HallOfFame() {
     onSuccess: refresh,
   })
 
-  if (q.isLoading) return <SkeletonTiles count={3} label="Reading the board…" />
+  if (q.isLoading && !q.data) return <SkeletonTiles count={3} label="Reading the board…" />
   if (q.error) return <ErrorState error={q.error} />
   const all = q.data?.items ?? []
   const items = filter ? all.filter((e) => e.category === filter) : all

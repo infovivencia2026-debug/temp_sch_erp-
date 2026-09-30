@@ -72,7 +72,7 @@ export default function PlatformDashboard() {
     queryFn: () => api.get<Dashboard>(`/api/v1/admin/platform-dashboard?${rangeQuery(range)}`),
   })
 
-  if (isLoading) return <SkeletonTiles count={4} label="Adding up every campus…" />
+  if (isLoading && !data) return <SkeletonTiles count={4} label="Adding up every campus…" />
   if (error) return <ErrorState error={error} />
   const d = data!
 

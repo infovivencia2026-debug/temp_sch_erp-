@@ -54,7 +54,7 @@ const STATE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 
 export default function BackupsOffboarding() {
   const list = useQuery({ queryKey: ['seller', 'lifecycle'], queryFn: () => api.get<{ items: LifecycleView[] }>('/api/v1/seller/lifecycle') })
   const [selected, setSelected] = useState<string | null>(null)
-  if (list.isLoading) return <SkeletonTable columns={4} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={4} />
   if (list.error) return <ErrorState error={list.error} />
   const items = list.data?.items ?? []
   return (
@@ -100,7 +100,7 @@ function SchoolLifecycle({ id }: { id: string }) {
   })
   const exportNow = useMutation({ mutationFn: () => api.post(`/api/v1/seller/tenants/${id}/exports`), onSuccess: refresh })
 
-  if (q.isLoading) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
   const offExport = d.exports.find((e) => e.id === d.export_id)

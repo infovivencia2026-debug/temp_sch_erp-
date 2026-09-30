@@ -153,7 +153,7 @@ export default function Rostering() {
     retry: false,
   })
 
-  if (shifts.isLoading) return <SkeletonTiles count={4} label="Reading the duty shifts…" />
+  if (shifts.isLoading && !shifts.data) return <SkeletonTiles count={4} label="Reading the duty shifts…" />
   if (shifts.error) return <ErrorState error={shifts.error} />
 
   const duties = roster.data?.items ?? []

@@ -137,7 +137,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
     queryFn: () => api.get<ReceiptDetail>(`/api/v1/portal/receipts/${paymentId}`),
   })
 
-  if (detail.isLoading) return <Skeleton rows={3} label={t('portal.receipts.detail_loading')} />
+  if (detail.isLoading && !detail.data) return <Skeleton rows={3} label={t('portal.receipts.detail_loading')} />
   if (detail.error && !detail.data) return <ScreenError error={detail.error} />
   const d = detail.data
   if (!d) return null

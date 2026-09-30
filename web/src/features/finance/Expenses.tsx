@@ -30,7 +30,7 @@ export default function Expenses() {
     queryFn: () => api.get<List<ExpenseHead>>(`${ledgerBase}/expenses?fy=${fy}`),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={9} label="Adding up the spending…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Adding up the spending…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

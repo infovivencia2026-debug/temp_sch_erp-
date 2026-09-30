@@ -112,7 +112,7 @@ export default function OfflineRegister() {
     qc.invalidateQueries({ queryKey: ['classroom-diary'] })
   }
 
-  if (sections.isLoading) return <SkeletonTiles count={4} />
+  if (sections.isLoading && !sections.data) return <SkeletonTiles count={4} />
   if (sections.error) return <ErrorState error={sections.error} />
 
   const openConflicts = conflicts.data?.items ?? []

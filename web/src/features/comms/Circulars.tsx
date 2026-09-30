@@ -539,7 +539,7 @@ function Delivery({ id }: { id: string }) {
       }>(`/api/v1/communication/circulars/${id}/delivery`),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

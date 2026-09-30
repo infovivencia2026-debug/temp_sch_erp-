@@ -100,7 +100,7 @@ export default function HostelVisitors() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hostel-visits'] }),
   })
 
-  if (list.isLoading) return <SkeletonTiles count={4} label="Loading the visitor log…" />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={4} label="Loading the visitor log…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

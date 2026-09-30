@@ -29,7 +29,7 @@ export default function SupportTickets() {
   })
   const update = usePlatformAction('tickets')
 
-  if (isLoading) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
 
   const items = data?.items ?? []

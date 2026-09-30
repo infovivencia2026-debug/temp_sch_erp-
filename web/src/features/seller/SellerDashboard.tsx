@@ -112,7 +112,7 @@ export default function SellerDashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-broadcasts'] }),
   })
 
-  if (tenants.isLoading) return <SkeletonTiles count={2} label="Reading the book…" />
+  if (tenants.isLoading && !tenants.data) return <SkeletonTiles count={2} label="Reading the book…" />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
   const rows = tenants.data?.items ?? []

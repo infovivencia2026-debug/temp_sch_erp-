@@ -42,7 +42,7 @@ export default function OperationsWorkspace() {
     retry: false,
   })
 
-  if (kpis.isLoading) return <SkeletonTiles count={4} />
+  if (kpis.isLoading && !kpis.data) return <SkeletonTiles count={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
 

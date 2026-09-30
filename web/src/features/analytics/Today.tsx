@@ -54,7 +54,7 @@ export default function Today() {
     queryFn: () => api.get<TodayView>(URL),
   })
 
-  if (isLoading) return <SkeletonTable columns={5} />
+  if (isLoading && !data) return <SkeletonTable columns={5} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

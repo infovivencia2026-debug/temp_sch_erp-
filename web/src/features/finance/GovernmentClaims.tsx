@@ -64,7 +64,7 @@ export default function GovernmentClaims() {
       api.get<List<Claim>>(`${concessionsBase}/claims${status ? `?status=${status}` : ''}`),
   })
 
-  if (claims.isLoading) return <SkeletonTable columns={4} label="Opening the claim register…" />
+  if (claims.isLoading && !claims.data) return <SkeletonTable columns={4} label="Opening the claim register…" />
   if (claims.error) return <ErrorState error={claims.error} />
   /* The gap is why this screen exists, so it may not fail quietly. `age` was
      read with `?.` throughout and the panel drawn only `{age && …}`, so a

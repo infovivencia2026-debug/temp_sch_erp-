@@ -118,7 +118,7 @@ export default function ThemeSelection() {
     },
   })
 
-  if (prefs.isLoading) return <SkeletonTiles count={3} label="Reading your settings…" />
+  if (prefs.isLoading && !prefs.data) return <SkeletonTiles count={3} label="Reading your settings…" />
   if (prefs.error) return <ErrorState error={prefs.error} />
 
   const themeChoices = prefs.data?.theme_choices ?? ['system', 'light', 'dark']

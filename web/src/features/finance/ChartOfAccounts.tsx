@@ -37,7 +37,7 @@ export default function ChartOfAccounts() {
   const settings = useLedgerSettings()
   const [showAll, setShowAll] = useState(false)
 
-  if (accounts.isLoading) return <SkeletonTable columns={6} label="Reading the chart of accounts…" />
+  if (accounts.isLoading && !accounts.data) return <SkeletonTable columns={6} label="Reading the chart of accounts…" />
   if (accounts.error) return <ErrorState error={accounts.error} />
 
   const rows = accounts.data?.items ?? []

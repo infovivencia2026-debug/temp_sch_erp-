@@ -119,7 +119,7 @@ export default function EmailServer({ platform = false }: { platform?: boolean }
   const log = useMessageLog('?channel=email&limit=50')
   const dispatch = useDispatch()
 
-  if (providers.isLoading) return <SkeletonTable columns={5} />
+  if (providers.isLoading && !providers.data) return <SkeletonTable columns={5} />
   if (providers.error) return <ErrorState error={providers.error} />
 
   const items = providers.data?.items ?? []

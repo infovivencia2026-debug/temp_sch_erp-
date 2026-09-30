@@ -97,7 +97,7 @@ export default function TallyExport() {
     () => toast.ok('Recorded as imported into Tally.'),
   )
 
-  if (settings.isLoading) return <SkeletonTiles count={3} label="Reading the connector…" />
+  if (settings.isLoading && !settings.data) return <SkeletonTiles count={3} label="Reading the connector…" />
   if (settings.error) return <ErrorState error={settings.error} />
 
   const s = settings.data

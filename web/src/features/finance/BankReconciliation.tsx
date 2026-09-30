@@ -217,7 +217,7 @@ function StatementView({
     },
   })
 
-  if (q.isLoading) return <SkeletonTiles count={4} label="Building the statement…" />
+  if (q.isLoading && !q.data) return <SkeletonTiles count={4} label="Building the statement…" />
   if (q.error) return <ErrorState error={q.error} />
   const st = q.data
   if (!st) return null

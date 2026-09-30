@@ -235,7 +235,7 @@ function VoucherRegister({ fy }: { fy: string }) {
     enabled: !!open,
   })
 
-  if (vouchers.isLoading) return <SkeletonTable columns={7} label="Reading the register…" />
+  if (vouchers.isLoading && !vouchers.data) return <SkeletonTable columns={7} label="Reading the register…" />
   const rows = vouchers.data?.items ?? []
 
   return (
@@ -293,7 +293,7 @@ function VoucherRegister({ fy }: { fy: string }) {
 }
 
 function TrialBalanceTab({ query }: { query: ReturnType<typeof useQuery<TrialBalance>> }) {
-  if (query.isLoading) return <SkeletonTable columns={8} label="Adding up the books…" />
+  if (query.isLoading && !query.data) return <SkeletonTable columns={8} label="Adding up the books…" />
   if (query.error) return <ErrorState error={query.error} />
   const t = query.data
   if (!t) return null
@@ -347,7 +347,7 @@ function StatementsTab({ fy }: { fy: string }) {
     queryKey: ['ledgers', 'statements', fy],
     queryFn: () => api.get<Statements>(`${ledgerBase}/statements?fy=${fy}`),
   })
-  if (q.isLoading) return <SkeletonTable columns={4} label="Drawing up the statements…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Drawing up the statements…" />
   if (q.error) return <ErrorState error={q.error} />
   const s = q.data
   if (!s) return null

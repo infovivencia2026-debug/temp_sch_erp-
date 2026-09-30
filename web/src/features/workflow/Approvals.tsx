@@ -72,7 +72,7 @@ export default function Approvals() {
     },
   })
 
-  if (isLoading) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
+  if (isLoading && !data) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const items = filter ? d.items.filter((i) => i.kind === filter) : d.items

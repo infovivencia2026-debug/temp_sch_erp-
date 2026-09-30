@@ -49,7 +49,7 @@ export default function ChannelRoute({
   const credits = useCredits()
   const setRoute = useSetRoute(channel)
 
-  if (routing.isLoading) return <SkeletonForm fields={2} label="Reading how this is sent…" />
+  if (routing.isLoading && !routing.data) return <SkeletonForm fields={2} label="Reading how this is sent…" />
 
   const route = routing.data?.items.find((r) => r.channel === channel)
   const onOwn = route?.route === 'own'

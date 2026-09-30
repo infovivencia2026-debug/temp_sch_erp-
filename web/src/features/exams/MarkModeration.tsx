@@ -78,7 +78,7 @@ export default function MarkModeration() {
     },
   })
 
-  if (q.isLoading) return <SkeletonTable columns={7} />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={7} />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

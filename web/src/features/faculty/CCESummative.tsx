@@ -43,7 +43,7 @@ export default function CCESummative() {
     queryFn: () => api.get<List<SummativePaper>>('/api/v1/teaching/cce/summative'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={8} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={8} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const done = rows.filter((p) => p.entered >= p.roll && p.roll > 0).length

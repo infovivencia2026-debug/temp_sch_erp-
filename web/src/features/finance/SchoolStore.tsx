@@ -494,7 +494,7 @@ function ReturnPanel({
     },
   })
 
-  if (sale.isLoading) return <SkeletonTable columns={6} label="Reading the receipt…" />
+  if (sale.isLoading && !sale.data) return <SkeletonTable columns={6} label="Reading the receipt…" />
   if (sale.error) return <ErrorState error={sale.error} />
   const d = sale.data
   if (!d) return null

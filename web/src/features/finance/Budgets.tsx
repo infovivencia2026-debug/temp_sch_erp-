@@ -37,7 +37,7 @@ export default function Budgets() {
     queryFn: () => api.get<BudgetView>(`${ledgerBase}/budgets?fy=${fy}`),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={9} label="Reading the budget…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Reading the budget…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const b = q.data

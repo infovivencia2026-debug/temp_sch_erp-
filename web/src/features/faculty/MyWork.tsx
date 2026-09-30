@@ -51,7 +51,7 @@ export default function MyWork() {
     queryFn: () => api.get<MyWorkView>('/api/v1/teaching/my-work'),
   })
 
-  if (isLoading) return <SkeletonTiles count={4} label="Checking what is outstanding…" />
+  if (isLoading && !data) return <SkeletonTiles count={4} label="Checking what is outstanding…" />
   if (error) return <ErrorState error={error} />
   const d = data!
 

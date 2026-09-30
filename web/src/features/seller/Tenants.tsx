@@ -199,7 +199,7 @@ export default function Tenants() {
     { key: 'setup_percent' },
   )
 
-  if (tenants.isLoading) return <SkeletonTable columns={4} />
+  if (tenants.isLoading && !tenants.data) return <SkeletonTable columns={4} />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
   return (

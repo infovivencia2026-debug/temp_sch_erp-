@@ -34,7 +34,7 @@ export default function WhiteLabel() {
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
   const [touched, setTouched] = useState(false)
 
-  if (isLoading) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

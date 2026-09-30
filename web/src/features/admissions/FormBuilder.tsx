@@ -198,7 +198,7 @@ export default function FormBuilder() {
     onError: (e) => toast.error(errText(e)),
   })
 
-  if (forms.isLoading) return <SkeletonTable columns={7} />
+  if (forms.isLoading && !forms.data) return <SkeletonTable columns={7} />
   if (forms.error) return <ErrorState error={forms.error} />
 
   const rows = forms.data?.items ?? []
@@ -639,7 +639,7 @@ function VersionsCard({
 }) {
   // A failed query is never rendered as "no versions yet": the two look
   // identical and only one of them is the school's fault.
-  if (versions.isLoading) return <SkeletonTable columns={6} />
+  if (versions.isLoading && !versions.data) return <SkeletonTable columns={6} />
   if (versions.error) return <ErrorState error={versions.error} />
   const items = versions.data?.items ?? []
 

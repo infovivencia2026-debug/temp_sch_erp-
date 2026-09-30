@@ -34,7 +34,7 @@ export default function PTMNotes() {
       api.get<List<PTMNote>>(`/api/v1/teaching/ptm-notes${pendingOnly ? '?pending=1' : ''}`),
   })
 
-  if (list.isLoading) return <SkeletonTiles count={3} />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

@@ -30,7 +30,7 @@ export default function YearClosing() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ledgers'] }),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={9} label="Reading the years…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Reading the years…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const years = q.data?.items ?? []

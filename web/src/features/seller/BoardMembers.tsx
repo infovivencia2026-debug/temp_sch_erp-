@@ -71,7 +71,7 @@ export default function BoardMembers() {
 
   const rows = members.data?.items ?? []
 
-  if (members.isLoading) return <SkeletonTable columns={4} />
+  if (members.isLoading && !members.data) return <SkeletonTable columns={4} />
   if (members.error) return <ErrorState error={members.error} />
 
   return (

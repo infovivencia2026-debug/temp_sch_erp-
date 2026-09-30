@@ -72,7 +72,7 @@ export default function ClassTeachers() {
     },
   })
 
-  if (sections.isLoading) return <SkeletonTable columns={5} />
+  if (sections.isLoading && !sections.data) return <SkeletonTable columns={5} />
   if (sections.error) return <ErrorState error={sections.error} />
 
   const rows = sections.data?.items ?? []

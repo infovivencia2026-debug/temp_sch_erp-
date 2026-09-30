@@ -41,7 +41,7 @@ export default function TriggerRules() {
 
   const [editing, setEditing] = useState<Partial<TriggerRule> | null>(null)
 
-  if (triggers.isLoading) return <SkeletonTable columns={6} />
+  if (triggers.isLoading && !triggers.data) return <SkeletonTable columns={6} />
   if (triggers.error) return <ErrorState error={triggers.error} />
 
   const rules = triggers.data?.items ?? []

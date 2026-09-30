@@ -45,7 +45,7 @@ export default function VirtualClassroom() {
   const requests = useMeetingRequests()
   const [editing, setEditing] = useState<MeetingAccount | null>(null)
 
-  if (conn.isLoading) return <SkeletonTable columns={2} label="Reading the meeting accounts…" />
+  if (conn.isLoading && !conn.data) return <SkeletonTable columns={2} label="Reading the meeting accounts…" />
   // A failed query is never rendered as "nothing configured": that would tell a
   // platform operator a school has no provider when the truth is we could not
   // ask.

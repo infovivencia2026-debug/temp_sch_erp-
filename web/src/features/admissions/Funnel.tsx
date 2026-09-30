@@ -170,7 +170,7 @@ export default function Funnel() {
       }>('/api/v1/admissions/register'),
   })
 
-  if (leads.isLoading) return <SkeletonTiles count={4} label="Opening the funnel…" />
+  if (leads.isLoading && !leads.data) return <SkeletonTiles count={4} label="Opening the funnel…" />
   if (leads.error) return <ErrorState error={leads.error} />
 
   const rows = leads.data?.items ?? []

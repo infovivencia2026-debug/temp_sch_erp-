@@ -58,7 +58,7 @@ export default function CashBooks() {
     queryFn: () => api.get<Cashbook>(`${ledgerBase}/cashbook?from=${from}&to=${to}`),
   })
 
-  if (cashbook.isLoading) return <SkeletonTable columns={7} label="Adding up the drawers…" />
+  if (cashbook.isLoading && !cashbook.data) return <SkeletonTable columns={7} label="Adding up the drawers…" />
   if (cashbook.error) return <ErrorState error={cashbook.error} />
 
   const c = cashbook.data

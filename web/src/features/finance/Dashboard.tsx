@@ -35,7 +35,7 @@ export default function FinanceDashboard() {
     queryFn: () => api.get<List<InvoiceRow>>('/api/v1/finance/invoices?overdue=true'),
   })
 
-  if (kpis.isLoading) return <SkeletonTiles count={7} />
+  if (kpis.isLoading && !kpis.data) return <SkeletonTiles count={7} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   // Balances and open-item counts are true now, not for the chosen period.

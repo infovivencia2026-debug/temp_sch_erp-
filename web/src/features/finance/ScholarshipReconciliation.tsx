@@ -90,7 +90,7 @@ export default function ScholarshipReconciliation() {
   })
   const schemes = useSchemes('student')
 
-  if (awards.isLoading) return <SkeletonTable columns={5} label="Opening the scholarship register…" />
+  if (awards.isLoading && !awards.data) return <SkeletonTable columns={5} label="Opening the scholarship register…" />
   if (awards.error) return <ErrorState error={awards.error} />
 
   const rows = awards.data?.items ?? []
@@ -551,7 +551,7 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
       }>(`${concessionsBase}/scholarships/imports/${importId}`),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={8} label="Opening the file…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={8} label="Opening the file…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

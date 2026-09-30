@@ -43,7 +43,7 @@ export default function HRDashboard() {
     queryFn: () => api.call('GET /hr/dashboard'),
   })
 
-  if (kpis.isLoading) return <SkeletonTable columns={4} />
+  if (kpis.isLoading && !kpis.data) return <SkeletonTable columns={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   const away = k.away_today ?? []

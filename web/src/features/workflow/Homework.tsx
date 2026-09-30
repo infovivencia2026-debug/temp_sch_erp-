@@ -104,7 +104,7 @@ export default function Homework() {
     queryKey: ['session'],
     queryFn: () => api.call('GET /session'),
   })
-  if (isLoading) return <SkeletonTiles count={4} />
+  if (isLoading && !session) return <SkeletonTiles count={4} />
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
   return <Diary canPublish={canPublish} />
 }

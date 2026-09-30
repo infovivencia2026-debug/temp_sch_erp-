@@ -48,7 +48,7 @@ export default function TrackerPairing() {
 
   const [vehicle, setVehicle] = useState('')
 
-  if (trackers.isLoading) return <SkeletonTiles count={2} />
+  if (trackers.isLoading && !trackers.data) return <SkeletonTiles count={2} />
   // A failed query never renders as "no buses paired". That reads as a school
   // with no trackers, which is a calmer fact than "this screen could not find
   // out" and would be acted on the same way — by pairing a phone that is

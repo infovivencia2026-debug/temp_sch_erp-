@@ -317,7 +317,7 @@ function Workload() {
     queryKey: ['teachers'],
     queryFn: () => api.call('GET /timetable/teachers'),
   })
-  if (isLoading) return <SkeletonTable columns={4} />
+  if (isLoading && !data) return <SkeletonTable columns={4} />
   if (error) return <ErrorState error={error} />
   const rows = data?.items ?? []
   return (
