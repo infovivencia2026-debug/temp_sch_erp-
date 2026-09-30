@@ -80,7 +80,8 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
   const raise = useMutation({
     mutationFn: () =>
       api.post('/api/v1/portal/concerns', {
-        student_id: chosen || undefined,
+        // A student raising their own concern IS the child: no picker, their own id.
+        student_id: chosen || (embedded ? children[0]?.student_id : undefined) || undefined,
         category,
         subject,
         body,
@@ -116,7 +117,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
       )}
       <Freshness query={concerns} />
       <PageBody>
-        <CellGrid cols={3}>
+        {!embedded && <CellGrid cols={3}>
           <Stat label={t('portal.concerns.stat_open')} value={open.length} icon={MessageSquareWarning} />
           <Stat
             label={t('portal.concerns.stat_answered')}
@@ -130,7 +131,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
                 : '-'
             }
           />
-        </CellGrid>
+        </CellGrid>}
 
         <Card>
           <CardHeader
@@ -146,7 +147,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
                   options={CATEGORIES.map((x) => ({ value: x.value, label: t(x.key) }))}
                 />
               </Field>
-              {children.length > 0 && (
+              {children.length > 0 && !embedded && (
                 <Field
                   label={t('portal.concerns.field_child')}
                   hint={t('portal.concerns.field_child_hint')}
