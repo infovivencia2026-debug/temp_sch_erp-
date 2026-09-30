@@ -99,12 +99,24 @@ export function printSheet(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById(SHEET_ID)
 }
 
+/* WHERE THEY CLICKED PRINT. The owner asked that closing the preview, or
+   finishing the print, land them back on the button they pressed, at the
+   same place on the page, not at the top. */
+let returnTo: { el: Element | null; scrolls: [Element, number][] } | null = null
+
 export function closePrintSheet(): void {
   const sheet = printSheet()
   if (!sheet) return
   sheet.remove()
   delete document.documentElement.dataset.printing
   document.removeEventListener('keydown', onKey)
+  window.removeEventListener('afterprint', closePrintSheet)
+  const back = returnTo
+  returnTo = null
+  if (back) {
+    for (const [el, top] of back.scrolls) el.scrollTop = top
+    if (back.el instanceof HTMLElement && back.el.isConnected) back.el.focus({ preventScroll: true })
+  }
 }
 
 function onKey(e: KeyboardEvent) {
@@ -116,6 +128,11 @@ function onKey(e: KeyboardEvent) {
 export function printDocument(opts: PrintDocumentOptions = {}): HTMLElement | null {
   if (typeof document === 'undefined') return null
   closePrintSheet()
+  returnTo = {
+    el: document.activeElement,
+    scrolls: [document.scrollingElement, ...document.querySelectorAll('main')]
+      .filter((e): e is Element => !!e && e.scrollTop > 0).map((e) => [e, e.scrollTop]),
+  }
 
   const source = opts.source ?? document.querySelector<HTMLElement>('main')
   if (!source) {
@@ -163,10 +180,10 @@ export function printDocument(opts: PrintDocumentOptions = {}): HTMLElement | nu
   closeBtn.type = 'button'
   closeBtn.className = 'print-sheet__btn'
   closeBtn.dataset.close = ''
-  closeBtn.textContent = 'Close'
+  closeBtn.textContent = '← Back'
   closeBtn.addEventListener('click', () => closePrintSheet())
-  actions.append(printBtn, closeBtn)
-  bar.append(barTitle, actions)
+  actions.append(printBtn)
+  bar.append(closeBtn, barTitle, actions)
 
   const paper = document.createElement('div')
   paper.className = 'print-sheet__paper'
@@ -220,6 +237,8 @@ export function printDocument(opts: PrintDocumentOptions = {}): HTMLElement | nu
   document.body.appendChild(sheet)
   document.documentElement.dataset.printing = ''
   document.addEventListener('keydown', onKey)
+  /* Printed (or the dialog cancelled): back to where they were. */
+  window.addEventListener('afterprint', closePrintSheet)
   closeBtn.focus()
 
   if (opts.open !== false) {
