@@ -192,9 +192,37 @@ function AttendanceHistory({ days, emptyLabel }: { days: AttendanceDay[]; emptyL
   const ymOf = (d: { date: string }) => d.date.slice(0, 7)
   const now = new Date()
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  /* The months on offer: every month with a marked day, plus the current one,
-     newest first. */
-  const months = Array.from(new Set([currentYm, ...days.map(ymOf)])).sort().reverse()
+  /* THE MONTHS ON OFFER ARE THE MONTHS OF THE YEAR, NOT THE MONTHS WITH MARKS.
+
+     They used to be only the months that had a marked day in them, which at a
+     school three weeks into the register is one month -- so the picker held a
+     single option and a parent trying to look back at last month found that
+     nothing happened when they pressed it. Worse, it was silently unfaithful:
+     a month the school simply had not marked yet vanished from the list
+     rather than showing as empty, so "September isn't there" and "September
+     had no school" looked identical.
+
+     So the list runs unbroken from the earliest mark (or eleven months back,
+     whichever is later) to the month it is now. A month with nothing in it
+     draws as an empty grid and says so, which is an answer. */
+  const monthsBack = (from: string, to: string) => {
+    const out: string[] = []
+    const [fy, fm] = from.split('-').map(Number)
+    const [ty, tm] = to.split('-').map(Number)
+    for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`)
+    }
+    return out
+  }
+  const earliestMark = days.length ? days.map(ymOf).sort()[0] : currentYm
+  const elevenBack = (() => {
+    const d = new Date(currentYm + '-01T00:00:00')
+    d.setMonth(d.getMonth() - 11)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+  const months = monthsBack(earliestMark < elevenBack ? elevenBack : earliestMark, currentYm)
+    .sort()
+    .reverse()
   const [picked, setPicked] = useState<string>(currentYm)
   const ym = months.includes(picked) ? picked : currentYm
   const monthDays = days.filter((d) => ymOf(d) === ym)
