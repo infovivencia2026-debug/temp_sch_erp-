@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
-  Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
+  Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
 } from '@/components/ui'
 import { useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
@@ -115,7 +115,18 @@ export default function ProfileView() {
   if (error) return <ErrorState error={error} />
 
   return (
-    <>
+    /* THE ONE SCREEN WITH NO GUTTER.
+
+       Every other page in the product wraps itself in PageBody, which carries
+       --page-gutter down both sides. This screen was built out of bare divs,
+       so its cards began at exactly the pixel the sidebar ended and ran to the
+       edge of the window on the right -- 286 to 1440, measured. That is the
+       "everything touches the sidebar", and it was this page, not the sidebar.
+
+       PageBody also gives it the same vertical rhythm as the rest, so the gap
+       between its cards stops being a hand-written mt-4 that matches nothing
+       else. */
+    <PageBody>
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader
@@ -318,13 +329,11 @@ export default function ProfileView() {
         that hold the other side of these records are gated on
         hr.employees.read and a teacher cannot open them. Renders nothing for
         a signed-in user who has no staff record. */}
-    <div className="mt-4">
-      <ConcernsCard />
-    </div>
-    <div className="mt-4 grid gap-4">
+    <ConcernsCard />
+    <div className="grid gap-4">
       <MyGrowthPanels quiet />
     </div>
-    </>
+    </PageBody>
   )
 }
 

@@ -99,6 +99,20 @@ const mondayOf = (s: string) => {
 }
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+/* The month a week belongs to, and both when it straddles two -- which is
+   the only week where the day numbers alone are ambiguous. */
+function monthSpan(week: string[]): string {
+  if (!week.length) return ''
+  const name = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  const first = name(week[0])
+  const last = name(week[week.length - 1])
+  if (first === last) return first
+  const short = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long' })
+  return `${short(week[0])} – ${last}`
+}
+
 export default function Homework() {
   const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
@@ -190,20 +204,41 @@ function Diary({ canPublish }: { canPublish: boolean }) {
           </div>
         )}
         <Card>
+          {/* WHICH MONTH THESE DAYS ARE IN.
+
+              The strip showed MON 28, TUE 29, WED 30, THU 1, FRI 2 -- and a
+              week that crosses a month boundary is exactly the week where
+              bare numbers stop meaning anything. It says the month, and both
+              months when the week spans two. */}
+          <div className="border-b px-4 pb-2 pt-3 text-[13px] font-semibold text-muted-foreground">
+            {monthSpan(week)}
+          </div>
           {/* The week, one day to press. */}
           <div className="flex items-center gap-1 px-2 py-3">
             <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="flex flex-1 justify-between gap-1 overflow-x-auto">
+            {/* SEVEN DAYS, NO SCROLLING.
+
+                This was a horizontal scroller, and on a 390px phone the two
+                arrow buttons leave about 300px for seven cells with a 44px
+                minimum -- so Friday and Saturday were cut off at the edge,
+                behind a scrollbar that is hidden. Arrows to move the week AND
+                a hidden sideways scroll inside it is two ways to do one thing,
+                and the invisible one wins by accident.
+
+                The cells shrink to fit instead: min-w-0 and flex-1 let all
+                seven share whatever is left, which at 390px is about 42px
+                each -- enough for "MON" over "28", which is all they carry. */}
+            <div className="flex min-w-0 flex-1 justify-between gap-0.5">
               {week.map((d) => {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')
                 return (
                   <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
-                      'flex min-w-[44px] flex-1 flex-col items-center rounded-lg border px-1 py-2 transition-colors',
+                      'flex min-w-0 flex-1 flex-col items-center rounded-lg border px-0.5 py-2 transition-colors',
                       active ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-muted',
                     )}>
                     <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary-foreground' : 'text-muted-foreground')}>

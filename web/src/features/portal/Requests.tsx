@@ -156,15 +156,42 @@ export default function Requests() {
                       ? t('portal.requests.choose_one')
                       : t('portal.requests.no_types')
                   }
-                  options={available.map((rt) => ({ value: rt.code, label: rt.name }))}
+                  /* "Something else" sorts last wherever the office named it,
+                     because it is the answer for when none of the others fit
+                     and it should be read after them, not in the middle of the
+                     alphabet between Fee Payment and Study. */
+                  options={[...available]
+                    .sort((a, b) => Number(a.code === 'OTHER') - Number(b.code === 'OTHER'))
+                    .map((rt) => ({ value: rt.code, label: rt.name }))}
                 />
               </Field>
-              <Field label={t('portal.requests.field_purpose')} required wide>
+              {/* WHEN NOTHING ON THE LIST IS WHAT THEY NEED.
+
+                  A school issues a handful of certificates and a parent
+                  occasionally needs a thing none of them is -- a letter for a
+                  consulate, a form the bank has its own name for. The list
+                  could not say so, and a dropdown with no way out is a dead
+                  end at the exact moment somebody needs help.
+
+                  "Something else" is a type like any other, so it goes into
+                  the same queue, gets the same serial and the same tracking;
+                  the purpose box, which is already required, is where they
+                  write what it is. It just asks a plainer question. */}
+              <Field
+                label={typeCode === 'OTHER' ? 'What do you need, and what for?' : t('portal.requests.field_purpose')}
+                required
+                wide
+                hint={typeCode === 'OTHER'
+                  ? 'Say it in your own words. The office will tell you whether they can issue it.'
+                  : undefined}
+              >
                 <Textarea
-                  rows={2}
+                  rows={typeCode === 'OTHER' ? 3 : 2}
                   value={reason}
                   onChange={setReason}
-                  placeholder={t('portal.requests.purpose_placeholder')}
+                  placeholder={typeCode === 'OTHER'
+                    ? 'For example: a letter confirming my child studies here, addressed to the passport office'
+                    : t('portal.requests.purpose_placeholder')}
                 />
               </Field>
             </FormGrid>

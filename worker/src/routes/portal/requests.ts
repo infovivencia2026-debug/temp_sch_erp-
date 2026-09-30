@@ -197,6 +197,40 @@ async function reportChildAbsence(c: Ctx): Promise<Response> {
   if (on > today) throw badRequest('this button is for today. To book a day off ahead, apply for leave')
   if (on < shiftDays(today, -7)) throw badRequest('that is more than a week ago. The office has to amend the register by hand now')
 
+  /* THE OFFICE MAY HAVE RECORDED IT ALREADY.
+
+     The school rings round its absentees, and when a parent says on the
+     telephone that the child is ill with a reason, the office writes that
+     against the register there and then. The parent was still asked to apply,
+     and the application went into the leave list as a second, pending copy of
+     a fact the school had already established -- something for a teacher to
+     open, read and approve, about a day that was settled at nine in the
+     morning.
+
+     So a day already marked absent WITH a reason on it is answered as done
+     rather than filed again. Marked absent with no reason is not: that is
+     precisely the day the school is waiting to hear about, and is the whole
+     point of this button.
+
+     Present, late or on a holiday is left alone. A parent reporting an
+     absence on a day the child was marked present is telling the school
+     something it does not know, and that must reach somebody. */
+  const already = await c.db.prepare(`
+    SELECT COALESCE(sa.remarks, '') AS remarks
+      FROM student_attendance sa
+     WHERE sa.student_id = ? AND sa.on_date = ? AND sa.status = 'absent'
+     ORDER BY (COALESCE(sa.remarks, '') <> '') DESC LIMIT 1`)
+    .bind(sid, on).first<{ remarks: string }>().catch(() => null)
+  if (already && already.remarks.trim() !== '') {
+    return ok({
+      already_recorded: true,
+      on_date: on,
+      recorded_reason: already.remarks,
+      note: 'The school has already recorded this absence, with the reason you gave the office. '
+        + 'There is nothing more to do for this day.',
+    })
+  }
+
   // The clash check and the insert are one statement, so two taps cannot both land.
   const newID = uuid()
   let res: D1Result
