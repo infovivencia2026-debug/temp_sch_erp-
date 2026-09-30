@@ -283,9 +283,9 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
   }
   const yearPct = yMarked ? Math.round((yPresent / yMarked) * 100) : null
   const mini = (label: string, value: string, tone?: string) => (
-    <div className="rounded-xl border bg-card px-4 py-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn('text-[19px] font-bold tabular-nums', tone)}>{value}</div>
+    <div className="rounded-xl border bg-card px-4 py-3">
+      <div className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('mt-1 text-[22px] font-bold tabular-nums', tone)}>{value}</div>
     </div>
   )
   const days1 = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`
