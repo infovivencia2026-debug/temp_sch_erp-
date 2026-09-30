@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
-import { Button, Input } from '@/components/ui'
+import { Button, Dialog, Input } from '@/components/ui'
 import { useOpenState } from '@/lib/motion'
 
 /* The password again, before money moves.
@@ -45,53 +45,44 @@ export default function ReauthPrompt() {
     }
   }
 
+  /* The shared Dialog: Escape, a focus trap and a bottom sheet on a phone,
+     none of which this hand-made box had. z-[70] sits under the full-screen
+     table (80), which never opens over a payment. */
   return (
-    <div
-      className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reauth-title"
+    <Dialog
+      onClose={() => setOpen(false)}
+      size="sm"
+      title={done ? 'Confirmed' : 'Confirm your password'}
+      description={done
+        ? 'Your password is confirmed for the next fifteen minutes. Press the button again to complete what you were doing.'
+        : 'This action moves money and your sign-in is older than fifteen minutes. Type your password to continue.'}
     >
-      <div className="w-full max-w-[26rem] rounded-xl border bg-background p-5 shadow-xl">
-        {done ? (
-          <>
-            <p id="reauth-title" className="text-[16px] font-semibold">Confirmed</p>
-            <p className="mt-1 text-[13.5px] text-muted-foreground">
-              Your password is confirmed for the next fifteen minutes. Press the button again to complete
-              what you were doing.
-            </p>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={() => setOpen(false)}>Back to the screen</Button>
-            </div>
-          </>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              void confirm()
-            }}
-          >
-            <p id="reauth-title" className="text-[16px] font-semibold">Confirm your password</p>
-            <p className="mt-1 text-[13.5px] text-muted-foreground">
-              This action moves money and your sign-in is older than fifteen minutes. Type your password
-              to continue.
-            </p>
-            <label className="mt-4 block">
-              <span className="text-[13px] text-muted-foreground">Password</span>
-              <Input type="password" value={password} onChange={setPassword} className="mt-1 w-full" />
-            </label>
-            {error && <p className="mt-2 text-[13px] text-destructive">{error}</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!password || busy}>
-                {busy ? 'Checking…' : 'Confirm'}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+      {done ? (
+        <div className="flex justify-end">
+          <Button onClick={() => setOpen(false)}>Back to the screen</Button>
+        </div>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void confirm()
+          }}
+        >
+          <label className="block">
+            <span className="text-[13px] text-muted-foreground">Password</span>
+            <Input type="password" value={password} onChange={setPassword} className="mt-1 w-full" />
+          </label>
+          {error && <p className="mt-2 text-[13px] text-destructive">{error}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!password || busy}>
+              {busy ? 'Checking…' : 'Confirm'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Dialog>
   )
 }

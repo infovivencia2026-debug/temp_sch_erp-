@@ -2714,3 +2714,129 @@ export function segClass(active: boolean): string {
     ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
     : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
 }
+
+/* THE ONE DIALOG.
+
+   Nineteen screens drew their own modal: each its own scrim, its own close
+   (a "Close" button, an X, or nothing), its own padding, and most of them no
+   Escape, no focus trap and no way back to the button that opened them. This
+   is the shared frame they can move onto.
+
+   - Header: title (16px semibold), an optional one-line description, and a
+     44px close button in the same corner every time.
+   - Body: scrolls on its own, so a long form never pushes the footer away.
+   - Footer: optional, right-aligned actions on a hairline, pinned.
+   - Desk: a centred white card on the dimmed ground, width by `size`.
+   - Phone: a bottom sheet -- full width, rounded top, a grab bar, and the
+     home-indicator strip kept clear -- because a thumb reaches the bottom of
+     a screen and not the middle.
+   - Focus: moves into the dialog on open, Tab cycles inside it, Escape and a
+     tap on the dim close it, and focus returns to whatever opened it.
+   - Portalled to the body, so no transformed ancestor can re-anchor it. */
+const DIALOG_W = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' } as const
+
+export function Dialog({
+  open = true,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  label,
+}: {
+  open?: boolean
+  onClose: () => void
+  title?: ReactNode
+  description?: ReactNode
+  children: ReactNode
+  footer?: ReactNode
+  size?: keyof typeof DIALOG_W
+  /** Accessible name when `title` is not plain text. */
+  label?: string
+}) {
+  const panel = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  useEffect(() => {
+    if (!open) return
+    const opener = document.activeElement as HTMLElement | null
+    const el = panel.current
+    // First field if there is one, else the panel itself: never the close
+    // button, or Enter on a freshly opened form would dismiss it.
+    const first = el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
+    ;(first ?? el)?.focus({ preventScroll: true })
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); return }
+      if (e.key !== 'Tab' || !el) return
+      const f = [...el.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      )].filter((n) => n.offsetParent !== null)
+      if (!f.length) { e.preventDefault(); return }
+      const a = f[0], z = f[f.length - 1]
+      if (e.shiftKey && (document.activeElement === a || document.activeElement === el)) { e.preventDefault(); z.focus() }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus() }
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.body.style.overflow = prev
+      opener?.focus?.({ preventScroll: true })
+    }
+  }, [open])
+
+  if (!open || typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      className="scrim fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-6"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label ?? (typeof title === 'string' ? title : undefined)}
+        tabIndex={-1}
+        className={cn(
+          'ui-dialog flex max-h-[92dvh] w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
+          'rounded-t-2xl shadow-[0_-8px_32px_-12px_rgba(15,23,42,0.28)]',
+          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-card,16px)] sm:border sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]',
+          DIALOG_W[size],
+        )}
+      >
+        {/* The grab bar: a phone's sign that this is a sheet. */}
+        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
+        {(title || description) && (
+          <div className="flex shrink-0 items-start gap-3 border-b px-5 pb-3 pt-3 sm:px-6 sm:pt-4">
+            <div className="min-w-0 flex-1 pt-1.5">
+              {title && <h2 className="text-[16px] font-semibold leading-snug">{title}</h2>}
+              {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </button>
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">{children}</div>
+        {footer && (
+          <div
+            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-5 py-3 sm:px-6"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+          >
+            {footer}
+          </div>
+        )}
+        {!footer && <span aria-hidden="true" className="shrink-0 sm:hidden" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />}
+      </div>
+    </div>,
+    document.body,
+  )
+}

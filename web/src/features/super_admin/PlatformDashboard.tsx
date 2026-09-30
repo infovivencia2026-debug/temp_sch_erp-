@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, IndianRupee, Users, X } from 'lucide-react'
+import { Building2, IndianRupee, Users } from 'lucide-react'
 import { api, setActingInstitution } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, SkeletonTiles, ErrorState, EmptyState,
+  Badge, Button, Dialog, SkeletonTiles, ErrorState, EmptyState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
@@ -175,7 +174,7 @@ export default function PlatformDashboard() {
 
                       <div className="mt-4 grid grid-cols-2 gap-4 border-y py-3">
                         <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                          <div className="text-[12px] font-medium text-muted-foreground">
                             Fee collected
                           </div>
                           <div className="num mt-1 text-[19px] font-semibold">
@@ -183,7 +182,7 @@ export default function PlatformDashboard() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                          <div className="text-[12px] font-medium text-muted-foreground">
                             Outstanding
                           </div>
                           <div
@@ -241,14 +240,6 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
   const owedPct = billed > 0 ? Math.round((c.outstanding_paise / billed) * 100) : 0
   const qc = useQueryClient()
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   /* Into the body, not into the page.
 
      `position: fixed` stops meaning "the viewport" the moment any ancestor
@@ -260,30 +251,31 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
 
      Same fault and same fix as the full-screen table. Parented to the body,
      nothing above it can be its containing block. */
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${c.campus}, ${c.school}`}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="w-full max-w-lg rounded-xl border bg-card shadow-lg">
-        <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-[17px] font-semibold">{c.campus}</h2>
-            <p className="truncate text-[13px] text-muted-foreground">
-              {c.school}
-              {c.district && ` · ${c.district}`}
-            </p>
-          </div>
-          <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close">
-            <X className="h-4 w-4" />
+  return (
+    <Dialog
+      onClose={onClose}
+      label={`${c.campus}, ${c.school}`}
+      title={c.campus}
+      description={`${c.school}${c.district ? ` · ${c.district}` : ''}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Close
           </Button>
-        </div>
-
+          <Button
+            onClick={() => {
+              setActingInstitution(c.institution_id)
+              qc.invalidateQueries()
+              onClose()
+            }}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Work inside this school
+          </Button>
+        </>
+      }
+    >
+      <div className="-mx-5 -my-4 sm:-mx-6">
         <div className="grid grid-cols-2 gap-3 p-5">
           <div className="rounded-lg border bg-surface-subtle p-4">
             <div className="text-[12px] font-medium text-muted-foreground">Total students</div>
@@ -297,7 +289,7 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
 
         <div className="grid grid-cols-2 gap-3 px-5 pb-2">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            <div className="text-[12px] font-medium text-muted-foreground">
               Fee collected
             </div>
             <div className="num mt-1 text-[19px] font-semibold">
@@ -305,7 +297,7 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
             </div>
           </div>
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            <div className="text-[12px] font-medium text-muted-foreground">
               Outstanding
             </div>
             <div className="num mt-1 text-[19px] font-semibold text-destructive">
@@ -326,23 +318,7 @@ function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
             : `${c.attendance_pct}% present today, from ${c.marked_today} marked.`}
         </div>
 
-        <div className="flex justify-end gap-2 border-t px-5 py-3">
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-          <Button
-            onClick={() => {
-              setActingInstitution(c.institution_id)
-              qc.invalidateQueries()
-              onClose()
-            }}
-          >
-            <Building2 className="h-3.5 w-3.5" />
-            Work inside this school
-          </Button>
-        </div>
       </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
