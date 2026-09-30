@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
-  Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
+  PageBody, Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
 } from '@/components/ui'
 import { useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
@@ -115,7 +115,7 @@ export default function ProfileView() {
   if (error) return <ErrorState error={error} />
 
   return (
-    <>
+    <PageBody>
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader
@@ -324,7 +324,7 @@ export default function ProfileView() {
     <div className="mt-4 grid gap-4">
       <MyGrowthPanels quiet />
     </div>
-    </>
+    </PageBody>
   )
 }
 
