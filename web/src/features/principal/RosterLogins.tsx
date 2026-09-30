@@ -80,11 +80,11 @@ interface Row {
    its own rule, so the screen only has to know which to call. */
 const ROUTE = { students: 'students', guardians: 'guardians', staff: 'employees' } as const
 
-export function RosterLogins({ kind, signedIn }: { kind: 'students' | 'guardians' | 'staff'; signedIn?: number }) {
+export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'students' | 'guardians' | 'staff'; signedIn?: number; initialStatus?: string }) {
   const qc = useQueryClient()
   const [target, setTarget] = useState('')
   const [needle, setNeedle] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(initialStatus)
   const [picked, setPicked] = useState<Record<string, true>>({})
   /* What was issued in this sitting, by person id. The server will not say it
      twice and the page cannot ask again. */
