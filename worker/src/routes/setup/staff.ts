@@ -1147,7 +1147,7 @@ export function registerStaff(r: Router): void {
             LEFT JOIN classes cl ON cl.id = e.class_id
             WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?)
               AND (${classId === null ? 'TRUE' : 'e.class_id = ' + "'" + classId + "'"})
-              AND (${policy?.min_level == null ? 'TRUE' : 'cl.level >= ' + Math.trunc(policy.min_level)})
+              /* No class-level test: every child may have a login. */
             ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
         break
       case 'guardians':
