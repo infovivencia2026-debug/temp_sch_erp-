@@ -580,15 +580,10 @@ export default function Logins() {
         {record !== 'sessions' && (!simple || lens !== '') && (
         <Card>
           <CardHeader
-            /* The heading names the card that was pressed, so a filtered list
-               is never read as a different one. */
-            title={
-              lens === 'cannot' ? `Cannot sign in: ${shownUsers.length}`
-                : lens === 'live' ? `Signed in now: ${shownUsers.length}`
-                : lens === 'orphan' ? `No linked record: ${shownUsers.length}`
-                : lens === 'can' ? `Can sign in: ${shownUsers.length}`
-                : 'Logins'
-            }
+            /* One heading whatever card is pressed: the owner found the text
+               changing on every click confusing. The pressed card is
+               highlighted instead, and the count says how many are shown. */
+            title={`Logins: ${shownUsers.length}`}
             description={`${users.length} of ${all.length} account${all.length === 1 ? '' : 's'}`}
             action={
               <>

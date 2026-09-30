@@ -69,6 +69,8 @@ export default function PortalResults() {
   const [picked, setPicked] = useState('')
   /* The card itself, full screen. Read by scaling it to fit rather than by
      dragging a 190mm sheet sideways inside a phone-width panel. */
+  /* The exam the parent is looking at; empty means the latest. */
+  const [examPick, setExamPick] = useState('')
   const [card, setCard] = useState<{ html: string; css?: string; name?: string } | null>(null)
   const child = picked || kids[0]?.student_id || ''
 
@@ -112,13 +114,19 @@ export default function PortalResults() {
       </>
     )
   const d = data
-  const latest = d.cards[0]
+  /* ONE EXAM AT A TIME. The owner asked that a parent pick the exam and see
+     its report card and its marks, rather than every exam stacked down the
+     page. The newest is chosen until they pick another. */
+  const exams = [...new Set([...d.cards.map((c) => c.exam), ...d.subjects.map((m) => m.exam)])]
+  const exam = exams.includes(examPick) ? examPick : (exams[0] ?? '')
+  const shownCards = d.cards.filter((c) => c.exam === exam)
+  const latest = shownCards[0]
   const name = kids.find((k) => k.student_id === child)?.full_name ?? ''
 
   // Grouped by exam so a term reads as one block rather than as a flat list
   // of every subject the child has ever sat.
   const byExam = new Map<string, SubjectMark[]>()
-  for (const m of d.subjects) {
+  for (const m of d.subjects.filter((x) => x.exam === exam)) {
     byExam.set(m.exam, [...(byExam.get(m.exam) ?? []), m])
   }
 
@@ -134,7 +142,13 @@ export default function PortalResults() {
             : t('portal.results.none_body')
         }
         actions={
-          kids.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+          {exams.length > 0 && (
+            <div className="w-48">
+              <Select value={exam} onChange={setExamPick} options={exams.map((x) => ({ value: x, label: x }))} />
+            </div>
+          )}
+          {kids.length > 1 && (
             <Select
               value={child}
               onChange={setPicked}
@@ -143,7 +157,8 @@ export default function PortalResults() {
                 label: `${k.full_name}${k.class_name ? ` · ${k.class_name}-${k.section_name ?? ''}` : ''}`,
               }))}
             />
-          )
+          )}
+          </div>
         }
       />
       <Freshness query={results} />
@@ -179,7 +194,7 @@ export default function PortalResults() {
             title={t('portal.results.cards_title')}
             description={t('portal.results.cards_description')}
           />
-          {d.cards.length === 0 ? (
+          {shownCards.length === 0 ? (
             <EmptyState
               title={t('portal.results.cards_empty_title')}
               body={t('portal.results.cards_empty_body')}
@@ -196,7 +211,7 @@ export default function PortalResults() {
                 '',
               ]}
             >
-              {d.cards.map((c, i) => (
+              {shownCards.map((c, i) => (
                 <tr key={i}>
                   {/* The exam, with its term underneath. Both terms now
                       have their own cards, and a row that said only
