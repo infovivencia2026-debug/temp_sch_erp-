@@ -110,7 +110,7 @@ export default function StudentCalendar() {
 
             {months.length === 0 ? (ahead.length === 0 ? null : 
               <div className="card px-4 py-8 text-center text-[15px] text-muted-foreground"><CalendarDays className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />Nothing coming up here.</div>
-            )) : months.map(([m, list], mi) => (
+            ) : months.map(([m, list], mi) => (
               <section key={m} className="card stu-rise overflow-hidden p-0" style={{ ['--i' as string]: mi + 3 }} aria-label={m}>
                 <h2 className="px-4 pb-1 pt-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">{m}</h2>
                 <ul className="divide-y">{list.map((e, i) => <Row key={`${e.on_date}-${e.title}-${i}`} e={e} />)}</ul>
