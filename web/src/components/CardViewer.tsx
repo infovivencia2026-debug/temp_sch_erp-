@@ -34,6 +34,11 @@ export default function CardViewer({
   // Back closes the card, like Escape and the button, instead of leaving the
   // report cards screen behind it.
   const close = useOverlayHistory(true, onClose)
+  /* Printed or cancelled: back to the screen where the card was opened. */
+  useEffect(() => {
+    window.addEventListener('afterprint', close)
+    return () => window.removeEventListener('afterprint', close)
+  }, [close])
   const box = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)

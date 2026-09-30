@@ -90,6 +90,8 @@ export function printSlips(rows: Row[], title: string) {
     <div class="m">Sign in at ${esc(site)}.</div>`}</div>`).join('')}</div>`)
   w.document.close()
   w.focus()
+  /* Printed or cancelled: the tab closes, back to where Print was pressed. */
+  w.addEventListener('afterprint', () => { try { w.close() } catch { /* already closed */ } })
   w.print()
 }
 
