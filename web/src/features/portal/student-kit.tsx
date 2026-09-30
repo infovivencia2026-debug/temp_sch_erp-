@@ -4,6 +4,7 @@ import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw } from 'luc
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { cn } from '@/lib/utils'
 import { openLauncher } from '@/features/bento/launcher-open'
+import './student.css'
 
 /* THE STUDENT'S SMALL KIT.
 
@@ -303,4 +304,121 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
 /* ─── A skeleton the size of what it stands for ────────────────────────── */
 export function Bone({ className }: { className?: string }) {
   return <span aria-hidden className={cn('block animate-pulse rounded-md bg-muted', className)} />
+}
+
+/* ─── The pieces the redone student screens share ──────────────────────── */
+
+/** A soft tint of one of the scheme hues, for an icon disc or a chip. */
+export const HUE = {
+  indigo: { bg: 'bg-[color-mix(in_oklab,#6366f1_13%,transparent)]', fg: 'text-[#4338ca] dark:text-[#a5b4fc]', stroke: '#6366f1' },
+  emerald: { bg: 'bg-[color-mix(in_oklab,#10b981_15%,transparent)]', fg: 'text-[#047857] dark:text-[#6ee7b7]', stroke: '#10b981' },
+  amber: { bg: 'bg-[color-mix(in_oklab,#f59e0b_17%,transparent)]', fg: 'text-[#92400e] dark:text-[#fcd34d]', stroke: '#f59e0b' },
+  sky: { bg: 'bg-[color-mix(in_oklab,#0ea5e9_14%,transparent)]', fg: 'text-[#075985] dark:text-[#7dd3fc]', stroke: '#0ea5e9' },
+  rose: { bg: 'bg-[color-mix(in_oklab,#f43f5e_12%,transparent)]', fg: 'text-[#be123c] dark:text-[#fda4af]', stroke: '#f43f5e' },
+  slate: { bg: 'bg-muted', fg: 'text-muted-foreground', stroke: '#94a3b8' },
+} as const
+export type Hue = keyof typeof HUE
+
+/** Page title row, the same height loaded or not, so nothing under it moves. */
+export function StudentHeader({ title, sub, right }: { title: string; sub?: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="flex min-h-[56px] items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <h1 className="text-[24px] font-semibold leading-tight">{title}</h1>
+        <p className="min-h-[19px] text-[13px] text-muted-foreground">{sub ?? ' '}</p>
+      </div>
+      {right}
+    </div>
+  )
+}
+
+/** The page column every redone student screen sits in. */
+export function StudentPage({ children }: { children: ReactNode }) {
+  return <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6">{children}</div>
+}
+
+/** Fills after first paint (so the arc visibly grows), or at once with reduced motion. */
+function useGrow(target: number) {
+  const [v, setV] = useState(() => (reducedMotion() ? target : 0))
+  useEffect(() => { const t = requestAnimationFrame(() => setV(target)); return () => cancelAnimationFrame(t) }, [target])
+  return v
+}
+
+/** A big progress ring with the figure in the middle. `pct` is 0-100. */
+export function Ring({ pct, size = 120, stroke = 11, hue = 'indigo', children, label }: { pct: number; size?: number; stroke?: number; hue?: Hue; children?: ReactNode; label: string }) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r
+  const shown = useGrow(Math.max(0, Math.min(100, pct)))
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={label}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-muted" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
+          stroke={HUE[hue].stroke} strokeDasharray={c} strokeDashoffset={c - (c * shown) / 100} className="stu-ring-arc" />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
+    </div>
+  )
+}
+
+/** A bar that grows to `pct` (0-100). */
+export function Bar({ pct, hue = 'indigo', className }: { pct: number; hue?: Hue; className?: string }) {
+  const shown = useGrow(Math.max(0, Math.min(100, pct)))
+  return (
+    <span className={cn('block h-2 overflow-hidden rounded-full bg-muted', className)} aria-hidden>
+      <span className="stu-bar block h-full rounded-full" style={{ width: `${shown}%`, background: HUE[hue].stroke }} />
+    </span>
+  )
+}
+
+/** One small summary card: an icon disc, a figure and what it counts. */
+export function Tile({ icon: Icon, hue, value, label, i = 0 }: { icon: typeof Home; hue: Hue; value: ReactNode; label: string; i?: number }) {
+  return (
+    <div className="card stu-rise flex min-h-[92px] flex-col justify-between gap-2 p-3" style={{ ['--i' as string]: i }}>
+      <span className={cn('flex h-9 w-9 items-center justify-center rounded-full', HUE[hue].bg, HUE[hue].fg)}>
+        <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+      </span>
+      <span>
+        <span className="block text-[20px] font-semibold leading-tight tabular-nums">{value}</span>
+        <span className="block text-[12px] leading-tight text-muted-foreground">{label}</span>
+      </span>
+    </div>
+  )
+}
+
+/** Two or three choices as one pill row with 44px targets. */
+export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div role="tablist" aria-label={label} className="flex gap-1 rounded-2xl bg-muted/70 p-1">
+      {options.map((o) => (
+        <button key={o.value} type="button" role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
+          className={cn('min-h-[44px] flex-1 rounded-xl px-3 text-[14px] font-medium transition-colors', value === o.value ? 'bg-[var(--color-card,white)] text-foreground shadow-sm' : 'text-muted-foreground')}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** A small line of scores over time (0-100), with the last point marked. */
+export function Trend({ points, labels, height = 96 }: { points: number[]; labels: string[]; height?: number }) {
+  const w = 320, h = height, pad = 10
+  const x = (i: number) => (points.length < 2 ? w / 2 : pad + (i * (w - 2 * pad)) / (points.length - 1))
+  const y = (v: number) => pad + ((100 - v) * (h - 2 * pad)) / 100
+  const line = points.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const area = `${line} L${x(points.length - 1).toFixed(1)},${h - pad} L${x(0).toFixed(1)},${h - pad} Z`
+  const last = points.length - 1
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="block h-auto w-full" role="img" aria-label={`Your scores: ${points.map((p, i) => `${labels[i]} ${Math.round(p)}%`).join(', ')}`}>
+      <defs>
+        <linearGradient id="stu-trend" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {[25, 50, 75].map((g) => <line key={g} x1={pad} x2={w - pad} y1={y(g)} y2={y(g)} stroke="currentColor" className="text-border" strokeDasharray="3 4" />)}
+      {points.length > 1 && <path d={area} fill="url(#stu-trend)" />}
+      {points.length > 1 && <path d={line} fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+      {points.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 5 : 3.5} fill={i === last ? '#6366f1' : 'white'} stroke="#6366f1" strokeWidth="2" />)}
+    </svg>
+  )
 }

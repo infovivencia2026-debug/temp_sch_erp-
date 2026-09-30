@@ -28,11 +28,11 @@ export const learningKeys = {
   'student.campus_life.student_club_event_ticketing_qr_check_in': lazy(
     () => import('../learning/ClubEvents'),
   ),
-  'student.notices_calendar.calendar': screen(() => import('../learning/Calendar')),
+  'student.notices_calendar.calendar': screen(() => import('./StudentCalendar')),
   'student.notices_calendar.library_book_hold_request': lazy(
     () => import('../learning/LibraryHolds'),
   ),
-  'student.exams_results.academic_record': screen(() => import('../learning/AcademicRecord')),
+  'student.exams_results.academic_record': screen(() => import('./StudentRecord')),
   'student.alumni.alumni_network_registration': screen(() => import('../learning/AlumniNetwork')),
   'student.alumni.alumni_job_internship_board': screen(() => import('../learning/AlumniJobs')),
 }

@@ -41,5 +41,5 @@ export const parentKeys = {
    * own record is in their own scope, so there was nothing to permit, only a
    * door to open. */
   'student.attendance.apply_for_leave': screen(() => import('./LeaveRequests')),
-  'student.requests.requests': screen(() => import('./RequestsHub')),
+  'student.requests.requests': screen(() => import('./StudentRequests')),
 }

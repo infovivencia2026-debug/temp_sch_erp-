@@ -32,7 +32,7 @@ export const studentLifeKeys = {
      school may not own, so it was catalogued and never built. The card itself
      needs no hardware — it is the same screen the parent opens, and
      useChildren returns a student their own record. */
-  'student.profile.my_id_card': screen(() => import('../portal/StudentIDCard')),
+  'student.profile.my_id_card': screen(() => import('../portal/StudentMyCard')),
 
   'student.campus_life.lost_found_photo_board_with_claim_verification': lazy(
     () => import('./LostFoundClaims'),

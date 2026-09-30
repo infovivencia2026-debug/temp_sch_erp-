@@ -249,7 +249,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * same desk, and none of the admissions decisions, which are not this
    * person's to make. */
   'front_office.my_profile.my_pay': screen(() => import('./me/MyPay')),
-  'student.attendance.attendance': screen(() => import('./portal/Portal')),
+  'student.attendance.attendance': screen(() => import('./portal/StudentAttendance')),
   'student.timetable.timetable': screen(() => import('./portal/StudentTimetable')),
   /* One Dashboard, where there were four entries.
 
@@ -264,7 +264,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.admissions.admissions_pipeline': screen(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': screen(() => import('./exams/Gradebook')),
   'institution_admin.students.academic_performance': screen(() => import('./exams/ReportCards')),
-  'student.exams_results.exams_grades': screen(() => import('./portal/Results')),
+  'student.exams_results.exams_grades': screen(() => import('./portal/StudentResults')),
   'parent.academics.results_report_cards': screen(() => import('./portal/Results')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
