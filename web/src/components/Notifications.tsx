@@ -220,6 +220,7 @@ export default function Notifications() {
      Re-sorting here would fight an endpoint that already knows what is
      urgent. */
   const listed = FILTERS.flatMap((x) => x.kinds ?? [])
+  const inKinds = (kind: string, ks: string[]) => ks.some((k) => kind === k || kind.startsWith(k + '_'))
   const inFilter = (n: Note) => filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
     /* By prefix: the server sends fee_due, fee_overdue, report_card and so on. */
