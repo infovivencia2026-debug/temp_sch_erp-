@@ -1,7 +1,7 @@
 import { ApiError } from '@/lib/api'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -434,74 +434,12 @@ function Home() {
    the API, and people who asked for reduced motion, get the plain swap and
    the arrival fade they had. */
 function RoutedScreen() {
-  /* NO BLINK BETWEEN SCREENS.
-
-     Swapping at once removed the old screen and showed the new one's loading
-     placeholder while its code and data came in: a flash on every click. Now
-     each address gets its own slot. A new screen is mounted in a hidden slot
-     while the current one stays on display; when the new one has drawn,
-     shows no placeholder, and has had no request in flight for 120ms (or
-     after 1.5s at most), that same slot is made visible and the old one is
-     removed. Nothing is drawn twice, so nothing loads twice. */
+  /* The address on screen follows the router directly. (A hidden pre-load of
+     the next screen was tried on 2026-09-30 and rolled back: it switched
+     before some screens had loaded and left the account page on its
+     placeholder.) */
   const location = useLocation()
-  const qc = useQueryClient()
-  type Slot = { id: string; loc: typeof location }
-  const [slots, setSlots] = useState<Slot[]>(() => [{ id: location.key, loc: location }])
-  const [shownId, setShownId] = useState(location.key)
-  const refs = useRef(new Map<string, HTMLDivElement>())
-
-  useEffect(() => {
-    setSlots((cur) => {
-      const visible = cur.find((x) => x.id === shownId) ?? cur[0]
-      if (visible.loc.key === location.key) return [visible]
-      return [visible, { id: location.key, loc: location }]
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location])
-
-  const pending = slots.find((x) => x.id !== shownId)
-  useEffect(() => {
-    if (!pending) return
-    let done = false
-    const start = performance.now()
-    let quietSince = 0
-    const check = () => {
-      if (done) return
-      const el = refs.current.get(pending.id)
-      const t = performance.now()
-      /* Drawn means the screen's own heading is there: a screen whose code is
-         still downloading shows nothing yet, which is not the same as ready. */
-      const busy = qc.isFetching() > 0 || !el || !el.querySelector('h1, [data-page-enter]') ||
-        !!el.querySelector('.skeleton, [aria-label="Loading"], [aria-busy="true"]')
-      if (busy) quietSince = 0
-      else if (!quietSince) quietSince = t
-      if ((quietSince && t - quietSince >= 120) || t - start > 1500) {
-        done = true
-        setShownId(pending.id)
-        setSlots([pending])
-        window.scrollTo(0, 0)
-        return
-      }
-      requestAnimationFrame(check)
-    }
-    requestAnimationFrame(check)
-    return () => { done = true }
-  }, [pending, qc])
-
-  const at = (l: typeof location) => l.pathname + l.search + l.hash
-  return (
-    <>
-      {slots.map((x) => (
-        <div key={x.id}
-          ref={(el) => { if (el) refs.current.set(x.id, el); else refs.current.delete(x.id) }}
-          aria-hidden={x.id !== shownId || undefined}
-          style={x.id === shownId ? undefined
-            : { position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden', zIndex: -1 }}>
-          <AppRoutes location={at(x.loc)} />
-        </div>
-      ))}
-    </>
-  )
+  return <AppRoutes location={location.pathname + location.search + location.hash} />
 }
 
 export function AppRoutes({ location }: { location?: string }) {
