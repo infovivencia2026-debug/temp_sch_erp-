@@ -242,13 +242,23 @@ export function MonthGrid({
                   {/* Two, then a count. A cell that grows with its contents
                       makes every other row in that week taller, and the month
                       stops being one picture. */}
-                  <span className="flex w-full min-w-0 flex-col gap-0.5">
+                  {/* On a phone a day cell is ~50px wide: no chip text fits
+                      at a readable 12px, so the day shows one mark per event
+                      and a tap opens the day's list below. */}
+                  {list.length > 0 && (
+                    <span className="flex gap-0.5 sm:hidden" aria-hidden>
+                      {list.slice(0, 3).map((e, i) => (
+                        <span key={i} className={cn(kindOf(e.kind).tone, 'h-1.5 w-2.5 rounded-full border-0 bg-current')} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
                     {list.slice(0, 2).map((e, i) => (
                       <span
                         key={`${e.kind}-${e.ref_id ?? i}`}
                         title={e.title}
                         className={cn(
-                          'truncate rounded border px-1 py-px text-[10.5px] leading-tight',
+                          'truncate rounded border px-1 py-px text-[12px] leading-tight',
                           kindOf(e.kind).tone,
                         )}
                       >
@@ -256,7 +266,7 @@ export function MonthGrid({
                       </span>
                     ))}
                     {list.length > 2 && (
-                      <span className="px-1 text-[10.5px] text-muted-foreground">
+                      <span className="px-1 text-[12px] text-muted-foreground">
                         {list.length - 2} more
                       </span>
                     )}

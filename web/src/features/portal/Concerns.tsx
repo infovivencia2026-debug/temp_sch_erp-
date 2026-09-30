@@ -56,7 +56,9 @@ const CATEGORIES = [
   { value: 'other', key: 'portal.concerns.category_other' },
 ] as const
 
-export default function Concerns() {
+/* `embedded`: shown inside another page (the student Requests screen) that
+   already has its own heading, so this one would be a second title. */
+export default function Concerns({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useT()
   const qc = useQueryClient()
   const concerns = useQuery({
@@ -105,11 +107,13 @@ export default function Concerns() {
 
   return (
     <>
-      <PageHead
-        eyebrow={t('portal.concerns.eyebrow')}
-        title={t('portal.concerns.title')}
-        description={t('portal.concerns.description')}
-      />
+      {!embedded && (
+        <PageHead
+          eyebrow={t('portal.concerns.eyebrow')}
+          title={t('portal.concerns.title')}
+          description={t('portal.concerns.description')}
+        />
+      )}
       <Freshness query={concerns} />
       <PageBody>
         <CellGrid cols={3}>

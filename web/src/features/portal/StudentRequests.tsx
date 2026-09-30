@@ -31,7 +31,7 @@ export default function StudentRequests() {
       <Segmented label="Kind of request" value={tab} onChange={setTab} options={[{ value: 'cert', label: 'Certificates' }, { value: 'tell', label: 'Tell the school' }]} />
       {tab === 'cert' ? <Certificates /> : (
         <Suspense fallback={<Loading />}>
-          <div className="stu-embedded -mx-4 md:-mx-6"><Concerns /></div>
+          <div className="stu-embedded -mx-4 md:-mx-6"><Concerns embedded /></div>
         </Suspense>
       )}
     </StudentPage>

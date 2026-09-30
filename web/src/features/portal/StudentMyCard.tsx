@@ -95,8 +95,8 @@ function Detail({ icon: Icon, hue, label, value }: { icon: typeof Cake; hue: key
   return (
     <div className="flex min-h-[56px] items-center gap-3 px-4 py-2">
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${HUE[hue].bg} ${HUE[hue].fg}`}><Icon className="h-[18px] w-[18px]" strokeWidth={1.75} /></span>
-      <dt className="min-w-0 flex-1 text-[14px] text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right text-[15px] font-medium [overflow-wrap:anywhere]">{value || <span className="text-muted-foreground">Not recorded</span>}</dd>
+      <dt className="shrink-0 whitespace-nowrap text-[14px] text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 flex-1 text-right text-[15px] font-medium [overflow-wrap:anywhere]">{value || <span className="text-muted-foreground">Not recorded</span>}</dd>
     </div>
   )
 }

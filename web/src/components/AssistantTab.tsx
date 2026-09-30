@@ -785,6 +785,12 @@ export function AssistantTab() {
           puts its own text input directly on top of the dock's settings gear, 
           two controls in the same pixels, and the one you hit is whichever
           happens to be painted last. */}
+      {/* ROOM FOR THE ORB. On a phone the orb floats over the last card of
+          every screen (it covered Export on Results, a calendar day, the ID
+          card's last row). The scroller gets a clear strip at its foot the
+          height of the orb and its margin, so the last thing on any page can
+          scroll out from under it. Wider screens have side gutters for it. */}
+      {!open && <style>{'@media (max-width:767px){main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
       <button data-assistant-orb=""
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -831,7 +837,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-6 z-40 grid size-16 place-items-center rounded-full
+          `fixed right-3 z-40 grid size-14 md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
