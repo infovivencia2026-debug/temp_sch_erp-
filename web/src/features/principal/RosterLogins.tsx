@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, KeyRound, Printer, RotateCcw, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
+  Badge, Button, Card, CardHeader, CellGrid, Checkbox, Field, FormNotice, Input, Select, Stat, Table, Td,
 } from '@/components/ui'
 import { downloadLogins, printSlips } from './StudentLoginsCard'
 
@@ -80,7 +80,7 @@ interface Row {
    its own rule, so the screen only has to know which to call. */
 const ROUTE = { students: 'students', guardians: 'guardians', staff: 'employees' } as const
 
-export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff' }) {
+export function RosterLogins({ kind, signedIn }: { kind: 'students' | 'guardians' | 'staff'; signedIn?: number }) {
   const qc = useQueryClient()
   const [target, setTarget] = useState('')
   const [needle, setNeedle] = useState('')
@@ -342,7 +342,21 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
     issue.mutate({ ids, reset })
   }
 
+  const who = kind === 'students' ? 'Students' : kind === 'guardians' ? 'Parents' : 'Staff'
   return (
+    <>
+    {/* FOUR NUMBERS, ALL COUNTED FROM THE ROLL BELOW, so they always match it.
+        "Not issued" is the one to press: it shows exactly who has no working
+        login yet, ready to issue. */}
+    <CellGrid cols={4}>
+      <Stat label={who + ' on the roll'} value={roster.isLoading ? '…' : rows.length}
+        hint={status ? 'Show everyone' : 'Everyone below'} active={status === ''} onClick={() => setStatus('')} />
+      <Stat label="Can sign in" value={roster.isLoading ? '…' : rows.length - without}
+        hint="Have a working login" active={status === 'issued'} onClick={() => setStatus(status === 'issued' ? '' : 'issued')} />
+      <Stat label="Not issued" value={roster.isLoading ? '…' : without}
+        hint={without ? 'Press to see them and issue' : 'Everybody has a login'} active={status === 'not'} onClick={() => setStatus(status === 'not' ? '' : 'not')} />
+      <Stat label="Signed in now" value={signedIn ?? '-'} hint="Active in the last 10 minutes" />
+    </CellGrid>
     <Card>
       <CardHeader
         title={
@@ -675,5 +689,6 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
         })}
       </Table>
     </Card>
+    </>
   )
 }
