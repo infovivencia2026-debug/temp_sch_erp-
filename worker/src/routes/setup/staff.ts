@@ -1015,6 +1015,12 @@ export function registerStaff(r: Router): void {
         SELECT emp.id, TRIM(emp.first_name || ' ' || COALESCE(emp.last_name, '')) AS name,
                COALESCE(emp.employee_code, '') AS admission_no,
                COALESCE(d.name, '') AS class_name, COALESCE(dept.name, '') AS section_name,
+               /* What the school already holds for reaching this person.
+                  The roll showed the sign-in name and the account id and
+                  nothing else, which reads as a record with no contact on it
+                  -- and a screen that appears to have lost data is worse than
+                  one that never showed it. */
+               COALESCE(emp.email, '') AS email, COALESCE(emp.phone, '') AS phone,
                COALESCE(eu.username, eu.phone, eu.email, '') AS sign_in,
                COALESCE(eu.login_code, '') AS login_code,
                COALESCE((eu.password_hash IS NOT NULL AND eu.status = 'active'), 0) AS usable
@@ -1029,7 +1035,8 @@ export function registerStaff(r: Router): void {
         id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
         class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
         has_login: bool(r.usable), sign_in_as: String(r.sign_in ?? ''),
-        login_code: String(r.login_code ?? ''), guardians: [],
+        login_code: String(r.login_code ?? ''),
+        email: String(r.email ?? ''), phone: String(r.phone ?? ''), guardians: [],
       })) })
     }
 

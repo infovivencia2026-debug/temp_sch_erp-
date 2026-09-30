@@ -20,6 +20,7 @@ interface Section { id: string; class_id: string; class_name: string; name: stri
 interface Row {
   name: string; sign_in_as?: string; password?: string; existing: boolean; detail?: string; child_name?: string; login_code?: string
   admission_no?: string; class_name?: string; section_name?: string; roll_no?: number
+  phone?: string; email?: string
 }
 interface Bulk { created: number; existing: number; skipped: number; rows: Row[]; note: string }
 
@@ -51,12 +52,12 @@ export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'gu
     ? ['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'Account ID', 'First password']
     : kind === 'guardians'
     ? ['Child', 'Class', 'Section', 'Parent', 'Sign in as', 'Account ID', 'First password']
-    : ['Staff code', 'Name', 'Designation', 'Department', 'Sign in as', 'Account ID', 'First password']
+    : ['Staff code', 'Name', 'Designation', 'Department', 'Phone', 'Email', 'Sign in as', 'Account ID', 'First password']
   const cells = (r: Row) => kind === 'students'
     ? [r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
     : kind === 'guardians'
     ? [r.child_name, r.class_name, r.section_name, r.name, r.sign_in_as, r.login_code, passwordOrNote(r)]
-    : [r.admission_no, r.name, r.class_name, r.section_name, r.sign_in_as, r.login_code, passwordOrNote(r)]
+    : [r.admission_no, r.name, r.class_name, r.section_name, r.phone, r.email, r.sign_in_as, r.login_code, passwordOrNote(r)]
   const lines = [head.map(csvCell).join(',')]
   for (const r of rows) lines.push(cells(r).map(csvCell).join(','))
   // The BOM is what makes Excel read the file as UTF-8 rather than mangling it.
@@ -534,7 +535,7 @@ export function IssueOneStaffCard() {
 
   const staff = useQuery({
     queryKey: ['issue-one-staff'],
-    queryFn: () => api.get<{ items: { id: string; employee_code?: string; name?: string; full_name?: string; phone?: string }[] }>(
+    queryFn: () => api.get<{ items: { id: string; employee_code?: string; name?: string; full_name?: string; phone?: string; email?: string }[] }>(
       '/api/v1/hr/employees?status=active&limit=200&with_total=0'),
   })
 
@@ -549,27 +550,28 @@ export function IssueOneStaffCard() {
   const term = needle.trim().toLowerCase()
   const rows = (staff.data?.items ?? [])
     .map((e) => ({ ...e, label: e.full_name ?? e.name ?? '' }))
-    .filter((e) => !term || `${e.label} ${e.employee_code ?? ''} ${e.phone ?? ''}`.toLowerCase().includes(term))
+    .filter((e) => !term || `${e.label} ${e.employee_code ?? ''} ${e.phone ?? ''} ${e.email ?? ''}`.toLowerCase().includes(term))
     .slice(0, 8)
 
   return (
     <Card>
       <CardHeader
         title="Issue a login for one member of staff"
-        description="Search by name, staff code or phone."
+        description="Search by name, staff code, phone or email."
       />
       <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
         <Field label="Member of staff">
-          <Input value={needle} onChange={setNeedle} placeholder="Name, code or phone" />
+          <Input value={needle} onChange={setNeedle} placeholder="Name, code, phone or email" />
         </Field>
         {term.length >= 2 && (
-          <Table head={['Name', 'Code', 'Phone', '']} empty={!rows.length}
+          <Table head={['Name', 'Code', 'Phone', 'Email', '']} empty={!rows.length}
                  emptyLabel={staff.isLoading ? 'Reading the roll…' : 'Nobody matches that.'}>
             {rows.map((e) => (
               <tr key={e.id}>
                 <Td>{e.label}</Td>
                 <Td className="text-muted-foreground">{e.employee_code ?? '—'}</Td>
                 <Td>{e.phone ?? '—'}</Td>
+                <Td className="text-muted-foreground">{e.email ?? '—'}</Td>
                 <Td className="whitespace-nowrap">
                   <Button size="sm" pending={issue.isPending}
                     onClick={() => issue.mutate({ id: e.id, name: e.label, reset: false })}>
