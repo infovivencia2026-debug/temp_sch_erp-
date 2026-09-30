@@ -299,7 +299,7 @@ export default function Calendar() {
               aria-pressed={only === null}
               className={cn(
                 'shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
-                only === null ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
+                only === null ? 'bg-primary/15 text-primary font-semibold' : 'bg-muted text-muted-foreground hover:text-foreground',
               )}
             >
               All {all.length}
@@ -312,7 +312,7 @@ export default function Calendar() {
                 aria-pressed={only === f}
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
-                  only === f ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
+                  only === f ? 'bg-primary/15 text-primary font-semibold' : 'bg-muted text-muted-foreground hover:text-foreground',
                 )}
               >
                 <span className={cn('h-2 w-2 rounded-full', FAMILY[f].dot)} />
@@ -352,7 +352,7 @@ export default function Calendar() {
                   <span
                     className={cn(
                       'grid h-[22px] w-[22px] place-items-center rounded-full text-[12.5px] font-semibold',
-                      day === today ? 'bg-foreground text-background' : 'text-foreground',
+                      day === today ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground',
                     )}
                   >
                     {d.getDate()}
@@ -400,7 +400,7 @@ export default function Calendar() {
                   aria-pressed={sel}
                   className={cn(
                     'flex w-11 flex-col items-center gap-1.5 rounded-xl py-2 transition-colors',
-                    sel ? 'bg-foreground text-background' : 'hover:bg-muted',
+                    sel ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-muted',
                   )}
                 >
                   <span className={cn('text-[10.5px] font-bold uppercase',
