@@ -144,7 +144,7 @@ export default function Calendar() {
           entries={items}
           loading={query.isFetching}
           onRange={(from, to) => setRange({ from, to })}
-          description="Exams, homework due, fees due, holidays and meetings. A day the school is closed is shaded."
+          description="Exams, school activities, holidays and terms. A day the school is closed is shaded."
         />
 
         {/* The cards are the filter.

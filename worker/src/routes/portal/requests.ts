@@ -78,6 +78,7 @@ export function registerPortalRequests(r: Router): void {
 
   // Concerns and messages.
   r.get('/portal/concerns', PORTAL, listPortalConcerns)
+  r.get('/portal/concern-recipients', PORTAL, listConcernRecipients)
   r.post('/portal/concerns', PORTAL, raisePortalConcern)
   r.get('/portal/messages/teachers', PORTAL, listReachableTeachers)
   r.get('/portal/messages', PORTAL, listPortalMessages)
@@ -382,6 +383,59 @@ async function listPortalConcerns(c: Ctx): Promise<Response> {
 
 const CONCERN_CATEGORIES = new Set(['academic', 'fees', 'transport', 'hostel', 'discipline', 'safety', 'staff', 'facilities', 'other'])
 
+/* WHO A CONCERN CAN BE ADDRESSED TO.
+ *
+ * A concern used to go wherever the category's policy pointed, and to nobody
+ * at all when the school had set no policy for that category -- which is every
+ * school that has not been through the grievance settings. So a parent wrote
+ * out what had happened, pressed send, and it landed in a table. Nothing was
+ * lost, and nobody was told, which from the family's side is the same thing.
+ *
+ * A parent already knows who they want: the child's own teacher for something
+ * that happened in the classroom, the head for something the teacher should
+ * not be judging. This lists exactly those people -- the teachers of this
+ * child's section, then whoever runs the school -- and the parent picks.
+ *
+ * Only these. Not a directory of the staff: a family may address the people
+ * who teach their child and the people who answer for the school, and that is
+ * the whole list.
+ */
+async function listConcernRecipients(c: Ctx): Promise<Response> {
+  const { studentIds: ids } = await familyChildren(c, c.url.searchParams.get('student_id') ?? '')
+  const out: Record<string, unknown>[] = []
+  const seen = new Set<string>()
+  for (const one of ids) {
+    for (const t of await reachableTeachers(c, one)) {
+      if (!t.user_id || seen.has(t.user_id)) continue
+      seen.add(t.user_id)
+      out.push({
+        user_id: t.user_id,
+        full_name: t.full_name,
+        role: bool(t.class_teacher) ? 'Class teacher' : (t.subject ? String(t.subject) + ' teacher' : 'Teacher'),
+      })
+    }
+  }
+  /* The heads, by the permission that makes them answerable rather than by a
+     role key: a school that has renamed institution_admin to "Correspondent"
+     still has somebody holding it, and a family must always have somebody
+     above the classroom to write to. */
+  const heads = await c.db.prepare(`
+    SELECT DISTINCT u.id AS user_id, u.full_name,
+           (SELECT ro.name FROM user_roles ur2 JOIN roles ro ON ro.id = ur2.role_id
+             WHERE ur2.user_id = u.id AND ro.key IN ('institution_admin','principal') LIMIT 1) AS role
+      FROM users u
+      JOIN user_roles ur ON ur.user_id = u.id
+      JOIN roles r ON r.id = ur.role_id
+     WHERE u.status = 'active' AND r.key IN ('institution_admin','principal')
+     ORDER BY u.full_name`).all<{ user_id: string; full_name: string; role: string | null }>()
+  for (const h of heads.results) {
+    if (seen.has(h.user_id)) continue
+    seen.add(h.user_id)
+    out.push({ user_id: h.user_id, full_name: h.full_name, role: h.role || 'Head of school' })
+  }
+  return ok({ items: out })
+}
+
 async function raisePortalConcern(c: Ctx): Promise<Response> {
   const body = await readJSON<Record<string, unknown>>(c.req)
   const subject = str(body.subject), text = str(body.body)
@@ -404,6 +458,25 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
   }
   const attachment = await ownAttachment(c, body.attachment_file_id)
 
+  /* WHO THE PARENT ADDRESSED IT TO.
+
+     Checked against the same list the picker was filled from rather than
+     trusted: a user id in a request body is somebody's guess otherwise, and
+     "raise a concern" must not become a way to put a row in front of any
+     member of staff whose id can be found. An id that is not on the list is
+     refused rather than quietly dropped -- a parent who chose the class
+     teacher and was silently reassigned to nobody has been told a lie. */
+  let addressedTo: string | null = null
+  const wanted = raw(body.assigned_to)
+  if (wanted.trim() !== '') {
+    if (!isUUID(wanted)) throw badRequest('assigned_to must be a uuid')
+    const allowed = await (await listConcernRecipients(c)).clone().json<{ items: { user_id: string }[] }>()
+    if (!allowed.items.some((x) => x.user_id === wanted)) {
+      throw badRequest("you can address this to one of your child's teachers or to the head of the school")
+    }
+    addressedTo = wanted
+  }
+
   // The promise is made the moment the concern arrives, from the category's
   // policy, not when somebody gets round to triaging it.
   const policy = await policyFor(c, category)
@@ -416,12 +489,13 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
            owner_department, assigned_to, respond_due_at, resolve_due_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(newID, institutionId(c), c.id.userId, child, category, subject, text, priority, attachment,
-        policy?.owner_department ?? null, policy?.default_owner_id ?? null,
+        policy?.owner_department ?? null, addressedTo ?? policy?.default_owner_id ?? null,
         policy ? dueAt(t, policy.respond_hours) : null, policy ? dueAt(t, policy.resolve_hours) : null, t, t),
     feedbackUpdateStmt(c, newID, 'created', 'Concern raised.', 'open', true, c.id.userId),
   ]
-  if (policy?.default_owner_id && policy.default_owner_id !== c.id.userId) {
-    stmts.push(notify(c, policy.default_owner_id, 'A new concern has been raised', subject,
+  const owner = addressedTo ?? policy?.default_owner_id ?? null
+  if (owner && owner !== c.id.userId) {
+    stmts.push(notify(c, owner, 'A new concern has been raised', subject,
       `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
   }
   try {
@@ -867,9 +941,24 @@ function financialYear(on: string): string {
 
 /** What the school is willing to issue. Never creates a type. */
 async function listPortalRequestTypes(c: Ctx): Promise<Response> {
-  const rows = await c.db.prepare(`SELECT id, code, name, requires_approval FROM certificate_types ORDER BY name`)
-    .all<{ id: string; code: string; name: string; requires_approval: number }>()
-  return ok({ items: rows.results.map((v) => ({ id: v.id, code: v.code, name: v.name, requires_approval: bool(v.requires_approval) })) })
+  /* THE PARENT'S LIST, NOT THE WHOLE CABINET.
+
+     This read every row of certificate_types, and that table holds the staff
+     letters too -- so a parent asking the office for a bonafide certificate
+     was offered "Appointment Letter" and "Warning Letter" beside it. At JSM
+     those were two of the three choices on the menu. Both columns that would
+     have prevented it were already on the table and simply not consulted:
+     subject_kind says whose document it is, is_active says whether the school
+     still issues it. */
+  const rows = await c.db.prepare(`
+    SELECT id, code, name, description, requires_approval FROM certificate_types
+     WHERE subject_kind = 'student' AND is_active ORDER BY name`)
+    .all<{ id: string; code: string; name: string; description: string | null; requires_approval: number }>()
+  return ok({ items: rows.results.map((v) => ({
+    id: v.id, code: v.code, name: v.name,
+    description: v.description ?? '',
+    requires_approval: bool(v.requires_approval),
+  })) })
 }
 
 async function listPortalRequests(c: Ctx): Promise<Response> {

@@ -4,7 +4,7 @@ import { FileCheck2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Select, Textarea,
+  Field, FormGrid, FormNotice, Select, Textarea, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -249,6 +249,24 @@ function DocumentsOnFile() {
             : t('portal.requests.docs_description_empty')
         }
       />
+      {/* NOTHING ON FILE IS AN ANSWER, NOT AN EMPTY TABLE.
+
+          A header row -- Document, Child, Given on, Size, Checked -- ruled
+          across an empty card reads as a list that failed to load, and a
+          parent cannot tell that from a school that holds nothing. The columns
+          describe rows that do not exist; without rows they are furniture. So
+          when there is nothing, the card says so in a sentence and the table
+          is not drawn at all. */}
+      {rows.length === 0 ? (
+        <div className="px-[var(--card-pad)] pb-5">
+          <EmptyState
+            title="No documents on file"
+            body={'The school has not recorded any document for '
+              + 'your child yet — no birth certificate, no transfer certificate, nothing. '
+              + 'Anything you hand in at the office appears here once it has been filed.'}
+          />
+        </div>
+      ) : (
       <Table
         head={[
           t('portal.requests.docs_col_document'),
@@ -257,8 +275,6 @@ function DocumentsOnFile() {
           t('portal.requests.docs_col_size'),
           t('portal.requests.docs_col_checked'),
         ]}
-        empty={rows.length === 0}
-        emptyLabel={t('portal.requests.docs_empty')}
       >
         {rows.map((d) => (
           <tr key={d.id}>
@@ -285,6 +301,7 @@ function DocumentsOnFile() {
           </tr>
         ))}
       </Table>
+      )}
     </Card>
   )
 }
