@@ -2452,7 +2452,9 @@ dialog,
   to   { opacity: 1; transform: none; }
 }
 .screen-fade {
-  animation: screen-fade var(--motion-enter, 180ms) var(--motion-ease, ease) both;
+  /* No entrance. Fading a screen in from blank on every navigation read as
+     the screen blinking; the new screen is simply there. */
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-fade { animation: none !important; }
@@ -2493,7 +2495,8 @@ dialog,
   to   { opacity: 1; }
 }
 [data-page-enter] {
-  animation: route-enter var(--motion-route) var(--motion-ease) both;
+  /* No entrance, for the same reason as .screen-fade: it read as a blink. */
+  animation: none;
 }
 
 /* THE CROSSING BETWEEN TWO SCREENS.
