@@ -238,7 +238,7 @@ function StaffWeekGrid({ cells, periods, empty }: {
             <th className="w-28 border-b bg-muted/50 px-3 py-2.5 text-left text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Period</th>
             {days.map((d) => (
               <th key={d} className={cn('border-b border-l px-3 py-2.5 text-center text-[11.5px] font-semibold uppercase tracking-wide',
-                d === today ? 'bg-primary/10 text-primary' : 'bg-muted/50 text-muted-foreground')}>
+                d === today ? 'bg-primary/[0.07] text-primary' : 'bg-muted/50 text-muted-foreground')}>
                 {WEEKDAYS[d - 1]}{d === today ? ' (today)' : ''}
               </th>
             ))}
@@ -261,22 +261,42 @@ function StaffWeekGrid({ cells, periods, empty }: {
                 const c = at.get(`${d}:${p.id}`)
                 const live = d === today && p.ends_at && p.starts_at.slice(0, 5) <= hhmm && hhmm < p.ends_at.slice(0, 5)
                 return (
-                  <td key={d} className={cn('border-b border-l p-1.5', d === today && 'bg-primary/[0.04]')}>
+                  <td key={d} className={cn('border-b border-l p-2', d === today && 'bg-primary/[0.03]')}>
                     {c ? (
-                      <div className={cn('flex min-h-[4.25rem] flex-col justify-between gap-1 rounded-lg px-2.5 py-2',
-                        c.mine ? 'bg-primary text-primary-foreground' : 'border bg-muted/40',
+                      /* A HIGHLIGHT MARKS THE EXCEPTION, NOT THE RULE.
+
+                         Own periods were filled solid in the brand colour. On
+                         a class timetable that reads well -- three of eight
+                         periods are yours and they stand out. On your OWN
+                         timetable every period is yours, so the grid came out
+                         as forty saturated red blocks with white text, a wall
+                         of colour that is tiring to read, impossible to skim
+                         and wrong in the one way that matters: a highlight
+                         that covers everything highlights nothing.
+
+                         A rail down the left edge and a faint tint say "yours"
+                         just as clearly at a glance, and leave the subject in
+                         ordinary black on white where it can actually be read.
+                         Somebody else's period keeps a plain card. */
+                      <div className={cn('flex min-h-[4.25rem] flex-col gap-0.5 rounded-lg border px-2.5 py-2',
+                        c.mine ? 'border-l-[3px] border-l-primary bg-primary/[0.06]' : 'bg-card',
                         live && 'ring-2 ring-primary ring-offset-1')}>
-                        <span className="font-semibold leading-snug">{c.subject}</span>
-                        <span className={cn('text-[11px] leading-snug', c.mine ? 'text-primary-foreground/85' : c.unstaffed ? 'text-warning' : 'text-muted-foreground')}>
+                        <span className="text-[13px] font-semibold leading-snug">{c.subject}</span>
+                        <span className={cn('text-[11px] leading-snug',
+                          c.unstaffed ? 'text-warning' : 'text-muted-foreground')}>
                           {c.who}
                         </span>
                         {c.room && (
-                          <span className={cn('w-fit rounded px-1.5 py-0.5 text-[10.5px] font-semibold',
-                            c.mine ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground')}>{c.room}</span>
+                          <span className="mt-auto w-fit rounded bg-muted px-1.5 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
+                            {c.room}
+                          </span>
                         )}
                       </div>
                     ) : (
-                      <div className={cn('flex min-h-[4.25rem] items-center justify-center rounded-lg border border-dashed text-[11px] font-medium text-muted-foreground',
+                      /* An empty period is the quietest thing on the grid: it
+                         is what the eye should skip over on its way to a
+                         lesson, not a card competing with one. */
+                      <div className={cn('flex min-h-[4.25rem] items-center justify-center rounded-lg border border-dashed bg-surface-sunken/30 text-[11px] font-medium text-muted-foreground/70',
                         live && 'ring-2 ring-primary ring-offset-1')}>
                         Free
                       </div>
