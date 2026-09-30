@@ -37,6 +37,9 @@ export default function CardViewer({
   const box = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  /* The card's own size before shrinking, so the box around it can be sized
+     to the shrunk card and centred. */
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
 
   /* The card body is a template a school ADMIN authored, rendered into a
      teacher's or a parent's session -- so an `&lt;img onerror&gt;` or a `&lt;script&gt;`
@@ -54,9 +57,14 @@ export default function CardViewer({
      sheet is asked how wide it actually is. */
   useEffect(() => {
     const fit = () => {
-      const outer = box.current?.clientWidth ?? 0
+      const el = box.current
+      // The box's padding is not room the card can use.
+      const cs = el ? getComputedStyle(el) : null
+      const pad = cs ? parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) : 0
+      const outer = (el?.clientWidth ?? 0) - pad
       const inner = sheet.current?.firstElementChild?.scrollWidth ?? 0
       if (!outer || !inner) return
+      setNatural({ w: inner, h: sheet.current?.scrollHeight ?? 0 })
       // Never enlarged: a card blown up past its own size is a blurry card.
       setScale(Math.min(1, outer / inner))
     }
@@ -107,6 +115,7 @@ export default function CardViewer({
           #rc-viewer { position: static !important; }
           #rc-viewer .rc-chrome { display: none !important; }
           #rc-viewer .rc-scale { transform: none !important; }
+          #rc-viewer .rc-frame { width: auto !important; height: auto !important; }
           #rc-viewer .rc-scroll { overflow: visible !important; }
           /* A page number on every sheet of a long document (Chromium draws
              page margin boxes; other engines leave the margin blank). */
@@ -129,12 +138,21 @@ export default function CardViewer({
       {/* overflow-y only. Sideways scrolling is the thing this exists to
           remove, and a card that has been scaled to fit cannot need it. */}
       <div ref={box} className="rc-scroll flex-1 overflow-y-auto overflow-x-hidden p-4">
+        {/* Shrunk from its top-left corner inside a box the size of the shrunk
+            card, and that box centred. Shrinking around the card's own centre
+            while its left edge sat at the screen's left pushed a phone's view
+            half off the right-hand side. */}
         <div
-          ref={sheet}
-          className="rc-scale mx-auto origin-top"
-          style={{ transform: `scale(${scale})`, width: 'fit-content' }}
-          dangerouslySetInnerHTML={{ __html: cleanHtml }}
-        />
+          className="rc-frame mx-auto"
+          style={natural ? { width: natural.w * scale, height: natural.h * scale } : undefined}
+        >
+          <div
+            ref={sheet}
+            className="rc-scale"
+            style={{ transform: `scale(${scale})`, transformOrigin: '0 0', width: 'fit-content' }}
+            dangerouslySetInnerHTML={{ __html: cleanHtml }}
+          />
+        </div>
       </div>
     </div>,
     document.body,

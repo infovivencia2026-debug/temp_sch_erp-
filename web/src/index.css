@@ -2542,6 +2542,11 @@ dialog,
   animation: none;
 }
 html:active-view-transition [data-page-enter] { animation: none; }
+/* An overlay's transition (lib/motion.ts transitioned): the frame is part of
+   the page snapshot, so it dims with the page at the same moment. */
+html[data-vt-overlay] .bento-dock,
+html[data-vt-overlay] .bento-corner,
+html[data-vt-overlay] [data-app-rail] { view-transition-name: none; }
 
 /* THE DOCK ARRIVES OUT OF THE EDGE IT LIVES ON.
 

@@ -31,6 +31,14 @@ export function transitioned(commit: () => void) {
     commit()
     return
   }
+  /* An overlay opening or closing: the frame (rail, dock, corner) is NOT kept
+     as a separate still snapshot here. That separation is for moving between
+     pages (App.tsx); during an overlay it kept the rail and sidebar painted
+     above the dim layer until the transition ended, so the page went grey and
+     the sidebar stayed bright for a moment. See index.css, data-vt-overlay. */
+  const root = document.documentElement
+  root.dataset.vtOverlay = ''
+  const done = () => { delete root.dataset.vtOverlay }
   const vt = doc.startViewTransition(() => {
     try {
       flushSync(commit)
@@ -38,6 +46,8 @@ export function transitioned(commit: () => void) {
       commit()
     }
   })
+  if (!vt?.finished) done()
+  else vt.finished.then(done, done)
   // Overtaken by the next transition (a menu closing as a route changes),
   // these reject "Transition was skipped" as unhandled page errors; the
   // commit already ran, so the rejection is not an error.
