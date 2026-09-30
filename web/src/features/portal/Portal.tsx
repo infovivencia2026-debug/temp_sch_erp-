@@ -102,7 +102,7 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
      month is a small object; it should look like one. */
   return (
     <div className={large ? 'mt-1' : 'mt-2 max-w-[22rem]'}>
-      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-2' : 'gap-1')}>
+      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-1.5' : 'gap-1')}>
         {/* 11px, not 10. The cells below are 46px square and had room to
             spare; the header naming them was the smallest text on the parent's
             screen, set in tracked capitals at 10px in a muted grey. Nothing
@@ -131,8 +131,10 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
                 d?.on_leave && status !== 'leave' ? 'leave approved' : null,
               ].filter(Boolean).join(' · ')}
               className={cn(
-                'relative flex aspect-square items-center justify-center tabular-nums',
-                large ? 'rounded-lg border text-[14px] font-medium' : 'rounded text-[11px]',
+                'relative flex items-center justify-center tabular-nums',
+                /* The report fits one screen on a computer: fixed-height days
+                   rather than squares as wide as the column. */
+                large ? 'h-11 rounded-lg border text-[14px] font-medium' : 'aspect-square rounded text-[11px]',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
                 status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-muted-foreground' : 'text-muted-foreground',
@@ -268,9 +270,9 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
   }
   const yearPct = yMarked ? Math.round((yPresent / yMarked) * 100) : null
   const mini = (label: string, value: string, tone?: string) => (
-    <div className="rounded-xl border bg-card px-4 py-3">
-      <div className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn('mt-1 text-[22px] font-bold tabular-nums', tone)}>{value}</div>
+    <div className="rounded-xl border bg-card px-4 py-2">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('text-[19px] font-bold tabular-nums', tone)}>{value}</div>
     </div>
   )
   const days1 = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`
@@ -289,7 +291,7 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
           options={months.map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
         />
       </div>
-      <div className="grid gap-6 p-5 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
         <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
           {mini('Present', days1(m.present), 'text-success')}
           {mini('Absent', days1(m.absent), m.absent ? 'text-destructive' : undefined)}
