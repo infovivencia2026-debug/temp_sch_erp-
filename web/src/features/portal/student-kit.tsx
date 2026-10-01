@@ -333,8 +333,11 @@ export function StudentHeader({ title, sub, right }: { title: string; sub?: Reac
 }
 
 /** The page column every redone student screen sits in. */
-export function StudentPage({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6">{children}</div>
+/** `wide`: the full width on a computer, for pages laid out in columns there. */
+export function StudentPage({ children, wide }: { children: ReactNode; wide?: boolean }) {
+  return <div className={cn('mx-auto w-full space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6', /* Full width on a computer for every student page: the owner found the
+     web view looked like the phone view. */
+    'max-w-3xl lg:max-w-none lg:px-8', wide && '')}>{children}</div>
 }
 
 /** Fills after first paint (so the arc visibly grows), or at once with reduced motion. */
