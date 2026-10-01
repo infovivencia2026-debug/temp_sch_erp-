@@ -4,6 +4,7 @@ import {
   Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useOptimisticMutation } from '@/lib/optimistic'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Textarea } from '@/components/ui'
 import { VideoPick, VideoUpload } from './VideoLibrary'
 import {
@@ -156,10 +157,14 @@ function SubTree({ d, u, onOpen }: { d: CourseDetail; u: Unit; onOpen: (id: stri
 /* ─── The list of modules ──────────────────────────────────────────── */
 
 function GatingSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
-  const qc = useQueryClient()
-  const set = useMutation({
-    mutationFn: (gating: string) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, gating }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['lms-course-progress'] }) },
+  /* Flips on press (lib/optimistic): the switch is the change, so it is
+     drawn first and put back with Retry if the server refuses. */
+  const set = useOptimisticMutation<CourseDetail['gating']>({
+    mutationFn: (gating) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, gating }),
+    queryKeys: [qkey],
+    invalidate: [qkey, ['lms-course-progress']],
+    apply: (old, gating) => ({ ...(old as CourseDetail), gating }),
+    failure: "Couldn't change how the class moves through the course",
   })
   return (
     <Card>
@@ -170,15 +175,21 @@ function GatingSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
         </div>
         <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="radiogroup" aria-label="Progression">
           {([['sequential', 'One by one'], ['open', 'Open']] as const).map(([v, label]) => (
-            <button key={v} type="button" role="radio" aria-checked={d.gating === v} disabled={set.isPending} onClick={() => d.gating !== v && set.mutate(v)} className={seg(d.gating === v)}>
+            <button key={v} type="button" role="radio" aria-checked={d.gating === v} onClick={() => d.gating !== v && set.mutate(v)} className={seg(d.gating === v)}>
               {v === 'sequential' ? <Lock className="mr-1.5 inline h-3.5 w-3.5" /> : <Unlock className="mr-1.5 inline h-3.5 w-3.5" />}{label}
             </button>
           ))}
         </div>
-        <FormNotice error={set.error} />
       </div>
     </Card>
   )
+}
+
+/** The course with its units in the order `ids` gives; anything not named keeps its place at the end. */
+function unitsInOrder(d: CourseDetail, ids: string[]): CourseDetail {
+  const rank = new Map(ids.map((id, i) => [id, i]))
+  const units = [...d.units].sort((a, b) => (rank.get(a.id) ?? ids.length) - (rank.get(b.id) ?? ids.length))
+  return { ...d, units }
 }
 
 function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onOpen: (id: string) => void }) {
@@ -188,14 +199,18 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
   const active = d.units.filter((u) => u.is_active !== false)
   const tops = active.filter((u) => !u.parent_unit_id)
   const archived = d.units.filter((u) => u.is_active === false)
-  const [order, setOrder] = useState<string[] | null>(null)
-  const ids = order ?? tops.map((u) => u.id)
-  const reorder = useMutation({
-    mutationFn: (next: string[]) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id,
-      ids: [...next, ...active.filter((u) => u.parent_unit_id).map((u) => u.id), ...archived.map((u) => u.id)] }),
-    onSettled: async () => { await qc.invalidateQueries({ queryKey: qkey }); setOrder(null) },
+  const ids = tops.map((u) => u.id)
+  /* A drop is the new order, silently (lib/optimistic): the list is
+     rewritten in the cache the moment the row lands, the save goes behind
+     it, and a refusal puts the old order back with Retry. */
+  const fullOrder = (next: string[]) => [...next, ...active.filter((u) => u.parent_unit_id).map((u) => u.id), ...archived.map((u) => u.id)]
+  const reorder = useOptimisticMutation<string[]>({
+    mutationFn: (next) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: fullOrder(next) }),
+    queryKeys: [qkey],
+    apply: (old, next) => unitsInOrder(old as CourseDetail, fullOrder(next)),
+    failure: "Couldn't save the order",
   })
-  const drag = useDragOrder(ids, (next) => { setOrder(next); reorder.mutate(next) })
+  const drag = useDragOrder(ids, (next) => reorder.mutate(next))
   const restore = useMutation({ mutationFn: (id: string) => api.put(`/api/v1/lms/units/${id}`, { is_active: true }), onSuccess: () => qc.invalidateQueries({ queryKey: qkey }) })
   const byId = new Map(tops.map((u) => [u.id, u]))
   return (
@@ -334,9 +349,13 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   const items = itemsOf(d, u)
   /* "Not on a day" is always there: content can go straight in the module, days or not. */
   const days = (() => { const x = daysOf(d, u, items); return x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
-  const orderSubs = useMutation({
-    mutationFn: (pair: [string, string]) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: swapOrder(d, pair[0], pair[1]) }),
-    onSuccess: refresh,
+  // Silent and at once, like the drag above (lib/optimistic).
+  const orderSubs = useOptimisticMutation<[string, string]>({
+    mutationFn: (pair) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: swapOrder(d, pair[0], pair[1]) }),
+    queryKeys: [qkey],
+    invalidate: [qkey, ['lms-module-progress'], ['lms-course-progress']],
+    apply: (old, pair) => unitsInOrder(old as CourseDetail, swapOrder(old as CourseDetail, pair[0], pair[1])),
+    failure: "Couldn't save the order",
   })
   const numbered = days.filter((x) => x.day !== null).map((x) => x.day as number)
   const orderDays = useMutation({ mutationFn: (next: number[]) => api.post(`/api/v1/lms/units/${u.id}/days/order`, { days: next }), onSuccess: refresh })
@@ -372,7 +391,6 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
           <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's own content</p>
           {subs.map((sx, i) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)}
             arrows={subs.length > 1 ? <Arrows first={i === 0} last={i === subs.length - 1} up={() => orderSubs.mutate([sx.id, subs[i - 1].id])} down={() => orderSubs.mutate([sx.id, subs[i + 1].id])} label={sx.title} /> : undefined} />)}
-          <FormNotice error={orderSubs.error} />
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -389,7 +407,7 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       ) : (
         <div className="space-y-4">
           {days.map((x) => (
-            <DayCard key={String(x.day)} d={d} u={u} day={x.day} label={x.label} items={items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
+            <DayCard key={String(x.day)} d={d} u={u} qkey={qkey} day={x.day} label={x.label} items={items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
               arrows={x.day === null ? null : <Arrows first={numbered.indexOf(x.day) === 0} last={numbered.indexOf(x.day) === numbered.length - 1} up={() => moveDay(x.day!, -1)} down={() => moveDay(x.day!, 1)} label={`Day ${x.day}`} />} />
           ))}
         </div>
@@ -398,15 +416,29 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   )
 }
 
-function DayCard({ d, u, day, label, items, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; day: number | null; label: string; items: TItem[]; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
+function DayCard({ d, u, qkey, day, label, items, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; qkey: unknown[]; day: number | null; label: string; items: TItem[]; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(label)
   const [adding, setAdding] = useState<Adding | null>(null)
   const saveLabel = useMutation({ mutationFn: () => api.put(`/api/v1/lms/units/${u.id}/days/${day}`, { label: name }), onSuccess: () => { setEditing(false); refresh() } })
   const del = useMutation({ mutationFn: () => api.del(`/api/v1/lms/units/${u.id}/days/${day}`), onSuccess: refresh })
-  const reorder = useMutation({
-    mutationFn: (next: TItem[]) => api.post(`/api/v1/lms/units/${u.id}/order`, { items: next.map((i) => ({ type: i.type, id: i.id })) }),
-    onSuccess: () => refresh(),
+  /* An arrow press is the new order, silently (lib/optimistic): the items'
+     sequence numbers are rewritten in the cache first, the save follows. */
+  const reorder = useOptimisticMutation<TItem[]>({
+    mutationFn: (next) => api.post(`/api/v1/lms/units/${u.id}/order`, { items: next.map((i) => ({ type: i.type, id: i.id })) }),
+    queryKeys: [qkey],
+    invalidate: [qkey, ['lms-module-progress'], ['lms-course-progress']],
+    apply: (old, next) => {
+      const c = old as CourseDetail
+      const seq = new Map(next.map((i, n) => [`${i.type}:${i.id}`, n + 1]))
+      return {
+        ...c,
+        units: c.units.map((x) => x.id !== u.id ? x : { ...x, lessons: x.lessons.map((l) => seq.has(`lesson:${l.id}`) ? { ...l, sequence: seq.get(`lesson:${l.id}`)! } : l) }),
+        assignments: c.assignments.map((a) => seq.has(`assignment:${a.id}`) ? { ...a, lms_sequence: seq.get(`assignment:${a.id}`)! } : a),
+        quizzes: c.quizzes.map((q) => seq.has(`quiz:${q.id}`) ? { ...q, lms_sequence: seq.get(`quiz:${q.id}`)! } : q),
+      }
+    },
+    failure: "Couldn't save the order",
   })
   const sorted = (s: Section) => items.filter((i) => i.section === s).sort((a, b) => a.seq - b.seq)
   const done = () => { setAdding(null); refresh() }

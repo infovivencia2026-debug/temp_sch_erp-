@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Briefcase, Award, Share2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useUndoableDelete } from '@/lib/optimistic'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
-  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
@@ -107,10 +108,17 @@ export default function Portfolio() {
     onSuccess: refresh,
   })
 
-  const remove = useMutation({
-    mutationFn: (id: string) =>
-      api.del(`/api/v1/portal/learning/portfolio/${id}${studentQuery(studentId)}`),
-    onSuccess: refresh,
+  /* Gone on press, with Undo for five seconds, in place of "Are you sure?"
+     (lib/optimistic): a child's own entry, the lowest-risk delete here. */
+  const remove = useUndoableDelete<string>({
+    mutationFn: (id) => api.del(`/api/v1/portal/learning/portfolio/${id}${studentQuery(studentId)}`),
+    queryKeys: [['portfolio']],
+    apply: (old, id) => {
+      const d = old as { items: PortfolioItem[] }
+      return { ...d, items: d.items.filter((x) => x.id !== id) }
+    },
+    undo: 'Entry deleted',
+    failure: "Couldn't delete the entry",
   })
 
   if (portfolio.isLoading && ready) return <SkeletonTiles count={3} label="Opening your portfolio…" />
@@ -220,23 +228,16 @@ export default function Portfolio() {
                           onClick={() => toggleShare.mutate(i)}>
                           {i.is_shared ? 'Make private' : 'Share'}
                         </Button>
-                        <ConfirmButton
-                          size="sm"
-                          variant="ghost"
-                          tone="danger"
-                          question="This entry goes for good."
-                          confirmLabel="Delete it"
-                          onConfirm={() => remove.mutate(i.id)}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => void remove(i.id)}>
                           Delete
-                        </ConfirmButton>
+                        </Button>
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
               <div className="border-t px-5 py-3">
-                <FormNotice error={toggleShare.error ?? remove.error} />
+                <FormNotice error={toggleShare.error} />
               </div>
             </Card>
 

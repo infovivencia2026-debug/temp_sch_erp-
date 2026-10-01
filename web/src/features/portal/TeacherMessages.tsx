@@ -167,8 +167,7 @@ export default function TeacherMessages() {
             canSend={teacher !== ''}
             peerName={chosenTeacher?.full_name}
             peerPhoto={chosenTeacher?.photo}
-            onSend={(m) => send.mutate(m)}
-            sending={send.isPending}
+            onSend={(m) => send.mutateAsync(m)}
             /* A parent can take back what they have just written, for the
                same fifteen minutes the server allows anybody. Held-message
                Delete is absent on the teacher's messages, which is right:

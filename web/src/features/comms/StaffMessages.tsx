@@ -598,8 +598,7 @@ export default function StaffMessages() {
                     family. Replies come from the teacher it was addressed to.
                   </>
                 }
-                onSend={(m) => replyToParent.mutate(m)}
-                sending={replyToParent.isPending}
+                onSend={(m) => replyToParent.mutateAsync(m)}
                 error={replyToParent.error}
                 placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
                 height="min-h-0"
@@ -703,8 +702,7 @@ export default function StaffMessages() {
               onUnsend={unsendMessage('staff')}
               loading={messages.isLoading}
               empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
-              onSend={(m) => send.mutate(m)}
-              sending={send.isPending}
+              onSend={(m) => send.mutateAsync(m)}
               error={send.error}
               placeholder={`Write to ${open?.full_name ?? 'them'}`}
               height="min-h-0"

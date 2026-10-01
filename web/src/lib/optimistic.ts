@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import {
   useMutation, useQueryClient, type QueryClient, type QueryKey, type UseMutationOptions,
 } from '@tanstack/react-query'
@@ -41,6 +41,9 @@ export interface OptimisticConfig<TVars, TData = unknown> {
   /** Lead of the error line: "Couldn't mark it read". The reason follows. */
   failure?: string
   onSuccess?: (data: TData, vars: TVars) => void
+  /** After the cache is put back: for local state the caller cleared on
+      press (a register's unsaved draft) and now wants back. */
+  onError?: (err: unknown, vars: TVars) => void
 }
 
 export interface Snapshot {
@@ -106,6 +109,7 @@ export function optimisticOptions<TVars, TData>(
     },
     onError: (err, vars, snap) => {
       rollback(qc, snap)
+      cfg.onError?.(err, vars)
       toast.error(`${cfg.failure ?? "Couldn't save that"}, so it was put back. ${reason(err)}`, () => retry(vars))
     },
     onSuccess: (data, vars) => cfg.onSuccess?.(data, vars),
@@ -125,4 +129,90 @@ export function useOptimisticMutation<TVars = void, TData = unknown>(cfg: Optimi
   const m = useMutation(optimisticOptions(qc, cfg, toast, (v) => ref.mutate(v)))
   ref.mutate = m.mutate
   return m
+}
+
+/* GONE AT ONCE, SENT IN A MOMENT.
+
+   A delete that can be taken back needs no "Are you sure?": the row goes
+   the instant it is pressed, a toast says so with Undo beside it, and the
+   request leaves only once the Undo has been left unpressed. Undo puts the
+   cache back exactly as it was and nothing was ever sent. Only for the
+   low-risk lists -- a note, a status post, a pin -- where the worst case of
+   a wrong press is five seconds of a row being absent.
+
+   The delay is this window's, so a tab closed inside it would lose the
+   delete the person watched happen: `pagehide` sends it early instead. A
+   refetch landing inside the window (another screen invalidating the same
+   key) can draw the row again until the delete lands; that is a flicker,
+   not a lie, and the honest order -- shown, then done -- is kept. */
+export const UNDO_MS = 5000
+
+export interface UndoableConfig<TVars, TData = unknown> extends OptimisticConfig<TVars, TData> {
+  /** The toast line Undo sits beside: "Note deleted". */
+  undo: string | ((vars: TVars) => string)
+  delayMs?: number
+}
+
+/** The remover, built without React so it can be tested. */
+export function undoableDelete<TVars, TData>(
+  qc: QueryClient,
+  cfg: UndoableConfig<TVars, TData>,
+  toast: ToastLike,
+): (vars: TVars) => Promise<void> {
+  const delay = cfg.delayMs ?? UNDO_MS
+  const remove = async (vars: TVars) => {
+    const snap = await applyOptimistic(qc, keysOf(cfg.queryKeys, vars), cfg.apply, vars)
+    let settled = false
+    const send = async () => {
+      if (settled) return
+      settled = true
+      window.removeEventListener('pagehide', send)
+      clearTimeout(timer)
+      optimisticBegin()
+      try {
+        const data = await cfg.mutationFn(vars)
+        cfg.onSuccess?.(data, vars)
+      } catch (err) {
+        rollback(qc, snap)
+        cfg.onError?.(err, vars)
+        toast.error(`${cfg.failure ?? "Couldn't delete that"}, so it was put back. ${reason(err)}`, () => void remove(vars))
+      } finally {
+        optimisticEnd()
+        const keys = keysOf(cfg.invalidate ?? cfg.queryKeys, vars)
+        await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })))
+      }
+    }
+    const timer = setTimeout(() => void send(), delay)
+    window.addEventListener('pagehide', send)
+    toast.ok(typeof cfg.undo === 'function' ? cfg.undo(vars) : cfg.undo, () => {
+      if (settled) return
+      settled = true
+      window.removeEventListener('pagehide', send)
+      clearTimeout(timer)
+      rollback(qc, snap)
+    })
+  }
+  return remove
+}
+
+export function useUndoableDelete<TVars = void, TData = unknown>(cfg: UndoableConfig<TVars, TData>) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  // The latest config is read at press time, never a stale closure's.
+  const ref = useRef(cfg)
+  ref.current = cfg
+  return useMemo(() => {
+    const live: UndoableConfig<TVars, TData> = {
+      get mutationFn() { return ref.current.mutationFn },
+      get queryKeys() { return ref.current.queryKeys },
+      get apply() { return ref.current.apply },
+      get invalidate() { return ref.current.invalidate },
+      get failure() { return ref.current.failure },
+      get onSuccess() { return ref.current.onSuccess },
+      get onError() { return ref.current.onError },
+      get undo() { return ref.current.undo },
+      get delayMs() { return ref.current.delayMs },
+    }
+    return undoableDelete(qc, live, toast)
+  }, [qc, toast])
 }

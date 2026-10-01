@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Pin, PinOff, Plus, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useOptimisticMutation, useUndoableDelete } from '@/lib/optimistic'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, PageBody, PageHead } from '@/components/ui'
 import StatusRings, { ViewsSheet } from './status/StatusRings'
 import StatusComposer, { StatusFileInput } from './status/StatusComposer'
@@ -28,8 +29,30 @@ export default function ClassStatus() {
     void qc.invalidateQueries({ queryKey: ['class-status-mine'] })
     void qc.invalidateQueries({ queryKey: ['notifications'] })
   }
-  const pin = useMutation({ mutationFn: (p: MyPost) => api.post(`/api/v1/status/posts/${p.id}/pin`, { pinned: !p.pinned }), onSuccess: refresh })
-  const del = useMutation({ mutationFn: (id: string) => api.del(`/api/v1/status/posts/${id}`), onSuccess: refresh })
+  /* Pin flips on press and a delete takes the row out at once with Undo
+     for five seconds (lib/optimistic): a teacher's own post, the lowest-risk
+     writes on this screen. */
+  const pin = useOptimisticMutation<MyPost>({
+    mutationFn: (p) => api.post(`/api/v1/status/posts/${p.id}/pin`, { pinned: !p.pinned }),
+    queryKeys: [['class-status-mine']],
+    invalidate: [['class-status-mine'], ['notifications']],
+    apply: (old, p) => {
+      const d = old as { items: MyPost[] }
+      return { ...d, items: d.items.map((x) => (x.id === p.id ? { ...x, pinned: !p.pinned } : x)) }
+    },
+    failure: "Couldn't change the pin",
+  })
+  const del = useUndoableDelete<string>({
+    mutationFn: (id) => api.del(`/api/v1/status/posts/${id}`),
+    queryKeys: [['class-status-mine']],
+    invalidate: [['class-status-mine'], ['notifications']],
+    apply: (old, id) => {
+      const d = old as { items: MyPost[] }
+      return { ...d, items: d.items.filter((x) => x.id !== id) }
+    },
+    undo: 'Post deleted',
+    failure: "Couldn't delete the post",
+  })
 
   return (
     <>
@@ -66,7 +89,7 @@ export default function ClassStatus() {
                       {p.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => del.mutate(p.id)} title="Delete"><Trash2 className="size-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => void del(p.id)} title="Delete"><Trash2 className="size-4" /></Button>
                 </li>
               ))}
             </ul>

@@ -3,9 +3,10 @@ import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe2, CalendarClock, Trophy } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useUndoableDelete } from '@/lib/optimistic'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
+  Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Checkbox, SkeletonTiles, ErrorState, 
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
@@ -126,10 +127,17 @@ export default function Universities() {
     onSuccess: refresh,
   })
 
-  const remove = useMutation({
-    mutationFn: (id: string) =>
-      api.del(`/api/v1/portal/learning/universities/${id}${studentQuery(studentId)}`),
-    onSuccess: refresh,
+  /* Gone on press, with Undo for five seconds, in place of "Are you sure?"
+     (lib/optimistic): a shortlist row the student can add back in a moment. */
+  const remove = useUndoableDelete<string>({
+    mutationFn: (id) => api.del(`/api/v1/portal/learning/universities/${id}${studentQuery(studentId)}`),
+    queryKeys: [['universities']],
+    apply: (old, id) => {
+      const d = old as List<Entry>
+      return { ...d, items: d.items.filter((x) => x.id !== id) }
+    },
+    undo: 'Removed from your list',
+    failure: "Couldn't remove it",
   })
 
   if (list.isLoading && ready) return <SkeletonTiles count={3} label="Opening your shortlist…" />
@@ -266,16 +274,9 @@ export default function Universities() {
                               options={STATUSES}
                             />
                           </div>
-                          <ConfirmButton
-                            size="sm"
-                            variant="ghost"
-                            tone="danger"
-                            question="Remove it from your list?"
-                            confirmLabel="Remove"
-                            onConfirm={() => remove.mutate(e.id)}
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => void remove(e.id)}>
                             Remove
-                          </ConfirmButton>
+                          </Button>
                         </div>
                       </Td>
                     </tr>
@@ -283,7 +284,7 @@ export default function Universities() {
                 })}
               </Table>
               <div className="border-t px-5 py-3">
-                <FormNotice error={move.error ?? remove.error} />
+                <FormNotice error={move.error} />
               </div>
             </Card>
           </>

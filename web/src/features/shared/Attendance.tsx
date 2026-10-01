@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody, Input } from '@/components/ui'
@@ -8,6 +8,7 @@ import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useOptimisticMutation } from '@/lib/optimistic'
 
 const STATUSES = ['present', 'absent', 'late', 'half_day', 'leave', 'holiday'] as const
 type Status = (typeof STATUSES)[number]
@@ -41,7 +42,6 @@ const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   void embedded
   const can = useCan()
-  const qc = useQueryClient()
   const [sectionId, setSectionId] = useState('')
   const [onDate, setOnDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [draft, setDraft] = useState<Record<string, Status>>({})
@@ -113,15 +113,36 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   // an absence they already know about.
   const [silent, setSilent] = useState(false)
 
-  const save = useMutation({
-    mutationFn: (entries: { student_id: string; status: Status }[]) =>
+  /* SHOWN AS SAVED THE MOMENT SAVE IS PRESSED (lib/optimistic).
+
+     The ticks were already instant -- a draft over the recorded marks -- but
+     Save then held the button for the round trip. Now the draft is written
+     into the cached register at once, the draft empties, and the button
+     runs its pending mark while the request goes out behind it. If the
+     server refuses, the register goes back to what it was and the ticks
+     come back as a draft, so nothing a teacher marked is lost; Retry sends
+     the same entries. The success line still reports what the SERVER did
+     (how many parents were told), which is not guessed at. */
+  type Entry = { student_id: string; status: Status }
+  const save = useOptimisticMutation<Entry[], { parents_told?: number; messages_queued?: number }>({
+    mutationFn: (entries) =>
       api.call('POST /attendance', { body: {
         section_id: sectionId, on_date: onDate, entries,
         notify_channels: channels, silent,
       } }),
+    queryKeys: [['attendance', sectionId, onDate]],
+    apply: (old, entries) => {
+      const d = old as { items: { student_id: string; status: string }[] }
+      const byId = new Map(entries.map((e) => [e.student_id, e.status]))
+      const kept = d.items.map((m) => (byId.has(m.student_id) ? { ...m, status: byId.get(m.student_id)! } : m))
+      const known = new Set(d.items.map((m) => m.student_id))
+      const added = entries.filter((e) => !known.has(e.student_id)).map((e) => ({ student_id: e.student_id, status: e.status }))
+      return { ...d, items: [...kept, ...added] }
+    },
+    failure: "Couldn't save the register",
+    onError: (_err, entries) =>
+      setDraft((cur) => ({ ...Object.fromEntries(entries.map((e) => [e.student_id, e.status])), ...cur })),
     onSuccess: (res, entries) => {
-      setDraft({})
-      qc.invalidateQueries({ queryKey: ['attendance', sectionId, onDate] })
       // The count matters: a register saved with three of forty marked is the
       // failure a teacher discovers a week later, and silence hides it.
       const absent = entries.filter((e) => e.status === 'absent').length
@@ -237,15 +258,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               <Button variant="ghost" onClick={() => markAll('present')}>Present</Button>
               <Button variant="ghost" onClick={() => markAll('absent')}>Absent</Button>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                {save.isError && <ErrorMessage error={save.error} />}
                 {save.isSuccess && !dirty && <span className="text-xs text-success">Saved</span>}
                 <Button
-                  disabled={!dirty || save.isPending}
-                  onClick={() =>
-                    save.mutate(Object.entries(draft).map(([student_id, status]) => ({ student_id, status })))
-                  }
+                  disabled={!dirty}
+                  pending={save.isPending}
+                  onClick={() => {
+                    const entries = Object.entries(draft).map(([student_id, status]) => ({ student_id, status }))
+                    setDraft({})
+                    save.mutate(entries)
+                  }}
                 >
-                  {save.isPending ? 'Saving…' : `Save ${Object.keys(draft).length || ''}`.trim()}
+                  {`Save ${Object.keys(draft).length || ''}`.trim()}
                 </Button>
               </div>
             </div>
@@ -426,13 +449,5 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       )}
     </Card>
     </PageBody>
-  )
-}
-
-function ErrorMessage({ error }: { error: unknown }) {
-  return (
-    <span className="text-xs text-destructive">
-      {error instanceof Error ? error.message : 'Save failed'}
-    </span>
   )
 }
