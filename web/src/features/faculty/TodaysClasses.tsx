@@ -122,8 +122,8 @@ export default function TodaysClasses() {
         </div>
       </Card>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
-        <Card className="flex min-h-[22rem] flex-col justify-between border-primary/25 bg-gradient-to-b from-card to-primary/[0.06] px-6 py-6">
+      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
+        <Card className="flex flex-col justify-between border-primary/25 bg-gradient-to-b from-card to-primary/[0.06] px-6 py-6">
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.05em] text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />

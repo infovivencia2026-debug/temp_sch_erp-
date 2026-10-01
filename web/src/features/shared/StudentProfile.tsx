@@ -60,6 +60,17 @@ interface Remark {
   recorded_by?: string
 }
 
+/* A plain summary from the record itself, for when the AI one is unavailable. */
+function summaryOf(p: { full_name: string; attendance: { percent: number; present: number; total: number }; fees: { outstanding_paise: number }; results: { exam: string; percentage: string; grade: string }[] }): string {
+  const first = p.full_name.split(/s+/)[0]
+  const parts: string[] = []
+  parts.push(p.attendance.total ? `${first} has attended ${p.attendance.present} of ${p.attendance.total} school days (${p.attendance.percent}%)` : `No attendance has been marked for ${first} yet`)
+  const last = p.results[0]
+  if (last?.percentage) parts.push(`scored ${last.percentage}%${last.grade ? ` (grade ${last.grade})` : ''} in ${last.exam}`)
+  parts.push(p.fees.outstanding_paise > 0 ? `has ${formatPaise(p.fees.outstanding_paise)} in fees outstanding` : 'has no fees outstanding')
+  return parts.join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'
+}
+
 export default function StudentProfile() {
   /* THE FILTERS LIVE IN THE URL, beside the child.
 
@@ -942,7 +953,7 @@ export default function StudentProfile() {
             </Card>
           ) : null}
           {/* Student 360: an AI summary on request, cached until the records change; staff only (the card hides itself otherwise). */}
-          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} /></div>}
+          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p)} /></div>}
           {/* 4. QUICK STATUS — the three things somebody wants before they
                  have finished reading the name, and the one that cannot wait.
 

@@ -29,9 +29,9 @@ function Kpi({ label, value, small, tone }: { label: string; value: string; smal
   return (
     <div className="flex flex-col gap-1.5 rounded-[10px] border bg-card px-5 py-4">
       <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
-      <div className={cn('flex items-baseline gap-1.5 text-[22px] font-bold', tone)}>
+      <div className={cn('flex flex-wrap items-baseline gap-x-1.5 text-[22px] font-bold', tone)}>
         {value}
-        {small && <small className="text-[11px] font-medium text-muted-foreground">{small}</small>}
+        {small && <small className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">{small}</small>}
       </div>
     </div>
   )
