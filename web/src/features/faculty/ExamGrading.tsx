@@ -108,7 +108,7 @@ export default function ExamGrading() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not regrade'),
   })
 
-  if (tests.isLoading) return <SkeletonTiles count={4} />
+  if (tests.isLoading && !tests.data) return <SkeletonTiles count={4} />
   if (tests.error) return <ErrorState error={tests.error} />
 
   const rows = analysis.data?.items ?? []

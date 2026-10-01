@@ -173,7 +173,31 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const e = body?.error
+    /* TWO SHAPES OF REFUSAL, AND THE CLIENT ONLY UNDERSTOOD ONE.
+
+       Go answered with a nested object -- {"error":{"code":..,"message":..}} --
+       and this read body.error.code. The Worker answers flat:
+
+           {"error":"you have no staff record in this school","code":"not_staff"}
+
+       so body.error is a STRING, `.code` on it is undefined, and every refusal
+       since the migration has arrived as code 'unknown' with no message.
+
+       That is not cosmetic. Every branch in this product that asks WHY a
+       request was refused has been dead: the staff panels that hide themselves
+       on 'not_staff' stayed on a parent's account page, the prompt that
+       re-asks for a password on 'reauth_required' never appeared, a school
+       switch that is no longer valid was never forgotten. And because the
+       message was undefined too, FormNotice drew a red bar with no words in
+       it -- which I patched in FormNotice as though the bar were the fault.
+
+       Both shapes are read now. Flat wins where it is present, because that is
+       what the live server sends; the nested form is kept so a Go deployment
+       or a cached response is not suddenly illegible. */
+    const nested = body?.error
+    const e = nested && typeof nested === 'object'
+      ? nested
+      : { code: body?.code, message: typeof nested === 'string' ? nested : body?.message }
     /* The school this tab was switched into is no longer one this person
        oversees (a board grant or group membership was removed). Forget it so
        the next request is back at home instead of every screen failing. */

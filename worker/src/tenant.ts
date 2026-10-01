@@ -1,6 +1,6 @@
 import type { Env } from './env'
 import { httpTenantDb } from './services/d1http'
-import { SCHOOL, invalidateRef } from './services/refcache'
+import { SCHOOL, invalidateRef, noteFeaturesVersion } from './services/refcache'
 
 export interface Institution {
   id: string
@@ -24,11 +24,19 @@ export interface Institution {
   teacher_day_code_secret: ArrayBuffer | null
   d1_database_id: string
   d1_binding: string
+  /** Bumped by CONTROL triggers on any feature-switch change (control migration 0013). */
+  features_version?: number
+}
+
+/** Every institutions row the Worker reads passes here: the switch version it carries is noted (refcache.ts). */
+export function noteInstitution<T extends Institution | null | undefined>(inst: T): T {
+  if (inst) noteFeaturesVersion(inst.id, inst.features_version)
+  return inst
 }
 
 /** The school's row in CONTROL, or null. Small and read on every request. */
 export async function institutionById(env: Env, id: string): Promise<Institution | null> {
-  return env.CONTROL.prepare('SELECT * FROM institutions WHERE id = ?').bind(id).first<Institution>()
+  return noteInstitution(await env.CONTROL.prepare('SELECT * FROM institutions WHERE id = ?').bind(id).first<Institution>())
 }
 
 /** The school at /<country>/<slug>, the address its sign-in page lives at. */

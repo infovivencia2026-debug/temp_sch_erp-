@@ -115,7 +115,7 @@ export default function ApplicantMessages() {
     },
   })
 
-  if (q.isLoading) return <SkeletonTiles count={4} />
+  if (q.isLoading && !q.data) return <SkeletonTiles count={4} />
   if (q.error) return <ErrorState error={q.error} />
 
   const suggested = shown.filter(note.suggests)

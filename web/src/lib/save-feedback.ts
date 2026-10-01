@@ -1,4 +1,5 @@
 import { lastConfirmationAt, toastBus } from '@/components/Toast'
+import { buzz } from '@/lib/haptics'
 
 /* EVERY SAVE SAYS "SAVED".
 
@@ -49,9 +50,18 @@ const WORD: Record<string, string> = {
   DELETE: 'Removed',
 }
 
+/* An optimistic write (lib/optimistic.ts) has already been drawn on screen
+   by the time the server accepts it, so the late "Saved" square would be
+   news about something the person watched happen a second ago. While any
+   such write is in flight the fallback stays quiet. */
+let optimistic = 0
+export function optimisticBegin() { optimistic++ }
+export function optimisticEnd() { optimistic = Math.max(0, optimistic - 1) }
+
 export function noteWrite(method: string, path: string) {
   const m = method.toUpperCase()
   if (m === 'GET' || m === 'HEAD') return
+  if (optimistic > 0) return
   const clean = path.split('#')[0]
   if (QUIET.some((re) => re.test(clean))) return
   const doneAt = Date.now()
@@ -61,5 +71,9 @@ export function noteWrite(method: string, path: string) {
   window.setTimeout(() => {
     if (lastConfirmationAt() >= doneAt) return
     toastBus()?.ok(WORD[m] ?? 'Saved')
+    /* The one tick the phone gives a submit, with the tile and never
+       without it. A deletion the server took gets the two-pulse warn: it is
+       news that something is gone, and it must not read as "Saved". */
+    buzz(m === 'DELETE' ? 'warn' : 'tap')
   }, 250)
 }

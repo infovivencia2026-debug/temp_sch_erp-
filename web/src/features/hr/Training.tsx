@@ -82,7 +82,7 @@ export default function Training() {
     queryFn: () => api.get<List<Programme>>('/api/v1/hr-growth/training/programmes'),
   })
 
-  if (compliance.isLoading) return <SkeletonTiles count={4} label="Counting training hours…" />
+  if (compliance.isLoading && !compliance.data) return <SkeletonTiles count={4} label="Counting training hours…" />
   if (compliance.error) return <ErrorState error={compliance.error} />
 
   const rows = compliance.data?.items ?? []

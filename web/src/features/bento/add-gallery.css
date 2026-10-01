@@ -391,3 +391,31 @@
 .bento-gallery[data-still] .bento-gallery__added {
   animation: none;
 }
+
+/* Cards, figures or app icons: the row of choices over the list. */
+.bento-gallery__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bento-gallery__kind {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bento-gallery__kind[data-on] {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+  font-weight: 600;
+}
+.bento-gallery__kind:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+/* An app icon's preview is the icon itself, square, centred. */
+.bento-gallery__preview--icon { aspect-ratio: 16 / 10; }
+.bento-gallery__size--icon { flex: 1; justify-content: center; }

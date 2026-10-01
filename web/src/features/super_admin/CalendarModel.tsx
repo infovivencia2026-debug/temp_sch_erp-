@@ -32,7 +32,7 @@ export default function CalendarModel() {
   const [saturday, setSaturday] = useState<string | null>(null)
   const [required, setRequired] = useState<string | null>(null)
 
-  if (isLoading) return <SkeletonTiles count={4} />
+  if (isLoading && !data) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

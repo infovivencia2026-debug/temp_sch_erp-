@@ -109,7 +109,7 @@ export default function LibraryDesk() {
     queryFn: () => api.get<List<Audit>>('/api/v1/ops/library/audits'),
   })
 
-  if (holds.isLoading) return <SkeletonTiles count={4} label="Opening the desk…" />
+  if (holds.isLoading && !holds.data) return <SkeletonTiles count={4} label="Opening the desk…" />
   if (holds.error) return <ErrorState error={holds.error} />
 
   const rows = holds.data?.items ?? []

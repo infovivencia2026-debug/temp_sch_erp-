@@ -39,7 +39,7 @@ export default function BoardAffiliation() {
   const [expires, setExpires] = useState('')
   const [url, setUrl] = useState('')
 
-  if (isLoading) return <SkeletonTiles count={4} />
+  if (isLoading && !data) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

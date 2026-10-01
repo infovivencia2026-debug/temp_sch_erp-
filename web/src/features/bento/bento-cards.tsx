@@ -894,8 +894,8 @@ export function QuickMenu({
         <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onCustomize)}>
           <span className="min-w-0 flex-1 truncate">{t('bento.widgets.customize')}</span>
         </button>
-        <div className="bento-menu__rule" role="separator" />
-        <div className="bento-menu__head" aria-hidden="true">{t('bento.widgets.size')}</div>
+        {tiers.length > 0 && <div className="bento-menu__rule" role="separator" />}
+        {tiers.length > 0 && <div className="bento-menu__head" aria-hidden="true">{t('bento.widgets.size')}</div>}
         {tiers.map(({ tier, on, ok }) => (
           <button
             key={tier}

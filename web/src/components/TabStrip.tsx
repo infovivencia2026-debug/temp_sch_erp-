@@ -12,6 +12,9 @@ import { useT } from '@/lib/i18n'
 import { requestArrange } from '@/lib/widgets'
 import { requestAppearance } from '@/lib/appearance-request'
 import { cn } from '@/lib/utils'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
+
+const pickOn = (list: HTMLElement) => list.querySelector<HTMLElement>(':scope > [data-on]')
 import '@/features/bento/dock-menus.css'
 
 /* The tab strip. Desktop only — see lib/tabs.ts for why that is a decision
@@ -50,6 +53,7 @@ export default function TabStrip() {
   const holdFrom = useRef<{ x: number; y: number } | null>(null)
   const held = useRef(false)
   const activeRef = useRef<HTMLDivElement | null>(null)
+  const stripRef = useRef<HTMLDivElement | null>(null)
   /* Referentially stable: the popover's document listeners depend on it. */
   const dismiss = useCallback(() => setMenu(null), [])
 
@@ -70,6 +74,22 @@ export default function TabStrip() {
   }, [here, tabs.length])
 
   const titleFor = (path: string) => screenTitle(catalog, path)
+
+  /* A REMEMBERED TAB FOR A SCREEN THAT IS GONE. Tabs outlive the menu: when a
+     screen is removed from a role (Apply for leave for students), its old tab
+     stayed in the strip and still opened the page. Once the catalogue is in,
+     any tab whose screen it no longer lists is closed. */
+  useEffect(() => {
+    if (!catalog.roles.length) return
+    for (const tb of tabs) {
+      const [, roleKey, sectionSlug, featureSlug] = tb.path.split('?')[0].split('/')
+      if (!roleKey || !sectionSlug || !featureSlug) continue
+      const role = catalog.roles.find((r) => r.key === roleKey)
+      if (!role) continue
+      const listed = role.sections.some((sec) => sec.slug === sectionSlug && sec.features.some((x) => x.slug === featureSlug))
+      if (!listed) close(tb.path)
+    }
+  }, [catalog, tabs, close])
 
   /* Every navigation opens or refreshes a tab. Doing it here rather than at
      each link means nothing has to remember to participate — including links
@@ -154,6 +174,7 @@ export default function TabStrip() {
   return (
     <div
       role="tablist"
+      ref={stripRef}
       aria-label="Open screens"
       /* A wheel over a horizontal-only scroller does nothing on a mouse: the
          browser sends deltaY, and there is no vertical axis here to spend it
@@ -171,9 +192,13 @@ export default function TabStrip() {
          read as clutter when several screens were open. The row still scrolls
          on the wheel (above) and auto-scrolls the active tab into view; the bar
          itself is hidden the way browser tab strips hide theirs. */
-      className="hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex
+      className="relative hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex
                  [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
+      {/* The open tab's pill slides to the tab you pick instead of
+          repainting there. */}
+      <SlidingIndicator listRef={stripRef} active={here + tabs.length} pick={pickOn}
+        className="rounded-[10px] bg-accent shadow-[0_1px_2px_rgba(0,0,0,.06)]" />
       {tabs.map((t) => {
         const active = t.path === here
         // A tab showing in some other pane is open in front of somebody even
@@ -196,6 +221,7 @@ export default function TabStrip() {
           <div
             key={t.path}
             ref={active ? activeRef : undefined}
+            data-on={active ? '' : undefined}
             onContextMenu={(e) => {
               e.preventDefault()
               // Anchored on the tab button, not the box: the popover hangs

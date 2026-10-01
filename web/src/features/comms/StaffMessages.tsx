@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import WriteWithAI from '@/components/ai/WriteWithAI'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { PickerMenu } from '@/components/PickerMenu'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
-  Loading, ErrorState, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, ErrorState, tabClass, TAB_BAR, Select } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useCan, useSession } from '@/lib/session'
 
@@ -128,6 +127,24 @@ export default function StaffMessages() {
     else next.delete('teacher')
     setParams(next)
   }
+
+  /* A NEW CONVERSATION, started by the teacher: pick the class, then the
+     parent. The owner asked that teachers need not wait for a parent to write. */
+  const [starting, setStarting] = useState(false)
+  const [startClass, setStartClass] = useState('')
+  const [startFind, setStartFind] = useState('')
+  const myClasses = useQuery({
+    queryKey: ['student-progress-options'],
+    queryFn: () => api.get<List<{ section_id: string; label: string; class_teacher: boolean }>>('/api/v1/teaching/progress/options'),
+    enabled: starting,
+  })
+  /* Empty means every class I teach: one search across all my parents. */
+  const startSection = startClass
+  const contacts = useQuery({
+    queryKey: ['parent-contacts', startSection],
+    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string; class_label?: string }>>(`/api/v1/teaching/parent-contacts${startSection ? `?section_id=${startSection}` : ''}`),
+    enabled: starting,
+  })
 
   const parentThreads = useQuery({
     queryKey: ['parent-threads'],
@@ -395,27 +412,47 @@ export default function StaffMessages() {
           <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
             <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
               {tabs}
-              {/* "Parents", matching the tab above it. The two said different
-                  words for the same list, which reads as two different lists. */}
-              <CardHeader
-                title="Parents"
-                description={
-                  parents.length
-                    ? `${parents.length} conversation${parents.length === 1 ? '' : 's'}`
-                    : undefined
-                }
-              />
               <div className="space-y-2 px-4 pb-3 pt-3">
-                <Input value={find} onChange={setFind} placeholder="Find a parent, child or class" />
-                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={unreadOnly}
-                    onChange={(e) => setUnreadOnly(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
-                </label>
+                {/* One tidy row: search, the unread pill, and New. */}
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Input value={find} onChange={setFind} placeholder="Find a parent or child" />
+                  </div>
+                  <button type="button" onClick={() => setUnreadOnly(!unreadOnly)} aria-pressed={unreadOnly}
+                    className={cn('!min-h-0 shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                      unreadOnly ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground')}>
+                    Unread{parentUnread > 0 ? ` ${parentUnread}` : ''}
+                  </button>
+                  <button type="button" onClick={() => setStarting((v) => !v)} title="New message to a parent"
+                    className="!min-h-0 shrink-0 rounded-full bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground hover:opacity-95">
+                    {starting ? 'Close' : '+ New'}
+                  </button>
+                </div>
+                {starting && (
+                  <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
+                    <Select value={startSection} onChange={(v) => setStartClass(v)}
+                      placeholder={myClasses.isLoading ? 'Loading…' : 'All my classes'}
+                      options={[{ value: '', label: 'All my classes' }, ...(myClasses.data?.items ?? []).map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))]} />
+                    <Input value={startFind} onChange={setStartFind} placeholder="Child or parent name" />
+                    <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-card">
+                      {(contacts.data?.items ?? [])
+                        .filter((x) => !startFind.trim() || `${x.student_name} ${x.parent_name}`.toLowerCase().includes(startFind.trim().toLowerCase()))
+                        .map((x) => (
+                          <li key={`${x.student_id}-${x.parent_user_id}`}>
+                            <button type="button"
+                              onClick={() => { setStarting(false); setOpenChild(x.student_id, x.parent_user_id) }}
+                              className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted/60">
+                              <span className="text-[14px] font-semibold">{x.parent_name}{x.relation ? ` (${x.relation})` : ''}</span>
+                              <span className="text-[12.5px] text-muted-foreground">{x.student_name}{x.class_label ? ` · ${x.class_label}` : ''}</span>
+                            </button>
+                          </li>
+                        ))}
+                      {contacts.data && contacts.data.items.length === 0 && (
+                        <li className="px-3 py-3 text-[13px] text-muted-foreground">No parent found.</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
               <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {parents.map((t) => (
@@ -556,11 +593,6 @@ export default function StaffMessages() {
                 loading={parentMessages.isLoading}
                 empty="Nothing yet in this conversation."
                 canSend={openParent?.teacher_user_id === me || !openParent?.teacher_user_id}
-                composerTools={openChild ? (draft, setDraft) => (
-                  <WriteWithAI kind="parent_message" context={{ student_id: openChild,
-                    reply_to: [...(parentMessages.data?.items ?? [])].reverse().find((m) => !m.mine && m.sender_side === 'parent')?.body }}
-                    current={draft} onInsert={setDraft} defaultLength="short" />
-                ) : undefined}
                 cannotSendNote={
                   <>
                     Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation with this

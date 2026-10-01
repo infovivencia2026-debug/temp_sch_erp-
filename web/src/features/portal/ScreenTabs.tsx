@@ -1,7 +1,8 @@
-import { useState, useTransition, type ComponentType, type LazyExoticComponent } from 'react'
+import { useRef, useState, useTransition, type ComponentType, type LazyExoticComponent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { segClass, SEG_BAR } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
 
 /* Several catalogue screens behind one menu entry.
  *
@@ -38,6 +39,7 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
      own fallback and the whole page, tabs and all, blanked to a skeleton and
      came back: every tab press looked like a reload. */
   const [, startTransition] = useTransition()
+  const listRef = useRef<HTMLDivElement>(null)
   const pick = (key: string) => {
     startTransition(() => {
       setFallback(key)
@@ -53,8 +55,10 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
         <div
           role="tablist"
           aria-label={label}
-          className={SEG_BAR}
+          ref={listRef}
+          className={cn(SEG_BAR, 'relative')}
         >
+          <SlidingIndicator listRef={listRef} active={active} className="rounded-sm bg-card shadow-sm" />
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -73,7 +77,11 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
           ))}
         </div>
       </div>
-      <Active key={active} />
+      {/* Keyed so the tab's screen starts fresh, and wrapped so the arrival
+          settles in (index.css .tab-swap) rather than cutting. */}
+      <div className="tab-swap" key={active}>
+        <Active />
+      </div>
     </>
   )
 }

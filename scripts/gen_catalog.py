@@ -151,6 +151,7 @@ BY_ROLE_SCOPE = {"student": "self", "parent": "children"}
 #   "Student absentees" -> "Present & absent": the screen grew a Present tab and
 #   was renamed, but grants (migration 00317) still key on student_absentees.
 FEATURE_SLUG_OVERRIDE = {
+    "LMS": "e_learning_resource_hub",  # feature:learning.e_learning_resource_hub (renamed by feature:rename, key kept)
     "Present & absent": "student_absentees",
     # Renamed from "Staff records"; the key hr.records.staff_records is a
     # seeded grant, a registry entry and a /go/ path, so the slug stays.

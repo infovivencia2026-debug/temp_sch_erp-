@@ -1774,20 +1774,81 @@ export function useBoardHeight() {
          drift apart, plus a gap so cards stop short of it rather than touching.
          Fixed reservation, no double counting: the container's padding keeps
          the SCROLLED content clear, this keeps the board's own height clear. */
-      const dock = parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue('--bento-dock'),
-      ) || 72
-      const room = Math.max(240, window.innerHeight - top - dock - 24)
+      /* FILL TO THE DOCK. The reserve is whatever the scroller actually holds
+         back for the dock (its padding-bottom, from --dock-reserve), plus any
+         bottom padding between the scroller and the board -- read off the
+         live boxes, so the board ends where scrolling would begin and no
+         further. The old arithmetic (token 72 + 24, on top of a wrapper that
+         was ALSO padding the bottom) left a ~55px band above the dock on every
+         desktop size. Falls back to the token when no scroller pads. */
+      let reserve = 0
+      for (let el = board.parentElement; el && el !== document.body; el = el.parentElement) {
+        reserve += parseFloat(getComputedStyle(el).paddingBottom) || 0
+        if (el.scrollHeight > el.clientHeight + 1 || /auto|scroll/.test(getComputedStyle(el).overflowY)) break
+      }
+      if (reserve < 24) {
+        const dock = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--bento-dock'),
+        ) || 72
+        reserve = dock + 24
+      }
+      /* A floor per row, so a short window scrolls rather than squashing the
+         cards: 148px is what a quiet card holds (see the collapsed-board rule
+         in bento-theme.css), and the row gap between each. */
+      const rootStyle = getComputedStyle(document.documentElement)
+      const rows = parseInt(rootStyle.getPropertyValue('--board-rows'), 10) || 3
+      const gap = parseFloat(getComputedStyle(board).rowGap) || 0
+      const paged = board.hasAttribute('data-pager')
+      /* A phone page never scrolls, so it has no floor: it takes the room. */
+      const floor = paged ? 0 : rows * 148 + (rows - 1) * gap
+      /* NO SPACE UNDER THE BOARD BUT THE PAGE DOTS (owner, 2026-10-01). The
+         board ends 12px above the dock, or, when the pager's dots are
+         showing, 7px above the dots. The live edges are the truth, whatever
+         padding the scrollers carry. */
+      const dock = document.querySelector<HTMLElement>('.bento-dock')
+      const dockBox = dock?.getBoundingClientRect()
+      const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== 'hidden' ? dockBox.top : 0
+      const dot = paged ? document.querySelector<HTMLElement>('.bento-dots .bento-dot') : null
+      const dotBox = dot?.getBoundingClientRect()
+      const dotTop = dotBox && dotBox.height > 0 ? dotBox.top : 0
+      const edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      const limit = edge || window.innerHeight - reserve
+      let room = Math.max(floor, limit - top)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
+      /* The board's own padding sits between its box and the cards, so line
+         the CARDS up with that edge: one correcting pass (the desk board,
+         whose rows are exactly the rows in use). */
+      if (edge) {
+        const cards = board.querySelectorAll('[data-card]')
+        let bottom = 0
+        cards.forEach((c) => { bottom = Math.max(bottom, c.getBoundingClientRect().bottom) })
+        const off = edge - bottom
+        if (cards.length && Math.abs(off) > 1 && room + off >= floor) {
+          room += off
+          board.style.setProperty('--board-h', `${Math.round(room)}px`)
+        }
+      }
     }
 
     measure()
     window.addEventListener('resize', measure)
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
+    /* The board's TOP moves when anything above it changes size (the Status
+       strip arriving after its fetch, a banner, the header wrapping), and
+       none of that resizes the body of a fixed-height shell. Watch every
+       ancestor and every sibling that sits before one. */
+    for (let el: Element | null = board; el && el !== document.body; el = el.parentElement) {
+      ro.observe(el)
+      for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) ro.observe(sib)
+    }
+    /* --board-rows changes the floor; re-measure when it does. */
+    const mo = new MutationObserver(measure)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
     cleanup.current = () => {
       window.removeEventListener('resize', measure)
       ro.disconnect()
+      mo.disconnect()
     }
   }, [])
 }

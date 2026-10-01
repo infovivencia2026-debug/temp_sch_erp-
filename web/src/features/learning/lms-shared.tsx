@@ -1,3 +1,4 @@
+import { ProgressRing as SharedRing } from '../../components/ProgressRing'
 import { Fragment, useRef, useState, type ReactNode } from 'react'
 import {
   BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
@@ -17,6 +18,8 @@ export type ItemType = SourceKind | 'quiz' | 'assignment'
 export type Section = 'prereq' | 'resources' | 'tools' | 'assessment'
 export const SECTIONS: Section[] = ['prereq', 'resources', 'tools', 'assessment']
 export const SECTION_LABEL: Record<Section, string> = { prereq: 'Pre-requisites', resources: 'Resources', tools: 'Tools', assessment: 'Assessment' }
+/** The same sections in a young child's words (display only; the stored values stay as above). */
+export const KID_SECTION_LABEL: Record<Section, string> = { prereq: 'Before you start', resources: 'Learn', tools: 'Practice', assessment: 'Show what you know' }
 /** "Day 3", or "Day 3: Fractions on a line"; a null day is the part of a module with no day. */
 export const dayTitle = (day: number | null, label?: string | null) => (day === null ? label || 'Not on a day' : label ? `Day ${day}: ${label}` : `Day ${day}`)
 
@@ -101,6 +104,10 @@ export function embedOf(url: string): string | null {
 export const KIND_LABEL: Record<string, string> = {
   text: 'Notes', pdf: 'PDF', file: 'File', video: 'Video', link: 'Web link', image: 'Image', audio: 'Audio', doc: 'Slides / doc', quiz: 'Quiz', assignment: 'Assignment',
 }
+/** What the child does with each kind of source, one short word. */
+export const KID_KIND_LABEL: Record<string, string> = {
+  text: 'Read', pdf: 'Read', file: 'Open', video: 'Watch', link: 'Visit', image: 'Look', audio: 'Listen', doc: 'Look', quiz: 'Quiz', assignment: 'Homework',
+}
 const ICONS: Record<string, typeof FileText> = {
   text: BookOpen, pdf: FileText, file: Paperclip, video: PlayCircle, link: Link2, image: ImageIcon, audio: Headphones, doc: Presentation, quiz: ListChecks, assignment: ClipboardList,
 }
@@ -173,16 +180,12 @@ export function dateRange(a?: string | null, b?: string | null): string {
 }
 
 export function ProgressRing({ pct, size = 44, label }: { pct: number; size?: number; label?: string }) {
-  const r = (size - 6) / 2, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, pct))
+  const p = Math.max(0, Math.min(100, pct))
   return (
-    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} role="img" aria-label={label ?? `${p}% done`}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} className="stroke-muted" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (c * p) / 100}
-          className={`transition-[stroke-dashoffset] duration-700 ease-out ${p >= 100 ? 'stroke-success' : 'stroke-primary'}`} />
-      </svg>
+    <SharedRing as="span" pct={p} size={size} stroke={4} inset={6} label={label ?? `${p}% done`} className="relative inline-flex shrink-0 items-center justify-center"
+      arcClassName={`transition-[stroke-dashoffset] duration-700 ease-out ${p >= 100 ? 'stroke-success' : 'stroke-primary'}`}>
       <span className="absolute text-[11px] font-semibold tabular-nums">{p}%</span>
-    </span>
+    </SharedRing>
   )
 }
 

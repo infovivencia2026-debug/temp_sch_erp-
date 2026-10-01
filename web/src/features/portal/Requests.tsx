@@ -4,7 +4,7 @@ import { FileCheck2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Select, Textarea,
+  Field, FormGrid, FormNotice, Select, Textarea, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -99,7 +99,7 @@ export default function Requests() {
     },
   })
 
-  if (requests.isLoading) return <ScreenSkeleton label={t('portal.requests.loading')} />
+  if (requests.isLoading && !requests.data) return <ScreenSkeleton label={t('portal.requests.loading')} />
   if (requests.error && !requests.data) return <ScreenError error={requests.error} />
 
   const rows = requests.data?.items ?? []
@@ -156,15 +156,42 @@ export default function Requests() {
                       ? t('portal.requests.choose_one')
                       : t('portal.requests.no_types')
                   }
-                  options={available.map((rt) => ({ value: rt.code, label: rt.name }))}
+                  /* "Something else" sorts last wherever the office named it,
+                     because it is the answer for when none of the others fit
+                     and it should be read after them, not in the middle of the
+                     alphabet between Fee Payment and Study. */
+                  options={[...available]
+                    .sort((a, b) => Number(a.code === 'OTHER') - Number(b.code === 'OTHER'))
+                    .map((rt) => ({ value: rt.code, label: rt.name }))}
                 />
               </Field>
-              <Field label={t('portal.requests.field_purpose')} required wide>
+              {/* WHEN NOTHING ON THE LIST IS WHAT THEY NEED.
+
+                  A school issues a handful of certificates and a parent
+                  occasionally needs a thing none of them is -- a letter for a
+                  consulate, a form the bank has its own name for. The list
+                  could not say so, and a dropdown with no way out is a dead
+                  end at the exact moment somebody needs help.
+
+                  "Something else" is a type like any other, so it goes into
+                  the same queue, gets the same serial and the same tracking;
+                  the purpose box, which is already required, is where they
+                  write what it is. It just asks a plainer question. */}
+              <Field
+                label={typeCode === 'OTHER' ? 'What do you need, and what for?' : t('portal.requests.field_purpose')}
+                required
+                wide
+                hint={typeCode === 'OTHER'
+                  ? 'Say it in your own words. The office will tell you whether they can issue it.'
+                  : undefined}
+              >
                 <Textarea
-                  rows={2}
+                  rows={typeCode === 'OTHER' ? 3 : 2}
                   value={reason}
                   onChange={setReason}
-                  placeholder={t('portal.requests.purpose_placeholder')}
+                  placeholder={typeCode === 'OTHER'
+                    ? 'For example: a letter confirming my child studies here, addressed to the passport office'
+                    : t('portal.requests.purpose_placeholder')}
                 />
               </Field>
             </FormGrid>
@@ -249,6 +276,24 @@ function DocumentsOnFile() {
             : t('portal.requests.docs_description_empty')
         }
       />
+      {/* NOTHING ON FILE IS AN ANSWER, NOT AN EMPTY TABLE.
+
+          A header row -- Document, Child, Given on, Size, Checked -- ruled
+          across an empty card reads as a list that failed to load, and a
+          parent cannot tell that from a school that holds nothing. The columns
+          describe rows that do not exist; without rows they are furniture. So
+          when there is nothing, the card says so in a sentence and the table
+          is not drawn at all. */}
+      {rows.length === 0 ? (
+        <div className="px-[var(--card-pad)] pb-5">
+          <EmptyState
+            title="No documents on file"
+            body={'The school has not recorded any document for '
+              + 'your child yet — no birth certificate, no transfer certificate, nothing. '
+              + 'Anything you hand in at the office appears here once it has been filed.'}
+          />
+        </div>
+      ) : (
       <Table
         head={[
           t('portal.requests.docs_col_document'),
@@ -257,8 +302,6 @@ function DocumentsOnFile() {
           t('portal.requests.docs_col_size'),
           t('portal.requests.docs_col_checked'),
         ]}
-        empty={rows.length === 0}
-        emptyLabel={t('portal.requests.docs_empty')}
       >
         {rows.map((d) => (
           <tr key={d.id}>
@@ -285,6 +328,7 @@ function DocumentsOnFile() {
           </tr>
         ))}
       </Table>
+      )}
     </Card>
   )
 }

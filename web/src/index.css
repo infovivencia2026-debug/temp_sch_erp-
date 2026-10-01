@@ -239,6 +239,10 @@
     /* A field is a recess, not a card: a hairline of shade inside its top
        edge is what tells the two apart at a glance. */
     --field-inset: inset 0 1px 2px hsl(var(--elev-ink) / 0.05);
+    /* BORDERLESS FIELDS. A text box, a select and a search pill carry no
+       drawn border: a soft shadow and the faintest ring of shade give the
+       edge, so a form reads as calm surfaces rather than a grid of boxes. */
+    --field-shadow: 0 0 0 1px hsl(var(--elev-ink) / 0.07), 0 1px 3px hsl(var(--elev-ink) / 0.08);
     /* The hairline a level-1 surface draws, and the fainter one a level-3
        surface draws -- a sheet has its shadow to say where it ends. */
     --hairline: hsl(var(--border));
@@ -288,7 +292,7 @@
     /* ONE CONTROL HEIGHT. A field was 40px and a button 32px, so a search box,
        a filter and Apply in one toolbar never lined up. Both read this; a
        finger gets the 44px floor. */
-    --control-h: 36px;
+    --control-h: 40px;
     --radius-card: min(calc(11px * var(--radius-k)), 20px);
     --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
     --radius: var(--radius-card);
@@ -392,6 +396,7 @@
     --elev-press: inset 0 1px 2px hsl(0 0% 0% / calc(0.35 * var(--elev-a)));
     --edge-lip: inset 0 1px 0 hsl(0 0% 100% / calc(0.06 * var(--elev-a)));
     --field-inset: inset 0 1px 2px hsl(0 0% 0% / 0.30);
+    --field-shadow: 0 0 0 1px hsl(0 0% 100% / 0.08), 0 1px 3px hsl(0 0% 0% / 0.45);
     /* The hairline fades as a surface rises: at level 1 it is still the
        edge, at level 3 the tonal step and the shadow have taken over. */
     --hairline: hsl(0 0% 100% / calc(0.08 * var(--hairline-a, 1)));
@@ -438,8 +443,11 @@
 
      Density is left where it was: it moves table rows (--row-py above) and
      the Focus board's gutters, not the page frame. */
+  /* SIXTEEN ON EVERY PHONE PAGE, in both layouts (owner, 2026-10-01: the
+     gutters must match, 16px, on every phone page). Focus draws its 16
+     itself (BentoOutlet), so there the page adds nothing below 640. */
   :root {
-    --page-gutter: 22px;
+    --page-gutter: 16px;
     --page-top: 20px;
     --page-head-gap: 20px;
     --section-gap: 24px;
@@ -450,7 +458,7 @@
   }
   /* Focus pads its work area itself (BentoOutlet: 14 / 20 / 24px, and 21px
      at the top), so the page adds only the difference. */
-  html[data-layout='bento'] { --page-gutter: 8px; --page-top: 0px; }
+  html[data-layout='bento'] { --page-gutter: 0px; --page-top: 0px; }
   @media (min-width: 640px) {
     html[data-layout='bento'] { --page-gutter: 4px; }
   }
@@ -829,6 +837,23 @@
       background: hsl(var(--surface-subtle));
     }
   }
+  /* A LONG FIRST CELL ON A PHONE ENDS IN AN ELLIPSIS. Frozen and uncapped, a
+     long name took most of the screen and was cut hard at the frame's edge.
+     Capped at 55% of the width; the text and its direct lines truncate. */
+  @media (max-width: 640px) {
+    .responsive-table tbody td:first-child:not([colspan]) {
+      max-width: 55vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .responsive-table tbody td:first-child:not([colspan]) > :where(div, p) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+  }
 
   /* A figure is not a word, wherever it appears.
 
@@ -862,8 +887,9 @@
   table { border-collapse: collapse; }
   :where(table) :where(th, td) {
     border-bottom: 1px solid hsl(var(--border));
-    border-right: 1px solid hsl(var(--border) / 0.55);
   }
+  /* No column rules: the owner did not want vertical lines in tables
+     anywhere -- they stopped short of the card edge and read as a fault. */
   :where(table) :where(th, td):last-child { border-right: 0; }
   :where(table) tr:last-child :where(td) { border-bottom: 0; }
 
@@ -1070,21 +1096,28 @@
        place, which is what makes a dashboard scannable rather than readable. */
     letter-spacing: 0;
   }
+  /* A HEADLINE FIGURE NEVER BREAKS. In a half-width phone cell 28px is wider
+     than "₹47,95,200", so the last digit went to a line of its own. On a
+     phone the cell is a size container and the figure scales to it. */
+  @media (max-width: 639.98px) {
+    .cell { container-type: inline-size; }
+    .stat { font-size: min(28px, 12.5cqi); white-space: nowrap; }
+  }
 
-  @media (pointer: coarse) { :root { --control-h: 44px; } }
+  @media (pointer: coarse), (max-width: 639.98px) { :root { --control-h: 44px; } }
   .field {
     height: var(--control-h);
     width: 100%;
     border-radius: var(--radius-input);
     padding-inline: 12px;
     font-size: 14px;
-    border: 1px solid hsl(var(--input));
+    border: 1px solid transparent;
     background: hsl(var(--card));
     color: hsl(var(--foreground));
     /* Inset, not raised. A field and a card were the same white rectangle
        with the same hairline; the shade inside the top edge is what makes
        one read as a place to type and the other as a thing to read. */
-    box-shadow: var(--field-inset);
+    box-shadow: var(--field-shadow);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   /* A BOX DOES NOT ANSWER THE POINTER.
@@ -1099,12 +1132,12 @@
   .field:focus {
     outline: none;
     border-color: hsl(var(--ring));
-    box-shadow: var(--field-inset), var(--ring-halo);
+    box-shadow: var(--field-shadow), var(--ring-halo);
   }
   /* The same recess for an input that is not a .field -- the launcher's
      filter box, a search bar drawn in utilities. */
-  .inset-field { box-shadow: var(--field-inset); }
-  .inset-field:focus { box-shadow: var(--field-inset), var(--ring-halo); }
+  .inset-field { box-shadow: var(--field-shadow); }
+  .inset-field:focus { box-shadow: var(--field-shadow), var(--ring-halo); }
 
   /* A BUTTON IS A KEY: level 1 at rest, on the page it sits on, and pressed
      it sinks to the page. Ghost buttons are text with a hover wash and stay
@@ -1140,7 +1173,7 @@
   /* Disabled reads as disabled, and an invalid box says so in red. */
   .field:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; }
   .field[aria-invalid='true'] { border-color: hsl(var(--destructive)); }
-  .field[aria-invalid='true']:focus { box-shadow: var(--field-inset), 0 0 0 3px hsl(var(--destructive) / 0.18); }
+  .field[aria-invalid='true']:focus { box-shadow: var(--field-shadow), 0 0 0 3px hsl(var(--destructive) / 0.18); }
 
   /* Status as a dot and a word, not a filled pill. A row of saturated
      lozenges competes with the data for attention and reads as decoration;
@@ -2452,7 +2485,9 @@ dialog,
   to   { opacity: 1; transform: none; }
 }
 .screen-fade {
-  animation: screen-fade var(--motion-enter, 180ms) var(--motion-ease, ease) both;
+  /* No entrance. Fading a screen in from blank on every navigation read as
+     the screen blinking; the new screen is simply there. */
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-fade { animation: none !important; }
@@ -2493,7 +2528,8 @@ dialog,
   to   { opacity: 1; }
 }
 [data-page-enter] {
-  animation: route-enter var(--motion-route) var(--motion-ease) both;
+  /* No entrance, for the same reason as .screen-fade: it read as a blink. */
+  animation: none;
 }
 
 /* THE CROSSING BETWEEN TWO SCREENS.
@@ -2517,11 +2553,12 @@ dialog,
    is a short fade and nothing else, and the frame that doesn't change between
    screens is lifted out of the crossing (named below) so it stays perfectly
    still while only the page underneath changes. */
-::view-transition-old(root) {
-  animation: vt-leave 120ms linear both;
-}
+/* No fade at all between pages: even a short one read as the screen
+   blinking on every click (the account button, the rail). The page is swapped
+   in place, and the frame never moves. */
+::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: vt-arrive 160ms linear both;
+  animation: none;
 }
 @keyframes vt-leave {
   to { opacity: 0; }
@@ -2633,26 +2670,46 @@ html:active-view-transition [data-page-enter] { animation: none; }
   background-attachment: local, local, scroll, scroll;
 }
 
-/* And the bar itself, drawn rather than borrowed.
+/* THE BAR ITSELF IS GONE. IT STILL SCROLLS.
 
-   Thin and always present on the scrollers that can move sideways, because a
-   horizontal scrollbar is not clutter — it is the only thing on screen that
-   states how much of the table you are looking at. Vertical bars are left to
-   the platform: a page scrolls, everybody knows a page scrolls. */
-/* Standard bar for Firefox only: Chrome drops the styled parts below once it is set. */
-@supports not selector(::-webkit-scrollbar) {
-  .scroll-x { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+   It used to be drawn thin and always present, on the argument that a
+   horizontal scrollbar states how much of a table you are looking at. That
+   argument loses to the thing actually on screen: a grey line ruled under
+   every wide strip in the product — tab strips, chip rows, week pickers, a
+   dozen tables — reading as a divider somebody forgot to remove, or worse as
+   an underline beneath a heading that has none.
+
+   The fade at both edges above says there is more in that direction, and says
+   it in the content rather than in furniture below it. That is the honest
+   signal, and it is already there. So the bar goes and the scrolling stays:
+   wheel, trackpad, touch, drag and keyboard all work exactly as before, in
+   every browser. An older browser that knows neither property simply keeps
+   its own bar, which is no worse than what it had.
+
+   Kept on nothing. If a surface genuinely needs a visible bar, it should say
+   so for itself rather than every sideways scroller inheriting one. */
+.scroll-x {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* old Edge, IE */
 }
-.scroll-x::-webkit-scrollbar { height: 10px; }
-.scroll-x::-webkit-scrollbar-track { background: transparent; }
-.scroll-x::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 9999px;
+.scroll-x::-webkit-scrollbar { height: 0; width: 0; }
+
+/* Same for the strips Tailwind scrolls directly, which never carried .scroll-x
+   and so drew the platform's own bar under every chip row on the page. */
+.overflow-x-auto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-@media (hover: hover) {
-  .scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
+.overflow-x-auto::-webkit-scrollbar { height: 0; }
+
+/* A TABLE SAYS SO FOR ITSELF. With a mouse there is no swipe, and a table
+   whose last column (Reset password, the row's actions) sits past the edge
+   could not be reached at all. So a table's scroller keeps a thin bar on a
+   pointer device; touch screens still swipe and show none. */
+@media (pointer: fine) {
+  .table-frame > .scroll-x { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+  .table-frame > .scroll-x::-webkit-scrollbar { height: 10px; }
+  .table-frame > .scroll-x::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
 }
 
 /* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
@@ -3850,6 +3907,58 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   .fluid-orb, .fluid-orb__blob { animation: none !important; }
 }
 
+/* THE ORB, DARK (owner, 2026-10-01): "make the ai ball dark".
+
+   The pale glass body above read as a white ball with bright blobs -- on a
+   dark page it was the brightest thing on screen, on a light one a smudge.
+   Now the body is charcoal glass in both themes, the same in light and dark,
+   and the five blobs are kept roaming under it in deeper jewel tones --
+   teal, blue, violet -- at a lower alpha, screened over the dark body so the
+   movement still reads. The highlights are turned well down (no white inset
+   over 0.12), the bright glow becomes a soft dark drop shadow, and a thin
+   light rim, drawn as a gradient inside the feathered edge rather than as a
+   border, separates the ball from a dark card behind it. The earlier asks
+   stand: no solid border, blobs that mix, motion you can see; size, placement
+   and reduced motion are untouched. Order wins over the block above. */
+.fluid-orb {
+  background: radial-gradient(circle at 42% 36%,
+    #24242e 0%, #1a1a22 38%, #111117 72%, #0b0b0f 100%);
+  box-shadow:
+    inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .10),
+    inset 0 calc(var(--orb-size) * -.06) calc(var(--orb-size) * .12) rgba(0, 0, 0, .45);
+  /* drop-shadow, not box-shadow: the feathered mask clips anything painted
+     outside the box, and a filter is applied after the mask. */
+  filter: saturate(1.2) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45));
+}
+.fluid-orb__glass {
+  background:
+    /* the rim: a faint light ring where the mask starts to fade */
+    radial-gradient(circle at 50% 50%,
+      rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, .14) 44.5%, rgba(255, 255, 255, .14) 45.5%, rgba(255, 255, 255, 0) 50%),
+    /* one quiet highlight, top left */
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, .12) 0%, rgba(255, 255, 255, 0) 34%);
+  box-shadow: none;
+  mix-blend-mode: normal;
+}
+.fluid-orb__blob { mix-blend-mode: screen; }
+.fluid-orb__blob-1 { background: radial-gradient(circle at 48% 45%, rgba(0, 150, 140, .72) 0%, rgba(0, 120, 115, .42) 45%, rgba(0, 120, 115, 0) 100%); }
+.fluid-orb__blob-2 { background: radial-gradient(circle, rgba(40, 120, 255, .70) 0%, rgba(30, 90, 220, .36) 55%, rgba(30, 90, 220, 0) 100%); }
+.fluid-orb__blob-3 { background: radial-gradient(circle at 42% 46%, rgba(130, 80, 230, .70) 0%, rgba(110, 60, 210, .40) 45%, rgba(110, 60, 210, 0) 100%); }
+.fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .60) 0%, rgba(10, 140, 115, .30) 50%, rgba(10, 140, 115, 0) 100%); }
+.fluid-orb__blob-5 { background: radial-gradient(circle, rgba(90, 90, 230, .62) 0%, rgba(70, 70, 210, .32) 55%, rgba(70, 70, 210, 0) 100%); }
+/* The states keep their lift, over the same shadow. */
+.fluid-orb[data-state='thinking'] { filter: saturate(1.45) brightness(1.15) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+.fluid-orb[data-state='answering'] { filter: saturate(1.3) brightness(1.08) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+.fluid-orb[data-awake] { transform: scale(1.06); filter: saturate(1.35) brightness(1.1) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+/* The subtle ball: the same dark body, the blobs turned down a little. */
+.fluid-orb[data-subtle] {
+  filter: saturate(1) drop-shadow(0 calc(var(--orb-size) * .06) calc(var(--orb-size) * .16) rgba(0, 0, 0, .35));
+  background: radial-gradient(circle at 42% 36%, #22222b 0%, #18181f 40%, #101015 75%, #0b0b0f 100%);
+  box-shadow: inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .08);
+}
+.fluid-orb[data-subtle] .fluid-orb__blob { opacity: .7; }
+.fluid-orb[data-subtle] .fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .5) 0%, rgba(10, 140, 115, .25) 50%, rgba(10, 140, 115, 0) 100%); }
+
 /* The rail's foot (alerts, row height, account, sign out, settings): the same
    bold tiles and dock hover as the workspace marks, each in its own colour. */
 .rail-foot > button, .rail-foot > a, .rail-foot > div > button:first-child {
@@ -3952,6 +4061,13 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: inset 0 0 0 1px hsl(var(--primary) / .0), 0 2px 8px -4px hsl(var(--primary) / .45);
 }
 .bento-dock .search-pill:hover { background: hsl(var(--primary) / .16); }
+/* On a phone the header search is one icon among icons (menu, bell,
+   account): the white lifted circle next to bare glyphs read as a stray
+   blob, so there it is a bare glyph too. */
+@media (max-width: 639.98px) {
+  header .search-pill, .dark header .search-pill { background: transparent; box-shadow: none; }
+  header .search-pill:hover { transform: none; box-shadow: none; background: hsl(var(--foreground) / .06); }
+}
 
 /* MINIMAL AGAIN (owner, 2026-09-28): plain line icons, no coloured tiles.
    The rail and its foot keep their spacing and the gentle dock-style hover;
@@ -4287,3 +4403,217 @@ main, [data-paint='workarea'] {
     scrollbar-color: hsl(var(--muted-foreground) / .45) transparent;
   }
 }
+
+/* iPhone Safari gives date and month fields a minimum width of their own, so
+   "Which day" on Report an absence ran past the card on a phone. They take
+   the width of their box like every other field, and the value sits left. */
+input[type='date'],
+input[type='month'],
+input[type='time'] {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='month']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* A card whose heading is all it holds draws no rule under that heading: the
+   line sat on the card's own bottom edge and ran past its rounded corners,
+   which the owner asked to have gone everywhere. */
+.card > .border-b:last-child,
+.card > :last-child > .border-b:only-child { border-bottom-width: 0; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SMOOTH INTERACTION (owner, 2026-10-01: "button press, tab transitions,
+   focus > work and work > focus -- any interaction should be smooth"; "I
+   need an Apple-like experience").
+
+   Transform and opacity only, on the iOS settle curve (--motion-ease,
+   cubic-bezier(.32,.72,0,1)). Every piece below is optional to the browser:
+   an engine without transitions, view transitions or :has simply shows the
+   end state.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* THE PRESS: a touch deeper than before (0.97) and a slight darken, applied
+   on pointerdown by :active and released on the spring return the global
+   transition already gives `transform`. Nothing presses while disabled,
+   busy (a pending Button is aria-busy) or aria-disabled. */
+:where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'],
+       summary):active:not(:disabled):not([aria-busy='true']):not([aria-disabled='true']) {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+:where(button, [role='button'], .btn, [role='tab']):is(:disabled, [aria-busy='true'], [aria-disabled='true']) {
+  transform: none;
+  filter: none;
+}
+/* A key lifts a hair under a mouse; never on touch, where hover sticks. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled):not([aria-busy='true']):not(:active) {
+    transform: translateY(-1px);
+  }
+}
+/* One focus ring, offset so it never sits on the control's own edge. */
+:where(button, a, [role='button'], [role='tab'], [role='switch'], summary):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+/* Links and anything clickable lose the double-tap-to-zoom wait too. */
+a, label, [role='tab'], [role='switch'], [role='option'], [role='menuitem'] {
+  touch-action: manipulation;
+}
+
+/* THE SLIDING THUMB (components/SlidingIndicator.tsx). The row is positioned
+   by its caller; the thumb sits behind the labels, and the active child's own
+   fill steps aside so it is not drawn twice. */
+.slide-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 0;
+}
+.slide-thumb[data-ready] {
+  transition: transform var(--motion) var(--motion-ease),
+              width var(--motion) var(--motion-ease),
+              height var(--motion) var(--motion-ease),
+              opacity var(--motion-quick) var(--motion-ease);
+}
+[data-slide] > :not(.slide-thumb) {
+  position: relative;
+  z-index: 1;
+}
+[data-slide] > [aria-selected='true'],
+[data-slide] > [aria-pressed='true'],
+[data-slide] > [data-on],
+[data-slide] [data-tab-pill] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* A TAB'S CONTENT SETTLES IN. Never from nothing -- a fade from zero read as
+   a blink (see [data-page-enter]) -- it starts most of the way there and
+   rises 4px, so the change registers without the screen going blank. */
+@keyframes tab-swap {
+  from { opacity: 0.4; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.tab-swap { animation: tab-swap 180ms var(--motion-ease) both; }
+
+/* FOCUS <-> WORK (crossfade in lib/motion.ts).
+
+   With view transitions: the old shell fades out, the new one fades in
+   settling from 1.2% larger. The frame pieces that normally sit still
+   between pages (dock, rail, corner) are folded into the root for this one
+   crossing, since they are the very things that change. */
+html[data-vt='layout'] .bento-dock,
+html[data-vt='layout'] .bento-corner,
+html[data-vt='layout'] [data-app-rail] {
+  view-transition-name: none;
+}
+html[data-vt='layout']::view-transition-old(root) {
+  animation: vt-leave 200ms var(--motion-ease) both;
+}
+html[data-vt='layout']::view-transition-new(root) {
+  animation: vt-layout-in 300ms var(--motion-ease) both;
+}
+@keyframes vt-layout-in {
+  from { opacity: 0; transform: scale(1.012); }
+  to   { opacity: 1; transform: none; }
+}
+/* Without them: the app fades onto the ground and back. body keeps its own
+   background throughout, so the gap is the page colour, never white. */
+html[data-fade] #root {
+  transition: opacity 120ms var(--motion-ease);
+}
+html[data-fade='out'] #root { opacity: 0; }
+html[data-fade='in'] #root { opacity: 1; transition-duration: 180ms; }
+
+/* EXIT, TOO. A surface marked data-closing (usePresence in lib/motion keeps
+   it mounted for the length of this) leaves the way it came: the dim fades,
+   a centred dialog settles back and fades, and on a phone -- where the
+   shared Dialog is a bottom sheet -- the sheet drops back off the edge. */
+@keyframes motion-exit {
+  to { opacity: 0; transform: scale(0.97); }
+}
+@keyframes scrim-out {
+  to { opacity: 0; }
+}
+@keyframes sheet-out {
+  to { transform: translateY(100%); }
+}
+[data-closing] { pointer-events: none; }
+.scrim[data-closing] { animation: scrim-out 180ms var(--motion-ease) both; }
+.scrim[data-closing] > [role='dialog'] { animation: motion-exit 180ms var(--motion-ease) both; }
+@media (max-width: 639px) {
+  .scrim[data-closing] > [role='dialog'] { animation: sheet-out 220ms var(--motion-ease) both; }
+}
+
+/* REDUCED MOTION: everything above is instant. The system setting stops this
+   file's new motion; the account's own setting (data-reduce-motion on <html>,
+   lib/motion.ts) stops all of it, everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  .slide-thumb[data-ready], html[data-fade] #root { transition: none; }
+  .tab-swap, [data-closing] { animation: none; }
+  :where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'], summary):active { transform: none; }
+  .btn:hover { transform: none; }
+}
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-reduce-motion] :active { transform: none !important; }
+
+/* THE STUDENT TAB BAR: clean translucent, solid where blur is missing.
+   It was `bg-[var(--color-card)]/95`, which Tailwind cannot apply an alpha
+   to, so the bar had no ground at all and its backdrop blur smeared the
+   cards scrolling under it into dark blobs round the icons. A near-opaque
+   card colour hides what is behind; the blur only softens the rest. */
+/* `--color-card` AND ITS FOUR SIBLINGS WERE NEVER DEFINED.
+
+   The student screens read `var(--color-card, white)` for the tab bar, the
+   segmented control's pill, the ID card's photo ring and the calendar chips,
+   and feature-cells.css reads `--color-foreground`/`--color-background` for
+   an inverted cell. Tailwind 3 does not emit `--color-*` (that is v4), so
+   every one of those fell through to its fallback, and the fallback is
+   white. In dark that was a white tab bar across the bottom of a black page
+   and white pills with white text in them. Resolved here from the HSL
+   tokens, so they follow the theme and the paint like everything else. */
+:root {
+  --color-card: hsl(var(--card));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-destructive: hsl(var(--destructive));
+}
+.student-tabbar {
+  background: var(--color-card, #fff);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .student-tabbar {
+    background: color-mix(in oklab, var(--color-card, #fff) 92%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(20px);
+    backdrop-filter: saturate(1.6) blur(20px);
+  }
+}
+
+/* The assistant orb, tucked: something pressable is under it, so on a phone
+   it slides into the screen edge leaving a sliver (AssistantTab). */
+@media (max-width: 767px) {
+  [data-assistant-orb] { transition: transform 220ms var(--motion-ease, ease), opacity 220ms ease; }
+  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 0.75rem - 12px)); opacity: 0.75; }
+  [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }

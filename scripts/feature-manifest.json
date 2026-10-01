@@ -1,0 +1,89 @@
+{
+  "_comment": "Written by scripts/feature.mjs: what `feature:new` added for each feature, so `feature:remove` can take exactly that back out. Do not edit by hand.",
+  "features": {
+    "communication.class_status": {
+      "name": "Class Status",
+      "summary": "Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "class_status",
+      "roles": [
+        "faculty",
+        "institution_admin"
+      ],
+      "keys": [
+        "faculty.communication.class_status",
+        "institution_admin.communication.class_status"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/status",
+      "readPerm": "status.manage",
+      "writePerm": "status.post_school",
+      "table": null,
+      "group": "communication_class_status",
+      "createdPerms": [
+        {
+          "key": "status.post",
+          "module": "status",
+          "desc": "Post a class status (photo or short video) to own sections, classes or the school"
+        },
+        {
+          "key": "status.manage",
+          "module": "status",
+          "desc": "Every class status in the school: approve, delete, pin, and the settings"
+        },
+        {
+          "key": "status.post_school",
+          "module": "status",
+          "desc": "Post a status as the school, with its name and logo"
+        }
+      ],
+      "grants": {
+        "faculty": [
+          "status.post"
+        ],
+        "institution_admin": [
+          "status.manage",
+          "status.post_school"
+        ],
+        "class_teacher": [
+          "status.post"
+        ]
+      },
+      "grantWhere": {
+        "faculty status.post": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "institution_admin status.manage": [
+          "static_data"
+        ],
+        "institution_admin status.post_school": [
+          "static_data"
+        ],
+        "class_teacher status.post": [
+          "go",
+          "static_data",
+          "setup_common"
+        ]
+      },
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0020_feature_class_status.sql",
+      "files": [
+        "shared/api/feature_class_status.ts",
+        "web/src/features/comms/ClassStatus.tsx",
+        "worker/migrations/tenant/0020_feature_class_status.sql",
+        "worker/src/routes/comms/class_status.ts",
+        "worker/test/integration/feature_class_status.test.ts",
+        "web/src/features/comms/ClassStatusAdmin.tsx",
+        "web/src/features/comms/status/StatusRings.tsx",
+        "web/src/features/comms/status/StatusComposer.tsx",
+        "web/src/features/comms/status/status-api.ts",
+        "worker/src/services/class_status.ts"
+      ]
+    }
+  }
+}

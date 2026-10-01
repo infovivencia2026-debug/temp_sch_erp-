@@ -39,7 +39,7 @@ export default function Numbering() {
   const [tHtml, setTHtml] = useState('')
   const [tApproval, setTApproval] = useState(false)
 
-  if (isLoading) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useOptimisticMutation } from '@/lib/optimistic'
 
 /* One queue instead of three.
 
@@ -72,7 +73,37 @@ export default function Approvals() {
     },
   })
 
-  if (isLoading) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
+  /* LEAVE AND ATTENDANCE CORRECTIONS LEAVE THE LIST ON THE PRESS.
+
+     Optimistic (lib/optimistic): the row goes and the counts drop at once;
+     a refusal brings it back with the reason. A fee concession (money) and a
+     joining (admission) are NOT faked -- those keep `decide` above, with the
+     buttons held while the server records it, and say so only after. */
+  type Vote = { id: string; kind: string; url: string; approve: boolean; reason?: string }
+  const quick = useOptimisticMutation<Vote>({
+    mutationFn: ({ url, approve, reason }) =>
+      api.post(url, { decision: approve ? 'approved' : 'rejected', note: reason }),
+    queryKeys: [['approvals']],
+    apply: (old, v) => {
+      const o = old as Inboxed
+      if (!o.items.some((i) => i.id === v.id)) return old
+      return {
+        ...o,
+        items: o.items.filter((i) => i.id !== v.id),
+        total: Math.max(0, o.total - 1),
+        by_kind: { ...o.by_kind, [v.kind]: Math.max(0, (o.by_kind[v.kind] ?? 1) - 1) },
+      }
+    },
+    confirm: (v) => (v.approve ? 'Approved' : 'Rejected, the requester is told'),
+    failure: "Couldn't record that decision",
+  })
+  const fast = (kind: string) => kind === 'leave' || kind === 'attendance_correction'
+  const vote = (it: Approval, approve: boolean) => {
+    if (fast(it.kind)) quick.mutate({ id: it.id, kind: it.kind, url: it.decide_url, approve, reason: note[it.id] })
+    else decide.mutate({ url: it.decide_url, approve, reason: note[it.id] })
+  }
+
+  if (isLoading && !data) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const items = filter ? d.items.filter((i) => i.kind === filter) : d.items
@@ -194,10 +225,9 @@ export default function Approvals() {
                         />
                         <Button
                           size="sm"
-                          disabled={decide.isPending}
-                          onClick={() =>
-                            decide.mutate({ url: it.decide_url, approve: true, reason: note[it.id] })
-                          }
+                          disabled={!fast(it.kind) && decide.isPending}
+                          pending={!fast(it.kind) && decide.isPending && decide.variables?.url === it.decide_url && decide.variables?.approve}
+                          onClick={() => vote(it, true)}
                         >
                           <CheckCheck className="h-3.5 w-3.5" />
                           Approve
@@ -205,10 +235,8 @@ export default function Approvals() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={decide.isPending}
-                          onClick={() =>
-                            decide.mutate({ url: it.decide_url, approve: false, reason: note[it.id] })
-                          }
+                          disabled={!fast(it.kind) && decide.isPending}
+                          onClick={() => vote(it, false)}
                         >
                           Reject
                         </Button>

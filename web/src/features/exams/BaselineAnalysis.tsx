@@ -79,7 +79,7 @@ export default function BaselineAnalysis() {
       ),
   })
 
-  if (analysis.isLoading) return <SkeletonTable columns={7} label="Reading the marks register…" />
+  if (analysis.isLoading && !analysis.data) return <SkeletonTable columns={7} label="Reading the marks register…" />
   if (analysis.error) return <ErrorState error={analysis.error} />
 
   const d = analysis.data

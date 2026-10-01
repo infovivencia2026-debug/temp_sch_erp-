@@ -51,7 +51,7 @@ export default function BankingPayouts() {
       api.get<List<PayoutBatch>>(`${bankingBase}/payouts${status ? `?status=${status}` : ''}`),
   })
 
-  if (q.isLoading) return <SkeletonTiles count={4} label="Reading the payout queue…" />
+  if (q.isLoading && !q.data) return <SkeletonTiles count={4} label="Reading the payout queue…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

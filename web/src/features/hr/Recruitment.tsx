@@ -140,7 +140,7 @@ export default function Recruitment() {
     queryFn: () => api.get<List<FunnelStage>>('/api/v1/hr-growth/recruitment/funnel'),
   })
 
-  if (vacancies.isLoading) return <SkeletonTiles count={4} label="Reading the open posts…" />
+  if (vacancies.isLoading && !vacancies.data) return <SkeletonTiles count={4} label="Reading the open posts…" />
   if (vacancies.error) return <ErrorState error={vacancies.error} />
 
   const posts = vacancies.data?.items ?? []

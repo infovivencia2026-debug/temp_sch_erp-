@@ -8,7 +8,6 @@ import './features/bento/bento-theme.css'
 import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
-import { startHaptics } from './lib/haptics'
 import { trackKeyboardInset } from './lib/keyboard'
 import { clearPersistedQueriesOnSignOut } from './lib/query-persist'
 
@@ -33,10 +32,6 @@ startOutbox()
    only fires at the top. A no-op in every browser: the bridge does not exist
    there. */
 reportScrollToShell()
-
-/* A short tap back when a control is pressed. One document-level listener
-   rather than a prop on several hundred buttons. */
-startHaptics()
 
 /* Publishes --kb, how much of the viewport the on-screen keyboard is covering,
    so the screens that sit on the bottom edge can get out from under it. Here

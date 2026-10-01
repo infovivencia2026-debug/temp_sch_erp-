@@ -3,12 +3,16 @@ import { createPortal } from 'react-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
-  Bell, BookOpen, CalendarClock, IndianRupee, Megaphone, MessageSquare, X,
+  Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
+import StatusRings from '@/features/comms/status/StatusRings'
+import { useStatusFeed } from '@/features/comms/status/status-api'
+import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 
 /* The bell in the header, and the panel it opens.
@@ -57,6 +61,8 @@ const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
   timetable: { icon: CalendarClock, label: 'Timetable' },
   message: { icon: MessageSquare, label: 'Message' },
   notice: { icon: Megaphone, label: 'Notice' },
+  // Class Status: opens the home with the viewer on that post (/?status=<id>).
+  status: { icon: Camera, label: 'Status' },
 }
 
 function kindOf(kind: string) {
@@ -79,10 +85,65 @@ function dayOf(iso: string): string {
   return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
 }
 
+function dateOf(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/* The filter row: what a parent sorts a feed by. */
+const FILTERS: { key: string; label: string; kinds?: string[] }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'message', label: 'Messages', kinds: ['message', 'chat'] },
+  { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'report', 'attendance', 'leave'] },
+  { key: 'fees', label: 'Fees', kinds: ['fee', 'fees', 'payment'] },
+  { key: 'status', label: 'Status', kinds: ['status'] },
+  { key: 'other', label: 'Other' },
+]
+
 function timeOf(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+/* The post a status notification is about: its link is "/?status=<id>". */
+function statusPostId(n: Note): string | null {
+  if (n.kind !== 'status' || !n.link) return null
+  const m = /[?&]status=([0-9a-f-]{36})/i.exec(n.link)
+  return m ? m[1].toLowerCase() : null
+}
+
+function seconds(n?: number): string {
+  if (!n) return ''
+  const s = Math.round(n)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/* A STATUS AS A MEDIA NOTIFICATION: the picture (the auth-checked ~320px
+   thumbnail), a play tile with the length for a video without one, the
+   accent for a text status, the type icon when nothing else is known. */
+function StatusThumb({ post, read }: { post?: StatusItem; read: boolean }) {
+  const [broken, setBroken] = useState(false)
+  const kind = post?.media_kind
+  const box = 'relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg'
+  if (kind === 'text') {
+    return <span className={cn(box, 'bg-primary p-1 text-center text-[9px] font-semibold leading-tight text-primary-foreground')} aria-hidden>
+      <span className="line-clamp-3">{post?.caption || <Type className="size-4" />}</span>
+    </span>
+  }
+  const video = kind === 'video'
+  return (
+    <span className={cn(box, post?.thumb && !broken ? 'bg-black' : read ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
+      {post?.thumb && !broken
+        ? <img src={post.thumb} alt="" loading="lazy" className="size-full object-cover" onError={() => setBroken(true)} />
+        : video ? <Play className="size-5" /> : kind === 'photo' ? <ImageIcon className="size-5" /> : <Camera className="size-5" />}
+      {video && (
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-1 pb-0.5 pt-2 text-[10px] font-semibold text-white">
+          <Play className="size-2.5 fill-current" />{seconds(post?.duration_seconds)}
+        </span>
+      )}
+    </span>
+  )
 }
 
 export default function Notifications() {
@@ -94,8 +155,21 @@ export default function Notifications() {
      rather than as leaving. `closing` holds it on screen long enough to slide
      back out the way it came. */
   const [closing, setClosing] = useState(false)
-  const qc = useQueryClient()
-
+  const [filter, setFilter] = useState('all')
+  /* The owner's design: two toggles at the foot of the drawer. */
+  const [onlyUnread, setOnlyUnread] = useState(false)
+  const [type, setType] = useState<'messages' | 'activity' | null>(null)
+  const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
+  const hubParent = useFeatureHref('parent.academics.homework_academics')
+  const toHub = hubStudent ?? hubParent
+  const statuses = useQuery({
+    queryKey: ['notif-statuses'],
+    queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
+    enabled: open,
+    retry: false,
+  })
+  
   const feed = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.call('GET /portal/notifications'),
@@ -123,19 +197,37 @@ export default function Notifications() {
     staleTime: 60_000,
     retry: false,
   })
-  const readAll = useMutation({
+  /* Optimistic (lib/optimistic): the badge clears and the list empties the
+     moment either is pressed; a refusal puts them back with the reason. */
+  type Feed = { items?: Note[]; unread?: number }
+  const readAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    queryKeys: [['notifications']],
+    apply: (old) => {
+      const f = old as Feed
+      const now = new Date().toISOString()
+      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
+    },
+    failure: "Couldn't mark them read",
   })
   /* Clear empties the list; Mark all read only quiets the badge. Both were
      asked for by name: a feed a fortnight long that can only be marked read
      is a feed that has to be scrolled past every time. */
-  const clearAll = useMutation({
+  const clearAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    queryKeys: [['notifications']],
+    apply: (old) => ({ ...(old as Feed), unread: 0, items: [] }),
+    failure: "Couldn't clear them",
   })
 
   const navigate = useNavigate()
+  // The rings' feed (shared cache with the strip): what each status entry is about.
+  const statusFeed = useStatusFeed(open || closing)
+  const [statusOpen, setStatusOpen] = useState<string | null>(null)
+  const statusHandled = useCallback(() => setStatusOpen(null), [])
+  const postById = new Map<string, StatusItem>()
+  for (const r of statusFeed.data?.rings ?? []) for (const p of r.posts) postById.set(p.id, p)
+  for (const p of statusFeed.data?.gallery ?? []) postById.set(p.id, p)
 
   const dismiss = useCallback(() => {
     setClosing(true)
@@ -149,7 +241,8 @@ export default function Notifications() {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
+    // Escape inside the status viewer or a dialog over the drawer closes that, not the drawer.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.story')) dismiss() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
@@ -193,6 +286,13 @@ export default function Notifications() {
     return undefined
   }
   const openNote = (n: Note) => {
+    /* A status opens the viewer at that post, over the drawer; seeing it
+       is what reads the entry (POST /status/posts/{id}/view). */
+    const post = statusPostId(n)
+    if (post && postById.has(post)) {
+      setStatusOpen(post)
+      return
+    }
     dismiss()
     const link = linkFor(n)
     if (link) navigate(link)
@@ -204,13 +304,32 @@ export default function Notifications() {
   /* Grouped as it is read: newest day first, in the order the server sent.
      Re-sorting here would fight an endpoint that already knows what is
      urgent. */
+  const listed = FILTERS.flatMap((x) => x.kinds ?? [])
+  const inKinds = (kind: string, ks: string[]) => ks.some((k) => kind === k || kind.startsWith(k + '_'))
+  const isMessage = (n: Note) => inKinds(n.kind, ['message', 'chat', 'parent_message', 'teacher_message'])
+  /* Messages first if there are any, otherwise activity, so the drawer never
+     opens on an empty side by default. */
+  /* The owner's split: Messages is every notification; Activity is status
+     posts (the e-learning hub's photo, video and note statuses). */
+  const shownType = type ?? 'messages'
+  const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
+  const countFor = (v: string) => v === 'messages' ? unread : v === 'activity' ? newStatuses : 0
+  void isMessage
+  const inToggles = (n: Note) => (!onlyUnread || !n.read_at)
+  void setFilter
+  const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
+    : filter === 'other' ? !inKinds(n.kind, listed)
+    /* By prefix: the server sends fee_due, fee_overdue, report_card and so on. */
+    : (FILTERS.find((x) => x.key === filter)?.kinds ?? []).some((k) => n.kind === k || n.kind.startsWith(k + '_') || n.kind.startsWith(k.replace(/s$/, '') + '_'))
   const groups: { day: string; notes: Note[] }[] = []
-  for (const n of items) {
+  for (const n of items.filter(inFilter)) {
     const day = dayOf(n.created_at)
     const last = groups[groups.length - 1]
     if (last && last.day === day) last.notes.push(n)
     else groups.push({ day, notes: [n] })
   }
+
+  const shownGroups = groups
 
   return (
     <>
@@ -227,7 +346,8 @@ export default function Notifications() {
         className="relative grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"
       >
-        <Bell className="h-4 w-4" />
+        {/* Bigger on a phone: the owner asked for larger top-bar buttons there. */}
+        <Bell className="h-[22px] w-[22px] md:h-4 md:w-4" />
         {unread > 0 && (
           <span
             /* 12px, the smallest size text is drawn at anywhere else: at 10 the
@@ -248,7 +368,7 @@ export default function Notifications() {
       {(open || closing) && createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[60] flex justify-end',
+            'fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -259,81 +379,88 @@ export default function Notifications() {
             role="dialog"
             aria-modal="true"
             aria-label="Notifications"
-            /* data-side is what index.css reads to bring this in from the
-               right rather than down from above — a 400px column that rises
-               reads as the wrong gesture for something that lives at the edge. */
             data-side="right"
             data-closing={closing && !open ? '' : undefined}
             onAnimationEnd={() => { if (!open) setClosing(false) }}
             onClick={(e) => e.stopPropagation()}
-            /* FULL WIDTH ON A PHONE, A DRAWER ON EVERYTHING ELSE.
-
-               This was `w-[min(26rem,100vw)]`, written to mean "26rem, or the
-               whole screen if that is narrower". It never reached the whole
-               screen: index.css pins the root font to 14px for the dense
-               desktop baseline, so 26rem is 364px rather than the 416 the
-               figure suggests, and on a 390px phone the drawer stopped 26px
-               short. What was left was a sliver of the dashboard down one edge
-               and no way to press it, which reads as a panel that failed to
-               finish opening rather than as a drawer.
-
-               The same 14px root turned a 44px touch minimum written in rem
-               into 38.5px elsewhere in this product. A length that has to
-               clear a device edge is stated in pixels here for that reason. */
-            className="flex h-full w-full flex-col border-l bg-card shadow-[var(--lift-float)] sm:w-[416px]"
-            /* Fixed to the viewport, so the body's notch padding does not reach it:
-               in the iPhone app the header sat under the clock and the list ran
-               under the home indicator. Zero in a browser and on Android. */
+            /* THE OWNER'S MOCK: a quiet header with a count pill, a segmented
+               filter, day groups with the date on the right, and each
+               notification a card. No unread dot (they asked for none): an
+               unread card is picked out by its border and bolder title.
+               Full screen on a phone -- 100dvh, above the app header -- so it
+               no longer starts under the top bar. */
+            className="flex h-[100dvh] w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[15px] font-semibold">Notifications</h2>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  {unread > 0 ? `${unread} unread` : 'Everything here has been read'}
-                </p>
+            {/* TWO ROWS, so the title never breaks: the name and the close on
+                top, the count and the two actions under it. On a narrow drawer
+                one row squeezed "Notifications" onto two lines. */}
+            <header className="shrink-0 border-b bg-card px-5 pb-3 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="whitespace-nowrap text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
+                <button onClick={dismiss} aria-label="Close notifications"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X className="size-4" />
+                </button>
               </div>
-              {unread > 0 && (
-                <button
-                  onClick={() => readAll.mutate()}
-                  className="shrink-0 rounded-[7px] px-2 py-1 text-[12px] text-muted-foreground
-                             hover:bg-surface-hover hover:text-foreground"
-                >
-                  Mark all read
-                </button>
-              )}
               {items.length > 0 && (
-                <button
-                  onClick={() => clearAll.mutate()}
-                  disabled={clearAll.isPending}
-                  aria-label="Clear all notifications"
-                  className="shrink-0 rounded-[7px] px-2 py-1 text-[12px] text-muted-foreground
-                             hover:bg-surface-hover hover:text-foreground disabled:opacity-50"
-                >
-                  {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                </button>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold text-muted-foreground">
+                    {unread > 0
+                      ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">{unread} new</span>
+                      : 'All caught up'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {unread > 0 && (
+                      <button onClick={() => readAll.mutate()}
+                        className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                        Mark read
+                      </button>
+                    )}
+                    <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
+                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[#fef2f2] hover:text-[#ef4444] disabled:opacity-50">
+                      {clearAll.isPending ? 'Clearing…' : 'Clear all'}
+                    </button>
+                  </span>
+                </div>
               )}
-              <button
-                onClick={dismiss}
-                aria-label="Close notifications"
-                className="grid size-8 shrink-0 place-items-center rounded-[7px] text-muted-foreground
-                           hover:bg-surface-hover hover:text-foreground"
-              >
-                <X className="size-4" />
-              </button>
             </header>
 
-            {/* Same reason as the settings dialog: a panel is not a page, and
-                a fortnight's feed is longer than one. */}
-            <div className="scroll-y min-h-0 flex-1 overscroll-contain">
-              {items.length === 0 ? (
-                /* Centred in the panel, not sitting near its top. An empty
-                   state anchored to the first sixth of a full-height sheet
-                   leaves a thousand pixels of nothing under two lines of
-                   text, which is what the drawer looked like on a phone. */
+            {/* Class Status: Add, then the rings, unseen first. Draws nothing
+                when the school has it off or there is nothing to show. */}
+            <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />
+
+            <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
+              {shownType === 'activity' ? (
+                statuses.isLoading ? <p className="py-16 text-center text-[13px] text-muted-foreground">Loading status updates…</p>
+                : (statuses.data?.items ?? []).filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length === 0
+                  ? <p className="py-16 text-center text-[13px] text-muted-foreground">No status updates this week.</p>
+                  : (
+                    <div className="space-y-2">
+                      {(statuses.data?.items ?? [])
+                        .filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000)
+                        .map((x) => (
+                          <button key={x.id} type="button" onClick={() => { dismiss(); if (toHub) navigate(toHub) }}
+                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30">
+                            <span className={cn('grid size-10 shrink-0 place-items-center rounded-full text-[12px] font-bold',
+                              x.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary ring-2 ring-primary ring-offset-2 ring-offset-card')}>
+                              {(x.uploaded_by ?? 'School').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-[13.5px] font-semibold">{x.uploaded_by ?? 'School'}</span>
+                                <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(x.posted_at ?? x.posted_on)}</span>
+                              </span>
+                              <span className="block truncate text-[12.5px] text-muted-foreground">{x.title}</span>
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  )
+              ) : items.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
                   <p className="text-[14px] font-medium">Nothing yet</p>
                   <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] text-muted-foreground">
@@ -341,83 +468,97 @@ export default function Notifications() {
                     the school sends them.
                   </p>
                 </div>
+              ) : shownGroups.length === 0 ? (
+                <p className="py-16 text-center text-[13px] text-muted-foreground">Nothing in this filter.</p>
               ) : (
-                groups.map((g) => (
+                shownGroups.map((g) => (
                   <section key={g.day}>
-                    {/* Sticky, because a fortnight's feed is longer than the
-                        panel and a day heading that has scrolled away leaves
-                        every row below it undated. */}
-                    <h3 className="sticky top-0 z-10 border-b bg-surface-subtle px-5 py-1.5
-                                   text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {g.day}
-                    </h3>
-                    <ul className="divide-y">
+                    <div className="mb-2.5 flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{g.day}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">{dateOf(g.notes[0].created_at)}</span>
+                    </div>
+                    <div className="space-y-2">
                       {g.notes.map((n) => {
                         const { icon: Icon, label } = kindOf(n.kind)
-                        return (
-                          <li key={n.id}>
-                            <button
-                              type="button"
-                              onClick={() => openNote(n)}
-                              className={cn(
-                                'flex w-full gap-3 px-5 py-3.5 text-left hover:bg-accent',
-                                !n.read_at && 'bg-surface-hover',
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full',
-                                  n.read_at
-                                    ? 'bg-surface-subtle text-muted-foreground'
-                                    : 'bg-primary/10 text-primary',
-                                )}
-                                aria-hidden
-                              >
-                                <Icon className="size-3.5" />
-                              </span>
+                        const postId = statusPostId(n)
+                        if (postId) {
+                          const post = postById.get(postId)
+                          const chip = post?.media_kind === 'video' ? 'Video' : post?.media_kind === 'text' ? 'Text' : post ? 'Photo' : 'Status'
+                          /* The title is "<poster> added a status · <audience>". */
+                          const [who, aud] = n.title.split(' added a status · ')
+                          const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
+                          return (
+                            <button key={n.id} type="button" onClick={() => openNote(n)}
+                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-all hover:shadow-md',
+                                n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
+                              <StatusThumb post={post} read={!!n.read_at} />
                               <span className="min-w-0 flex-1">
-                                <span className="flex items-baseline gap-2">
-                                  <span className="min-w-0 flex-1 text-[13.5px] font-medium">
-                                    {n.title}
-                                  </span>
-                                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                                    {timeOf(n.created_at)}
-                                  </span>
+                                <span className="flex items-baseline justify-between gap-2">
+                                  <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{who || n.title}</span>
+                                  <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
                                 </span>
-                                {/* Three lines, not one. The body is the
-                                    message; clamping it to a single line meant
-                                    every notification had to be opened to be
-                                    read, including the ones that had nowhere
-                                    to open to. */}
-                                {n.body && (
-                                  <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">
-                                    {n.body}
-                                  </span>
+                                <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px]">
+                                  <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px font-semibold text-primary">{chip}</span>
+                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || aud || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
+                                </span>
+                                {excerpt && post?.media_kind !== 'text' && (
+                                  <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-muted-foreground">{excerpt}</span>
                                 )}
-                                <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                  <span className="capitalize">{label}</span>
-                                  {n.student_name && (
-                                    <>
-                                      <span aria-hidden>·</span>
-                                      <span className="truncate">{n.student_name}</span>
-                                    </>
-                                  )}
-                                  {!n.read_at && (
-                                    <span className="ml-auto shrink-0 rounded-md bg-primary/12 px-1.5 py-px text-[11px] font-semibold text-primary">
-                                      New
-                                    </span>
-                                  )}
-                                </span>
+                                {!post && statusFeed.data && <span className="mt-1 block text-[11.5px] text-muted-foreground">No longer showing</span>}
                               </span>
                             </button>
-                          </li>
+                          )
+                        }
+                        return (
+                          <button key={n.id} type="button" onClick={() => openNote(n)}
+                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30',
+                              n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
+                            <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
+                              n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
+                              <Icon className="size-3.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{n.title}</span>
+                                <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
+                              </span>
+                              <span className="block text-[11.5px] font-medium text-primary">
+                                <span className="capitalize">{label}</span>{n.student_name ? ` · ${n.student_name}` : ''}
+                              </span>
+                              {n.body && (
+                                <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{n.body}</span>
+                              )}
+                            </span>
+                          </button>
                         )
                       })}
-                    </ul>
+                    </div>
                   </section>
                 ))
               )}
             </div>
+            {items.length > 0 && (
+              <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
+                <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
+                  {[["unread","Unread"],["all","All"]].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                        (v === 'unread') === onlyUnread ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
+                  {[["messages","Messages"],["activity","Activity"]].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                        v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+                      {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[#ef4444] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
+                    </button>
+                  ))}
+                </div>
+              </footer>
+            )}
           </aside>
         </div>,
         document.body,

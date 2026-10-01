@@ -45,7 +45,7 @@ export default function SmsVendor() {
   const [extra, setExtra] = useState('')
   const [testTo, setTestTo] = useState('')
 
-  if (providers.isLoading) return <SkeletonForm fields={4} label="Reading the channel…" />
+  if (providers.isLoading && !providers.data) return <SkeletonForm fields={4} label="Reading the channel…" />
   if (providers.error) return <ErrorState error={providers.error} />
 
   const chosen = preset

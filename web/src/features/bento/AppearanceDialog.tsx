@@ -9,8 +9,8 @@ import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
-  CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
-  type Contrast, type DockSize, type IconSize, type Scales,
+  CONTRASTS, DOCK_SIZES, ICON_SIZES, PHONE_ICONS, SCALE_RANGE,
+  type Contrast, type DockSize, type IconSize, type PhoneIcons, type Scales,
 } from '@/lib/appearance'
 import { useT, useI18n, LOCALES, type MessageKey } from '@/lib/i18n'
 
@@ -805,13 +805,16 @@ export function useSettingsValues(): Partial<Record<string, string>> {
 export function useSettingsItems(): ListItem[] {
   const t = useT()
   const sections = useSettingsLinks()
+  /* No Dock row on a phone: the floating dock it configures is a desk
+     thing (owner, 2026-10-01). The values stay stored for the desk. */
+  const narrow = useNarrow()
   return useMemo<ListItem[]>(() => [
     { id: 'appearance', label: t('bento.appearance.title'), ...DISPLAY_META.appearance },
     /* 'Colour' and not `bento.colour.title`, which is "Colour settings" --
        inside a window called Settings, under a heading called Settings, the
        second word is the one thing on the row that says nothing. */
     { id: 'colour', label: t('bento.settings.tab.colour'), ...DISPLAY_META.colour },
-    { id: 'dock', label: t('bento.settings.tab.dock'), ...DISPLAY_META.dock },
+    ...(narrow ? [] : [{ id: 'dock', label: t('bento.settings.tab.dock'), ...DISPLAY_META.dock }]),
     { id: 'dashboard', label: t('bento.settings.tab.dashboard'), ...DISPLAY_META.dashboard },
     ...sections.map(({ group }) => ({
       // Translate the known settings tabs by id; an unknown group keeps its own
@@ -821,7 +824,7 @@ export function useSettingsItems(): ListItem[] {
       icon: group.icon,
       note: group.note,
     })),
-  ], [t, sections])
+  ], [t, sections, narrow])
 }
 
 /* THE WIDE-VIEWPORT NAV, LIFTED OUT SO THE ROUTE CAN DRAW IT TOO.
@@ -1057,6 +1060,14 @@ export function SettingsPane({
         <section ref={dashRef}>
           <Rows>
             <Scale axis="boardText" label={t('bento.settings.board_text')} />
+            {/* App icons per row on a phone home: four, or three bigger ones. */}
+            <Axis<PhoneIcons>
+              label="App icons per row on a phone"
+              value={appearance.phoneIcons}
+              options={PHONE_ICONS}
+              onPick={(v) => set('phoneIcons', v)}
+              name={(v) => (v === '3' ? '3 (bigger)' : '4')}
+            />
             <DashboardWidgets onArrange={onClose} />
           </Rows>
         </section>

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 413 of the catalog's features are implemented.
+// 415 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -69,6 +69,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.attendance.student_absentees":                                true,
 	"faculty.attendance.take_attendance":                                  true,
 	"faculty.communication.anecdotal_records":                             true,
+	"faculty.communication.class_status":                                  true,
 	"faculty.communication.class_teacher_remarks":                         true,
 	"faculty.communication.classroom_communication":                       true,
 	"faculty.communication.communication":                                 true,
@@ -199,6 +200,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.channel_setup.message_channels":                    true,
 	"institution_admin.communication.all_messages":                        true,
 	"institution_admin.communication.circulars":                           true,
+	"institution_admin.communication.class_status":                        true,
 	"institution_admin.communication.grievances":                          true,
 	"institution_admin.communication.messages":                            true,
 	"institution_admin.communication.school_achievements_showcase":        true,

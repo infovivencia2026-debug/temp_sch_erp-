@@ -69,7 +69,7 @@ export default function QuestionBank() {
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (x) => [x.stem, x.chapter, x.subject, x.class_name, x.kind, x.difficulty])
 
-  if (list.isLoading) return <SkeletonTable columns={9} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={9} />
   if (list.error) return <ErrorState error={list.error} />
   const banks = summary.data?.items ?? []
   const total = banks.reduce((n, b) => n + b.total, 0)

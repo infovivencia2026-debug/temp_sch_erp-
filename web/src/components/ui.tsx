@@ -33,7 +33,7 @@ export function CardHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-[var(--card-pad)] py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-[var(--card-pad)] py-4">
       <div className="min-w-0">
         <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
         {/* Card descriptions are no longer drawn either.
@@ -58,10 +58,7 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {/* A search box in the toolbar is a full-width .field, so from sm up it
-          took the whole toolbar row and pushed its own filters onto a second
-          line under it. It gets a search box's width there instead. */}
-      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end sm:[&>input.field]:w-60">{action}</div>}
+      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
@@ -180,9 +177,19 @@ const WIDTH: Record<Width, string> = {
 export function PageBody({
   children,
   width = 'operational',
+  top,
 }: {
   children: ReactNode
   width?: Width
+  /* SPACE ABOVE, FOR A PAGE THAT HAS NO HEAD.
+
+     Almost every screen opens with PageHead, and the head's own padding is
+     what holds the first card off the top of the work area. A screen built
+     without one -- the timetable, the attendance register, the account page --
+     had nothing there at all, so its first card sat against the top edge in
+     exactly the way its sides sat against the sidebar. Same omission, second
+     axis, and reported as one complaint about margins because it is one. */
+  top?: boolean
 }) {
   /* The gutter is a token (index.css, --page-gutter), shared with PageHead.
      It used to be px-2 here and px-5 there, so on a phone the title sat 10px
@@ -191,7 +198,18 @@ export function PageBody({
      not stack to 36px a side on a 390px screen. */
   const embedded = useContext(EmbeddedPage)
   if (embedded) return <div className="mt-2.5 space-y-[var(--section-gap)]">{children}</div>
-  return <div data-page-enter="" className={cn('space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10', WIDTH[width])}>{children}</div>
+  return (
+    <div
+      data-page-enter=""
+      className={cn(
+        'space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10',
+        top && 'pt-[var(--page-gutter)]',
+        WIDTH[width],
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 /* A panel: white where content needs containing, and nothing where it does
@@ -1273,8 +1291,11 @@ export function Badge({
 }) {
   return (
     <span
+      title={typeof children === 'string' ? children : undefined}
       className={cn(
-        'inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
+        /* max-w-full + an inner truncate: a long label ellipsizes inside its
+           cell instead of pushing the row wide; the whole text is the title. */
+        'inline-flex min-w-0 max-w-full items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
         tone === 'success' && 'bg-success/10 text-success',
         tone === 'danger' && 'bg-destructive/10 text-destructive',
         tone === 'warning' && 'bg-warning/15 text-warning',
@@ -1284,7 +1305,7 @@ export function Badge({
         className,
       )}
     >
-      {children}
+      <span className="min-w-0 truncate [&>svg]:me-1 [&>svg]:inline [&>svg]:align-[-0.15em]">{children}</span>
     </span>
   )
 }
@@ -1818,7 +1839,7 @@ export function Select({
   return (
     <div ref={box} className="relative">
       <input
-        className="field cursor-text pr-8 [@media(pointer:coarse)]:text-[16px]"
+        className="field cursor-text pr-11 [@media(pointer:coarse)]:text-[16px]"
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
@@ -1860,9 +1881,14 @@ export function Select({
           } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
         }}
       />
-      <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-        <ChevronDown className="h-4 w-4" />
-      </span>
+      {/* A real button, not a decoration: the owner asked that every
+          dropdown carry one, so it is plain that the box opens a list. */}
+      <button type="button" tabIndex={-1} aria-label={open ? 'Close list' : 'Open list'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => { setOpen((o) => !o); setActive(0) }}
+        className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
+        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+      </button>
 
       {open && box_ && createPortal(
         <div
@@ -1973,6 +1999,11 @@ export function Input({
   onFocus,
   onBlur,
   autoComplete,
+  min,
+  max,
+  disabled,
+  autoFocus,
+  ariaInvalid,
 }: {
   value: string
   onChange: (v: string) => void
@@ -2001,6 +2032,11 @@ export function Input({
      to that person. Pass "new-password" on any box that sets somebody else's
      password, and "off" where a suggestion is merely noise. */
   autoComplete?: string
+  min?: number | string
+  max?: number | string
+  disabled?: boolean
+  autoFocus?: boolean
+  ariaInvalid?: boolean
 }) {
   /* A password can be looked at.
    *
@@ -2025,6 +2061,11 @@ export function Input({
          password is the one autofill nobody wants. */
       autoComplete={autoComplete ?? (isPassword ? 'new-password' : undefined)}
       aria-label={srLabel || undefined}
+      min={min}
+      max={max}
+      disabled={disabled}
+      autoFocus={autoFocus}
+      aria-invalid={ariaInvalid || undefined}
       /* 16px on a touch device, not the 14px the design calls for.
          Safari on iOS zooms the whole page in when a focused box has text
          under 16px, and it never zooms back out, so admitting a student left
@@ -2065,6 +2106,7 @@ export function Textarea({
   rows = 3,
   className,
   onSubmit,
+  autoFocus,
 }: {
   value: string
   onChange: (v: string) => void
@@ -2078,6 +2120,7 @@ export function Textarea({
      on Enter. Opt-in per box, because a box for an address or a set of
      instructions wants Enter to mean a new line and nothing else. */
   onSubmit?: () => void
+  autoFocus?: boolean
 }) {
   return (
     <textarea
@@ -2098,6 +2141,7 @@ export function Textarea({
       }
       placeholder={placeholder}
       rows={rows}
+      autoFocus={autoFocus}
       // 16px on touch for the same reason as Input: below that iOS zooms in
       // on focus and stays zoomed.
       className={cn('field h-auto resize-y py-2 leading-relaxed [@media(pointer:coarse)]:text-[16px]', className)}
@@ -2171,7 +2215,25 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     )
   }
   if (error) {
-    const msg = error instanceof Error ? error.message : 'Could not save'
+    /* AN ERROR BAR THAT SAYS NOTHING IS WORSE THAN NO ERROR BAR.
+
+       This took error.message and printed it, and an error whose message is
+       empty -- a refusal with no body, a request cut off mid-flight, a failure
+       thrown by something that never set one -- rendered as a thin red strip
+       with no words in it. Logins & access showed exactly that above an empty
+       roll: a stripe of colour saying something was wrong, and no way to learn
+       what, on a screen whose data was sitting in the database all along.
+
+       So a blank message falls back to a sentence, and where the server gave
+       a status it is named. "Could not read this (403)" is something a person
+       can act on or repeat down a telephone; a coloured rectangle is not. */
+    const said = error instanceof Error ? error.message.trim() : ''
+    const status = error instanceof ApiError ? error.status : 0
+    const msg = said
+      || (status === 401 ? 'Your session has ended. Sign in again.'
+        : status === 403 ? 'You do not have permission to see this.'
+        : status ? `The server refused this (${status}). Try again, or reload the page.`
+        : 'Something went wrong. Try again, or reload the page.')
     return (
       <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
         {msg}
@@ -2276,7 +2338,8 @@ export {
   Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
-import { useOpenState } from '@/lib/motion'
+import { useOpenState, usePresence } from '@/lib/motion'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /**
  * Print this page.
@@ -2714,8 +2777,8 @@ export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 
 export function tabClass(active: boolean): string {
   return active
-    ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors'
-    : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground'
+    ? '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
+    : '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
 }
 
 /* The pills never shrink or wrap: on a phone the strip scrolls sideways
@@ -2725,8 +2788,8 @@ export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md 
 
 export function segClass(active: boolean): string {
   return active
-    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
-    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
+    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
+    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
 }
 
 /* THE ONE DIALOG.
@@ -2758,9 +2821,12 @@ export function Dialog({
   footer,
   size = 'md',
   label,
+  raised = false,
 }: {
   open?: boolean
   onClose: () => void
+  /** Above the notification drawer (z 100): a dialog opened from inside it. */
+  raised?: boolean
   title?: ReactNode
   description?: ReactNode
   children: ReactNode
@@ -2770,8 +2836,12 @@ export function Dialog({
   label?: string
 }) {
   const panel = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
+  /* The phone's Back closes a dialog, like every other overlay; the returned
+     function is what our own close controls call, so the history entry is
+     spent exactly once whichever way it shuts. */
+  const close = useOverlayHistory(open, onClose)
+  const closeRef = useRef(close)
+  closeRef.current = close
 
   useEffect(() => {
     if (!open) return
@@ -2802,11 +2872,14 @@ export function Dialog({
     }
   }, [open])
 
-  if (!open || typeof document === 'undefined') return null
+  /* Stays mounted through its exit when closed with open={false}. */
+  const [present, closing] = usePresence(open)
+  if (!present || typeof document === 'undefined') return null
   return createPortal(
     <div
-      className="scrim fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-6"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      data-closing={closing || undefined}
+      className={cn('scrim fixed inset-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6', raised ? 'z-[110]' : 'z-[70]')}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
       <div
         ref={panel}
@@ -2816,8 +2889,8 @@ export function Dialog({
         tabIndex={-1}
         className={cn(
           'ui-dialog flex max-h-[92dvh] w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
-          'rounded-t-2xl shadow-[0_-8px_32px_-12px_rgba(15,23,42,0.28)]',
-          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-card,16px)] sm:border sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]',
+          'rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
           DIALOG_W[size],
         )}
       >
@@ -2831,7 +2904,7 @@ export function Dialog({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
               aria-label="Close"
               className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >

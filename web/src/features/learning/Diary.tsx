@@ -137,7 +137,10 @@ export default function Diary() {
   if (diary.isLoading && ready) return <SkeletonTiles count={3} label="Reading your week…" />
   if (diary.error) return <ErrorState error={diary.error} />
 
-  const items = diary.data?.items ?? []
+  /* MY PLANNER: only what the student wrote themselves. Lessons, homework,
+     tests and school events are on My day, Homework, Timetable and the
+     Calendar already; repeating them here made this page a duplicate. */
+  const items = (diary.data?.items ?? []).filter((e) => e.kind === 'note')
   const byDay = items.reduce<Record<string, Entry[]>>((acc, e) => {
     ;(acc[e.on_date] ??= []).push(e)
     return acc

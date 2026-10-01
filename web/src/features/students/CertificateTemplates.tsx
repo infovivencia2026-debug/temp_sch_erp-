@@ -84,7 +84,7 @@ export default function CertificateTemplates() {
     },
   })
 
-  if (list.isLoading) return <SkeletonTable columns={8} label="Reading the certificate register…" />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={8} label="Reading the certificate register…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

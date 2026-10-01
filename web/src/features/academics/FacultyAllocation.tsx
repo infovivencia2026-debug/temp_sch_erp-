@@ -106,7 +106,7 @@ export default function FacultyAllocation() {
     },
   })
 
-  if (alloc.isLoading) return <SkeletonTiles count={4} label="Working out who teaches what…" />
+  if (alloc.isLoading && !alloc.data) return <SkeletonTiles count={4} label="Working out who teaches what…" />
   if (alloc.error) return <ErrorState error={alloc.error} />
 
   const s = alloc.data?.summary

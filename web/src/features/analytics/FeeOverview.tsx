@@ -60,7 +60,7 @@ export default function FeeOverview() {
     queryFn: () => api.get<List<ConcessionRow>>(CONCESSIONS),
   })
 
-  if (overview.isLoading) return <SkeletonTable columns={8} />
+  if (overview.isLoading && !overview.data) return <SkeletonTable columns={8} />
   if (overview.error) return <ErrorState error={overview.error} />
   const d = overview.data
   if (!d) return null

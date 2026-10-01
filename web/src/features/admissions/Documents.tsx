@@ -77,7 +77,7 @@ export default function Documents({
     },
   })
 
-  if (q.isLoading) return <SkeletonTable columns={5} />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={5} />
   if (q.error) return <ErrorState error={q.error} />
 
   const items = q.data?.items ?? []

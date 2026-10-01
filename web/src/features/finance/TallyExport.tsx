@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, SkeletonTable, SkeletonTiles, ErrorState,
-  EmptyState, UnavailableState,
+  EmptyState, UnavailableState, Input
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { useCan } from '@/lib/session'
@@ -97,7 +97,7 @@ export default function TallyExport() {
     () => toast.ok('Recorded as imported into Tally.'),
   )
 
-  if (settings.isLoading) return <SkeletonTiles count={3} label="Reading the connector…" />
+  if (settings.isLoading && !settings.data) return <SkeletonTiles count={3} label="Reading the connector…" />
   if (settings.error) return <ErrorState error={settings.error} />
 
   const s = settings.data
@@ -182,19 +182,19 @@ export default function TallyExport() {
           <div className="p-5">
           <FormGrid>
             <Field label="From">
-              <input
+              <Input
                 type="date"
-                className="field"
+                
                 value={f}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={(v) => setFrom(v)}
               />
             </Field>
             <Field label="To">
-              <input
+              <Input
                 type="date"
-                className="field"
+                
                 value={t}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(v) => setTo(v)}
               />
             </Field>
             <Field label="Voucher types" wide hint="All types when nothing is ticked.">

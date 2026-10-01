@@ -52,6 +52,8 @@ export interface PrincipalDashboard {
   /** Active students in each section, for the Students card's picker. */
   students_by_section?: { section_id: string; label: string; students: number }[]
   outstanding_ageing?: OutstandingAgeing
+  /** Class Status: live posts now and posts waiting for approval. Only for status.manage, and only while the switch is on. */
+  status?: { live: number; pending: number }
   range: DashboardRange
   as_of_now: string[]
 }

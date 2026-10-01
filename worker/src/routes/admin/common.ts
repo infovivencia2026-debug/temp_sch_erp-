@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { scopeRows } from '../../services/scope_rows'
 import { HttpError, badRequest, forbidden, now, uuid } from '../../http'
 import { can } from '../../identity'
 
@@ -108,31 +109,15 @@ async function resolveUncached(c: Ctx): Promise<Scope> {
     r.allCampuses = true; r.allStudents = r.allAttendance = r.anySection = true
     return r
   }
-  const u = c.id.userId
-  const [campuses, depts, sections, ct, students, teaches] = await c.db.batch<Record<string, string | number | null>>([
-    c.db.prepare(`SELECT campus_id FROM user_roles WHERE user_id = ?`).bind(u),
-    c.db.prepare(`SELECT id FROM departments WHERE head_user_id = ?`).bind(u),
-    c.db.prepare(`SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?
-      UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?
-      UNION SELECT id FROM sections WHERE class_teacher_id = ?
-      UNION SELECT DISTINCT te.section_id FROM timetable_entries te JOIN employees emp ON emp.user_id = te.teacher_user_id
-        WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?)`).bind(u, u, u, u),
-    c.db.prepare(`SELECT id FROM sections WHERE class_teacher_id = ?`).bind(u),
-    c.db.prepare(`SELECT id FROM students WHERE user_id = ?
-      UNION SELECT sg.student_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
-       WHERE g.user_id = ? AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now'))`).bind(u, u),
-    c.db.prepare(`SELECT (EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?)
-      OR EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?)) AS t`).bind(u, u),
-  ])
-  for (const row of campuses.results) {
-    if (row.campus_id === null) r.allCampuses = true
-    else r.campusIds.push(String(row.campus_id))
-  }
-  r.departmentIds = depts.results.map((x) => String(x.id))
-  r.sectionIds = sections.results.map((x) => String(x.id))
-  r.classTeacherOf = ct.results.map((x) => String(x.id))
-  r.studentIds = students.results.map((x) => String(x.id))
-  r.teaches = !!Number(teaches.results[0]?.t ?? 0)
+  // One read per request, shared with the other modules' resolvers (services/scope_rows.ts).
+  const rows = await scopeRows(c)
+  r.allCampuses = rows.allCampuses
+  r.campusIds = rows.campusIds
+  r.departmentIds = rows.departmentIds
+  r.sectionIds = rows.sectionIds
+  r.classTeacherOf = rows.classTeacherOf
+  r.studentIds = rows.studentIds
+  r.teaches = rows.teaches
   return r
 }
 

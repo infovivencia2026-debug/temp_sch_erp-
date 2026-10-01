@@ -48,7 +48,7 @@ const QUEUE_OF: Record<string, string> = {
   'message:send': 'critical', 'message.send': 'critical',
   'attendance:rollup': 'low', 'session:prune': 'low', 'report:digest_daily': 'low',
   'report:digest_weekly': 'low', 'transport:trip_timeout': 'low',
-  'transport:position_retention': 'low', 'security:retention': 'low',
+  'transport:position_retention': 'low', 'security:retention': 'low', 'status:expire': 'low',
 }
 export const QUEUES = ['critical', 'default', 'bulk', 'low'] as const
 export const queueOf = (type: string) => QUEUE_OF[type] ?? 'default'

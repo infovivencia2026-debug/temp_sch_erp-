@@ -2,7 +2,7 @@ import type { Env } from './env'
 import { can, type Identity } from './identity'
 import { HttpError, forbidden } from './http'
 import { entitlementFor, entitlementFromRow, entitlementStmt, type Entitlement } from './routes/misc/shell'
-import { featureGate, featureOverrides, overridesFromRows, overridesStmt, type Override } from './routes/seller/features'
+import { cachedOverrideRows, featureGate, featureOverrides, loadOverrideRows, overridesFromRows, type Override } from './routes/seller/features'
 import { memoFor } from './idcache'
 import type { Ctx } from './router'
 
@@ -88,8 +88,16 @@ export function primeControl(env: Env, id: Identity): void {
   const inst = id.institution.id
   const both = memoFor(id, 'control', async (): Promise<{ ent: Entitlement; ov: Map<string, Override> }> => {
     try {
-      const [a, b] = await env.CONTROL.batch([entitlementStmt(env, inst), overridesStmt(env, inst)])
-      return { ent: entitlementFromRow(a.results[0] as Parameters<typeof entitlementFromRow>[0]), ov: overridesFromRows(b.results as Parameters<typeof overridesFromRows>[0]) }
+      /* The switches come from this isolate's cache while the school's
+         features_version is the one they were loaded under (features.ts);
+         only then is the subscription read alone. */
+      const held = cachedOverrideRows(inst)
+      if (held) {
+        const row = await entitlementStmt(env, inst).first()
+        return { ent: entitlementFromRow(row as Parameters<typeof entitlementFromRow>[0]), ov: overridesFromRows(held) }
+      }
+      const [row, rows] = await Promise.all([entitlementStmt(env, inst).first(), loadOverrideRows(env, inst)])
+      return { ent: entitlementFromRow(row as Parameters<typeof entitlementFromRow>[0]), ov: overridesFromRows(rows) }
     } catch {
       // school_feature_overrides not there yet: the subscription alone.
       const [row, ov] = await Promise.all([entitlementStmt(env, inst).first(), featureOverrides(env, inst)])

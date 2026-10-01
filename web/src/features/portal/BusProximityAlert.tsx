@@ -66,7 +66,7 @@ export default function BusProximityAlert() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me-child-bus'] }),
   })
 
-  if (feed.isLoading) return <ScreenSkeleton label={t('portal.bus_proximity_alert.loading')} />
+  if (feed.isLoading && !feed.data) return <ScreenSkeleton label={t('portal.bus_proximity_alert.loading')} />
   if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (

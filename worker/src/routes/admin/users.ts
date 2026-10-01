@@ -18,10 +18,15 @@ const NIL_UUID = '00000000-0000-0000-0000-000000000000'
 // --- shared pieces -----------------------------------------------------------
 
 /** Active sessions per user, from CONTROL, for the school in scope. */
-async function sessionCounts(c: Ctx, userIds?: string[]): Promise<Map<string, number>> {
+async function sessionCounts(c: Ctx, userIds?: string[], activeWithinMs?: number): Promise<Map<string, number>> {
   const inst = c.id.institution?.id ?? null
-  const rows = await c.env.CONTROL.prepare(`SELECT user_id, count(*) AS n FROM sessions WHERE institution_id IS ? AND revoked_at IS NULL AND expires_at > ? GROUP BY user_id`)
-    .bind(inst, now()).all<{ user_id: string; n: number }>()
+  /* With activeWithinMs: only sessions used in that window, which is what
+     "signed in now" means. A session lasts thirty days, so an unexpired one
+     says nothing about whether anybody is there. last_seen_at is touched at
+     least once a minute while the app is in use (auth/session.ts). */
+  const since = activeWithinMs ? new Date(Date.now() - activeWithinMs).toISOString() : ''
+  const rows = await c.env.CONTROL.prepare(`SELECT user_id, count(*) AS n FROM sessions WHERE institution_id IS ? AND revoked_at IS NULL AND expires_at > ? AND last_seen_at >= ? GROUP BY user_id`)
+    .bind(inst, now(), since).all<{ user_id: string; n: number }>()
   const out = new Map<string, number>()
   for (const r of rows.results) if (!userIds || userIds.includes(r.user_id)) out.set(r.user_id, r.n)
   return out
@@ -365,7 +370,7 @@ export function registerAdminUsers(r: Router): void {
       const e = roles.get(rr.user_id) ?? { names: new Set(), keys: new Set() }
       e.names.add(rr.name); e.keys.add(rr.key); roles.set(rr.user_id, e)
     }
-    const sessions = await sessionCounts(c, ids)
+    const sessions = await sessionCounts(c, ids, 10 * 60 * 1000)
     const total = await c.db.prepare(`SELECT count(*) AS n FROM users u WHERE ${USER_FILTER}`).bind(status, searchArg).first<{ n: number }>()
     const instName = c.id.institution?.name
     return ok({

@@ -34,7 +34,7 @@ export default function Jobs() {
     },
   })
 
-  if (queues.isLoading) return <SkeletonTable columns={9} />
+  if (queues.isLoading && !queues.data) return <SkeletonTable columns={9} />
   if (queues.error) return <ErrorState error={queues.error} />
 
   const entries = Object.entries(queues.data?.queues ?? {})

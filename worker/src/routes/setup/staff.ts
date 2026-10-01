@@ -1015,6 +1015,12 @@ export function registerStaff(r: Router): void {
         SELECT emp.id, TRIM(emp.first_name || ' ' || COALESCE(emp.last_name, '')) AS name,
                COALESCE(emp.employee_code, '') AS admission_no,
                COALESCE(d.name, '') AS class_name, COALESCE(dept.name, '') AS section_name,
+               /* What the school already holds for reaching this person.
+                  The roll showed the sign-in name and the account id and
+                  nothing else, which reads as a record with no contact on it
+                  -- and a screen that appears to have lost data is worse than
+                  one that never showed it. */
+               COALESCE(emp.email, '') AS email, COALESCE(emp.phone, '') AS phone,
                COALESCE(eu.username, eu.phone, eu.email, '') AS sign_in,
                COALESCE(eu.login_code, '') AS login_code,
                COALESCE((eu.password_hash IS NOT NULL AND eu.status = 'active'), 0) AS usable
@@ -1029,7 +1035,8 @@ export function registerStaff(r: Router): void {
         id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
         class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
         has_login: bool(r.usable), sign_in_as: String(r.sign_in ?? ''),
-        login_code: String(r.login_code ?? ''), guardians: [],
+        login_code: String(r.login_code ?? ''),
+        email: String(r.email ?? ''), phone: String(r.phone ?? ''), guardians: [],
       })) })
     }
 
@@ -1050,13 +1057,26 @@ export function registerStaff(r: Router): void {
              st.user_id AS student_user, COALESCE(su.username, su.phone, su.email, '') AS student_sign_in,
              COALESCE(su.login_code, '') AS student_code,
              COALESCE(${usable.replace(/u\./g, 'su.')}, 0) AS student_usable
+        /* A CHILD WHO IS NOT IN A CLASS IS STILL A CHILD OF THIS SCHOOL.
+
+           These were inner joins, so a child with no active enrolment was not
+           merely unplaced on the roll -- they were absent from it. JSM has 83
+           on the books and 70 enrolled, so thirteen children, every one of
+           them holding a working login, appeared nowhere: the tab said
+           "Students 84" and the roll underneath it said 70, and nothing on
+           screen accounted for the difference.
+
+           They are exactly the children most likely to need attention -- newly
+           admitted, or mid-transfer between sections -- so vanishing is the
+           worst thing the list could do with them. They now come back with an
+           empty class and section, and the roll says so. */
         FROM students st
-        JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
-        JOIN classes cl ON cl.id = e.class_id
+        LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+        LEFT JOIN classes cl ON cl.id = e.class_id
         LEFT JOIN sections sec ON sec.id = e.section_id
         LEFT JOIN users su ON su.id = st.user_id
        WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?) AND (? IS NULL OR e.class_id = ?)
-       ORDER BY cl.name, sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no
+       ORDER BY cl.name IS NULL, cl.name, sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no
        LIMIT ?`)
       .bind(section, section, classId, classId, cap).all<Record<string, unknown>>()
 
@@ -1127,7 +1147,7 @@ export function registerStaff(r: Router): void {
             LEFT JOIN classes cl ON cl.id = e.class_id
             WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?)
               AND (${classId === null ? 'TRUE' : 'e.class_id = ' + "'" + classId + "'"})
-              AND (${policy?.min_level == null ? 'TRUE' : 'cl.level >= ' + Math.trunc(policy.min_level)})
+              /* No class-level test: every child may have a login. */
             ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
         break
       case 'guardians':

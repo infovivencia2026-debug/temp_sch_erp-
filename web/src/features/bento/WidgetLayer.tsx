@@ -2,6 +2,7 @@ import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useM
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
+import { useAppearance } from '@/lib/appearance'
 import { buzz } from '@/lib/haptics'
 import { openLauncher } from './launcher-open'
 import { Check, ChevronDown, LayoutGrid, ListOrdered, Minus, Pencil, Plus, RotateCcw, Sparkles, Undo2 } from 'lucide-react'
@@ -9,12 +10,12 @@ import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
-  paginate, pageCount, PHONE_COLS, PHONE_ROWS,
+  packPhone, pageCount, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
-import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
+import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
-import { FeatureCells, FEATURE_PREFIX } from './FeatureCells'
+import { FeatureCells, FEATURE_PREFIX, DESK_QUAD, quadId } from './FeatureCells'
 import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useShortcuts, addToDashboard } from '@/lib/shortcuts'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
@@ -439,6 +440,18 @@ function CustomizeBar({
 /** The size a placement is DRAWN at, which is the only size any of the
     fit arithmetic below may use. `dimsOf` returns what is stored, and what is
     stored may be a 3 or a 5 from an older layout. */
+function usePhoneIconsPerRow(): number {
+  return useAppearance().appearance.phoneIcons === '3' ? 3 : 4
+}
+
+/** How a widget sits in the phone rhythm (packPhone): an app icon, a small
+    card (one by one, half the width) or a big one (anything larger, the
+    full width). */
+function phoneKind(id: string, d: { w: number; h: number }): PhoneKind {
+  if (id.startsWith(FEATURE_PREFIX)) return 'icon'
+  return d.w <= 1 && d.h <= 1 ? 'small' : 'big'
+}
+
 function drawnDims(
   layout: Parameters<typeof dimsOf>[0],
   id: string,
@@ -487,7 +500,8 @@ function flipPage(board: HTMLElement, dir: 1 | -1, still: boolean) {
   const next = pages[at + dir]
   if (!next) return
   next.scrollIntoView({ behavior: still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
-  buzz('snap')
+  /* No pulse here: the page observer below answers once when the page lands,
+     and this used to make that landing buzz twice. */
 }
 
 export function WidgetLayer({
@@ -710,20 +724,44 @@ export function WidgetLayer({
   const paged = phone && inBoard
   useSwipeUpForAll(paged && !arranging, openLauncher)
 
-  const rows = PHONE_ROWS
+  const rows = PHONE_GRID_ROWS
+  /* App icons per row on a phone is the person's choice (Appearance, Home):
+     four, or three bigger ones. The page is that many units across. */
+  const iconsPerRow = usePhoneIconsPerRow()
+  const gridCols = PHONE_GRID_COLS
   const spots = useMemo(() => {
     if (!paged) return null
-    return paginate(
-      visible.map((v) => ({ id: v.id, ...drawnDims(layout, v.id, v.size) })),
-      PHONE_COLS,
-      rows,
+    return packPhone(
+      visible.map((v) => ({ id: v.id, kind: phoneKind(v.id, drawnDims(layout, v.id, v.size)) })),
+      iconsPerRow,
+      !arranged,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, rows])
+  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, iconsPerRow, arranged])
   const pages = spots ? pageCount(spots) : 0
+  /* Only the rows a page actually uses: a home of two card rows and an icon
+     row is five tracks, not six with an empty one at the foot. Arranging
+     keeps all six so there is somewhere to drop. */
+  /* NO EMPTY BAND AT THE FOOT OF A PAGE. The rhythm can leave a page's
+     last track(s) empty (a two-row card does not fit in the one left). Out
+     of arranging, whatever ends lowest on each page grows down to the foot,
+     so the page is full to the dots. Arranging keeps the packed sizes so
+     the drop targets stay where the pack put them. */
+  const drawn = useMemo(() => {
+    if (!spots || arranging) return spots
+    const end = new Map<number, number>()
+    for (const s of spots) end.set(s.page, Math.max(end.get(s.page) ?? 0, s.row + s.h))
+    return spots.map((s) => {
+      const e = end.get(s.page) ?? rows
+      return s.row + s.h === e && e < rows ? { ...s, h: s.h + (rows - e) } : s
+    })
+  }, [spots, arranging, rows])
+  const usedRows = !drawn
+    ? rows
+    : Math.max(1, Math.min(rows, ...drawn.map((s) => s.row + s.h)))
   const spotMap = useMemo(
-    () => (spots ? new Map(spots.map((s) => [s.id, s])) : null),
-    [spots],
+    () => (drawn ? new Map(drawn.map((s) => [s.id, s])) : null),
+    [drawn],
   )
 
   /* The pager is switched on from here, on the element BentoPage owns, and
@@ -734,12 +772,16 @@ export function WidgetLayer({
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !paged) return
     board.setAttribute('data-pager', '')
-    board.style.setProperty('--pager-rows', String(rows))
+    board.style.setProperty('--pager-rows', String(usedRows))
+    board.style.setProperty('--pager-cols', String(gridCols))
+    board.style.setProperty('--pager-icons', String(iconsPerRow))
     return () => {
       board.removeAttribute('data-pager')
       board.style.removeProperty('--pager-rows')
+      board.style.removeProperty('--pager-cols')
+      board.style.removeProperty('--pager-icons')
     }
-  }, [paged, rows])
+  }, [paged, usedRows, gridCols, iconsPerRow])
   useEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !arranging) return
@@ -814,7 +856,7 @@ export function WidgetLayer({
       from = { x: e.clientX, y: e.clientY }
       timer = window.setTimeout(() => {
         from = null
-        buzz('open')
+        buzz('select')
         swallowNextClick()
         setArranging(true)
       }, HOLD)
@@ -912,8 +954,11 @@ export function WidgetLayer({
             label: f.name,
             hint: `${section.workspace || section.name}`,
             group: t('bento.add_gallery.screens'),
-            tiers: smallTiers,
-            defaultTier: smallTiers.includes('small') ? 'small' : smallTiers[0] ?? 'small',
+            /* An app icon has one shape, 1x1 (ICON_SHAPE); it fits where a
+               Small card would. */
+            tiers: smallTiers.includes('small') ? ['small'] : [],
+            defaultTier: 'small',
+            icon: { slug: f.slug, section: section.slug, workspace: section.workspace || section.name },
           })
         }
       }
@@ -947,11 +992,18 @@ export function WidgetLayer({
       /* A screen joins a shortcut cell (four to a cell, FeatureCells), which
          declares itself at its own size; a layout entry under the screen's
          own id would be a card nothing draws. */
-      addToDashboard(id.slice(FEATURE_PREFIX.length))
+      const key = id.slice(FEATURE_PREFIX.length)
+      /* Clear any earlier "removed" mark on the place it will land: the
+         icon itself on a desk, its band of eight on a phone. */
+      /* On a phone the icon is its own unit; on a desk it joins a tile of
+         four, and only the first of four starts (or un-hides) a tile. */
+      const at = shortcuts.length
+      if (phone) add(id, ICON_SHAPE.w, ICON_SHAPE.h, visible)
+      else if (at % DESK_QUAD === 0) add(quadId(at / DESK_QUAD), ICON_SHAPE.w, ICON_SHAPE.h, visible)
+      addToDashboard(key)
     } else {
       add(id, d.w, d.h, visible)
     }
-    buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
     if (off.length + metricItems.length + featureItems.length <= 1) setGallery(false)
@@ -979,7 +1031,7 @@ export function WidgetLayer({
             data-page={i}
             aria-hidden="true"
             style={{
-              gridColumn: `${i * PHONE_COLS + 1} / span ${PHONE_COLS}`,
+              gridColumn: `${i * gridCols + 1} / span ${gridCols}`,
               gridRow: `1 / span ${rows}`,
             }}
           />
@@ -996,7 +1048,7 @@ export function WidgetLayer({
           data-board-empty=""
           style={{
             ...ink,
-            gridColumn: paged ? `1 / span ${PHONE_COLS}` : '1 / -1',
+            gridColumn: paged ? `1 / span ${gridCols}` : '1 / -1',
             gridRow: paged ? `1 / span ${rows}` : undefined,
           }}
         >
@@ -1495,6 +1547,7 @@ function ArrangedWidget({
   index,
   optional,
   periodic,
+  fixed,
   children,
 }: {
   id: string
@@ -1506,14 +1559,18 @@ function ArrangedWidget({
   optional?: boolean
   /** A metric cell: the "…" offers the period it reads over. */
   periodic?: boolean
+  /** An app icon: always its declared 1x1 shape, so no size is offered and
+      a stored size (from an older shortcut cell) is ignored. */
+  fixed?: boolean
   /** Given the span to render at, because the cell owns its own <Cell>. */
   children: (span: CellSpan) => ReactNode
 }) {
   const layer = useWidgetLayer()
+  const gridCols = PHONE_GRID_COLS
   const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
-  const { w, h } = dimsOf(layout, id, declaredSize)
+  const { w, h } = fixed ? DIMS[declaredSize] : dimsOf(layout, id, declaredSize)
 
   /* Declared in an effect, not in the render body: calling the parent's
      setState while rendering a child is illegal in React. */
@@ -1665,7 +1722,6 @@ function ArrangedWidget({
       if (over?.id !== f.over?.id || over?.after !== f.over?.after) {
         f.over = over
         mark(f, over)
-        if (phone && over) buzz('tap')
       }
     })
   }
@@ -1833,7 +1889,6 @@ function ArrangedWidget({
       if (e.altKey || e.metaKey) {
         move(id, to, layer.visible)
         layer.say(t('bento.widgets.moved_to', { label, n: to + 1, total: layer.visible.length }))
-        buzz('tap')
         return
       }
       cardEl(layer.visible[to].id)?.querySelector<HTMLElement>(control)?.focus()
@@ -1844,14 +1899,13 @@ function ArrangedWidget({
       remove(id)
       layer.say(t('bento.widgets.removed_card', { label }))
       layer.focusUndo()
-      buzz('tap')
     }
   }
 
   /* THE QUICK MENU'S ROWS, judged here because the layer is what knows what
      fits. Open follows the card's own link — the first one inside it — so it
      opens exactly what a tap on the body opens, tab strip and all. */
-  const quickTiers: QuickTier[] = (phone ? PHONE_TIERS : TIERS).map((tier) => {
+  const quickTiers: QuickTier[] = fixed ? [] : (phone ? PHONE_TIERS : TIERS).map((tier) => {
     const d = dimsForTier(tier, phone)
     return { tier, on: tier === tierOf(cw, ch, phone), ok: fitsAt(d.w, d.h) }
   })
@@ -1872,7 +1926,7 @@ function ArrangedWidget({
         spot
           ? {
               order,
-              gridColumn: `${spot.page * PHONE_COLS + spot.col + 1} / span ${spot.w}`,
+              gridColumn: `${spot.page * gridCols + spot.col + 1} / span ${spot.w}`,
               gridRow: `${spot.row + 1} / span ${spot.h}`,
             }
           : { order }
@@ -1884,6 +1938,7 @@ function ArrangedWidget({
       data-w={cw}
       data-h={ch}
       data-tinted={tint ? 'true' : undefined}
+      data-app-icon={fixed ? '' : undefined}
       data-lead={lead ? '' : undefined}
       data-editing={editing ? '' : undefined}
       data-more={layer && !editing ? '' : undefined}
@@ -1897,7 +1952,10 @@ function ArrangedWidget({
           inert: still drawn, but neither a link nor a tab stop, so the
           keyboard lands on the controls over it. */}
       <div className="h-full [&>*]:h-full" style={paint} {...(editing ? INERT : {})}>
-        <WidgetSizeContext.Provider value={{ w: spot ? spot.w : cw, h: spot ? spot.h : ch }}>
+        <WidgetSizeContext.Provider value={{
+          w: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? 2 : 1) : cw,
+          h: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? Math.min(2, Math.max(1, ch)) : 1) : ch,
+        }}>
           {children(span)}
         </WidgetSizeContext.Provider>
       </div>
@@ -1919,17 +1977,11 @@ function ArrangedWidget({
               ? {
                   value: periodOf(layout, id),
                   options: PERIODS.map((p) => ({ value: p, label: t(periodLabelKey(p) as never) })),
-                  onChange: (v) => {
-                    setPeriod(id, v as Period, cw, ch)
-                    buzz('tap')
-                  },
+                  onChange: (v) => setPeriod(id, v as Period, cw, ch),
                 }
               : undefined
           }
-          onHide={() => {
-            remove(id)
-            buzz('tap')
-          }}
+          onHide={() => remove(id)}
           colour={
             <ColourPick
               value={tint}
@@ -1968,7 +2020,6 @@ function ArrangedWidget({
               remove(id)
               layer?.say(t('bento.widgets.removed_card', { label }))
               layer?.focusAfterRemove(next?.id ?? null)
-              buzz('tap')
             }}
             aria-label={t('bento.widgets.remove_card', { label })}
             title={t('bento.widgets.remove')}
@@ -1976,7 +2027,7 @@ function ArrangedWidget({
           >
             <Minus className="size-3.5" aria-hidden="true" />
           </button>
-          <SizeMenu
+          {!fixed && <SizeMenu
             label={label}
             cw={cw}
             ch={ch}
@@ -1985,7 +2036,7 @@ function ArrangedWidget({
             tint={tint}
             onTier={(tier) => setTier(id, tier, phone, w)}
             onTint={(c, coalesce) => recolour(id, c, cw, ch, coalesce)}
-          />
+          />}
         </div>
       )}
     </div>

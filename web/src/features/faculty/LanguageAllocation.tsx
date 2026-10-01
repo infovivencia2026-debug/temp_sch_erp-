@@ -110,7 +110,7 @@ export default function LanguageAllocation() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not record'),
   })
 
-  if (subjects.isLoading) return <SkeletonTable columns={5} />
+  if (subjects.isLoading && !subjects.data) return <SkeletonTable columns={5} />
   if (subjects.error) return <ErrorState error={subjects.error} />
 
   const alloc = allocation.data

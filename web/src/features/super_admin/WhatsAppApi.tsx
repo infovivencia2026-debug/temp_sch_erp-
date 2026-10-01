@@ -458,7 +458,7 @@ function TemplateMapping() {
   const submit = useSubmitWhatsAppTemplates()
   const [code, setCode] = useState('')
 
-  if (templates.isLoading) return <SkeletonTable columns={5} />
+  if (templates.isLoading && !templates.data) return <SkeletonTable columns={5} />
   if (templates.error) return <ErrorState error={templates.error} />
 
   const items = templates.data?.items ?? []
@@ -611,7 +611,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
 function DispatchLog() {
   const log = useWhatsAppLog()
 
-  if (log.isLoading) return <SkeletonTable columns={5} />
+  if (log.isLoading && !log.data) return <SkeletonTable columns={5} />
   if (log.error) return <ErrorState error={log.error} />
 
   const items = log.data?.items ?? []

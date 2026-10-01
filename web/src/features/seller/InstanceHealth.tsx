@@ -86,7 +86,7 @@ function ProvisioningLog() {
 export default function InstanceHealth() {
   const { data, isLoading, error } = usePlatform<HealthResponse>('health', '/health')
 
-  if (isLoading) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

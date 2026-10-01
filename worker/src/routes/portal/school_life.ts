@@ -166,7 +166,7 @@ async function getFamilyCalendar(c: Ctx): Promise<Response> {
   const { from, to } = familyDates(c, 30, 120)
   const k = JSON.stringify(kids)
   const db = c.db
-  const [hol, exams, terms, events, hw, fees, ptm] = await db.batch([
+  const [hol, exams, terms, events, fees, ptm] = await db.batch([
     db.prepare(`SELECT on_date AS date, to_date AS end_date, kind, name AS title, description AS detail,
                        NULL AS starts_at, NULL AS venue, id AS ref_id, NULL AS student_name
                   FROM holidays
@@ -192,19 +192,6 @@ async function getFamilyCalendar(c: Ctx): Promise<Response> {
                          SELECT 1 FROM enrollments en
                           WHERE ${inJSON('en.student_id')} AND en.section_id = e.section_id))
                  ORDER BY e.on_date`).bind(to, from, k),
-    db.prepare(`SELECT h.due_on AS date, NULL AS end_date, 'homework' AS kind,
-                       COALESCE(NULLIF(h.title, ''), 'Homework') AS title,
-                       COALESCE(sub.name, '') AS detail, NULL AS starts_at, NULL AS venue,
-                       h.id AS ref_id, ${shortName('st')} AS student_name
-                  FROM homework h
-                  JOIN enrollments en ON en.section_id = h.section_id
-                  JOIN students st ON st.id = en.student_id
-                  LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id
-                  LEFT JOIN subjects sub ON sub.id = cs.subject_id
-                 WHERE ${inJSON('en.student_id')}
-                   AND h.due_on IS NOT NULL AND h.due_on BETWEEN ? AND ?
-                   AND h.is_published = 1 AND en.status = 'active'
-                 ORDER BY h.due_on`).bind(k, from, to),
     db.prepare(`SELECT i.due_on AS date, (i.net_paise - i.paid_paise) AS owed, i.invoice_no,
                        i.id AS ref_id, ${shortName('st')} AS student_name
                   FROM invoices i
@@ -230,7 +217,21 @@ async function getFamilyCalendar(c: Ctx): Promise<Response> {
     starts_at: o(v.starts_at), venue: o(v.venue), ref_id: o(v.ref_id), student_name: o(v.student_name),
   })
   const items: ReturnType<typeof entry>[] = []
-  for (const res of [hol, exams, terms, events, hw]) for (const v of res.results as unknown as CalRow[]) items.push(entry(v))
+  /* HOMEWORK IS NOT A CALENDAR ENTRY.
+
+     Every published piece of work put its due date on the family
+     calendar, so a month with two exams and a sports day also carried
+     forty rows saying "Homework" -- and on a normal week they were the
+     only rows, which made the calendar a second, worse copy of the
+     homework diary. The diary already shows the week, by day, with the
+     subject and whether it has been handed in; this showed a title and a
+     date and buried the holidays, exams and activities that are the
+     reason a parent opens a calendar at all.
+
+     The tiles above the grid count the same list, so homework leaves
+     those too -- which is right: "Coming up 2" should mean two things
+     are happening at the school, not that two exercises are due. */
+  for (const res of [hol, exams, terms, events]) for (const v of res.results as unknown as CalRow[]) items.push(entry(v))
   for (const f of fees.results as { date: string; owed: number; invoice_no: string; ref_id: string; student_name: string }[]) {
     items.push(entry({
       date: f.date, end_date: null, kind: 'fee_due', title: 'Fees due: ' + fmtIndian(Number(f.owed) / 100),

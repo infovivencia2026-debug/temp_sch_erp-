@@ -82,7 +82,7 @@ export default function StudentCouncil() {
       }>('/api/v1/academics/admin/council'),
   })
 
-  if (council.isLoading) return <SkeletonTable columns={6} label="Reading this year’s council…" />
+  if (council.isLoading && !council.data) return <SkeletonTable columns={6} label="Reading this year’s council…" />
   if (council.error) return <ErrorState error={council.error} />
 
   const positions = council.data?.positions ?? []

@@ -122,7 +122,7 @@ export default function Outcomes() {
     },
   })
 
-  if (frame.isLoading) return <SkeletonTable columns={8} label="Reading the outcome framework…" />
+  if (frame.isLoading && !frame.data) return <SkeletonTable columns={8} label="Reading the outcome framework…" />
   if (frame.error) return <ErrorState error={frame.error} />
 
   const pos = frame.data?.programme_outcomes ?? []

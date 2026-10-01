@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { useViewport } from '@/lib/viewport'
-import { useLayout } from '@/lib/layout'
 import { useFullScreenInvite } from '@/lib/fullscreen'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SEAM } from './bento-ink'
@@ -12,6 +11,7 @@ import {
   type SettingsTab,
 } from './AppearanceDialog'
 import { Rows, NavRow } from './SettingsRows'
+import { HapticsRows } from './HapticsRow'
 import { SettingsGroups } from './SettingsGroups'
 
 /* SETTINGS AS A PLACE, WHICH ON A PHONE IS WHAT IT ALWAYS LOOKED LIKE.
@@ -94,7 +94,6 @@ export default function SettingsPage() {
      The rows are the same components; only the composition and the three
      density properties differ. */
   const wide = useViewport() === 'desktop'
-  const { layout } = useLayout()
   const items = useSettingsItems()
   const values = useSettingsValues()
   const { section } = useParams()
@@ -213,13 +212,10 @@ export default function SettingsPage() {
        * token cancels it exactly whatever the root font size is. Writing the
        * pixel value would be right at 14px and wrong the moment somebody
        * changes the text size — which this very screen offers. */
-      /* Only the bento outlet pads its screens (pt-6 pb-6, a 14px phone
-       * gutter); the classic one does not. Cancelling unconditionally pulled
-       * the sheet 16px off each side and its title up under the top bar under
-       * Work (measured at 390px: header at x=-16, the h1 clipped). So the
-       * cancellation follows the layout, and matches the gutter exactly. */
-      layout === 'bento' ? '-mx-[14px] -mt-6 -mb-6 w-[calc(100%+28px)]' : 'w-full',
-      'py-0',
+      /* Bleeding past the outlet's padding is only right in Focus, which has
+         it; the classic phone layout has none, so there the bleed cut the
+         title off at the top and pushed the rows past both edges. */
+      'py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:-mb-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
       'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
     )}>
       <div
@@ -305,6 +301,7 @@ export default function SettingsPage() {
                 {found?.label ?? items[0]?.label}
               </h2>
               <SettingsPane tab={tab} onClose={done} />
+              {tab === 'appearance' && <HapticsRows />}
             </div>
           </div>
         ) : (
@@ -335,6 +332,10 @@ export default function SettingsPage() {
           ) : (
             <div className="pt-[4px] pb-[calc(24px+env(safe-area-inset-bottom))]">
               <SettingsPane tab={tab} onClose={done} />
+              {/* Haptics: a phone preference, so it lives on the route a phone
+                  uses. The desktop dialog's appearance tab takes the bare
+                  <HapticsRow /> inside its own <Rows>. */}
+              {tab === 'appearance' && <HapticsRows />}
             </div>
           )
         )}

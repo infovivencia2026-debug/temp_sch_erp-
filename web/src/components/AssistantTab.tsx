@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import './assistant/assistant-chat.css'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet, Maximize2, Minimize2 } from 'lucide-react'
+import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, Maximize2, Minimize2, SquarePen, RotateCcw } from 'lucide-react'
 import { AssistantImportWithAI } from '@/components/ai/SmartImport'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -83,6 +84,16 @@ const ENDPOINT = (import.meta as { env?: Record<string, string> }).env?.VITE_ASS
    it can answer, and the slow path picks it up. */
 const FAST = '/api/v1/assistant/ask'
 const STORAGE_KEY = 'erp.assistant.conversation'
+
+/* A phone, for the chat's purposes: a touch screen or a narrow window. Enter
+   writes a new line there (the send button sends, as in every phone chat app)
+   and the box is not focused on open, so the keyboard never jumps up
+   unasked. Read at call time so a rotated tablet or a resized window is
+   answered for what it is now. */
+function phoneLike(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 767px)').matches
+}
 
 /** What the draft becomes once a spoken phrase is settled: the two joined by a
     single space, and neither given a stray one when the other is empty. */
@@ -306,11 +317,75 @@ export function AssistantTab() {
   const closeAssistant = useCallback(() => setOpen(false), [])
   useOverlayHistory(open, closeAssistant)
   const [hover, setHover] = useState(false)
+  /* NEVER ON TOP OF SOMETHING YOU CAN PRESS. On a phone the orb floats
+     over the page, and mid-scroll it landed on a time pill, an Export
+     button, the last card's link. After every scroll (and on load) the
+     spot under it is sampled; where a control is there, the orb tucks into
+     the screen edge as a sliver (data-tucked), still one tap to open. */
+  const orbRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(max-width: 767px)')
+    let raf = 0
+    let idle = 0
+    const check = () => {
+      raf = 0
+      const orb = orbRef.current
+      if (!orb) return
+      if (!mq.matches) { orb.removeAttribute('data-tucked'); return }
+      orb.style.visibility = 'hidden'
+      const r = orb.getBoundingClientRect()
+      const pts: [number, number][] = [
+        [r.left + r.width / 2, r.top + r.height / 2],
+        [r.left + 4, r.top + 4], [r.right - 4, r.top + 4],
+        [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4],
+      ]
+      let under = false
+      for (const [x, y] of pts) {
+        const el = document.elementFromPoint(x, y)
+        if (el && el.closest('a[href],button,input,select,textarea,[role=button],[role=tab],[role=link],label')) { under = true; break }
+      }
+      orb.style.visibility = ''
+      orb.toggleAttribute('data-tucked', under)
+    }
+    const soon = () => {
+      window.clearTimeout(idle)
+      idle = window.setTimeout(() => { if (!raf) raf = requestAnimationFrame(check) }, 120)
+    }
+    soon()
+    const t = window.setInterval(soon, 1500)
+    document.addEventListener('scroll', soon, { capture: true, passive: true })
+    window.addEventListener('resize', soon)
+    return () => {
+      window.clearTimeout(idle); window.clearInterval(t); if (raf) cancelAnimationFrame(raf)
+      document.removeEventListener('scroll', soon, { capture: true })
+      window.removeEventListener('resize', soon)
+    }
+  }, [])
+  /* A smaller orb on a phone: at 44px it sat over class-time pills. */
+  const [phoneOrb, setPhoneOrb] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 767px)').matches)
+  useEffect(() => {
+    const m = window.matchMedia?.('(max-width: 767px)')
+    if (!m) return
+    const on = () => setPhoneOrb(m.matches)
+    m.addEventListener?.('change', on)
+    return () => m.removeEventListener?.('change', on)
+  }, [])
   const [state, setState] = useState<OrbState>('idle')
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  /* Is the reader at the foot of the log? Auto-scroll follows only them; anyone
+     who scrolled up gets the chevron instead. A ref for the handlers, state
+     for the button. */
+  const stick = useRef(true)
+  const [atBottom, setAtBottom] = useState(true)
+  /* The request in flight, so Stop can cancel it, and the last question, so
+     Retry can ask it again. */
+  const abortRef = useRef<AbortController | null>(null)
+  const lastAsked = useRef('')
   /* A spreadsheet the person has attached but not yet previewed, and which kind
      of records they say it holds. Held here, above the input, until Preview
      turns it into a confirm card. */
@@ -354,7 +429,7 @@ export function AssistantTab() {
   })
 
   useEffect(() => {
-    if (open) inputRef.current?.focus()
+    if (open && !phoneLike()) inputRef.current?.focus()
     // Closing the panel shuts the microphone.
     if (!open && dictation.listening) dictation.stop()
     // dictation read at call time; adding it re-runs on its own state changes.
@@ -365,8 +440,123 @@ export function AssistantTab() {
     // Pinned to the newest message. A log that does not follow its own output
     // makes somebody scroll to read the answer they just asked for. `state` is a
     // dep so the thinking indicator is scrolled into view when it appears.
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+    // Only for a reader already at the bottom, except right after they asked
+    // something: their own question always comes into view.
+    const el = logRef.current
+    if (!el) return
+    if (turns[turns.length - 1]?.role === 'user') stick.current = true
+    if (stick.current) el.scrollTop = el.scrollHeight
   }, [turns, state])
+
+  const onLogScroll = () => {
+    const el = logRef.current
+    if (!el) return
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    stick.current = near
+    setAtBottom(near)
+  }
+  const toLatest = () => {
+    const el = logRef.current
+    if (!el) return
+    stick.current = true
+    setAtBottom(true)
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    try { el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' }) } catch { el.scrollTop = el.scrollHeight }
+  }
+
+  /* THE KEYBOARD. Android Chrome shrinks the layout viewport itself
+     (interactive-widget=resizes-content in index.html), but iOS Safari lays
+     the keyboard OVER a fixed element and may scroll the page under it. The
+     visual viewport is the part actually visible, so on a phone the dialog is
+     pinned to it: --vv-top and --vv-h follow it (assistant-chat.css), the
+     composer rides on the keyboard, and the log stays on its newest line.
+     Browsers without visualViewport keep the plain full-screen sheet. */
+  useEffect(() => {
+    if (!open) return
+    const el = dialogRef.current
+    const vv = window.visualViewport
+    if (!el || !vv) return
+    let raf = 0
+    const sync = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+        el.style.setProperty('--vv-top', `${Math.max(0, vv.offsetTop)}px`)
+        el.style.setProperty('--vv-h', `${vv.height}px`)
+        if (inset > 80 || window.innerHeight < (window.screen?.height ?? 0) * 0.7) el.setAttribute('data-kb', '')
+        else el.removeAttribute('data-kb')
+        const log = logRef.current
+        if (log && stick.current) log.scrollTop = log.scrollHeight
+      })
+    }
+    sync()
+    vv.addEventListener('resize', sync)
+    vv.addEventListener('scroll', sync)
+    return () => {
+      cancelAnimationFrame(raf)
+      vv.removeEventListener('resize', sync)
+      vv.removeEventListener('scroll', sync)
+    }
+  }, [open])
+
+  /* The page behind does not scroll while the chat is open. */
+  useEffect(() => {
+    if (!open) return
+    const html = document.documentElement
+    html.setAttribute('data-assistant-open', '')
+    return () => html.removeAttribute('data-assistant-open')
+  }, [open])
+
+  /* The box grows with what is typed, one line to about six, then scrolls
+     inside itself. */
+  useLayoutEffect(() => {
+    const ta = inputRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    const max = 6 * 24 + 20
+    ta.style.height = `${Math.min(ta.scrollHeight, max)}px`
+    ta.style.overflowY = ta.scrollHeight > max ? 'auto' : 'hidden'
+  }, [draft, open])
+
+  function onComposerKey(e: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+    if (phoneLike()) return // a new line; the button sends
+    e.preventDefault()
+    void ask()
+  }
+
+  function stopGenerating() {
+    abortRef.current?.abort()
+    setPrintingIdx(-1)
+    setCaretIdx(-1)
+  }
+
+  function newChat() {
+    abortRef.current?.abort()
+    conversation.current = null
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* private mode */ }
+    setTurns([])
+    setDraft('')
+    typed.current = ''
+    setAttachFile(null)
+    setAttachEntity('')
+    stick.current = true
+    setAtBottom(true)
+    if (!phoneLike()) inputRef.current?.focus()
+  }
+
+  function retry() {
+    const q = lastAsked.current
+    if (!q || state !== 'idle') return
+    // Drop the failed exchange; ask() puts the question back.
+    setTurns((ts) => {
+      const out = ts.slice()
+      while (out.length && out[out.length - 1].role === 'error') out.pop()
+      if (out.length && out[out.length - 1].role === 'user' && out[out.length - 1].text === q) out.pop()
+      return out
+    })
+    void ask(q)
+  }
 
   /* Follow the print-out only for a reader who is already at the bottom.
      Pinning on every character dragged somebody who had scrolled up to
@@ -494,7 +684,7 @@ export function AssistantTab() {
   const agentMode = ENDPOINT.startsWith('/api/v1/assistant/')
   const nextUid = useRef(1)
   const patchTurn = (uid: number, fn: (t: Turn) => Turn) => setTurns((ts) => ts.map((t) => (t.uid === uid ? fn(t) : t)))
-  async function askAgent(message: string) {
+  async function askAgent(message: string, signal?: AbortSignal) {
     const uid = nextUid.current++
     setTurns((t) => [...t, { role: 'bot', text: '', uid, steps: [] }])
     let failure: string | null = null
@@ -525,7 +715,7 @@ export function AssistantTab() {
           failure = e.message
           break
       }
-    })
+    }, signal)
     if (failure) {
       // Keep whatever was looked up; drop an empty bubble.
       setTurns((ts) => ts.filter((t) => t.uid !== uid || (t.steps?.length ?? 0) > 0 || t.card))
@@ -548,7 +738,12 @@ export function AssistantTab() {
     if (dictation.listening) dictation.stop()
     setDraft('')
     typed.current = ''
+    lastAsked.current = message
     setTurns((t) => [...t, { role: 'user', text: message }])
+    abortRef.current?.abort()
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    abortRef.current = ctrl
+    const signal = ctrl?.signal
 
     if (!ENDPOINT) {
       setTurns((t) => [...t, {
@@ -573,6 +768,7 @@ export function AssistantTab() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
           body: JSON.stringify({ message }),
+          signal,
         })
         if (quick.ok) {
           const hit = await quick.json()
@@ -590,10 +786,13 @@ export function AssistantTab() {
             return
           }
         }
-      } catch { /* the slow path is the fallback, and it is right below */ }
+      } catch (e) {
+        /* the slow path is the fallback, and it is right below -- unless Stop was pressed */
+        if (signal?.aborted) throw e
+      }
 
       if (agentMode) {
-        await askAgent(message)
+        await askAgent(message, signal)
         await new Promise((r) => setTimeout(r, 300))
         return
       }
@@ -610,6 +809,7 @@ export function AssistantTab() {
           // rather than being steered by the question text. Ignored today.
           roles: session.user?.roles ?? [],
         }),
+        signal,
       })
       if (!res.ok) {
         /* The server's own sentence, when it sent one. Every refusal this
@@ -646,10 +846,12 @@ export function AssistantTab() {
       // thing that says the turn finished cleanly.
       await new Promise((r) => setTimeout(r, 450))
     } catch (err) {
-      setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
+      // Stopped on purpose: no error, the question stays where it was.
+      if (!signal?.aborted) setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
     } finally {
+      if (abortRef.current === ctrl) abortRef.current = null
       setState('idle')
-      inputRef.current?.focus()
+      if (!phoneLike()) inputRef.current?.focus()
     }
   }
 
@@ -795,6 +997,7 @@ export function AssistantTab() {
           page under every screen; it applies to the plain layout only. */}
       {!open && <style>{'@media (max-width:767px){html:not([data-layout=bento]) main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
       <button data-assistant-orb=""
+        ref={orbRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => setHover(true)}
@@ -840,7 +1043,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-3 z-40 grid size-14 md:right-6 md:size-16 place-items-center rounded-full
+          `fixed right-3 z-40 grid size-12 md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
@@ -848,13 +1051,15 @@ export function AssistantTab() {
            focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',
         )}
-        style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
+        style={{ bottom: 'var(--orb-bottom, calc(var(--dock-h, 0px) + 1.25rem))' }}
       >
-        <AssistantOrb state={state} size={44} awake={hover} />
+        <AssistantOrb state={state} size={phoneOrb ? 36 : 44} awake={hover} />
       </button>
 
       {open && (
         <div
+          ref={dialogRef}
+          data-assistant-chat=""
           role="dialog"
           aria-label="Assistant"
           /* FULL SCREEN ON A PHONE, a DOCKED PANEL on a desktop.
@@ -873,7 +1078,6 @@ export function AssistantTab() {
              readable up to its edge. */
           style={{
             paddingTop: 'env(safe-area-inset-top, 0px)',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
           className={cn(
             'fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
@@ -892,10 +1096,25 @@ export function AssistantTab() {
              is a label on a thing that names itself. What must survive it is
              the way out on a phone, where the panel is the whole screen and
              there is no Escape key. One small close button in the corner. */}
+          {/* On a phone the corner becomes a header row -- title, new chat,
+             close -- the way a phone chat app opens: the sheet is the whole
+             screen, so the way out and a fresh start need a fixed place. On a
+             desk it stays the small cluster in the corner. */}
           <div
-            className="assistant-corner absolute right-2 z-10 flex items-center gap-0.5"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
+            className="assistant-corner z-10 flex h-12 shrink-0 items-center gap-0.5 border-b px-2
+                       md:absolute md:right-2 md:h-auto md:border-0 md:px-0 md:top-[calc(env(safe-area-inset-top,0px)+0.5rem)]"
           >
+            <span className="flex-1 truncate pl-2 text-[16px] font-semibold md:hidden">Assistant</span>
+            <button
+              type="button"
+              onClick={newChat}
+              aria-label="New chat"
+              title="New chat"
+              className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors
+                         hover:bg-accent hover:text-foreground md:size-8"
+            >
+              <SquarePen className="size-[18px] md:size-4" />
+            </button>
             {/* Full screen, on a desk only: on a phone the panel already is. */}
             <button
               type="button"
@@ -912,10 +1131,11 @@ export function AssistantTab() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close assistant"
-              className="grid size-8 place-items-center rounded-full
+              title="Close"
+              className="grid size-10 place-items-center rounded-full md:size-8
                          text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <X className="size-4" />
+              <X className="size-5 md:size-4" />
             </button>
           </div>
 
@@ -926,11 +1146,14 @@ export function AssistantTab() {
              carries the state: a still drift when idle, churning while it
              looks something up, flowing while it answers. No bar under it --
              the owner asked for none -- just the ball and air. */}
+          {/* On a phone the ball only greets an empty chat, and steps aside while
+             the keyboard is up (assistant-chat.css): there, every line of
+             height belongs to the conversation. */}
           <div
-            className="flex shrink-0 justify-center pb-1 pt-4"
+            className={cn('assistant-bigorb flex shrink-0 justify-center pb-1 pt-4', phoneOrb && turns.length > 0 && 'hidden')}
           >
             {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
-            <AssistantOrb state={state} size={160} typing={typingNow} subtle />
+            <AssistantOrb state={state} size={phoneOrb ? 120 : 160} typing={typingNow} subtle />
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
@@ -940,7 +1163,8 @@ export function AssistantTab() {
              hairline. The column is capped so a line never runs the full
              width of a 520px pane, and centred so both sides read as one
              conversation rather than a volley. */}
-          <div ref={logRef} className="flex-1 overflow-y-auto px-3 py-3">
+          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div ref={logRef} onScroll={onLogScroll} className="assistant-log min-h-0 flex-1 overflow-y-auto px-3 py-3">
            {/* ONE LINE BETWEEN TURNS. No boxes: the owner asked for the turns
               to be divided by a single hairline and nothing else, so the bot's
               answer carries no border and the question keeps only its soft
@@ -1013,6 +1237,16 @@ export function AssistantTab() {
                           </span>
                         ))
                     : turn.text}
+                  {turn.role === 'error' && i === lastIdx && lastAsked.current && (
+                    <button
+                      type="button"
+                      onClick={retry}
+                      disabled={state !== 'idle'}
+                      className="mt-2 flex items-center gap-1.5 rounded-full border border-current px-3 py-1 text-[13px] font-medium disabled:opacity-50"
+                    >
+                      <RotateCcw className="size-3.5" aria-hidden /> Retry
+                    </button>
+                  )}
                   {/* One small chip per screen the answer names -- shown once the
                       answer has finished printing, and only once per destination:
                       the model sometimes names the same screen twice, which used
@@ -1204,6 +1438,19 @@ export function AssistantTab() {
             )}
            </div>
           </div>
+          {!atBottom && turns.length > 0 && (
+            <button
+              type="button"
+              onClick={toLatest}
+              aria-label="Scroll to latest"
+              title="Scroll to latest"
+              className="absolute bottom-3 left-1/2 z-10 grid size-9 -translate-x-1/2 place-items-center rounded-full border
+                         bg-background text-foreground shadow-md transition-colors hover:bg-accent"
+            >
+              <ArrowDown className="size-4" />
+            </button>
+          )}
+          </div>
 
           {/* Said above the box, where the answer to "is it hearing me?" has to
               be. The pulsing dot is the only moving thing in the panel while
@@ -1259,16 +1506,19 @@ export function AssistantTab() {
             </div>
           )}
 
+          {/* THE COMPOSER, as phone chat apps draw it: attachments on the left,
+              one rounded field that grows with the text, and inside it, on the
+              right, the microphone and a round send button -- filled when there
+              is something to send, the stop square while an answer is coming.
+              It sits on the safe area when the keyboard is down and on the
+              keyboard when it is up (assistant-chat.css). */}
           <form
             onSubmit={(e) => { e.preventDefault(); void ask() }}
-            /* On a phone the box takes a row of its own and the four round
-               buttons share the row under it: side by side they left the box
-               about 140px, which cut the placeholder to "Ask, or press the r". */
-            className="flex items-center gap-2 border-t px-3 py-2.5 max-sm:flex-wrap"
+            className="assistant-composer flex shrink-0 items-end gap-1.5 px-2.5 pt-2"
           >
             {/* Attach a spreadsheet to import. FileReader/FormData only, so it
                 works on low-end browsers; the hidden input is driven by the
-                paper-clip beside it. */}
+                + beside the box. */}
             <input
               ref={fileInputRef}
               type="file"
@@ -1278,73 +1528,83 @@ export function AssistantTab() {
               aria-hidden="true"
               tabIndex={-1}
             />
-            <button
-              type="button"
-              onClick={chooseFile}
-              disabled={state !== 'idle'}
-              aria-label="Attach a spreadsheet to import"
-              title="Attach a spreadsheet to import"
-              className="grid size-8 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
-            >
-              <Paperclip className="size-3.5" />
-            </button>
-            <AssistantImportWithAI disabled={state !== 'idle'} />
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value)
-                noteTyping()
-                // Typing supersedes anything a half-finished spoken phrase would
-                // have been appended to, so the two never fight over the box.
-                typed.current = e.target.value
-              }}
-              maxLength={4000}
-              placeholder={dictation.supported ? 'Ask, or press the microphone…' : 'Ask a question…'}
-              aria-label="Your question"
-              /* A BIG BOX. The owner's word. 13.5px in a 36px field read as an
-                 afterthought under a full-height panel; the box is where the
-                 whole conversation starts, so it is the largest text on the
-                 panel and tall enough to be found with a thumb. 16px also
-                 keeps iOS from zooming the page when the field is focused. */
-              className="min-w-0 flex-1 rounded-[14px] border-0 bg-background px-4 py-3 text-[16px] max-sm:order-first max-sm:basis-full
-                         !shadow-none !outline-none focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0"
-            />
-            {/* Drawn only where it works. Firefox has no speech recognition at
-                all, so on Firefox there is no microphone, a button that does
-                nothing when pressed is worse than an absent one, because the
-                person presses it, waits, and concludes the assistant is
-                broken. */}
-            <span aria-hidden className="hidden max-sm:block max-sm:flex-1" />
-            {dictation.supported && (
+            <div className="flex shrink-0 items-center gap-1 pb-[7px]">
               <button
                 type="button"
-                onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                onClick={chooseFile}
                 disabled={state !== 'idle'}
-                aria-label={dictation.listening ? 'Stop listening' : 'Ask by voice'}
-                aria-pressed={dictation.listening}
-                title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
-                className={cn(
-                  `grid size-8 shrink-0 place-items-center rounded-full border transition-colors
-                   disabled:opacity-40`,
-                  dictation.listening
-                    ? 'border-destructive bg-destructive text-white'
-                    : 'hover:bg-accent',
-                )}
+                aria-label="Attach a spreadsheet to import"
+                title="Attach a spreadsheet to import"
+                className="grid size-9 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
               >
-                {dictation.listening
-                  ? <Square className="size-3 fill-current" />
-                  : <Mic className="size-3.5" />}
+                <Plus className="size-4" />
               </button>
-            )}
-            <button
-              type="submit"
-              disabled={state !== 'idle' || !draft.trim()}
-              className="rounded-full bg-primary px-3.5 py-1.5 text-[12.5px] font-medium
-                         text-primary-foreground disabled:opacity-40"
-            >
-              Ask
-            </button>
+              <AssistantImportWithAI disabled={state !== 'idle'} />
+            </div>
+            <div className="assistant-pill flex min-w-0 flex-1 items-end rounded-[24px] border bg-background pl-4 pr-1.5">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value)
+                  noteTyping()
+                  // Typing supersedes anything a half-finished spoken phrase would
+                  // have been appended to, so the two never fight over the box.
+                  typed.current = e.target.value
+                }}
+                onKeyDown={onComposerKey}
+                maxLength={4000}
+                placeholder={phoneOrb ? 'Ask anything' : dictation.supported ? 'Ask, or press the microphone…' : 'Ask a question…'}
+                aria-label="Your question"
+                enterKeyHint="enter"
+                /* 16px keeps iOS from zooming the page when the field is focused. */
+                className="assistant-input block max-h-[164px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-[10px]
+                           text-[16px] leading-6 !shadow-none !outline-none focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0"
+              />
+              <div className="flex shrink-0 items-center gap-1 pb-[5px] pl-1">
+                {/* Drawn only where it works: Firefox has no speech recognition,
+                    and a button that does nothing is worse than none. */}
+                {dictation.supported && (
+                  <button
+                    type="button"
+                    onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                    disabled={state !== 'idle'}
+                    aria-label={dictation.listening ? 'Stop listening' : 'Ask by voice'}
+                    aria-pressed={dictation.listening}
+                    title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
+                    className={cn(
+                      'grid size-[34px] shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
+                      dictation.listening ? 'bg-destructive text-white' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-4" />}
+                  </button>
+                )}
+                {state !== 'idle' || printingIdx >= 0 ? (
+                  <button
+                    type="button"
+                    onClick={stopGenerating}
+                    aria-label="Stop generating"
+                    title="Stop generating"
+                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85"
+                  >
+                    <Square className="size-3 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!draft.trim()}
+                    aria-label="Send"
+                    title="Send"
+                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-[opacity,background-color]
+                               hover:opacity-85 disabled:bg-muted disabled:text-muted-foreground disabled:hover:opacity-100"
+                  >
+                    <ArrowUp className="size-[18px]" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+            </div>
           </form>
         </div>
       )}

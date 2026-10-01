@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, KeyRound, Printer, RotateCcw, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Badge, Button, Card, CardHeader, Checkbox, Field, FormNotice, Input, Select, Table, Td,
+  Badge, Button, Card, CardHeader, CellGrid, Checkbox, Field, FormNotice, Input, Select, Stat, Table, Td,
 } from '@/components/ui'
 import { downloadLogins, printSlips } from './StudentLoginsCard'
 
@@ -43,6 +43,9 @@ interface Child {
   has_login: boolean
   sign_in_as: string
   login_code: string
+  /** What the school holds for reaching them. Staff only, so far. */
+  email?: string
+  phone?: string
   guardians: Guardian[]
 }
 interface Section {
@@ -66,6 +69,8 @@ interface Row {
   loginCode: string
   /** Whose parent, or which parents. The column the office reads down. */
   context: string
+  /** Phone and email as the record holds them, shown rather than implied. */
+  contact: string
   child: Child
 }
 
@@ -75,11 +80,11 @@ interface Row {
    its own rule, so the screen only has to know which to call. */
 const ROUTE = { students: 'students', guardians: 'guardians', staff: 'employees' } as const
 
-export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff' }) {
+export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'students' | 'guardians' | 'staff'; signedIn?: number; initialStatus?: string }) {
   const qc = useQueryClient()
   const [target, setTarget] = useState('')
   const [needle, setNeedle] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(initialStatus)
   const [picked, setPicked] = useState<Record<string, true>>({})
   /* What was issued in this sitting, by person id. The server will not say it
      twice and the page cannot ask again. */
@@ -174,6 +179,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
         hasLogin: p.has_login,
         loginCode: p.login_code,
         context: p.section_name || '—',
+        contact: [p.phone, p.email].filter(Boolean).join(' · '),
         child: p,
       }))
     }
@@ -181,12 +187,18 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
       return children.map((ch) => ({
         id: ch.id,
         name: ch.name,
-        under: 'Roll ' + (ch.roll_no ?? '—') + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-'),
+        /* A child with no active enrolment has no class, no section and no
+           roll, and "Roll — · " read as a broken row rather than an unplaced
+           one. The state has a name; the row says it. */
+        under: ch.class_name
+          ? 'Roll ' + (ch.roll_no ?? '—') + ' · ' + [ch.class_name, ch.section_name].filter(Boolean).join('-')
+          : 'Not in a class yet',
         code: ch.admission_no,
         signIn: ch.sign_in_as,
         hasLogin: ch.has_login,
         loginCode: ch.login_code,
         context: ch.guardians.map((g) => g.full_name).join(', ') || 'No guardian on record',
+        contact: '',
         child: ch,
       }))
     }
@@ -219,6 +231,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
           hasLogin: g.has_login,
           loginCode: g.login_code,
           context: where,
+          contact: g.phone,
           child: ch,
         })
       }
@@ -231,7 +244,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
     if (status === 'not' && r.hasLogin) return false
     const t = needle.trim().toLowerCase()
     if (!t) return true
-    return (r.name + ' ' + r.code + ' ' + r.under + ' ' + r.context).toLowerCase().includes(t)
+    return (r.name + ' ' + r.code + ' ' + r.under + ' ' + r.context + ' ' + r.contact).toLowerCase().includes(t)
   })
   const chosen = shown.filter((r) => picked[r.id])
   const allOn = shown.length > 0 && chosen.length === shown.length
@@ -255,6 +268,8 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
     class_name: r.child.class_name,
     section_name: r.child.section_name,
     roll_no: r.child.roll_no,
+    phone: r.child.phone,
+    email: r.child.email,
   }))
 
   /* Only those whose password this sitting actually produced: resetting is what
@@ -274,6 +289,17 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
     staff: { title: 'Staff logins', file: 'staff-logins', who: 'Name', beside: 'Department', id: 'Staff code' },
   }[kind]
 
+  /* THE SECTION IN THE FILE NAME AND ON THE PRINT.
+
+     Exporting 6-A and then 6-B put two files called parent-logins-<today> in
+     the same folder, the second one named (1), and nothing inside either said
+     which class it was. A sheet of passwords nobody can place is a sheet
+     nobody can hand out. */
+  const where = targets.find((t) => t.value === target)?.label.trim() ?? ''
+  const slug = where.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+  const fileStem = slug ? WORDS.file + '-' + slug : WORDS.file
+  const printTitle = where ? WORDS.title + ' — ' + where : WORDS.title
+
   const act = (reset: boolean) => {
     const ids = (chosen.length ? chosen : []).map((r) => r.id)
     if (!ids.length) return
@@ -283,7 +309,54 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
     issue.mutate({ ids, reset })
   }
 
+  /* EVERYBODY ON THE LIST, WITHOUT TICKING FORTY BOXES.
+
+     Handing a class its logins is one errand -- a section changes hands in
+     June and the slips go out again -- and doing it through the tick boxes is
+     forty clicks that must not miss one. This acts on everybody currently
+     listed, which is exactly what the class picker and the filters above have
+     already narrowed to: what it will touch is what the screen is showing.
+
+     ISSUING AND RESETTING ARE NOT THE SAME RISK, so they do not ask the same
+     question. Issuing skips anybody who already has a working login, so the
+     worst it can do is give a password to somebody who had none. Resetting
+     stops every password in use, so its wording says the count, says where,
+     and says the new ones exist on this page and nowhere else.
+
+     The whole school is allowed -- a school opening for the year does mean
+     all four hundred -- but then the question says 'the whole school' in
+     those words, rather than a number that could be any class. */
+  const actAll = (reset: boolean) => {
+    const ids = shown.map((r) => r.id)
+    if (!ids.length) return
+    const place = kind === 'staff' ? 'the staff register'
+      : (targets.find((t) => t.value === target)?.label.trim() || 'the whole school')
+    const word = reset
+      ? 'Give all ' + ids.length + ' of ' + place + ' a new password?\n\n' +
+        'Every password they hold now stops working, including the ones already in use. ' +
+        'The new ones are shown on this page once and nowhere else, so export or print them before leaving.'
+      : 'Issue a login to all ' + ids.length + ' of ' + place + '?\n\n' +
+        'Anybody who already has a working login keeps it. The new passwords are shown ' +
+        'on this page once, so export or print them before leaving.'
+    if (!window.confirm(word)) return
+    issue.mutate({ ids, reset })
+  }
+
+  const who = kind === 'students' ? 'Students' : kind === 'guardians' ? 'Parents' : 'Staff'
   return (
+    <>
+    {/* FOUR NUMBERS, ALL COUNTED FROM THE ROLL BELOW, so they always match it.
+        "Not issued" is the one to press: it shows exactly who has no working
+        login yet, ready to issue. */}
+    <CellGrid cols={4}>
+      <Stat label={who + ' on the roll'} value={roster.isLoading ? '…' : rows.length}
+        hint={status ? 'Show everyone' : 'Everyone below'} active={status === ''} onClick={() => setStatus('')} />
+      <Stat label="Can sign in" value={roster.isLoading ? '…' : rows.length - without}
+        hint="Have a working login" active={status === 'issued'} onClick={() => setStatus(status === 'issued' ? '' : 'issued')} />
+      <Stat label="Not issued" value={roster.isLoading ? '…' : without}
+        hint={without ? 'Press to see them and issue' : 'Everybody has a login'} active={status === 'not'} onClick={() => setStatus(status === 'not' ? '' : 'not')} />
+      <Stat label="Signed in now" value={signedIn ?? '-'} hint="Active in the last 10 minutes" />
+    </CellGrid>
     <Card>
       <CardHeader
         title={
@@ -325,6 +398,28 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
               : 'First password is their phone number, or their email if they have no phone.'}
           </div>
         </div>
+        {/* Two pairs, and the difference between them is the only thing the
+            office has to hold in its head: the left pair acts on everybody the
+            filters have left showing, the right pair on the rows ticked. */}
+        <Button
+          variant="secondary"
+          disabled={!shown.length || issue.isPending}
+          title={'Give all ' + shown.length + ' listed here a new password'}
+          onClick={() => actAll(true)}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset all {shown.length}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={!shown.length || issue.isPending}
+          title={'Issue a login to all ' + shown.length + ' listed here'}
+          onClick={() => actAll(false)}
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          Issue all {shown.length}
+        </Button>
+        <span className="hidden h-6 w-px bg-border sm:block" />
         <Button
           variant="secondary"
           disabled={!chosen.length || issue.isPending}
@@ -371,7 +466,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
         <Button
           variant="secondary"
           disabled={!sheet.length}
-          onClick={() => printSlips(sheet, WORDS.title)}
+          onClick={() => printSlips(sheet, printTitle)}
         >
           <Printer className="h-3.5 w-3.5" />
           Print slips
@@ -379,7 +474,7 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
         <Button
           variant="secondary"
           disabled={!sheet.length}
-          onClick={() => downloadLogins(sheet, WORDS.file, kind)}
+          onClick={() => downloadLogins(sheet, fileStem, kind)}
         >
           Export CSV
         </Button>
@@ -420,13 +515,13 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-              <Button variant="secondary" onClick={() => printSlips(sheet, WORDS.title)}>
+              <Button variant="secondary" onClick={() => printSlips(sheet, printTitle)}>
                 <Printer className="h-3.5 w-3.5" />
                 Print slips
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => downloadLogins(sheet, WORDS.file, kind)}
+                onClick={() => downloadLogins(sheet, fileStem, kind)}
               >
                 Download
               </Button>
@@ -513,6 +608,11 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
              invisible -- it read as the number repeated. The child keeps an
              admission number column, because for a child they differ. */
           ...(WORDS.id ? [WORDS.id] : []),
+          /* THE CONTACT THE SCHOOL TYPED IN.
+             The roll listed a sign-in name and an account id and nothing the
+             office recognised -- a record showing none of the phone or email
+             it holds reads as a record that has lost them. */
+          ...(kind === 'staff' ? ['Phone & email'] : []),
           'Signs in as',
           /* The permanent one, beside the one they type. A phone changes
              and an admission number is reissued; this never does, and it
@@ -559,6 +659,9 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
               {WORDS.id !== '' && (
                 <Td className="font-mono text-[12.5px]">{r.code || '—'}</Td>
               )}
+              {kind === 'staff' && (
+                <Td className="text-[12.5px] text-muted-foreground">{r.contact || '—'}</Td>
+              )}
               <Td className="font-mono text-[12.5px]">{got?.signIn || r.signIn || '—'}</Td>
               <Td className="font-mono text-[12.5px] text-muted-foreground">{r.loginCode || '—'}</Td>
               <Td>
@@ -586,5 +689,6 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' | 'staff
         })}
       </Table>
     </Card>
+    </>
   )
 }

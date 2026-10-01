@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { scopeRows } from '../../services/scope_rows'
 import type { Identity } from '../../identity'
 import { can } from '../../identity'
 import { HttpError, conflict, isUUID, now, uuid } from '../../http'
@@ -110,33 +111,15 @@ async function resolveUncached(c: Ctx): Promise<Resolved> {
     r.allCampuses = r.allStudents = r.allAttendance = r.anySection = true
     return r
   }
-  const u = id.userId
-  const [campuses, depts, sections, cto, teaches, students] = await c.db.batch([
-    c.db.prepare(`SELECT campus_id FROM user_roles WHERE user_id = ?`).bind(u),
-    c.db.prepare(`SELECT id FROM departments WHERE head_user_id = ?`).bind(u),
-    c.db.prepare(`SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?1
-                  UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?1
-                  UNION SELECT id FROM sections WHERE class_teacher_id = ?1
-                  UNION SELECT DISTINCT te.section_id FROM timetable_entries te
-                         JOIN employees emp ON emp.user_id = te.teacher_user_id
-                        WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?1)`).bind(u),
-    c.db.prepare(`SELECT id FROM sections WHERE class_teacher_id = ?`).bind(u),
-    c.db.prepare(`SELECT EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.teacher_user_id = ?1)
-                      OR EXISTS (SELECT 1 FROM sections s WHERE s.class_teacher_id = ?1) AS t`).bind(u),
-    c.db.prepare(`SELECT id FROM students WHERE user_id = ?1
-                  UNION SELECT sg.student_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
-                   WHERE g.user_id = ?1 AND NOT sg.portal_blocked
-                     AND (sg.access_until IS NULL OR sg.access_until >= ?2)`).bind(u, todayIST()),
-  ])
-  for (const row of campuses.results as { campus_id: string | null }[]) {
-    if (row.campus_id === null) r.allCampuses = true
-    else r.campusIds.push(row.campus_id)
-  }
-  r.departmentIds = (depts.results as { id: string }[]).map((x) => x.id)
-  r.sectionIds = (sections.results as { id: string }[]).map((x) => x.id)
-  r.classTeacherOf = (cto.results as { id: string }[]).map((x) => x.id)
-  r.teaches = !!(teaches.results[0] as { t: number } | undefined)?.t
-  r.studentIds = (students.results as { id: string }[]).map((x) => x.id)
+  // One read per request, shared with the other modules' resolvers (services/scope_rows.ts).
+  const rows = await scopeRows(c)
+  r.allCampuses = rows.allCampuses
+  r.campusIds = rows.campusIds
+  r.departmentIds = rows.departmentIds
+  r.sectionIds = rows.sectionIds
+  r.classTeacherOf = rows.classTeacherOf
+  r.teaches = rows.teaches
+  r.studentIds = rows.studentIds
   return r
 }
 

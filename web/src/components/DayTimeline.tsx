@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Period } from '@/lib/api'
-import { Card } from '@/components/ui'
+import { Card, Badge } from '@/components/ui'
 import { cn, WEEKDAYS } from '@/lib/utils'
 
 /** "09:15:00" → "09:15"; anything odd is shown as it came. */
@@ -35,6 +35,15 @@ export interface DayEntry {
    product: same chips, same cards, same "now". Callers decide what a card
    says (subject + teacher for a parent; class + room for a teacher). */
 export default function DayTimeline({
+  /* WHEN THIS IS ALREADY INSIDE A CARD.
+
+     This draws its own card, and the timetable puts it inside one -- so a
+     phone showed a bordered panel inside a bordered panel, two rounded
+     corners deep, with both paddings stacking down the sides. The nesting
+     reads as a mistake because it is one: there is one thing on that screen,
+     not a thing inside another thing. `bare` drops the shell and lets the
+     caller's card be the card. */
+  bare,
   who,
   where,
   periods,
@@ -48,6 +57,8 @@ export default function DayTimeline({
   /** Show the schedule's breaks between periods. Off for a teacher whose
       week spans several bell schedules, where "the" break is ambiguous. */
   breaks?: boolean
+  /** Skip the card shell: the caller already draws one. */
+  bare?: boolean
 }) {
   // The days the timetable actually has something on, Monday first. A school
   // that runs Saturday shows it; one that does not never shows an empty chip.
@@ -114,8 +125,14 @@ export default function DayTimeline({
     })
   }, [ordered, used, byPeriod, breaks, schedules])
 
+  const Shell = bare
+    ? ({ children }: { children: React.ReactNode }) => <div className="w-full">{children}</div>
+    : ({ children }: { children: React.ReactNode }) => (
+        <Card className="mx-auto w-full max-w-[640px]">{children}</Card>
+      )
+
   return (
-    <Card className="mx-auto w-full max-w-[640px]">
+    <Shell>
       {/* Sticky head: who, and the day strip. Stays put while the day scrolls. */}
       <div className="sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -124,9 +141,7 @@ export default function DayTimeline({
             <div className="text-[12px] font-medium text-muted-foreground">{where}</div>
           </div>
           {live && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-              {live.name} now
-            </span>
+            <Badge tone="success" className="shrink-0">{live.name} now</Badge>
           )}
         </div>
         <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
@@ -140,7 +155,9 @@ export default function DayTimeline({
               className={cn(
                 'h-11 min-w-[48px] flex-1 rounded-lg text-[12px] font-semibold',
                 day === d
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  /* Tint, not a solid fill: the chosen day should be the
+                     easiest to read, not the hardest. */
+                  ? 'border border-primary bg-primary/10 font-semibold text-primary'
                   : 'bg-muted text-muted-foreground',
                 d === today && day !== d && 'ring-1 ring-primary/40',
               )}
@@ -208,6 +225,6 @@ export default function DayTimeline({
           })}
         </ol>
       )}
-    </Card>
+    </Shell>
   )
 }

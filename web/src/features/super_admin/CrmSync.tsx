@@ -121,7 +121,7 @@ export default function CrmSync() {
     () => toast.ok('The conflict was settled.'),
   )
 
-  if (conn.isLoading) return <SkeletonTiles count={4} label="Reading the connector…" />
+  if (conn.isLoading && !conn.data) return <SkeletonTiles count={4} label="Reading the connector…" />
   // Never an empty state for a failed query: "no leads" and "we could not ask"
   // are different facts and only one of them is the school's problem.
   if (conn.error) return <ErrorState error={conn.error} />

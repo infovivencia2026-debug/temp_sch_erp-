@@ -221,9 +221,12 @@ async function listSections(c: Ctx) {
   if (m === 'true' || m === 'class_teacher') {
     const scope = await resolveScope(c)
     const ids = m === 'class_teacher' ? scope.classTeacherOf : scope.sectionIds
-    if (!scope.anySection) {
+    /* "Class teacher of" means exactly that, whatever else the role may do:
+       a teacher who may mark any section was handed every section here, and
+       My students opened on somebody else's class. */
+    if (m === 'class_teacher') { mine = 'sec.class_teacher_id = ?'; args.push(c.id.userId) }
+    else if (!scope.anySection) {
       if (ids.length === 0) mine = '0'
-      else if (m === 'class_teacher') { mine = 'sec.class_teacher_id = ?'; args.push(c.id.userId) }
       else { mine = `sec.id IN (${SECTION_SET_SQL})`; args.push(c.id.userId, c.id.userId, c.id.userId, c.id.userId) }
     }
   }

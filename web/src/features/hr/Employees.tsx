@@ -488,7 +488,7 @@ export default function Employees() {
                     )}
                     {e.email && (
                       <a href={`mailto:${e.email}`} className="flex items-center gap-1 text-muted-foreground">
-                        <Mail className="h-3 w-3" />email
+                        <Mail className="h-3 w-3" />{e.email}
                       </a>
                     )}
                     {!e.phone && !e.email && '-'}
@@ -671,7 +671,7 @@ function UnlinkedRow({ e, canWrite }: { e: Employee; canWrite: boolean }) {
         )}
         {e.email && (
           <a href={`mailto:${e.email}`} className="flex items-center gap-1 text-muted-foreground">
-            <Mail className="h-3 w-3" />email
+            <Mail className="h-3 w-3" />{e.email}
           </a>
         )}
         {!e.phone && !e.email && '-'}

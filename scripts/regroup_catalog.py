@@ -336,7 +336,7 @@ REGROUP = {
             "Classroom Note-Sharing Repository",
         ]),
         ("Learning", [
-            "Courses / subjects", "E-Learning Resource Hub",
+            "Courses / subjects", "LMS",
             "AI Personal Learning Companion", "Peer Tutoring & Study Groups",
             "Personal Academic Goal Setting Widget",
             "Gamified Learning Streak Counter", "Gamified Learning Badge Showcase",

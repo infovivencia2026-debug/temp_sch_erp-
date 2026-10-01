@@ -385,7 +385,6 @@ export function BentoLauncher({
   const onPin = useCallback(
     (r: Row) => {
       const now = togglePin(r.key)
-      buzz('select')
       setNote(t(now ? 'bento.launcher.pinned_note' : 'bento.launcher.unpinned_note', { name: r.name }))
       setMenuFor(null)
     },
@@ -404,7 +403,6 @@ export function BentoLauncher({
   const onDashboard = useCallback(
     (r: Row) => {
       const now = toggleDashboard(r.key)
-      buzz('select')
       setNote(
         now
           ? `${r.name} is on your home`
@@ -435,6 +433,38 @@ export function BentoLauncher({
   }, [open])
 
   useEffect(() => setCursor(0), [needle])
+
+  /* The pill rides above an on-screen keyboard: iOS overlays the keyboard
+     on the layout viewport, so the gap is what visualViewport lost. And
+     Cmd/Ctrl+K while the sheet is open goes to this field, not to the
+     command search behind it. */
+  useEffect(() => {
+    if (!open) return
+    const vv = window.visualViewport
+    const sheet = sheetRef.current
+    const kb = () => {
+      if (!vv || !sheet) return
+      const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      sheet.style.setProperty('--lch-kb', `${Math.round(gap)}px`)
+    }
+    kb()
+    vv?.addEventListener('resize', kb)
+    vv?.addEventListener('scroll', kb)
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      vv?.removeEventListener('resize', kb)
+      vv?.removeEventListener('scroll', kb)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
 
   /* The one close everything goes through. Calling `onClose` directly leaves
      the history entry the open pushed, so the next Back goes one page too far;
@@ -727,45 +757,6 @@ export function BentoLauncher({
           </div>
         </div>
 
-        <div className="relative mb-7">
-          {/* The glyph sits ON the field, not on the page, so it takes the
-              card's ink rather than the page's. It is a real button: empty, it
-              drops the cursor in the field; with text, it clears the filter in
-              one tap — a fat target on a phone. */}
-          <button
-            type="button"
-            onClick={() => { if (q) setQ(''); inputRef.current?.focus() }}
-            aria-label={q ? t('bento.launcher.clear') : t('bento.launcher.filter', { count: String(rows.length) })}
-            className="absolute left-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center
-                       justify-center rounded-[8px] text-[var(--bento-ink)] transition-colors
-                       hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]"
-          >
-            {q ? <X className="size-4" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
-          </button>
-          {/* The field is a card, so its words are the card's ink. Its edge
-              is mixed from the ink rather than taken from `--bento-line`,
-              which at 1.13:1 against the page left the one text input on the
-              surface with no visible boundary at all. */}
-          <input
-            ref={inputRef}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            type="search"
-            autoComplete="off"
-            placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
-            aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
-            className="inset-field w-full rounded-[13px] border
-                       !border-[color-mix(in_srgb,var(--bento-ink)_28%,transparent)]
-                       bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
-                       text-[var(--bento-ink)] shadow-[var(--elev-1)]
-                       transition-[border-color,box-shadow] duration-150
-                       hover:!border-[color-mix(in_srgb,var(--bento-ink)_38%,transparent)]
-                       focus-visible:outline-none focus-visible:ring-2
-                       focus-visible:ring-[var(--bento-ink)]"
-          />
-        </div>
-
         <div ref={listRef}>
           {needle ? (
             results.length ? (
@@ -810,6 +801,42 @@ export function BentoLauncher({
         </div>
 
         <div className="lch-live" role="status" aria-live="polite">{note}</div>
+        {/* THE SEARCH FLOATS AT THE FOOT (owner, 2026-10-01): a round pill
+            like the dock, centred, sticky to the bottom of the sheet so the
+            results scroll above it, lifted over the safe area and over the
+            on-screen keyboard (--lch-kb, from visualViewport). */}
+        <div className="lch-searchbar">
+          {/* The glyph sits ON the field, not on the page, so it takes the
+              card's ink rather than the page's. It is a real button: empty, it
+              drops the cursor in the field; with text, it clears the filter in
+              one tap — a fat target on a phone. */}
+          <button
+            type="button"
+            onClick={() => { if (q) setQ(''); inputRef.current?.focus() }}
+            aria-label={q ? t('bento.launcher.clear') : t('bento.launcher.filter', { count: String(rows.length) })}
+            className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center
+                       justify-center rounded-full text-[var(--ink-here)] transition-colors
+                       hover:bg-[color-mix(in_srgb,var(--ink-here)_10%,transparent)]
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
+          >
+            {q ? <X className="size-4" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
+          </button>
+          {/* The field is a card, so its words are the card's ink. Its edge
+              is mixed from the ink rather than taken from `--bento-line`,
+              which at 1.13:1 against the page left the one text input on the
+              surface with no visible boundary at all. */}
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            type="search"
+            autoComplete="off"
+            placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
+            aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
+            className="lch-searchbar__input bg-transparent"
+          />
+        </div>
+
       </div>
     </div>
   )

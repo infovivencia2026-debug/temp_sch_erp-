@@ -441,6 +441,26 @@ function registerAttendance(r: Router) {
     })) }
   })
 
+  /* WHO HAS ALREADY TOLD THE SCHOOL, for one day (and one section): the
+     register shows it beside the child so they can be marked On leave rather
+     than absent-and-chased. Pending and approved requests both count: the
+     family has written in either way. */
+  r.get('/attendance/informed', 'academics.attendance.read', async (c) => {
+    const q = c.url.searchParams
+    const on = q.get('on_date') || today()
+    if (!isDate(on)) throw badRequest('on_date must be YYYY-MM-DD')
+    const section = nul(q.get('section_id') ?? '')
+    const rows = await c.db.prepare(`
+      SELECT lr.student_id, lr.reason, lr.status, lr.from_date, lr.to_date
+        FROM leave_requests lr
+        JOIN enrollments e ON e.student_id = lr.student_id AND e.status = 'active'
+       WHERE lr.subject_kind = 'student' AND lr.status IN ('pending','approved')
+         AND ? BETWEEN lr.from_date AND lr.to_date
+         AND (? IS NULL OR e.section_id = ?)
+       ORDER BY lr.created_at DESC`).bind(on, section, section).all<Record<string, unknown>>()
+    return ok({ items: rows.results })
+  })
+
   r.get('/attendance/day.csv', 'academics.attendance.read', async (c) => {
     const on = trim(c.url.searchParams.get('on_date')) || today()
     if (!isDate(on)) throw badRequest('on_date must be YYYY-MM-DD')
@@ -606,7 +626,13 @@ async function listAbsentees(c: Ctx): Promise<Response> {
              sa.student_id, ${fullName3('st')} AS name, st.admission_no, sa.status AS mark,
              ${contactsAgg} AS contacts,
              COALESCE(f.call_status, 'not_called') AS call_status, COALESCE(f.parent_response, '') AS parent_response,
-             COALESCE(fu.full_name, '') AS called_by, f.updated_at AS called_at
+             COALESCE(fu.full_name, '') AS called_by, f.updated_at AS called_at,
+             /* The parent already told the school (leave or an absence report):
+                said on the row, so nobody rings a family that has written in. */
+             (SELECT lr.reason || '|' || lr.status FROM leave_requests lr
+                 WHERE lr.student_id = sa.student_id AND lr.subject_kind = 'student'
+                   AND lr.status IN ('pending','approved') AND sa.on_date BETWEEN lr.from_date AND lr.to_date
+                 ORDER BY lr.created_at DESC LIMIT 1) AS informed
         FROM student_attendance sa
         JOIN students st ON st.id = sa.student_id
         JOIN sections sec ON sec.id = sa.section_id
@@ -616,7 +642,7 @@ async function listAbsentees(c: Ctx): Promise<Response> {
         LEFT JOIN absence_followup_section_done d ON d.section_id = sa.section_id AND d.on_date = sa.on_date
         LEFT JOIN users du ON du.id = d.done_by
        WHERE sa.on_date = ? AND (? IS NULL OR sa.section_id = ?)
-         AND sa.status IS NOT NULL AND sa.status <> 'present' AND sa.status <> 'holiday' AND sa.status <> 'leave'
+         AND sa.status IS NOT NULL AND sa.status <> 'present' AND sa.status <> 'holiday'
          AND ${pred.sql}
        ORDER BY sec.name, st.admission_no`).bind(on, section, section, ...pred.args).all(),
     c.db.prepare(`
@@ -643,7 +669,8 @@ async function listAbsentees(c: Ctx): Promise<Response> {
     let contacts: unknown[] = []
     try { contacts = JSON.parse(it.contacts as string) } catch { /* a bad aggregate leaves no numbers rather than no row */ }
     sections[i].students.push({ student_id: it.student_id, name: it.name, admission_no: it.admission_no, mark: it.mark,
-      contacts, call_status: it.call_status, parent_response: it.parent_response, called_by: it.called_by, called_at: it.called_at ?? null })
+      contacts, call_status: it.call_status, parent_response: it.parent_response, called_by: it.called_by, called_at: it.called_at ?? null,
+      informed: it.informed ?? null })
   }
   return ok({ date: on, sections, present: present.results })
 }
@@ -1146,7 +1173,10 @@ async function applyForLeave(c: Ctx): Promise<Response> {
 
   const haveTypes = await c.db.prepare('SELECT EXISTS (SELECT 1 FROM leave_types) AS x').first<{ x: number }>()
   const leaveType = nul(trim(req.leave_type_id))
-  if (haveTypes?.x && !leaveType) {
+  /* Leave types (casual, sick, earned) are staff leave. A parent asking for
+     a child's day off was refused with "choose the kind of leave" in every
+     school that had set staff types up. */
+  if (haveTypes?.x && !leaveType && !req.student_id) {
     throw badRequest('choose the kind of leave. Casual, sick, or whichever it is. It decides what the days are counted against.')
   }
   let employeeId: string | null = null, studentId: string | null = null
@@ -1193,6 +1223,44 @@ async function applyForLeave(c: Ctx): Promise<Response> {
                     is_half_day, days, reason, status, applied_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`)
       .bind(newId, inst, leaveType, kind, employeeId, studentId, from, to, req.is_half_day ? 1 : 0, String(days), reason, c.id.userId, now()),
   ]
+  /* A CHILD'S LEAVE HAD NOBODY TO GO TO.
+
+     Staff leave has notified its approvers since it was written. A student's
+     went to nobody at all: the row was inserted pending and the family waited
+     on a screen that never changed, because no one was told there was anything
+     to decide.
+
+     It goes to whoever keeps that child's register -- the class teacher of the
+     section they are enrolled in, and anyone who holds the attendance
+     follow-up right. Those are the people the answer costs something to, and
+     the people who mark the day either way. Not the head: a school does not
+     run by its principal reading every application for a day off.
+
+     Whoever asked is left out of their own notification, which matters here
+     because a class teacher may be applying on behalf of a child in their own
+     section. */
+  if (kind === 'student' && studentId) {
+    const child = await c.db.prepare(`SELECT ${fullName2('st')} AS name FROM students st WHERE st.id = ?`)
+      .bind(studentId).first<{ name: string }>().catch(() => null)
+    const keepers = await c.db.prepare(`
+      SELECT DISTINCT u.id FROM users u
+       WHERE u.status = 'active' AND u.id <> ?2 AND (
+         u.id = (SELECT sec.class_teacher_id FROM enrollments e
+                   JOIN sections sec ON sec.id = e.section_id
+                  WHERE e.student_id = ?1 AND e.status = 'active'
+                  ORDER BY e.enrolled_on DESC LIMIT 1)
+         /* and the institution admin and the principal (the owner's rule) */
+         OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                     WHERE ur.user_id = u.id AND r.key IN ('institution_admin', 'principal')))`)
+      .bind(studentId, c.id.userId).all<{ id: string }>().catch(() => null)
+    const span = to !== from ? `${from} to ${to}` : from
+    for (const k of keepers?.results ?? []) {
+      stmts.push(notifyStmt(c, k.id, studentId, 'leave_request',
+        `${child?.name ?? 'A child'} has applied for leave`,
+        `${span} - ${reason}. Approve or reject it from Approvals.`,
+        '/go/approvals/approvals', 'leave_request', newId))
+    }
+  }
   if (kind === 'staff') {
     const who = await c.db.prepare('SELECT full_name FROM users WHERE id = ?').bind(c.id.userId).first<{ full_name: string }>()
     const approvers = await c.db.prepare(`
@@ -1254,6 +1322,31 @@ async function decideLeave(c: Ctx): Promise<Response> {
     if (req.decision !== 'approved') { title = 'Your leave was not approved'; body = `Rejected by ${c.id.fullName}.` }
     if (note.trim()) body += ' ' + note.trim()
     stmts.push(notifyStmt(c, row.applied_by, null, 'leave_decided', title, body, '/go/my_profile/leave_self_service', 'leave_request', lid))
+  }
+  /* APPROVED IS MARKED. A child's approved leave sets each day of it to
+     "leave" (LV) in the register, with who approved it and the parent's
+     reason, so nobody marks the child absent or rings the family. A day
+     already marked keeps its mark only if it was present. */
+  if (req.decision === 'approved' && !row.employee_id) {
+    const lr = await c.db.prepare(`SELECT lr.student_id, lr.from_date, lr.to_date, lr.reason,
+        (SELECT e.section_id FROM enrollments e WHERE e.student_id = lr.student_id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS section_id
+        FROM leave_requests lr WHERE lr.id = ?`).bind(lid)
+      .first<{ student_id: string | null; from_date: string; to_date: string; reason: string; section_id: string | null }>()
+    if (lr?.student_id && lr.section_id) {
+      const note = `Leave approved by ${c.id.fullName}: ${lr.reason}`.slice(0, 500)
+      const inst = c.id.institution!.id
+      const ts = now()
+      for (let d = lr.from_date, n = 0; d <= lr.to_date && n < 62; n++) {
+        stmts.push(c.db.prepare(`UPDATE student_attendance SET status = 'leave', remarks = ?, corrected_from = status, corrected_by = ?, corrected_at = ?
+            WHERE student_id = ? AND on_date = ? AND period_id IS NULL AND status <> 'present' AND status <> 'leave'`)
+          .bind(note, c.id.userId, ts, lr.student_id, d))
+        stmts.push(c.db.prepare(`INSERT INTO student_attendance (id, institution_id, student_id, section_id, on_date, period_id, status, minutes_late, remarks, marked_by, marked_at)
+            SELECT ?, ?, ?, ?, ?, NULL, 'leave', NULL, ?, ?, ?
+             WHERE NOT EXISTS (SELECT 1 FROM student_attendance WHERE student_id = ? AND on_date = ? AND period_id IS NULL)`)
+          .bind(uuid(), inst, lr.student_id, lr.section_id, d, note, c.id.userId, ts, lr.student_id, d))
+        const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); d = t.toISOString().slice(0, 10)
+      }
+    }
   }
   if (req.decision === 'approved' && row.employee_id && row.leave_type_id) {
     stmts.push(c.db.prepare(`UPDATE leave_balances SET taken = CAST(CAST(taken AS REAL) + ? AS TEXT) WHERE employee_id = ? AND leave_type_id = ?`)
@@ -1333,6 +1426,8 @@ function registerHomework(r: Router) {
   r.get('/homework/{id}/submissions', 'auth', listHomeworkSubmissions)
 }
 
+const WORK_KINDS: Record<string, string> = { homework: 'Homework', classwork: 'Classwork', assignment: 'Assignment', project: 'Project' }
+
 async function publishHomework(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
   const req = await readJSON<{ section_id?: string; class_subject_id?: string; subject_id?: string; kind?: string; title?: string; instructions?: string;
@@ -1341,7 +1436,10 @@ async function publishHomework(c: Ctx): Promise<Response> {
   if (!isUUID(sectionId)) throw badRequest('section_id must be a uuid')
   const title = req.title ?? ''
   if (!title.trim()) throw badRequest('a title is required')
+  /* The type of work is chosen from a fixed list on the teacher's form, and
+     parents filter their diary by it, so only those four are accepted. */
   const kind = req.kind || 'homework'
+  if (!WORK_KINDS[kind]) throw badRequest('type of work must be one of: homework, classwork, assignment, project')
   const res = await resolveScope(c)
   if (!canMarkSection(res, sectionId)) throw forbidden('missing permission: homework for this section')
   const allow = req.allow_submission ?? true
@@ -1375,7 +1473,7 @@ async function publishHomework(c: Ctx): Promise<Response> {
       JOIN student_guardians sg ON sg.student_id = st.id
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
      WHERE e.section_id = ? AND e.status = 'active'`).bind(sectionId).all<{ uid: string; student: string; name: string }>()
-  const label = kind === 'classwork' ? 'Classwork' : 'Homework'
+  const label = WORK_KINDS[kind]
   for (const t of targets.results) {
     stmts.push(notifyStmt(c, t.uid, t.student, 'homework', `${label} set for ${t.name}`, `${title}, due ${due}`, '/go/homework', 'homework', newId))
   }
@@ -1418,7 +1516,21 @@ async function listHomework(c: Ctx): Promise<Response> {
     where = 'TRUE'
   } else if (res.allAttendance) where = 'TRUE'
   else if (res.sectionIds.length) { const x = inList('h.section_id', res.sectionIds); where = x.sql; args.push(...x.args) }
-  else where = 'FALSE'
+  /* A TEACHER WITH NO SECTION COULD NOT SEE THEIR OWN HOMEWORK.
+
+     This was FALSE, and the "only mine" clause below is ANDed onto it, so
+     somebody holding no section at all saw an empty list -- including the
+     work they had published minutes earlier, from this screen, successfully.
+     Nothing had failed to save; there was simply no clause under which their
+     own row could come back, and an empty list after a successful publish is
+     indistinguishable from a publish that silently did nothing.
+
+     A section is how a teacher is normally reached, but it is not the only
+     way somebody comes to own a piece of homework: a member of staff between
+     postings, a head who sets work for a class they do not teach, anybody
+     whose timetable has not been entered yet. What they wrote is theirs to
+     read whatever their timetable says. */
+  else { where = 'h.created_by = ?'; args.push(c.id.userId) }
 
   const q = c.url.searchParams
   const filter = (clause: string, value: string | null) => { if (!trim(value)) return; args.push(value); where += ' AND ' + clause }

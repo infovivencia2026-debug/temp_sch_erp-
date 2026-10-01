@@ -60,6 +60,10 @@ export function PickerMenu<T extends string>({
   const [open, setOpen] = useOpenState(false)
   const [active, setActive] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
+  /* The menu lives in a portal on document.body, so it is NOT inside `wrap`.
+     Outside-click has to know about both, or it treats the menu as outside
+     itself -- see the note on the listener below. */
+  const menu = useRef<HTMLUListElement>(null)
   const [pos, setPos] = useState<
     { left: number; width: number; top?: number; bottom?: number; maxH?: number } | null>(null)
 
@@ -106,10 +110,31 @@ export function PickerMenu<T extends string>({
     }
   }, [open, align])
 
+  /* CHOOSING AN OPTION WAS AN OUTSIDE CLICK.
+
+     This asked whether the pointer landed inside `wrap`, the trigger's own
+     div. The menu is rendered with createPortal onto document.body, so it is
+     not inside `wrap` -- and an option is not inside it either. Pressing one
+     fired pointerdown, was judged "outside", closed the menu, and unmounted
+     the button before its click event could run. onChange never fired.
+
+     So every one of these pickers was inert to a mouse and to a finger, in
+     every place the component is used, and only the keyboard worked: arrows
+     and Enter go through onKeyDown and never touch this listener. That is the
+     month that would not change however many times it was pressed.
+
+     The stopPropagation on the <ul> below could not have saved it: that is a
+     React mousedown handler, and this is a native pointerdown already
+     dispatched on document. Different event, different phase.
+
+     Both elements are consulted now. */
   useEffect(() => {
     if (!open) return
     const away = (e: PointerEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (wrap.current?.contains(t)) return
+      if (menu.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('pointerdown', away)
     return () => document.removeEventListener('pointerdown', away)
@@ -146,7 +171,7 @@ export function PickerMenu<T extends string>({
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKey}
         className={children ? undefined : cn(
-          'inline-flex items-center gap-1.5 rounded-md border bg-card px-3 text-[14px] text-foreground',
+          'inline-flex items-center gap-1.5 rounded-[var(--radius-input)] bg-card px-3 text-[14px] text-foreground shadow-[var(--field-shadow)]',
           'min-h-[var(--control-h)]',
           'transition-colors hover:bg-accent',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -168,6 +193,7 @@ export function PickerMenu<T extends string>({
 
       {open && pos && createPortal(
         <ul
+          ref={menu}
           role="listbox"
           aria-label={ariaLabel}
           style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH }}

@@ -51,7 +51,7 @@ export default function Communication() {
     queryFn: () => api.get<List<Remark>>('/api/v1/teaching/remarks'),
   })
 
-  if (summary.isLoading) return <SkeletonTiles count={7} />
+  if (summary.isLoading && !summary.data) return <SkeletonTiles count={7} />
   if (summary.error) return <ErrorState error={summary.error} />
 
   const s = summary.data

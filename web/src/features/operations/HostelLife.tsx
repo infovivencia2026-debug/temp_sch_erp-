@@ -103,7 +103,7 @@ export default function HostelLife() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['outpasses'] }),
   })
 
-  if (passes.isLoading) return <SkeletonTiles count={4} label="Checking who is out…" />
+  if (passes.isLoading && !passes.data) return <SkeletonTiles count={4} label="Checking who is out…" />
   if (passes.error) return <ErrorState error={passes.error} />
 
   const rows = passes.data?.items ?? []

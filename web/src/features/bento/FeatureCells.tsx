@@ -1,107 +1,189 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
+import { shortLabels } from './short-labels'
 import { Link } from 'react-router-dom'
-import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
-import { useCatalogIfAny, featurePath } from '@/lib/catalog'
+import { useShortcuts, removeFromDashboard, seedShortcuts } from '@/lib/shortcuts'
+import { useCatalogIfAny, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { useLayout, isRemoved } from '@/lib/widgets'
 import { FeatureGlyph } from '@/components/FeatureGlyph'
-import { Cell } from './bento-kit'
+import { markFor } from './BentoLauncher'
+import './launcher.css'
 import { Widget, useWidgetLayer } from './WidgetLayer'
 import { hueFor } from './BentoLauncher'
 import './feature-cells.css'
 
-/* "ADD TO HOME" PUTS A TILE ON THE HOME.
+/* APP ICONS ON THE HOME.
  *
- * It used to add the feature to a strip of chips above the board -- correct,
- * and invisible on a phone, where the board fills the screen and the strip
- * sat above it in the scroll. A person who long-pressed a tile, chose "Add
- * to home" and looked at their home saw nothing change, and said so.
+ * Every screen somebody puts on their home is its own tile: one app icon,
+ * the way a phone home screen draws an app -- the feature's own glyph
+ * (feature-icons.tsx, one per feature, no two alike) centred in a rounded
+ * square washed with its workspace's colour, the name under it. Not four in
+ * a box: the owner rejected the two-by-two shortcut cell.
  *
- * So the home shortcuts are cells now, on the board itself: the same plate
- * the launcher draws and the feature's name, four to a cell (see FOUR TO A
- * CELL below). They declare themselves to the layer like any other card, so
- * they page, drag, resize and hide with the rest. Hiding one from the board
- * also takes its screens off the shortcuts list, so the launcher's "Remove
- * from home" and the card's own "Hide" agree.
+ * ON A PHONE each icon is a 1x1 Widget of its own, so it drags, hides and
+ * reorders like any card. The pager packs on a grid four (or, by the
+ * person's choice, three) units across (PHONE_UNIT in widgets.ts): a card
+ * spans the page, an icon is one unit. Never grouped there (owner: "each
+ * icon is one unit, not 4 as one").
  *
- * Resolved through the catalogue every render, for the reason the strip
- * was: a shortcut to something this account may no longer open simply
- * stops appearing rather than 404ing on tap. */
+ * ON A DESK four icons share one 1x1 tile, two by two, each its own target
+ * with its own name (owner, 2026-10-01: four in one tile is right on the
+ * web). A fifth starts the next tile. While arranging, each icon in a tile
+ * has its own remove, and removing the tile removes its four.
+ * See ICON_SHAPE in lib/size-tiers.ts.
+ *
+ * The list is the shortcuts store (lib/shortcuts.ts), resolved through the
+ * catalogue every render, so a shortcut to something this account may no
+ * longer open stops appearing rather than 404ing on tap. Hiding an icon from
+ * the board takes it off the shortcuts list, so the launcher's "Remove from
+ * home" and the board's own remove agree. */
 
 export const FEATURE_PREFIX = 'feature:'
+/** Icons per desk tile: two by two. */
+export const DESK_QUAD = 4
+const QUAD_PREFIX = FEATURE_PREFIX + 'quad:'
+export function quadId(n: number): string {
+  return `${QUAD_PREFIX}${n + 1}`
+}
+/* THE ICONS LEAD. Declared ahead of every board's own cards (which count up
+   from 0), so on a board that has never been arranged the row of app icons
+   is the first thing on the home -- the top row on a desk, the first page on
+   a phone -- and the board's last figure card is what moves to the Add
+   gallery to make room, rather than the icons silently not fitting. Once a
+   person arranges the board, their order wins (orderOf). */
+const ICON_INDEX = -100
+/** How many app icons a new account's home starts with. */
+export const DEFAULT_ICONS = 4
 
-/* FOUR TO A CELL.
+type Found = {
+  key: string
+  name: string
+  slug: string
+  section: string
+  workspace: string
+  href: string
+}
 
-   One screen per small cell spent a whole card on one glyph and one name,
-   and a person with eight shortcuts had eight cards -- two phone pages of
-   them. So a small cell now holds up to four, in a two-by-two grid, each
-   its own link: the same plate the launcher draws, the name beneath. The
-   cells are keyed `feature:group:1`, `feature:group:2`... in the order the
-   shortcuts were added, so the first four fill the first cell and the fifth
-   opens the second. Hiding a cell takes its four off the shortcuts list, so
-   the launcher's "Remove from home" and the card's own "Hide" still agree. */
-export const PER_CELL = 4
-const GROUP_PREFIX = FEATURE_PREFIX + 'group:'
-export function groupId(n: number): string {
-  return `${GROUP_PREFIX}${n + 1}`
+/** The screens a new home starts with: the first screen of each of the
+    first few working sections of the account's first role -- the role's
+    home section is skipped, because the board already IS that screen. */
+export function defaultShortcuts(catalog: CatalogResponse | null, n = DEFAULT_ICONS): string[] {
+  const role = catalog?.roles?.[0]
+  if (!role) return []
+  const out: string[] = []
+  for (const section of role.sections) {
+    if (section.slug === 'home') continue
+    const f = section.features.find(usable)
+    if (f) out.push(f.key)
+    if (out.length >= n) break
+  }
+  return out
+}
+
+function resolve(catalog: CatalogResponse | null, key: string): Found | null {
+  for (const role of catalog?.roles ?? []) {
+    for (const section of role.sections) {
+      const f = section.features.find((x) => x.key === key)
+      if (f && usable(f)) {
+        return {
+          key, name: f.name, slug: f.slug, section: section.slug,
+          workspace: section.workspace || section.name,
+          href: featurePath(role.key, section.slug, f.slug),
+        }
+      }
+    }
+  }
+  return null
+}
+
+/** One app icon, drawn exactly as the All features launcher draws it (owner,
+    2026-10-01: "even in bentos use icons that are like in all features"):
+    the same FeatureGlyph disc tinted from the workspace colour, the same
+    Material Symbol, the workspace's own mark in the corner, then the name. */
+export function AppIcon({ slug, section, workspace, name, size }: {
+  slug: string
+  section?: string
+  workspace: string
+  name?: string
+  size?: number
+}) {
+  const Mark = markFor(workspace)
+  return (
+    <>
+      <FeatureGlyph
+        slug={slug}
+        section={section}
+        tint={hueFor(workspace)}
+        className="ai-plate lch-plate"
+        style={{ '--size': size ? `${size}px` : 'var(--ai-size, 64px)' } as CSSProperties}
+      >
+        <span className="lch-plate-mark" title={workspace}><Mark aria-hidden="true" /></span>
+      </FeatureGlyph>
+      {name && <span className="ai-name">{name}</span>}
+    </>
+  )
+}
+
+function IconLink({ f, label }: { f: Found; label: string }) {
+  return (
+    <Link to={f.href} className="ai-tile" title={`${f.name} (${f.workspace})`} aria-label={f.name}>
+      <AppIcon slug={f.slug} section={f.section} workspace={f.workspace} name={label} />
+    </Link>
+  )
 }
 
 export function FeatureCells() {
   const layer = useWidgetLayer()
-  const keys = useShortcuts()
+  const stored = useShortcuts()
   const catalog = useCatalogIfAny()
-  const { layout } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, place } = useLayout(layer?.dashboard ?? 'default')
 
-  const found = keys.map((key) => {
-    for (const role of catalog?.roles ?? []) {
-      for (const section of role.sections) {
-        const f = section.features.find((x) => x.key === key)
-        if (f && f.live && f.in_scope) {
-          return {
-            key, name: f.name, slug: f.slug, section: section.slug,
-            workspace: section.workspace || section.name,
-            href: featurePath(role.key, section.slug, f.slug),
-          }
-        }
-      }
-    }
-    return null
-  })
+  /* A NEW HOME IS A HOME SCREEN, NOT ONLY CHARTS. An account that has never
+     touched its shortcuts gets a row of its role's main screens, written to
+     the store once so removing one later removes only that one. */
+  useEffect(() => {
+    if (!catalog) return
+    const d = defaultShortcuts(catalog)
+    if (d.length) seedShortcuts(d)
+  }, [catalog])
 
-  /* The cells, four screens each, in the order the shortcuts were added. */
-  const live = found.filter((f): f is NonNullable<typeof f> => f !== null)
-  const groups: (typeof live)[] = []
-  for (let i = 0; i < live.length; i += PER_CELL) groups.push(live.slice(i, i + PER_CELL))
+  const live = stored.map((k) => resolve(catalog, k)).filter((f): f is Found => f !== null)
 
-  /* A cell hidden from the board is its shortcuts removed: the two lists
-     must not disagree about what is on the home. Done in an effect, because
-     the shortcuts store is not this component's state. */
-  const hidden = groups
-    .flatMap((g, n) => (isRemoved(layout, groupId(n)) ? g.map((f) => f.key) : []))
+  const phone = layer?.phone ?? false
+  /* One word under each icon, none repeated on the board (short-labels.ts). */
+  const shorts = shortLabels(live.map((f) => f.name))
+  const shortOf = (f: Found) => shorts[live.indexOf(f)] ?? f.name
+  const quads: Found[][] = []
+  for (let i = 0; i < live.length; i += DESK_QUAD) quads.push(live.slice(i, i + DESK_QUAD))
+  const idOf = (f: Found, at = live.indexOf(f)) => (phone ? FEATURE_PREFIX + f.key : quadId(Math.floor(at / DESK_QUAD)))
+
+  /* An icon (or, on a desk, a tile of four) hidden from the board is its
+     shortcut removed: the two lists must not disagree about what is on the
+     home. Its place is freed again, or the screens that slide into it next
+     would be hidden with it. */
+  const hiddenIds = phone
+    ? live.map((f) => FEATURE_PREFIX + f.key).filter((id) => isRemoved(layout, id))
+    : quads.map((_, n) => quadId(n)).filter((id) => isRemoved(layout, id))
+  const hidden = phone
+    ? live.filter((f) => isRemoved(layout, FEATURE_PREFIX + f.key)).map((f) => f.key)
+    : quads.flatMap((q, n) => (isRemoved(layout, quadId(n)) ? q.map((f) => f.key) : []))
   useEffect(() => {
     for (const k of hidden) removeFromDashboard(k)
-  }, [hidden.join(',')])
+    for (const id of hiddenIds) place(id, 1, 1)
+  }, [hidden.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* THE NEW TILE COMES TO YOU.
-
-     On a phone the board is pages of four, and the first page is usually
-     the anchor card alone; a tile declared after everything else lands on
-     the last page. So "Add to home" said "Fees is on your home" and the
-     home, on page one, looked exactly as it had -- which the owner reported
-     as "I can't see it". When a key appears that was not there a moment
-     ago, the pager is scrolled to the page the layer packed it onto, after
-     the frame in which it was packed. A desk shows every page at once and
-     needs nothing. */
+  /* THE NEW TILE COMES TO YOU: on a phone the pager scrolls to the page the
+     icon just added landed on. A desk shows every page at once. */
   const seen = useRef<Set<string> | null>(null)
   useEffect(() => {
-    const now = new Set(keys)
+    const now = new Set(stored)
     const before = seen.current
     seen.current = now
     if (!before || !layer?.spots) return
-    const fresh = keys.find((k) => !before.has(k))
+    const fresh = stored.find((k) => !before.has(k))
     if (!fresh) return
     const at = live.findIndex((f) => f.key === fresh)
     if (at < 0) return
-    const id = groupId(Math.floor(at / PER_CELL))
+    const id = idOf(live[at])
     const t = window.setTimeout(() => {
       const page = layer.spots?.get(id)?.page
       if (page === undefined) return
@@ -110,33 +192,54 @@ export function FeatureCells() {
         ?.scrollIntoView({ behavior: layer.still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
     }, 120)
     return () => window.clearTimeout(t)
-  }, [keys.join(','), layer?.spots])
+  }, [stored.join(','), layer?.spots]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!layer) return null
+
+  if (phone) {
+    return (
+      <>
+        {live.map((f, i) => (
+          <Widget key={f.key} id={FEATURE_PREFIX + f.key} label={f.name} size="small" index={ICON_INDEX + i} fixed>
+            {() => (
+              <div className="ai-cell">
+                <IconLink f={f} label={shortOf(f)} />
+              </div>
+            )}
+          </Widget>
+        ))}
+      </>
+    )
+  }
+
+  const editing = layer.editing
   return (
     <>
-      {groups.map((g, n) => {
-        const id = groupId(n)
-        const label = n === 0 ? 'Shortcuts' : `Shortcuts ${n + 1}`
+      {quads.map((q, n) => {
+        const id = quadId(n)
+        const label = q.length === 1 ? q[0].name : q.map((f) => f.name).join(', ')
         return (
-          <Widget key={id} id={id} label={label} size="small" index={900 + n}>
-            {(span) => (
-              <Cell span={span}>
-                <div className="fc-grid" role="group" aria-label={label}>
-                  {g.map((f) => (
-                    <Link key={f.key} to={f.href} className="fc-tile" title={`${f.name} (${f.workspace})`}>
-                      <FeatureGlyph slug={f.slug} section={f.section} tint={hueFor(f.workspace)} size={34} />
-                      <span className="fc-name">{f.name}</span>
-                    </Link>
-                  ))}
-                  {/* The empty places say the cell holds four; they are
-                      filled from the launcher's "Add to home" or the
-                      board's own "+". */}
-                  {Array.from({ length: PER_CELL - g.length }, (_, i) => (
-                    <span key={`empty-${i}`} className="fc-empty" aria-hidden="true" />
-                  ))}
-                </div>
-              </Cell>
+          <Widget key={id} id={id} label={label} size="small" index={ICON_INDEX + n} fixed>
+            {() => (
+              <div className="ai-quad" role="group" aria-label={label} data-count={q.length}>
+                {q.map((f) => (
+                  <div key={f.key} className="ai-quad__slot">
+                    <IconLink f={f} label={shortOf(f)} />
+                    {editing && (
+                      <button
+                        type="button"
+                        className="ai-quad__remove"
+                        aria-label={`Remove ${f.name} from home`}
+                        title={`Remove ${f.name}`}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeFromDashboard(f.key) }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <span aria-hidden="true">−</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </Widget>
         )

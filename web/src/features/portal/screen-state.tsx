@@ -86,6 +86,19 @@ export function Freshness({ query }: { query: Freshable }) {
   else text = agoOnly
 
   const trouble = !query.isFetching && (offline || failed)
+
+  /* SILENCE IS THE RIGHT REPORT FOR "NOTHING IS WRONG".
+
+     Every portal screen ended with the words "Updated just now" in grey, on
+     every visit, for data nobody had asked the age of. It is the ordinary
+     state -- a screen that has just loaded is always freshly loaded -- so it
+     told a parent nothing while occupying the last line of the page, and the
+     one time the line matters, when the figures are stale or came from a
+     cache with no connection, it had already been trained to be ignored.
+
+     So the line appears only when it has something to say: while a refresh is
+     in flight, or when the data is old, offline or failed. */
+  if (!query.isFetching && !trouble) return null
   return (
     <p
       className="parent-fresh"

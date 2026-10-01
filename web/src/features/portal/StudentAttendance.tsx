@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, CalendarX, ChevronLeft, ChevronRight, Flame, NotebookPen } from 'lucide-react'
+import { CalendarCheck, CalendarX, ChevronLeft, ChevronRight, Flame } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { ErrorState } from '@/components/ui'
-import { useFeatureHref } from '@/features/bento/bento-kit'
+
 import { cn } from '@/lib/utils'
 import { Bone, PullToRefresh, Ring, StudentHeader, StudentPage, Tile, todayISO } from './student-kit'
 
@@ -33,7 +33,6 @@ export default function StudentAttendance() {
   const qc = useQueryClient()
   const s = useQuery(sq)
   const d = useQuery(dq)
-  const leave = useFeatureHref('student.attendance.apply_for_leave')
   const days = [...(d.data?.items ?? [])].sort((a, b) => b.date.localeCompare(a.date))
   let streak = 0
   for (const x of days) { if (came(x)) streak++; else break }
@@ -46,13 +45,14 @@ export default function StudentAttendance() {
 
   return (
     <PullToRefresh onRefresh={() => Promise.all([qc.invalidateQueries({ queryKey: sq.queryKey }), qc.invalidateQueries({ queryKey: dq.queryKey })])}>
-      <StudentPage>
+      <StudentPage wide>
         <StudentHeader title="My attendance" sub={s.data ? `${s.data.total_days} school days so far this year` : undefined} />
 
         {s.error || d.error ? <ErrorState error={s.error ?? d.error} /> : !s.data || !d.data ? (
           <div className="space-y-3"><Bone className="h-[152px] w-full rounded-2xl" /><div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <Bone key={i} className="h-[92px] rounded-2xl" />)}</div><Bone className="h-[360px] w-full rounded-2xl" /></div>
         ) : (
-          <>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,380px)_1fr]">
+          <div className="space-y-3">
             <section className="card stu-rise flex items-center gap-4 p-4" aria-label="This year">
               <Ring pct={pct} hue={pct >= 75 ? 'emerald' : 'amber'} label={`${pct} percent attendance`}>
                 <span className="text-[28px] font-bold leading-none tabular-nums">{pct}<span className="text-[15px] font-semibold">%</span></span>
@@ -69,12 +69,13 @@ export default function StudentAttendance() {
               <Tile i={2} icon={CalendarX} hue="rose" value={s.data.absent_days} label={s.data.absent_days === 1 ? 'day missed' : 'days missed'} />
               <Tile i={3} icon={Flame} hue="amber" value={streak} label="day streak" />
             </div>
+          </div>
 
             <section className="card stu-rise p-4" style={{ ['--i' as string]: 4 }} aria-label="Month">
               <div className="flex items-center gap-2">
-                <button type="button" aria-label="Previous month" disabled={mi <= 0} onClick={() => setMonth(months[mi - 1])} className="inline-flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-30"><ChevronLeft className="h-5 w-5" /></button>
+                <button type="button" aria-label="Previous month" disabled={mi <= 0} onClick={() => setMonth(months[mi - 1])} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none"><ChevronLeft className="h-5 w-5" /></button>
                 <h2 className="flex-1 text-center text-[16px] font-semibold">{new Date(month + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</h2>
-                <button type="button" aria-label="Next month" disabled={mi >= months.length - 1} onClick={() => setMonth(months[mi + 1])} className="inline-flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
+                <button type="button" aria-label="Next month" disabled={mi >= months.length - 1} onClick={() => setMonth(months[mi + 1])} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none"><ChevronRight className="h-5 w-5" /></button>
               </div>
               <MonthGrid month={month} byDate={byDate} />
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground">
@@ -82,14 +83,7 @@ export default function StudentAttendance() {
               </div>
             </section>
 
-            {leave && (
-              <Link to={leave} className="card stu-press flex min-h-[56px] items-center gap-3 px-4">
-                <NotebookPen className="h-5 w-5 text-primary" strokeWidth={1.75} />
-                <span className="flex-1"><span className="block text-[15px] font-medium">Going to be away?</span><span className="block text-[13px] text-muted-foreground">Ask for leave</span></span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            )}
-          </>
+          </div>
         )}
       </StudentPage>
     </PullToRefresh>
@@ -113,7 +107,7 @@ function MonthGrid({ month, byDate }: { month: string; byDate: Map<string, Day> 
         const t = day ? toneOf(day) : null
         return (
           <span key={i} title={day ? `${t!.label}${day.label ? ` · ${day.label}` : ''}` : undefined}
-            className={cn('flex aspect-square min-h-[40px] items-center justify-center rounded-xl text-[14px] font-medium tabular-nums', t ? t.cls : 'text-muted-foreground', iso === today && 'ring-2 ring-primary ring-offset-1 ring-offset-[var(--color-card,white)]')}>
+            className={cn('flex aspect-square min-h-[40px] items-center justify-center rounded-xl lg:aspect-auto lg:h-14 text-[14px] font-medium tabular-nums', t ? t.cls : 'text-muted-foreground', iso === today && 'ring-2 ring-primary ring-offset-1 ring-offset-[var(--color-card,white)]')}>
             {n}
           </span>
         )

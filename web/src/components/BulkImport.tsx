@@ -5,7 +5,7 @@ import {
   Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2, Minimize2,
 } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
-import { Button, Input, Table, Td } from '@/components/ui'
+import { Button, Input, Table, Td, Textarea } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { ImportWithAIButton } from '@/components/ai/SmartImport'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -491,13 +491,13 @@ export default function BulkImport({
       <div className="p-4">
         {pasting ? (
           <div>
-            <textarea
+            <Textarea
               autoFocus
               value={paste}
-              onChange={(e) => setPaste(e.target.value)}
+              onChange={setPaste}
               rows={7}
               placeholder={'Paste the cells straight from your spreadsheet.\nKeep the header row, the column names are how the fields are matched.'}
-              className="field w-full font-mono text-[12.5px]"
+              className="w-full font-mono text-[12.5px]"
             />
             <div className="mt-2 flex gap-2">
               <Button size="sm" disabled={!paste.trim() || busy} onClick={fromPaste}>

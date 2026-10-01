@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { useLayout, reconcileLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { cn } from '@/lib/utils'
+import { crossfade } from '@/lib/motion'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
 
 /* Two buttons, side by side, in the shell header.
 
@@ -25,6 +27,7 @@ export function LayoutSwitch() {
   const { layout, setLayout } = useLayout()
   const t = useT()
   const qc = useQueryClient()
+  const groupRef = useRef<HTMLDivElement>(null)
 
   /* localStorage gave a correct first paint on this device; the account row is
      the truth across devices. Reconciled once on mount, exactly as the theme
@@ -56,8 +59,11 @@ export function LayoutSwitch() {
     <div
       role="group"
       aria-label={t('shell.layout.group')}
-      className="flex items-center gap-0.5 rounded-[7px] bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
+      ref={groupRef}
+      className="relative flex items-center gap-0.5 rounded-[7px] bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
     >
+      <SlidingIndicator listRef={groupRef} active={layout}
+        className="rounded-[6px] bg-primary shadow-[var(--elev-1)]" />
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
@@ -65,7 +71,8 @@ export function LayoutSwitch() {
           <button
             key={value}
             type="button"
-            onClick={() => setLayout(value)}
+            /* Crossed over, not cut: see crossfade in lib/motion. */
+            onClick={() => { if (!active) crossfade(() => setLayout(value)) }}
             aria-pressed={active}
             title={t(LABEL[value])}
             className={cn(

@@ -29,7 +29,7 @@ import { formatDate } from '@/lib/utils'
    only ever hold a second, drifting copy of it. */
 export default function RechargeQueue() {
   const q = useSellerRecharges()
-  if (q.isLoading) return <SkeletonTable columns={6} label="Reading the recharge queue…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading the recharge queue…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const items = q.data?.items ?? []

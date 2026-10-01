@@ -4,6 +4,7 @@ import { memoFor } from '../../idcache'
 import type { Identity } from '../../identity'
 import { HttpError, badRequest, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { institutionById } from '../../tenant'
+import { featuresVersion } from '../../services/refcache'
 import { CATALOG_ROLES } from '../admin/static_data'
 import { SECTION_MODULE, entitlementFor, type Entitlement } from '../misc/shell'
 import { requirePlatformAdmin } from './common'
@@ -77,29 +78,78 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'payroll.monthly_payroll': ['/payroll/run', '/payroll/payslips', '/payroll/bank-file'],
   'campus_money.cafeteria_store_sales': ['/portal/cafeteria', '/store/catalogue'],
   'alumni.alumni_network_registration': ['/portal/alumni'],
+  'communication.class_status': ['/status'], // feature:communication.class_status
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }
 
-/** The statement reading a school's live (not lapsed) overrides, or all of them (batched by gates.ts). */
-export function overridesStmt(env: Env, institutionId: string, all = false): D1PreparedStatement {
-  return env.CONTROL.prepare(`SELECT feature_id, enabled, ends_at, note, updated_at FROM school_feature_overrides
-      WHERE institution_id = ? ${all ? '' : 'AND (ends_at IS NULL OR ends_at > ?)'}`)
-    .bind(...(all ? [institutionId] : [institutionId, now()]))
+type OvRow = { feature_id: string; enabled: number; ends_at: string | null; note: string; updated_at: string }
+
+/* Per-isolate cache of each school's override rows, keyed on
+   institutions.features_version (CONTROL migration 0013: triggers bump it on
+   any write to school_feature_overrides). Every request reads the school's
+   institutions row and notes the version (identity.ts, tenant.ts
+   institutionById -> refcache.ts), so a changed switch is seen on the next
+   request on every isolate, with no CONTROL read for the switches themselves.
+   Lapsing (ends_at) is decided at read time, so a cached row that has run
+   out stops counting on its own. Before the migration (no version) nothing
+   is cached. */
+const ovCache = new Map<string, { version: number; rows: OvRow[] }>()
+
+/** The rows cached for this school under its current version, or null. */
+export function cachedOverrideRows(institutionId: string): OvRow[] | null {
+  const v = featuresVersion(institutionId)
+  if (v === undefined) return null
+  const e = ovCache.get(institutionId)
+  return e && e.version === v ? e.rows : null
 }
 
-export function overridesFromRows(rows: { feature_id: string; enabled: number; ends_at: string | null; note: string; updated_at: string }[]): Map<string, Override> {
+/** Keeps rows just read from CONTROL under the version noted for this school (a no-op without one). */
+export function rememberOverrideRows(institutionId: string, rows: OvRow[]): void {
+  const v = featuresVersion(institutionId)
+  if (v !== undefined) ovCache.set(institutionId, { version: v, rows })
+}
+
+/* Two misses in one request (the gate and, say, session activity) share one
+   read rather than each asking CONTROL. */
+const inflight = new Map<string, Promise<OvRow[]>>()
+export function loadOverrideRows(env: Env, institutionId: string): Promise<OvRow[]> {
+  const held = cachedOverrideRows(institutionId)
+  if (held) return Promise.resolve(held)
+  let p = inflight.get(institutionId)
+  if (!p) {
+    p = overridesStmt(env, institutionId).all<OvRow>().then((r) => { rememberOverrideRows(institutionId, r.results); return r.results })
+    inflight.set(institutionId, p)
+    p.finally(() => inflight.delete(institutionId)).catch(() => {})
+  }
+  return p
+}
+
+/** Test hook: how many schools' switches this isolate holds. */
+export const overrideCacheSize = () => ovCache.size
+
+/** The statement reading ALL of a school's overrides (batched by gates.ts); lapsed ones are dropped by overridesFromRows. */
+export function overridesStmt(env: Env, institutionId: string): D1PreparedStatement {
+  return env.CONTROL.prepare(`SELECT feature_id, enabled, ends_at, note, updated_at FROM school_feature_overrides WHERE institution_id = ?`).bind(institutionId)
+}
+
+/** The live (not lapsed) overrides among these rows; `all` keeps the lapsed ones too (the seller's own view). */
+export function overridesFromRows(rows: OvRow[], all = false): Map<string, Override> {
   const out = new Map<string, Override>()
-  for (const r of rows) out.set(r.feature_id, { enabled: !!r.enabled, ends_at: r.ends_at, note: r.note, updated_at: r.updated_at })
+  const t = now()
+  for (const r of rows) {
+    if (!all && r.ends_at !== null && !(r.ends_at > t)) continue
+    out.set(r.feature_id, { enabled: !!r.enabled, ends_at: r.ends_at, note: r.note, updated_at: r.updated_at })
+  }
   return out
 }
 
 /** The school's live (not lapsed) overrides. Empty until the change file is applied. */
 export async function featureOverrides(env: Env, institutionId: string, all = false): Promise<Map<string, Override>> {
   try {
-    const rows = await overridesStmt(env, institutionId, all)
-      .all<{ feature_id: string; enabled: number; ends_at: string | null; note: string; updated_at: string }>()
-    return overridesFromRows(rows.results)
+    // The seller's own view (all = true) always reads CONTROL: it may follow a write in this request.
+    const rows = all ? (await overridesStmt(env, institutionId).all<OvRow>()).results : await loadOverrideRows(env, institutionId)
+    return overridesFromRows(rows, all)
   } catch { return new Map() /* table not there yet */ }
 }
 

@@ -32,6 +32,7 @@ import type { NotificationsApi } from './notifications'
 import type { MessagesApi } from './messages'
 import type { DashboardsApi } from './dashboards'
 import type { BootstrapApi } from './bootstrap'
+import type { ClassStatusApi } from './feature_class_status' // feature:communication.class_status
 
 export interface Api extends SessionApi, CatalogApi, StudentsApi, AttendanceApi, TimetableApi, FeesApi, ExamsApi,
-  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi {}
+  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi {}

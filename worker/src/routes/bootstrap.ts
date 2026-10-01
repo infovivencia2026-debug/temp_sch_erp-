@@ -27,11 +27,15 @@ const API = '/api/v1'
 export async function getBootstrap(env: Env, req: Request, router: Router, ectx?: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
   const id = await identityFrom(env, req, ectx)
-  const session = sessionBody(env, req)
+  // The session part is built from the identity just resolved, not read again.
+  const session = sessionBody(env, req, id)
   if (!id) {
     return json({ session: await session, catalog: null, display_preferences: null, working_year: null, attention: null, today: null } satisfies BootstrapResponse)
   }
 
+  /* The school's database as the router opens it (tenant.ts tenantSession):
+     a D1 Session with the client's bookmark, and the handle tagged with the
+     school so the reference cache (refcache.ts) serves years and lists. */
   let tx: TenantSession | null = null
   const c: Ctx = {
     req, env, url, params: {}, id,

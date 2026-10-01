@@ -106,7 +106,7 @@ export default function Appraisal() {
     queryFn: () => api.get<List<Cycle>>('/api/v1/hr-growth/appraisal/cycles'),
   })
 
-  if (cycles.isLoading) return <SkeletonTiles count={4} label="Reading the appraisal cycles…" />
+  if (cycles.isLoading && !cycles.data) return <SkeletonTiles count={4} label="Reading the appraisal cycles…" />
   if (cycles.error) return <ErrorState error={cycles.error} />
 
   const all = cycles.data?.items ?? []

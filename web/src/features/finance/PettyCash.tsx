@@ -52,7 +52,7 @@ export default function PettyCash() {
     queryFn: () => api.get<PettyResponse>(`${ledgerBase}/petty-cash`),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={4} label="Opening the tin…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Opening the tin…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

@@ -1,0 +1,50 @@
+/* The assistant chat: the keyboard, the composer, and the page behind.
+   See AssistantTab.tsx for the JS that sets --vv-top / --vv-h / [data-kb]. */
+
+/* The page behind does not scroll or rubber-band while the chat is open. */
+html[data-assistant-open],
+html[data-assistant-open] body {
+  overscroll-behavior: none;
+}
+@media (max-width: 767px) {
+  html[data-assistant-open],
+  html[data-assistant-open] body { overflow: hidden; }
+}
+
+/* The log scrolls itself and never hands the gesture to the page. */
+[data-assistant-chat] .assistant-log {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The composer sits on the home indicator's safe area when the keyboard is
+   down, and directly on the keyboard when it is up. */
+[data-assistant-chat] .assistant-composer {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+[data-assistant-chat][data-kb] .assistant-composer {
+  padding-bottom: 0.5rem;
+}
+
+/* Pinned to the VISIBLE viewport on a phone: iOS draws the keyboard over a
+   fixed element, so the sheet follows visualViewport instead of the window.
+   Without the variables (no visualViewport) it is the plain full screen. */
+@media (max-width: 767px) {
+  [data-assistant-chat] {
+    top: var(--vv-top, 0px) !important;
+    bottom: auto !important;
+    height: var(--vv-h, 100%) !important;
+  }
+  [data-assistant-chat][data-kb] .assistant-bigorb { display: none; }
+}
+
+[data-assistant-chat] .assistant-pill:focus-within {
+  border-color: hsl(var(--foreground) / 0.25);
+}
+[data-assistant-chat] .assistant-input {
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-assistant-chat] * { scroll-behavior: auto !important; }
+}

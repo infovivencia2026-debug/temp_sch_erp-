@@ -133,7 +133,7 @@ export default function Leads() {
     queryFn: () => api.get<Pipeline>(`${BASE}/pipeline`),
   })
 
-  if (leads.isLoading) return <SkeletonTiles count={4} />
+  if (leads.isLoading && !leads.data) return <SkeletonTiles count={4} />
   if (leads.error) return <ErrorState error={leads.error} />
 
   const items = leads.data?.items ?? []

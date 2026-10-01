@@ -1,30 +1,56 @@
-/* HAPTICS: the phone answers a press.
+/* HAPTICS: the phone answers a decision, not a touch.
 
-   A home screen that opens a drawer or turns a page without a tick under
-   the thumb reads as a web page; the same motion with a 10ms pulse reads as
-   the phone. The Vibration API is the whole mechanism -- Android WebView
-   honours it when the shell app holds the VIBRATE permission, iOS ignores it
-   entirely, and a desktop has nothing to shake -- so every call here is a
-   suggestion the platform is free to decline.
+   The Vibration API is the whole mechanism -- Android WebView honours it when
+   the shell app holds the VIBRATE permission, iOS ignores it entirely, and a
+   desktop has nothing to shake -- so every call here is a suggestion the
+   platform is free to decline.
 
-   Kept to moments that are already a decision: a card opening, the drawer
-   snapping up or back, a page landing, a destructive confirmation. Never on
-   hover, scroll, or anything that fires on a timer, because a phone that
-   buzzes while nobody is touching it is a phone somebody puts down.
+   There used to be one document-level listener that pulsed on EVERY press of
+   any button, tab, row or checkbox in the product. On a phone that is a buzz
+   for opening a card, a buzz for switching a tab, a buzz for ticking a box,
+   several hundred a day, and the owner's verdict was "unnecessary vibrations,
+   for all". It is gone. Every pulse is now placed by hand, and the list is
+   short enough to print:
 
-   Respects reduced motion: a person who has asked the OS for less movement
-   has asked for less of this too. */
+     event                                            kind     why
+     ------------------------------------------------ -------- ----------------------------------------
+     chat: long-press confirms, menu appears          select   a hold has no visible press; this is it
+     bento: long-press enters edit (arrange) mode     select   same: the hold is confirmed, not the tap
+     bento: long-press on a launcher tile, menu       select   same
+     bento: card picked up (held until it lifts)      select   the thumb now carries something
+     bento: card dropped into a NEW slot              snap     the board accepted the move
+     arrange sheet: handle picked up                  select   as above
+     arrange sheet: row dropped at a new position     snap     as above
+     board page lands under the dots                  select   once per landing, never per pixel
+     launcher sheet commits open / closed             open/snap the drawer settled; the drag stays silent
+     "Saved" tile the app shows after a submit        tap      one short tick with the confirmation
+     "Removed" tile after a DELETE the server took    warn     something is gone; two pulses, not a tap
+     Sign out pressed                                 warn     destructive; it cannot be read as a tap
+
+   Nothing on: plain button taps, tab switches, opening a card or screen,
+   picking from a dropdown, typing, scrolling, hover, keyboard moves, or
+   anything on a timer. A phone that buzzes while nobody is deciding anything
+   is a phone somebody puts down.
+
+   Two gates, both honoured before any pattern plays:
+     - the person's own switch, Settings > Appearance > Haptics (lib/appearance);
+     - the OS's reduced-motion preference, for the Vibration API path. The
+       Android shell's performHapticFeedback follows the phone's own
+       touch-feedback setting instead, which is the same preference by its
+       native name. */
+
+import { getAppearance } from './appearance'
 
 export type Haptic = 'tap' | 'select' | 'open' | 'snap' | 'warn'
 
 const PATTERNS: Record<Haptic, number | number[]> = {
-  /* A card, a dock button: barely there. */
+  /* The "Saved" tick: barely there. */
   tap: 8,
-  /* A page landing under the dots. */
+  /* A hold confirmed, a card lifted, a page landing under the dots. */
   select: 12,
-  /* The drawer committing; a screen opening. */
+  /* The drawer committing open. */
   open: [10, 30, 14],
-  /* The drawer sliding back down: a shorter, single answer. */
+  /* The drawer sliding back down, a card dropped: a shorter, single answer. */
   snap: 10,
   /* Something about to be lost. Two, so it cannot be read as a tap. */
   warn: [20, 40, 20],
@@ -48,8 +74,20 @@ function shellHaptic(): ((kind: string) => void) | null {
   return typeof h === 'function' ? (kind) => h.call(window.ErpShell, kind) : null
 }
 
+/** The person's own switch. Read on every call rather than cached: the
+    setting changes from a row in Settings and must take effect on the next
+    pulse, not the next load. */
+function wanted(): boolean {
+  try {
+    return getAppearance().haptics !== 'off'
+  } catch {
+    return true
+  }
+}
+
 function canBuzz(): boolean {
   if (quiet) return false
+  if (!wanted()) return false
   if (shellHaptic()) return true
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false
   try {
@@ -60,7 +98,8 @@ function canBuzz(): boolean {
   return true
 }
 
-/** Fire one pattern. Safe to call anywhere; a no-op off a phone. */
+/** Fire one pattern. Safe to call anywhere; a no-op off a phone, when the
+    person has switched haptics off, or when the OS asks for reduced motion. */
 export function buzz(kind: Haptic) {
   if (!canBuzz()) return
   try {
@@ -79,48 +118,4 @@ export function buzz(kind: Haptic) {
 /** Switch every pulse off for this session, for a screen that must be silent. */
 export function silenceHaptics(on: boolean) {
   quiet = on
-}
-
-/* EVERY OTHER BUTTON IN THE PRODUCT.
-
-   The calls above are placed by hand at moments worth marking — the drawer
-   committing, a page landing under the dots — and they cover the bento
-   surfaces and nothing else. A Save at the foot of a form, a choice in a
-   dialog, a row in a sheet: all silent, which is most of the buttons somebody
-   presses in a day.
-
-   Hand-placing the rest is not a real option. There are several hundred
-   buttons across a hundred and sixty files, and a change that must be made in
-   each of them is one that will be two thirds applied a month from now — this
-   codebase has the Skeleton family, written and argued for and then imported
-   by six files out of two hundred and ninety-one, as the proof.
-
-   So one listener at the document, in the CAPTURE phase, because several
-   menus here call stopPropagation and a bubbling listener would lose exactly
-   the controls that need feedback most.
-
-   `pointerdown`, not click: the confirmation belongs to the press. On a slow
-   screen a pulse that waits for the click arrives after the action has run,
-   which reads as a response to something else.
-
-   Touch only and primary pointer only — a mouse has its own click, and a
-   stylus hovering is not a press. Never on a disabled control: that is the
-   one moment somebody needs to notice the thing is unavailable, and buzzing
-   would say the opposite. */
-export function startHaptics() {
-  if (typeof document === 'undefined') return
-  document.addEventListener(
-    'pointerdown',
-    (e) => {
-      if (!e.isPrimary || e.pointerType !== 'touch') return
-      const el = (e.target as HTMLElement | null)?.closest?.(
-        'button, [role="button"], [role="tab"], [role="menuitem"], [role="option"],' +
-          ' [role="switch"], summary, label[for], input[type="checkbox"], input[type="radio"]',
-      )
-      if (!el) return
-      if (el.matches('[disabled], [aria-disabled="true"]')) return
-      buzz('tap')
-    },
-    { capture: true, passive: true },
-  )
 }

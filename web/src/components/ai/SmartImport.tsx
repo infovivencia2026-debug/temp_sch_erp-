@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera, FileSpreadsheet, Sparkles, X } from 'lucide-react'
-import { Badge, Button, Checkbox, FormNotice } from '@/components/ui'
-import { useOverlayHistory } from '@/lib/overlay-history'
+import { Camera, FileSpreadsheet, Sparkles } from 'lucide-react'
+import { Badge, Button, Checkbox, Dialog, FormNotice } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { smartImportApi, type Analysis, type ColumnMap, type ImportKind, type RunResult, type Table } from './smartApi'
 
@@ -39,7 +38,6 @@ export function ImportWithAIButton({ kind, onDone, size = 'sm', variant = 'secon
 }
 
 export default function SmartImport({ kind: initialKind, onClose, onDone }: { kind?: string; onClose: () => void; onDone?: () => void }) {
-  useOverlayHistory(true, onClose)
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const camRef = useRef<HTMLInputElement>(null)
@@ -100,20 +98,42 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
     return m
   }, [result])
 
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Import with AI">
-      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden bg-card sm:rounded-[12px] sm:border">
-        <div className="flex items-center gap-2 border-b px-4 py-3">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h2 className="text-[15px] font-semibold">Import with AI</h2>
-          <span className="text-[12.5px] text-muted-foreground">
-            {step === 'pick' ? 'Any spreadsheet or a photo of a register' : step === 'review' ? 'Check what was read from the photo'
-              : step === 'map' ? 'Check the columns' : step === 'preview' ? 'Preview: nothing is saved yet' : 'Done'}
-          </span>
-          <Button size="sm" variant="ghost" className="ml-auto" title="Close" onClick={onClose}><X className="h-4 w-4" /></Button>
+  /* The shared Dialog: Escape, the dim and the phone's Back close it, focus
+     is trapped, and on a phone it is a bottom sheet with the steps pinned. */
+  return (
+    <Dialog
+      onClose={onClose}
+      size="xl"
+      label="Import with AI"
+      title={<span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" />Import with AI</span>}
+      description={step === 'pick' ? 'Any spreadsheet or a photo of a register' : step === 'review' ? 'Check what was read from the photo'
+        : step === 'map' ? 'Check the columns' : step === 'preview' ? 'Preview: nothing is saved yet' : 'Done'}
+      footer={step === 'pick' ? undefined : (
+        <div className="flex w-full flex-wrap items-center gap-2">
+          {step === 'review' && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep('pick')}>Back</Button>
+            <Button size="sm" className="ml-auto" disabled={!reviewed || busy} pending={busy} onClick={proposeFromReviewed}>Match columns</Button>
+          </>}
+          {step === 'map' && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep(a?.source === 'photo' ? 'review' : 'pick')}>Back</Button>
+            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || busy} pending={busy} onClick={preview}>Preview</Button>
+          </>}
+          {step === 'preview' && result && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep('map')}>Change columns</Button>
+            {confirm ? (
+              <span className="ml-auto flex items-center gap-2 text-[13px]">
+                Import {result.valid} row{result.valid === 1 ? '' : 's'} as {result.label}?
+                <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>No</Button>
+                <Button size="sm" pending={busy} disabled={busy} onClick={commit}>Yes, import</Button>
+              </span>
+            ) : (
+              <Button size="sm" className="ml-auto" disabled={result.valid === 0 || busy} onClick={() => setConfirm(true)}>Import {result.valid} row{result.valid === 1 ? '' : 's'}</Button>
+            )}
+          </>}
+          {step === 'done' && <Button size="sm" className="ml-auto" onClick={onClose}>Close</Button>}
         </div>
-
-        <div className="min-h-0 flex-1 overflow-auto p-4">
+      )}
+    >
           {error ? <div className="mb-3"><FormNotice error={error} /></div> : null}
 
           {step === 'pick' && (
@@ -155,9 +175,8 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
             <>
               <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
                 <span>This looks like</span>
-                <select className="field h-8 w-auto" value={kind} disabled={busy} onChange={(e) => reKind(e.target.value)}>
-                  {kinds.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-                </select>
+                <PickerMenu ariaLabel="Kind of data" align="start" className={busy ? 'pointer-events-none opacity-60' : undefined} value={kind} onChange={reKind}
+                  options={kinds.map((k) => ({ value: k.key, label: k.label }))} />
                 {a?.ai ? <Badge tone="primary">matched by AI</Badge> : <Badge>matched by column names</Badge>}
                 <span className="text-muted-foreground">{table.rows.length} rows</span>
               </div>
@@ -171,10 +190,8 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                         <td className="px-3 py-2 font-medium">{m.header}</td>
                         <td className="max-w-[16rem] truncate px-3 py-2 text-muted-foreground">{table.rows.find((r) => r[m.index])?.[m.index] ?? ''}</td>
                         <td className="px-3 py-2">
-                          <select className="field h-8" value={m.field ?? ''} onChange={(e) => setField(m.index, e.target.value)}>
-                            <option value="">Skip this column</option>
-                            {kindDef.columns.map((c) => <option key={c} value={c}>{c.replace(/_/g, ' ')}{kindDef.required.includes(c) ? ' *' : ''}</option>)}
-                          </select>
+                          <PickerMenu ariaLabel={`Where ${m.header} goes`} align="start" value={m.field ?? ''} onChange={(v) => setField(m.index, v)}
+                            options={[{ value: '', label: 'Skip this column' }, ...kindDef.columns.map((c) => ({ value: c, label: `${c.replace(/_/g, ' ')}${kindDef.required.includes(c) ? ' *' : ''}` }))]} />
                         </td>
                         <td className="px-3 py-2">{m.field ? (m.source === 'user' ? <Badge>you chose</Badge> : <Badge tone={confTone(m.confidence)}>{pct(m.confidence)}</Badge>) : null}</td>
                       </tr>
@@ -224,34 +241,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
               )}
             </>
           )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
-          {step === 'review' && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep('pick')}>Back</Button>
-            <Button size="sm" className="ml-auto" disabled={!reviewed || busy} pending={busy} onClick={proposeFromReviewed}>Match columns</Button>
-          </>}
-          {step === 'map' && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep(a?.source === 'photo' ? 'review' : 'pick')}>Back</Button>
-            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || busy} pending={busy} onClick={preview}>Preview</Button>
-          </>}
-          {step === 'preview' && result && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep('map')}>Change columns</Button>
-            {confirm ? (
-              <span className="ml-auto flex items-center gap-2 text-[13px]">
-                Import {result.valid} row{result.valid === 1 ? '' : 's'} as {result.label}?
-                <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>No</Button>
-                <Button size="sm" pending={busy} disabled={busy} onClick={commit}>Yes, import</Button>
-              </span>
-            ) : (
-              <Button size="sm" className="ml-auto" disabled={result.valid === 0 || busy} onClick={() => setConfirm(true)}>Import {result.valid} row{result.valid === 1 ? '' : 's'}</Button>
-            )}
-          </>}
-          {step === 'done' && <Button size="sm" className="ml-auto" onClick={onClose}>Close</Button>}
-        </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
 

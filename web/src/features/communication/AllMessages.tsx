@@ -12,7 +12,6 @@ import {
 import { useFeatureHref } from '../bento/bento-kit'
 import { usePhone } from '@/lib/viewport'
 import { useOpenState } from '@/lib/motion'
-import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* All messages.
  *
@@ -375,11 +374,6 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         error={reply.error}
         allowAttachments={false}
         placeholder="Reply to the parent, sent in your name; the teacher sees it too"
-        composerTools={item.student_id ? (draft, setDraft) => (
-          <WriteWithAI kind="parent_message" context={{ student_id: item.student_id,
-            reply_to: [...(thread.data?.items ?? [])].reverse().find((m) => !m.from_school)?.body }}
-            current={draft} onInsert={setDraft} defaultLength="short" />
-        ) : undefined}
         height="min-h-0"
       />
     </ThreadPane>
@@ -504,24 +498,22 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <div className="flex min-w-0 items-baseline gap-1.5">
               <span className="truncate text-[14.5px] font-bold">{it.from || '-'}</span>
-              <span className="rounded-full bg-sky-100 px-2 py-px text-[11px] font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
-                {senderRole}
-              </span>
+              <Badge tone="info">{senderRole}</Badge>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
               <span>{when(it.last_at)}</span>
               {it.pending ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-px text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                <Badge tone="warning">
                   {it.channel === 'circular' && it.asked != null
                     ? `${it.acked}/${it.asked} acknowledged`
                     : it.channel === 'staff_parent'
                       ? 'Not read by the parent yet'
                       : 'Waiting for reply'}
-                </span>
+                </Badge>
               ) : (
-                <span className="rounded-full bg-muted px-2 py-px text-[11px] font-semibold text-foreground/70">
+                <Badge>
                   {it.handler ? `With ${it.handler}` : it.status ? it.status.replace(/_/g, ' ') : 'Answered'}
-                </span>
+                </Badge>
               )}
             </div>
           </div>

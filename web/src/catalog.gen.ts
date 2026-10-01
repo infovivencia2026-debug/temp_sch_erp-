@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 423 features. */
+/** 24 roles, 425 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -332,6 +332,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
           { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
           { key: 'institution_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'A message to one colleague, a head of department, a class teacher, rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
+          { key: 'institution_admin.communication.class_status', slug: 'class_status', name: 'Class Status', scope: 'institution', tier: 'core', summary: 'Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers\' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.' },
         ],
       },
       {
@@ -727,6 +728,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.communication.ptm_notes_action_items', slug: 'ptm_notes_action_items', name: 'PTM notes & action items', scope: 'assigned_classes', tier: 'core', summary: 'Who came to the parents’ meeting, what they raised, and what was agreed.' },
           { key: 'faculty.communication.classroom_communication', slug: 'classroom_communication', name: 'Classroom communication', scope: 'assigned_classes', tier: 'core', summary: 'A notice to a whole class, or to one child’s parent.' },
           { key: 'faculty.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them.' },
+          { key: 'faculty.communication.class_status', slug: 'class_status', name: 'Class Status', scope: 'institution', tier: 'core', summary: 'Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status: it disappears after 24 hours unless you pin it to the class gallery. See who has viewed each post.' },
         ],
       },
       {
@@ -1549,7 +1551,7 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.learning.courses_subjects', slug: 'courses_subjects', name: 'Courses / subjects', scope: 'self', tier: 'core', summary: 'Current enrolled courses/subjects, teacher and learning resources.' },
-          { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'E-Learning Resource Hub', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
+          { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'LMS', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
           { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: 'Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
           { key: 'student.learning.peer_tutoring_study_groups', slug: 'peer_tutoring_study_groups', name: 'Peer Tutoring & Study Groups', scope: 'self', tier: 'optional', summary: 'Sign up as student tutors or request peer study group assistance in specific subjects.' },
           { key: 'student.learning.gamified_learning_streak_counter', slug: 'gamified_learning_streak_counter', name: 'Gamified Learning Streak Counter', scope: 'self', tier: 'optional', summary: 'Visual daily login and homework completion streak counter rewarding students with digital badges.' },

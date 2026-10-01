@@ -54,7 +54,7 @@ export default function Branding() {
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
   const [touched, setTouched] = useState(false)
 
-  if (isLoading) return <SkeletonTable columns={5} />
+  if (isLoading && !data) return <SkeletonTable columns={5} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

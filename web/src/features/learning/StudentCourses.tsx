@@ -1,23 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Clock, Lock, PlayCircle } from 'lucide-react'
-import { api } from '@/lib/api'
-import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
 import {
-  FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, ProgressRing, SECTIONS, SECTION_LABEL, dateRange, fmtWhen, sourceMeta,
+  ArrowLeft, ArrowRight, BookOpen, ExternalLink, Share2, Calculator, Check, Clock, FlaskConical, Globe2, Languages, Lock, Monitor, Music, Palette, Play, Sparkles, Star, Trophy,
+} from 'lucide-react'
+import { api } from '@/lib/api'
+import { Badge, Button, Card, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
+import { cn } from '@/lib/utils'
+import {
+  FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
-import { Bone, DoneCheck, DueChip, confetti, rememberPlace } from '../portal/student-kit'
+import { Bone, DoneCheck, DueChip, HUE, Ring, confetti, reducedMotion, rememberPlace, type Hue } from '../portal/student-kit'
 import { StudentQuiz } from './StudentQuiz'
 
 /* THE CHILD'S COURSES (worker routes/portal/lms.ts).
 
    Every subject of their class, with how far through they are. Inside one,
    the course is taken one day at a time (worker lms_progress.ts): a big
-   Continue button, then the modules, each opening to its days (done, open
-   with a ring, or locked with the reason). A day shows its four sections,
-   Pre-requisites, Resources, Tools and Assessment; a source opens in its
+   Keep going button, then the modules as a path of numbered stops, each
+   opening to its days as big numbered bubbles (done, open, or locked with
+   the reason). The words are for young children: the four sections show as
+   Before you start, Learn, Practice and Show what you know (KID_SECTION_LABEL;
+   the stored values do not change), and a day is a checklist of steps with
+   big Back / Next arrows stuck to the bottom on a phone. A source opens in its
    viewer with a way to mark it done (a library video marks itself at 90%
    watched), and previous / next run through the day and on to the next
    one once it is open. Assignments show what was handed in and, once returned, the marks
@@ -47,9 +53,66 @@ interface Todo {
 export default function StudentCourses() {
   const [params, setParams] = useSearchParams()
   const open = params.get('cs')
-  if (open) return <Course key={open} cs={open} initial={{ day: params.get('day'), item: params.get('item') }} back={() => setParams({})} />
+  if (open) return <Course key={open} cs={open} initial={{ mod: params.get('mod'), day: params.get('day'), item: params.get('item') }} back={() => setParams({})} />
   return <List onOpen={(cs) => setParams({ cs })} />
 }
+
+/* A subject's picture: a line icon and a soft colour from the scheme, picked
+   from the name so the same subject always looks the same. */
+const SUBJECT_LOOKS: [RegExp, typeof BookOpen, Hue][] = [
+  [/physical|sport|\bpe\b|games|yoga/i, Trophy, 'sky'],
+  [/math|arith|algebra|geometr|ganit/i, Calculator, 'indigo'],
+  [/science|physic|chem|bio|evs|environment/i, FlaskConical, 'emerald'],
+  [/social|history|geograph|civic|econom|\bgk\b|general knowledge/i, Globe2, 'amber'],
+  [/english|hindi|telugu|tamil|kannada|sanskrit|urdu|french|language|lit|grammar|reading/i, Languages, 'rose'],
+  [/computer|coding|\bict\b|\bit\b|robot/i, Monitor, 'sky'],
+  [/art|draw|craft|paint/i, Palette, 'rose'],
+  [/music|danc|sing/i, Music, 'sky'],
+]
+const HUE_CYCLE: Hue[] = ['indigo', 'emerald', 'amber', 'sky', 'rose']
+function subjectLook(name: string): { Icon: typeof BookOpen; hue: Hue } {
+  for (const [re, Icon, hue] of SUBJECT_LOOKS) if (re.test(name)) return { Icon, hue }
+  let h = 0
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return { Icon: BookOpen, hue: HUE_CYCLE[h % HUE_CYCLE.length] }
+}
+
+/** Up to five stars for how far through a subject is (0-100). */
+function Stars({ pct, label }: { pct: number; label: string }) {
+  const n = Math.round(pct / 20)
+  return (
+    <span className="inline-flex items-center gap-0.5" role="img" aria-label={label}>
+      {[0, 1, 2, 3, 4].map((i) => <Star key={i} className={cn('h-4 w-4', i < n ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-muted-foreground/40')} strokeWidth={1.75} aria-hidden />)}
+    </span>
+  )
+}
+
+/* The bar of big arrow buttons at the bottom of a day or a step. On a phone it
+   sticks above the tab bar (and the home indicator), so the thumb finds it. */
+function ArrowBar({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <nav aria-label={label}
+      className="sticky bottom-[calc(var(--dock-reserve,env(safe-area-inset-bottom,0px))+8px)] z-20 -mx-1 mt-2 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 rounded-2xl border bg-card/95 p-1.5 shadow-lg backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+      {children}
+    </nav>
+  )
+}
+const ARROW = 'h-auto min-h-[56px] w-full gap-2 whitespace-normal rounded-xl px-3 py-2 text-[17px] font-semibold'
+function BackBtn({ onClick, sub }: { onClick: () => void; sub?: string }) {
+  return (
+    <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'justify-start text-left')}>
+      <ArrowLeft className="h-6 w-6 shrink-0" aria-hidden />
+      <span className="min-w-0"><span className="block">Back</span>{sub && <span className="block truncate text-[13px] font-normal text-muted-foreground">{sub}</span>}</span>
+    </Button>
+  )
+}
+const NextBtn = ({ onClick, label, sub, locked, hot, btnRef }: { onClick: () => void; label: string; sub?: string; locked?: boolean; hot?: boolean; btnRef?: Ref<HTMLSpanElement> }) => (
+  <span ref={btnRef} className="block min-w-0"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
+    className={cn(ARROW, 'justify-end text-right', hot && !locked && 'ring-4 ring-primary/25')}>
+    <span className="min-w-0"><span className="block">{label}</span>{sub && <span className={cn('block truncate text-[13px] font-normal', hot && !locked ? 'opacity-85' : 'text-muted-foreground')}>{sub}</span>}</span>
+    {locked ? <Lock className="h-6 w-6 shrink-0" aria-hidden /> : <ArrowRight className="h-6 w-6 shrink-0" aria-hidden />}
+  </Button></span>
+)
 
 /* One skeleton the shape of the page, then the page: the to-do and the
    subjects arrive together, so nothing is pushed down when the second lands. */
@@ -58,64 +121,77 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   const todo = useQuery({ queryKey: ['my-lms-todo'], queryFn: () => api.get<Todo>('/api/v1/portal/lms/todo') })
   const t = todo.data
   const rows = t ? [
-    ...t.assignments.map((a) => ({ id: a.id, cs: a.class_subject_id, chip: <DueChip due={a.due_on} />, title: a.title, meta: `${a.subject ?? 'Assignment'}${a.status === 'resubmit' ? ' · your teacher asked for a redo' : ''}` })),
-    ...t.quizzes.map((z) => ({ id: z.id, cs: z.class_subject_id, chip: <Badge tone="info">Quiz</Badge>, title: z.title, meta: `${z.subject}${z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}` })),
-    ...t.lessons.slice(0, 3).map((l) => ({ id: l.id, cs: l.class_subject_id, chip: <Badge>Up next</Badge>, title: l.title, meta: `${l.subject} · ${l.unit}` })),
+    ...t.assignments.map((a) => ({ id: a.id, cs: a.class_subject_id, kind: 'assignment', chip: <DueChip due={a.due_on} />, title: a.title, meta: `${a.subject ?? 'Homework'}${a.status === 'resubmit' ? ' · your teacher asked you to try again' : ''}` })),
+    ...t.quizzes.map((z) => ({ id: z.id, cs: z.class_subject_id, kind: 'quiz', chip: <Badge tone="info">Quiz</Badge>, title: z.title, meta: `${z.subject}${z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}` })),
+    ...t.lessons.slice(0, 3).map((l) => ({ id: l.id, cs: l.class_subject_id, kind: 'text', chip: <Badge>Up next</Badge>, title: l.title, meta: `${l.subject} · ${l.unit}` })),
   ] : []
   const ready = !!q.data && (!!t || !!todo.error)
+  const shared = useShared()
+  const names = new Set((q.data?.items ?? []).map((c) => c.subject))
+  const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
     <>
-      <PageHead eyebrow="Learning" title="My courses" />
+      <PageHead eyebrow="Learning" title="My subjects" />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !ready ? (
           <div className="space-y-4" aria-busy>
-            <Card><div className="h-[52px] border-b" />{[0, 1, 2].map((i) => <div key={i} className="flex h-[64px] items-center gap-3 border-b px-[var(--card-pad)] last:border-b-0"><Bone className="h-4 flex-1" /><Bone className="h-6 w-24 rounded-full" /></div>)}</Card>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Bone key={i} className="h-[132px] rounded-2xl" />)}</div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Bone key={i} className="h-[184px] rounded-2xl" />)}</div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {!q.data!.items.length ? <EmptyState title="No subjects yet" body="Your class has no subjects set up yet." /> : (
+              <section aria-label="Subjects" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {q.data!.items.map((c) => {
+                  const pct = c.lessons ? Math.round((100 * c.completed) / c.lessons) : 0
+                  const { Icon, hue } = subjectLook(c.subject)
+                  const all = c.lessons > 0 && c.completed >= c.lessons
+                  return (
+                    <button key={c.class_subject_id} type="button" onClick={() => onOpen(c.class_subject_id)}
+                      className="card flex min-h-[184px] flex-col items-center justify-start gap-2 p-4 text-center transition active:scale-[.98] hover:bg-muted/30">
+                      <Ring pct={pct} size={84} stroke={7} hue={hue} label={`${c.completed} of ${c.lessons} done`}>
+                        <span className={cn('grid h-[58px] w-[58px] place-items-center rounded-full', HUE[hue].bg, HUE[hue].fg)}>
+                          {all ? <Check className="h-8 w-8" strokeWidth={2.25} aria-hidden /> : <Icon className="h-8 w-8" strokeWidth={1.6} aria-hidden />}
+                        </span>
+                      </Ring>
+                      <span className="block text-[18px] font-semibold leading-tight [overflow-wrap:anywhere]">{c.subject}</span>
+                      {c.lessons ? <Stars pct={pct} label={`${c.completed} of ${c.lessons} done`} /> : <span className="text-[14px] text-muted-foreground">Nothing yet</span>}
+                      {(c.to_do > 0 || c.quizzes_open > 0) && (
+                        <span className="flex flex-wrap justify-center gap-1.5">
+                          {c.to_do > 0 && <Badge tone="warning">{c.to_do} homework</Badge>}
+                          {c.quizzes_open > 0 && <Badge tone="info">{c.quizzes_open} quiz</Badge>}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </section>
+            )}
+            {unfiled.length > 0 && (
+              <Card>
+                <h2 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">Shared by your teachers</h2>
+                <SharedRows items={unfiled} />
+              </Card>
+            )}
             {rows.length > 0 && (
               <Card>
-                <CardHeader title={`To do (${rows.length})`} />
+                <h2 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">To do ({rows.length})</h2>
                 <ul className="divide-y">
                   {rows.map((r) => (
                     <li key={r.id}>
-                      <Button variant="ghost" onClick={() => r.cs && onOpen(r.cs)}
-                        className="h-auto min-h-[64px] w-full justify-start gap-3 whitespace-normal rounded-none text-foreground px-[var(--card-pad)] py-2.5 text-left">
+                      <button type="button" onClick={() => r.cs && onOpen(r.cs)}
+                        className="flex min-h-[68px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left hover:bg-muted/40">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/[0.07] text-primary"><KindIcon kind={r.kind} className="h-6 w-6" /></span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[15px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
-                          <span className="block text-[13px] font-normal text-muted-foreground">{r.meta}</span>
+                          <span className="block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
+                          <span className="block text-[14px] text-muted-foreground">{r.meta}</span>
                         </span>
                         {r.chip}
-                      </Button>
+                        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
                     </li>
                   ))}
                 </ul>
               </Card>
-            )}
-            {!q.data!.items.length ? <EmptyState title="No subjects yet" body="Your class has no subjects set up yet." /> : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {q.data!.items.map((c) => {
-                  const pct = c.lessons ? Math.round((100 * c.completed) / c.lessons) : 0
-                  return (
-                    <Button key={c.class_subject_id} variant="secondary" onClick={() => onOpen(c.class_subject_id)}
-                      className="card h-auto min-h-[132px] w-full flex-col text-foreground items-stretch justify-start gap-0 whitespace-normal p-4 text-left font-normal text-foreground">
-                      <span className="flex items-center gap-3">
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[16px] font-semibold">{c.subject}</span>
-                          <span className="block text-[13px] text-muted-foreground">{c.teacher ?? 'Teacher not set'}</span>
-                        </span>
-                        <ProgressRing pct={pct} size={44} />
-                      </span>
-                      <span className="mt-2 block text-[13px]">{c.lessons ? `${c.completed} of ${c.lessons} done` : 'Nothing added yet'}</span>
-                      <span className="mt-1 flex min-h-6 flex-wrap gap-2">
-                        {c.to_do > 0 && <Badge tone="warning">{c.to_do} to hand in</Badge>}
-                        {c.quizzes_open > 0 && <Badge tone="info">{c.quizzes_open} quiz open</Badge>}
-                      </span>
-                    </Button>
-                  )
-                })}
-              </div>
             )}
           </div>
         )}
@@ -131,61 +207,129 @@ interface Resume { type: 'lesson' | 'assignment' | 'quiz'; id: string; unit_id: 
 const OTHER = 'other'
 const shortDay = (d: SDay) => (d.day === null ? d.label || 'More' : `Day ${d.day}`)
 interface Stop { m: SModule; d: SDay; it: SItem }
+const kindOf = (it: SItem) => (it.type === 'lesson' ? it.lesson?.kind ?? 'text' : it.type)
+const canOpen = (it: SItem) => !it.locked && !(it.type === 'lesson' && it.lesson?.scheduled)
 
-function DayMark({ d, size = 40 }: { d: SDay; size?: number }) {
-  if (d.state === 'done') return <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-success text-white" style={{ width: size, height: size }} aria-label="Done"><Check className="h-5 w-5" /></span>
-  if (d.state === 'locked') return <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" style={{ width: size, height: size }} aria-label="Locked"><Lock className="h-4 w-4" /></span>
-  return <ProgressRing pct={d.total ? Math.round((100 * d.done) / d.total) : 0} size={size} label={`${d.done} of ${d.total} done`} />
+/* "Where you are" wears the same colour as the primary button (which the
+   school may paint apart from the accent), with a soft halo round it. */
+const GO = 'border-[hsl(var(--paint-buttons-bg,var(--primary)))] bg-[hsl(var(--paint-buttons-bg,var(--primary)))] text-[hsl(var(--paint-buttons-text,var(--primary-foreground)))] shadow-[0_0_0_6px_hsl(var(--paint-buttons-bg,var(--primary))/0.18)]'
+
+/** A stop on the module path: tick when done, lock when shut, glowing when it is where the child is. */
+function PathDot({ n, state }: { n: number | string; state: 'done' | 'current' | 'open' | 'locked' }) {
+  return (
+    <span className="relative z-[1] grid h-14 w-14 shrink-0 place-items-center">
+      {state === 'current' && <span aria-hidden className="absolute inset-0 rounded-full bg-[hsl(var(--paint-buttons-bg,var(--primary))/0.25)] motion-safe:animate-ping [animation-duration:2.2s]" />}
+      <span className={cn('relative grid h-14 w-14 place-items-center rounded-full border-2 text-[20px] font-bold',
+        state === 'done' ? 'border-success bg-success text-white'
+          : state === 'current' ? GO
+            : state === 'locked' ? 'border-border bg-muted text-muted-foreground' : 'border-primary/40 bg-card text-primary')}>
+        {state === 'done' ? <Check className="h-7 w-7" strokeWidth={2.5} aria-hidden /> : state === 'locked' ? <Lock className="h-6 w-6" aria-hidden /> : n}
+      </span>
+    </span>
+  )
 }
 
-function Course({ cs, back, initial }: { cs: string; back: () => void; initial: { day: string | null; item: string | null } }) {
+/* What a teacher shared with the child outside any module (worker
+   portal/learning.ts, study_materials): kept so nothing is lost now that the
+   LMS opens on the subjects. Shown inside its subject, or on the subjects
+   page when it names none. */
+interface Shared {
+  id: string; title: string; description?: string; kind: string; subject?: string; external_url?: string; file_id?: string; file_name?: string
+  content_type?: string; uploaded_by?: string; posted_on: string; seen?: boolean
+}
+const SHARED = 'shared'
+const useShared = () => useQuery({ queryKey: ['learning-resources-lms'], queryFn: () => api.get<{ items: Shared[] }>('/api/v1/portal/learning/resources'), retry: false })
+function sharedKind(r: Shared): string {
+  const ct = r.content_type ?? ''
+  if (!r.file_id) return r.kind === 'video' ? 'video' : 'link'
+  if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'video'
+  if (ct.startsWith('audio/')) return 'audio'
+  if (ct === 'application/pdf') return 'pdf'
+  return 'file'
+}
+const sharedHref = (r: Shared) => (r.file_id ? `/api/v1/files/${r.file_id}?inline=1` : r.external_url ?? '#')
+
+/** Shared items as big rows; opening one marks it seen. */
+function SharedRows({ items }: { items: Shared[] }) {
+  const qc = useQueryClient()
+  const seen = (id: string) => { void api.post(`/api/v1/portal/learning/resources/${id}/seen`, {}).catch(() => undefined).then(() => qc.invalidateQueries({ queryKey: ['learning-resources-lms'] })) }
+  return (
+    <ol className="divide-y">
+      {items.map((r) => {
+        const k = sharedKind(r)
+        return (
+          <li key={r.id}>
+            <a href={sharedHref(r)} target="_blank" rel="noreferrer" onClick={() => seen(r.id)}
+              className="flex min-h-[76px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-muted/40">
+              <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', r.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/[0.08] text-primary')}><KindIcon kind={k} className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold uppercase tracking-wide text-primary">{KID_KIND_LABEL[k] ?? 'Open'}{!r.seen && <Badge tone="primary">New</Badge>}</span>
+                <span className="block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
+                <span className="block text-[14px] text-muted-foreground">{[r.uploaded_by, r.posted_on].filter(Boolean).join(' · ')}</span>
+              </span>
+              <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+            </a>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+interface Where { mod: string | null; day: string | null; item: string | null }
+
+function Course({ cs, back, initial }: { cs: string; back: () => void; initial: Where }) {
   const qc = useQueryClient()
   const key = ['my-course', cs]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<Detail>(`/api/v1/portal/lms/course?class_subject_id=${cs}`) })
-  const [where, setWhere] = useState<{ day: string | null; item: string | null }>(initial)
+  const shared = useShared()
+  const [where, setWhere] = useState<Where>(initial)
   const [, setParams] = useSearchParams()
-  const [expanded, setExpanded] = useState<string | null>(null)
   const [quiz, setQuiz] = useState<string | null>(null)
   const top = useRef<HTMLDivElement>(null)
   const first = useRef(true)
   useEffect(() => {
     if (first.current) { first.current = false; return }
     top.current?.scrollIntoView({ block: 'start' })
-  }, [where.day, where.item, quiz])
+  }, [where.mod, where.day, where.item, quiz])
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['my-courses'] }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }) }
   const d = q.data
   /* Keep the address and the device's "where I left off" on this place. */
   useEffect(() => {
     const p = new URLSearchParams({ cs })
+    if (where.mod) p.set('mod', where.mod)
     if (where.day) p.set('day', where.day)
     if (where.item) p.set('item', where.item)
     setParams(p, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cs, where.day, where.item])
+  }, [cs, where.mod, where.day, where.item])
   useEffect(() => {
     if (!d) return
     const [ty, iid] = (where.item ?? ':').split(':')
     const title = ty === 'lesson' ? d.modules.flatMap((m) => m.days.flatMap((x) => x.items)).find((x) => x.id === iid)?.lesson?.title
       : ty === 'quiz' ? d.quizzes.find((z) => z.id === iid)?.title : ty === 'assignment' ? d.assignments.find((a) => a.id === iid)?.title : undefined
     const dayName = where.day ? d.modules.flatMap((m) => m.days).find((x) => x.key === where.day)?.name : undefined
-    rememberPlace({ cs, day: where.day, item: where.item, subject: d.course.subject, title: title ?? dayName ?? d.resume?.title ?? d.course.subject })
-  }, [cs, d, where.day, where.item])
+    const modName = where.mod ? d.modules.find((m) => m.id === where.mod)?.title : undefined
+    rememberPlace({ cs, day: where.day, item: where.item, subject: d.course.subject, title: title ?? dayName ?? modName ?? d.resume?.title ?? d.course.subject })
+  }, [cs, d, where.mod, where.day, where.item])
   if (quiz) return <div ref={top}><StudentQuiz id={quiz} back={() => { setQuiz(null); refresh() }} /></div>
 
   const modules = d?.modules ?? []
-  const tops = modules.filter((m) => !m.parent_unit_id || !modules.some((x) => x.id === m.parent_unit_id))
-  const number = (m: SModule) => {
-    if (!m.parent_unit_id) return `Module ${tops.indexOf(m) + 1}`
-    const p = modules.find((x) => x.id === m.parent_unit_id)
-    return p ? `Module ${tops.indexOf(p) + 1}.${modules.filter((x) => x.parent_unit_id === p.id).indexOf(m) + 1}` : 'Module'
-  }
+  const byId = new Map(modules.map((m) => [m.id, m]))
+  const tops = modules.filter((m) => !m.parent_unit_id || !byId.has(m.parent_unit_id))
+  const kids = (id: string) => modules.filter((x) => x.parent_unit_id === id)
+  /** A module and everything inside it, in the order taken. */
+  const subtree = (m: SModule, seen = new Set<string>()): SModule[] => (seen.has(m.id) ? [] : (seen.add(m.id), [m, ...kids(m.id).flatMap((k) => subtree(k, seen))]))
+  const parentOf = (m: SModule) => (m.parent_unit_id ? byId.get(m.parent_unit_id) ?? null : null)
   /* The stops, in the order the course is taken. */
   const stops: Stop[] = modules.flatMap((m) => m.days.flatMap((dd) => dd.items.map((it) => ({ m, d: dd, it }))))
   const loose: SItem[] = d ? [
     ...d.assignments.filter((a) => !a.lms_unit_id).map((a) => ({ type: 'assignment' as const, id: a.id, section: 'assessment' as Section, required: false, done: !!a.submitted_at && a.status !== 'resubmit' || a.status === 'graded', pass_percent: null, locked: false })),
     ...d.quizzes.filter((z) => !z.lms_unit_id).map((z) => ({ type: 'quiz' as const, id: z.id, section: 'assessment' as Section, required: false, done: z.attempts > 0, pass_percent: null, locked: false })),
   ] : []
-  const otherModule: SModule = { id: OTHER, title: 'Other work', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'Other work', name: 'Other work', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
+  const otherModule: SModule = { id: OTHER, title: 'More to do', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'More to do', name: 'More to do', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
+  const mySharedItems = (shared.data?.items ?? []).filter((r) => d && r.subject === d.course.subject)
   /* A link that names only the item (the home's Quiz time) may point at work
      that is on no day; it is then found among the other work. */
   const looseStops = loose.map((it) => ({ m: otherModule, d: otherModule.days[0], it }))
@@ -193,34 +337,61 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   const dayStops = where.day === OTHER || inLoose ? looseStops : stops
   const cur = where.day ? (where.day === OTHER ? { m: otherModule, d: otherModule.days[0] } : (() => { for (const m of modules) { const x = m.days.find((y) => y.key === where.day); if (x) return { m, d: x } } return null })()) : null
   const item = where.item ? dayStops.find((s) => `${s.it.type}:${s.it.id}` === where.item) ?? null : null
-  const titleOf = (it: SItem) => it.type === 'lesson' ? it.lesson?.title ?? '' : it.type === 'quiz' ? d?.quizzes.find((z) => z.id === it.id)?.title ?? 'Quiz' : d?.assignments.find((a) => a.id === it.id)?.title ?? 'Assignment'
+  const mod = !item && !cur && where.mod ? (where.mod === SHARED ? SHARED : byId.get(where.mod) ?? null) : null
+  const titleOf = (it: SItem) => it.type === 'lesson' ? it.lesson?.title ?? '' : it.type === 'quiz' ? d?.quizzes.find((z) => z.id === it.id)?.title ?? 'Quiz' : d?.assignments.find((a) => a.id === it.id)?.title ?? 'Homework'
   const allDays = modules.flatMap((m) => m.days)
   const daysDone = allDays.filter((x) => x.state === 'done').length
-  const open = (s: Stop) => setWhere({ day: s.d.key, item: `${s.it.type}:${s.it.id}` })
-  const backLabel = item ? shortDay(item.d) : cur ? 'All modules' : 'My courses'
+  const open = (s: Stop) => setWhere({ mod: s.m.id, day: s.d.key, item: `${s.it.type}:${s.it.id}` })
+  const toModule = (id: string | null) => setWhere({ mod: id, day: null, item: null })
+  /* Back from a day (or from a step with no day to go back to): the day's
+     page, or for the part of a module with no day, the module itself. */
+  const toDay = (k: string) => {
+    const hit = stops.find((s) => s.d.key === k)
+    if (hit && hit.d.day === null) toModule(hit.m.id)
+    else setWhere({ mod: hit?.m.id ?? null, day: k, item: null })
+  }
+  /* The day the child is on: the resume's, else the first open one not done. */
+  const hereDay = d?.resume?.day_key ?? allDays.find((x) => x.state === 'open')?.key ?? null
+  const hereUnit = modules.find((m) => m.days.some((x) => x.key === hereDay)) ?? null
+  const isHere = (m: SModule) => !!hereUnit && subtree(m).includes(hereUnit)
+  const look = subjectLook(d?.course.subject ?? '')
+  const firstTodoIn = (m: SModule) => stops.find((s) => subtree(m).includes(s.m) && !s.it.done && canOpen(s.it)) ?? null
+  const crumb = (m: SModule | null): string => (m ? [crumb(parentOf(m)), m.title].filter(Boolean).join(' · ') : '')
+  const eyebrow = item || cur ? `${d?.course.subject ?? ''}${(item ?? cur)!.m.id === OTHER ? ' · More to do' : ` · ${crumb((item ?? cur)!.m)}`}`
+    : mod && mod !== SHARED ? [d?.course.subject, crumb(parentOf(mod))].filter(Boolean).join(' · ') : mod === SHARED ? d?.course.subject ?? '' : 'My subjects'
+  const title = item ? titleOf(item.it) : cur ? (cur.d.day === null ? cur.m.title : cur.d.name) : mod === SHARED ? 'Shared by your teacher' : mod ? mod.title : d?.course.subject ?? 'Subject'
   return (
     <div ref={top} className="scroll-mt-4">
-      <PageHead
-        eyebrow={cur ? `${d?.course.subject ?? ''} · ${cur.m.id === OTHER ? 'Other work' : `${number(cur.m)} · ${cur.m.title}`}` : 'Learning · My courses'}
-        title={item ? titleOf(item.it) : cur ? cur.d.name : d?.course.subject ?? 'Course'}
-        actions={<Button variant="secondary" onClick={() => (item ? setWhere({ day: where.day, item: null }) : cur ? setWhere({ day: null, item: null }) : back())}><ChevronLeft className="h-4 w-4" /> {backLabel}</Button>}
-      />
+      <PageHead eyebrow={eyebrow} title={title}
+        actions={!item && !cur && !mod ? <Button variant="secondary" className="min-h-[48px] text-[16px]" onClick={back}><ArrowLeft className="h-5 w-5" /> All subjects</Button> : undefined} />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !d ? <CourseSkeleton /> : item ? (
-          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => setWhere({ day: k, item: null })} onQuiz={setQuiz} />
+          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => (k === OTHER ? setWhere({ mod: null, day: OTHER, item: null }) : toDay(k))} onQuiz={setQuiz} />
         ) : cur ? (
           <DayPage d={d} m={cur.m} day={cur.d} titleOf={titleOf} open={(it) => open({ m: cur.m, d: cur.d, it })}
-            prev={allDays[allDays.indexOf(cur.d) - 1] ?? null} next={allDays[allDays.indexOf(cur.d) + 1] ?? null} toDay={(k) => setWhere({ day: k, item: null })} />
-        ) : (
+            next={(() => { const sib = cur.m.days.filter((x) => x.day !== null); return sib[sib.indexOf(cur.d) + 1] ?? null })()}
+            toDay={toDay} toBack={() => toModule(cur.m.id === OTHER ? null : cur.m.id)} backLabel={cur.m.id === OTHER ? 'All parts' : cur.m.title} />
+        ) : mod === SHARED ? (
           <div className="space-y-4">
+            <Card>{mySharedItems.length ? <SharedRows items={mySharedItems} /> : <p className="px-[var(--card-pad)] py-4 text-[16px] text-muted-foreground">Nothing shared yet.</p>}</Card>
+            <ArrowBar label="Back"><BackBtn onClick={() => toModule(null)} sub="All parts" /><span /></ArrowBar>
+          </div>
+        ) : mod ? (
+          <ModulePage d={d} m={mod} kids={kids(mod.id)} subtree={subtree} here={hereDay} isHere={isHere} titleOf={titleOf}
+            openItem={(it, day) => open({ m: mod, d: day, it })} openDay={(k) => setWhere({ mod: mod.id, day: k, item: null })} openModule={toModule}
+            next={firstTodoIn(mod)} openStop={open} back={() => toModule(parentOf(mod)?.id ?? null)} backLabel={parentOf(mod)?.title ?? 'All parts'} />
+        ) : (
+          <div className="space-y-5">
             <Card>
-              <div className="flex flex-wrap items-center gap-4 px-[var(--card-pad)] py-4">
-                <ProgressRing pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={56} />
-                <div className="min-w-0 flex-1 basis-44">
-                  <p className="text-[15px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} days done` : 'Nothing to do yet'}</p>
-                  <p className="text-[13px] text-muted-foreground">{d.course.teacher ? `Taught by ${d.course.teacher}` : 'Teacher not set'} · {tops.length} module{tops.length === 1 ? '' : 's'}</p>
+              <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
+                <Ring pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={72} stroke={7} hue={look.hue} label={`${daysDone} of ${allDays.length} parts done`}>
+                  <look.Icon className={cn('h-8 w-8', HUE[look.hue].fg)} strokeWidth={1.6} aria-hidden />
+                </Ring>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[18px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} done` : 'Nothing to do yet'}</p>
+                  {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
+                  {d.course.teacher && <p className="text-[15px] text-muted-foreground">Your teacher: {d.course.teacher}</p>}
                 </div>
-                <Badge tone={d.gating === 'open' ? 'neutral' : 'primary'}>{d.gating === 'open' ? 'Open course' : 'One day at a time'}</Badge>
               </div>
             </Card>
             {d.resume ? (() => {
@@ -228,67 +399,68 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
               const s = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
               if (!s) return null
               return (
-                <Button onClick={() => open(s)} className="h-auto min-h-[72px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left">
-                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-6 w-6" /></span>
+                <Button onClick={() => open(s)} className="h-auto min-h-[84px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left shadow-sm">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/15"><Play className="h-6 w-6 fill-current" aria-hidden /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] font-medium uppercase tracking-wide opacity-80">{r.started ? 'Continue' : 'Start here'}</span>
-                    <span className="block text-[16px] font-semibold leading-snug [overflow-wrap:anywhere]">{shortDay(s.d)} · {SECTION_LABEL[r.section]} · {r.title}</span>
-                    <span className="block truncate text-[13px] opacity-80">{number(s.m)} · {s.m.title}</span>
+                    <span className="block text-[20px] font-bold leading-tight">{r.started ? 'Keep going' : 'Start here'}</span>
+                    <span className="block text-[15px] leading-snug opacity-90 [overflow-wrap:anywhere]">{s.d.day === null ? s.m.title : shortDay(s.d)} · {KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
                   </span>
-                  <ChevronRight className="h-5 w-5 shrink-0" />
+                  <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
                 </Button>
               )
             })() : allDays.length > 0 && daysDone === allDays.length ? (
-              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-success text-white"><Check className="h-5 w-5" /></span><p className="text-[15px] font-semibold">Every day is done. Well done.</p></div></Card>
+              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished everything. Well done!</p></div></Card>
             ) : null}
-            {!modules.length && !loose.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added any modules to this course yet." /> : (
-              <ol className="space-y-3">
-                {tops.map((m) => {
-                  const subs = modules.filter((x) => x.parent_unit_id === m.id)
-                  const all = [m, ...subs]
-                  const days = all.flatMap((x) => x.days)
+            {!modules.length && !loose.length && !mySharedItems.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
+              <ol className="relative" aria-label="Your path">
+                {tops.map((m, i) => {
+                  const days = subtree(m).flatMap((x) => x.days)
                   const done = days.filter((x) => x.state === 'done').length
                   const locked = days.length > 0 && days.every((x) => x.state === 'locked')
-                  const isOpen = (expanded ?? (d.resume ? (modules.find((x) => x.id === d.resume!.unit_id)?.parent_unit_id ?? d.resume.unit_id) : tops[0]?.id)) === m.id
+                  const finished = days.length > 0 && done === days.length
+                  const here = isHere(m) && !finished && !locked
                   const range = dateRange(m.starts_on, m.ends_on)
+                  const last = i === tops.length - 1 && !loose.length && !mySharedItems.length
                   return (
-                    <li key={m.id} className="card overflow-hidden p-0">
-                      <button type="button" onClick={() => setExpanded(isOpen ? '' : m.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
-                        {locked ? <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" /></span>
-                          : done === days.length && days.length ? <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success text-white"><Check className="h-5 w-5" /></span>
-                            : <ProgressRing pct={days.length ? Math.round((100 * done) / days.length) : 0} />}
-                        <span className="min-w-0 flex-1 space-y-0.5">
-                          <span className="block text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{number(m)}{range ? ` · ${range}` : ''}</span>
-                          <span className="block text-[16px] font-semibold leading-snug">{m.title}</span>
-                          <span className="block text-[13px] text-muted-foreground">{locked ? (days[0]?.reason ?? 'Locked') : `${done} of ${days.length} day${days.length === 1 ? '' : 's'} done`}</span>
+                    <li key={m.id} className="relative flex gap-3 pb-5">
+                      {!last && <span aria-hidden className={cn('absolute bottom-0 left-[26px] top-14 w-1 rounded-full', finished ? 'bg-success' : 'bg-border')} />}
+                      <PathDot n={i + 1} state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
+                      <button type="button" onClick={() => toModule(m.id)}
+                        className={cn('card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left', here && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
+                          <span className="block text-[15px] text-muted-foreground">
+                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
+                          </span>
                         </span>
-                        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
                       </button>
-                      {isOpen && (
-                        <div className="border-t">
-                          {m.description && <p className="px-[var(--card-pad)] pt-3 text-[14px] text-muted-foreground">{m.description}</p>}
-                          <DayList days={m.days} onOpen={(k) => setWhere({ day: k, item: null })} />
-                          {subs.map((sx) => (
-                            <div key={sx.id} className="border-t">
-                              <p className="px-[var(--card-pad)] pt-3 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{number(sx)} · {sx.title}</p>
-                              <DayList days={sx.days} onOpen={(k) => setWhere({ day: k, item: null })} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </li>
                   )
                 })}
                 {loose.length > 0 && (
-                  <li>
-                    <Button variant="secondary" onClick={() => setWhere({ day: OTHER, item: null })} className="card h-auto min-h-[76px] w-full justify-start gap-3 whitespace-normal px-[var(--card-pad)] py-4 text-left font-normal text-foreground">
-                      <ProgressRing pct={Math.round((100 * loose.filter((x) => x.done).length) / loose.length)} />
+                  <li className={cn('relative flex gap-3', mySharedItems.length > 0 && 'pb-5')}>
+                    {mySharedItems.length > 0 && <span aria-hidden className="absolute bottom-0 left-[26px] top-14 w-1 rounded-full bg-border" />}
+                    <PathDot n="+" state={loose.every((x) => x.done) ? 'done' : 'open'} />
+                    <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[16px] font-semibold">Other work</span>
-                        <span className="block text-[13px] text-muted-foreground">Assignments and quizzes not on a day</span>
+                        <span className="block text-[18px] font-semibold">More to do</span>
+                        <span className="block text-[15px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
                       </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </Button>
+                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                    </button>
+                  </li>
+                )}
+                {mySharedItems.length > 0 && (
+                  <li className="relative flex gap-3">
+                    <span className="relative z-[1] grid h-14 w-14 shrink-0 place-items-center rounded-full border-2 border-primary/40 bg-card text-primary"><Share2 className="h-6 w-6" aria-hidden /></span>
+                    <button type="button" onClick={() => toModule(SHARED)} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[18px] font-semibold">Shared by your teacher</span>
+                        <span className="block text-[15px] text-muted-foreground">{mySharedItems.length} thing{mySharedItems.length === 1 ? '' : 's'}{mySharedItems.some((r) => !r.seen) ? ` · ${mySharedItems.filter((r) => !r.seen).length} new` : ''}</span>
+                      </span>
+                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                    </button>
                   </li>
                 )}
               </ol>
@@ -300,91 +472,183 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   )
 }
 
-function DayList({ days, onOpen }: { days: SDay[]; onOpen: (key: string) => void }) {
-  if (!days.length) return <p className="px-[var(--card-pad)] py-3 text-[14px] text-muted-foreground">Nothing here yet.</p>
+/** One step of a day or a module, as a big row: a tick when done, its number, what to do and the title. */
+function StepRow({ d, it, n, isNext, titleOf, onOpen }: { d: Detail; it: SItem; n: number; isNext: boolean; titleOf: (it: SItem) => string; onOpen: () => void }) {
+  const k = kindOf(it)
+  const sched = it.type === 'lesson' && it.lesson?.scheduled
+  const blocked = !canOpen(it)
   return (
-    <ol className="divide-y">
-      {days.map((x) => (
-        <li key={x.key}>
-          <button type="button" disabled={x.state === 'locked'} onClick={() => onOpen(x.key)}
-            className="flex min-h-[60px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed">
-            <DayMark d={x} size={36} />
-            <span className="min-w-0 flex-1">
-              <span className={`block text-[15px] font-medium leading-snug ${x.state === 'locked' ? 'text-muted-foreground' : ''}`}>{x.name}</span>
-              <span className="block text-[13px] text-muted-foreground">
-                {x.state === 'locked' ? x.reason : x.state === 'done' ? 'Done' : `${x.done} of ${x.total} done`}
-                {x.state !== 'locked' && x.opens_at ? ` · more opens ${fmtWhen(x.opens_at)}` : ''}
-              </span>
-            </span>
-            {x.state !== 'locked' && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          </button>
-        </li>
-      ))}
-    </ol>
+    <button type="button" disabled={blocked} onClick={onOpen}
+      className={cn('flex min-h-[76px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed', isNext && 'bg-primary/[0.05]')}>
+      {it.done ? <DoneCheck done size={40} />
+        : blocked ? <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" aria-hidden /></span>
+          : <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-[17px] font-bold', isNext ? 'border-primary text-primary' : 'border-border text-muted-foreground')}>{n}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-[14px] font-semibold uppercase tracking-wide text-primary">
+          <KindIcon kind={k} className="h-5 w-5 shrink-0" /> {KID_KIND_LABEL[k] ?? 'Open'}
+          {it.type === 'lesson' && it.lesson?.is_optional && <span className="font-normal normal-case tracking-normal text-muted-foreground">· if you like</span>}
+          {it.lesson?.is_new && !it.done && <Badge tone="primary">New</Badge>}
+        </span>
+        <span className={cn('block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]', blocked && 'text-muted-foreground')}>{titleOf(it)}</span>
+        {sched ? <span className="flex items-center gap-1 text-[14px] text-muted-foreground"><Clock className="h-4 w-4" /> Opens {fmtWhen(it.lesson?.publish_at)}</span>
+          : itemMeta(d, it) ? <span className="block text-[14px] text-muted-foreground">{itemMeta(d, it)}</span> : null}
+      </span>
+      {!blocked && <ArrowRight className={cn('h-6 w-6 shrink-0', isNext ? 'text-primary' : 'text-muted-foreground')} aria-hidden />}
+    </button>
   )
 }
 
-function itemMeta(d: Detail, it: SItem): string {
-  if (it.type === 'lesson' && it.lesson) return [KIND_LABEL[it.lesson.kind], sourceMeta(it.lesson)].filter(Boolean).join(' · ')
-  if (it.type === 'quiz') { const z = d.quizzes.find((x) => x.id === it.id); return ['Quiz', z ? `${z.questions} question${z.questions === 1 ? '' : 's'}` : '', it.pass_percent ? `pass ${it.pass_percent}%` : ''].filter(Boolean).join(' · ') }
-  const a = d.assignments.find((x) => x.id === it.id)
-  return ['Assignment', a?.due_on ? `due ${a.due_on}` : '', it.pass_percent ? `pass ${it.pass_percent}%` : ''].filter(Boolean).join(' · ')
-}
-
-function DayPage({ d, m, day, titleOf, open, prev, next, toDay }: {
-  d: Detail; m: SModule; day: SDay; titleOf: (it: SItem) => string; open: (it: SItem) => void; prev: SDay | null; next: SDay | null; toDay: (k: string) => void
+/* One module: its days as bubbles, what sits straight in it as steps, and
+   the modules inside it as cards, with Back and Next at the bottom. */
+function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, openDay, openModule, next, openStop, back, backLabel }: {
+  d: Detail; m: SModule; kids: SModule[]; subtree: (m: SModule) => SModule[]; here: string | null; isHere: (m: SModule) => boolean; titleOf: (it: SItem) => string
+  openItem: (it: SItem, day: SDay) => void; openDay: (k: string) => void; openModule: (id: string) => void; next: Stop | null; openStop: (s: Stop) => void; back: () => void; backLabel: string
 }) {
-  const bySection = SECTIONS.map((s) => ({ s, items: day.items.filter((i) => i.section === s) })).filter((x) => x.items.length)
+  const all = subtree(m).flatMap((x) => x.days)
+  const done = all.filter((x) => x.state === 'done').length
+  const numbered = m.days.filter((x) => x.day !== null)
+  const loose = m.days.find((x) => x.day === null) ?? null
+  const looseItems = loose ? SECTIONS.flatMap((s) => loose.items.filter((i) => i.section === s)) : []
+  const firstLoose = looseItems.find((it) => !it.done && canOpen(it)) ?? null
+  const range = dateRange(m.starts_on, m.ends_on)
   return (
     <div className="space-y-4">
       <Card>
         <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
-          <DayMark d={day} size={52} />
+          <Ring pct={all.length ? Math.round((100 * done) / all.length) : 0} size={64} stroke={7} hue={all.length && done === all.length ? 'emerald' : 'indigo'} label={`${done} of ${all.length} done`}>
+            {all.length && done === all.length ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : <span className="text-[17px] font-bold">{done}/{all.length}</span>}
+          </Ring>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">{day.state === 'locked' ? 'Locked' : day.state === 'done' ? 'Day complete' : `${day.done} of ${day.total} done`}</p>
-            <p className="text-[13px] text-muted-foreground">{day.state === 'locked' ? day.reason : m.id === OTHER ? 'Not part of any day' : day.state === 'done' ? 'Everything required is done.' : 'Finish the required items to open the next day.'}</p>
+            <p className="text-[18px] font-semibold">{all.length && done === all.length ? 'All done here!' : `${done} of ${all.length} done`}</p>
+            {m.description && <p className="text-[15px] text-muted-foreground">{m.description}</p>}
+            {range && <p className="text-[14px] text-muted-foreground">{range}</p>}
           </div>
         </div>
       </Card>
-      {bySection.map(({ s, items }) => (
-        <Card key={s}>
-          <div className="border-b px-[var(--card-pad)] py-2.5"><h3 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{m.id === OTHER ? (s === 'assessment' ? 'Assignments and quizzes' : SECTION_LABEL[s]) : SECTION_LABEL[s]}</h3></div>
+      {numbered.length > 0 && (
+        <Card>
+          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">Days</h3>
+          <div className="px-[var(--card-pad)] py-3"><DayBubbles days={numbered} here={here} onOpen={openDay} /></div>
+        </Card>
+      )}
+      {loose && looseItems.length > 0 && (
+        <Card>
+          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">{numbered.length ? 'More in this part' : 'Steps'}</h3>
+          {loose.state === 'locked' && <p className="flex items-center gap-2 px-[var(--card-pad)] pt-3 text-[15px] text-muted-foreground"><Lock className="h-4 w-4" /> {loose.reason ?? 'Not open yet'}</p>}
           <ol className="divide-y">
-            {items.map((it) => {
-              const k = it.type === 'lesson' ? it.lesson?.kind ?? 'text' : it.type
-              const sched = it.type === 'lesson' && it.lesson?.scheduled
-              const blocked = it.locked || sched
+            {looseItems.map((it, i) => <li key={`${it.type}:${it.id}`}><StepRow d={d} it={it} n={i + 1} isNext={it === firstLoose} titleOf={titleOf} onOpen={() => openItem(it, loose)} /></li>)}
+          </ol>
+        </Card>
+      )}
+      {kids.length > 0 && (
+        <section aria-label="Inside this part" className="space-y-2">
+          <h3 className="px-1 text-[17px] font-semibold">Inside this part</h3>
+          <ol className="grid gap-3 sm:grid-cols-2">
+            {kids.map((k) => {
+              const days = subtree(k).flatMap((x) => x.days)
+              const kd = days.filter((x) => x.state === 'done').length
+              const locked = days.length > 0 && days.every((x) => x.state === 'locked')
+              const fin = days.length > 0 && kd === days.length
               return (
-                <li key={`${it.type}:${it.id}`}>
-                  <button type="button" disabled={!!blocked} onClick={() => open(it)} className="flex min-h-[64px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed">
-                    <KindChip kind={k} done={it.done} />
+                <li key={k.id}>
+                  <button type="button" onClick={() => openModule(k.id)}
+                    className={cn('card flex min-h-[84px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left', isHere(k) && !fin && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
+                    {locked ? <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" /></span>
+                      : <Ring pct={days.length ? (100 * kd) / days.length : 0} size={48} stroke={5} hue={fin ? 'emerald' : 'indigo'} label={`${kd} of ${days.length} done`}>{fin ? <Check className="h-5 w-5 text-success" strokeWidth={2.5} /> : null}</Ring>}
                     <span className="min-w-0 flex-1">
-                      <span className={`block text-[15px] font-medium leading-snug [overflow-wrap:anywhere] ${blocked ? 'text-muted-foreground' : ''}`}>{titleOf(it)}</span>
-                      <span className="block text-[13px] text-muted-foreground">{itemMeta(d, it)}{it.type === 'lesson' && it.lesson?.is_optional ? ' · optional' : ''}</span>
+                      <span className="block text-[17px] font-semibold leading-snug [overflow-wrap:anywhere]">{k.title}</span>
+                      <span className="block text-[14px] text-muted-foreground">{locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : fin ? 'All done!' : `${kd} of ${days.length} done`}</span>
                     </span>
-                    {sched ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Opens {fmtWhen(it.lesson?.publish_at)}</span>
-                      : it.locked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Locked" />
-                        : it.done ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-label="Done" />
-                          : it.lesson?.is_new ? <Badge tone="primary">New</Badge> : <Circle className="h-5 w-5 shrink-0 text-muted-foreground/50" aria-label="Not done" />}
+                    <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
                   </button>
                 </li>
               )
             })}
           </ol>
+        </section>
+      )}
+      {!all.length && !kids.length && <EmptyState title="Nothing here yet" body="Your teacher has not added anything here yet." />}
+      <ArrowBar label="Back and next">
+        <BackBtn onClick={back} sub={backLabel} />
+        {next ? <NextBtn hot onClick={() => openStop(next)} label={done ? 'Keep going' : 'Start'} sub={titleOf(next.it)} />
+          : <NextBtn hot={!!all.length && done === all.length} onClick={back} label={all.length && done === all.length ? 'All done' : 'Back up'} sub={backLabel} />}
+      </ArrowBar>
+    </div>
+  )
+}
+
+/** A module's days as big numbered bubbles: a tick when done, a lock (and why) when shut. */
+function DayBubbles({ days, here, onOpen }: { days: SDay[]; here: string | null; onOpen: (key: string) => void }) {
+  if (!days.length) return <p className="py-2 text-[16px] text-muted-foreground">Nothing here yet.</p>
+  return (
+    <ol className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-x-2 gap-y-3">
+      {days.map((x) => {
+        const isHere = x.key === here && x.state === 'open'
+        const sub = x.state === 'locked' ? (x.reason ?? 'Not open yet') : x.state === 'done' ? 'Done' : `${x.done} of ${x.total}`
+        return (
+          <li key={x.key}>
+            <button type="button" disabled={x.state === 'locked'} onClick={() => onOpen(x.key)} aria-label={`${x.name}: ${sub}`}
+              className="flex w-full flex-col items-center gap-1 rounded-xl p-1 text-center enabled:active:scale-95 disabled:cursor-not-allowed">
+              <span className={cn('relative grid h-16 w-16 place-items-center rounded-full border-2 text-[22px] font-bold',
+                x.state === 'done' ? 'border-success bg-success text-white'
+                  : x.state === 'locked' ? 'border-border bg-muted text-muted-foreground'
+                    : isHere ? GO
+                      : 'border-primary/40 bg-card text-primary')}>
+                {x.state === 'done' ? <Check className="h-8 w-8" strokeWidth={2.5} aria-hidden /> : x.state === 'locked' ? <Lock className="h-6 w-6" aria-hidden /> : x.day ?? '•'}
+              </span>
+              <span className="text-[15px] font-semibold leading-tight">{shortDay(x)}</span>
+              <span className="line-clamp-2 text-[13px] leading-tight text-muted-foreground">{sub}</span>
+            </button>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function itemMeta(d: Detail, it: SItem): string {
+  if (it.type === 'lesson' && it.lesson) return sourceMeta(it.lesson)
+  if (it.type === 'quiz') { const z = d.quizzes.find((x) => x.id === it.id); return [z ? `${z.questions} question${z.questions === 1 ? '' : 's'}` : '', it.pass_percent ? `get ${it.pass_percent}% to pass` : ''].filter(Boolean).join(' · ') }
+  const a = d.assignments.find((x) => x.id === it.id)
+  return [a?.due_on ? `due ${a.due_on}` : '', it.pass_percent ? `get ${it.pass_percent}% to pass` : ''].filter(Boolean).join(' · ')
+}
+
+function DayPage({ d, m, day, titleOf, open, next, toDay, toBack, backLabel }: {
+  d: Detail; m: SModule; day: SDay; titleOf: (it: SItem) => string; open: (it: SItem) => void; next: SDay | null; toDay: (k: string) => void; toBack: () => void; backLabel: string
+}) {
+  const bySection = SECTIONS.map((s) => ({ s, items: day.items.filter((i) => i.section === s) })).filter((x) => x.items.length)
+  /* Steps are numbered through the whole day, in order. */
+  const ordered = bySection.flatMap((x) => x.items)
+  const firstTodo = ordered.find((it) => !it.done && canOpen(it)) ?? null
+  const pct = day.total ? Math.round((100 * day.done) / day.total) : 0
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
+          <Ring pct={day.state === 'done' ? 100 : pct} size={64} stroke={7} hue={day.state === 'done' ? 'emerald' : 'indigo'} label={`${day.done} of ${day.total} done`}>
+            {day.state === 'done' ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : day.state === 'locked' ? <Lock className="h-6 w-6 text-muted-foreground" /> : <span className="text-[17px] font-bold">{day.done}/{day.total}</span>}
+          </Ring>
+          <div className="min-w-0 flex-1">
+            <p className="text-[18px] font-semibold">{day.state === 'locked' ? 'Not open yet' : day.state === 'done' ? 'You did it! Day done.' : `${day.done} of ${day.total} steps done`}</p>
+            <p className="text-[15px] text-muted-foreground">{day.state === 'locked' ? day.reason : m.id === OTHER ? 'Homework and quizzes' : day.state === 'done' ? 'Great work.' : 'Tick off each step, one at a time.'}</p>
+          </div>
+        </div>
+      </Card>
+      {bySection.map(({ s, items }) => (
+        <Card key={s}>
+          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">{m.id === OTHER ? 'Homework and quizzes' : KID_SECTION_LABEL[s]}</h3>
+          <ol className="divide-y">
+            {items.map((it) => <li key={`${it.type}:${it.id}`}><StepRow d={d} it={it} n={ordered.indexOf(it) + 1} isNext={it === firstTodo} titleOf={titleOf} onOpen={() => open(it)} /></li>)}
+          </ol>
         </Card>
       ))}
       {!bySection.length && <EmptyState title="Nothing on this day yet" body="Your teacher has not added anything here yet." />}
-      {m.id !== OTHER && (
-        <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next day">
-          {prev ? <Button variant="secondary" onClick={() => toDay(prev.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous day</span><span className="block truncate text-[14px] font-medium">{prev.name}</span></span></Button> : <span />}
-          {next ? (
-            <Button variant="secondary" disabled={next.state === 'locked'} onClick={() => toDay(next.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
-              <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">{next.state === 'locked' ? 'Locked' : 'Next day'}</span><span className="block truncate text-[14px] font-medium">{next.name}</span></span>
-              {next.state === 'locked' ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-            </Button>
-          ) : <span />}
-        </nav>
-      )}
+      <ArrowBar label="Back and next">
+        <BackBtn onClick={toBack} sub={backLabel} />
+        {firstTodo ? <NextBtn hot onClick={() => open(firstTodo)} label={day.done ? 'Next step' : 'Start'} sub={titleOf(firstTodo)} />
+          : next && m.id !== OTHER ? <NextBtn hot={next.state !== 'locked'} locked={next.state === 'locked'} onClick={() => toDay(next.key)} label="Next day" sub={next.state === 'locked' ? (next.reason ?? 'Not open yet') : next.name} />
+            : <NextBtn hot onClick={toBack} label="All done" sub={backLabel} />}
+      </ArrowBar>
     </div>
   )
 }
@@ -402,6 +666,14 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
   const qc = useQueryClient()
   const [pop, setPop] = useState(false)
   const btn = useRef<HTMLDivElement>(null)
+  const nextRef = useRef<HTMLSpanElement>(null)
+  /* Finishing a step: the tick pops, a little confetti, and the Next arrow
+     gives a nudge so the child knows where to go (all still under reduced motion). */
+  const cheer = (dayFinished: boolean) => {
+    setPop(true)
+    confetti(dayFinished ? btn.current : nextRef.current ?? btn.current)
+    if (!reducedMotion()) nextRef.current?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 500, delay: 250, easing: 'ease-out' })
+  }
   /* Optimistic: the tick, the day's ring and the counts move the moment it
      is tapped; the server's answer then settles them (or rolls them back). */
   const done = useMutation({
@@ -426,7 +698,7 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
           }),
         })),
       })
-      if (v) { setPop(true); if (finished) confetti(btn.current) }
+      if (v) cheer(finished)
       return { before }
     },
     onError: (_e, _v, ctx) => { if (ctx?.before) qc.setQueryData(qkey, ctx.before) },
@@ -443,46 +715,51 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
   const autoVideo = !!l && l.kind === 'video' && !!l.video_id
   const quiz = it.type === 'quiz' ? d.quizzes.find((z) => z.id === it.id) : null
   const asg = it.type === 'assignment' ? d.assignments.find((a) => a.id === it.id) : null
-  const inDay = stop.d.items.filter((x) => x.section === it.section)
+  const inDay = stop.d.items
   return (
     <div className="space-y-4">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-        <KindIcon kind={k} /> {shortDay(stop.d)} · {SECTION_LABEL[it.section]}{inDay.length > 1 ? ` ${inDay.indexOf(it) + 1} of ${inDay.length}` : ''} · {meta}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex min-h-9 items-center gap-2 rounded-full bg-primary/[0.08] px-3 text-[16px] font-semibold text-primary">
+          <KindIcon kind={k} className="h-5 w-5 shrink-0" /> {KID_KIND_LABEL[k] ?? 'Open'}
+        </span>
+        <span className="text-[15px] text-muted-foreground">
+          {stop.d.day === null ? stop.m.title : shortDay(stop.d)} · {stop.m.id === OTHER ? 'More to do' : KID_SECTION_LABEL[it.section]}{inDay.length > 1 ? ` · step ${inDay.indexOf(it) + 1} of ${inDay.length}` : ''}{meta ? ` · ${meta}` : ''}
+        </span>
         {it.done && <Badge tone="success">Done</Badge>}
-        {l?.is_optional && <Badge>Optional</Badge>}
-      </p>
+        {l?.is_optional && <Badge>If you like</Badge>}
+      </div>
       {it.locked ? (
-        <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-6"><Lock className="h-5 w-5 text-muted-foreground" /><p className="text-[15px]">{stop.d.reason ?? 'This is locked.'}</p></div></Card>
+        <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-6"><Lock className="h-6 w-6 text-muted-foreground" /><p className="text-[17px]">{stop.d.reason ?? 'This is not open yet.'}</p></div></Card>
       ) : (
         <Card>
-          <div className="px-[var(--card-pad)] py-4">
+          <div className="px-[var(--card-pad)] py-4 text-[17px]">
             {l && <LessonContent l={l} track onFinished={refresh} />}
             {asg && <ul className="-mx-[var(--card-pad)] -my-3"><AssignmentItem a={asg} qkey={qkey} /></ul>}
             {quiz && (
-              <div className="space-y-3 text-[14px]">
+              <div className="space-y-3 text-[17px]">
                 {quiz.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{quiz.instructions}</p>}
-                <p>{quiz.questions} question{quiz.questions === 1 ? '' : 's'}{quiz.duration_minutes ? ` · ${quiz.duration_minutes} minutes` : ' · no time limit'}{quiz.closes_at ? ` · closes ${fmtWhen(quiz.closes_at)}` : ''}</p>
-                {it.pass_percent ? <p className="text-muted-foreground">Score {it.pass_percent}% or more to open the next day.</p> : null}
-                {quiz.best !== null && quiz.best !== undefined && <Badge tone={it.done ? 'success' : 'warning'}>Your best: {quiz.best} / {quiz.max_score}{it.pass_percent && !it.done ? ' · below the pass mark' : ''}</Badge>}
+                <p>{quiz.questions} question{quiz.questions === 1 ? '' : 's'}{quiz.duration_minutes ? ` · ${quiz.duration_minutes} minutes` : ' · take your time'}{quiz.closes_at ? ` · closes ${fmtWhen(quiz.closes_at)}` : ''}</p>
+                {it.pass_percent ? <p className="text-muted-foreground">Get {it.pass_percent}% or more to open the next day.</p> : null}
+                {quiz.best !== null && quiz.best !== undefined && <Badge tone={it.done ? 'success' : 'warning'}>Your best: {quiz.best} / {quiz.max_score}{it.pass_percent && !it.done ? ' · try again to pass' : ''}</Badge>}
                 <div>
-                  {quiz.open_attempt ? <Button onClick={() => onQuiz(quiz.id)}>Carry on with the quiz</Button>
-                    : quiz.open ? <Button onClick={() => onQuiz(quiz.id)}>{quiz.attempts ? 'Try again' : 'Start the quiz'}</Button>
-                      : <span className="text-muted-foreground">{quiz.attempts >= quiz.max_attempts ? 'You have used every attempt. Ask your teacher if you are stuck.' : 'This quiz is not open.'}</span>}
+                  {quiz.open_attempt ? <Button className="min-h-[56px] px-6 text-[17px]" onClick={() => onQuiz(quiz.id)}>Carry on with the quiz <ArrowRight className="h-5 w-5" /></Button>
+                    : quiz.open ? <Button className="min-h-[56px] px-6 text-[17px]" onClick={() => onQuiz(quiz.id)}>{quiz.attempts ? 'Try again' : 'Start the quiz'} <ArrowRight className="h-5 w-5" /></Button>
+                      : <span className="text-muted-foreground">{quiz.attempts >= quiz.max_attempts ? 'You have had all your tries. Ask your teacher if you are stuck.' : 'This quiz is not open.'}</span>}
                 </div>
               </div>
             )}
           </div>
           {l && (
             <div ref={btn} className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
-              {autoVideo && !l.done ? <p className="text-[13px] text-muted-foreground">This is marked done by itself when you have watched 90% of the video.</p> : (
+              {autoVideo && !l.done ? <p className="text-[15px] text-muted-foreground">Watch the video to the end and it ticks itself.</p> : (
                 l.done ? (
                   <span className="inline-flex items-center gap-3">
-                    <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-success"><DoneCheck done pop={pop} size={32} /> Done!</span>
+                    <span className="inline-flex items-center gap-2 text-[18px] font-bold text-success"><DoneCheck done pop={pop} size={40} /> Done!</span>
                     <Button variant="ghost" size="sm" onClick={() => { setPop(false); done.mutate(false) }}>Undo</Button>
                   </span>
                 ) : (
-                  <Button className="min-h-[48px] px-6 text-[15px]" onClick={() => done.mutate(true)}>
-                    <Check className="h-5 w-5" /> Mark as done
+                  <Button className="min-h-[56px] w-full px-6 text-[17px] sm:w-auto" onClick={() => done.mutate(true)}>
+                    <Check className="h-6 w-6" strokeWidth={2.5} /> I finished this
                   </Button>
                 )
               )}
@@ -491,28 +768,14 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
           )}
         </Card>
       )}
-      <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next">
-        {prev ? (
-          <Button variant="secondary" onClick={() => open(prev)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left">
-            <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous{prev.d !== stop.d ? ` · ${shortDay(prev.d)}` : ''}</span><span className="block truncate text-[14px] font-medium">{titleOf(prev.it)}</span></span>
-          </Button>
-        ) : <Button variant="secondary" onClick={() => toDay(stop.d.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-start text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="text-[14px] font-medium">{shortDay(stop.d)}</span></Button>}
+      <ArrowBar label="Back and next">
+        {prev ? <BackBtn onClick={() => open(prev)} sub={prev.d !== stop.d ? shortDay(prev.d) : titleOf(prev.it)} />
+          : <BackBtn onClick={() => toDay(stop.d.key)} sub={shortDay(stop.d)} />}
         {next ? (
-          <Button variant="secondary" disabled={next.it.locked} onClick={() => open(next)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
-            <span className="min-w-0">
-              <span className="block text-[12px] text-muted-foreground">{next.it.locked ? `${shortDay(next.d)} is locked` : `Next${next.d !== stop.d ? ` · ${shortDay(next.d)}` : ''}`}</span>
-              <span className="block truncate text-[14px] font-medium">{next.it.locked ? 'Finish this day first' : titleOf(next.it)}</span>
-            </span>
-            {next.it.locked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          </Button>
-        ) : (
-          <Button variant="secondary" onClick={() => toDay(stop.d.key)} className="h-auto min-h-14 gap-2 whitespace-normal px-3 py-2 font-normal justify-end text-right">
-            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">The end</span><span className="block truncate text-[14px] font-medium">Back to {shortDay(stop.d)}</span></span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </Button>
-        )}
-      </nav>
+          <NextBtn btnRef={nextRef} hot={it.done || !it.required} locked={next.it.locked} onClick={() => open(next)}
+            label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? `${shortDay(next.d)} is not open yet`) : titleOf(next.it)} />
+        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${shortDay(stop.d)}`} />}
+      </ArrowBar>
     </div>
   )
 }

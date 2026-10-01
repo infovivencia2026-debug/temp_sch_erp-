@@ -191,7 +191,7 @@ export function BoardRoll(props: RollProps) {
     onSuccess: refresh,
   })
 
-  if (roll.isLoading) return <SkeletonTable columns={3} label="Reading the roll…" />
+  if (roll.isLoading && !roll.data) return <SkeletonTable columns={3} label="Reading the roll…" />
   if (roll.error) return <ErrorState error={roll.error} />
 
   const rows = roll.data?.items ?? []

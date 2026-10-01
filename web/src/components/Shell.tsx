@@ -39,11 +39,13 @@ const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { buzz } from '@/lib/haptics'
 /* The layout switch and its routing seam. Both are new files; nothing the
    classic layout renders is changed by their presence, and with the switch
    left on 'classic' BentoOutlet renders its children unchanged.
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
+import { useRootReduceMotion } from '@/lib/motion'
 import { YearSwitch } from '@/components/YearSwitch'
 import { GroupReportLink } from '@/components/GroupReportLink'
 import { InstitutionSwitch } from '@/components/InstitutionSwitch'
@@ -463,6 +465,7 @@ export function Shell({
      allowed to hide anything. */
   const { layout } = useLayout()
   const chromeless = layout === 'bento'
+  useRootReduceMotion()
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
 
@@ -771,6 +774,7 @@ export function Shell({
               </Link>
               <a
                 href="/logout"
+                onClick={() => buzz('warn')}
                 aria-label="Sign out"
                 title="Sign out"
                 className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
@@ -1096,7 +1100,7 @@ export function Shell({
             className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
             onClick={() => setNavOpen(true)}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6 md:h-5 md:w-5" />
           </button>
 
           {/* The way back. Shown only when the rail is away, because a button
@@ -1185,14 +1189,15 @@ export function Shell({
               title="Your account and password"
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
-              <UserRound className="h-4 w-4" />
+              <UserRound className="h-[22px] w-[22px] md:h-4 md:w-4" />
             </Link>
             <a
               href="/logout"
+              onClick={() => buzz('warn')}
               aria-label="Sign out"
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-[22px] w-[22px] md:h-4 md:w-4" />
             </a>
             </div>
           </div>

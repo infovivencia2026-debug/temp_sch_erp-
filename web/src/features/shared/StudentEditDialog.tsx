@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  FormGrid, Field as FormField, Select, Input, Textarea, FormNotice, Button, tabClass } from '@/components/ui'
+  Dialog, FormGrid, Field as FormField, Select, Input, Textarea, FormNotice, Button, TAB_BAR, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 /* Every field a school holds about a child, in one dialog, grouped.
@@ -208,67 +206,69 @@ export default function StudentEditDialog({ student, onClose, onSaved }: {
   const dirty = Object.keys(draft).some(
     (k) => draft[k] !== ((student[k as keyof EditableStudent] as string | undefined) ?? ''))
 
-  return createPortal(
-    /* The dim fades, the panel arrives. Neither carried a role, so neither was
-       reached by the arrival rule in index.css and the whole thing was simply
-       there on the next paint -- over the record somebody was reading. */
-    <div className="scrim fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Edit student"
-        className="mx-auto max-w-4xl rounded-xl border bg-background shadow-xl"
-      >
-        <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted/30">
-              {student.photo_file_id && (
-                <img
-                  src={`/api/v1/files/${student.photo_file_id}?inline=1`}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[16px] font-semibold">
-                {student.full_name}{' '}
-                <span className="font-normal text-muted-foreground">
-                  ({student.admission_no})
-                </span>
-              </p>
-              <p className="text-[13px] text-muted-foreground">
-                {[student.class_name, student.section_name].filter(Boolean).join(' / ') || 'Unplaced'}
-              </p>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close"
-            className="rounded p-1 text-muted-foreground hover:bg-accent">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
+  /* The shared Dialog: Escape, the dim and the phone's Back close it, focus
+     is trapped and returns to the button that opened it; on a phone it is a
+     bottom sheet with the footer pinned. */
+  return (
+    <Dialog
+      onClose={onClose}
+      size="xl"
+      label="Edit student"
+      title={
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-muted">
+            {student.photo_file_id && (
+              <img src={`/api/v1/files/${student.photo_file_id}?inline=1`} alt="" className="h-full w-full object-cover" />
+            )}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate">
+              {student.full_name}{' '}
+              <span className="font-normal text-muted-foreground">({student.admission_no})</span>
+            </span>
+            <span className="block text-[13px] font-normal text-muted-foreground">
+              {[student.class_name, student.section_name].filter(Boolean).join(' / ') || 'Unplaced'}
+            </span>
+          </span>
+        </span>
+      }
+      footer={
+        <>
+          <FormNotice error={save.error} />
+          {/* Said out loud, because a dialog of six tabs is one somebody edits
+              in two of them and then wonders whether the first was kept. */}
+          {dirty && (
+            <span className="mr-auto text-[13px] text-muted-foreground">
+              Unsaved changes. Update saves every tab at once.
+            </span>
+          )}
+          <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button disabled={save.isPending || !dirty} pending={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? 'Updating…' : 'Update'}
+          </Button>
+        </>
+      }
+    >
         {/* Six groups rather than thirty inputs: a person doing only the
             address never has to look at the other twenty-five. */}
-        <div className="flex flex-wrap gap-1 border-b px-4 pt-3">
+        <div className={cn(TAB_BAR, 'flex-nowrap overflow-x-auto')} role="tablist">
           {GROUPS.map((g) => (
             <button
               key={g.key}
               type="button"
+              role="tab"
+              aria-selected={tab === g.key}
               onClick={() => setTab(g.key)}
-              className={cn(
-                'rounded-t-md px-3 py-2 text-[13.5px]',
-                tab === g.key
-                  ? tabClass(true)
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+              className={tabClass(tab === g.key)}
             >
               {g.label}
             </button>
           ))}
         </div>
 
-        <div className="px-6 py-5">
+        <div className="py-5">
           <FormGrid>
             {group.fields.filter((f) => !f.multiline).map((f) => (
               <FormField key={f.name} label={f.label} hint={f.hint} required={f.required}>
@@ -310,25 +310,6 @@ export default function StudentEditDialog({ student, onClose, onSaved }: {
             </div>
           ))}
         </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t px-6 py-4">
-          <FormNotice error={save.error} />
-          {/* Said out loud, because a dialog of six tabs is one somebody edits
-              in two of them and then wonders whether the first was kept. */}
-          {dirty && (
-            <span className="mr-auto text-[13px] text-muted-foreground">
-              Unsaved changes. Update saves every tab at once.
-            </span>
-          )}
-          <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
-            Cancel
-          </Button>
-          <Button disabled={save.isPending || !dirty} onClick={() => save.mutate()}>
-            {save.isPending ? 'Updating…' : 'Update'}
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }

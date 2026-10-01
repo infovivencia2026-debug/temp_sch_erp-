@@ -363,3 +363,14 @@ describe('undo is one step per gesture', () => {
     expect(api(d).layout.placed.some((p) => p.id === 'z'), 'and stays done').toBe(true)
   })
 })
+
+describe('the app icon shape', () => {
+  it('is one cell, reads back as Small, and is never a pickable tier', async () => {
+    const m = await import('./size-tiers')
+    expect(m.ICON_SHAPE).toEqual({ w: 1, h: 1 })
+    expect(m.isIconShape(1, 1)).toBe(true)
+    expect(m.isIconShape(2, 1)).toBe(false)
+    expect(m.tierOf(m.ICON_SHAPE.w, m.ICON_SHAPE.h, false)).toBe('small')
+    expect(m.PHONE_ICON_COLS).toBe(4)
+  })
+})

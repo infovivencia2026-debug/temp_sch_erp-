@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import StatusRings from '@/features/comms/status/StatusRings'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PickerMenu } from '@/components/PickerMenu'
-import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
+import { CalendarCheck, BookMarked, Wallet, GraduationCap, ArrowRight } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState,
-  EmptyState,
+  EmptyState, Button,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -26,6 +27,7 @@ interface PortalSummary {
   outstanding_paise: number; next_exam?: string
   latest_result_exam?: string; latest_result_pct?: number; latest_result_grade?: string
   today: TodayPeriod[]
+  next_day?: { weekday: number; periods: TodayPeriod[] }
 }
 interface TodayPeriod {
   period: string; starts_at?: string; ends_at?: string
@@ -43,10 +45,11 @@ interface AttendanceDay {
 }
 
 const DOT: Record<string, string> = {
-  present: 'bg-success',
-  late: 'bg-warning',
-  absent: 'bg-destructive',
-  half_day: 'bg-warning/60',
+  /* Light tints: the owner found the solid forest green ugly. */
+  present: 'bg-[#dcfce7] border-[#86efac]',
+  late: 'bg-[#fef3c7] border-[#fcd34d]',
+  absent: 'bg-[#fee2e2] border-[#fca5a5]',
+  half_day: 'bg-[#ffedd5] border-[#fdba74]',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
 }
@@ -65,7 +68,7 @@ const DOT: Record<string, string> = {
 */
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
+function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: string; large?: boolean }) {
   const byDate = new Map(days.map((d) => [d.date, d]))
   /* The month is named by the caller (YYYY-MM), not inferred from the first
      marked day: the current month at the start of term has no marks yet and
@@ -101,8 +104,8 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
      a bar four inches wide and the month read as a bar chart of nothing. A
      month is a small object; it should look like one. */
   return (
-    <div className="mt-2 max-w-[22rem]">
-      <div className="grid grid-cols-7 gap-1 text-center">
+    <div className={large ? 'mt-1' : 'mt-2 max-w-[22rem]'}>
+      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-1.5' : 'gap-1')}>
         {/* 11px, not 10. The cells below are 46px square and had room to
             spare; the header naming them was the smallest text on the parent's
             screen, set in tracked capitals at 10px in a muted grey. Nothing
@@ -116,7 +119,8 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
           if (day === null) return <div key={`pad-${i}`} />
           const d = byDate.get(iso(day))
           const status = d?.status || undefined
-          const marked = status && status !== 'holiday'
+          /* A Sunday nobody marked is a day the school is shut, and the key says so. */
+          const sunday = !status && new Date(year, month, day).getDay() === 0
           return (
             <div
               key={day}
@@ -129,12 +133,16 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
                 d?.on_leave && status !== 'leave' ? 'leave approved' : null,
               ].filter(Boolean).join(' · ')}
               className={cn(
-                'relative flex aspect-square items-center justify-center rounded text-[11px] tabular-nums',
+                'relative flex items-center justify-center tabular-nums',
+                /* The report fits one screen on a computer: fixed-height days
+                   rather than squares as wide as the column. */
+                large ? 'h-11 rounded-lg border text-[14px] font-medium' : 'aspect-square rounded text-[11px]',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
-                status ? DOT[status] ?? 'bg-muted' : 'text-muted-foreground',
-                marked && (status === 'present' || status === 'absent')
-                  ? 'font-medium text-white'
+                status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-muted-foreground' : 'text-muted-foreground',
+                status === 'present' ? 'font-semibold text-[#15803d]'
+                  : status === 'absent' ? 'font-semibold text-[#b91c1c]'
+                  : status === 'late' || status === 'half_day' ? 'font-semibold text-[#b45309]'
                   : status ? 'text-foreground' : '',
               )}
             >
@@ -188,74 +196,149 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
    The month's events sit with its attendance rather than on another screen:
    the holidays and the days with a reason are the days a family asks about,
    and MonthGrid already spells them out under the calendar. */
-function AttendanceHistory({ days, emptyLabel }: { days: AttendanceDay[]; emptyLabel: string }) {
-  const ymOf = (d: { date: string }) => d.date.slice(0, 7)
-  const now = new Date()
-  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  /* The months on offer: every month with a marked day, plus the current one,
-     newest first. */
-  const months = Array.from(new Set([currentYm, ...days.map(ymOf)])).sort().reverse()
-  const [picked, setPicked] = useState<string>(currentYm)
-  const ym = months.includes(picked) ? picked : currentYm
-  const monthDays = days.filter((d) => ymOf(d) === ym)
-
-  let marked = 0, present = 0, absent = 0, events = 0
+function monthFacts(days: AttendanceDay[], ym: string) {
+  const monthDays = days.filter((d) => d.date.slice(0, 7) === ym)
+  let marked = 0, present = 0, absent = 0, late = 0, holidays = 0
   for (const d of monthDays) {
-    if (d.label) events++
-    if (d.status === 'holiday') continue
+    if (d.status === 'holiday') { holidays++; continue }
     marked++
     if (d.status === 'present' || d.status === 'late') present++
+    if (d.status === 'late') late++
     if (d.status === 'absent') absent++
   }
-  const nameOf = (m: string) =>
-    new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-  const isCurrent = ym === currentYm
+  /* Sundays that are not already a marked holiday: days the school is shut. */
+  const first = new Date(ym + '-01T00:00:00')
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
+  const holidayDates = new Set(monthDays.filter((d) => d.status === 'holiday').map((d) => d.date))
+  for (let day = 1; day <= last; day++) {
+    const dt = new Date(first.getFullYear(), first.getMonth(), day)
+    const iso = `${ym}-${String(day).padStart(2, '0')}`
+    if (dt.getDay() === 0 && !holidayDates.has(iso)) holidays++
+  }
+  return { monthDays, marked, present, absent, late, holidays, pct: marked ? Math.round((present / marked) * 100) : null }
+}
 
+const thisMonth = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+const monthName = (m: string) =>
+  new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+
+/* A stronger edge on the key, so each colour reads at a glance. */
+const KEY: Record<string, string> = {
+  present: 'border-[#16a34a]',
+  late: 'border-[#d97706]',
+  absent: 'border-[#dc2626]',
+  half_day: 'border-[#f97316]',
+  holiday: 'border-muted-foreground/40',
+}
+
+function Legend() {
   return (
-    <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-[14px] font-medium text-foreground">
+      {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
+        <span key={k} className="inline-flex items-center gap-2">
+          {/* The same tint and edge as the day it names, big enough to see. */}
+          <span className={cn('h-4 w-4 rounded-full border-2', cls, KEY[k])} />
+          {k === 'holiday' ? 'holiday / Sunday' : k.replace('_', ' ')}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/* THE ATTENDANCE PAGE: the month's figures beside the month itself, and the
+   year so far, so a parent reads "was he in on the 14th" and "how is the year
+   going" on one screen. */
+function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLabel?: string }) {
+  const currentYm = thisMonth()
+  /* Every month from the earliest mark (or eleven months back, whichever is
+     later) to now, marked or not: an empty month draws as an empty grid and
+     says so, rather than vanishing from the picker. */
+  const earliest = days.length ? days.map((d) => d.date.slice(0, 7)).sort()[0] : currentYm
+  const elevenBack = (() => {
+    const d = new Date(currentYm + '-01T00:00:00')
+    d.setMonth(d.getMonth() - 11)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+  const months: string[] = []
+  {
+    /* Every month back to the first mark: a year picker in front of the
+       month keeps the list short, so the eleven-month cap is not needed. */
+    const start = earliest < currentYm ? earliest : elevenBack
+    const [fy, fm] = start.split('-').map(Number)
+    const [ty, tm] = currentYm.split('-').map(Number)
+    for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
+      months.push(`${y}-${String(m).padStart(2, '0')}`)
+    }
+    months.reverse()
+  }
+  const [picked, setPicked] = useState<string>(currentYm)
+  const ym = months.includes(picked) ? picked : currentYm
+  const m = monthFacts(days, ym)
+  let yMarked = 0, yPresent = 0
+  for (const d of days) {
+    if (d.status === 'holiday') continue
+    yMarked++
+    if (d.status === 'present' || d.status === 'late') yPresent++
+  }
+  const yearPct = yMarked ? Math.round((yPresent / yMarked) * 100) : null
+  const mini = (label: string, value: string, tone?: string) => (
+    <div className="rounded-xl border bg-card px-4 py-3">
+      <div className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('mt-1 text-[22px] font-bold tabular-nums', tone)}>{value}</div>
+    </div>
+  )
+  const days1 = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div>
+          <h2 className="text-[17px] font-bold">Attendance report</h2>
+          {childLabel && <p className="text-[13px] text-muted-foreground">{childLabel}</p>}
+        </div>
+        <div className="flex gap-2">
+        {/* The year first, once there is more than one: three years of
+            months in one list was too long to scroll. */}
+        {new Set(months.map((x) => x.slice(0, 4))).size > 1 && (
+          <PickerMenu
+            value={ym.slice(0, 4)}
+            ariaLabel="Year"
+            align="end"
+            onChange={(y) => setPicked(months.find((x) => x.startsWith(y)) ?? ym)}
+            options={[...new Set(months.map((x) => x.slice(0, 4)))].map((y) => ({ value: y, label: y }))}
+          />
+        )}
         <PickerMenu
           value={ym}
           ariaLabel="Month"
-          align="start"
+          align="end"
           onChange={setPicked}
-          options={months.map((m) => ({
-            value: m,
-            label: m === currentYm ? `${nameOf(m)} · this month` : nameOf(m),
-          }))}
+          options={months.filter((x) => x.startsWith(ym.slice(0, 4))).map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
         />
-        <p className="text-[13px] text-muted-foreground tabular-nums">
-          {marked === 0
-            ? (isCurrent ? 'Nothing marked yet this month' : 'No school days marked')
-            : <>
-                <span className="font-medium text-foreground">{present}/{marked}</span> present
-                {absent > 0 && <> · <span className="font-medium text-destructive">{absent}</span> absent</>}
-                {` · ${Math.round((present / marked) * 100)}%`}
-                {events > 0 && ` · ${events} event${events === 1 ? '' : 's'}`}
-              </>}
-        </p>
+        </div>
       </div>
-
-      {!days.length && !isCurrent ? (
-        <p className="py-6 text-center text-[14px] text-muted-foreground">{emptyLabel}</p>
-      ) : (
-        <MonthGrid days={monthDays} ym={ym} />
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
-        {/* Leave is not drawn on this calendar — whether a child was in school
-            is the register's answer — so it is not in the key either. */}
-        {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
-          <span key={k} className="inline-flex items-center gap-1.5">
-            <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
-            {k.replace('_', ' ')}
-          </span>
-        ))}
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-[2px] w-2.5 rounded-sm bg-current opacity-70" /> event or reason (listed below the calendar)
-        </span>
+      <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
+        <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
+          {mini('Present', days1(m.present), 'text-[#16a34a]')}
+          {mini('Absent', days1(m.absent), m.absent ? 'text-destructive' : undefined)}
+          {mini('This month', m.pct === null ? '-' : `${m.pct}%`)}
+          {mini('Year so far', yearPct === null ? '-' : `${yearPct}%`)}
+          {mini('Holidays & Sundays', days1(m.holidays), 'text-muted-foreground')}
+          {m.late > 0 && mini('Late', days1(m.late), 'text-warning')}
+        </div>
+        <div className="min-w-0">
+          {m.marked === 0 && (
+            <p className="mb-2 text-[13px] text-muted-foreground">
+              {ym === currentYm ? 'Nothing marked yet this month.' : 'No school days marked this month.'}
+            </p>
+          )}
+          <MonthGrid days={m.monthDays} ym={ym} large />
+          <div className="mt-4 border-t pt-3"><Legend /></div>
+        </div>
       </div>
-    </>
+    </Card>
   )
 }
 
@@ -333,6 +416,8 @@ export default function Portal() {
      is what distinguishes them; the component has no other way to know which
      of its two callers it is. */
   const { sectionSlug } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const isAttendance = sectionSlug === 'attendance'
 
   const children = useQuery({
@@ -385,7 +470,7 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
-  if (children.isLoading) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
@@ -405,6 +490,12 @@ export default function Portal() {
 
   const s = summary.data
   const days = attendance.data?.items ?? []
+  const month = monthFacts(days, thisMonth())
+  /* Each figure opens its own screen, in whichever workspace this is (parent or student). */
+  const role = location.pathname.split('/')[1] || 'parent'
+  const go = (rest: string) => () => navigate(`/${role}/${rest}${activeId ? `?student_id=${activeId}` : ''}`)
+  const hhmm = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
+  const nowPeriod = s?.today.find((c) => c.starts_at && c.ends_at && c.starts_at <= hhmm && hhmm < c.ends_at)
 
   return (
     <>
@@ -432,6 +523,7 @@ export default function Portal() {
       />
       <Freshness query={summary} />
       <PageBody>
+        <StatusRings />
         {/* The weekly AI note about this child, once one has been written. */}
         {activeId && <WeeklyNoteCard studentId={activeId} />}
         {/* One dashboard rather than three tabs of it. What needs attention
@@ -442,9 +534,26 @@ export default function Portal() {
             so drawing it again here gave a parent the same two rows twice on
             one screen — the second copy reading as a different list until you
             compared them line by line. */}
-        {summary.isLoading ? (
+        {/* ONCE THERE ARE FIGURES, THEY STAY ON SCREEN.
+
+            This was `summary.isLoading`, which is true again for every reload
+            of the query, not only the first -- so each refresh tore the report
+            down to a skeleton and built it back. That is the blinking: the
+            page flashing grey and filling in, over and over, with nothing
+            wrong and nothing changing.
+
+            It also lost the month. AttendanceReport holds the chosen month in
+            its own state, and a component that unmounts does not hold
+            anything: every reload put a parent back on the current month a
+            moment after they had picked another, which reads exactly like a
+            picker that does not work.
+
+            So the skeleton is for the first load only -- when there is nothing
+            to show yet. A reload keeps the figures up while it runs, and the
+            freshness line says one is in flight. */}
+        {summary.isLoading && !summary.data ? (
           <SkeletonTiles count={5} />
-        ) : summary.error ? (
+        ) : summary.error && !summary.data ? (
           /* `!s` used to fall through to the spinner, so a summary that came
              back 403 or 500 left a parent watching "Loading…" for the rest of
              the session. The failure has a message; show it. */
@@ -456,27 +565,21 @@ export default function Portal() {
           />
         ) : (
           <>
-            {/* Three across, not four.
-
-                Six figures in a four-wide grid leaves two empty cells, and an
-                empty cell in a bordered grid does not read as spare room — it
-                reads as a card that failed to load. Three across fills two
-                rows exactly. */}
-            <CellGrid cols={3}>
+            {isAttendance ? (
+              <AttendanceReport days={days} childLabel={[s.full_name, childLine(kids.find((c) => c.student_id === activeId))].filter(Boolean).join(' · ')} />
+            ) : (
+            <>
+            {/* THE PARENT'S HOME: four figures, each opening its own screen,
+                then today's classes beside what needs paying and this month's
+                attendance. On a phone the column that needs action comes first. */}
+            <CellGrid cols={4}>
               <Stat
                 label={t('portal.portal.stat_attendance')}
                 value={`${s.attendance_pct}%`}
                 icon={CalendarCheck}
-                delta={{ value: t('portal.portal.stat_attendance_delta', { count: s.total_days }), positive: s.attendance_pct >= 75 }}
+                delta={{ value: `${s.present_days} of ${s.total_days} days attended`, positive: s.attendance_pct >= 75 }}
+                onClick={go('attendance/attendance')}
               />
-              <Stat label={t('portal.portal.stat_present')} value={t(s.present_days === 1 ? 'portal.leave_requests.days_one' : 'portal.portal.stat_days', { count: s.present_days })} />
-              <Stat label={t('portal.portal.stat_absent')} value={t(s.absent_days === 1 ? 'portal.leave_requests.days_one' : 'portal.portal.stat_days', { count: s.absent_days })} />
-              {/* The attendance page is asked one question and should answer
-                  that one. Homework, fees and the next exam are the
-                  dashboard's business; here they are three numbers a family
-                  has to read past to find the one they came for. */}
-              {!isAttendance && (
-              <>
               <Stat
                 label={t('portal.portal.stat_homework')}
                 value={t('portal.portal.stat_homework_value', { count: s.homework_due })}
@@ -489,93 +592,108 @@ export default function Portal() {
                       : undefined
                 }
                 hint={s.homework_due > 0 ? s.next_homework_title : undefined}
+                onClick={go('academics/homework_academics')}
               />
-              <Stat
-                label={t('portal.portal.stat_fees')}
-                value={formatPaise(s.outstanding_paise)}
-                icon={Wallet}
-                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
-              />
-              {/* A result that exists beats an exam that is coming.
-
-                  This card read "Next exam: Formative Assessment 1" while that
-                  exam's marks were in and its report card was published — it
-                  was answering a question the family had stopped asking three
-                  days earlier. Once results are out, the card shows them; the
-                  next exam comes back the moment one is scheduled and no newer
-                  result has been released. */}
               {s.latest_result_pct != null ? (
                 <Stat
                   label="Latest result"
                   value={`${s.latest_result_pct.toFixed(1)}%`}
                   icon={GraduationCap}
-                  hint={[s.latest_result_exam, s.latest_result_grade && `grade ${s.latest_result_grade}`]
-                    .filter(Boolean).join(' · ')}
+                  hint={[s.latest_result_grade && `Grade ${s.latest_result_grade}`, s.latest_result_exam].filter(Boolean).join(' · ')}
+                  onClick={go('academics/results_report_cards')}
                 />
               ) : (
                 <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '-'} icon={GraduationCap} />
               )}
-              </>
-              )}
+              <Stat
+                label={t('portal.portal.stat_fees')}
+                value={formatPaise(s.outstanding_paise)}
+                icon={Wallet}
+                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
+                onClick={go('fees/fees_payments')}
+              />
             </CellGrid>
 
-            {!isAttendance && (
-            <Card>
-              <CardHeader
-                title={t('portal.portal.today_title')}
-                description={
-                  s.today.length
-                    ? t('portal.portal.today_description')
-                    : t('portal.portal.today_none_description')
-                }
-              />
-              {s.today.length === 0 ? (
-                <EmptyState
-                  title={t('portal.portal.today_empty_title')}
-                  body={t('portal.portal.today_empty_body')}
-                />
-              ) : (
-                <ul className="divide-y">
-                  {s.today.map((c, i) => (
-                    <li key={`${c.period}-${i}`} className="flex flex-wrap items-baseline gap-3 px-4 py-2.5">
-                      {/* A period is one time, not two lines.
-
-                          96px of monospace holds "09:00–09:45" only just, and
-                          overflow-wrap:anywhere — which stops a long email
-                          address shoving a card sideways — was happy to break
-                          it at the dash. A clock reading is not a word. */}
-                      <span className="w-28 shrink-0 whitespace-nowrap font-mono text-[13px] tabular-nums text-muted-foreground">
-                        {c.starts_at ?? '-'}
-                        {c.ends_at ? `–${c.ends_at}` : ''}
-                      </span>
-                      <span className="min-w-[8rem] flex-1 font-medium">{c.subject}</span>
-                      <span className="text-[13px] text-muted-foreground">
-                        {c.period}
-                        {c.teacher ? ` · ${c.teacher}` : ''}
-                        {c.room ? ` · ${c.room}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-            )}
-
-
-            <Card>
-              <CardHeader
-                title={t('portal.portal.history_title')}
-                description={t('portal.portal.history_description')}
-              />
-              <div className="p-5">
-                {/* One month at a time, chosen from a picker, the current
-                    month by default. Every month of the year stacked on one
-                    page put last month at the top and this month below it,
-                    and a parent opening the app on the 3rd was reading the
-                    wrong month before they noticed. */}
-                <AttendanceHistory days={days} emptyLabel={t('portal.portal.history_empty')} />
+            <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px]">
+              <div className="order-2 lg:order-1">
+                <Card>
+                  <CardHeader
+                    title={t('portal.portal.today_title')}
+                    description={new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+                    action={nowPeriod ? <span className="rounded-full bg-primary/10 px-3 py-1 text-[12px] font-semibold text-primary">{nowPeriod.period} in progress</span> : undefined}
+                  />
+                  {s.today.length === 0 ? (
+                    <EmptyState title={t('portal.portal.today_empty_title')} body={t('portal.portal.today_empty_body')} />
+                  ) : (
+                    <ul className="space-y-2 p-4">
+                      {s.today.map((c, i) => {
+                        const live = nowPeriod === c
+                        return (
+                          <li key={`${c.period}-${i}`}
+                            className={cn('flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3',
+                              live ? 'border-primary/40 bg-primary/10' : 'border-transparent bg-muted/50')}>
+                            <span className={cn('w-28 shrink-0 whitespace-nowrap text-[12.5px] font-semibold tabular-nums', live ? 'text-primary' : 'text-muted-foreground')}>
+                              {c.starts_at ?? '-'}{c.ends_at ? `–${c.ends_at}` : ''}
+                            </span>
+                            <span className="min-w-[8rem] flex-1 text-[14px] font-semibold">{c.subject}</span>
+                            <span className="text-[12.5px] text-muted-foreground">
+                              {c.period}{c.teacher ? ` · ${c.teacher}` : ''}{c.room ? ` · ${c.room}` : ''}
+                            </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </Card>
+                {/* The next school day, as the student's My day shows it. */}
+                {s.next_day && s.next_day.periods.some((x) => x.subject !== 'Free') && (
+                  <Card className="mt-6">
+                    <CardHeader title={`Next school day · ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}`} />
+                    <ul className="space-y-2 p-4">
+                      {s.next_day.periods.filter((x) => x.subject !== 'Free').map((c, i) => (
+                        <li key={`${c.period}-${i}`} className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
+                          <span className="w-28 shrink-0 whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-muted-foreground">
+                            {c.starts_at ?? '-'}{c.ends_at ? `–${c.ends_at}` : ''}
+                          </span>
+                          <span className="min-w-[8rem] flex-1 text-[14px] font-semibold">{c.subject}</span>
+                          <span className="text-[12.5px] text-muted-foreground">{c.period}{c.teacher ? ` · ${c.teacher}` : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
               </div>
-            </Card>
+
+              <div className="order-1 space-y-6 lg:order-2">
+                {s.outstanding_paise > 0 && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-bold text-destructive">{formatPaise(s.outstanding_paise)} due</div>
+                      <div className="text-[12.5px] text-muted-foreground">{t('portal.portal.fees_payable')}</div>
+                    </div>
+                    <Button onClick={go('fees/fees_payments')}>Pay now <ArrowRight className="h-3.5 w-3.5" /></Button>
+                  </div>
+                )}
+                <Card>
+                  <CardHeader
+                    title={monthName(thisMonth())}
+                    action={month.pct !== null ? (
+                      <span className={cn('text-[12.5px] font-semibold', month.pct >= 75 ? 'text-success' : 'text-destructive')}>{month.pct}% present</span>
+                    ) : undefined}
+                  />
+                  <div className="px-5 pb-4">
+                    <MonthGrid days={month.monthDays} ym={thisMonth()} />
+                    <div className="mt-3"><Legend /></div>
+                    <button type="button" onClick={go('attendance/attendance')}
+                      className="mt-3 text-[12.5px] font-medium text-primary hover:underline">
+                      Full attendance report
+                    </button>
+                  </div>
+                </Card>
+              </div>
+            </div>
+            </>
+            )}
           </>
         )}
       </PageBody>

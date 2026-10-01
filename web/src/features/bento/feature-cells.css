@@ -1,54 +1,126 @@
-/* THE SHORTCUT CELL: four screens in a two-by-two grid. See FeatureCells.tsx.
-   No colour is named; every tone is a mix of currentColor, so the ten
-   palettes and anything somebody paints come through. */
-.fc-grid {
+/* APP ICONS ON THE HOME. See FeatureCells.tsx.
+
+   A rounded square washed with the workspace colour (--t), the feature's
+   glyph in that colour, the name beneath. Soft tint, not glass and not a
+   solid fill: the plate is a 14% mix of the colour into the card surface,
+   with a hairline of the colour, and the only shadow is the theme's glow
+   (--glow-k), so "glow off" leaves a flat soft tile. */
+
+.ai-cell {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
+  place-items: center;
   height: 100%;
   min-height: 0;
+  container-type: size;
 }
-.fc-tile {
+.ai-tile {
+  --ai-size: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  min-height: 0;
-  padding: 6px 2px;
-  border-radius: 12px;
-  color: inherit;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 4px;
+  border-radius: 18px;
+  color: var(--bento-ink, inherit);
   text-decoration: none;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--dur-fast, 200ms) var(--ease-out, ease);
 }
-@media (hover: hover) {
-  .fc-tile:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
-}
-.fc-tile:active { background: color-mix(in srgb, currentColor 10%, transparent); }
-.fc-tile:focus-visible {
+/* On the desk the plate grows with the cell, square, and leaves room for
+   two lines of name. */
+.ai-cell .ai-tile { --ai-size: clamp(48px, min(46cqw, calc(100cqh - 64px)), 96px); }
+.ai-tile:focus-visible {
   outline: 2px solid currentColor;
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
-/* Two lines, then a cut: a name that wraps to three is a paragraph, and the
-   grid's rows stop lining up. */
-.fc-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+
+/* The plate is the launcher's own (FeatureGlyph + .lch-plate, see AppIcon):
+   the same tinted disc and glyph as All features. Only its size is set here,
+   through FeatureGlyph's --size, so it still follows the cell. */
+.ai-plate { flex: none; position: relative; }
+
+@media (hover: hover) {
+  .ai-tile:hover .ai-plate { transform: translateY(-2px); }
+}
+.ai-tile:active .ai-plate { transform: scale(0.95); }
+
+.ai-name {
+  /* One word, one line, never wrapped (short-labels.ts); the ellipsis is only
+     a backstop for a long single word. Muted ink, medium weight, centred. */
+  display: block;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   max-width: 100%;
   font-size: 12px;
-  line-height: 1.2;
+  line-height: 1.3;
   font-weight: 500;
-  opacity: 0.88;
-  word-break: break-word;
+  text-align: center;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  letter-spacing: 0.005em;
 }
-.fc-empty {
-  border: 1px dashed color-mix(in srgb, currentColor 16%, transparent);
-  border-radius: 12px;
+
+/* On a phone the unit is a quarter of the page wide: a smaller plate, one
+   line of name. */
+[data-pager] .ai-cell .ai-tile { --ai-size: clamp(28px, min(62cqw, calc(100cqh - 22px)), 64px); gap: 4px; padding: 0 2px; min-height: 0; }
+[data-pager] .ai-cell .ai-name { font-size: 12.5px; }
+
+/* An app icon carries no card chrome: no open arrow, no corner menu (hold
+   to customize, or the edit mode's own remove, does that). */
+.bento-widget[data-app-icon]:not([data-editing]) > .bento-cue { display: none; }
+
+/* The desk tile: four icons, two by two, each its own target. */
+.ai-quad {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
 }
-[data-reduce-motion='true'] .fc-tile { transition: none; }
+.ai-quad__slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+}
+.ai-quad .ai-tile {
+  --ai-size: clamp(28px, min(52cqw, calc(100cqh - 30px)), 56px);
+  gap: 3px;
+  padding: 2px;
+  min-height: 0;
+}
+.ai-quad .ai-name { font-size: 12px; }
+.ai-quad__remove {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--color-foreground, #111);
+  color: var(--color-background, #fff);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* An app icon is not a card: no card ground under it on the board. */
+.bento-widget[data-app-icon] > div > * { background: transparent; box-shadow: none; }
+
+[data-reduce-motion='true'] .ai-plate { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-plate { transition: none; }
+  .ai-tile:hover .ai-plate, .ai-tile:active .ai-plate { transform: none; }
+}

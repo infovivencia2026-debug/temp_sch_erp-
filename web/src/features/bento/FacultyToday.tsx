@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
@@ -192,6 +193,7 @@ export default function FacultyToday() {
       title={t('bento.faculty_today.title')}
       description={t('bento.faculty_today.description', { count: lessons.length })}
       dashboard="faculty_today"
+      lead={<StatusRings />}
     >
       <Widget id="now" label={t('bento.faculty_today.now_label')} size="large" index={0}>
         {(span) => (

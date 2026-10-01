@@ -30,21 +30,18 @@ beforeAll(async () => {
 })
 
 describe('student logins: the school switch', () => {
-  it('is off for a school that has never issued one, and issuing is refused', async () => {
+  /* On for every child unless the school switches it off (4646e83a): the
+     lowest-class rule is gone. */
+  it('is on for a school that has never chosen', async () => {
     const s = await api('admin', 'GET', '/admin/student-logins')
     expect(s.status).toBe(200)
-    expect(s.body).toMatchObject({ enabled: false, chosen: false })
-    const b = await api('admin', 'POST', '/setup/logins/bulk', { kind: 'students', section_id: IDS.section })
-    expect(b.status).toBe(409)
-    const one = await api('admin', 'POST', `/setup/students/${IDS.child}/login`, {})
-    expect(one.status).toBe(409)
+    expect(s.body).toMatchObject({ enabled: true, chosen: false })
   })
 
-  it('a lowest class above the section issues nothing', async () => {
-    expect((await api('admin', 'PUT', '/admin/student-logins', { enabled: true, min_level: 6 })).status).toBe(200)
+  it('switched off, issuing is refused', async () => {
+    expect((await api('admin', 'PUT', '/admin/student-logins', { enabled: false })).status).toBe(200)
     const b = await api('admin', 'POST', '/setup/logins/bulk', { kind: 'students', section_id: IDS.section })
-    expect(b.status).toBe(200)
-    expect(b.body.created).toBe(0)
+    expect(b.status).toBe(409)
     const one = await api('admin', 'POST', `/setup/students/${IDS.child}/login`, {})
     expect(one.status).toBe(409)
   })

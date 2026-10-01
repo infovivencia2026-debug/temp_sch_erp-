@@ -97,7 +97,7 @@ export default function ChildRemarks() {
     enabled: kids.length > 0,
   })
 
-  if (kidsQuery.isLoading) return <ScreenSkeleton />
+  if (kidsQuery.isLoading && !kidsQuery.data) return <ScreenSkeleton />
   if (kidsQuery.error && !kidsQuery.data) return <ScreenError error={kidsQuery.error} />
 
   if (kids.length === 0) {
@@ -114,7 +114,7 @@ export default function ChildRemarks() {
     )
   }
 
-  if (q.isLoading) return <ScreenSkeleton />
+  if (q.isLoading && !q.data) return <ScreenSkeleton />
   if (q.error && !q.data) return <ScreenError error={q.error} />
 
   const items = q.data?.items ?? []

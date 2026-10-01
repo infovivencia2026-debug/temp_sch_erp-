@@ -201,7 +201,7 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
     },
   })
 
-  if (q.isLoading) return <SkeletonTable columns={5} label="Opening the sanction…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={5} label="Opening the sanction…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null
@@ -613,7 +613,7 @@ function CertificateDetail({ id, mayCertify }: { id: string; mayCertify: boolean
     onSuccess: () => qc.invalidateQueries({ queryKey: [collectionsKey] }),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={8} label="Opening the certificate…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={8} label="Opening the certificate…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

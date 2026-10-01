@@ -207,7 +207,7 @@ export default function TransportOffice() {
     queryFn: () => api.get<List<Incident>>('/api/v1/ops/transport/incidents?period=this_month'),
   })
 
-  if (staff.isLoading) return <SkeletonTiles count={4} label="Opening the transport office…" />
+  if (staff.isLoading && !staff.data) return <SkeletonTiles count={4} label="Opening the transport office…" />
   if (staff.error) return <ErrorState error={staff.error} />
 
   const lapsing = (staff.data?.items ?? []).filter(

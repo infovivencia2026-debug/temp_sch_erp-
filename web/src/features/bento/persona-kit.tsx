@@ -77,12 +77,15 @@ export function PersonaPage({
   description,
   actions,
   dashboard,
+  lead,
   children,
 }: {
   eyebrow: string
   title: string
   description?: string
   actions?: ReactNode
+  /** A full-width strip between the header and the cells (the Class Status rings). */
+  lead?: ReactNode
   /** Storage key for the arranger, when this page's cells are <Widget>s.
 
       It is taken here rather than written around <PersonaPage> at the call
@@ -95,20 +98,21 @@ export function PersonaPage({
 }) {
   const classic = useClassicSkin()
   if (classic) {
-    return <ClassicPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions}>{children}</ClassicPersonaPage>
+    return <ClassicPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions} lead={lead}>{children}</ClassicPersonaPage>
   }
-  return <BoardPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions} dashboard={dashboard}>{children}</BoardPersonaPage>
+  return <BoardPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions} dashboard={dashboard} lead={lead}>{children}</BoardPersonaPage>
 }
 
 /** The sidebar layout's drawing of a persona board: the classic page head and
     a plain grid of classic cards. No arranger, no board height, no pager. */
-function ClassicPersonaPage({ eyebrow, title, description, actions, children }: {
-  eyebrow: string; title: string; description?: string; actions?: ReactNode; children: ReactNode
+function ClassicPersonaPage({ eyebrow, title, description, actions, lead, children }: {
+  eyebrow: string; title: string; description?: string; actions?: ReactNode; lead?: ReactNode; children: ReactNode
 }) {
   return (
     <>
       <PageHead eyebrow={eyebrow} title={title} description={description} actions={actions} />
       <PageBody>
+        {lead}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
       </PageBody>
     </>
@@ -121,6 +125,7 @@ function BoardPersonaPage({
   description,
   actions,
   dashboard,
+  lead,
   children,
 }: {
   eyebrow: string
@@ -128,6 +133,7 @@ function BoardPersonaPage({
   description?: string
   actions?: ReactNode
   dashboard?: string
+  lead?: ReactNode
   children: ReactNode
 }) {
   /* THE SCHOOL'S OWN MARK, on the home a parent or student actually opens.
@@ -183,7 +189,7 @@ function BoardPersonaPage({
      `--board-h`, and between the two the ground is `min-h-full` and scrolls,
      which a surface taller than it does not prevent. */
   return (
-    <div className="bento-surface flex h-full w-full flex-col p-3 sm:p-4 text-[var(--bento-ink)]">
+    <div className="bento-surface flex h-full w-full flex-col px-0 py-3 sm:p-4 text-[var(--bento-ink)]">
       {/* On a phone the header is one small line, because every pixel it
           takes is a pixel off three cards that already share the screen with
           the dock. The name is the reader's own child or self — they know
@@ -214,6 +220,7 @@ function BoardPersonaPage({
         </div>
         {actions}
       </div>
+      {lead && <div className="mt-3 shrink-0">{lead}</div>}
       {grid}
     </div>
   )

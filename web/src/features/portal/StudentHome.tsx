@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
+import { ArrowRight, Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { ErrorState } from '@/components/ui'
@@ -25,6 +26,8 @@ import {
 interface Summary {
   full_name: string; attendance_pct: number; total_days: number; present_days: number
   today: Period[]
+  /** The next school day's periods (Monday after the weekend). */
+  next_day?: { weekday: number; periods: Period[] }
 }
 interface Day { date: string; status: string }
 export interface StudentHomework {
@@ -107,12 +110,37 @@ export default function StudentHome() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6">
-        {/* Hello, and the two small chips. */}
-        <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="w-full min-w-0 space-y-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
+        <StatusRings />
+        {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
+            school's colour with the date as a pill; on a phone it is a plain
+            header with the streak and badge chips beside it. */}
+        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary/85 to-primary/55 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
+          <div>
+            <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? `${greeting()}, ${first}` : 'Hello'}</h1>
+            <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>
+          </div>
+          <span className="flex items-center gap-2">
+          {streak.data && (
+            <>
+              <Link to={toStreak ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
+                <Flame className="h-4 w-4" /> {streak.data.open_streak}
+              </Link>
+              <Link to={toBadges ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
+                <Award className="h-4 w-4" /> {earned}
+              </Link>
+            </>
+          )}
+          <span className="rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[13.5px] font-semibold backdrop-blur">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </span>
+          </span>
+          <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,transparent_70%)]" />
+        </div>
+        <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[22px] font-semibold leading-tight">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
-            <p className="text-[13px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
+            <p className="text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           {streak.isLoading && <div className="flex gap-2" aria-hidden><Bone className="h-11 w-[64px] rounded-full" /><Bone className="h-11 w-[64px] rounded-full" /></div>}
           {streak.data && (
@@ -129,18 +157,28 @@ export default function StudentHome() {
           )}
         </div>
 
-        {summary.error && !s ? <ErrorState error={summary.error} /> : s ? <NowNextCard periods={s.today} to={toTimetable} /> : <Bone className="h-[76px] w-full rounded-2xl" />}
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+        {summary.error && !s ? <ErrorState error={summary.error} /> : s ? (s.today.length === 0 ? (
+          <section className="flex items-center gap-4 rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#f0fdf4] to-card px-5 py-5 shadow-sm">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card text-[22px]">🌴</span>
+            <span>
+              <span className="block text-[16px] font-bold text-[#065f46]">No classes today</span>
+              <span className="block text-[13px] text-[#047857]">Enjoy your day off. School is not in session.</span>
+            </span>
+          </section>
+        ) : <NowNextCard periods={s.today} to={toTimetable} />) : <Bone className="h-[76px] w-full rounded-2xl" />}
 
         {/* Continue learning. */}
         {cont ? (
-          <Link to={cont.href} className="flex min-h-[72px] items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-sm transition active:scale-[.99]">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-6 w-6" strokeWidth={1.75} /></span>
+          <Link to={cont.href} className="flex min-h-[84px] items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-sm transition active:scale-[.99]">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-7 w-7" strokeWidth={1.75} /></span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12px] font-semibold uppercase tracking-wide opacity-80">Continue learning</span>
-              <span className="block truncate text-[16px] font-semibold">{cont.title}</span>
-              <span className="block truncate text-[13px] opacity-85">{cont.sub}{totalLessons ? ` · ${doneLessons}/${totalLessons} done` : ''}</span>
+              <span className="block text-[20px] font-bold leading-tight">Keep learning</span>
+              <span className="block truncate text-[16px] font-medium opacity-95">{cont.title}</span>
+              <span className="block truncate text-[14px] opacity-85">{cont.sub}{totalLessons ? ` · ${doneLessons}/${totalLessons} done` : ''}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0" />
+            <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
           </Link>
         ) : todo.isLoading ? <Bone className="h-[72px] w-full rounded-2xl" /> : null}
 
@@ -236,6 +274,39 @@ export default function StudentHome() {
             </ul>
           </div>
         )}
+        </div>
+        <div className="space-y-4">
+        {/* THE NEXT SCHOOL DAY, from the owner's design: subject, teacher and
+            the time as a chip. */}
+        {s?.next_day && s.next_day.periods.length > 0 && (
+          <section className="card overflow-hidden p-0 md:p-2" aria-label="Next school day">
+            <div className="flex items-center justify-between px-4 pb-2 pt-3">
+              <h2 className="text-[15px] font-bold">
+                {s.next_day.weekday === ((new Date().getDay() + 6) % 7) + 2 || (new Date().getDay() === 0 && s.next_day.weekday === 1)
+                  ? `Tomorrow (${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]})`
+                  : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}
+              </h2>
+              {toTimetable && <Link to={toTimetable} className="-my-2 inline-flex min-h-[44px] items-center px-1 text-[13px] font-semibold text-primary">Full week →</Link>}
+            </div>
+            <ul className="flex flex-col gap-2 px-3 pb-3">
+              {s.next_day.periods.filter((x) => x.subject !== 'Free').map((x, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold">{x.subject}</span>
+                    <span className="block truncate text-[12px] text-muted-foreground">{[x.period, x.teacher].filter(Boolean).join(' • ')}</span>
+                  </span>
+                  {x.starts_at && <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[12px] font-bold tabular-nums text-primary">{x.starts_at}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {s?.next_day && s.next_day.periods.length === 0 && (
+          <section className="card px-5 py-4 text-[14px] text-muted-foreground">Nothing is timetabled for the next school day.</section>
+        )}
+        </div>
+        </div>
       </div>
     </PullToRefresh>
   )
@@ -248,7 +319,7 @@ function addDays(iso: string, n: number) {
 export { addDays }
 
 function Chip({ to, label, children }: { to?: string; label: string; children: React.ReactNode }) {
-  const cls = 'card inline-flex h-11 min-w-[56px] items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold'
+  const cls = 'card inline-flex h-[44px] min-w-[56px] items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold'
   return to ? <Link to={to} aria-label={label} title={label} className={cls}>{children}</Link> : <span aria-label={label} className={cls}>{children}</span>
 }
 

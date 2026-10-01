@@ -2956,11 +2956,11 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-board[data-pager] {
     display: grid !important;
     grid-template-columns: none !important;
-    /* TWO COLUMNS, matching PHONE_COLS in web/src/lib/widgets.ts: a page is
-       two tracks, each half the scrollport less its share of the gap, so a
-       Small card is half a phone wide and a Wide one spans the page. The two
-       numbers must agree or the snap stride is wrong. */
-    grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
+    /* TWELVE COLUMNS a page, matching PHONE_GRID_COLS in widgets.ts
+       (packPhone): an app icon spans 12/n, a small card six, a big one all
+       twelve. --pager-cols is written by WidgetLayer from the same number,
+       so the snap stride cannot drift. */
+    grid-auto-columns: calc((100% - (var(--pager-cols, 12) - 1) * var(--bento-gap)) / var(--pager-cols, 12));
     /* TWO, matching PHONE_ROWS in web/src/lib/widgets.ts: a card is the top
        half of the page or all of it. The two numbers must agree: the pager's
        inline grid-row comes from PHONE_ROWS and the track count from
@@ -2968,7 +2968,7 @@ html:not(.dark)[data-layout='bento'] {
     /* `--pager-rows` is written by WidgetLayer from the same number it packs
        with, so the two cannot drift. Two at every text size: the zoom
        threshold that once made it three-or-two is gone (WidgetLayer). */
-    grid-template-rows: repeat(var(--pager-rows, 2), minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(var(--pager-rows, 6), minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--bento-gap) !important;
@@ -3286,7 +3286,9 @@ html:not(.dark)[data-layout='bento'] {
        against this strip's z-45 and therefore wins every tap it overlaps.
        A target whose lower third cannot be pressed is the defect this file
        keeps finding, so the strip moves up until the whole of it is reachable. */
-    bottom: calc(var(--dock-h, 56px) + 24px);
+    /* Owner, 2026-10-01: the dots are the only thing between the board and
+       the bar, with tight even margins; the dot sits ~7px above the bar. */
+    bottom: calc(var(--dock-h, 56px) - 3px);
     z-index: 45;
     display: flex;
     align-items: center;
@@ -4670,4 +4672,36 @@ html:not([data-layout='bento']) [data-settings-page] {
   --bento-bg: hsl(var(--background));
   --bento-line: hsl(var(--border));
   --bento-muted: hsl(var(--muted-foreground));
+}
+
+/* SHORT WINDOWS SCROLL INSTEAD OF SQUASHING.
+   Under ~620px of height the board's row floor (148px a row, set in
+   useBoardHeight) is taller than the room, and the clipping ground and
+   surface above would cut the bottom row off. Release both so the work area
+   (the <main> scroller) scrolls to it. */
+@media (min-width: 1024px) and (max-height: 620px) {
+  [data-layout='bento'] .bento-ground,
+  [data-layout='bento'] .bento-ground:has(.bento-board[data-pager]) {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .bento-surface {
+    overflow: visible;
+    height: auto;
+  }
+}
+
+/* THE PHONE HOME FILLS TO THE DOTS. The work area's dock reserve is for
+   scrolling pages; a home page does not scroll, and the reserve left a band
+   under the board. The board takes the height useBoardHeight measures (to
+   7px above the dots, or 12px above the bar when there is one page). */
+@media (max-width: 1023px) {
+  [data-layout='bento'] main:has(.bento-board[data-pager]:not([data-arranging])) {
+    padding-bottom: 0 !important;
+  }
+  [data-layout='bento'] .bento-board[data-pager]:not([data-arranging]) {
+    flex: 0 0 auto;
+    height: var(--board-h, auto);
+  }
 }

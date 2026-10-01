@@ -395,6 +395,7 @@ export function ColourPanel({
 
 
   const painted = useMemo(() => Object.keys(paint).length, [paint])
+  const wheelRef = useRef<HTMLDetailsElement>(null)
 
 
   const update = (next: Partial<Hsl>) => set(region, channel, { ...current, ...next })
@@ -546,9 +547,16 @@ export function ColourPanel({
                             <span className="h-[9px] w-[14px] rounded-full" style={{ background: k['--dom-students'] }} />
                           </span>
                         </span>
-                        {on && (
+                        {on ? (
                           <span className="absolute right-[5px] top-[5px] grid size-[18px] place-items-center rounded-full bg-[var(--sel-strong)] text-[var(--sel-ground)] shadow-sm">
                             <Check className="size-3" strokeWidth={3} />
+                          </span>
+                        ) : (
+                          <span
+                            className="absolute right-[5px] top-[5px] grid size-[18px] place-items-center rounded-full border opacity-55"
+                            style={{ background: k['--bento-card'], borderColor: k['--bento-line'], color: k['--bento-muted'] }}
+                          >
+                            <X className="size-3" strokeWidth={2.5} />
                           </span>
                         )}
                       </span>
@@ -657,10 +665,20 @@ export function ColourPanel({
                   )}
                   style={{ background: `hsl(${w.hsl.h} ${w.hsl.s}% ${w.hsl.l}%)` }}
                 >
-                  {w.on && (
+                  {/* Tick on the chosen one, a faint cross on the rest
+                      (owner, 2026-10-01: "add tick / cross in colour
+                      selection"), both in whichever ink reads on that
+                      swatch. */}
+                  {w.on ? (
                     <Check
                       className="size-4"
                       strokeWidth={3}
+                      style={{ color: w.hsl.l > 55 ? '#000' : '#fff' }}
+                    />
+                  ) : (
+                    <X
+                      className="size-3.5 opacity-45"
+                      strokeWidth={2.5}
                       style={{ color: w.hsl.l > 55 ? '#000' : '#fff' }}
                     />
                   )}
@@ -670,7 +688,7 @@ export function ColourPanel({
             ))}
           </div>
 
-          <details className={cn('group rounded-[12px] border', EDGE)}>
+          <details ref={wheelRef} className={cn('group rounded-[12px] border', EDGE)}>
             <summary
               className={cn(
                 'flex min-h-[44px] cursor-pointer list-none items-center gap-2.5 rounded-[12px] px-3 text-[13px] font-medium',
@@ -716,6 +734,22 @@ export function ColourPanel({
                     background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 0%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 100%))`,
                   }}
                 />
+              </div>
+              {/* A WAY OUT (owner, 2026-10-01: "there is no way to exit the
+                  box of the colour wheel"). The fold's own summary scrolls
+                  off the top of a phone once the wheel is open, so the
+                  foot carries its own Done: it writes nothing more -- the
+                  wheel already wrote on every pick -- it only closes the
+                  fold and brings the summary back into view. */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => { const d = wheelRef.current; if (d) { d.open = false; d.scrollIntoView({ block: 'nearest' }) } }}
+                  className={cn('inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold', SELECTED, RING)}
+                >
+                  <Check className="size-4" strokeWidth={3} aria-hidden="true" />
+                  {t('bento.colour.wheel_done')}
+                </button>
               </div>
             </div>
           </details>

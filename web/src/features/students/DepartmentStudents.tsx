@@ -74,7 +74,7 @@ export default function DepartmentStudents() {
     { key: 'full_name' },
   )
 
-  if (roll.isLoading) return <SkeletonTable columns={5} label="Working out who each department teaches…" />
+  if (roll.isLoading && !roll.data) return <SkeletonTable columns={5} label="Working out who each department teaches…" />
   if (roll.error) return <ErrorState error={roll.error} />
 
   const depts = roll.data?.departments ?? []

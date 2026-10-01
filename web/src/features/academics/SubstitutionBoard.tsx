@@ -116,7 +116,7 @@ export default function SubstitutionBoard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['substitution-board'] }),
   })
 
-  if (board.isLoading) return <SkeletonTiles count={4} label="Reading this morning’s register…" />
+  if (board.isLoading && !board.data) return <SkeletonTiles count={4} label="Reading this morning’s register…" />
   if (board.error) return <ErrorState error={board.error} />
 
   const rows = board.data?.items ?? []

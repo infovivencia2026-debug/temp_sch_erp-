@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   ArrowDown, Check, CheckCheck, Clock, Download, FileText,
   Copy, Mic, Paperclip, Pause, Play, Reply, Search, Send, Square, Trash2, X,
+  MoreHorizontal,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { shrinkImage } from '@/lib/shrink-image'
+import { buzz } from '@/lib/haptics'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { Loading } from '@/components/ui'
 import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
@@ -485,11 +487,10 @@ export function ChatThread({
   const confirmHold = useCallback((m: ChatMessage, el: HTMLElement) => {
     heldJust.current = true
     setActing({ m, rect: el.getBoundingClientRect() })
-    try {
-      navigator.vibrate?.(12)
-    } catch {
-      /* iOS has no vibrate; the pop below is what it gets. */
-    }
+    /* Through lib/haptics, so the Haptics switch and reduced motion are
+       honoured here like everywhere else. iOS has no vibrate; the pop below
+       is what it gets. */
+    buzz('select')
     popSound()
   }, [])
 
@@ -644,6 +645,37 @@ export function ChatThread({
                   {/* Answer this one. Left of your own bubble, right of theirs,
                       so the control never sits where the text begins. */}
                   <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', right ? 'items-end' : 'items-start')}>
+                  <div className={cn('flex items-end gap-1', right ? 'flex-row' : 'flex-row-reverse')}>
+                  {/* A CONTROL YOU CAN SEE.
+
+                      Reply and Delete were reachable by holding a bubble for
+                      half a second, or right-clicking it. Both work, and
+                      neither is discoverable: nothing on the screen says a
+                      message can be taken back, so a parent who sent the
+                      wrong thing to the wrong teacher concludes it cannot be
+                      undone. A long press is a shortcut for people who know;
+                      it is not an interface.
+
+                      The same menu, from a button. It appears on hover with a
+                      mouse and is always there on a touch screen, where there
+                      is no hover to reveal it and where the long press is
+                      hardest to discover. Withdrawn, pending and failed
+                      messages have nothing to offer, so they have no button. */}
+                  {!m.deleted && !m.pending && !m.failed && (
+                    <button
+                      type="button"
+                      aria-label="More"
+                      onClick={(e) => confirmHold(m, e.currentTarget.parentElement as HTMLElement)}
+                      className={cn(
+                        'mb-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground',
+                        'transition-opacity hover:bg-muted hover:text-foreground',
+                        'opacity-0 focus-visible:opacity-100 group-hover:opacity-100',
+                        '[@media(pointer:coarse)]:opacity-60',
+                      )}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  )}
                   <div
                     {...holdHandlers(m)}
                     className={cn(
@@ -692,6 +724,7 @@ export function ChatThread({
                           <Check className="h-[15px] w-[15px]" aria-label="Sent" />
                         ))}
                     </p>
+                    </div>
                     </div>
                     {m.failed && (
                       <p className="mt-1 flex gap-3 text-[12px] font-semibold">

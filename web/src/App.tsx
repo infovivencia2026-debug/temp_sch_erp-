@@ -1,8 +1,7 @@
 import { ApiError } from '@/lib/api'
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import { flushSync } from 'react-dom'
+import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -43,7 +42,9 @@ import { I18nProvider } from '@/lib/i18n'
    background, so kept-on-screen data never looks final while it is changing.
    Appears only after 150ms, so quick answers show nothing at all. */
 function FetchBar() {
-  const n = useIsFetching()
+  /* Writes count too: a change already drawn optimistically (lib/optimistic)
+     is still being saved, and this is where that shows. */
+  const n = useIsFetching() + useIsMutating()
   return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 ? '' : undefined} />
 }
 
@@ -282,6 +283,10 @@ function FeatureRoute() {
      a Home section is a Home section in all seventeen catalogues. */
   const isHome = section.workspace === 'Home' || section.slug === 'home' ||
     section.slug === 'dashboard'
+  /* Only the Home landing page carries the greeting and "Needs your
+     attention". Every other page in the Home section (My calendar, My work)
+     drew the attention list at its foot too, which the owner did not want. */
+  const homeLanding = isHome && section.features[0]?.key === feature.key
 
   if (!Component) {
     if (isHome) {
@@ -336,9 +341,9 @@ function FeatureRoute() {
        * second visit to any screen, and every visit for anyone who has been
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
-        {isHome && (
+        {homeLanding && (
           <PageBody>
-            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} />
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} />
           </PageBody>
         )}
         {/* Keyed by the feature, not just by the component.
@@ -351,7 +356,7 @@ function FeatureRoute() {
             it had open. Each screen carries a guard for that, and every screen
             added later would need to remember one. A key ends it at the
             router, where the change actually happens. */}
-        {!isHome && <Component key={feature.key} />}
+        {!homeLanding && <Component key={feature.key} />}
       </Suspense>
     </ChunkBoundary>
   )
@@ -435,26 +440,12 @@ function Home() {
    the API, and people who asked for reduced motion, get the plain swap and
    the arrival fade they had. */
 function RoutedScreen() {
+  /* The address on screen follows the router directly. (A hidden pre-load of
+     the next screen was tried on 2026-09-30 and rolled back: it switched
+     before some screens had loaded and left the account page on its
+     placeholder.) */
   const location = useLocation()
-  const [shown, setShown] = useState(location)
-  useLayoutEffect(() => {
-    if (shown.key === location.key) return
-    type VT = { ready?: Promise<unknown>; finished?: Promise<unknown>; updateCallbackDone?: Promise<unknown> }
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => VT | undefined }
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!doc.startViewTransition || still) {
-      setShown(location)
-      return
-    }
-    const vt = doc.startViewTransition(() => flushSync(() => setShown(location)))
-    // A transition overtaken by the next navigation rejects "Transition was
-    // skipped"; the swap still happened, so the rejection is not an error.
-    for (const pr of [vt?.ready, vt?.finished, vt?.updateCallbackDone]) pr?.catch(() => {})
-    // shown is the thing being replaced; reading it fresh would re-run this
-    // on its own update.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location])
-  return <AppRoutes location={shown.pathname + shown.search + shown.hash} />
+  return <AppRoutes location={location.pathname + location.search + location.hash} />
 }
 
 export function AppRoutes({ location }: { location?: string }) {

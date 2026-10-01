@@ -37,7 +37,8 @@ interface Note {
   recorded_by?: string
 }
 
-interface Pupil { id: string; full_name: string; admission_no: string }
+interface Pupil { id: string; full_name: string; admission_no: string; class_name?: string; section_name?: string }
+interface MySection { section_id: string; label: string; class_teacher: boolean }
 
 /* The vocabulary a school actually uses, split by which way it points.
 
@@ -65,6 +66,17 @@ export default function Behaviour() {
     queryFn: () => api.get<List<Note>>('/api/v1/students/notes'),
   })
   const pupils = useStudentRoster<Pupil>()
+  /* THE CLASS FIRST, THEN THE CHILD. Only the classes this teacher teaches or
+     is class teacher of, their own class chosen to begin with; the child list
+     is that class alone rather than the whole school in one long list. */
+  const mine = useQuery({
+    queryKey: ['student-progress-options'],
+    queryFn: () => api.get<List<MySection>>('/api/v1/teaching/progress/options'),
+  })
+  const mySections = mine.data?.items ?? []
+  const [classPick, setClassPick] = useState('')
+  const klass = mySections.find((x) => x.section_id === classPick) ?? mySections.find((x) => x.class_teacher) ?? mySections[0]
+  const inClass = (pupils.data?.items ?? []).filter((p) => !klass || `${p.class_name}-${p.section_name}` === klass.label)
 
   const record = useMutation({
     mutationFn: () => api.post('/api/v1/students/notes', {
@@ -89,7 +101,7 @@ export default function Behaviour() {
   const { q: term, setQ: setTerm, shown } = useSearch(items,
     (n) => [n.student_name, n.category, n.description, n.action_taken])
 
-  if (notes.isLoading) return <SkeletonTiles count={3} />
+  if (notes.isLoading && !notes.data) return <SkeletonTiles count={3} />
   if (notes.error) return <ErrorState error={notes.error} />
 
   const praise = items.filter((n) => n.is_positive).length
@@ -140,12 +152,21 @@ export default function Behaviour() {
 
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">Class</span>
+                <Select
+                  value={klass?.section_id ?? ''}
+                  onChange={(v) => { setClassPick(v); setStudentId('') }}
+                  placeholder={mine.isLoading ? 'Loading…' : 'Pick a class'}
+                  options={mySections.map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px]">
                 <span className="text-muted-foreground">Which child *</span>
                 <Select
                   value={studentId}
                   onChange={setStudentId}
                   placeholder={pupils.isLoading ? 'Loading…' : 'Pick a student'}
-                  options={(pupils.data?.items ?? []).map((p) => ({
+                  options={inClass.map((p) => ({
                     value: p.id,
                     /* Named with the admission number: a class of sixty has
                        three children called the same thing, and a note against

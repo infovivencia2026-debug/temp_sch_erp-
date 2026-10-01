@@ -291,7 +291,9 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
 
           One reserve, in the scroller, because that is the element that
           scrolls and the one the dock actually overlaps. What is left here is
-          ordinary bottom padding, matching the top. */}
+          ordinary bottom padding, matching the top -- below lg only. On a
+          desktop the scroller's reserve already leaves a gap above the dock,
+          and this second 24px was the empty band under the last row. */}
       {/* THE GUTTER IS IN PIXELS, AND IT WAS NOT.
 
           px-3 is 0.75rem, and index.css pins the root font to 14px for the
@@ -315,7 +317,7 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           bolted to the edges; 22px is where it sits. On a desktop
           that is margin; on a phone it is the difference between a figure
           fitting on one line and wrapping. */}
-      <div className="flex-1 w-full pt-6 pb-6 px-[14px] sm:px-[20px] lg:px-[24px] flex flex-col">
+      <div className="flex-1 w-full pt-6 pb-6 lg:pb-0 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
         <OfflineBanner />
         <SchoolHealthBanner />
         <BackupsLifecycleNotice />

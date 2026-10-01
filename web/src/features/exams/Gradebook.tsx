@@ -508,14 +508,14 @@ export default function Gradebook() {
                     <Td className="font-medium">{r.full_name}</Td>
                     {!sectionID && <Td className="text-muted-foreground">{r.section || '-'}</Td>}
                     <Td>
-                      <input
+                      <Input
                         type="number" min={0} max={r.max_marks}
                         disabled={isAbsent(r)}
                         value={markOf(r)}
-                        onChange={(e) => setDraft({ ...draft, [r.student_id]: e.target.value })}
-                        aria-label={`Marks for ${r.full_name}, out of ${r.max_marks}`}
-                        aria-invalid={invalid.some((x) => x.student_id === r.student_id) || undefined}
-                        className="field w-24 disabled:opacity-40"
+                        onChange={(v) => setDraft({ ...draft, [r.student_id]: v })}
+                        srLabel={`Marks for ${r.full_name}, out of ${r.max_marks}`}
+                        ariaInvalid={invalid.some((x) => x.student_id === r.student_id) || undefined}
+                        className="w-24 disabled:opacity-40"
                       />
                     </Td>
                     <Td>
