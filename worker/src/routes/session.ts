@@ -2,7 +2,8 @@ import type { Env } from '../env'
 import { json } from '../env'
 import type { SessionResponse } from '@shared/api'
 import { currentSession } from '../auth/session'
-import { institutionById, tenantDb } from '../tenant'
+import { institutionById, tenantDb, tenantSession } from '../tenant'
+import type { Identity } from '../identity'
 import { entitlementFor } from './misc/shell'
 import type { Ctx } from '../router'
 import { simulatedPayEnabled } from './portal/family'
@@ -15,9 +16,11 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
   return json(await sessionBody(env, req))
 }
 
-/** The body of GET /session, typed against the contract (shared/api/session.ts). */
-export async function sessionBody(env: Env, req: Request): Promise<SessionResponse> {
-  const s = await currentSession(env, req)
+/** The body of GET /session, typed against the contract (shared/api/session.ts).
+ *  With `id` (GET /bootstrap, which resolved the identity already) the session,
+ *  the school, the roles and the permissions come from it rather than being read again. */
+export async function sessionBody(env: Env, req: Request, id?: Identity | null): Promise<SessionResponse> {
+  const s = id ? { user_id: id.userId, institution_id: id.homeInstitutionId } : await currentSession(env, req)
   if (!s) return { authenticated: false, permissions: [] }
 
   if (s.institution_id === null) {
@@ -28,22 +31,27 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
     }
   }
 
-  const inst = await institutionById(env, s.institution_id)
+  /* The home school: the identity's when it is acting at home, else read.
+     (A board member acting elsewhere still sees their own school here.) */
+  const inst = id?.institution && id.institution.id === s.institution_id ? id.institution : await institutionById(env, s.institution_id)
   if (!inst) return { authenticated: false, permissions: [] }
-  const db = tenantDb(env, inst)
+  const db = id?.institution?.id === inst.id ? tenantSession(env, inst, req).db : tenantDb(env, inst)
+  const fromId = id && id.institution?.id === inst.id ? id : null
 
   const [user, roles, perms, branding, sub] = await Promise.all([
     db.prepare('SELECT full_name, avatar_key, must_change_password FROM users WHERE id = ?').bind(s.user_id)
       .first<{ full_name: string; avatar_key: string | null; must_change_password: number }>(),
-    db.prepare('SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? ORDER BY r.key').bind(s.user_id)
-      .all<{ key: string }>(),
+    fromId ? { results: [...fromId.roles].sort().map((key) => ({ key })) }
+      : db.prepare('SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? ORDER BY r.key').bind(s.user_id)
+        .all<{ key: string }>(),
     /* Role grants AND direct grants, the same set the server checks
        (identity.ts), so the app never hides what the person may open. */
-    db.prepare(`SELECT key FROM (
+    fromId ? { results: [...fromId.permissions].filter((k) => !k.startsWith('platform.')).sort().map((key) => ({ key })) }
+      : db.prepare(`SELECT key FROM (
                   SELECT rp.permission_key AS key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = ?1
                   UNION SELECT permission_key AS key FROM user_permissions WHERE user_id = ?1)
                 WHERE key NOT LIKE 'platform.%' ORDER BY key`).bind(s.user_id)
-      .all<{ key: string }>(),
+        .all<{ key: string }>(),
     db.prepare('SELECT display_name, tagline, logo_key, favicon_key, primary_color, accent_color, support_email, support_phone FROM branding_profiles WHERE campus_id IS NULL LIMIT 1')
       .first<{ display_name: string | null; tagline: string | null; logo_key: string | null; favicon_key: string | null; primary_color: string | null; accent_color: string | null; support_email: string | null; support_phone: string | null }>()
       .catch(() => null),
@@ -59,7 +67,7 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
   const [modRows, ent, pay, lh] = await Promise.all([
     db.prepare('SELECT module, enabled FROM module_settings ORDER BY module').all<{ module: string; enabled: number }>()
       .catch(() => ({ results: [] as { module: string; enabled: number }[] })),
-    entitlementFor({ env, id: { institution: inst } } as unknown as Ctx),
+    entitlementFor({ env, id: fromId ?? { institution: inst } } as unknown as Ctx),
     /* session.go carries the school's UPI address (and the payee, falling back
        to the school's name) so the family fee page can draw the code, and
        simulated_pay so it knows whether the no-money test button exists.

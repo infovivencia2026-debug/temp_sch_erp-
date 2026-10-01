@@ -2,6 +2,7 @@ import type { Ctx } from '../../router'
 import { HttpError, forbidden, isUUID, notFound, now, uuid } from '../../http'
 import { can } from '../../identity'
 import { school } from '../school'
+import { scopeRows } from '../../services/scope_rows'
 
 /* Shared by every teaching and portal route: the caller's data boundary
    (port of internal/scope), permission checks the single-perm Router cannot
@@ -66,36 +67,15 @@ async function resolveUncached(c: Ctx): Promise<Scope> {
     s.allCampuses = s.allStudents = s.allAttendance = s.anySection = true
     return s
   }
-  const u = id.userId
-  const [campuses, depts, own, ct, teaches, students] = await c.db.batch([
-    c.db.prepare(`SELECT campus_id FROM user_roles WHERE user_id = ?`).bind(u),
-    c.db.prepare(`SELECT id FROM departments WHERE head_user_id = ?`).bind(u),
-    c.db.prepare(`SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?
-                  UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?
-                  UNION SELECT id FROM sections WHERE class_teacher_id = ?`).bind(u, u, u),
-    c.db.prepare(`SELECT id FROM sections WHERE class_teacher_id = ?`).bind(u),
-    c.db.prepare(`SELECT (EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?)
-                       OR EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?)) AS t`).bind(u, u),
-    c.db.prepare(`SELECT id FROM students WHERE user_id = ?
-                  UNION SELECT sg.student_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
-                   WHERE g.user_id = ? AND sg.portal_blocked = 0
-                     AND (sg.access_until IS NULL OR sg.access_until >= date('now'))`).bind(u, u),
-  ])
-  for (const r of campuses.results as { campus_id: string | null }[]) {
-    if (r.campus_id === null) s.allCampuses = true
-    else s.campusIds.push(r.campus_id)
-  }
-  s.departmentIds = (depts.results as { id: string }[]).map((r) => r.id)
-  s.sectionIds = (own.results as { id: string }[]).map((r) => r.id)
-  s.classTeacherOf = (ct.results as { id: string }[]).map((r) => r.id)
-  s.teaches = !!(teaches.results[0] as { t: number } | undefined)?.t
-  s.studentIds = (students.results as { id: string }[]).map((r) => r.id)
-  if (s.departmentIds.length) {
-    const ds = await c.db.prepare(`SELECT DISTINCT te.section_id AS id FROM timetable_entries te
-        JOIN employees emp ON emp.user_id = te.teacher_user_id WHERE emp.department_id IN (${marks(s.departmentIds)})`)
-      .bind(js(s.departmentIds)).all<{ id: string }>()
-    for (const r of ds.results) if (!s.sectionIds.includes(r.id)) s.sectionIds.push(r.id)
-  }
+  // One read per request, shared with the other modules' resolvers (services/scope_rows.ts).
+  const rows = await scopeRows(c)
+  s.allCampuses = rows.allCampuses
+  s.campusIds = rows.campusIds
+  s.departmentIds = rows.departmentIds
+  s.sectionIds = rows.sectionIds // taught, class-teacher-of, and the department's sections already in
+  s.classTeacherOf = rows.classTeacherOf
+  s.teaches = rows.teaches
+  s.studentIds = rows.studentIds
   return s
 }
 

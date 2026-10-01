@@ -5,7 +5,7 @@ import type { Ctx, Router } from '../router'
 import { can, identityFrom } from '../identity'
 import { HttpError, forbidden } from '../http'
 import { groupGate, passwordGate, subscriptionGate } from '../gates'
-import { tenantDb } from '../tenant'
+import { tenantSession, type TenantSession } from '../tenant'
 import { sessionBody } from './session'
 import { getCatalog, workingYearBody } from './misc/shell'
 import { displayPreferencesBody } from './portal/life'
@@ -27,15 +27,19 @@ const API = '/api/v1'
 export async function getBootstrap(env: Env, req: Request, router: Router, ectx?: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
   const id = await identityFrom(env, req, ectx)
-  const session = sessionBody(env, req)
+  // The session part is built from the identity just resolved, not read again.
+  const session = sessionBody(env, req, id)
   if (!id) {
     return json({ session: await session, catalog: null, display_preferences: null, working_year: null, attention: null, today: null } satisfies BootstrapResponse)
   }
 
-  let db: D1Database | null = null
+  /* The school's database as the router opens it (tenant.ts tenantSession):
+     a D1 Session with the client's bookmark, and the handle tagged with the
+     school so the reference cache (refcache.ts) serves years and lists. */
+  let tx: TenantSession | null = null
   const c: Ctx = {
     req, env, url, params: {}, id,
-    get db() { if (!db) { if (!id.institution) throw forbidden('no school in scope'); db = tenantDb(env, id.institution) } return db },
+    get db() { if (!tx) { if (!id.institution) throw forbidden('no school in scope'); tx = tenantSession(env, id.institution, req) } return tx.db },
   }
 
   /** One part: null when GET <path> would have been refused. */
@@ -68,5 +72,6 @@ export async function getBootstrap(env: Env, req: Request, router: Router, ectx?
     session: s, catalog, display_preferences: display, working_year: working, attention,
     today: today ? (omitNull(today as unknown as Record<string, unknown>) as unknown as BootstrapResponse['today']) : null,
   }
-  return json(body)
+  const res = json(body)
+  return (tx as TenantSession | null)?.finish(res) ?? res
 }

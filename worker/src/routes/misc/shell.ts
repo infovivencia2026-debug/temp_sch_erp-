@@ -263,10 +263,8 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const ov = c.id.institution && !c.id.platformAdmin ? await featureOverrides(c.env, c.id.institution.id) : new Map()
   const implemented = [...IMPLEMENTED_FEATURES].sort()
 
-  // heldRoleKeys and catalogRoleKeys share one read.
-  const heldRows = c.id.platformAdmin ? { results: [] as { key: string }[] } :
-    await c.db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(c.id.userId).all<{ key: string }>()
-  const mine = new Set(c.id.platformAdmin ? c.id.roles : heldRows.results.map((x) => x.key))
+  // heldRoleKeys and catalogRoleKeys: the roles the identity was resolved with (the acting school's user_roles; identity.ts).
+  const mine = new Set(c.id.roles)
   let held = new Set<string>()
   let viewingAll = false
   if (!c.id.platformAdmin) {
