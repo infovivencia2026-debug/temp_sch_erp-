@@ -111,7 +111,7 @@ export default function HostelLaundry() {
     },
   })
 
-  if (list.isLoading) return <SkeletonTiles count={4} label="Loading the laundry book…" />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={4} label="Loading the laundry book…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

@@ -53,7 +53,7 @@ export default function Impersonation() {
     enabled: !!inspecting,
   })
 
-  if (isLoading) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
 
   const items = data?.items ?? []

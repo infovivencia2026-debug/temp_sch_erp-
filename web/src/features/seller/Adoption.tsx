@@ -20,7 +20,7 @@ import { usePlatform, type AdoptionResponse } from '../super_admin/platform-lib'
 export default function Adoption() {
   const { data, isLoading, error } = usePlatform<AdoptionResponse>('adoption', '/adoption')
 
-  if (isLoading) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

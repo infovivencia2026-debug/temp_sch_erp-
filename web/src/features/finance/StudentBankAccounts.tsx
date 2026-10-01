@@ -61,7 +61,7 @@ export default function StudentBankAccounts() {
     placeholderData: keepPreviousData,
   })
 
-  if (q.isLoading) return <SkeletonTable columns={8} label="Opening the register…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={8} label="Opening the register…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

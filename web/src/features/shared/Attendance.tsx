@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
@@ -162,7 +162,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     { present: 0, absent: 0, late: 0, leave: 0, half: 0, unmarked: 0 },
   )
 
+  /* The page gutter: without it this screen's card started at the pixel
+     the sidebar ended and ran to the window's right edge. */
   return (
+    <PageBody top>
     <Card>
       <CardHeader
         title="Attendance register"
@@ -400,6 +403,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         </>
       )}
     </Card>
+    </PageBody>
   )
 }
 

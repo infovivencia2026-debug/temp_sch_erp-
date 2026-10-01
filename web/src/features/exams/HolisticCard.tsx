@@ -177,7 +177,7 @@ export default function HolisticCard() {
         </PageBody>
       </>
     )
-  if (isLoading) return <SkeletonTiles count={6} label="Assembling the card…" />
+  if (isLoading && !data) return <SkeletonTiles count={6} label="Assembling the card…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const observed = d.domains.reduce(

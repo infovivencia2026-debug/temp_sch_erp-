@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { useViewport } from '@/lib/viewport'
-import { useLayout } from '@/lib/layout'
 import { useFullScreenInvite } from '@/lib/fullscreen'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SEAM } from './bento-ink'
@@ -94,7 +93,6 @@ export default function SettingsPage() {
      The rows are the same components; only the composition and the three
      density properties differ. */
   const wide = useViewport() === 'desktop'
-  const { layout } = useLayout()
   const items = useSettingsItems()
   const values = useSettingsValues()
   const { section } = useParams()
@@ -200,7 +198,7 @@ export default function SettingsPage() {
        not 16, and would leave a 2px ledge of the board's gutter down each
        side of a sheet that is supposed to be flush. That substitution has
        caused five separate bugs in this codebase. */
-    <div data-settings-page="" className={cn(
+    <div className={cn(
       /* FULL SCREEN ON A PHONE, IN ALL FOUR DIRECTIONS.
        *
        * The horizontal gutter was already cancelled here so the rows reach the
@@ -213,13 +211,10 @@ export default function SettingsPage() {
        * token cancels it exactly whatever the root font size is. Writing the
        * pixel value would be right at 14px and wrong the moment somebody
        * changes the text size — which this very screen offers. */
-      /* Only the bento outlet pads its screens (pt-6 pb-6, a 14px phone
-       * gutter); the classic one does not. Cancelling unconditionally pulled
-       * the sheet 16px off each side and its title up under the top bar under
-       * Work (measured at 390px: header at x=-16, the h1 clipped). So the
-       * cancellation follows the layout, and matches the gutter exactly. */
-      layout === 'bento' ? '-mx-[14px] -mt-6 -mb-6 w-[calc(100%+28px)]' : 'w-full',
-      'py-0',
+      /* Bleeding past the outlet's padding is only right in Focus, which has
+         it; the classic phone layout has none, so there the bleed cut the
+         title off at the top and pushed the rows past both edges. */
+      'py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:-mb-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
       'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
     )}>
       <div
@@ -257,7 +252,7 @@ export default function SettingsPage() {
           wide && 'h-[calc(100dvh-3rem-var(--dock-h,68px)-16px)] min-h-[420px]',
         )}
       >
-        <header className={cn('px-[16px] pt-[12px] pb-[4px] sm:border-b sm:px-[24px] sm:py-[12px]', SEAM)}>
+        <header className={cn('border-b px-[16px] py-[12px] sm:px-[24px]', SEAM)}>
           {/* THE NAME OF WHERE YOU ARE, AND NOTHING ELSE. The line under the
               title ("Everything you can change from here, and where each
               change lands") was a sentence about the page on the page; the
@@ -278,7 +273,7 @@ export default function SettingsPage() {
               {t('bento.settings.label')}
             </button>
           )}
-          <h1 className={cn('text-[26px] font-bold leading-tight tracking-[-0.01em] sm:text-[20px] sm:font-semibold', INK)}>
+          <h1 className={cn('text-[20px] font-semibold', INK)}>
             {found && !wide ? found.label : t('bento.settings.label')}
           </h1>
         </header>
@@ -323,20 +318,12 @@ export default function SettingsPage() {
              Measured at 390px: the cards sat 9px from the edge and the header
              text 30px, so the screen had two left edges 21px apart and nothing
              on it lined up with anything else. One number for both. */
-          /* The list is inset by the 16px gutter so its cards read as
-             grouped sections; a section's rows carry their own 16px, so the
-             pane adds none. The bottom padding clears the dock and the home
-             indicator so the last row is never under either. */
-          tab === null ? (
-            <div className="px-[16px] pt-[8px] pb-[calc(24px+env(safe-area-inset-bottom))]">
-              <FullScreenOffer />
-              <SettingsGroups items={items} onOpen={open} values={values} />
-            </div>
-          ) : (
-            <div className="pt-[4px] pb-[calc(24px+env(safe-area-inset-bottom))]">
-              <SettingsPane tab={tab} onClose={done} />
-            </div>
-          )
+          <div className="px-[14px] py-3">
+            {tab === null && <FullScreenOffer />}
+            {tab === null
+              ? <SettingsGroups items={items} onOpen={open} values={values} />
+              : <SettingsPane tab={tab} onClose={done} />}
+          </div>
         )}
       </div>
     </div>
@@ -382,7 +369,7 @@ function FullScreenOffer() {
   /* Two rows, not a card with a paragraph: the offer and the way to decline
      it, each a 44px target, each saying what it does in its own words. */
   return (
-    <Rows className={cn('mb-[24px] overflow-hidden rounded-[14px] border', SEAM)}>
+    <Rows className={cn('mb-[8px] border-b', SEAM)}>
       <NavRow
         label="Use the whole screen"
         helper="The browser keeps about an eighth of the screen for its bar."

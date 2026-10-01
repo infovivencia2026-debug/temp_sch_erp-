@@ -611,11 +611,9 @@ export const ROLES: Role[] = [
         name: 'My Classes',
         workspace: 'My Classes',
         features: [
-          { key: 'faculty.my_classes.my_classes', slug: 'my_classes', name: 'My classes', scope: 'assigned_classes', tier: 'core', summary: 'Class roster, subject resources and relevant student academic information.' },
           { key: 'faculty.my_classes.student_progress', slug: 'student_progress', name: 'Student progress', scope: 'assigned_classes', tier: 'core', summary: 'View attendance and academic progress for students taught/mentored by the faculty member.' },
           { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told.' },
-          { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
-          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
+          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
           { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section.' },
         ],
       },
@@ -1676,7 +1674,7 @@ export const ROLES: Role[] = [
         name: 'Consent & Permissions',
         workspace: 'Requests',
         features: [
-          { key: 'parent.consent_permissions.permission_slips', slug: 'permission_slips', name: 'Permission Slips', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed, trips, medical, photography, data, with what you have already agreed to and when. Signing is one tap and the record is kept.' },
+          { key: 'parent.consent_permissions.permission_slips', slug: 'permission_slips', name: 'Consents & Circulars', scope: 'children', tier: 'core', summary: 'Every circular and consent the school needs you to sign, with what you have already agreed to and when. Signing is one tap and the record is kept. Trip permissions appear here too, at a school that boards children.' },
         ],
       },
       {

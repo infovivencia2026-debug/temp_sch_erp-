@@ -92,7 +92,7 @@ function BackupsFleet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['seller', 'backups'] }),
   })
 
-  if (fleet.isLoading) return <SkeletonTable columns={6} />
+  if (fleet.isLoading && !fleet.data) return <SkeletonTable columns={6} />
   if (fleet.error) return <ErrorState error={fleet.error} />
   const d = fleet.data!
   const stale = d.items.filter((r) => r.stale)

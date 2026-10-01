@@ -68,7 +68,7 @@ export default function PeriodClose() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['period-closes'] }),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={4} label="Reading the months…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Reading the months…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const data = q.data

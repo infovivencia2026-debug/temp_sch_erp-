@@ -94,7 +94,7 @@ export default function ExamMonitoring() {
     { key: 'entry_percent' },
   )
 
-  if (monitor.isLoading) return <SkeletonTiles count={4} label="Counting what has been entered…" />
+  if (monitor.isLoading && !monitor.data) return <SkeletonTiles count={4} label="Counting what has been entered…" />
   if (monitor.error) return <ErrorState error={monitor.error} />
 
   const s = monitor.data?.summary

@@ -9,7 +9,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
+  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff,
   Maximize2, Printer, RefreshCw, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -33,7 +33,7 @@ export function CardHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-[var(--card-pad)] py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-[var(--card-pad)] py-4">
       <div className="min-w-0">
         <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
         {/* Card descriptions are no longer drawn either.
@@ -58,10 +58,7 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {/* A search box in the toolbar is a full-width .field, so from sm up it
-          took the whole toolbar row and pushed its own filters onto a second
-          line under it. It gets a search box's width there instead. */}
-      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end sm:[&>input.field]:w-60">{action}</div>}
+      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
@@ -180,9 +177,19 @@ const WIDTH: Record<Width, string> = {
 export function PageBody({
   children,
   width = 'operational',
+  top,
 }: {
   children: ReactNode
   width?: Width
+  /* SPACE ABOVE, FOR A PAGE THAT HAS NO HEAD.
+
+     Almost every screen opens with PageHead, and the head's own padding is
+     what holds the first card off the top of the work area. A screen built
+     without one -- the timetable, the attendance register, the account page --
+     had nothing there at all, so its first card sat against the top edge in
+     exactly the way its sides sat against the sidebar. Same omission, second
+     axis, and reported as one complaint about margins because it is one. */
+  top?: boolean
 }) {
   /* The gutter is a token (index.css, --page-gutter), shared with PageHead.
      It used to be px-2 here and px-5 there, so on a phone the title sat 10px
@@ -191,7 +198,18 @@ export function PageBody({
      not stack to 36px a side on a 390px screen. */
   const embedded = useContext(EmbeddedPage)
   if (embedded) return <div className="mt-2.5 space-y-[var(--section-gap)]">{children}</div>
-  return <div data-page-enter="" className={cn('space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10', WIDTH[width])}>{children}</div>
+  return (
+    <div
+      data-page-enter=""
+      className={cn(
+        'space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10',
+        top && 'pt-[var(--page-gutter)]',
+        WIDTH[width],
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 /* A panel: white where content needs containing, and nothing where it does
@@ -287,12 +305,11 @@ export function UnavailableState({
    honest number is the one after those have resolved. toArray drops the nulls
    and booleans those produce, which count() alone would include. */
 
-type Bp = 'base' | 'sm' | 'md' | 'xl'
+type Bp = 'sm' | 'md' | 'xl'
 
 /* Written out rather than composed, because Tailwind reads this file as text:
    a class name assembled at runtime is a class name that never gets built. */
 const TRACKS: Record<Bp, Record<number, string>> = {
-  base: { 1: 'grid-cols-1', 2: 'grid-cols-2' },
   sm: { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5', 6: 'sm:grid-cols-6' },
   md: { 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-5', 6: 'md:grid-cols-6' },
   xl: { 1: 'xl:grid-cols-1', 2: 'xl:grid-cols-2', 3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6' },
@@ -306,7 +323,6 @@ const TRACKS: Record<Bp, Record<number, string>> = {
    tiles in it and a lit gap on the end, the exact defect this is here to
    remove. Each breakpoint overrides the one below it. */
 const SPAN: Record<Bp, Record<number, string>> = {
-  base: { 1: 'col-span-1', 2: 'col-span-2' },
   sm: { 1: 'sm:col-span-1', 2: 'sm:col-span-2', 3: 'sm:col-span-3', 4: 'sm:col-span-4', 5: 'sm:col-span-5', 6: 'sm:col-span-6' },
   md: { 1: 'md:col-span-1', 2: 'md:col-span-2', 3: 'md:col-span-3', 4: 'md:col-span-4', 5: 'md:col-span-5', 6: 'md:col-span-6' },
   xl: { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 3: 'xl:col-span-3', 4: 'xl:col-span-4', 5: 'xl:col-span-5', 6: 'xl:col-span-6' },
@@ -334,11 +350,7 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const grid: string[] = []
   const span: string[] = []
   let widest = 1
-  /* Two across on a phone too. One tile per row made four or five tall
-     tiles fill the whole first screen (Approvals, Results, Requests), so the
-     page's actual content started below the fold. */
   const plan: [Bp, number, boolean][] = [
-    ['base', 2, false],
     ['sm', 2, false],
     ['md', 3, false],
     ['xl', cols, true],
@@ -358,7 +370,7 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const closes = widest > 1
 
   return (
-    <div className={cn('cell-grid reveal', ...grid)}>
+    <div className={cn('cell-grid reveal grid-cols-1', ...grid)}>
       {closes ? kids.slice(0, -1) : kids}
       {closes && (
         /* A grid wrapper, not a plain one: the cell inside has to stretch to
@@ -983,11 +995,6 @@ export function Table({
           ) : empty ? (
             <tr>
               <td colSpan={head.length} className="px-[var(--card-pad)] py-12 text-center text-[14px] text-muted-foreground">
-                {/* A quiet line glyph over the sentence, so an empty table reads
-                    as "nothing here yet" rather than as a table that broke. */}
-                <span className="mx-auto mb-2 grid size-10 place-items-center rounded-full bg-muted/70">
-                  <Inbox className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
-                </span>
                 {emptyLabel}
               </td>
             </tr>
@@ -1818,7 +1825,7 @@ export function Select({
   return (
     <div ref={box} className="relative">
       <input
-        className="field cursor-text pr-8 [@media(pointer:coarse)]:text-[16px]"
+        className="field cursor-text pr-11 [@media(pointer:coarse)]:text-[16px]"
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
@@ -1860,9 +1867,14 @@ export function Select({
           } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
         }}
       />
-      <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-        <ChevronDown className="h-4 w-4" />
-      </span>
+      {/* A real button, not a decoration: the owner asked that every
+          dropdown carry one, so it is plain that the box opens a list. */}
+      <button type="button" tabIndex={-1} aria-label={open ? 'Close list' : 'Open list'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => { setOpen((o) => !o); setActive(0) }}
+        className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
+        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+      </button>
 
       {open && box_ && createPortal(
         <div
@@ -2171,7 +2183,25 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     )
   }
   if (error) {
-    const msg = error instanceof Error ? error.message : 'Could not save'
+    /* AN ERROR BAR THAT SAYS NOTHING IS WORSE THAN NO ERROR BAR.
+
+       This took error.message and printed it, and an error whose message is
+       empty -- a refusal with no body, a request cut off mid-flight, a failure
+       thrown by something that never set one -- rendered as a thin red strip
+       with no words in it. Logins & access showed exactly that above an empty
+       roll: a stripe of colour saying something was wrong, and no way to learn
+       what, on a screen whose data was sitting in the database all along.
+
+       So a blank message falls back to a sentence, and where the server gave
+       a status it is named. "Could not read this (403)" is something a person
+       can act on or repeat down a telephone; a coloured rectangle is not. */
+    const said = error instanceof Error ? error.message.trim() : ''
+    const status = error instanceof ApiError ? error.status : 0
+    const msg = said
+      || (status === 401 ? 'Your session has ended. Sign in again.'
+        : status === 403 ? 'You do not have permission to see this.'
+        : status ? `The server refused this (${status}). Try again, or reload the page.`
+        : 'Something went wrong. Try again, or reload the page.')
     return (
       <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
         {msg}
@@ -2727,130 +2757,4 @@ export function segClass(active: boolean): string {
   return active
     ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
     : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
-}
-
-/* THE ONE DIALOG.
-
-   Nineteen screens drew their own modal: each its own scrim, its own close
-   (a "Close" button, an X, or nothing), its own padding, and most of them no
-   Escape, no focus trap and no way back to the button that opened them. This
-   is the shared frame they can move onto.
-
-   - Header: title (16px semibold), an optional one-line description, and a
-     44px close button in the same corner every time.
-   - Body: scrolls on its own, so a long form never pushes the footer away.
-   - Footer: optional, right-aligned actions on a hairline, pinned.
-   - Desk: a centred white card on the dimmed ground, width by `size`.
-   - Phone: a bottom sheet -- full width, rounded top, a grab bar, and the
-     home-indicator strip kept clear -- because a thumb reaches the bottom of
-     a screen and not the middle.
-   - Focus: moves into the dialog on open, Tab cycles inside it, Escape and a
-     tap on the dim close it, and focus returns to whatever opened it.
-   - Portalled to the body, so no transformed ancestor can re-anchor it. */
-const DIALOG_W = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' } as const
-
-export function Dialog({
-  open = true,
-  onClose,
-  title,
-  description,
-  children,
-  footer,
-  size = 'md',
-  label,
-}: {
-  open?: boolean
-  onClose: () => void
-  title?: ReactNode
-  description?: ReactNode
-  children: ReactNode
-  footer?: ReactNode
-  size?: keyof typeof DIALOG_W
-  /** Accessible name when `title` is not plain text. */
-  label?: string
-}) {
-  const panel = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
-
-  useEffect(() => {
-    if (!open) return
-    const opener = document.activeElement as HTMLElement | null
-    const el = panel.current
-    // First field if there is one, else the panel itself: never the close
-    // button, or Enter on a freshly opened form would dismiss it.
-    const first = el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
-    ;(first ?? el)?.focus({ preventScroll: true })
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); return }
-      if (e.key !== 'Tab' || !el) return
-      const f = [...el.querySelectorAll<HTMLElement>(
-        'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
-      )].filter((n) => n.offsetParent !== null)
-      if (!f.length) { e.preventDefault(); return }
-      const a = f[0], z = f[f.length - 1]
-      if (e.shiftKey && (document.activeElement === a || document.activeElement === el)) { e.preventDefault(); z.focus() }
-      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus() }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => {
-      document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prev
-      opener?.focus?.({ preventScroll: true })
-    }
-  }, [open])
-
-  if (!open || typeof document === 'undefined') return null
-  return createPortal(
-    <div
-      className="scrim fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-6"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label ?? (typeof title === 'string' ? title : undefined)}
-        tabIndex={-1}
-        className={cn(
-          'ui-dialog flex max-h-[92dvh] w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
-          'rounded-t-2xl shadow-[0_-8px_32px_-12px_rgba(15,23,42,0.28)]',
-          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-card,16px)] sm:border sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]',
-          DIALOG_W[size],
-        )}
-      >
-        {/* The grab bar: a phone's sign that this is a sheet. */}
-        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
-        {(title || description) && (
-          <div className="flex shrink-0 items-start gap-3 border-b px-5 pb-3 pt-3 sm:px-6 sm:pt-4">
-            <div className="min-w-0 flex-1 pt-1.5">
-              {title && <h2 className="text-[16px] font-semibold leading-snug">{title}</h2>}
-              {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            </button>
-          </div>
-        )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">{children}</div>
-        {footer && (
-          <div
-            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-5 py-3 sm:px-6"
-            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
-          >
-            {footer}
-          </div>
-        )}
-        {!footer && <span aria-hidden="true" className="shrink-0 sm:hidden" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />}
-      </div>
-    </div>,
-    document.body,
-  )
 }

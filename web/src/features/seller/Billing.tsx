@@ -55,7 +55,7 @@ export default function Billing() {
     onSuccess: refresh,
   })
 
-  if (schools.isLoading) return <SkeletonTable columns={7} label="Reading the ledger…" />
+  if (schools.isLoading && !schools.data) return <SkeletonTable columns={7} label="Reading the ledger…" />
   if (schools.error) return <ErrorState error={schools.error} />
   const rows = schools.data?.items ?? []
   const inv = invoices.data?.items ?? []

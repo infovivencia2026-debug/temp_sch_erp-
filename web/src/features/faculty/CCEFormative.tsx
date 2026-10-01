@@ -95,7 +95,7 @@ export default function CCEFormative() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
-  if (list.isLoading) return <SkeletonTiles count={3} />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const max = Number(componentMax) || 5

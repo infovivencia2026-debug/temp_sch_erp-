@@ -20,7 +20,7 @@ import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
-  SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
+  FeeLedger, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, CoScholastic,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
@@ -28,6 +28,7 @@ import { StudentWarningStrip } from '@/components/ai/EarlyWarnings'
 import StudentEditDialog from './StudentEditDialog'
 import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
+import { AcademicsYear, FeesYear, AttendanceCalendar } from './StudentYearTabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -40,11 +41,6 @@ import Student360Card from '@/components/ai/Student360Card'
    than from casts that lie about what the response contains. */
 
 type Profile = StudentProfileBody
-
-const DOT: Record<string, string> = {
-  present: 'bg-success', late: 'bg-warning', absent: 'bg-destructive',
-  half_day: 'bg-warning/60', leave: 'bg-muted-foreground/40', holiday: 'bg-border',
-}
 
 /**
  * Student 360 — the screen a school opens most often, usually with a parent on
@@ -62,6 +58,53 @@ interface Remark {
   observed_on: string
   recorded_at: string
   recorded_by?: string
+}
+
+/* A plain summary from the record itself, for when the AI one is unavailable. */
+type Mark = { exam: string; subject: string; marks?: string; max?: string; absent: boolean }
+function summaryOf(
+  p: { full_name: string; attendance: { percent: number; present: number; total: number; below_threshold: boolean }; fees: { outstanding_paise: number; paid_paise: number }; results: { exam: string; percentage: string; grade: string; rank: string }[]; invoices: { status: string }[] },
+  marks: Mark[],
+): string {
+  const name = p.full_name
+  const out: string[] = []
+
+  // Attendance
+  const a = p.attendance
+  if (!a.total) out.push(`Attendance: no days have been marked for ${name} yet.`)
+  else {
+    const absent = Math.max(0, a.total - a.present)
+    out.push(`Attendance: ${name} has been present on ${a.present} of ${a.total} school days (${a.percent}%)${absent ? `, absent on ${absent}` : ', with no absences'}.${a.below_threshold ? ' This is below the 75% needed to sit the board exams.' : a.percent >= 90 ? ' Attendance is very good.' : ''}`)
+  }
+
+  // Academics
+  const last = p.results[0]
+  const latestExam = last?.exam || marks[0]?.exam
+  const paper = marks.filter((m) => m.exam === latestExam && !m.absent && m.marks != null && Number(m.max) > 0)
+    .map((m) => ({ s: m.subject, p: Math.round((Number(m.marks) / Number(m.max)) * 1000) / 10 }))
+    .sort((x, y) => y.p - x.p)
+  if (!latestExam) out.push('Academics: no marks have been entered yet.')
+  else {
+    let line = `Academics: in ${latestExam}`
+    if (last?.percentage) line += ` ${name} scored ${last.percentage}%${last.grade ? ` (grade ${last.grade})` : ''}${last.rank ? `, rank ${last.rank} in the class` : ''}`
+    else if (paper.length) line += ` ${name} has marks in ${paper.length} subject${paper.length === 1 ? '' : 's'}`
+    line += '.'
+    if (paper.length > 1) {
+      line += ` Strongest in ${paper[0].s} (${paper[0].p}%)`
+      const weak = paper[paper.length - 1]
+      line += weak.p < 50 ? `; needs support in ${weak.s} (${weak.p}%).` : `; lowest is ${weak.s} (${weak.p}%).`
+    }
+    if (p.results.length > 1) line += ` ${p.results.length} report cards published so far.`
+    out.push(line)
+  }
+
+  // Fees
+  const unpaid = p.invoices.filter((x) => x.status !== 'paid' && x.status !== 'cancelled').length
+  out.push(p.fees.outstanding_paise > 0
+    ? `Fees: ${formatPaise(p.fees.outstanding_paise)} is outstanding${unpaid ? ` across ${unpaid} invoice${unpaid === 1 ? '' : 's'}` : ''}; ${formatPaise(p.fees.paid_paise)} has been paid in all.`
+    : `Fees: nothing is outstanding; ${formatPaise(p.fees.paid_paise)} has been paid in all.`)
+
+  return out.join('\n\n')
 }
 
 export default function StudentProfile() {
@@ -94,9 +137,27 @@ export default function StudentProfile() {
      in now: pick a class and section to see who is in it, or type a name or
      admission number. They compose, so a name typed while 7-A is chosen
      searches inside 7-A. */
-  const classID = params.get('class') ?? ''
+  /* ON THE STAFF SIDE, ONLY YOUR OWN CLASS. The owner asked that a teacher
+     opening My students see the children of the section they are class
+     teacher of, with no roll, class or section pickers to wander off with. */
+  /* Decided by what the person may see, not by the address: the staff
+     workspace is not always under /faculty. Anyone without the whole-school
+     student permission is staff here. */
+  /* Opened from the staff (faculty) menu, it is always My students -- the
+     class teacher's own section -- even for a teacher whose role can read
+     every student; elsewhere, anyone without that permission. */
+  const staffSide = (typeof window !== 'undefined' && window.location.pathname.split('/')[1] === 'faculty') ||
+    !useSession().permissions.includes('students.read.all')
+  const myClass = useQuery({
+    queryKey: ['sections', 'class_teacher'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    enabled: staffSide,
+  })
+  const mySections = myClass.data?.items ?? []
+  const pickedMine = mySections.find((x) => x.id === params.get('section')) ?? mySections[0]
+  const classID = staffSide ? (pickedMine?.class_id ?? '') : (params.get('class') ?? '')
   const setClassID = (v: string) => patch({ class: v || null, section: null })
-  const sectionID = params.get('section') ?? ''
+  const sectionID = staffSide ? (pickedMine?.id ?? '00000000-0000-0000-0000-000000000000') : (params.get('section') ?? '')
   const setSectionID = (v: string) => patch({ section: v || null })
   /* ON THE ROLL, OR GONE — and on the roll is the default.
 
@@ -177,6 +238,7 @@ export default function StudentProfile() {
     const f: Record<string, string | undefined> = {}
     if (searching) f.q = needle
     if (sectionID) f.section_id = sectionID
+    if (staffSide) f.mine = 'class_teacher'
     else if (classID) f.class_id = classID
     /* The API takes one status. "Left" is four of them — graduated,
        transferred, withdrawn, alumni — so that view is filtered on the
@@ -194,7 +256,7 @@ export default function StudentProfile() {
     // disagree about what "new this year" means.
     if (roll === 'new') f.new_this_year = '1'
     return f
-  }, [searching, needle, sectionID, classID, roll])
+  }, [searching, needle, sectionID, classID, roll, staffSide])
 
   const results = usePagedList<Student>('/api/v1/students', filters, {
     /* Fifty, not five hundred. It is the size of one answer, and the only
@@ -522,6 +584,13 @@ export default function StudentProfile() {
           description="Search a student to see everything about them on one page."
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              {staffSide && mySections.length > 1 && (
+                <div className="w-40">
+                  <Select value={sectionID} onChange={setSectionID}
+                    options={mySections.map((x) => ({ value: x.id, label: `${x.class_name}-${x.name}` }))} />
+                </div>
+              )}
+              {!staffSide && (<>
               <div className="w-44">
                 <Select
                   value={roll}
@@ -558,6 +627,7 @@ export default function StudentProfile() {
                   ]}
                 />
               </div>
+              </>)}
               {/* Sized, like the three beside it.
 
                   Input is a block element, so a bare one in this row claimed
@@ -924,7 +994,7 @@ export default function StudentProfile() {
             </Card>
           ) : null}
           {/* Student 360: an AI summary on request, cached until the records change; staff only (the card hides itself otherwise). */}
-          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} /></div>}
+          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p, detail.data?.subject_marks ?? [])} /></div>}
           {/* 4. QUICK STATUS — the three things somebody wants before they
                  have finished reading the name, and the one that cannot wait.
 
@@ -1145,7 +1215,9 @@ export default function StudentProfile() {
                     {p.photo_file_id && (
                       <img loading="lazy" decoding="async"
                         src={`/api/v1/files/${p.photo_file_id}?inline=1`}
-                        alt={`Photograph of ${p.full_name}`}
+                        alt=""
+                        /* A photo whose file is gone showed its alt text in a broken frame. */
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
                         className="h-full w-full object-cover"
                       />
                     )}
@@ -1399,21 +1471,12 @@ export default function StudentProfile() {
       key: 'academics', label: 'Academics',
       render: () => (
         <>
-        <Card>
-          <CardHeader title="Results" description="Published report cards only" />
-          <Table head={['Exam', 'Percentage', 'Grade', 'Rank']} empty={!p.results.length}
-            emptyLabel="Nothing published yet.">
-            {p.results.map((x, i) => (
-              <tr key={i}>
-                <Td className="font-medium">{x.exam || '-'}</Td>
-                <Td>{x.percentage ? `${x.percentage}%` : '-'}</Td>
-                <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '-'}</Td>
-                <Td>{x.rank || '-'}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
-        <SubjectMarks rows={detail.data?.subject_marks ?? []} loading={detail.isLoading} />
+        <AcademicsYear
+          results={p.results}
+          marks={detail.data?.subject_marks ?? []}
+          loading={detail.isLoading}
+          attendancePercent={p.attendance.percent}
+        />
         <CoScholastic
           studentID={p.id}
           rows={detail.data?.co_scholastic ?? []}
@@ -1447,26 +1510,7 @@ export default function StudentProfile() {
             </div>
           </Card>
           <LeaveHistory rows={detail.data?.leave ?? []} />
-          <Card>
-            <CardHeader
-              title="Last 30 marked days"
-              description={p.attendance.below_threshold
-                ? 'Below the 75% board threshold for exam eligibility.'
-                : 'Most recent first.'}
-            />
-            <div className="p-5">
-              {p.recent_attendance.length === 0 ? (
-                <p className="py-4 text-center text-[14px] text-muted-foreground">Nothing marked yet.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {p.recent_attendance.map((d) => (
-                    <span key={d.date} title={`${d.date} · ${d.status}`}
-                      className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
+          <AttendanceCalendar days={p.recent_attendance} />
           <Card>
             <CardHeader title="Recent days" />
             <Table head={['Date', 'Status']} empty={!p.recent_attendance.length}>
@@ -1485,26 +1529,7 @@ export default function StudentProfile() {
       key: 'fees', label: 'Fees', badge: overdue || undefined,
       render: () => (
         <>
-        <Card>
-          <CardHeader
-            title="Fee history"
-            description={p.fees.outstanding_paise
-              ? `${formatPaise(p.fees.outstanding_paise)} outstanding`
-              : 'Settled in full'}
-          />
-          <Table head={['Date', 'Invoice', 'Amount', 'Paid', 'Status']} empty={!p.invoices.length}
-            emptyLabel="No invoices raised.">
-            {p.invoices.map((x) => (
-              <tr key={x.invoice_no}>
-                <Td className="text-muted-foreground">{formatDate(x.date)}</Td>
-                <Td className="font-mono text-[12px]">{x.invoice_no}</Td>
-                <Td>{formatPaise(x.net_paise)}</Td>
-                <Td>{formatPaise(x.paid_paise)}</Td>
-                <Td><StatusPill status={x.status} /></Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
+        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise} />
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety
@@ -1521,7 +1546,6 @@ export default function StudentProfile() {
           }}
         />
         <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
-        <Receipts rows={detail.data?.payments ?? []} />
         </>
       ),
     },
@@ -2076,7 +2100,9 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                       {g.photo_file_id && (
                         <img loading="lazy" decoding="async"
                           src={`/api/v1/files/${g.photo_file_id}?inline=1`}
-                          alt={`Photograph of ${g.full_name}`}
+                          alt=""
+                        /* A photo whose file is gone showed its alt text in a broken frame. */
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
                           className="h-full w-full object-cover"
                         />
                       )}

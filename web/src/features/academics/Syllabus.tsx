@@ -137,7 +137,7 @@ export default function Syllabus() {
     { key: 'percent' },
   )
 
-  if (coverage.isLoading) return <SkeletonTable columns={6} label="Working out how far each class has got…" />
+  if (coverage.isLoading && !coverage.data) return <SkeletonTable columns={6} label="Working out how far each class has got…" />
   if (coverage.error) return <ErrorState error={coverage.error} />
 
   const behind = rows.filter((r) => r.behind).length

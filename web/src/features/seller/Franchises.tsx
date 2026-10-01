@@ -50,7 +50,7 @@ export default function Franchises() {
   const [compliance, setCompliance] = useState('')
   const [audited, setAudited] = useState('')
 
-  if (isLoading) return <SkeletonTable columns={7} />
+  if (isLoading && !data) return <SkeletonTable columns={7} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

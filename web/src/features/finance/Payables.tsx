@@ -39,7 +39,7 @@ export default function Payables() {
     queryFn: () => api.get<List<VendorBill>>(`${ledgerBase}/bills`),
   })
 
-  if (vendors.isLoading) return <SkeletonTiles count={4} label="Reading the creditor ledger…" />
+  if (vendors.isLoading && !vendors.data) return <SkeletonTiles count={4} label="Reading the creditor ledger…" />
   if (vendors.error) return <ErrorState error={vendors.error} />
 
   const vs = vendors.data?.items ?? []

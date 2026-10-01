@@ -85,7 +85,7 @@ export default function AcademicCalendar() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-calendar'] }),
   })
 
-  if (cal.isLoading) return <SkeletonTable columns={6} label="Reading the year…" />
+  if (cal.isLoading && !cal.data) return <SkeletonTable columns={6} label="Reading the year…" />
   if (cal.error) return <ErrorState error={cal.error} />
 
   const rows = cal.data?.items ?? []

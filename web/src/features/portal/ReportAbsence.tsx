@@ -10,6 +10,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { SentTo } from './SentTo'
 
 /* "He is not coming in today."
 
@@ -65,7 +66,7 @@ export default function ReportAbsence() {
 
   const report = useMutation({
     mutationFn: () =>
-      api.post('/api/v1/portal/absence', {
+      api.post<{ already_recorded?: boolean; recorded_reason?: string; note?: string }>('/api/v1/portal/absence', {
         student_id: studentId,
         on_date: onDate || undefined,
         reason: reason === 'Other' ? detail : detail ? `${reason} · ${detail}` : reason,
@@ -77,7 +78,7 @@ export default function ReportAbsence() {
     },
   })
 
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.report_absence.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.report_absence.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const ready = studentId !== '' && (reason !== 'Other' || detail.trim() !== '')
@@ -143,6 +144,7 @@ export default function ReportAbsence() {
                 />
               </Field>
             </FormGrid>
+            <SentTo studentId={studentId} />
             <div className="mt-4">
               <Button
                 disabled={!ready || report.isPending}
@@ -153,9 +155,23 @@ export default function ReportAbsence() {
                   : t('portal.report_absence.action_tell')}
               </Button>
             </div>
+            {/* THE SCHOOL MAY HAVE WRITTEN IT DOWN ALREADY.
+
+                When the office rings round its absentees and a parent gives
+                the reason on the telephone, it goes against the register
+                there and then. Answering that with "sent" would be a lie of
+                sorts -- nothing was sent, because there was nothing left to
+                send -- and would leave the family expecting a reply that is
+                never coming. It says what the school already has. */}
             <FormNotice
               error={report.error}
-              ok={report.isSuccess ? t('portal.report_absence.sent_ok') : undefined}
+              ok={
+                report.isSuccess
+                  ? (report.data?.already_recorded
+                      ? `${report.data.note} The school has: "${report.data.recorded_reason}"`
+                      : t('portal.report_absence.sent_ok'))
+                  : undefined
+              }
             />
           </div>
         </Card>

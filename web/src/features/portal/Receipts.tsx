@@ -65,7 +65,7 @@ export default function Receipts() {
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),
   })
 
-  if (receipts.isLoading) return <ScreenSkeleton label={t('portal.receipts.loading')} />
+  if (receipts.isLoading && !receipts.data) return <ScreenSkeleton label={t('portal.receipts.loading')} />
   if (receipts.error && !receipts.data) return <ScreenError error={receipts.error} />
 
   const rows = receipts.data?.items ?? []
@@ -137,7 +137,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
     queryFn: () => api.get<ReceiptDetail>(`/api/v1/portal/receipts/${paymentId}`),
   })
 
-  if (detail.isLoading) return <Skeleton rows={3} label={t('portal.receipts.detail_loading')} />
+  if (detail.isLoading && !detail.data) return <Skeleton rows={3} label={t('portal.receipts.detail_loading')} />
   if (detail.error && !detail.data) return <ScreenError error={detail.error} />
   const d = detail.data
   if (!d) return null

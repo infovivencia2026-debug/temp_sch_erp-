@@ -26,7 +26,7 @@ export default function AdmissionsDashboard() {
     queryFn: () => api.get<List<EnquiryRow>>('/api/v1/admissions/enquiries'),
   })
 
-  if (kpis.isLoading) return <SkeletonTiles count={4} />
+  if (kpis.isLoading && !kpis.data) return <SkeletonTiles count={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   // Funnel conversion is the number the admissions team is actually measured on.

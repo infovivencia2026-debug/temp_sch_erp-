@@ -80,7 +80,7 @@ export default function HallTicket() {
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''
 
-  if (exams.isLoading) return <SkeletonTiles count={4} />
+  if (exams.isLoading && !exams.data) return <SkeletonTiles count={4} />
   if (exams.error) return <ErrorState error={exams.error} />
   if (!exam) {
     return (

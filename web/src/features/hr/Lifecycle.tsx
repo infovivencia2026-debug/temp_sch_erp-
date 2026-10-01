@@ -200,7 +200,7 @@ export default function Lifecycle() {
     queryFn: () => api.get<List<Exit>>('/api/v1/hr/exits'),
   })
 
-  if (onboarding.isLoading) return <SkeletonTiles count={4} label="Reading the joining files…" />
+  if (onboarding.isLoading && !onboarding.data) return <SkeletonTiles count={4} label="Reading the joining files…" />
   if (onboarding.error) return <ErrorState error={onboarding.error} />
 
   const files = onboarding.data?.items ?? []

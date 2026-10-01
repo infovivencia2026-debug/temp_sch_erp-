@@ -108,7 +108,7 @@ export default function Alumni() {
     queryFn: () => api.get<List<AlumniEvent>>('/api/v1/academics/admin/alumni/events'),
   })
 
-  if (directory.isLoading) return <SkeletonTable columns={5} label="Reading the alumni register…" />
+  if (directory.isLoading && !directory.data) return <SkeletonTable columns={5} label="Reading the alumni register…" />
   if (directory.error) return <ErrorState error={directory.error} />
 
   const rows = directory.data?.items ?? []

@@ -147,7 +147,7 @@ export default function Statutory() {
       ),
   })
 
-  if (reg.isLoading) return <SkeletonTiles count={4} label="Working out the month's contributions…" />
+  if (reg.isLoading && !reg.data) return <SkeletonTiles count={4} label="Working out the month's contributions…" />
   if (reg.error) return <ErrorState error={reg.error} />
 
   const t = reg.data?.totals ?? {}
@@ -688,7 +688,7 @@ function GratuityTab() {
       }>('/api/v1/payroll/gratuity'),
   })
 
-  if (g.isLoading) return <SkeletonTable columns={7} label="Working out the exposure…" />
+  if (g.isLoading && !g.data) return <SkeletonTable columns={7} label="Working out the exposure…" />
   const d = g.data
 
   return (

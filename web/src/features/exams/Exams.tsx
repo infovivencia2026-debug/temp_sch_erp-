@@ -64,7 +64,7 @@ export default function Exams() {
     onError: () => setDone(''),
   })
 
-  if (exams.isLoading) return <SkeletonTable columns={6} />
+  if (exams.isLoading && !exams.data) return <SkeletonTable columns={6} />
   if (exams.error) return <ErrorState error={exams.error} />
   const rows = exams.data?.items ?? []
   const empty = rows.filter((e) => e.papers === 0)

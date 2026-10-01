@@ -74,8 +74,29 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
   const [body, setBody] = useState('')
   const [priority, setPriority] = useState('normal')
   const [file, setFile] = useState<{ id: string; name: string } | null>(null)
+  /* WHO SHOULD READ THIS.
+
+     A concern went wherever the category's policy pointed, and to nobody at
+     all where a school had set no policy for that category -- which is every
+     school that has not been through the grievance settings. A parent wrote
+     out what had happened, pressed send, and it landed in a table with nobody
+     told. From the family's side that is the same as losing it.
+
+     A parent already knows who they want: the child's own teacher for
+     something that happened in the classroom, the head for something the
+     teacher should not be judging. Left blank it still follows the school's
+     policy, which is the right default for a school that has set one. */
+  const [toWhom, setToWhom] = useState('')
   // ?id= opens one straight away: the link a notification carries.
   const [openId, setOpenId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('id'))
+
+  const recipients = useQuery({
+    queryKey: ['portal-concern-recipients', chosen],
+    queryFn: () =>
+      api.get<List<{ user_id: string; full_name: string; role: string }>>(
+        '/api/v1/portal/concern-recipients' + (chosen ? `?student_id=${chosen}` : ''),
+      ),
+  })
 
   const raise = useMutation({
     mutationFn: () =>
@@ -86,6 +107,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
         subject,
         body,
         priority,
+        assigned_to: toWhom || undefined,
         attachment_file_id: file?.id,
       }),
     onSuccess: () => {
@@ -96,7 +118,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
     },
   })
 
-  if (concerns.isLoading) return <ScreenSkeleton label={t('portal.concerns.loading')} />
+  if (concerns.isLoading && !concerns.data) return <ScreenSkeleton label={t('portal.concerns.loading')} />
   if (concerns.error && !concerns.data) return <ScreenError error={concerns.error} />
 
   const rows = concerns.data?.items ?? []
@@ -169,6 +191,27 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
                     { value: 'normal', label: t('portal.concerns.priority_normal') },
                     { value: 'high', label: t('portal.concerns.priority_high') },
                   ]}
+                />
+              </Field>
+              {/* Named people, with what they are to this child beside the
+                  name: "Priya Rao - Class teacher" is a choice a parent can
+                  make, where a bare list of staff names is a guess. */}
+              <Field
+                label="Who should see this"
+                hint={
+                  toWhom
+                    ? 'They are told as soon as you send it.'
+                    : 'Leave it to the school and it goes to whoever handles this kind of concern.'
+                }
+              >
+                <Select
+                  value={toWhom}
+                  onChange={setToWhom}
+                  placeholder="Let the school decide"
+                  options={(recipients.data?.items ?? []).map((p) => ({
+                    value: p.user_id,
+                    label: `${p.full_name} — ${p.role}`,
+                  }))}
                 />
               </Field>
               <Field label={t('portal.concerns.field_subject')} required wide>

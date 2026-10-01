@@ -26,7 +26,7 @@ export default function BackupRestore() {
 
   const [draft, setDraft] = useState<Partial<BackupPosture> | null>(null)
 
-  if (isLoading) return <SkeletonTiles count={4} />
+  if (isLoading && !data) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

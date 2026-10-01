@@ -90,7 +90,7 @@ export default function DepartmentTimetable() {
       ),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={6} label="Reading the department's week…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading the department's week…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const d = q.data!

@@ -78,6 +78,7 @@ export function registerPortalRequests(r: Router): void {
 
   // Concerns and messages.
   r.get('/portal/concerns', PORTAL, listPortalConcerns)
+  r.get('/portal/concern-recipients', PORTAL, listConcernRecipients)
   r.post('/portal/concerns', PORTAL, raisePortalConcern)
   r.get('/portal/messages/teachers', PORTAL, listReachableTeachers)
   r.get('/portal/messages', PORTAL, listPortalMessages)
@@ -144,6 +145,42 @@ async function cancelPortalLeave(c: Ctx): Promise<Response> {
 }
 
 /** One tap on the morning a child wakes up ill: today, or up to a week back. */
+/* WHO IS TOLD WHEN A CHILD IS OFF.
+ *
+ * Nobody was, until now. Reporting an absence or applying for leave wrote a
+ * pending row and stopped: if no member of staff happened to open the leave
+ * list, the reason a parent had typed at seven in the morning sat in a table
+ * and the child was marked absent-unexplained. From the family's side that is
+ * indistinguishable from the message never having been sent.
+ *
+ * It goes to the people who act on it, which is not a question a parent should
+ * be asked. First the class teacher -- they mark the register, and an absence
+ * they do not know about becomes an unexplained one. Then whoever chases
+ * absentees by telephone, because a parent who told the school at seven and is
+ * rung at ten to be asked why is a school that looks careless.
+ *
+ * The head is deliberately not on this list. Forty of these a day is not a
+ * thing anybody runs a school by reading, and the pattern is already on their
+ * dashboard.
+ */
+async function attendanceOwners(c: Ctx, studentId: string): Promise<string[]> {
+  const rows = await c.db.prepare(`
+    SELECT DISTINCT u.id
+      FROM users u
+     WHERE u.status = 'active' AND (
+       /* the class teacher of the section this child is enrolled in */
+       u.id = (SELECT sec.class_teacher_id FROM enrollments e
+                 JOIN sections sec ON sec.id = e.section_id
+                WHERE e.student_id = ?1 AND e.status = 'active'
+                ORDER BY e.enrolled_on DESC LIMIT 1)
+       /* or whoever chases absentees: the permission that names the errand,
+          not a role key, so a school that renamed its roles still routes. */
+       OR EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
+                   WHERE ur.user_id = u.id AND rp.permission_key = 'academics.attendance.write.any')
+     )`).bind(studentId).all<{ id: string }>().catch(() => null)
+  return (rows?.results ?? []).map((r) => r.id).filter(Boolean)
+}
+
 async function reportChildAbsence(c: Ctx): Promise<Response> {
   const body = await readJSON<Record<string, unknown>>(c.req)
   const { studentId: sid } = await portalChild(c, raw(body.student_id))
@@ -159,6 +196,40 @@ async function reportChildAbsence(c: Ctx): Promise<Response> {
   }
   if (on > today) throw badRequest('this button is for today. To book a day off ahead, apply for leave')
   if (on < shiftDays(today, -7)) throw badRequest('that is more than a week ago. The office has to amend the register by hand now')
+
+  /* THE OFFICE MAY HAVE RECORDED IT ALREADY.
+
+     The school rings round its absentees, and when a parent says on the
+     telephone that the child is ill with a reason, the office writes that
+     against the register there and then. The parent was still asked to apply,
+     and the application went into the leave list as a second, pending copy of
+     a fact the school had already established -- something for a teacher to
+     open, read and approve, about a day that was settled at nine in the
+     morning.
+
+     So a day already marked absent WITH a reason on it is answered as done
+     rather than filed again. Marked absent with no reason is not: that is
+     precisely the day the school is waiting to hear about, and is the whole
+     point of this button.
+
+     Present, late or on a holiday is left alone. A parent reporting an
+     absence on a day the child was marked present is telling the school
+     something it does not know, and that must reach somebody. */
+  const already = await c.db.prepare(`
+    SELECT COALESCE(sa.remarks, '') AS remarks
+      FROM student_attendance sa
+     WHERE sa.student_id = ? AND sa.on_date = ? AND sa.status = 'absent'
+     ORDER BY (COALESCE(sa.remarks, '') <> '') DESC LIMIT 1`)
+    .bind(sid, on).first<{ remarks: string }>().catch(() => null)
+  if (already && already.remarks.trim() !== '') {
+    return ok({
+      already_recorded: true,
+      on_date: on,
+      recorded_reason: already.remarks,
+      note: 'The school has already recorded this absence, with the reason you gave the office. '
+        + 'There is nothing more to do for this day.',
+    })
+  }
 
   // The clash check and the insert are one statement, so two taps cannot both land.
   const newID = uuid()
@@ -179,7 +250,20 @@ async function reportChildAbsence(c: Ctx): Promise<Response> {
     throw badRequest(errMsg(e))
   }
   if (!res.meta.changes) throw coded(409, 'already_reported', 'that day is already covered by an application')
-  return created({ id: newID, on_date: on })
+
+  const who = await c.db.prepare(`SELECT ${nameFL('st')} AS name FROM students st WHERE st.id = ?`)
+    .bind(sid).first<{ name: string }>().catch(() => null)
+  const told = await attendanceOwners(c, sid)
+  if (told.length) {
+    await c.db.batch(told.map((uid) => notifyStmt(
+      c, uid, sid, 'attendance.absence_reported',
+      `${who?.name ?? 'A child'} is absent today`,
+      reason.slice(0, 200),
+      '/faculty/attendance/absentee_followup',
+      'leave_request', newID,
+    ))).catch(() => { /* the absence is recorded; a failed bell must not undo it */ })
+  }
+  return created({ id: newID, on_date: on, told: told.length })
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +466,59 @@ async function listPortalConcerns(c: Ctx): Promise<Response> {
 
 const CONCERN_CATEGORIES = new Set(['academic', 'fees', 'transport', 'hostel', 'discipline', 'safety', 'staff', 'facilities', 'other'])
 
+/* WHO A CONCERN CAN BE ADDRESSED TO.
+ *
+ * A concern used to go wherever the category's policy pointed, and to nobody
+ * at all when the school had set no policy for that category -- which is every
+ * school that has not been through the grievance settings. So a parent wrote
+ * out what had happened, pressed send, and it landed in a table. Nothing was
+ * lost, and nobody was told, which from the family's side is the same thing.
+ *
+ * A parent already knows who they want: the child's own teacher for something
+ * that happened in the classroom, the head for something the teacher should
+ * not be judging. This lists exactly those people -- the teachers of this
+ * child's section, then whoever runs the school -- and the parent picks.
+ *
+ * Only these. Not a directory of the staff: a family may address the people
+ * who teach their child and the people who answer for the school, and that is
+ * the whole list.
+ */
+async function listConcernRecipients(c: Ctx): Promise<Response> {
+  const { studentIds: ids } = await familyChildren(c, c.url.searchParams.get('student_id') ?? '')
+  const out: Record<string, unknown>[] = []
+  const seen = new Set<string>()
+  for (const one of ids) {
+    for (const t of await reachableTeachers(c, one)) {
+      if (!t.user_id || seen.has(t.user_id)) continue
+      seen.add(t.user_id)
+      out.push({
+        user_id: t.user_id,
+        full_name: t.full_name,
+        role: bool(t.class_teacher) ? 'Class teacher' : (t.subject ? String(t.subject) + ' teacher' : 'Teacher'),
+      })
+    }
+  }
+  /* The heads, by the permission that makes them answerable rather than by a
+     role key: a school that has renamed institution_admin to "Correspondent"
+     still has somebody holding it, and a family must always have somebody
+     above the classroom to write to. */
+  const heads = await c.db.prepare(`
+    SELECT DISTINCT u.id AS user_id, u.full_name,
+           (SELECT ro.name FROM user_roles ur2 JOIN roles ro ON ro.id = ur2.role_id
+             WHERE ur2.user_id = u.id AND ro.key IN ('institution_admin','principal') LIMIT 1) AS role
+      FROM users u
+      JOIN user_roles ur ON ur.user_id = u.id
+      JOIN roles r ON r.id = ur.role_id
+     WHERE u.status = 'active' AND r.key IN ('institution_admin','principal')
+     ORDER BY u.full_name`).all<{ user_id: string; full_name: string; role: string | null }>()
+  for (const h of heads.results) {
+    if (seen.has(h.user_id)) continue
+    seen.add(h.user_id)
+    out.push({ user_id: h.user_id, full_name: h.full_name, role: h.role || 'Head of school' })
+  }
+  return ok({ items: out })
+}
+
 async function raisePortalConcern(c: Ctx): Promise<Response> {
   const body = await readJSON<Record<string, unknown>>(c.req)
   const subject = str(body.subject), text = str(body.body)
@@ -404,6 +541,25 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
   }
   const attachment = await ownAttachment(c, body.attachment_file_id)
 
+  /* WHO THE PARENT ADDRESSED IT TO.
+
+     Checked against the same list the picker was filled from rather than
+     trusted: a user id in a request body is somebody's guess otherwise, and
+     "raise a concern" must not become a way to put a row in front of any
+     member of staff whose id can be found. An id that is not on the list is
+     refused rather than quietly dropped -- a parent who chose the class
+     teacher and was silently reassigned to nobody has been told a lie. */
+  let addressedTo: string | null = null
+  const wanted = raw(body.assigned_to)
+  if (wanted.trim() !== '') {
+    if (!isUUID(wanted)) throw badRequest('assigned_to must be a uuid')
+    const allowed = await (await listConcernRecipients(c)).clone().json<{ items: { user_id: string }[] }>()
+    if (!allowed.items.some((x) => x.user_id === wanted)) {
+      throw badRequest("you can address this to one of your child's teachers or to the head of the school")
+    }
+    addressedTo = wanted
+  }
+
   // The promise is made the moment the concern arrives, from the category's
   // policy, not when somebody gets round to triaging it.
   const policy = await policyFor(c, category)
@@ -416,12 +572,13 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
            owner_department, assigned_to, respond_due_at, resolve_due_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(newID, institutionId(c), c.id.userId, child, category, subject, text, priority, attachment,
-        policy?.owner_department ?? null, policy?.default_owner_id ?? null,
+        policy?.owner_department ?? null, addressedTo ?? policy?.default_owner_id ?? null,
         policy ? dueAt(t, policy.respond_hours) : null, policy ? dueAt(t, policy.resolve_hours) : null, t, t),
     feedbackUpdateStmt(c, newID, 'created', 'Concern raised.', 'open', true, c.id.userId),
   ]
-  if (policy?.default_owner_id && policy.default_owner_id !== c.id.userId) {
-    stmts.push(notify(c, policy.default_owner_id, 'A new concern has been raised', subject,
+  const owner = addressedTo ?? policy?.default_owner_id ?? null
+  if (owner && owner !== c.id.userId) {
+    stmts.push(notify(c, owner, 'A new concern has been raised', subject,
       `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
   }
   try {
@@ -472,9 +629,17 @@ async function reachableTeachers(c: Ctx, sid: string): Promise<TeacherRow[]> {
             LEFT JOIN subjects sub ON sub.id = cs.subject_id
            WHERE te.section_id = (SELECT section_id FROM child_section)
              AND te.teacher_user_id IS NOT NULL
+             /* The subject teacher the school ASSIGNED for this section wins
+                (the same assignment the staff record shows). The timetable
+                only fills a subject nobody is assigned to; an older timetable
+                entry named a teacher who no longer takes the class. */
+             AND NOT EXISTS (SELECT 1 FROM section_subject_teachers s2
+                              WHERE s2.section_id = te.section_id AND s2.class_subject_id = te.class_subject_id)
       ) t
       JOIN users u ON u.id = t.user_id
-     WHERE u.status = 'active'
+     /* A teacher whose login is still being set up (invited) is still the
+        child's teacher; leaving them off showed the wrong person instead. */
+     WHERE u.status IN ('active', 'invited')
      GROUP BY t.user_id, u.full_name, t.subject
      ORDER BY MAX(t.class_teacher) DESC, u.full_name`).bind(sid, c.id.userId).all<TeacherRow>()
   return rows.results
@@ -867,9 +1032,24 @@ function financialYear(on: string): string {
 
 /** What the school is willing to issue. Never creates a type. */
 async function listPortalRequestTypes(c: Ctx): Promise<Response> {
-  const rows = await c.db.prepare(`SELECT id, code, name, requires_approval FROM certificate_types ORDER BY name`)
-    .all<{ id: string; code: string; name: string; requires_approval: number }>()
-  return ok({ items: rows.results.map((v) => ({ id: v.id, code: v.code, name: v.name, requires_approval: bool(v.requires_approval) })) })
+  /* THE PARENT'S LIST, NOT THE WHOLE CABINET.
+
+     This read every row of certificate_types, and that table holds the staff
+     letters too -- so a parent asking the office for a bonafide certificate
+     was offered "Appointment Letter" and "Warning Letter" beside it. At JSM
+     those were two of the three choices on the menu. Both columns that would
+     have prevented it were already on the table and simply not consulted:
+     subject_kind says whose document it is, is_active says whether the school
+     still issues it. */
+  const rows = await c.db.prepare(`
+    SELECT id, code, name, description, requires_approval FROM certificate_types
+     WHERE subject_kind = 'student' AND is_active ORDER BY name`)
+    .all<{ id: string; code: string; name: string; description: string | null; requires_approval: number }>()
+  return ok({ items: rows.results.map((v) => ({
+    id: v.id, code: v.code, name: v.name,
+    description: v.description ?? '',
+    requires_approval: bool(v.requires_approval),
+  })) })
 }
 
 async function listPortalRequests(c: Ctx): Promise<Response> {

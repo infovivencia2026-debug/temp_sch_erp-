@@ -35,7 +35,7 @@ export default function Onboarding() {
   })
   const [onlyStalled, setOnlyStalled] = useState(false)
 
-  if (q.isLoading) return <SkeletonTable columns={6} label="Reading each school's progress…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading each school's progress…" />
   if (q.error) return <ErrorState error={q.error} />
   const data = q.data!
   const items = [...data.items]

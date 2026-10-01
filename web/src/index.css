@@ -862,8 +862,9 @@
   table { border-collapse: collapse; }
   :where(table) :where(th, td) {
     border-bottom: 1px solid hsl(var(--border));
-    border-right: 1px solid hsl(var(--border) / 0.55);
   }
+  /* No column rules: the owner did not want vertical lines in tables
+     anywhere -- they stopped short of the card edge and read as a fault. */
   :where(table) :where(th, td):last-child { border-right: 0; }
   :where(table) tr:last-child :where(td) { border-bottom: 0; }
 
@@ -2452,7 +2453,9 @@ dialog,
   to   { opacity: 1; transform: none; }
 }
 .screen-fade {
-  animation: screen-fade var(--motion-enter, 180ms) var(--motion-ease, ease) both;
+  /* No entrance. Fading a screen in from blank on every navigation read as
+     the screen blinking; the new screen is simply there. */
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-fade { animation: none !important; }
@@ -2493,7 +2496,8 @@ dialog,
   to   { opacity: 1; }
 }
 [data-page-enter] {
-  animation: route-enter var(--motion-route) var(--motion-ease) both;
+  /* No entrance, for the same reason as .screen-fade: it read as a blink. */
+  animation: none;
 }
 
 /* THE CROSSING BETWEEN TWO SCREENS.
@@ -2517,11 +2521,12 @@ dialog,
    is a short fade and nothing else, and the frame that doesn't change between
    screens is lifted out of the crossing (named below) so it stays perfectly
    still while only the page underneath changes. */
-::view-transition-old(root) {
-  animation: vt-leave 120ms linear both;
-}
+/* No fade at all between pages: even a short one read as the screen
+   blinking on every click (the account button, the rail). The page is swapped
+   in place, and the frame never moves. */
+::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: vt-arrive 160ms linear both;
+  animation: none;
 }
 @keyframes vt-leave {
   to { opacity: 0; }
@@ -2633,26 +2638,46 @@ html:active-view-transition [data-page-enter] { animation: none; }
   background-attachment: local, local, scroll, scroll;
 }
 
-/* And the bar itself, drawn rather than borrowed.
+/* THE BAR ITSELF IS GONE. IT STILL SCROLLS.
 
-   Thin and always present on the scrollers that can move sideways, because a
-   horizontal scrollbar is not clutter — it is the only thing on screen that
-   states how much of the table you are looking at. Vertical bars are left to
-   the platform: a page scrolls, everybody knows a page scrolls. */
-/* Standard bar for Firefox only: Chrome drops the styled parts below once it is set. */
-@supports not selector(::-webkit-scrollbar) {
-  .scroll-x { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+   It used to be drawn thin and always present, on the argument that a
+   horizontal scrollbar states how much of a table you are looking at. That
+   argument loses to the thing actually on screen: a grey line ruled under
+   every wide strip in the product — tab strips, chip rows, week pickers, a
+   dozen tables — reading as a divider somebody forgot to remove, or worse as
+   an underline beneath a heading that has none.
+
+   The fade at both edges above says there is more in that direction, and says
+   it in the content rather than in furniture below it. That is the honest
+   signal, and it is already there. So the bar goes and the scrolling stays:
+   wheel, trackpad, touch, drag and keyboard all work exactly as before, in
+   every browser. An older browser that knows neither property simply keeps
+   its own bar, which is no worse than what it had.
+
+   Kept on nothing. If a surface genuinely needs a visible bar, it should say
+   so for itself rather than every sideways scroller inheriting one. */
+.scroll-x {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* old Edge, IE */
 }
-.scroll-x::-webkit-scrollbar { height: 10px; }
-.scroll-x::-webkit-scrollbar-track { background: transparent; }
-.scroll-x::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 9999px;
+.scroll-x::-webkit-scrollbar { height: 0; width: 0; }
+
+/* Same for the strips Tailwind scrolls directly, which never carried .scroll-x
+   and so drew the platform's own bar under every chip row on the page. */
+.overflow-x-auto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-@media (hover: hover) {
-  .scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
+.overflow-x-auto::-webkit-scrollbar { height: 0; }
+
+/* A TABLE SAYS SO FOR ITSELF. With a mouse there is no swipe, and a table
+   whose last column (Reset password, the row's actions) sits past the edge
+   could not be reached at all. So a table's scroller keeps a thin bar on a
+   pointer device; touch screens still swipe and show none. */
+@media (pointer: fine) {
+  .table-frame > .scroll-x { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+  .table-frame > .scroll-x::-webkit-scrollbar { height: 10px; }
+  .table-frame > .scroll-x::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
 }
 
 /* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
@@ -4274,4 +4299,21 @@ main, [data-paint='workarea'] {
     scrollbar-color: rgba(100, 110, 130, .45) transparent;
     scrollbar-color: hsl(var(--muted-foreground) / .45) transparent;
   }
+}
+
+/* iPhone Safari gives date and month fields a minimum width of their own, so
+   "Which day" on Report an absence ran past the card on a phone. They take
+   the width of their box like every other field, and the value sits left. */
+input[type='date'],
+input[type='month'],
+input[type='time'] {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='month']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value {
+  text-align: left;
 }

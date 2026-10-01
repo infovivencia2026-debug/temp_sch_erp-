@@ -40,7 +40,7 @@ export default function PrincipalDashboard() {
     queryFn: () => api.get<List<TrendPoint>>('/api/v1/principal/attendance-trend'),
   })
 
-  if (kpis.isLoading) return <SkeletonTiles count={3} />
+  if (kpis.isLoading && !kpis.data) return <SkeletonTiles count={3} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   const picked = sectionId ? k.students_by_section?.find((x) => x.section_id === sectionId) : undefined

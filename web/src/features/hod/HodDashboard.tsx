@@ -58,7 +58,7 @@ export default function HodDashboard() {
     queryFn: () => api.get<Dash>('/api/v1/teaching/hod-dashboard'),
   })
 
-  if (isLoading) return <SkeletonTiles count={4} label="Reading your department…" />
+  if (isLoading && !data) return <SkeletonTiles count={4} label="Reading your department…" />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

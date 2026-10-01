@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import WriteWithAI from '@/components/ai/WriteWithAI'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { PickerMenu } from '@/components/PickerMenu'
 import { api, type List } from '@/lib/api'
@@ -556,11 +555,6 @@ export default function StaffMessages() {
                 loading={parentMessages.isLoading}
                 empty="Nothing yet in this conversation."
                 canSend={openParent?.teacher_user_id === me || !openParent?.teacher_user_id}
-                composerTools={openChild ? (draft, setDraft) => (
-                  <WriteWithAI kind="parent_message" context={{ student_id: openChild,
-                    reply_to: [...(parentMessages.data?.items ?? [])].reverse().find((m) => !m.mine && m.sender_side === 'parent')?.body }}
-                    current={draft} onInsert={setDraft} defaultLength="short" />
-                ) : undefined}
                 cannotSendNote={
                   <>
                     Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation with this

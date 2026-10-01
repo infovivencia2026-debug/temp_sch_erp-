@@ -1,3 +1,4 @@
+import { useSession } from '@/lib/session'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -41,9 +42,22 @@ export default function Students() {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
 
+  /* Staff see only the section they are class teacher of (the owner's rule). */
+  /* Opened from the staff (faculty) menu, it is always My students -- the
+     class teacher's own section -- even for a teacher whose role can read
+     every student; elsewhere, anyone without that permission. */
+  const staffSide = (typeof window !== 'undefined' && window.location.pathname.split('/')[1] === 'faculty') ||
+    !useSession().permissions.includes('students.read.all')
+  const myClass = useQuery({
+    queryKey: ['sections', 'class_teacher'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    enabled: staffSide,
+  })
+  const lockedSection = staffSide ? (myClass.data?.items?.[0]?.id ?? '00000000-0000-0000-0000-000000000000') : ''
   const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) })
   if (search.trim()) params.set('q', search.trim())
-  if (sectionId) params.set('section_id', sectionId)
+  if (lockedSection || sectionId) params.set('section_id', lockedSection || sectionId)
+  if (staffSide) params.set('mine', 'class_teacher')
 
   const { data, isLoading, error, isPlaceholderData } = useQuery({
     queryKey: ['students', params.toString()],

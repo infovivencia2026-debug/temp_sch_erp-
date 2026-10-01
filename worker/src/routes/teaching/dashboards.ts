@@ -766,6 +766,36 @@ async function listStudentProgress(c: Ctx) {
   const s = await resolveScope(c)
   const rng = resolveRange(c)
   const where = studentPredicate(s, 'st')
+
+  /* ONE CLASS, AND ONLY THE SUBJECTS THIS TEACHER MAY SEE.
+     The owner's rule: a class teacher sees the whole class across every
+     subject; a subject teacher sees the class only through the subjects they
+     teach it. Enforced here, not in the screen, so a hand-made URL cannot
+     widen it. Without section_id the roster is the old all-my-classes view. */
+  const q = c.url.searchParams
+  const sectionId = q.get('section_id') ?? ''
+  const wantCS = q.get('class_subject_id') ?? ''
+  const examId = q.get('exam_id') ?? ''
+  const wide = s.allStudents || s.anySection || s.platformAdmin
+  let secSql = '1'
+  const secArgs: string[] = []
+  let csFilter: string[] | null = null
+  let full = true
+  if (sectionId) {
+    if (!wide && !s.sectionIds.includes(sectionId)) throw notFound('section')
+    secSql = 'en.section_id = ?'
+    secArgs.push(sectionId)
+    full = wide || s.classTeacherOf.includes(sectionId)
+    if (!full) csFilter = await mySubjectsIn(c, s.userId, sectionId)
+    if (wantCS) {
+      if (csFilter && !csFilter.includes(wantCS)) throw notFound('subject')
+      csFilter = [wantCS]
+    }
+  }
+  const csJSON = csFilter ? JSON.stringify(csFilter) : ''
+  const ES = `(?3 = '' OR es.class_subject_id IN (SELECT value FROM json_each(?3))) AND (?4 = '' OR es.exam_id = ?4)`
+  const HW = (a: string) => `(?3 = '' OR ${a}.class_subject_id IN (SELECT value FROM json_each(?3)))`
+
   const rows = await c.db.prepare(`
     SELECT st.id AS student_id, st.admission_no,
            st.first_name || COALESCE(' ' || st.last_name, '') AS full_name,
@@ -775,19 +805,19 @@ async function listStudentProgress(c: Ctx) {
            (SELECT count(*) FROM student_attendance sa
              WHERE sa.student_id = st.id AND sa.on_date BETWEEN ?1 AND ?2) AS marked,
            (SELECT count(*) FROM homework h
-             WHERE h.section_id = en.section_id AND h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2) AS set_count,
+             WHERE h.section_id = en.section_id AND h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2 AND ${HW('h')}) AS set_count,
            (SELECT count(sub.id) FROM homework h
              LEFT JOIN homework_submissions sub ON sub.homework_id = h.id AND sub.student_id = st.id
-             WHERE h.section_id = en.section_id AND h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2) AS submitted,
+             WHERE h.section_id = en.section_id AND h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2 AND ${HW('h')}) AS submitted,
            (SELECT count(*) FROM enrollments e2 WHERE e2.section_id = en.section_id AND e2.status = 'active') AS roll,
            (SELECT count(*) FROM homework_submissions s2 JOIN homework h2 ON h2.id = s2.homework_id
-             WHERE h2.section_id = en.section_id AND h2.is_published = 1 AND h2.assigned_on BETWEEN ?1 AND ?2) AS handed_in,
+             WHERE h2.section_id = en.section_id AND h2.is_published = 1 AND h2.assigned_on BETWEEN ?1 AND ?2 AND ${HW('h2')}) AS handed_in,
            (SELECT SUM(CAST(m.marks_obtained AS REAL)) FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id
-             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL) AS obtained,
+             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND ${ES}) AS obtained,
            (SELECT SUM(CAST(es.max_marks AS REAL)) FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id
-             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL) AS max_marks,
+             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND ${ES}) AS max_marks,
            (SELECT count(*) FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id
-             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL) AS papers,
+             WHERE m.student_id = st.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND ${ES}) AS papers,
            COALESCE((SELECT sum(i.net_paise - i.paid_paise) FROM invoices i
              WHERE i.student_id = st.id AND i.status NOT IN ('cancelled','paid')), 0) AS due,
            st.is_cwsn, st.cwsn_type,
@@ -798,9 +828,9 @@ async function listStudentProgress(c: Ctx) {
       LEFT JOIN enrollments en ON en.student_id = st.id AND en.status = 'active'
       LEFT JOIN sections sec ON sec.id = en.section_id
       LEFT JOIN classes cl ON cl.id = sec.class_id
-     WHERE st.status = 'active' AND ${where.sql}
+     WHERE st.status = 'active' AND ${where.sql} AND ${secSql}
      ORDER BY cl.name, sec.name, st.first_name
-     LIMIT 600`).bind(rng.fromS, rng.toS, ...where.args).all<Record<string, unknown>>()
+     LIMIT 600`).bind(rng.fromS, rng.toS, csJSON, examId, ...where.args, ...secArgs).all<Record<string, unknown>>()
 
   const items = rows.results.map((r) => {
     const v: ProgressRow = {
@@ -822,6 +852,53 @@ async function listStudentProgress(c: Ctx) {
     score(v)
     return v
   })
+  return ok({ items, full })
+}
+
+/** The class-subjects a teacher teaches in one section: assigned, or on the timetable. */
+async function mySubjectsIn(c: Ctx, userId: string, sectionId: string): Promise<string[]> {
+  const rows = await c.db.prepare(`
+    SELECT class_subject_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?1 AND section_id = ?2
+    UNION SELECT class_subject_id FROM timetable_entries WHERE teacher_user_id = ?1 AND section_id = ?2`)
+    .bind(userId, sectionId).all<{ id: string | null }>()
+  return rows.results.map((x) => x.id).filter((x): x is string => !!x)
+}
+
+/* WHAT THE PROGRESS PICKERS OFFER. Each class this person may look at, whether
+   they see all of it (class teacher, or a role that sees every class), the
+   subjects they teach in it, and the exams that have papers for that class. */
+async function progressOptions(c: Ctx) {
+  const s = await resolveScope(c)
+  const wide = s.allStudents || s.anySection || s.platformAdmin
+  const secF = wide ? { sql: '1', args: [] as string[] } : inList('sec.id', s.sectionIds)
+  const [secs, subs, exams] = await c.db.batch([
+    c.db.prepare(`SELECT sec.id, cl.name AS class_name, sec.name FROM sections sec JOIN classes cl ON cl.id = sec.class_id
+      WHERE ${secF.sql} ORDER BY cl.name, sec.name`).bind(...secF.args),
+    c.db.prepare(`SELECT sec.id AS section_id, cs.id AS class_subject_id, sub.name,
+        (EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)
+         OR EXISTS (SELECT 1 FROM timetable_entries t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)) AS mine
+      FROM sections sec JOIN class_subjects cs ON cs.class_id = sec.class_id JOIN subjects sub ON sub.id = cs.subject_id
+      WHERE ${secF.sql} ORDER BY sub.name`).bind(s.userId, s.userId, ...secF.args),
+    c.db.prepare(`SELECT DISTINCT sec.id AS section_id, e.id, e.name, e.starts_on
+      FROM exams e JOIN exam_subjects es ON es.exam_id = e.id JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN sections sec ON sec.class_id = cs.class_id
+      WHERE ${secF.sql} ORDER BY e.starts_on IS NULL, e.starts_on DESC, e.name`).bind(...secF.args),
+  ])
+  const items = (secs.results as { id: string; class_name: string; name: string }[]).map((x) => {
+    const full = wide || s.classTeacherOf.includes(x.id)
+    const subjects = (subs.results as { section_id: string; class_subject_id: string; name: string; mine: number }[])
+      .filter((y) => y.section_id === x.id && (full || y.mine))
+      .map((y) => ({ id: y.class_subject_id, name: y.name, mine: !!y.mine }))
+    return {
+      section_id: x.id,
+      label: `${x.class_name}-${x.name}`,
+      class_teacher: s.classTeacherOf.includes(x.id),
+      full,
+      subjects,
+      exams: (exams.results as { section_id: string; id: string; name: string }[])
+        .filter((y) => y.section_id === x.id).map((y) => ({ id: y.id, name: y.name })),
+    }
+  }).filter((x) => x.full || x.subjects.length > 0)
   return ok({ items })
 }
 
@@ -843,4 +920,5 @@ export function registerDashboards(r: Router): void {
   r.get('/teaching/parent-messages', 'academics.timetable.read', listTeacherParentThreads)
   r.get('/teaching/parent-messages/thread', 'academics.timetable.read', listTeacherParentMessages)
   r.get('/teaching/progress', 'academics.timetable.read', listStudentProgress)
+  r.get('/teaching/progress/options', 'academics.timetable.read', progressOptions)
 }

@@ -43,10 +43,11 @@ interface AttendanceDay {
 }
 
 const DOT: Record<string, string> = {
-  present: 'bg-success',
-  late: 'bg-warning',
-  absent: 'bg-destructive',
-  half_day: 'bg-warning/60',
+  /* Light tints: the owner found the solid forest green ugly. */
+  present: 'bg-[#dcfce7] border-[#86efac]',
+  late: 'bg-[#fef3c7] border-[#fcd34d]',
+  absent: 'bg-[#fee2e2] border-[#fca5a5]',
+  half_day: 'bg-[#ffedd5] border-[#fdba74]',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
 }
@@ -102,7 +103,7 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
      month is a small object; it should look like one. */
   return (
     <div className={large ? 'mt-1' : 'mt-2 max-w-[22rem]'}>
-      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-2' : 'gap-1')}>
+      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-1.5' : 'gap-1')}>
         {/* 11px, not 10. The cells below are 46px square and had room to
             spare; the header naming them was the smallest text on the parent's
             screen, set in tracked capitals at 10px in a muted grey. Nothing
@@ -116,7 +117,6 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
           if (day === null) return <div key={`pad-${i}`} />
           const d = byDate.get(iso(day))
           const status = d?.status || undefined
-          const marked = status && status !== 'holiday'
           /* A Sunday nobody marked is a day the school is shut, and the key says so. */
           const sunday = !status && new Date(year, month, day).getDay() === 0
           return (
@@ -131,13 +131,16 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
                 d?.on_leave && status !== 'leave' ? 'leave approved' : null,
               ].filter(Boolean).join(' · ')}
               className={cn(
-                'relative flex aspect-square items-center justify-center tabular-nums',
-                large ? 'rounded-lg border text-[14px] font-medium' : 'rounded text-[11px]',
+                'relative flex items-center justify-center tabular-nums',
+                /* The report fits one screen on a computer: fixed-height days
+                   rather than squares as wide as the column. */
+                large ? 'h-11 rounded-lg border text-[14px] font-medium' : 'aspect-square rounded text-[11px]',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
                 status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-muted-foreground' : 'text-muted-foreground',
-                marked && (status === 'present' || status === 'absent')
-                  ? 'font-medium text-white'
+                status === 'present' ? 'font-semibold text-[#15803d]'
+                  : status === 'absent' ? 'font-semibold text-[#b91c1c]'
+                  : status === 'late' || status === 'half_day' ? 'font-semibold text-[#b45309]'
                   : status ? 'text-foreground' : '',
               )}
             >
@@ -220,12 +223,22 @@ const thisMonth = () => {
 const monthName = (m: string) =>
   new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
+/* A stronger edge on the key, so each colour reads at a glance. */
+const KEY: Record<string, string> = {
+  present: 'border-[#16a34a]',
+  late: 'border-[#d97706]',
+  absent: 'border-[#dc2626]',
+  half_day: 'border-[#f97316]',
+  holiday: 'border-muted-foreground/40',
+}
+
 function Legend() {
   return (
-    <div className="flex flex-wrap gap-3 text-[12px] text-muted-foreground">
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-[14px] font-medium text-foreground">
       {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
         <span key={k} className="inline-flex items-center gap-2">
-          <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
+          {/* The same tint and edge as the day it names, big enough to see. */}
+          <span className={cn('h-4 w-4 rounded-full border-2', cls, KEY[k])} />
           {k === 'holiday' ? 'holiday / Sunday' : k.replace('_', ' ')}
         </span>
       ))}
@@ -249,7 +262,9 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
   })()
   const months: string[] = []
   {
-    const start = earliest < elevenBack ? elevenBack : earliest
+    /* Every month back to the first mark: a year picker in front of the
+       month keeps the list short, so the eleven-month cap is not needed. */
+    const start = earliest < currentYm ? earliest : elevenBack
     const [fy, fm] = start.split('-').map(Number)
     const [ty, tm] = currentYm.split('-').map(Number)
     for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
@@ -281,17 +296,30 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
           <h2 className="text-[17px] font-bold">Attendance report</h2>
           {childLabel && <p className="text-[13px] text-muted-foreground">{childLabel}</p>}
         </div>
+        <div className="flex gap-2">
+        {/* The year first, once there is more than one: three years of
+            months in one list was too long to scroll. */}
+        {new Set(months.map((x) => x.slice(0, 4))).size > 1 && (
+          <PickerMenu
+            value={ym.slice(0, 4)}
+            ariaLabel="Year"
+            align="end"
+            onChange={(y) => setPicked(months.find((x) => x.startsWith(y)) ?? ym)}
+            options={[...new Set(months.map((x) => x.slice(0, 4)))].map((y) => ({ value: y, label: y }))}
+          />
+        )}
         <PickerMenu
           value={ym}
           ariaLabel="Month"
           align="end"
           onChange={setPicked}
-          options={months.map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
+          options={months.filter((x) => x.startsWith(ym.slice(0, 4))).map((x) => ({ value: x, label: x === currentYm ? `${monthName(x)} · this month` : monthName(x) }))}
         />
+        </div>
       </div>
-      <div className="grid gap-6 p-5 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
         <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
-          {mini('Present', days1(m.present), 'text-success')}
+          {mini('Present', days1(m.present), 'text-[#16a34a]')}
           {mini('Absent', days1(m.absent), m.absent ? 'text-destructive' : undefined)}
           {mini('This month', m.pct === null ? '-' : `${m.pct}%`)}
           {mini('Year so far', yearPct === null ? '-' : `${yearPct}%`)}
@@ -440,7 +468,7 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
-  if (children.isLoading) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
@@ -503,9 +531,26 @@ export default function Portal() {
             so drawing it again here gave a parent the same two rows twice on
             one screen — the second copy reading as a different list until you
             compared them line by line. */}
-        {summary.isLoading ? (
+        {/* ONCE THERE ARE FIGURES, THEY STAY ON SCREEN.
+
+            This was `summary.isLoading`, which is true again for every reload
+            of the query, not only the first -- so each refresh tore the report
+            down to a skeleton and built it back. That is the blinking: the
+            page flashing grey and filling in, over and over, with nothing
+            wrong and nothing changing.
+
+            It also lost the month. AttendanceReport holds the chosen month in
+            its own state, and a component that unmounts does not hold
+            anything: every reload put a parent back on the current month a
+            moment after they had picked another, which reads exactly like a
+            picker that does not work.
+
+            So the skeleton is for the first load only -- when there is nothing
+            to show yet. A reload keeps the figures up while it runs, and the
+            freshness line says one is in flight. */}
+        {summary.isLoading && !summary.data ? (
           <SkeletonTiles count={5} />
-        ) : summary.error ? (
+        ) : summary.error && !summary.data ? (
           /* `!s` used to fall through to the spinner, so a summary that came
              back 403 or 500 left a parent watching "Loading…" for the rest of
              the session. The failure has a message; show it. */

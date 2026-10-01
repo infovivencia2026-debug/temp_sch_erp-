@@ -121,7 +121,7 @@ export default function UsageCost() {
     },
   })
 
-  if (isLoading) return <SkeletonTiles count={4} label="Adding up what everybody uses…" />
+  if (isLoading && !data) return <SkeletonTiles count={4} label="Adding up what everybody uses…" />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

@@ -768,7 +768,7 @@ function MatchForm({ poID, mayPay, onDone }: {
           : 'Blocked. Do not pay this until it is explained.'),
   })
 
-  if (preview.isLoading) return <SkeletonTiles count={3} />
+  if (preview.isLoading && !preview.data) return <SkeletonTiles count={3} />
   if (preview.error) return <ErrorState error={preview.error} />
 
   const p = preview.data!

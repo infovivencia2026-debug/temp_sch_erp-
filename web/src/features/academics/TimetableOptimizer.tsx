@@ -113,7 +113,7 @@ export default function TimetableOptimizer() {
     },
   })
 
-  if (inputs.isLoading) return <SkeletonTable columns={6} label="Reading the year's requirements…" />
+  if (inputs.isLoading && !inputs.data) return <SkeletonTable columns={6} label="Reading the year's requirements…" />
   if (inputs.error) return <ErrorState error={inputs.error} />
 
   const s = inputs.data?.summary

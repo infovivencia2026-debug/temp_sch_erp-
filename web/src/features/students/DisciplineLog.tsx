@@ -94,7 +94,7 @@ export default function DisciplineLog() {
     },
   })
 
-  if (log.isLoading) return <SkeletonTable columns={8} label="Reading the conduct file…" />
+  if (log.isLoading && !log.data) return <SkeletonTable columns={8} label="Reading the conduct file…" />
   if (log.error) return <ErrorState error={log.error} />
 
   const rows = log.data?.items ?? []

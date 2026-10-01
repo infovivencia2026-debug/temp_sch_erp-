@@ -4,7 +4,7 @@ import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Select, EmptyState, PrintButton, FormNotice,
+  Select, EmptyState, FormNotice,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -13,6 +13,7 @@ import { useT } from '@/lib/i18n'
 import { useSession } from '@/lib/session'
 import { upiNote } from '@/lib/upi'
 import UpiQr from '@/components/UpiQr'
+import { printFeeStatement } from './fee-statement'
 
 /* The family's own bill.
 
@@ -122,7 +123,8 @@ export default function PortalFees() {
      One code at a time. The whole balance by default; an instalment's own
      button points the code at that instalment instead, so a family paying
      one term of three scans a code for one term. */
-  const inst = useSession().institution
+  const session = useSession()
+  const inst = session.institution
   const upiVpa = inst?.upi_vpa ?? ''
   /* The test button exists only where the server says so. In production it
      is gone whether or not the school has set a UPI address: a family whose
@@ -138,7 +140,7 @@ export default function PortalFees() {
      linked to nobody — to a spinner that never resolved, because the fee query
      stays disabled while there is no child and a disabled query never stops
      being pending. Three separate answers, in the order the page learns them. */
-  if (children.isLoading) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
@@ -152,7 +154,7 @@ export default function PortalFees() {
         </PageBody>
       </>
     )
-  if (isLoading) return <ScreenSkeleton />
+  if (isLoading && !data) return <ScreenSkeleton />
   if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (
@@ -194,8 +196,42 @@ export default function PortalFees() {
         }
         actions={
           <>
-            {/* A fee statement is a document a parent takes to the office. */}
-            <PrintButton label={t('portal.fees.action_print')} />
+            {/* A fee statement is a document a parent takes to the office, so
+                it is built as one rather than captured from this page. Printing
+                the page produced the letterhead, the amount due, and two blank
+                sheets: the cards below are laid out with grid and flex and the
+                print stylesheet flattened them into empty boxes. */}
+            <Button
+              variant="secondary"
+              onClick={() =>
+                printFeeStatement({
+                  school: {
+                    name: inst?.name ?? 'This school',
+                    affiliation: inst?.affiliation,
+                    address: inst?.address,
+                    phone: inst?.phone,
+                    email: inst?.email,
+                    logoKey: inst?.logo_key,
+                  },
+                  student: {
+                    name: d.student_name,
+                    admissionNo: d.admission_no,
+                    className: (() => {
+                      const k = kids.find((x) => x.student_id === d.student_id)
+                      return k ? [k.class_name, k.section_name].filter(Boolean).join('-') : undefined
+                    })(),
+                    guardian: session.user?.full_name,
+                  },
+                  outstandingPaise: d.outstanding_paise,
+                  invoices: d.invoices,
+                  receipts: d.receipts,
+                  upi: upiVpa ? { vpa: upiVpa, note: upiNote(d.admission_no, d.student_name) } : undefined,
+                  printedBy: session.user?.full_name,
+                })
+              }
+            >
+              {t('portal.fees.action_print')}
+            </Button>
             {/* The switcher is only for a guardian with more than one child;
                 a student has one bill and it would be furniture. */}
             {kids.length > 1 && (

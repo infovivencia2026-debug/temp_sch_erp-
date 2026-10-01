@@ -41,7 +41,7 @@ export default function GroupReport() {
     enabled: !!id,
   })
 
-  if (mine.isLoading) return <SkeletonTable columns={4} />
+  if (mine.isLoading && !mine.data) return <SkeletonTable columns={4} />
   if (mine.error) return <ErrorState error={mine.error} />
   if (!id) {
     return (

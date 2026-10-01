@@ -1,41 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, GraduationCap, PartyPopper, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
-import { MonthGrid } from '../shared/MonthGrid'
-import {
-  PageHead, PageBody, Card, CellGrid, Stat, Select, Field,
-  EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, Select, Field, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
-import { formatDate, WEEKDAYS } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
-/* The school year on one page.
-
-   A parent asking "what is on in March" does not know that a holiday, an
-   examination, a concert and their own booked meeting are four different
-   tables, and a screen that fetched them separately would stack them in four
-   boxes that scroll independently. The server merges them; this groups the
-   result by month and gets out of the way.
-
-   Booked meetings appear here but are not managed here. Taking a slot is its
-   own screen with its own catalogue entry, because choosing a time is a task
-   and reading the calendar is a glance. */
-
-/* What each card counts, said once.
-
-   These were three inline predicates — one of them a seven-item exclusion list
-   — so a card and the list it stands over could disagree about what an event
-   is, and the day somebody adds a kind they would. */
-const isExam = (e: { kind: string }) => e.kind === 'exam'
-const isMeeting = (e: { kind: string }) => e.kind === 'ptm_booking'
-const isEvent = (e: { kind: string }) =>
-  !['exam', 'term', 'ptm', 'ptm_booking', 'holiday', 'vacation', 'working_day'].includes(e.kind)
-
-type CalendarView = 'all' | 'exam' | 'event' | 'meeting'
+/* THE SCHOOL YEAR, AS A MONTH AND AS A LIST.
+ *
+ * A parent asking "what is on in March" does not know that a holiday, an
+ * examination, a concert and their own booked meeting are four different
+ * tables. The server merges them; this draws them.
+ *
+ * TWO LAYOUTS, ONE SCREEN, BECAUSE THE QUESTION CHANGES WITH THE DEVICE.
+ *
+ * At a desk the question is a shape -- does the fee fall in the same week as
+ * the exams -- and only a month grid answers it. On a phone a six-by-seven
+ * grid of 44px cells cannot hold a word, so the same grid becomes a strip of
+ * the current week with a dot under the days that have something, and the
+ * answer is an agenda underneath: the chosen day first, then the rest of the
+ * month. Same data, same colours, same filter; the arrangement is what moves.
+ *
+ * COLOUR CARRIES THE KIND, AND SO DOES THE WORD. Every entry is tagged in
+ * words as well as tinted, so the screen survives a cheap phone, a colour-blind
+ * reader and a black-and-white print -- the tint is how you scan it, the word
+ * is how you are sure.
+ *
+ * Booked meetings appear here but are not made here. Taking a slot is its own
+ * screen: choosing a time is a task, reading the calendar is a glance.
+ */
 
 interface Entry {
   date: string
@@ -49,7 +45,69 @@ interface Entry {
   student_name?: string
 }
 
-const LABEL: Record<string, MessageKey> = {
+/* THE FIVE FAMILIES A PARENT ACTUALLY DISTINGUISHES.
+ *
+ * The feed returns a dozen kinds -- annual_day, sports_day, field_trip,
+ * vacation, working_day and so on -- and a legend of twelve is a legend nobody
+ * reads. These are the five a family sorts by: is the school shut, is there an
+ * examination, must I attend, must I pay, is something happening. Every kind
+ * lands in exactly one of them, and `event` is the catch-all rather than a
+ * list that has to be kept in step with the server. */
+type Family = 'holiday' | 'exam' | 'ptm' | 'fee' | 'event'
+
+function familyOf(kind: string): Family {
+  if (kind === 'holiday' || kind === 'vacation') return 'holiday'
+  if (kind === 'exam') return 'exam'
+  if (kind === 'ptm' || kind === 'ptm_booking') return 'ptm'
+  if (kind === 'fee' || kind === 'fee_due' || kind === 'invoice') return 'fee'
+  return 'event'
+}
+
+/* Tailwind cannot see a class name built at runtime, so each family names its
+   classes in full. Written out once here rather than interpolated at four call
+   sites, which is how a colour ends up right in the grid and missing on the
+   card. */
+const FAMILY: Record<Family, { label: string; rail: string; chip: string; dot: string; text: string }> = {
+  holiday: {
+    label: 'Holiday',
+    rail: 'bg-emerald-600',
+    chip: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+    dot: 'bg-emerald-600',
+    text: 'text-emerald-700 dark:text-emerald-400',
+  },
+  exam: {
+    label: 'Examination',
+    rail: 'bg-red-600',
+    chip: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+    dot: 'bg-red-600',
+    text: 'text-red-700 dark:text-red-400',
+  },
+  ptm: {
+    label: 'Meeting',
+    rail: 'bg-violet-600',
+    chip: 'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300',
+    dot: 'bg-violet-600',
+    text: 'text-violet-700 dark:text-violet-400',
+  },
+  fee: {
+    label: 'Fees',
+    rail: 'bg-amber-600',
+    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    dot: 'bg-amber-600',
+    text: 'text-amber-700 dark:text-amber-400',
+  },
+  event: {
+    label: 'Event',
+    rail: 'bg-blue-600',
+    chip: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+    dot: 'bg-blue-600',
+    text: 'text-blue-700 dark:text-blue-400',
+  },
+}
+
+const ORDER: Family[] = ['holiday', 'exam', 'ptm', 'event', 'fee']
+
+const KIND_LABEL: Record<string, MessageKey> = {
   ptm_booking: 'portal.calendar.kind_ptm_booking',
   working_day: 'portal.calendar.kind_working_day',
   annual_day: 'portal.calendar.kind_annual_day',
@@ -57,71 +115,115 @@ const LABEL: Record<string, MessageKey> = {
   field_trip: 'portal.calendar.kind_field_trip',
 }
 
-function label(kind: string, t: (key: MessageKey) => string) {
-  const key = LABEL[kind]
+function kindLabel(kind: string, t: (key: MessageKey) => string) {
+  const key = KIND_LABEL[kind]
   return key ? t(key) : kind.charAt(0).toUpperCase() + kind.slice(1).replace(/_/g, ' ')
 }
 
-function monthOf(iso: string) {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? iso.slice(0, 7)
-    : d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+/** Monday-first index, because an Indian school week is read that way. */
+const dow = (d: Date) => (d.getDay() + 6) % 7
+
+const longDay = (isoDate: string) =>
+  new Date(isoDate + 'T00:00:00').toLocaleDateString('en-IN',
+    { weekday: 'long', day: 'numeric', month: 'long' })
+
+const shortMonth = (isoDate: string) =>
+  new Date(isoDate + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short' })
+
+/** Does this entry cover that day? A span covers every day between its ends. */
+const covers = (e: Entry, day: string) => day >= e.date && day <= (e.end_date ?? e.date)
+
+/* The six weeks a month grid draws: from the Monday on or before the 1st to
+   the Sunday on or after the last. Exactly what the feed must be asked for --
+   an examination that began in late September is still drawn on the 1st of
+   October, and asking only for the month returns an empty first row. */
+function sixWeeks(year: number, month: number) {
+  const first = new Date(year, month, 1)
+  const start = new Date(year, month, 1 - dow(first))
+  const days: Date[] = []
+  for (let i = 0; i < 42; i++) days.push(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i))
+  return days
 }
 
 export default function Calendar() {
   const t = useT()
   const { children, studentId, chosen, setChosen } = useChildren()
-  const [view, setView] = useState<CalendarView>('all')
+  const today = iso(new Date())
 
-  /* The window the grid is showing, which the grid itself decides.
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date()
+    return { y: d.getFullYear(), m: d.getMonth() }
+  })
+  const [picked, setPicked] = useState<string>(today)
+  const [only, setOnly] = useState<Family | null>(null)
 
-     The feed defaults to thirty days back and a hundred and twenty forward.
-     That is the right default for the list -- a parent wants what is next --
-     but it is the wrong thing to hand a grid somebody can page: March of last
-     year would have come back empty and read as "nothing happened", which is
-     a lie the screen tells confidently. So the grid says which six weeks it is
-     drawing and the query follows it. */
-  const [range, setRange] = useState<{ from: string; to: string } | null>(null)
-  const span = range ? `&from=${range.from}&to=${range.to}` : ''
+  const days = useMemo(() => sixWeeks(cursor.y, cursor.m), [cursor])
+  const from = iso(days[0])
+  const to = iso(days[41])
 
   const query = useQuery({
-    queryKey: ['portal-calendar', studentId, range?.from, range?.to],
+    queryKey: ['portal-calendar', studentId, from, to],
     queryFn: () =>
-      api.get<{ items: Entry[]; from: string; to: string }>(
-        `/api/v1/portal/school-life/calendar?student_id=${studentId ?? ''}${span}`,
+      api.get<{ items: Entry[] }>(
+        `/api/v1/portal/school-life/calendar?student_id=${studentId ?? ''}&from=${from}&to=${to}`,
       ),
-    // The previous month stays on screen while the next one loads, instead of
-    // the whole page dropping to a spinner on every arrow press.
+    /* The month you are looking at stays on screen while the next one loads,
+       instead of the page dropping to a spinner on every arrow press. */
     placeholderData: (prev) => prev,
   })
 
-  // Only the very first load blanks the page; a month change is drawn by the
-  // grid's own dimming, so the screen does not flash on every arrow press.
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.calendar.loading')} />
+  /* Moving to another month moves the chosen day with it, to that month's
+     first day -- otherwise the agenda underneath still shows a day from the
+     month you just left, under a heading naming the month you are now in. */
+  useEffect(() => {
+    const monthStart = `${cursor.y}-${String(cursor.m + 1).padStart(2, '0')}-01`
+    setPicked((p) => (p.slice(0, 7) === monthStart.slice(0, 7)
+      ? p
+      : (today.slice(0, 7) === monthStart.slice(0, 7) ? today : monthStart)))
+  }, [cursor, today])
+
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.calendar.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
-  const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))
-  const today = new Date().toISOString().slice(0, 10)
-  const upcoming = items.filter((e) => (e.end_date ?? e.date) >= today)
+  const all = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+  const items = only ? all.filter((e) => familyOf(e.kind) === only) : all
 
-  /* The three kinds the cards count, defined once.
+  const monthKey = `${cursor.y}-${String(cursor.m + 1).padStart(2, '0')}`
+  const monthName = new Date(cursor.y, cursor.m, 1)
+    .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
-     They were three different inline predicates — one of them a seven-item
-     exclusion list — so a card and the list it stands over could disagree
-     about what an event is, and the day somebody added a kind they would. */
-  const shown = view === 'all' ? upcoming : upcoming.filter(
-    view === 'exam' ? isExam : view === 'event' ? isEvent : isMeeting,
-  )
+  const counts = ORDER.map((f) => ({ f, n: all.filter((e) => familyOf(e.kind) === f).length }))
+    .filter((x) => x.n > 0)
 
-  // Grouped by month rather than listed flat. Sixty rows of dates is a
-  // spreadsheet; a parent reads the calendar to find the next thing.
-  const months: { name: string; rows: Entry[] }[] = []
-  for (const e of shown) {
-    const name = monthOf(e.date)
-    const last = months[months.length - 1]
-    if (last && last.name === name) last.rows.push(e)
-    else months.push({ name, rows: [e] })
+  /* The week the chosen day sits in: what the phone shows in place of the
+     grid. Monday to Sunday, so it reads like the grid's rows do. */
+  const pickedDate = new Date(picked + 'T00:00:00')
+  const weekStart = new Date(pickedDate.getFullYear(), pickedDate.getMonth(), pickedDate.getDate() - dow(pickedDate))
+  const week = Array.from({ length: 7 }, (_, i) =>
+    new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i))
+
+  const onPicked = items.filter((e) => covers(e, picked))
+  /* Everything else this month, after the chosen day. The agenda answers "what
+     is today" and then "what is next", which is the order a parent asks in. */
+  const later = items
+    .filter((e) => e.date.slice(0, 7) === monthKey && e.date > picked)
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const step = (n: number) =>
+    setCursor((c) => {
+      const d = new Date(c.y, c.m + n, 1)
+      return { y: d.getFullYear(), m: d.getMonth() }
+    })
+
+  const goToday = () => {
+    const d = new Date()
+    setCursor({ y: d.getFullYear(), m: d.getMonth() })
+    setPicked(today)
   }
 
   return (
@@ -133,58 +235,6 @@ export default function Calendar() {
       />
       <Freshness query={query} />
       <PageBody>
-        {/* The month first, the list under it.
-
-            A parent opens this to find out whether a fee falls in the same
-            week as an exam, and the answer to that is a shape, not a sorted
-            list. The grid reads `items` -- every entry the feed returned, not
-            just the upcoming ones the cards count -- so a date already past is
-            still on the calendar it happened in. */}
-        <MonthGrid
-          entries={items}
-          loading={query.isFetching}
-          onRange={(from, to) => setRange({ from, to })}
-          description="Exams, homework due, fees due, holidays and meetings. A day the school is closed is shaded."
-        />
-
-        {/* The cards are the filter.
-
-            "Examinations 1" said there was one and not which one, and the
-            entry was somewhere in a list below sorted by month. The card
-            already knows exactly which rows it counted, so pressing it shows
-            them — one click instead of a scroll and a scan. Pressing it again
-            goes back to everything. */}
-        <CellGrid cols={4}>
-          <Stat
-            label={t('portal.calendar.stat_coming_up')}
-            value={upcoming.length}
-            icon={CalendarDays}
-            active={view === 'all'}
-            onClick={() => setView('all')}
-          />
-          <Stat
-            label={t('portal.calendar.stat_examinations')}
-            value={upcoming.filter(isExam).length}
-            icon={GraduationCap}
-            active={view === 'exam'}
-            onClick={() => setView(view === 'exam' ? 'all' : 'exam')}
-          />
-          <Stat
-            label={t('portal.calendar.stat_events')}
-            value={upcoming.filter(isEvent).length}
-            icon={PartyPopper}
-            active={view === 'event'}
-            onClick={() => setView(view === 'event' ? 'all' : 'event')}
-          />
-          <Stat
-            label={t('portal.calendar.stat_your_meetings')}
-            value={upcoming.filter(isMeeting).length}
-            icon={Users}
-            active={view === 'meeting'}
-            onClick={() => setView(view === 'meeting' ? 'all' : 'meeting')}
-          />
-        </CellGrid>
-
         {children.length > 1 && (
           <Card>
             <div className="px-5 py-4">
@@ -199,117 +249,265 @@ export default function Calendar() {
           </Card>
         )}
 
-        {months.length === 0 ? (
-          <Card>
-            {/* A filter that hides everything must say it is a filter, or the
-                parent reads "nothing coming up" and believes the school has
-                nothing planned. */}
-            <EmptyState
-              title={
-                view === 'all'
-                  ? t('portal.calendar.empty_title')
-                  : 'Nothing of that kind coming up'
-              }
-              body={
-                view === 'all'
-                  ? t('portal.calendar.empty_body')
-                  : 'Press the same card again, or “Coming up”, to see everything.'
-              }
-            />
-          </Card>
-        ) : (
-          months.map((m) => <MonthSchedule key={m.name} name={m.name} rows={m.rows} t={t} />)
+        {/* THE MONTH, AND WHICH WAY TO IT.
+
+            One row: the month on the left, back / today / forward on the
+            right, so the two things a parent does here are never more than a
+            thumb apart. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[19px] font-bold tracking-[-0.02em]">{monthName}</h2>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="Previous month"
+              onClick={() => step(-1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goToday}
+              title="Back to this month"
+              className="inline-flex h-9 items-center rounded-full border bg-card px-3.5 text-[13px] font-semibold shadow-sm transition-colors hover:bg-accent"
+            >
+              {/* The month on screen, not "Today" (the owner's ask); a tap
+                  still brings the calendar back to this month. */}
+              {new Date(cursor.y, cursor.m, 1).toLocaleString('en-IN', { month: 'long' })}
+            </button>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => step(1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* THE LEGEND IS THE FILTER.
+
+            A legend that only explains the colours asks a parent to hold five
+            meanings in their head and then scan for one of them by eye. The
+            same row does the scanning: press "Examination" and the month keeps
+            only those. Press it again for everything. Counts are of the month
+            on screen, so a family with nothing of that kind this month is not
+            offered the chip at all. */}
+        {counts.length > 0 && (
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <button
+              type="button"
+              onClick={() => setOnly(null)}
+              aria-pressed={only === null}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                only === null ? 'bg-primary/15 text-primary font-semibold' : 'bg-muted text-muted-foreground hover:text-foreground',
+              )}
+            >
+              All {all.length}
+            </button>
+            {counts.map(({ f, n }) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setOnly(only === f ? null : f)}
+                aria-pressed={only === f}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                  only === f ? 'bg-primary/15 text-primary font-semibold' : 'bg-muted text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span className={cn('h-2 w-2 rounded-full', FAMILY[f].dot)} />
+                {FAMILY[f].label} {n}
+              </button>
+            ))}
+          </div>
         )}
+
+        {/* THE MONTH GRID -- from a tablet upward.
+
+            Below that it is six rows of seven 44px cells, which cannot hold a
+            word, so the phone gets the week strip underneath instead. Drawing
+            both and hiding one costs nothing: they read the same arrays. */}
+        {/* On a phone too, now: the owner wanted the whole month, not one
+            week. The cells shrink and the entries become dots. */}
+        <Card className="overflow-hidden p-0">
+          <div className="grid grid-cols-7 border-b bg-surface-sunken/60 text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground">
+            {WEEK.map((d) => <div key={d} className="py-2.5">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7">
+            {days.map((d) => {
+              const day = iso(d)
+              const outside = d.getMonth() !== cursor.m
+              const weekend = dow(d) >= 5
+              const on = items.filter((e) => covers(e, day))
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setPicked(day)}
+                  className={cn(
+                    'flex min-h-[52px] flex-col items-center gap-1 border-b border-r p-1 text-left md:min-h-[104px] md:items-stretch md:p-2 transition-colors last:border-r-0',
+                    outside ? 'bg-surface-sunken/40 opacity-45' : weekend ? 'bg-surface-sunken/30' : 'bg-card',
+                    picked === day && 'ring-2 ring-inset ring-primary',
+                    'hover:bg-accent/40',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'grid h-[22px] w-[22px] place-items-center rounded-full text-[12.5px] font-semibold',
+                      day === today ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground',
+                    )}
+                  >
+                    {d.getDate()}
+                  </span>
+                  {on.length > 0 && (
+                    <span className="flex gap-0.5 md:hidden">
+                      {on.slice(0, 3).map((e, i) => (
+                        <span key={i} className={cn('h-1.5 w-1.5 rounded-full', FAMILY[familyOf(e.kind)].dot)} />
+                      ))}
+                    </span>
+                  )}
+                  {on.slice(0, 3).map((e, i) => (
+                    <span
+                      key={`${e.ref_id ?? e.title}-${i}`}
+                      title={e.title}
+                      className={cn(
+                        'hidden truncate rounded md:block px-1.5 py-[3px] text-[11px] font-semibold',
+                        FAMILY[familyOf(e.kind)].chip,
+                      )}
+                    >
+                      {e.title}
+                    </span>
+                  ))}
+                  {on.length > 3 && (
+                    <span className="hidden px-1 text-[10.5px] font-semibold text-muted-foreground md:block">
+                      +{on.length - 3} more
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+
+        {/* THE WEEK STRIP -- the phone's grid.
+
+            Seven days, the chosen one filled, and a dot under any day that has
+            something on it. A dot rather than the entry itself: the entry is
+            three words at least and the cell is a thumb wide, so the strip
+            says WHERE to look and the agenda below says what. */}
+        <Card className="hidden">
+          <div className="flex justify-between gap-1 px-3 py-3">
+            {week.map((d) => {
+              const day = iso(d)
+              const on = items.filter((e) => covers(e, day))
+              const sel = picked === day
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setPicked(day)}
+                  aria-pressed={sel}
+                  className={cn(
+                    'flex w-11 flex-col items-center gap-1.5 rounded-xl py-2 transition-colors',
+                    sel ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-muted',
+                  )}
+                >
+                  <span className={cn('text-[10.5px] font-bold uppercase',
+                    sel ? 'text-background/70' : 'text-muted-foreground')}>
+                    {WEEK[dow(d)]}
+                  </span>
+                  <span className={cn('text-[15px] font-bold tabular-nums',
+                    !sel && day === today && 'text-primary')}>
+                    {d.getDate()}
+                  </span>
+                  <span
+                    className={cn('h-1 w-1 rounded-full',
+                      on.length === 0 ? 'bg-transparent'
+                        : sel ? 'bg-background'
+                        : FAMILY[familyOf(on[0].kind)].dot)}
+                  />
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+
+        {/* THE AGENDA.
+
+            The chosen day, then the rest of the month. On a phone this is the
+            screen; on a desk it is what the grid hands you when you press a
+            square. Either way it is where the detail lives -- the time, the
+            venue, whose child it is -- because none of that fits in a cell. */}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+            {picked === today ? 'Today · ' : ''}{longDay(picked)}
+          </h3>
+          {onPicked.length === 0 ? (
+            <Card>
+              <div className="px-5 py-6 text-[13.5px] text-muted-foreground">
+                {only
+                  ? 'Nothing of that kind on this day. Press the chip again for everything.'
+                  : 'Nothing on this day.'}
+              </div>
+            </Card>
+          ) : (
+            onPicked.map((e, i) => <EventCard key={`p${e.ref_id ?? e.title}${i}`} e={e} t={t} />)
+          )}
+
+          {later.length > 0 && (
+            <>
+              <h3 className="mt-2 text-[12px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+                Later in {new Date(cursor.y, cursor.m, 1).toLocaleDateString('en-IN', { month: 'long' })}
+              </h3>
+              {later.map((e, i) => <EventCard key={`l${e.ref_id ?? e.title}${i}`} e={e} t={t} />)}
+            </>
+          )}
+
+          {all.length === 0 && (
+            <Card>
+              <EmptyState
+                title={t('portal.calendar.empty_title')}
+                body={t('portal.calendar.empty_body')}
+              />
+            </Card>
+          )}
+        </div>
+
       </PageBody>
     </>
   )
 }
 
-/* One month, laid out like a printed schedule.
-
-   Black on white and nothing else: a rule under the month, the date large
-   down the left with its weekday, and each entry as a line with what it is
-   set in small capitals on the right. Colour was carrying the kind before and
-   a parent still read the word, so the word does the work alone — which also
-   means the page is the same in dark mode, on a cheap phone, and printed.
-
-   A span of days — an examination week, a vacation — is one solid strip with
-   its dates, placed where it starts, rather than the same line repeated on
-   every day it covers. */
-function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: ReturnType<typeof useT> }) {
-  const spans = rows.filter((e) => e.end_date && e.end_date !== e.date)
-  const singles = rows.filter((e) => !e.end_date || e.end_date === e.date)
-
-  const days: { date: string; rows: Entry[] }[] = []
-  for (const e of singles) {
-    const last = days[days.length - 1]
-    if (last && last.date === e.date) last.rows.push(e)
-    else days.push({ date: e.date, rows: [e] })
-  }
-
-  // Strips sit before the first day at or after their start date.
-  const blocks: ({ strip: Entry } | { day: { date: string; rows: Entry[] } })[] = []
-  let si = 0
-  for (const d of days) {
-    while (si < spans.length && spans[si].date <= d.date) blocks.push({ strip: spans[si++] })
-    blocks.push({ day: d })
-  }
-  while (si < spans.length) blocks.push({ strip: spans[si++] })
-
-  const weekday = (iso: string) => {
-    const d = new Date(iso + 'T00:00:00')
-    return WEEKDAYS[(d.getDay() + 6) % 7]
-  }
-
+/* One entry, as a card: the date blocked on the left, the kind in its colour,
+   the title, and everything else -- time, venue, which child -- on one line
+   under it. The coloured rail down the left edge is what makes a column of
+   these scannable without reading a word of it. */
+function EventCard({ e, t }: { e: Entry; t: ReturnType<typeof useT> }) {
+  const f = FAMILY[familyOf(e.kind)]
+  const span = e.end_date && e.end_date !== e.date
+  const meta = [e.starts_at, e.venue, e.detail, e.student_name].filter(Boolean).join(' · ')
   return (
-    <section className="px-1">
-      <header className="mb-4 flex items-baseline justify-between border-b-2 border-foreground pb-3">
-        <h2 className="text-[22px] font-bold tracking-[-0.02em]">{name}</h2>
-        <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
-          {t('portal.calendar.entry_count', { count: rows.length })}
+    <div className="relative flex gap-3.5 overflow-hidden rounded-2xl border bg-card p-4">
+      <span className={cn('absolute inset-y-3.5 left-0 w-1 rounded-r', f.rail)} />
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border bg-surface-sunken">
+        <span className="text-[16px] font-extrabold leading-none tabular-nums">{e.date.slice(8, 10)}</span>
+        <span className="mt-0.5 text-[9px] font-bold uppercase text-muted-foreground">{shortMonth(e.date)}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <span className={cn('text-[10px] font-bold uppercase tracking-[0.03em]', f.text)}>
+          {kindLabel(e.kind, t)}
         </span>
-      </header>
-      {blocks.map((b, i) =>
-        'strip' in b ? (
-          <div
-            key={`s${i}`}
-            className="my-4 flex flex-wrap items-center justify-between gap-2 bg-foreground px-3.5 py-3 text-background"
-          >
-            <span className="text-[13px] font-bold uppercase tracking-[0.04em]">
-              {b.strip.title}
-              {b.strip.student_name && <span className="font-medium normal-case tracking-normal"> · {b.strip.student_name}</span>}
-            </span>
-            <span className="text-[12px] font-medium">
-              {formatDate(b.strip.date)} – {formatDate(b.strip.end_date!)}
-            </span>
+        <div className="text-[14px] font-bold leading-snug">{e.title}</div>
+        {span && (
+          <div className="text-[12px] text-muted-foreground">
+            Until {longDay(e.end_date!)}
           </div>
-        ) : (
-          <div key={b.day.date} className="flex border-b border-border py-4">
-            <div className="w-[64px] shrink-0">
-              <div className="text-[20px] font-bold leading-none">{b.day.date.slice(8, 10)}</div>
-              <div className="mt-1 text-[11px] font-bold uppercase">{weekday(b.day.date)}</div>
-            </div>
-            <ul className="flex min-w-0 flex-1 flex-col gap-3">
-              {b.day.rows.map((e, j) => (
-                <li key={`${e.ref_id ?? e.title}-${j}`} className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 text-[15px] font-semibold tracking-[-0.01em]">
-                    {e.title}
-                    {e.student_name && <span className="font-normal text-muted-foreground"> · {e.student_name}</span>}
-                    {(e.starts_at || e.venue || e.detail) && (
-                      <span className="block text-[12px] font-normal text-muted-foreground">
-                        {[e.starts_at, e.venue, e.detail].filter(Boolean).join(' · ')}
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em]">
-                    {label(e.kind, t)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-      )}
-    </section>
+        )}
+        {meta && <div className="text-[12px] text-muted-foreground">{meta}</div>}
+      </div>
+    </div>
   )
 }

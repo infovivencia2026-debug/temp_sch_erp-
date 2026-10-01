@@ -192,7 +192,7 @@ export default function CampaignSequences() {
     onError: (e) => toast.error(errText(e)),
   })
 
-  if (campaigns.isLoading) return <SkeletonTable columns={5} />
+  if (campaigns.isLoading && !campaigns.data) return <SkeletonTable columns={5} />
   if (campaigns.error) return <ErrorState error={campaigns.error} />
 
   const rows = campaigns.data?.items ?? []

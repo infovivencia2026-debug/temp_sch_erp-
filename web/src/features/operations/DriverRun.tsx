@@ -70,7 +70,7 @@ export default function DriverRun() {
     refetchInterval: liveEvery,
   })
 
-  if (bus.isLoading) return <SkeletonTiles count={4} label="Finding your bus…" />
+  if (bus.isLoading && !bus.data) return <SkeletonTiles count={4} label="Finding your bus…" />
   if (bus.error) return <ErrorState error={bus.error} />
   const d = bus.data!
 

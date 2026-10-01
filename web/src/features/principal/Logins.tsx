@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard, downloadLogins, printSlips } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
 
 /* Who can sign in to this school.
@@ -157,6 +157,8 @@ export default function Logins() {
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['school-logins', params.toString()],
+    /* Live: who is signed in changes by the minute, so the list keeps itself current. */
+    refetchInterval: 30_000,
     // Walked to the END, page by page. The endpoint returns 200 at a time; a
     // school whose students each have a login runs well past that, and a single
     // fetch showed only the first 200 -- so people were simply missing from the
@@ -188,6 +190,7 @@ export default function Logins() {
      filters leave. */
   const totals = useQuery({
     queryKey: ['school-logins-totals'],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const items: AdminUser[] = []
       for (let offset = 0; ; offset += 200) {
@@ -199,8 +202,44 @@ export default function Logins() {
     },
   })
 
+  /* THE TAB COUNTS ARE PEOPLE ON THE ROLL, the same numbers the roll below
+     shows, so a tab and its cards never disagree. */
+  const rollOf = (kind: 'staff' | 'students' | 'guardians') => ({
+    queryKey: ['login-roster', kind, ''],
+    queryFn: () => api.get<{ items: { id: string; has_login: boolean; guardians?: { id: string; has_login: boolean }[] }[] }>('/api/v1/setup/logins/roster' + (kind === 'staff' ? '?kind=staff' : '')),
+  })
+  const rollStaff = useQuery(rollOf('staff'))
+  const rollStudents = useQuery(rollOf('students'))
+  const rollGuardians = useQuery(rollOf('guardians'))
+  const rollCount = {
+    staff: rollStaff.data?.items.length,
+    student: rollStudents.data?.items.length,
+    guardian: rollGuardians.data ? new Set(rollGuardians.data.items.flatMap((c) => (c.guardians ?? []).map((g) => g.id))).size : undefined,
+  } as Record<string, number | undefined>
+  /* NOT ISSUED: people on the roll with no working login yet. The one number
+     the office acts on, counted the same way the roll counts it. */
+  const guardiansOnRoll = new Map<string, boolean>()
+  for (const c of rollGuardians.data?.items ?? []) for (const g of c.guardians ?? []) guardiansOnRoll.set(g.id, g.has_login)
+  const notIssued = {
+    staff: (rollStaff.data?.items ?? []).filter((p) => !p.has_login).length,
+    student: (rollStudents.data?.items ?? []).filter((p) => !p.has_login).length,
+    guardian: [...guardiansOnRoll.values()].filter((h) => !h).length,
+  }
+  const notIssuedTotal = notIssued.staff + notIssued.student + notIssued.guardian
+  /* Which tab to open on "Not issued", and that its roll opens on those people. */
+  const [rollFilter, setRollFilter] = useState('')
+  const openNotIssued = () => {
+    const k = (['staff', 'student', 'guardian'] as const).find((x) => notIssued[x] > 0)
+    if (!k) return
+    setTileLens(''); setRollFilter('not'); setRecord(k)
+  }
+
   /** Which tile is open, if any: '' | 'can' | 'cannot' | 'live' | 'orphan'. */
   const [tileLens, setTileLens] = useState('')
+  /* Opening Parents while "1 cannot sign in" was still held from Staff showed
+     a table of parents under a heading nobody had asked for. A tile belongs to
+     the tab it was pressed on. */
+  const pickTab = (k: string) => { setTileLens(''); setRollFilter(''); setRecord(k) }
 
   const { roles, presets } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
@@ -230,6 +269,23 @@ export default function Logins() {
     onSuccess: (r) => setIssued(r),
   })
 
+  /* EVERYBODY WHO WAS NEVER GIVEN A PASSWORD, IN ONE GO.
+     Only logins still "invited": a disabled login is usually somebody who has
+     left, and switching them back on is a decision for the office, one at a time. */
+  const [bulk, setBulk] = useState<{ name: string; sign_in_as: string; password: string; existing: boolean; login_code?: string }[] | null>(null)
+  const issueAll = useMutation({
+    mutationFn: async (list: AdminUser[]) => {
+      const out: { name: string; sign_in_as: string; password: string; existing: boolean; login_code?: string }[] = []
+      for (const u of list) {
+        const r = await api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${u.id}/reset-password`, {})
+        out.push({ name: u.full_name, sign_in_as: u.sign_in_as || u.phone || u.email || '', password: r.temporary_password ?? '', existing: false, login_code: u.login_code || undefined })
+        setBulk([...out])
+      }
+      return out
+    },
+    onSuccess: (r) => { setBulk(r); qc.invalidateQueries({ queryKey: ['school-logins'] }); qc.invalidateQueries({ queryKey: ['school-logins-totals'] }) },
+  })
+
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.put(`/api/v1/admin/users/${id}/status`, { status }),
@@ -252,8 +308,8 @@ export default function Logins() {
   const TdDevices = simple
     ? ({ children: _c }: { children?: ReactNode }) => null
     : ({ children }: { children?: ReactNode }) => <Td>{children}</Td>
-  const active = users.filter((u) => u.status === 'active').length
   const signedIn = users.filter((u) => u.active_sessions > 0).length
+  const invited = users.filter((u) => u.status === 'invited')
 
   /* A NUMBER YOU CANNOT OPEN IS A NUMBER YOU CANNOT ACT ON.
 
@@ -314,11 +370,12 @@ export default function Logins() {
           ] as [string, string][]).map(([k, label]) => {
             const everyone = totals.data ?? all
             const n = k === 'sessions' ? null
+              : k && rollCount[k] !== undefined ? rollCount[k]!
               : k ? everyone.filter((u) => u.record === k).length
               : everyone.length
             const on = record === k
             return (
-              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => setRecord(k)}
+              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
                 className={cn('min-h-9 flex-1 rounded-full px-4 text-[13.5px] font-medium transition-colors sm:flex-none',
                   on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                 {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
@@ -334,8 +391,8 @@ export default function Logins() {
             screens of scrolling before the thing they came to do -- and on a
             tab whose answer is usually "nobody has one yet", the tiles all read
             zero and the roll is the only part worth reading. */}
-        {record === 'student' && <RosterLogins kind="students" />}
-        {record === 'guardian' && <RosterLogins kind="guardians" />}
+        {record === 'student' && <RosterLogins key={'students' + rollFilter} kind="students" signedIn={signedIn} initialStatus={rollFilter} />}
+        {record === 'guardian' && <RosterLogins key={'guardians' + rollFilter} kind="guardians" signedIn={signedIn} initialStatus={rollFilter} />}
         {/* THE STAFF ROLL, WHICH DID NOT EXIST.
 
             Children and parents were listed from the register; staff were
@@ -343,10 +400,11 @@ export default function Logins() {
             had no login were on no list at all and the tab read "no staff".
             Same component, third audience: the roll first, the issue cards
             underneath it. */}
-        {record === 'staff' && <RosterLogins kind="staff" />}
+        {record === 'staff' && <RosterLogins key={'staff' + rollFilter} kind="staff" signedIn={signedIn} initialStatus={rollFilter} />}
         {/* Each tile opens the rows it counts. Pressing the open one again
             closes it, so there is always a way back to the whole list without
             hunting for a separate control that says 'clear'. */}
+        {(record === '' || record === 'none') && (<>
         <CellGrid cols={4}>
           <Stat
             label="Logins"
@@ -357,16 +415,15 @@ export default function Logins() {
             onClick={() => setTileLens('')}
           />
           <Stat
-            label="Can sign in"
-            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active}
-            hint={isLoading ? '\u00a0' : `${users.length - active} cannot — open them`}
-            active={lens === 'can' || lens === 'cannot'}
-            onClick={() => setTileLens(lens === 'can' ? 'cannot' : lens === 'cannot' ? '' : 'can')}
+            label="Not issued"
+            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : notIssuedTotal}
+            hint={notIssuedTotal === 0 ? 'Everybody on the roll has a login' : `Staff ${notIssued.staff} · Students ${notIssued.student} · Parents ${notIssued.guardian}, show them`}
+            onClick={openNotIssued}
           />
           <Stat
             label="Signed in now"
             value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn}
-            hint="Holding a live session"
+            hint="Active in the last 10 minutes"
             active={lens === 'live'}
             onClick={() => setTileLens(lens === 'live' ? '' : 'live')}
           />
@@ -379,6 +436,39 @@ export default function Logins() {
             onClick={() => setTileLens(lens === 'orphan' ? '' : 'orphan')}
           />
         </CellGrid>
+
+        {lens === 'cannot' && (invited.length > 0 || bulk) && (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] py-4">
+              <div className="text-[14px]">
+                <b>{invited.length}</b> {invited.length === 1 ? 'has' : 'have'} never been given a password.
+                <span className="block text-[12.5px] text-muted-foreground">Disabled logins are not included: switch those back on one at a time from their row.</span>
+              </div>
+              <Button disabled={!invited.length || issueAll.isPending}
+                onClick={() => { if (window.confirm(`Give all ${invited.length} a password now? Each one is shown here once.`)) { setBulk([]); issueAll.mutate(invited) } }}>
+                <KeyRound className="h-3.5 w-3.5" />
+                {issueAll.isPending ? `Issuing ${bulk?.length ?? 0} of ${invited.length}…` : `Give all ${invited.length} a password`}
+              </Button>
+            </div>
+            <FormNotice error={issueAll.error} />
+            {bulk && bulk.length > 0 && (
+              <div className="border-t px-[var(--card-pad)] py-3">
+                <div className="mb-2 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => printSlips(bulk, 'Logins')}>Print slips</Button>
+                  <Button size="sm" variant="secondary" onClick={() => downloadLogins(bulk, 'logins', 'staff')}>Download CSV</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setBulk(null)}>Done</Button>
+                </div>
+                <Table head={['Name', 'Sign in as', 'Password']}>
+                  {bulk.map((r, i) => (
+                    <tr key={i}><Td>{r.name}</Td><Td>{r.sign_in_as || '-'}</Td><Td><span className="font-mono">{r.password}</span></Td></tr>
+                  ))}
+                </Table>
+                <p className="mt-2 text-[12.5px] text-muted-foreground">Shown once. Print or download before leaving this page.</p>
+              </div>
+            )}
+          </Card>
+        )}
+        </>)}
 
         {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
@@ -479,10 +569,21 @@ export default function Logins() {
             class picker, and an account table that showed the same people
             again -- minus the ones with no login, who are the half the office
             came for. On a children's or families' tab the roll is the screen. */}
-        {record !== 'sessions' && !simple && (
+        {/* A TILE MUST HAVE SOMEWHERE TO LAND.
+
+            The accounts table is hidden on the children's and families' tabs,
+            because the roll above is the screen there. That made the four
+            tiles dead on those two tabs: pressing "1 cannot sign in" narrowed
+            a list nobody could see, so the answer was that nothing happened.
+            An opened tile brings the table back for exactly as long as it is
+            open, which is the only moment anybody wants it there. */}
+        {record !== 'sessions' && (!simple || lens !== '') && (
         <Card>
           <CardHeader
-            title="Logins"
+            /* One heading whatever card is pressed: the owner found the text
+               changing on every click confusing. The pressed card is
+               highlighted instead, and the count says how many are shown. */
+            title={`Logins: ${shownUsers.length}`}
             description={`${users.length} of ${all.length} account${all.length === 1 ? '' : 's'}`}
             action={
               <>

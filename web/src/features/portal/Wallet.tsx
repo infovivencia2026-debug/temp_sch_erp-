@@ -66,7 +66,7 @@ export default function PortalWallet() {
 
   // The children request is a state of this screen too: a parent linked to
   // nobody must see that, not a spinner that never resolves.
-  if (children.isLoading) return <ScreenSkeleton label="Loading your children" />
+  if (children.isLoading && !children.data) return <ScreenSkeleton label="Loading your children" />
   if (children.error) return <ScreenError error={children.error} />
   if (kids.length === 0) {
     return (

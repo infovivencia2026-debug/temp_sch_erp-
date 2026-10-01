@@ -195,7 +195,7 @@ export default function FrontDesk() {
     queryFn: () => api.get<List<Post>>('/api/v1/office/courier?period=this_month'),
   })
 
-  if (visitors.isLoading) return <SkeletonTiles count={4} label="Opening the desk…" />
+  if (visitors.isLoading && !visitors.data) return <SkeletonTiles count={4} label="Opening the desk…" />
   if (visitors.error) return <ErrorState error={visitors.error} />
 
   const inside = (visitors.data?.items ?? []).filter((v) => v.inside)

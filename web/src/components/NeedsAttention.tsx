@@ -87,7 +87,13 @@ function markFor(label: string) {
   return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
 }
 
-export default function NeedsAttention({ name, afterToday }: { name?: string; afterToday?: ReactNode }) {
+export default function NeedsAttention({ name, afterToday, attentionFirst = false }: {
+  name?: string
+  afterToday?: ReactNode
+  /** The staff home: what needs doing at the top, and no Today strip -- the
+      page under it carries its own figures (the owner asked for both). */
+  attentionFirst?: boolean
+}) {
   const navigate = useNavigate()
   const role = useActiveRole()
   const catalog = useCatalog()
@@ -266,121 +272,8 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
     return null
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
-          {greeting}
-          {name ? `, ${name}` : ''}
-        </h2>
-        {items.length === 0 && (
-          <p className="mt-1 text-[14px] text-muted-foreground">
-            Nothing needs you right now.
-          </p>
-        )}
-      </div>
-
-      {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
-
-      {/* THE FIGURES FIRST, ACROSS THE PAGE.
-       *
-       * They used to be a narrow column beside the alerts, which made three
-       * numbers compete for a third of the width and left the grid ending on
-       * a half-empty row. They are the cheapest thing on the page to read and
-       * the thing every role opens this for, so they take the full width and
-       * one row: a card each, the figure large, the mark tinted by what it
-       * counts. Three across on a desk, one under another in a hand. */}
-      {summary.length > 0 && (
-        <section>
-          <p className="eyebrow mb-2.5">Today</p>
-          <div className={cn('tint-grid grid gap-4 sm:grid-cols-2',
-            /* One row on a desk, however many figures this role has. */
-            ({ 1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5')}>
-            {summary.map((s) => {
-              const { icon: Mark, tint } = markFor(s.label)
-              return (
-                <div
-                  key={s.label}
-                  className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4 shadow-[var(--elev-1)]"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-muted-foreground">
-                      {s.label}
-                    </p>
-                    <p className="font-display mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
-                      {s.value}
-                    </p>
-                    {s.hint && (
-                      <p
-                        className={cn(
-                          'mt-1.5 text-[12px]',
-                          s.tone === 'good' ? 'text-success' : 'text-muted-foreground',
-                        )}
-                      >
-                        {s.hint}
-                      </p>
-                    )}
-                  </div>
-                  <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tint)}>
-                    <Mark className="size-5" aria-hidden />
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* The role's own overview (the head's executive figures), directly
-          under Today and in its own layout. */}
-      {/* One boundary for the overview AND everything under it. With the
-          overview alone in a boundary, the shortcuts and the alerts drew
-          first and were then pushed half a screen down when the overview's
-          code arrived. Now the rest waits for it, under a skeleton. */}
-      <Suspense fallback={<Loading shape="cards" rows={3} />}>
-      {afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
-
-      {/* WHAT SOMEBODY PUT HERE THEMSELVES.
-       *
-       * Between the figures and the work, because that is what it is: not a
-       * summary and not a task, but the four screens this person opens and
-       * would rather not walk to. Absent entirely until somebody adds one --
-       * an empty rail captioned "Shortcuts" teaches nothing and takes the
-       * space the alerts want. */}
-      {shortcuts.length > 0 && (
-        <section>
-          <p className="eyebrow mb-2.5">Your shortcuts</p>
-          <div className="flex flex-wrap gap-2">
-            {shortcuts.map((sc) => (
-              <span
-                key={sc.key}
-                className="group inline-flex items-center overflow-hidden rounded-lg border bg-card shadow-[var(--elev-1)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => navigate(sc.href)}
-                  className="px-3.5 py-2 text-[13.5px] font-medium transition-colors hover:bg-accent"
-                >
-                  {sc.name}
-                </button>
-                {/* Taking one off is done here rather than only back in the
-                    launcher: the tile somebody wants rid of is the one in
-                    front of them. */}
-                <button
-                  type="button"
-                  onClick={() => removeFromDashboard(sc.key)}
-                  aria-label={`Take ${sc.name} off the dashboard`}
-                  title="Take off the dashboard"
-                  className="border-l px-2 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
-                >
-                  <XIcon className="size-3.5" aria-hidden />
-                </button>
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
+  const attentionBlock = (
+    <>
       {/* WHAT NEEDS DOING, AS ONE CARD PER THING.
        *
        * A divided list made every alert the same weight as every other and
@@ -389,12 +282,16 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
        * foot carrying the buttons -- the thing to do, and the thing to do
        * about the people who should have done it. */}
       {items.length > 0 && (
-        <section>
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            <p className="eyebrow">Needs your attention</p>
-            <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive sm:hidden">
-              {items.length} pending
-            </span>
+        /* Room above it, so on a phone it does not sit hard under the top bar. */
+        <section className="pt-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            {/* A heading, not a grey caption: the owner asked for the words
+                "Needs your attention" to read properly. */}
+            <h2 className="flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fef3c7] text-[13px] text-[#b45309]">!</span>
+              Needs your attention
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[12px] font-semibold text-destructive">{items.length}</span>
+            </h2>
           </div>
           {nudged && <p className="mb-2.5 text-[13px] text-success">{nudged}</p>}
           {/* ONE ROW EACH, IN ONE CARD, HOWEVER MANY THERE ARE.
@@ -487,6 +384,127 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
           </div>
         </section>
       )}
+    </>
+  )
+
+  return (
+    <div className="flex flex-col gap-6">
+      {!attentionFirst && <div>
+        <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
+          {greeting}
+          {name ? `, ${name}` : ''}
+        </h2>
+        {items.length === 0 && (
+          <p className="mt-1 text-[14px] text-muted-foreground">
+            Nothing needs you right now.
+          </p>
+        )}
+      </div>}
+
+      {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
+
+      {/* THE FIGURES FIRST, ACROSS THE PAGE.
+       *
+       * They used to be a narrow column beside the alerts, which made three
+       * numbers compete for a third of the width and left the grid ending on
+       * a half-empty row. They are the cheapest thing on the page to read and
+       * the thing every role opens this for, so they take the full width and
+       * one row: a card each, the figure large, the mark tinted by what it
+       * counts. Three across on a desk, one under another in a hand. */}
+      {attentionFirst && attentionBlock}
+
+      {!attentionFirst && summary.length > 0 && (
+        <section>
+          <p className="eyebrow mb-2.5">Today</p>
+          <div className={cn('tint-grid grid gap-4 sm:grid-cols-2',
+            /* One row on a desk, however many figures this role has. */
+            ({ 1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5')}>
+            {summary.map((s) => {
+              const { icon: Mark, tint } = markFor(s.label)
+              return (
+                <div
+                  key={s.label}
+                  className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4 shadow-[var(--elev-1)]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-muted-foreground">
+                      {s.label}
+                    </p>
+                    <p className="font-display mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+                      {s.value}
+                    </p>
+                    {s.hint && (
+                      <p
+                        className={cn(
+                          'mt-1.5 text-[12px]',
+                          s.tone === 'good' ? 'text-success' : 'text-muted-foreground',
+                        )}
+                      >
+                        {s.hint}
+                      </p>
+                    )}
+                  </div>
+                  <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tint)}>
+                    <Mark className="size-5" aria-hidden />
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* The role's own overview (the head's executive figures), directly
+          under Today and in its own layout. */}
+      {/* One boundary for the overview AND everything under it. With the
+          overview alone in a boundary, the shortcuts and the alerts drew
+          first and were then pushed half a screen down when the overview's
+          code arrived. Now the rest waits for it, under a skeleton. */}
+      <Suspense fallback={<Loading shape="cards" rows={3} />}>
+      {afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
+
+      {/* WHAT SOMEBODY PUT HERE THEMSELVES.
+       *
+       * Between the figures and the work, because that is what it is: not a
+       * summary and not a task, but the four screens this person opens and
+       * would rather not walk to. Absent entirely until somebody adds one --
+       * an empty rail captioned "Shortcuts" teaches nothing and takes the
+       * space the alerts want. */}
+      {shortcuts.length > 0 && (
+        <section>
+          <p className="eyebrow mb-2.5">Your shortcuts</p>
+          <div className="flex flex-wrap gap-2">
+            {shortcuts.map((sc) => (
+              <span
+                key={sc.key}
+                className="group inline-flex items-center overflow-hidden rounded-lg border bg-card shadow-[var(--elev-1)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate(sc.href)}
+                  className="px-3.5 py-2 text-[13.5px] font-medium transition-colors hover:bg-accent"
+                >
+                  {sc.name}
+                </button>
+                {/* Taking one off is done here rather than only back in the
+                    launcher: the tile somebody wants rid of is the one in
+                    front of them. */}
+                <button
+                  type="button"
+                  onClick={() => removeFromDashboard(sc.key)}
+                  aria-label={`Take ${sc.name} off the dashboard`}
+                  title="Take off the dashboard"
+                  className="border-l px-2 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                >
+                  <XIcon className="size-3.5" aria-hidden />
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!attentionFirst && attentionBlock}
       </Suspense>
     </div>
   )

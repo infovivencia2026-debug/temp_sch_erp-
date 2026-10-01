@@ -30,7 +30,7 @@ export default function Broadcasts() {
     queryFn: () => api.get<List<Broadcast>>('/api/v1/teaching/broadcasts'),
   })
 
-  if (list.isLoading) return <SkeletonTiles count={3} />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

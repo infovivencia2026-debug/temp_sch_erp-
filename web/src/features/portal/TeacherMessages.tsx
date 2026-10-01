@@ -10,7 +10,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
-import WriteWithAI from '@/components/ai/WriteWithAI'
+import { usePhone } from '@/lib/viewport'
 
 /* Writing to your child's teacher.
 
@@ -56,6 +56,9 @@ export default function TeacherMessages() {
   const { children, studentId, chosen, setChosen, query } = useChildren()
   const [teacher, setTeacher] = useState('')
   const me = useSession().user?.id
+  /* On a computer the conversation sits beside the list, the way WhatsApp Web
+     does; on a phone it takes the screen, with Back. */
+  const phone = usePhone()
 
   /* A tap on the bell lands HERE, in the conversation it was about.
 
@@ -81,6 +84,13 @@ export default function TeacherMessages() {
     enabled: studentId !== '',
   })
 
+  /* On a computer a pane with nobody in it is wasted: the first teacher (the
+     class teacher) opens by default. */
+  useEffect(() => {
+    const first = teachers.data?.items?.[0]?.user_id
+    if (!phone && !teacher && first) setTeacher(first)
+  }, [phone, teacher, teachers.data])
+
   const thread = useQuery({
     queryKey: ['portal-thread', studentId, teacher],
     queryFn: () =>
@@ -89,6 +99,14 @@ export default function TeacherMessages() {
       ),
     enabled: studentId !== '' && teacher !== '',
   })
+
+  /* Opening a conversation marks it read on the server. On a phone Back
+     refreshes the list's badges; beside the list there is no Back, so the
+     badges refresh when the conversation has loaded. */
+  useEffect(() => {
+    if (!phone && thread.data) qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread.dataUpdatedAt])
 
   const send = useMutation({
     mutationFn: (m: { body: string; attachments: Attachment[] }) =>
@@ -104,12 +122,66 @@ export default function TeacherMessages() {
     },
   })
 
-  if (query.isLoading) return <ScreenSkeleton label={t('portal.teacher_messages.loading')} />
+  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.teacher_messages.loading')} />
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const list = teachers.data?.items ?? []
   const chosenTeacher = list.find((x) => x.user_id === teacher)
   const messages = thread.data?.items ?? []
+  const subtitle = chosenTeacher?.class_teacher
+    ? t('portal.teacher_messages.thread_class_teacher')
+    : chosenTeacher?.subject
+      ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
+      : undefined
+  const chat = (
+          <ChatThread
+            live={studentId && teacher && me
+              ? { scope: 'parent', student: studentId, parent: me, teacher }
+              : undefined}
+            messages={messages.map((m) => ({
+              id: m.id,
+              body: m.body,
+              at: m.sent_at,
+              mine: m.mine,
+              read_at: m.read_at,
+              reply_to_id: m.reply_to_id,
+              reply_body: m.reply_body,
+              reply_sender: m.reply_sender,
+              edited: m.edited,
+              deleted: m.deleted,
+              /* The teacher needs no label -- the screen is named after them.
+                 Anybody else from the school answering in this thread is
+                 named with their role, so a reply from the head reads as the
+                 head's and not as the teacher's. */
+              sender:
+                m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent'
+                  ? `${m.sender_name} · ${m.sender_side}`
+                  : m.sender_name,
+              attachments: m.attachments,
+            }))}
+            showSender={messages.some(
+              (m) => !m.mine && !!m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent',
+            )}
+            loading={thread.isLoading}
+            empty={t('portal.teacher_messages.empty_thread_body')}
+            canSend={teacher !== ''}
+            peerName={chosenTeacher?.full_name}
+            peerPhoto={chosenTeacher?.photo}
+            onSend={(m) => send.mutate(m)}
+            sending={send.isPending}
+            /* A parent can take back what they have just written, for the
+               same fifteen minutes the server allows anybody. Held-message
+               Delete is absent on the teacher's messages, which is right:
+               it is the teacher's to withdraw, not theirs. */
+            onUnsend={async (id) => {
+              await api.del(`/api/v1/chat/messages/${id}?channel=parent`)
+              qc.invalidateQueries({ queryKey: ['portal-thread'] })
+            }}
+            error={send.error}
+            placeholder={t('portal.teacher_messages.draft_placeholder')}
+            height="min-h-0"
+          />
+  )
 
   return (
     <>
@@ -154,6 +226,15 @@ export default function TeacherMessages() {
             body={t('portal.teacher_messages.empty_teachers_body')}
           />
         ) : (
+          <div className={phone ? undefined : 'grid items-start gap-4 lg:grid-cols-[340px_1fr]'}>
+          {/* ON A PHONE THE LIST GOES AWAY WHILE A CHAT IS OPEN.
+
+              The conversation opens as a screen over the top, but the list
+              stayed mounted underneath it -- so scrolling past the message box
+              revealed the other five teachers sitting below it, as if they
+              were part of the conversation. Two screens at once, one of which
+              the reader had explicitly left. */}
+          {(!phone || teacher === '') && (
           <Card>
             {/* The teachers as a list to tap, the way a phone lists chats:
                 the class teacher first, then everyone timetabled to the
@@ -166,7 +247,8 @@ export default function TeacherMessages() {
                   <button
                     type="button"
                     onClick={() => setTeacher(x.user_id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
+                    aria-current={!phone && x.user_id === teacher ? 'true' : undefined}
+                    className={'flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60' + (!phone && x.user_id === teacher ? ' bg-muted' : '')}
                   >
                     {/* The face first. A parent knows the maths sir by sight
                         long before they know his name, and a column of six
@@ -196,19 +278,33 @@ export default function TeacherMessages() {
               ))}
             </ul>
           </Card>
+          )}
+          {!phone && (
+            <Card className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden">
+              {chosenTeacher ? (
+                <>
+                  <div className="flex items-center gap-3 border-b px-4 py-3">
+                    <PersonAvatar name={chosenTeacher.full_name} photoId={chosenTeacher.photo} size={40} />
+                    <div className="min-w-0">
+                      <div className="truncate text-[15px] font-semibold">{chosenTeacher.full_name}</div>
+                      {subtitle && <div className="truncate text-[12.5px] text-muted-foreground">{subtitle}</div>}
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-1 flex-col">{chat}</div>
+                </>
+              ) : (
+                <EmptyState title="Choose a teacher" body="Their conversation opens here." />
+              )}
+            </Card>
+          )}
+          </div>
         )}
 
-        <ChatScreen
+        {phone && <ChatScreen
           open={teacher !== ''}
           title={chosenTeacher?.full_name ?? t('portal.teacher_messages.thread_title')}
           photoId={chosenTeacher?.photo}
-          subtitle={
-            chosenTeacher?.class_teacher
-              ? t('portal.teacher_messages.thread_class_teacher')
-              : chosenTeacher?.subject
-                ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
-                : undefined
-          }
+          subtitle={subtitle}
           onBack={() => {
             setTeacher('')
             /* Opening the thread marked it read on the server; the badge on
@@ -218,59 +314,8 @@ export default function TeacherMessages() {
             qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
           }}
         >
-          <ChatThread
-            live={studentId && teacher && me
-              ? { scope: 'parent', student: studentId, parent: me, teacher }
-              : undefined}
-            messages={messages.map((m) => ({
-              id: m.id,
-              body: m.body,
-              at: m.sent_at,
-              mine: m.mine,
-              read_at: m.read_at,
-              reply_to_id: m.reply_to_id,
-              reply_body: m.reply_body,
-              reply_sender: m.reply_sender,
-              edited: m.edited,
-              deleted: m.deleted,
-              /* The teacher needs no label -- the screen is named after them.
-                 Anybody else from the school answering in this thread is
-                 named with their role, so a reply from the head reads as the
-                 head's and not as the teacher's. */
-              sender:
-                m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent'
-                  ? `${m.sender_name} · ${m.sender_side}`
-                  : m.sender_name,
-              attachments: m.attachments,
-            }))}
-            showSender={messages.some(
-              (m) => !m.mine && !!m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent',
-            )}
-            loading={thread.isLoading}
-            empty={t('portal.teacher_messages.empty_thread_body')}
-            canSend={teacher !== ''}
-            composerTools={(draft, setDraft) => (
-              <WriteWithAI kind="parent_message" label="Write with AI"
-                context={{ student_id: studentId, reply_to: [...messages].reverse().find((m) => !m.mine && !m.deleted)?.body }}
-                current={draft} onInsert={setDraft} defaultLength="short" />
-            )}
-            peerName={chosenTeacher?.full_name}
-            peerPhoto={chosenTeacher?.photo}
-            onSend={(m) => send.mutate(m)}
-            sending={send.isPending}
-            /* A parent can take back what they have just written, for the
-               same fifteen minutes the server allows anybody. Held-message
-               Delete is absent on the teacher's messages, which is right:
-               it is the teacher's to withdraw, not theirs. */
-            onUnsend={async (id) => {
-              await api.del(`/api/v1/chat/messages/${id}?channel=parent`)
-              qc.invalidateQueries({ queryKey: ['portal-thread'] })
-            }}
-            error={send.error}
-            placeholder={t('portal.teacher_messages.draft_placeholder')}
-            height="min-h-0"
-          />
-        </ChatScreen>
+          {chat}
+        </ChatScreen>}
       </PageBody>
     </>
   )

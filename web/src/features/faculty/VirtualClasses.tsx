@@ -38,7 +38,7 @@ export default function VirtualClasses() {
       api.get<List<MeetingProvider>>('/api/v1/teaching/virtual-classes/providers'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={7} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={7} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const configured = providers.data?.items ?? []

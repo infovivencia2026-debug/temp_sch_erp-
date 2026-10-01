@@ -26,7 +26,7 @@ const STATUS_WORD: Record<string, string> = { active: 'Active', trial: 'Trial', 
 
 export default function BillingSchool() {
   const q = useQuery({ queryKey: KEY, queryFn: () => api.get<Resp>('/api/v1/school-billing') })
-  if (q.isLoading) return <SkeletonTable columns={6} label="Reading your invoices…" />
+  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading your invoices…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
   const sub = d.subscription

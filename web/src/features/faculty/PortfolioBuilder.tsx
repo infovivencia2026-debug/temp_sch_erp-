@@ -86,7 +86,7 @@ export default function PortfolioBuilder() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
-  if (roster.isLoading) return <SkeletonTiles count={4} />
+  if (roster.isLoading && !roster.data) return <SkeletonTiles count={4} />
   if (roster.error) return <ErrorState error={roster.error} />
 
   const items = pieces.data?.items ?? []

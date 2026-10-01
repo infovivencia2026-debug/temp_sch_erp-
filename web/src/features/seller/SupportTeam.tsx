@@ -57,7 +57,7 @@ export default function SupportTeam() {
 
   const rows = accounts.data?.items ?? []
 
-  if (accounts.isLoading) return <SkeletonTable columns={4} />
+  if (accounts.isLoading && !accounts.data) return <SkeletonTable columns={4} />
   if (accounts.error) return <ErrorState error={accounts.error} />
 
   return (

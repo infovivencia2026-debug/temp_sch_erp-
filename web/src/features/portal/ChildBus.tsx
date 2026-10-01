@@ -25,7 +25,7 @@ export default function ChildBus() {
   const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   const every = usePoll(rows, visible, () => void feed.refetch())
 
-  if (feed.isLoading) return <ScreenSkeleton label="Finding your child's bus…" />
+  if (feed.isLoading && !feed.data) return <ScreenSkeleton label="Finding your child's bus…" />
   if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (

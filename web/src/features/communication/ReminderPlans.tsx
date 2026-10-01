@@ -126,7 +126,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
 
   // A failed query is a failure, never an empty state. "No reminders set up"
   // rendered over a 500 is how a school concludes its plans were deleted.
-  if (plans.isLoading) return <SkeletonTiles count={4} />
+  if (plans.isLoading && !plans.data) return <SkeletonTiles count={4} />
   if (plans.error) return <ErrorState error={plans.error} />
 
   const items = plans.data?.items ?? []

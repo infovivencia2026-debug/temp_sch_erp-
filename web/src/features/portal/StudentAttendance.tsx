@@ -72,9 +72,9 @@ export default function StudentAttendance() {
 
             <section className="card stu-rise p-4" style={{ ['--i' as string]: 4 }} aria-label="Month">
               <div className="flex items-center gap-2">
-                <button type="button" aria-label="Previous month" disabled={mi <= 0} onClick={() => setMonth(months[mi - 1])} className="inline-flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-30"><ChevronLeft className="h-5 w-5" /></button>
+                <button type="button" aria-label="Previous month" disabled={mi <= 0} onClick={() => setMonth(months[mi - 1])} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none"><ChevronLeft className="h-5 w-5" /></button>
                 <h2 className="flex-1 text-center text-[16px] font-semibold">{new Date(month + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</h2>
-                <button type="button" aria-label="Next month" disabled={mi >= months.length - 1} onClick={() => setMonth(months[mi + 1])} className="inline-flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
+                <button type="button" aria-label="Next month" disabled={mi >= months.length - 1} onClick={() => setMonth(months[mi + 1])} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none"><ChevronRight className="h-5 w-5" /></button>
               </div>
               <MonthGrid month={month} byDate={byDate} />
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground">

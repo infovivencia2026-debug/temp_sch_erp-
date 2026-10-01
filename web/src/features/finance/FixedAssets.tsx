@@ -33,7 +33,7 @@ export default function FixedAssets() {
     queryFn: () => api.get<List<FixedAsset>>(`${ledgerBase}/assets`),
   })
 
-  if (assets.isLoading) return <SkeletonTiles count={4} label="Reading the register…" />
+  if (assets.isLoading && !assets.data) return <SkeletonTiles count={4} label="Reading the register…" />
   if (assets.error) return <ErrorState error={assets.error} />
 
   const rows = assets.data?.items ?? []

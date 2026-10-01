@@ -90,7 +90,7 @@ export default function Welfare() {
     queryFn: () => api.get<List<Grievance>>('/api/v1/hr/grievances'),
   })
 
-  if (diary.isLoading) return <SkeletonTable columns={6} label="Reading the diary…" />
+  if (diary.isLoading && !diary.data) return <SkeletonTable columns={6} label="Reading the diary…" />
   if (diary.error) return <ErrorState error={diary.error} />
 
   const days = diary.data?.items ?? []

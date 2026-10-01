@@ -54,7 +54,7 @@ export function RemarkBoard({
     queryFn: () => api.get<List<Remark>>(`/api/v1/teaching/remarks${query}`),
   })
 
-  if (list.isLoading) return <SkeletonTiles count={3} />
+  if (list.isLoading && !list.data) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
 
   // The general board deliberately shows anecdotal rows too. A teacher reading

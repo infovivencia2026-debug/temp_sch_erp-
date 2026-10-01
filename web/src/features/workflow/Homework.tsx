@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -99,12 +99,26 @@ const mondayOf = (s: string) => {
 }
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+/* The month a week belongs to, and both when it straddles two -- which is
+   the only week where the day numbers alone are ambiguous. */
+function monthSpan(week: string[]): string {
+  if (!week.length) return ''
+  const name = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  const first = name(week[0])
+  const last = name(week[week.length - 1])
+  if (first === last) return first
+  const short = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long' })
+  return `${short(week[0])} – ${last}`
+}
+
 export default function Homework() {
   const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
     queryFn: () => api.call('GET /session'),
   })
-  if (isLoading) return <SkeletonTiles count={4} />
+  if (isLoading && !session) return <SkeletonTiles count={4} />
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
   return <Diary canPublish={canPublish} />
 }
@@ -119,24 +133,26 @@ export default function Homework() {
 function Diary({ canPublish }: { canPublish: boolean }) {
   const qc = useQueryClient()
   const today = iso(new Date())
-  const [day, setDay] = useState(today)
+  /* No day chosen means every piece of work, newest first. The diary opened
+     on today alone, and work given on any earlier day vanished from view. */
+  const [day, setDay] = useState<string | null>(null)
+  const [weekOf, setWeekOf] = useState(mondayOf(today))
   const [kind, setKind] = useState('')
   const [viewing, setViewing] = useState<string | null>(null)
   const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
   const [answer, setAnswer] = useState('')
   const [attached, setAttached] = useState<UploadedFile | null>(null)
   const [composing, setComposing] = useState(false)
-  /* A teacher opens on the work they set themselves; the whole section is one press away. */
-  const [onlyMine, setOnlyMine] = useState(true)
+  /* Everything set for the teacher's sections by default; their own is one press away. */
+  const [onlyMine, setOnlyMine] = useState(false)
   const mine = canPublish && onlyMine
 
-  const from = mondayOf(day)
-  const to = addDays(from, 6)
+  const from = weekOf
   const week = Array.from({ length: 7 }, (_, i) => addDays(from, i))
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['homework', 'week', from, mine],
-    queryFn: () => api.get<List<Homework>>(`/api/v1/homework?from=${from}&to=${to}${mine ? '&mine=1' : ''}`),
+    queryKey: ['homework', 'diary', mine],
+    queryFn: () => api.get<List<Homework>>(`/api/v1/homework${mine ? '?mine=1' : ''}`),
   })
 
   const submit = useMutation({
@@ -154,12 +170,12 @@ function Diary({ canPublish }: { canPublish: boolean }) {
   })
 
   const all = data?.items ?? []
-  const onDay = all.filter((h) => h.assigned_on.slice(0, 10) === day)
+  const onDay = day ? all.filter((h) => h.assigned_on.slice(0, 10) === day) : all
   const shown = kind ? onDay.filter((h) => h.kind === kind) : onDay
   const hasWork = new Set(all.map((h) => h.assigned_on.slice(0, 10)))
   const manyChildren = new Set(all.map((h) => h.student_id).filter(Boolean)).size > 1
   const count = (k: string) => onDay.filter((h) => h.kind === k).length
-  const dayTitle = new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+  const dayTitle = day ? new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' }) + (day === today ? ' (today)' : '') : 'All work, newest first'
 
   return (
     <>
@@ -188,23 +204,58 @@ function Diary({ canPublish }: { canPublish: boolean }) {
           </div>
         )}
         <Card>
+          {/* WHICH MONTH THESE DAYS ARE IN.
+
+              The strip showed MON 28, TUE 29, WED 30, THU 1, FRI 2 -- and a
+              week that crosses a month boundary is exactly the week where
+              bare numbers stop meaning anything. It says the month, and both
+              months when the week spans two. */}
+          {/* The arrows sit beside the month, not either side of the days:
+              on a phone the 44px tap size made arrows plus seven days wider
+              than the screen, and Saturday and Sunday spilled off it. */}
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-[13px] font-semibold text-muted-foreground">
+            <span>{monthSpan(week)}</span>
+            <span className="flex gap-2">
+                <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                    <button type="button" aria-label="Next week" onClick={() => setWeekOf(addDays(from, 7))}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
+                  <ChevronLeft className="h-4 w-4 rotate-180" />
+                </button>
+                </span>
+          </div>
           {/* The week, one day to press. */}
-          <div className="flex items-center gap-1 px-2 py-3">
-            <button type="button" aria-label="Previous week" onClick={() => setDay(addDays(from, -7))}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex flex-1 justify-between gap-1 overflow-x-auto">
+          <div className="flex items-center px-1.5 py-3">
+            {/* SEVEN DAYS, NO SCROLLING.
+
+                This was a horizontal scroller, and on a 390px phone the two
+                arrow buttons leave about 300px for seven cells with a 44px
+                minimum -- so Friday and Saturday were cut off at the edge,
+                behind a scrollbar that is hidden. Arrows to move the week AND
+                a hidden sideways scroll inside it is two ways to do one thing,
+                and the invisible one wins by accident.
+
+                The cells shrink to fit instead: min-w-0 and flex-1 let all
+                seven share whatever is left, which at 390px is about 42px
+                each -- enough for "MON" over "28", which is all they carry. */}
+            <div className="flex min-w-0 flex-1 justify-between gap-0.5">
               {week.map((d) => {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')
                 return (
-                  <button key={d} type="button" onClick={() => setDay(d)} aria-pressed={active}
+                  <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
-                      'flex min-w-[44px] flex-1 flex-col items-center rounded-lg border px-1 py-2 transition-colors',
-                      active ? 'border-primary bg-primary text-primary-foreground' : 'border-transparent hover:bg-muted',
+                      'flex !min-h-0 !min-w-0 flex-1 flex-col items-center rounded-lg border px-0 py-2 transition-colors',
+                      /* THE TINT IS THE HIGHLIGHT. A selected day was filled solid
+                         and its wording turned white, so the day you are looking at
+                         was the one day you could not read at a glance -- reversed
+                         out of a saturated block at 10.5px. A tint and a border say
+                         'this one' perfectly well and leave the words alone. */
+                      active ? 'border-primary bg-primary/10 font-semibold' : 'border-transparent hover:bg-muted',
                     )}>
-                    <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary-foreground' : 'text-muted-foreground')}>
+                    <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary' : 'text-muted-foreground')}>
                       {WEEKDAY[dt.getDay()]}
                     </span>
                     <span className="mt-0.5 text-[16px] font-bold tabular-nums">{dt.getDate()}</span>
@@ -214,16 +265,25 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 )
               })}
             </div>
-            <button type="button" aria-label="Next week" onClick={() => setDay(addDays(from, 7))}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <ChevronLeft className="h-4 w-4 rotate-180" />
-            </button>
           </div>
-          {day !== today && (
-            <button type="button" onClick={() => setDay(today)}
-              className="w-full border-t px-4 py-2 text-left text-[12.5px] font-medium text-primary hover:bg-muted/40">
-              Back to today
-            </button>
+          {/* A way out, not a banner announcing itself.
+
+              This was a full-width strip of primary-coloured text along the
+              foot of the card, left aligned under a centred week -- it read as
+              a warning bar rather than the small convenience it is. Centred,
+              quieted, and given the calendar icon so it is recognised before
+              it is read. */}
+          {day && (
+            <div className="flex justify-center border-t px-4 py-2">
+              <button
+                type="button"
+                onClick={() => setDay(null)}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Show all days
+              </button>
+            </div>
           )}
         </Card>
 
@@ -236,7 +296,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
               <button key={k.value || 'all'} type="button" onClick={() => setKind(k.value)} aria-pressed={active}
                 className={cn(
                   'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[12.5px] font-semibold transition-colors',
-                  active ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+                  active ? 'border-primary bg-primary/10 font-semibold text-primary' : 'bg-card text-muted-foreground hover:text-foreground',
                 )}>
                 {k.label} ({n})
               </button>
@@ -245,7 +305,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         </div>
 
         <p className="text-[14px] font-semibold">
-          {dayTitle}{day === today ? ' (today)' : ''}
+          {dayTitle}
           <span className="ml-2 font-normal text-muted-foreground">
             {shown.length === 0 ? 'nothing set' : `${shown.length} ${shown.length === 1 ? 'task' : 'tasks'}`}
           </span>
@@ -254,7 +314,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         {isLoading ? <SkeletonTiles count={3} /> : error ? <ErrorState error={error} /> : shown.length === 0 ? (
           <Card>
             <EmptyState
-              title={kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day'}
+              title={day ? (kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day') : (kind ? `No ${kindLabel(kind).toLowerCase()} yet` : 'Nothing set yet')}
               body={canPublish ? 'Press Set homework to give this class some work. Days with work have a dot under the date.' : 'Days with work have a dot under the date.'}
             />
           </Card>
@@ -284,6 +344,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                   ) : null}
                 </div>
                 <h3 className="mt-2 text-[15px] font-semibold leading-snug">{h.title}</h3>
+                {!day && <p className="mt-0.5 text-[12px] text-muted-foreground">Set on {formatDate(h.assigned_on.slice(0, 10))}</p>}
                 {h.instructions && <p className="mt-1 text-[13.5px] text-muted-foreground">{h.instructions}</p>}
                 {!!h.files?.length && (
                   <div className="mt-3 flex flex-wrap gap-2">

@@ -46,6 +46,10 @@ export function transitioned(commit: () => void) {
 
 export function useOpenState<T>(initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
   const [value, set] = useState<T>(initial)
-  const setOpen = useCallback<Dispatch<SetStateAction<T>>>((next) => transitioned(() => set(next)), [])
+  /* Directly, not through a view transition. A pop-up has its own slide and
+     fade; wrapping it in a whole-screen crossfade made the workspace blink on
+     every open and close, and kept the sidebar bright above the dim layer
+     until the crossfade finished. */
+  const setOpen = useCallback<Dispatch<SetStateAction<T>>>((next) => set(next), [])
   return [value, setOpen]
 }

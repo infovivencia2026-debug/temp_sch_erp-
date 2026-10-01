@@ -38,7 +38,7 @@ export default function Assignments() {
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (a) => [a.title, a.subject, a.class_name, a.section, a.kind])
 
-  if (list.isLoading) return <SkeletonTable columns={7} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={7} />
   if (list.error) return <ErrorState error={list.error} />
   const waiting = rows.reduce((n, r) => n + r.awaiting_marking, 0)
 
@@ -274,7 +274,7 @@ function Marking({ assignment }: { assignment: Assignment }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={6} />
+  if (list.isLoading && !list.data) return <SkeletonTable columns={6} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

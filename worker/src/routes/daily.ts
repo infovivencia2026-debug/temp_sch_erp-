@@ -1190,6 +1190,43 @@ async function applyForLeave(c: Ctx): Promise<Response> {
                     is_half_day, days, reason, status, applied_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`)
       .bind(newId, inst, leaveType, kind, employeeId, studentId, from, to, req.is_half_day ? 1 : 0, String(days), reason, c.id.userId, now()),
   ]
+  /* A CHILD'S LEAVE HAD NOBODY TO GO TO.
+
+     Staff leave has notified its approvers since it was written. A student's
+     went to nobody at all: the row was inserted pending and the family waited
+     on a screen that never changed, because no one was told there was anything
+     to decide.
+
+     It goes to whoever keeps that child's register -- the class teacher of the
+     section they are enrolled in, and anyone who holds the attendance
+     follow-up right. Those are the people the answer costs something to, and
+     the people who mark the day either way. Not the head: a school does not
+     run by its principal reading every application for a day off.
+
+     Whoever asked is left out of their own notification, which matters here
+     because a class teacher may be applying on behalf of a child in their own
+     section. */
+  if (kind === 'student' && studentId) {
+    const child = await c.db.prepare(`SELECT ${fullName2('st')} AS name FROM students st WHERE st.id = ?`)
+      .bind(studentId).first<{ name: string }>().catch(() => null)
+    const keepers = await c.db.prepare(`
+      SELECT DISTINCT u.id FROM users u
+       WHERE u.status = 'active' AND u.id <> ?2 AND (
+         u.id = (SELECT sec.class_teacher_id FROM enrollments e
+                   JOIN sections sec ON sec.id = e.section_id
+                  WHERE e.student_id = ?1 AND e.status = 'active'
+                  ORDER BY e.enrolled_on DESC LIMIT 1)
+         OR EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
+                     WHERE ur.user_id = u.id AND rp.permission_key = 'academics.attendance.write.any'))`)
+      .bind(studentId, c.id.userId).all<{ id: string }>().catch(() => null)
+    const span = to !== from ? `${from} to ${to}` : from
+    for (const k of keepers?.results ?? []) {
+      stmts.push(notifyStmt(c, k.id, studentId, 'leave_request',
+        `${child?.name ?? 'A child'} has applied for leave`,
+        `${span} - ${reason}. Approve or reject it from Approvals.`,
+        '/go/approvals/approvals', 'leave_request', newId))
+    }
+  }
   if (kind === 'staff') {
     const who = await c.db.prepare('SELECT full_name FROM users WHERE id = ?').bind(c.id.userId).first<{ full_name: string }>()
     const approvers = await c.db.prepare(`
@@ -1409,7 +1446,21 @@ async function listHomework(c: Ctx): Promise<Response> {
     args.push(...x.args)
   } else if (res.allAttendance) where = 'TRUE'
   else if (res.sectionIds.length) { const x = inList('h.section_id', res.sectionIds); where = x.sql; args.push(...x.args) }
-  else where = 'FALSE'
+  /* A TEACHER WITH NO SECTION COULD NOT SEE THEIR OWN HOMEWORK.
+
+     This was FALSE, and the "only mine" clause below is ANDed onto it, so
+     somebody holding no section at all saw an empty list -- including the
+     work they had published minutes earlier, from this screen, successfully.
+     Nothing had failed to save; there was simply no clause under which their
+     own row could come back, and an empty list after a successful publish is
+     indistinguishable from a publish that silently did nothing.
+
+     A section is how a teacher is normally reached, but it is not the only
+     way somebody comes to own a piece of homework: a member of staff between
+     postings, a head who sets work for a class they do not teach, anybody
+     whose timetable has not been entered yet. What they wrote is theirs to
+     read whatever their timetable says. */
+  else { where = 'h.created_by = ?'; args.push(c.id.userId) }
 
   const q = c.url.searchParams
   const filter = (clause: string, value: string | null) => { if (!trim(value)) return; args.push(value); where += ' AND ' + clause }
