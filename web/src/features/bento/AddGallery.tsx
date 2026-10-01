@@ -3,9 +3,10 @@ import {
   type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactElement,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, X } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { useReduceMotion } from './bento-kit'
+import { AppIcon } from './FeatureCells'
 import './add-gallery.css'
 
 /* THE "ADD A CARD" GALLERY, THE WAY ICLOUD.COM ADDS A TILE.
@@ -46,6 +47,15 @@ export type GalleryItem = {
   tiers: SizeTier[]
   /** The tier Enter adds at, and the one the preview is drawn as. */
   defaultTier: SizeTier
+  /** A screen, added as a 1x1 app icon: no size row, the icon itself as the
+      preview. */
+  icon?: { slug: string; section?: string; workspace: string }
+}
+
+type Kind = 'all' | 'cards' | 'figures' | 'icons'
+function kindOf(i: GalleryItem): Kind {
+  if (i.icon) return 'icons'
+  return i.group ? 'figures' : 'cards'
 }
 
 /** The tiers in the order the size row draws them; the digit keys follow the
@@ -159,9 +169,15 @@ export function AddGallery({
      the filter has hidden. */
   const [q, setQ] = useState('')
   const needle = q.trim().toLowerCase()
+  /* CARDS, FIGURES OR APP ICONS: a row of choices over the list, shown
+     when the list holds more than one kind, so "add an app icon" is one
+     press and a search away rather than a scroll past every card. */
+  const [kind, setKind] = useState<Kind>('all')
+  const kinds = (['cards', 'figures', 'icons'] as const).filter((k) => all.some((i) => kindOf(i) === k))
+  const byKind = kind === 'all' ? all : all.filter((i) => kindOf(i) === kind)
   const items = needle
-    ? all.filter((i) => `${i.label} ${i.hint ?? ''} ${i.group ?? ''}`.toLowerCase().includes(needle))
-    : all
+    ? byKind.filter((i) => `${i.label} ${i.hint ?? ''} ${i.group ?? ''}`.toLowerCase().includes(needle))
+    : byKind
   const filterable = all.length > 12
   const tileRefs = useRef(new Map<string, HTMLDivElement>())
   const anchorRef = useRef(anchor)
@@ -401,6 +417,23 @@ export function AddGallery({
           <div className="min-w-0">
             <p className="bento-gallery__title">{t('bento.add_gallery.title')}</p>
             <p className="bento-gallery__hint">{t('bento.add_gallery.hint')}</p>
+            {kinds.length > 1 && (
+              <div className="bento-gallery__kinds" role="radiogroup" aria-label={t('bento.add_gallery.kinds')}>
+                {(['all', ...kinds] as Kind[]).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === k}
+                    className="bento-gallery__kind"
+                    data-on={kind === k ? '' : undefined}
+                    onClick={() => setKind(k)}
+                  >
+                    {t(`bento.add_gallery.kind_${k}` as 'bento.add_gallery.kind_all')}
+                  </button>
+                ))}
+              </div>
+            )}
             {filterable && (
               <input
                 type="search"
@@ -443,6 +476,8 @@ export function AddGallery({
                   noRoom={t('bento.add_gallery.no_room')}
                   sizeName={sizeName}
                   addAs={(size) => t('bento.add_gallery.add_as', { label: item.label, size })}
+                  addIcon={t('bento.add_gallery.add_icon', { label: item.label })}
+                  iconName={t('bento.add_gallery.icon')}
                   onFocus={() => setActiveId(item.id)}
                   onAdd={(tier) => add(item, tier)}
                   setRef={(node) => {
@@ -484,8 +519,10 @@ function columnsOf(tiles: HTMLElement[], fallback: number): number {
    every render, and the launcher's recents band shipped exactly that bug —
    the button under a finger was detached before the click arrived. */
 function Tile({
-  item, uid, active, added, addedLabel, noRoom, sizeName, addAs, onFocus, onAdd, setRef,
+  item, uid, active, added, addedLabel, noRoom, sizeName, addAs, addIcon, iconName, onFocus, onAdd, setRef,
 }: {
+  addIcon: string
+  iconName: string
   item: GalleryItem
   uid: string
   active: boolean
@@ -512,7 +549,13 @@ function Tile({
       tabIndex={active ? 0 : -1}
       onFocus={onFocus}
     >
-      <Preview tier={item.defaultTier} />
+      {item.icon ? (
+        <div className="bento-gallery__preview bento-gallery__preview--icon" aria-hidden="true">
+          <AppIcon slug={item.icon.slug} section={item.icon.section} workspace={item.icon.workspace} size={48} />
+        </div>
+      ) : (
+        <Preview tier={item.defaultTier} />
+      )}
       {added && (
         <span className="bento-gallery__added" role="status">
           <Check className="size-3" aria-hidden="true" />
@@ -521,6 +564,24 @@ function Tile({
       )}
       <span id={labelId} className="bento-gallery__label">{item.label}</span>
       {item.hint && <span id={hintId} className="bento-gallery__sub">{item.hint}</span>}
+      {item.icon ? (
+        <div className="bento-gallery__sizes">
+          <button
+            type="button"
+            className="bento-gallery__size bento-gallery__size--icon"
+            data-tier="small"
+            data-default=""
+            disabled={!item.tiers.includes('small')}
+            title={item.tiers.includes('small') ? undefined : noRoom}
+            aria-label={addIcon}
+            tabIndex={-1}
+            onClick={() => onAdd('small')}
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+            <span className="bento-gallery__size-name">{iconName}</span>
+          </button>
+        </div>
+      ) : (
       <div className="bento-gallery__sizes">
         {TIERS.map((tier) => {
           const fits = item.tiers.includes(tier)
@@ -543,6 +604,7 @@ function Tile({
           )
         })}
       </div>
+      )}
     </div>
   )
 }

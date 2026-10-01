@@ -100,6 +100,19 @@ export function addToDashboard(key: string) {
   write(withShortcut(read(), key))
 }
 
+/** A new account's starting list: written only when nothing was ever stored
+    under the key, so a person who emptied their home keeps it empty. */
+export function seedShortcuts(keys: readonly string[]) {
+  let raw: string | null = null
+  try {
+    raw = localStorage.getItem(SHORTCUTS_KEY)
+  } catch {
+    return
+  }
+  if (raw !== null) return
+  write(parseShortcuts(JSON.stringify(keys)))
+}
+
 export function removeFromDashboard(key: string) {
   write(withoutShortcut(read(), key))
 }

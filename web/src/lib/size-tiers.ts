@@ -122,3 +122,23 @@ export function dimsForTier(tier: SizeTier, phone: boolean): { w: number; h: num
 export function tierLabelKey(tier: SizeTier): string {
   return `bento.size.${tier}`
 }
+
+/* THE APP ICON: ONE CELL, SQUARE, ALWAYS.
+
+   An app icon on the home (FeatureCells.tsx) is not a card and has no tier:
+   it is never resized, so it is not in TIERS and no picker offers it. It is
+   stored and drawn as the Small shape on a desk -- one column, one row --
+   and `tierOf` reads it back as Small. The plate inside is square whatever
+   the cell's own proportions, so the icon is 1:1 at every breakpoint.
+
+   A phone draws every card at the page width, so an icon there would be a
+   band the width of the screen; the phone lays icons four across inside one
+   one-row band instead (PHONE_ICON_COLS), each its own tile. */
+export const ICON_SHAPE: Readonly<{ w: number; h: number }> = Object.freeze({ w: 1, h: 1 })
+/** App icons per row on a phone. */
+export const PHONE_ICON_COLS = 4
+
+/** Whether a stored shape is an app icon's: exactly one by one. */
+export function isIconShape(w: number, h: number): boolean {
+  return w === ICON_SHAPE.w && h === ICON_SHAPE.h
+}

@@ -11,10 +11,10 @@ import {
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
-import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
+import { TIERS, PHONE_TIERS, PHONE_TIER_DIMS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
-import { FeatureCells, FEATURE_PREFIX } from './FeatureCells'
+import { FeatureCells, FEATURE_PREFIX, PHONE_BAND, bandId } from './FeatureCells'
 import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useShortcuts, addToDashboard } from '@/lib/shortcuts'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
@@ -502,7 +502,7 @@ export function WidgetLayer({
      whether or not anybody is arranging. */
   const markRef = useRef<HTMLSpanElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, add, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
+  const { layout, add, place, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
   const t = useT()
   const still = useReduceMotion()
   /* A ref and an attribute on the board, NOT state: the touchmove listener
@@ -912,8 +912,11 @@ export function WidgetLayer({
             label: f.name,
             hint: `${section.workspace || section.name}`,
             group: t('bento.add_gallery.screens'),
-            tiers: smallTiers,
-            defaultTier: smallTiers.includes('small') ? 'small' : smallTiers[0] ?? 'small',
+            /* An app icon has one shape, 1x1 (ICON_SHAPE); it fits where a
+               Small card would. */
+            tiers: smallTiers.includes('small') ? ['small'] : [],
+            defaultTier: 'small',
+            icon: { slug: f.slug, section: section.slug, workspace: section.workspace || section.name },
           })
         }
       }
@@ -947,7 +950,13 @@ export function WidgetLayer({
       /* A screen joins a shortcut cell (four to a cell, FeatureCells), which
          declares itself at its own size; a layout entry under the screen's
          own id would be a card nothing draws. */
-      addToDashboard(id.slice(FEATURE_PREFIX.length))
+      const key = id.slice(FEATURE_PREFIX.length)
+      /* Clear any earlier "removed" mark on the place it will land: the
+         icon itself on a desk, its band of eight on a phone. */
+      const at = shortcuts.length
+      if (phone) place(bandId(Math.floor(at / PHONE_BAND)), PHONE_TIER_DIMS.small.w, 1)
+      else add(id, ICON_SHAPE.w, ICON_SHAPE.h, visible)
+      addToDashboard(key)
     } else {
       add(id, d.w, d.h, visible)
     }
@@ -1495,6 +1504,7 @@ function ArrangedWidget({
   index,
   optional,
   periodic,
+  fixed,
   children,
 }: {
   id: string
@@ -1506,6 +1516,9 @@ function ArrangedWidget({
   optional?: boolean
   /** A metric cell: the "…" offers the period it reads over. */
   periodic?: boolean
+  /** An app icon: always its declared 1x1 shape, so no size is offered and
+      a stored size (from an older shortcut cell) is ignored. */
+  fixed?: boolean
   /** Given the span to render at, because the cell owns its own <Cell>. */
   children: (span: CellSpan) => ReactNode
 }) {
@@ -1513,7 +1526,7 @@ function ArrangedWidget({
   const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
-  const { w, h } = dimsOf(layout, id, declaredSize)
+  const { w, h } = fixed ? DIMS[declaredSize] : dimsOf(layout, id, declaredSize)
 
   /* Declared in an effect, not in the render body: calling the parent's
      setState while rendering a child is illegal in React. */
@@ -1851,7 +1864,7 @@ function ArrangedWidget({
   /* THE QUICK MENU'S ROWS, judged here because the layer is what knows what
      fits. Open follows the card's own link — the first one inside it — so it
      opens exactly what a tap on the body opens, tab strip and all. */
-  const quickTiers: QuickTier[] = (phone ? PHONE_TIERS : TIERS).map((tier) => {
+  const quickTiers: QuickTier[] = fixed ? [] : (phone ? PHONE_TIERS : TIERS).map((tier) => {
     const d = dimsForTier(tier, phone)
     return { tier, on: tier === tierOf(cw, ch, phone), ok: fitsAt(d.w, d.h) }
   })
@@ -1884,6 +1897,7 @@ function ArrangedWidget({
       data-w={cw}
       data-h={ch}
       data-tinted={tint ? 'true' : undefined}
+      data-app-icon={fixed ? '' : undefined}
       data-lead={lead ? '' : undefined}
       data-editing={editing ? '' : undefined}
       data-more={layer && !editing ? '' : undefined}
@@ -1976,7 +1990,7 @@ function ArrangedWidget({
           >
             <Minus className="size-3.5" aria-hidden="true" />
           </button>
-          <SizeMenu
+          {!fixed && <SizeMenu
             label={label}
             cw={cw}
             ch={ch}
@@ -1985,7 +1999,7 @@ function ArrangedWidget({
             tint={tint}
             onTier={(tier) => setTier(id, tier, phone, w)}
             onTint={(c, coalesce) => recolour(id, c, cw, ch, coalesce)}
-          />
+          />}
         </div>
       )}
     </div>

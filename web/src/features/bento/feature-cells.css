@@ -1,54 +1,105 @@
-/* THE SHORTCUT CELL: four screens in a two-by-two grid. See FeatureCells.tsx.
-   No colour is named; every tone is a mix of currentColor, so the ten
-   palettes and anything somebody paints come through. */
-.fc-grid {
+/* APP ICONS ON THE HOME. See FeatureCells.tsx.
+
+   A rounded square washed with the workspace colour (--t), the feature's
+   glyph in that colour, the name beneath. Soft tint, not glass and not a
+   solid fill: the plate is a 14% mix of the colour into the card surface,
+   with a hairline of the colour, and the only shadow is the theme's glow
+   (--glow-k), so "glow off" leaves a flat soft tile. */
+
+.ai-cell {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
+  place-items: center;
   height: 100%;
   min-height: 0;
+  container-type: size;
 }
-.fc-tile {
+.ai-tile {
+  --ai-size: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  min-height: 0;
-  padding: 6px 2px;
-  border-radius: 12px;
-  color: inherit;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 4px;
+  border-radius: 18px;
+  color: var(--bento-ink, inherit);
   text-decoration: none;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--dur-fast, 200ms) var(--ease-out, ease);
 }
-@media (hover: hover) {
-  .fc-tile:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
-}
-.fc-tile:active { background: color-mix(in srgb, currentColor 10%, transparent); }
-.fc-tile:focus-visible {
+/* On the desk the plate grows with the cell, square, and leaves room for
+   two lines of name. */
+.ai-cell .ai-tile { --ai-size: clamp(48px, min(46cqw, calc(100cqh - 64px)), 96px); }
+.ai-tile:focus-visible {
   outline: 2px solid currentColor;
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
-/* Two lines, then a cut: a name that wraps to three is a paragraph, and the
-   grid's rows stop lining up. */
-.fc-name {
+
+.ai-plate {
+  --paper: var(--bento-card, hsl(var(--card, 0 0% 100%)));
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--ai-size, 64px);
+  height: var(--ai-size, 64px);
+  aspect-ratio: 1;
+  border-radius: 24%;
+  color: color-mix(in srgb, var(--t) 78%, var(--bento-ink, currentColor));
+  background: color-mix(in srgb, var(--t) 14%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--t) 22%, transparent);
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--t) calc(60% * var(--glow-k, 0.4)), transparent);
+  transition: transform var(--dur-fast, 160ms) var(--ease-out, ease),
+    background-color var(--dur-fast, 160ms) var(--ease-out, ease);
+}
+.ai-plate .msr {
+  font-size: calc(var(--ai-size, 64px) * 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  .ai-plate { background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
+}
+:root[data-theme='dark'] .ai-plate,
+.dark .ai-plate { background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
+:root[data-theme='light'] .ai-plate { background: color-mix(in srgb, var(--t) 14%, var(--paper)); }
+
+@media (hover: hover) {
+  .ai-tile:hover .ai-plate { transform: translateY(-2px); background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
+}
+.ai-tile:active .ai-plate { transform: scale(0.95); }
+
+.ai-name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
   max-width: 100%;
   font-size: 12px;
-  line-height: 1.2;
+  line-height: 1.25;
   font-weight: 500;
-  opacity: 0.88;
   word-break: break-word;
 }
-.fc-empty {
-  border: 1px dashed color-mix(in srgb, currentColor 16%, transparent);
-  border-radius: 12px;
+
+/* The phone band: four across, two rows, each icon its own target. */
+.ai-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 14px 4px;
+  height: 100%;
+  min-height: 0;
+  padding: 28px 0 4px;
 }
-[data-reduce-motion='true'] .fc-tile { transition: none; }
+.ai-band .ai-tile { --ai-size: 56px; gap: 6px; padding: 4px 2px; justify-content: flex-start; }
+.ai-band .ai-name { font-size: 11px; }
+
+/* An app icon is not a card: no card ground under it on the board. */
+.bento-widget[data-app-icon] > div > * { background: transparent; box-shadow: none; }
+
+[data-reduce-motion='true'] .ai-plate { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-plate { transition: none; }
+  .ai-tile:hover .ai-plate, .ai-tile:active .ai-plate { transform: none; }
+}
