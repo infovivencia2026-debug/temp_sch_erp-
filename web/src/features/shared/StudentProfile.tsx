@@ -994,7 +994,6 @@ export default function StudentProfile() {
             </Card>
           ) : null}
           {/* Student 360: an AI summary on request, cached until the records change; staff only (the card hides itself otherwise). */}
-          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p, detail.data?.subject_marks ?? [])} /></div>}
           {/* 4. QUICK STATUS — the three things somebody wants before they
                  have finished reading the name, and the one that cannot wait.
 
@@ -1003,9 +1002,9 @@ export default function StudentProfile() {
                  told late is the whole harm, and it was previously nowhere on
                  the screen at all — it lived in the infirmary module, which a
                  class teacher has no reason to open. */}
-          <div className="lg:col-span-2 flex flex-wrap gap-3">
+          <div className="lg:col-span-2 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {p.allergies && (
-              <div className="flex-1 basis-full rounded-xl border-2 border-danger bg-danger/5 px-4 py-3">
+              <div className="col-span-full rounded-xl border-2 border-danger bg-danger/5 px-4 py-3">
                 <p className="eyebrow text-danger">Medical alert</p>
                 <p className="mt-0.5 text-[14px] font-medium">{p.allergies}</p>
               </div>
@@ -1024,6 +1023,12 @@ export default function StudentProfile() {
               tone={p.fees.outstanding_paise > 0 ? 'warning' : 'success'}
               note={p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'}
             />
+            <QuickTile
+              label="Latest result"
+              value={p.results[0]?.percentage ? `${p.results[0].percentage}%` : '-'}
+              tone={!p.results[0]?.percentage ? 'neutral' : Number(p.results[0].percentage) >= 60 ? 'success' : Number(p.results[0].percentage) >= 35 ? 'warning' : 'danger'}
+              note={p.results[0] ? [p.results[0].exam, p.results[0].grade && `grade ${p.results[0].grade}`].filter(Boolean).join(' · ') : 'No report card yet'}
+            />
             {p.house_name && (
               <QuickTile label="House" value={p.house_name} tone="neutral"
                 note={p.house_color ? undefined : undefined} swatch={p.house_color} />
@@ -1037,6 +1042,7 @@ export default function StudentProfile() {
               />
             )}
           </div>
+          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p, detail.data?.subject_marks ?? [])} /></div>}
           {/* STATUS, AND THE BUTTONS THAT CHANGE IT, on the page.
 
               Exit, suspension and re-admission were built and then put inside
@@ -2533,17 +2539,21 @@ function QuickTile({ label, value, note, tone, swatch }: {
   tone: 'success' | 'warning' | 'danger' | 'neutral'
   swatch?: string
 }) {
-  const ring = {
-    success: 'border-success/40', warning: 'border-warning/50',
-    danger: 'border-danger/50', neutral: 'border-border',
+  /* Tinted, not outlined: the owner found the outlined tiles pale. */
+  const look = {
+    success: 'border-[#86efac] bg-[#f0fdf4] [--fig:#15803d]',
+    warning: 'border-[#fcd34d] bg-[#fffbeb] [--fig:#b45309]',
+    danger: 'border-[#fca5a5] bg-[#fef2f2] [--fig:#b91c1c]',
+    neutral: 'border-border bg-card [--fig:hsl(var(--foreground))]',
   }[tone]
   return (
-    <div className={cn('min-w-[10rem] flex-1 rounded-xl border bg-background px-4 py-3', ring)}>
-      <p className="eyebrow flex items-center gap-1.5 text-muted-foreground">
-        <span style={swatch ? { color: swatch } : undefined}>{label}</span>
+    <div className={cn('rounded-[14px] border px-5 py-4 shadow-sm', look)}>
+      <p className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-muted-foreground">
+        {swatch && <span className="h-2.5 w-2.5 rounded-full" style={{ background: swatch }} />}
+        {label}
       </p>
-      <p className="mt-0.5 text-[18px] font-semibold tabular-nums">{value}</p>
-      {note && <p className="text-[12px] text-muted-foreground">{note}</p>}
+      <p className="mt-1 text-[24px] font-bold tabular-nums tracking-[-0.02em] text-[var(--fig)]">{value}</p>
+      {note && <p className="truncate text-[12.5px] text-muted-foreground">{note}</p>}
     </div>
   )
 }
