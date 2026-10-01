@@ -1487,7 +1487,6 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.attendance.attendance', slug: 'attendance', name: 'Attendance', scope: 'self', tier: 'core', summary: 'Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.' },
-          { key: 'student.attendance.apply_for_leave', slug: 'apply_for_leave', name: 'Apply for leave', scope: 'self', tier: 'core', summary: 'Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.' },
         ],
       },
       {

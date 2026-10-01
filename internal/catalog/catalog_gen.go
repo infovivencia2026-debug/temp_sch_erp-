@@ -1520,7 +1520,6 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
-					{Key: "student.attendance.apply_for_leave", Slug: "apply_for_leave", Name: "Apply for leave", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet."},
 				},
 			},
 			{
