@@ -1799,17 +1799,47 @@ export function useBoardHeight() {
       const rows = parseInt(rootStyle.getPropertyValue('--board-rows'), 10) || 3
       const gap = parseFloat(getComputedStyle(board).rowGap) || 0
       const floor = rows * 148 + (rows - 1) * gap
-      const room = Math.max(floor, window.innerHeight - top - reserve)
+      /* STOP ~17px ABOVE THE DOCK when there is one on screen: its live top
+         edge is the truth, whatever padding the scrollers carry. */
+      const dock = document.querySelector<HTMLElement>('.bento-dock')
+      const dockBox = dock?.getBoundingClientRect()
+      const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== "hidden" ? dockBox.top : 0
+      const limit = dockTop > top + 100 ? dockTop - 17 : window.innerHeight - reserve
+      let room = Math.max(floor, limit - top)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
+      /* The board's own padding and transforms sit between its box and the
+         cards, so line the CARDS up with the dock: one correcting pass. */
+      if (dockTop > top + 100) {
+        const cards = board.querySelectorAll('[data-card]')
+        let bottom = 0
+        cards.forEach((c) => { bottom = Math.max(bottom, c.getBoundingClientRect().bottom) })
+        const off = dockTop - 17 - bottom
+        if (cards.length && Math.abs(off) > 1 && room + off >= floor) {
+          room += off
+          board.style.setProperty('--board-h', `${Math.round(room)}px`)
+        }
+      }
     }
 
     measure()
     window.addEventListener('resize', measure)
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
+    /* The board's TOP moves when anything above it changes size (the Status
+       strip arriving after its fetch, a banner, the header wrapping), and
+       none of that resizes the body of a fixed-height shell. Watch every
+       ancestor and every sibling that sits before one. */
+    for (let el: Element | null = board; el && el !== document.body; el = el.parentElement) {
+      ro.observe(el)
+      for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) ro.observe(sib)
+    }
+    /* --board-rows changes the floor; re-measure when it does. */
+    const mo = new MutationObserver(measure)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
     cleanup.current = () => {
       window.removeEventListener('resize', measure)
       ro.disconnect()
+      mo.disconnect()
     }
   }, [])
 }

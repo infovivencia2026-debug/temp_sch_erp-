@@ -4671,3 +4671,21 @@ html:not([data-layout='bento']) [data-settings-page] {
   --bento-line: hsl(var(--border));
   --bento-muted: hsl(var(--muted-foreground));
 }
+
+/* SHORT WINDOWS SCROLL INSTEAD OF SQUASHING.
+   Under ~620px of height the board's row floor (148px a row, set in
+   useBoardHeight) is taller than the room, and the clipping ground and
+   surface above would cut the bottom row off. Release both so the work area
+   (the <main> scroller) scrolls to it. */
+@media (min-width: 1024px) and (max-height: 620px) {
+  [data-layout='bento'] .bento-ground,
+  [data-layout='bento'] .bento-ground:has(.bento-board[data-pager]) {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .bento-surface {
+    overflow: visible;
+    height: auto;
+  }
+}
