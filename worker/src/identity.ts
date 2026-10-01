@@ -1,7 +1,7 @@
 import type { Env } from './env'
 import { liveSession, readCookie, sessionStmt, tokenHash, type Session } from './auth/session'
 import { cacheKey, cacheTtl, cached, ensureVersionsTable, remember, versionString, versionsStmt } from './idcache'
-import { institutionById, tenantDb, type Institution } from './tenant'
+import { institutionById, noteInstitution, tenantDb, type Institution } from './tenant'
 import { HttpError } from './http'
 import { SYSTEM_ROLES } from './routes/admin/static_data'
 
@@ -44,7 +44,8 @@ export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContex
     try { res = await read() } catch { await ensureVersionsTable(env); res = await read() }
     row = (res[0].results[0] as Session | undefined) ?? null
     if (row) versions = versionString(res[1].results as { scope: string; version: number }[], row.institution_id, acting)
-    home = (res[2].results[0] as Institution | undefined) ?? null
+    // Read on every request, cached identity or not: the switch version rides along (refcache.ts).
+    home = noteInstitution((res[2].results[0] as Institution | undefined) ?? null)
   } catch {
     row = await sessionStmt(env, hash).first<Session>()
   }

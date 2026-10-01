@@ -100,6 +100,19 @@ export async function workingYearFor(db: D1Database | D1DatabaseSession, userId:
   return (await chosenYearId(db, userId)) ?? (await defaultYearId(db))
 }
 
+/* The feature switches' version (CONTROL institutions.features_version,
+   control migration 0013: triggers bump it on any write to
+   school_feature_overrides), noted from each institutions row the Worker
+   reads (tenant.ts institutionById). routes/seller/features.ts
+   featureOverrides caches a school's switches under it, so a changed switch
+   is seen on the next request, on every isolate. */
+const featureVersions = new Map<string, number>()
+export function noteFeaturesVersion(institutionId: string, version: number | null | undefined): void {
+  if (version !== null && version !== undefined && Number.isFinite(Number(version))) featureVersions.set(institutionId, Number(version))
+}
+/** The version last read for this school, or undefined (never read, or before migration 0013). */
+export const featuresVersion = (institutionId: string): number | undefined => featureVersions.get(institutionId)
+
 /** /ref-data's lists. */
 export function refLists(db: D1Database | D1DatabaseSession) {
   return cachedRef(db, 'ref-data', async () => {
