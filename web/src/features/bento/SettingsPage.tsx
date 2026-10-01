@@ -198,7 +198,7 @@ export default function SettingsPage() {
        not 16, and would leave a 2px ledge of the board's gutter down each
        side of a sheet that is supposed to be flush. That substitution has
        caused five separate bugs in this codebase. */
-    <div className={cn(
+    <div data-settings-page="" className={cn(
       /* FULL SCREEN ON A PHONE, IN ALL FOUR DIRECTIONS.
        *
        * The horizontal gutter was already cancelled here so the rows reach the
@@ -252,7 +252,7 @@ export default function SettingsPage() {
           wide && 'h-[calc(100dvh-3rem-var(--dock-h,68px)-16px)] min-h-[420px]',
         )}
       >
-        <header className={cn('border-b px-[16px] py-[12px] sm:px-[24px]', SEAM)}>
+        <header className={cn('px-[16px] pt-[12px] pb-[4px] sm:border-b sm:px-[24px] sm:py-[12px]', SEAM)}>
           {/* THE NAME OF WHERE YOU ARE, AND NOTHING ELSE. The line under the
               title ("Everything you can change from here, and where each
               change lands") was a sentence about the page on the page; the
@@ -273,7 +273,7 @@ export default function SettingsPage() {
               {t('bento.settings.label')}
             </button>
           )}
-          <h1 className={cn('text-[20px] font-semibold', INK)}>
+          <h1 className={cn('text-[26px] font-bold leading-tight tracking-[-0.01em] sm:text-[20px] sm:font-semibold', INK)}>
             {found && !wide ? found.label : t('bento.settings.label')}
           </h1>
         </header>
@@ -318,12 +318,20 @@ export default function SettingsPage() {
              Measured at 390px: the cards sat 9px from the edge and the header
              text 30px, so the screen had two left edges 21px apart and nothing
              on it lined up with anything else. One number for both. */
-          <div className="px-[14px] py-3">
-            {tab === null && <FullScreenOffer />}
-            {tab === null
-              ? <SettingsGroups items={items} onOpen={open} values={values} />
-              : <SettingsPane tab={tab} onClose={done} />}
-          </div>
+          /* The list is inset by the 16px gutter so its cards read as
+             grouped sections; a section's rows carry their own 16px, so the
+             pane adds none. The bottom padding clears the dock and the home
+             indicator so the last row is never under either. */
+          tab === null ? (
+            <div className="px-[16px] pt-[8px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+              <FullScreenOffer />
+              <SettingsGroups items={items} onOpen={open} values={values} />
+            </div>
+          ) : (
+            <div className="pt-[4px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+              <SettingsPane tab={tab} onClose={done} />
+            </div>
+          )
         )}
       </div>
     </div>
@@ -369,7 +377,7 @@ function FullScreenOffer() {
   /* Two rows, not a card with a paragraph: the offer and the way to decline
      it, each a 44px target, each saying what it does in its own words. */
   return (
-    <Rows className={cn('mb-[8px] border-b', SEAM)}>
+    <Rows className={cn('mb-[24px] overflow-hidden rounded-[14px] border', SEAM)}>
       <NavRow
         label="Use the whole screen"
         helper="The browser keeps about an eighth of the screen for its bar."
