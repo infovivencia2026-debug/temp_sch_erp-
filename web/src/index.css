@@ -4323,3 +4323,152 @@ input[type='time']::-webkit-date-and-time-value {
    which the owner asked to have gone everywhere. */
 .card > .border-b:last-child,
 .card > :last-child > .border-b:only-child { border-bottom-width: 0; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SMOOTH INTERACTION (owner, 2026-10-01: "button press, tab transitions,
+   focus > work and work > focus -- any interaction should be smooth"; "I
+   need an Apple-like experience").
+
+   Transform and opacity only, on the iOS settle curve (--motion-ease,
+   cubic-bezier(.32,.72,0,1)). Every piece below is optional to the browser:
+   an engine without transitions, view transitions or :has simply shows the
+   end state.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* THE PRESS: a touch deeper than before (0.97) and a slight darken, applied
+   on pointerdown by :active and released on the spring return the global
+   transition already gives `transform`. Nothing presses while disabled,
+   busy (a pending Button is aria-busy) or aria-disabled. */
+:where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'],
+       summary):active:not(:disabled):not([aria-busy='true']):not([aria-disabled='true']) {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+:where(button, [role='button'], .btn, [role='tab']):is(:disabled, [aria-busy='true'], [aria-disabled='true']) {
+  transform: none;
+  filter: none;
+}
+/* A key lifts a hair under a mouse; never on touch, where hover sticks. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled):not([aria-busy='true']):not(:active) {
+    transform: translateY(-1px);
+  }
+}
+/* One focus ring, offset so it never sits on the control's own edge. */
+:where(button, a, [role='button'], [role='tab'], [role='switch'], summary):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+/* Links and anything clickable lose the double-tap-to-zoom wait too. */
+a, label, [role='tab'], [role='switch'], [role='option'], [role='menuitem'] {
+  touch-action: manipulation;
+}
+
+/* THE SLIDING THUMB (components/SlidingIndicator.tsx). The row is positioned
+   by its caller; the thumb sits behind the labels, and the active child's own
+   fill steps aside so it is not drawn twice. */
+.slide-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 0;
+}
+.slide-thumb[data-ready] {
+  transition: transform var(--motion) var(--motion-ease),
+              width var(--motion) var(--motion-ease),
+              height var(--motion) var(--motion-ease),
+              opacity var(--motion-quick) var(--motion-ease);
+}
+[data-slide] > :not(.slide-thumb) {
+  position: relative;
+  z-index: 1;
+}
+[data-slide] > [aria-selected='true'],
+[data-slide] > [aria-pressed='true'],
+[data-slide] > [data-on],
+[data-slide] [data-tab-pill] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* A TAB'S CONTENT SETTLES IN. Never from nothing -- a fade from zero read as
+   a blink (see [data-page-enter]) -- it starts most of the way there and
+   rises 4px, so the change registers without the screen going blank. */
+@keyframes tab-swap {
+  from { opacity: 0.4; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.tab-swap { animation: tab-swap 180ms var(--motion-ease) both; }
+
+/* FOCUS <-> WORK (crossfade in lib/motion.ts).
+
+   With view transitions: the old shell fades out, the new one fades in
+   settling from 1.2% larger. The frame pieces that normally sit still
+   between pages (dock, rail, corner) are folded into the root for this one
+   crossing, since they are the very things that change. */
+html[data-vt='layout'] .bento-dock,
+html[data-vt='layout'] .bento-corner,
+html[data-vt='layout'] [data-app-rail] {
+  view-transition-name: none;
+}
+html[data-vt='layout']::view-transition-old(root) {
+  animation: vt-leave 200ms var(--motion-ease) both;
+}
+html[data-vt='layout']::view-transition-new(root) {
+  animation: vt-layout-in 300ms var(--motion-ease) both;
+}
+@keyframes vt-layout-in {
+  from { opacity: 0; transform: scale(1.012); }
+  to   { opacity: 1; transform: none; }
+}
+/* Without them: the app fades onto the ground and back. body keeps its own
+   background throughout, so the gap is the page colour, never white. */
+html[data-fade] #root {
+  transition: opacity 120ms var(--motion-ease);
+}
+html[data-fade='out'] #root { opacity: 0; }
+html[data-fade='in'] #root { opacity: 1; transition-duration: 180ms; }
+
+/* EXIT, TOO. A surface marked data-closing (usePresence in lib/motion keeps
+   it mounted for the length of this) leaves the way it came: the dim fades,
+   a centred dialog settles back and fades, and on a phone -- where the
+   shared Dialog is a bottom sheet -- the sheet drops back off the edge. */
+@keyframes motion-exit {
+  to { opacity: 0; transform: scale(0.97); }
+}
+@keyframes scrim-out {
+  to { opacity: 0; }
+}
+@keyframes sheet-out {
+  to { transform: translateY(100%); }
+}
+[data-closing] { pointer-events: none; }
+.scrim[data-closing] { animation: scrim-out 180ms var(--motion-ease) both; }
+.scrim[data-closing] > [role='dialog'] { animation: motion-exit 180ms var(--motion-ease) both; }
+@media (max-width: 639px) {
+  .scrim[data-closing] > [role='dialog'] { animation: sheet-out 220ms var(--motion-ease) both; }
+}
+
+/* REDUCED MOTION: everything above is instant. The system setting stops this
+   file's new motion; the account's own setting (data-reduce-motion on <html>,
+   lib/motion.ts) stops all of it, everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  .slide-thumb[data-ready], html[data-fade] #root { transition: none; }
+  .tab-swap, [data-closing] { animation: none; }
+  :where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'], summary):active { transform: none; }
+  .btn:hover { transform: none; }
+}
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-reduce-motion] :active { transform: none !important; }

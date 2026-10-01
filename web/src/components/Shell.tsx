@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils'
    left on 'classic' BentoOutlet renders its children unchanged.
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
+import { useRootReduceMotion } from '@/lib/motion'
 import { YearSwitch } from '@/components/YearSwitch'
 import { GroupReportLink } from '@/components/GroupReportLink'
 import { InstitutionSwitch } from '@/components/InstitutionSwitch'
@@ -463,6 +464,7 @@ export function Shell({
      allowed to hide anything. */
   const { layout } = useLayout()
   const chromeless = layout === 'bento'
+  useRootReduceMotion()
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
 

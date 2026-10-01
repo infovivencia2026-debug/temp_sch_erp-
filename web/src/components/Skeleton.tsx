@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
  */
 
 /** True only once `active` has been true for `ms`. */
-export function useDelayed(active: boolean, ms = 100): boolean {
+export function useDelayed(active: boolean, ms = 150): boolean {
   const [shown, setShown] = useState(ms <= 0 && active)
   useEffect(() => {
     if (!active) {

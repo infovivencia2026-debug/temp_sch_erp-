@@ -2317,7 +2317,7 @@ export {
   Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
-import { useOpenState } from '@/lib/motion'
+import { useOpenState, usePresence } from '@/lib/motion'
 
 /**
  * Print this page.
@@ -2846,9 +2846,12 @@ export function Dialog({
     }
   }, [open])
 
-  if (!open || typeof document === 'undefined') return null
+  /* Stays mounted through its exit when closed with open={false}. */
+  const [present, closing] = usePresence(open)
+  if (!present || typeof document === 'undefined') return null
   return createPortal(
     <div
+      data-closing={closing || undefined}
       className={cn('scrim fixed inset-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6', raised ? 'z-[110]' : 'z-[70]')}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >

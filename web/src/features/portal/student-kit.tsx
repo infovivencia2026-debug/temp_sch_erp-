@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw } from 'lucide-react'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { cn } from '@/lib/utils'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
 import { openLauncher } from '@/features/bento/launcher-open'
 import './student.css'
 
@@ -258,6 +259,8 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promis
     in the sidebar layout More opens the drawer (`onMore`); in the Bento
     layout it opens the launcher, and the board's own dock bar is hidden so
     there is one bar, not two. */
+const pickTabPill = (list: HTMLElement) => list.querySelector<HTMLElement>('[data-tab-pill]')
+
 export function StudentTabBar({ onMore }: { onMore?: () => void }) {
   const loc = useLocation()
   const tabs = [
@@ -275,17 +278,21 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
     document.head.appendChild(style)
     return () => { root.style.removeProperty('--dock-reserve'); delete root.dataset.studentTabs; style.remove() }
   }, [])
+  const barRef = useRef<HTMLDivElement>(null)
   const item = 'flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[12px] font-medium transition-colors active:scale-95'
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-[var(--color-card,white)]/95 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1 backdrop-blur md:hidden">
-      <div className="mx-auto flex max-w-md items-stretch gap-1">
+      <div ref={barRef} className="relative mx-auto flex max-w-md items-stretch gap-1">
+        {/* The tint behind the current tab's icon slides between tabs. */}
+        <SlidingIndicator listRef={barRef} active={loc.pathname} pick={pickTabPill}
+          className="rounded-full bg-[color-mix(in_oklab,var(--color-primary,#4f46e5)_12%,transparent)]" />
         {tabs.map((t) => {
           const on = loc.pathname === t.to || loc.pathname.startsWith(t.to + '/')
           const Icon = t.icon
           return (
             <Link key={t.label} to={t.to} aria-current={on ? 'page' : undefined}
               className={cn(item, on ? 'text-primary' : 'text-muted-foreground')}>
-              <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[color-mix(in_oklab,var(--color-primary,#4f46e5)_12%,transparent)]')}>
+              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[color-mix(in_oklab,var(--color-primary,#4f46e5)_12%,transparent)]')}>
                 <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2 : 1.6} />
               </span>
               {t.label}
@@ -390,8 +397,10 @@ export function Tile({ icon: Icon, hue, value, label, i = 0 }: { icon: typeof Ho
 
 /** Two or three choices as one pill row with 44px targets. */
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+  const listRef = useRef<HTMLDivElement>(null)
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 rounded-2xl bg-muted/70 p-1">
+    <div role="tablist" aria-label={label} ref={listRef} className="relative flex gap-1 rounded-2xl bg-muted/70 p-1">
+      <SlidingIndicator listRef={listRef} active={value} className="rounded-xl bg-[var(--color-card,white)] shadow-sm" />
       {options.map((o) => (
         <button key={o.value} type="button" role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
           className={cn('min-h-[44px] flex-1 rounded-xl px-3 text-[14px] font-medium transition-colors', value === o.value ? 'bg-[var(--color-card,white)] text-foreground shadow-sm' : 'text-muted-foreground')}>
