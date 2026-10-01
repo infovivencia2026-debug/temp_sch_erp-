@@ -78,3 +78,20 @@ gallery (`?elements=1`) is the living checklist: add every new variant to it.
   and no failed requests; a route when its tests cover the refusals too.
   Reports say which items were verified in a browser and which were only
   type-checked.
+
+## Several sessions at once
+
+The owner runs more than one Claude session on this repo. So that everything
+asked for arrives together:
+
+- **`docs/owner-requests.md` is the one list** of what the owner asked and its
+  status. When the owner asks you for something, add or update its line in the
+  same commit as the work. If your request changes something on that list that
+  another session built, mark it under "Clash" instead of silently replacing it.
+- **Work in your own folder** (`git worktree add ../erp-<name>`), never two
+  sessions in one checkout.
+- **Order:** merge `origin/main` -> checks -> push -> deploy what is on `main`.
+  The test site must always equal `main`.
+- **One integrating session** merges, verifies each item on the test site and
+  deploys. Other sessions push to `main` and leave deploys to it unless the
+  owner says otherwise.
