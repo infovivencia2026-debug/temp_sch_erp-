@@ -11,6 +11,7 @@ import {
   type SettingsTab,
 } from './AppearanceDialog'
 import { Rows, NavRow } from './SettingsRows'
+import { HapticsRows } from './HapticsRow'
 import { SettingsGroups } from './SettingsGroups'
 
 /* SETTINGS AS A PLACE, WHICH ON A PHONE IS WHAT IT ALWAYS LOOKED LIKE.
@@ -300,6 +301,7 @@ export default function SettingsPage() {
                 {found?.label ?? items[0]?.label}
               </h2>
               <SettingsPane tab={tab} onClose={done} />
+              {tab === 'appearance' && <HapticsRows />}
             </div>
           </div>
         ) : (
@@ -330,6 +332,10 @@ export default function SettingsPage() {
           ) : (
             <div className="pt-[4px] pb-[calc(24px+env(safe-area-inset-bottom))]">
               <SettingsPane tab={tab} onClose={done} />
+              {/* Haptics: a phone preference, so it lives on the route a phone
+                  uses. The desktop dialog's appearance tab takes the bare
+                  <HapticsRow /> inside its own <Rows>. */}
+              {tab === 'appearance' && <HapticsRows />}
             </div>
           )
         )}

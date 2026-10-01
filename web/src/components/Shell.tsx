@@ -39,6 +39,7 @@ const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { buzz } from '@/lib/haptics'
 /* The layout switch and its routing seam. Both are new files; nothing the
    classic layout renders is changed by their presence, and with the switch
    left on 'classic' BentoOutlet renders its children unchanged.
@@ -773,6 +774,7 @@ export function Shell({
               </Link>
               <a
                 href="/logout"
+                onClick={() => buzz('warn')}
                 aria-label="Sign out"
                 title="Sign out"
                 className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
@@ -1191,6 +1193,7 @@ export function Shell({
             </Link>
             <a
               href="/logout"
+              onClick={() => buzz('warn')}
               aria-label="Sign out"
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >

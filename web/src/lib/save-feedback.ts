@@ -1,4 +1,5 @@
 import { lastConfirmationAt, toastBus } from '@/components/Toast'
+import { buzz } from '@/lib/haptics'
 
 /* EVERY SAVE SAYS "SAVED".
 
@@ -70,5 +71,9 @@ export function noteWrite(method: string, path: string) {
   window.setTimeout(() => {
     if (lastConfirmationAt() >= doneAt) return
     toastBus()?.ok(WORD[m] ?? 'Saved')
+    /* The one tick the phone gives a submit, with the tile and never
+       without it. A deletion the server took gets the two-pulse warn: it is
+       news that something is gone, and it must not read as "Saved". */
+    buzz(m === 'DELETE' ? 'warn' : 'tap')
   }, 250)
 }

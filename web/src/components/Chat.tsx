@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { shrinkImage } from '@/lib/shrink-image'
+import { buzz } from '@/lib/haptics'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { Loading } from '@/components/ui'
 import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
@@ -486,11 +487,10 @@ export function ChatThread({
   const confirmHold = useCallback((m: ChatMessage, el: HTMLElement) => {
     heldJust.current = true
     setActing({ m, rect: el.getBoundingClientRect() })
-    try {
-      navigator.vibrate?.(12)
-    } catch {
-      /* iOS has no vibrate; the pop below is what it gets. */
-    }
+    /* Through lib/haptics, so the Haptics switch and reduced motion are
+       honoured here like everywhere else. iOS has no vibrate; the pop below
+       is what it gets. */
+    buzz('select')
     popSound()
   }, [])
 

@@ -56,6 +56,9 @@ export type PhoneIcons = '4' | '3'
 export type Clock = '12h' | '24h'
 /** How strongly cards glow in their colour: off, subtle (default), strong. */
 export type Glow = 'off' | 'faint' | 'subtle' | 'medium' | 'strong'
+/** Whether the phone answers a decision with a pulse (lib/haptics). On by
+    default; a person who finds any of it unwelcome switches the lot off. */
+export type Haptics = 'on' | 'off'
 
 export const DENSITIES: readonly Density[] = ['hairline', 'compact', 'comfortable', 'relaxed', 'spacious'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -79,6 +82,7 @@ export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as 
 export const PHONE_ICONS: readonly PhoneIcons[] = ['4', '3'] as const
 export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
 export const GLOWS: readonly Glow[] = ['off', 'faint', 'subtle', 'medium', 'strong'] as const
+export const HAPTICS: readonly Haptics[] = ['on', 'off'] as const
 
 /* The continuous axes.
 
@@ -157,6 +161,7 @@ export interface Appearance {
   hiddenDockItems: string
   clock: Clock
   glow: Glow
+  haptics: Haptics
   scales: Scales
 }
 
@@ -174,6 +179,7 @@ const DEFAULTS: Appearance = {
   phoneIcons: '4',
   clock: '12h',
   glow: 'subtle',
+  haptics: 'on',
   scales: SCALE_DEFAULTS,
   hiddenDockItems: '',
 }
@@ -193,6 +199,7 @@ const KEYS = {
   phoneIcons: 'erp.phoneIcons',
   hiddenDockItems: 'erp.hiddenDockItems',
   clock: 'erp.clock',
+  haptics: 'erp.haptics',
 } as const
 
 function readRaw(key: string): string | undefined {
@@ -279,6 +286,7 @@ function read(): Appearance {
     phoneIcons: one(KEYS.phoneIcons, PHONE_ICONS, DEFAULTS.phoneIcons),
     clock: one(KEYS.clock, CLOCKS, DEFAULTS.clock),
     glow: one(KEYS.glow, GLOWS, DEFAULTS.glow),
+    haptics: one(KEYS.haptics, HAPTICS, DEFAULTS.haptics),
     hiddenDockItems: readRaw(KEYS.hiddenDockItems) ?? '',
     scales: readScales(),
   }
@@ -381,7 +389,7 @@ export function applyAppearance(next: Appearance) {
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
                      'contrast', 'dockSize', 'iconSize', 'phoneIcons', 'hiddenDockItems',
-                     'clock', 'glow'] as const) {
+                     'clock', 'glow', 'haptics'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
     /* The continuous scales, under the same keys readScales() looks for.
@@ -396,6 +404,12 @@ export function applyAppearance(next: Appearance) {
   }
   current = next
   for (const l of listeners) l()
+}
+
+/** The current preferences, for code that cannot call a hook: lib/haptics
+    reads the Haptics switch from here on every pulse. */
+export function getAppearance(): Appearance {
+  return current
 }
 
 export function useAppearance() {

@@ -385,7 +385,6 @@ export function BentoLauncher({
   const onPin = useCallback(
     (r: Row) => {
       const now = togglePin(r.key)
-      buzz('select')
       setNote(t(now ? 'bento.launcher.pinned_note' : 'bento.launcher.unpinned_note', { name: r.name }))
       setMenuFor(null)
     },
@@ -404,7 +403,6 @@ export function BentoLauncher({
   const onDashboard = useCallback(
     (r: Row) => {
       const now = toggleDashboard(r.key)
-      buzz('select')
       setNote(
         now
           ? `${r.name} is on your home`

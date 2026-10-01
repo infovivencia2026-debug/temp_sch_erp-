@@ -2518,6 +2518,8 @@ export const en = {
   'bento.settings.reset': 'Reset appearance',
   'bento.settings.text.large': 'Large',
   'bento.settings.text.larger': 'Larger',
+  'bento.settings.haptics': 'Haptics',
+  'bento.settings.haptics_helper': 'A short pulse when a hold is confirmed, a card is dropped or a save goes through',
   'bento.settings.language': 'Language',
   'bento.settings.tab.colour': 'Colour',
   'bento.settings.tab.dock': 'Dock',

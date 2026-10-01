@@ -500,7 +500,8 @@ function flipPage(board: HTMLElement, dir: 1 | -1, still: boolean) {
   const next = pages[at + dir]
   if (!next) return
   next.scrollIntoView({ behavior: still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
-  buzz('snap')
+  /* No pulse here: the page observer below answers once when the page lands,
+     and this used to make that landing buzz twice. */
 }
 
 export function WidgetLayer({
@@ -855,7 +856,7 @@ export function WidgetLayer({
       from = { x: e.clientX, y: e.clientY }
       timer = window.setTimeout(() => {
         from = null
-        buzz('open')
+        buzz('select')
         swallowNextClick()
         setArranging(true)
       }, HOLD)
@@ -1003,7 +1004,6 @@ export function WidgetLayer({
     } else {
       add(id, d.w, d.h, visible)
     }
-    buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
     if (off.length + metricItems.length + featureItems.length <= 1) setGallery(false)
@@ -1722,7 +1722,6 @@ function ArrangedWidget({
       if (over?.id !== f.over?.id || over?.after !== f.over?.after) {
         f.over = over
         mark(f, over)
-        if (phone && over) buzz('tap')
       }
     })
   }
@@ -1890,7 +1889,6 @@ function ArrangedWidget({
       if (e.altKey || e.metaKey) {
         move(id, to, layer.visible)
         layer.say(t('bento.widgets.moved_to', { label, n: to + 1, total: layer.visible.length }))
-        buzz('tap')
         return
       }
       cardEl(layer.visible[to].id)?.querySelector<HTMLElement>(control)?.focus()
@@ -1901,7 +1899,6 @@ function ArrangedWidget({
       remove(id)
       layer.say(t('bento.widgets.removed_card', { label }))
       layer.focusUndo()
-      buzz('tap')
     }
   }
 
@@ -1980,17 +1977,11 @@ function ArrangedWidget({
               ? {
                   value: periodOf(layout, id),
                   options: PERIODS.map((p) => ({ value: p, label: t(periodLabelKey(p) as never) })),
-                  onChange: (v) => {
-                    setPeriod(id, v as Period, cw, ch)
-                    buzz('tap')
-                  },
+                  onChange: (v) => setPeriod(id, v as Period, cw, ch),
                 }
               : undefined
           }
-          onHide={() => {
-            remove(id)
-            buzz('tap')
-          }}
+          onHide={() => remove(id)}
           colour={
             <ColourPick
               value={tint}
@@ -2029,7 +2020,6 @@ function ArrangedWidget({
               remove(id)
               layer?.say(t('bento.widgets.removed_card', { label }))
               layer?.focusAfterRemove(next?.id ?? null)
-              buzz('tap')
             }}
             aria-label={t('bento.widgets.remove_card', { label })}
             title={t('bento.widgets.remove')}

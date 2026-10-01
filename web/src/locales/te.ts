@@ -908,6 +908,8 @@ export const te: Partial<Messages> = {
   'bento.parent_week.absent_sr': 'గుర్తించిన {total} రోజుల్లో {name} {present} రోజులు హాజరు',
   'bento.parent_week.present_label': 'హాజరైన రోజులు',
   'bento.parent_week.present_note': '{name} పాఠశాలకు వచ్చిన రోజులు',
+  'bento.settings.haptics': 'హాప్టిక్స్',
+  'bento.settings.haptics_helper': 'హోల్డ్ నిర్ధారణ, కార్డ్ డ్రాప్ లేదా సేవ్ అయినప్పుడు చిన్న కంపనం',
   'bento.settings.language': 'భాష',
   'bento.settings.tab.colour': 'రంగు',
   'bento.settings.tab.dock': 'డాక్',

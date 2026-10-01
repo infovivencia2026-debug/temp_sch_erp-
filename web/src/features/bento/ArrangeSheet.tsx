@@ -87,13 +87,15 @@ export function ArrangeSheet({
       /* Every crossing writes, so the board follows the finger — and every
          crossing is the same gesture, so Undo takes the drag back whole. */
       move(drag.id, to, drag.list, true)
-      buzz('tap')
     }
     setDrag({ ...drag, dy, to })
   }
   const onHandleUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!drag) return
     try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* already released */ }
+    /* One answer when the row lands somewhere new; the crossings on the way
+       are drawn, not felt. */
+    if (drag.to !== drag.from) buzz('snap')
     setDrag(null)
   }
 
