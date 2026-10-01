@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
-  CornerDownLeft, House, Pin, PinOff, Ellipsis, X,
+  CornerDownLeft, House, Pin, PinOff, Ellipsis, X, Sparkles, History,
   Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard, LayoutGrid,
   FileCheck2, FileText, FolderTree, Handshake, KeyRound, Landmark,
   LibraryBig, LifeBuoy, ListChecks, Presentation, Server,
@@ -28,6 +28,10 @@ import { usePhone } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
+import {
+  buildIndex, rank, readRecentSearches, recordRecentSearch, type SearchHit,
+} from '@/lib/search/feature-search'
+import { askAssistant } from '@/components/assistant/agent'
 import './launcher.css'
 
 /* The open and the close: a short rise and a fade, in and out. 200ms is the
@@ -221,6 +225,21 @@ export function splitMatch(name: string, needle: string): { text: string; hit: b
   return out
 }
 
+/** The name cut around the ranker's runs, in order, so the matched letters
+    can be set a shade bolder: "s360" bolds the S and the 360 of Student 360. */
+export function splitRuns(name: string, runs?: [number, number][]): { text: string; hit: boolean }[] {
+  if (!runs?.length) return [{ text: name, hit: false }]
+  const out: { text: string; hit: boolean }[] = []
+  let at = 0
+  for (const [a, b] of runs) {
+    if (a > at) out.push({ text: name.slice(at, a), hit: false })
+    if (b > a) out.push({ text: name.slice(a, b), hit: true })
+    at = Math.max(at, b)
+  }
+  if (at < name.length) out.push({ text: name.slice(at), hit: false })
+  return out
+}
+
 interface Row {
   key: string
   name: string
@@ -228,29 +247,25 @@ interface Row {
   sectionSlug: string
   slug: string
   workspace: string
+  summary: string
 }
 
-/* Ranked, not merely filtered.
+/* RANKED, NOT MERELY FILTERED -- and not merely by substring.
 
-   A substring match puts "Fee Regulatory Committee Filing" above "Fees"
-   whenever the alphabet says so, which is the behaviour that teaches people
-   the search is not worth using. Rank by how the match sits in the string:
-   the whole name, then its start, then the start of any word in it, then
-   anywhere. The section name is searched too but always ranks below the
-   feature's own, so typing a section name gathers its contents without
-   burying an exactly-named feature somewhere else. */
-function score(row: Row, needle: string): number {
-  if (!needle) return 0
-  const name = row.name.toLowerCase()
-  const section = row.section.toLowerCase()
-  if (name === needle) return 100
-  if (name.startsWith(needle)) return 80
-  if (name.split(/[\s&/(),-]+/).some((w) => w.startsWith(needle))) return 60
-  if (name.includes(needle)) return 40
-  if (section.startsWith(needle)) return 20
-  if (section.includes(needle)) return 10
-  return -1
-}
+   The ranking lives in lib/search/feature-search.ts and is unit-tested
+   there: exact > prefix > alias > word-start > phrase > initials > anywhere
+   > section > fuzzy thread > one-edit typo > description, with recents and
+   pins lifting a tie. "s360" finds Student 360, "fee def" finds Fee
+   defaulters, "attnd" finds Attendance and "bus" finds Transport. This file
+   only decides how many to draw and how. */
+
+/** How many results are drawn. Twelve is three rows on a phone and under two
+    at a desk: a list you can read, not a second catalogue. The count still
+    says how many matched. */
+const RESULT_LIMIT = 12
+
+/** What the empty state offers to try: words every school has a screen for. */
+const SUGGESTIONS = ['attendance', 'fees', 'timetable']
 
 /* One place on the surface where a feature is drawn. A feature can be drawn
    up to three times — pinned, recent, and under its workspace — and the
@@ -261,6 +276,10 @@ interface Slot {
   /** Say where it belongs under the name (recents and results, which are
       drawn from everywhere at once). */
   context: boolean
+  /** Which characters of the name the search matched, as [start, end). */
+  runs?: [number, number][]
+  /** Position in the staggered pop-in, for the first dozen results. */
+  pop?: number
 }
 
 export function BentoLauncher({
@@ -305,6 +324,7 @@ export function BentoLauncher({
           key: f.key, name: f.name, slug: f.slug,
           section: s.name, sectionSlug: s.slug,
           workspace: s.workspace || 'Other',
+          summary: f.summary ?? '',
         })
       }
     }
@@ -315,14 +335,16 @@ export function BentoLauncher({
 
   const needle = q.trim().toLowerCase()
 
-  const results = useMemo(() => {
-    if (!needle) return []
-    return rows
-      .map((r) => ({ r, s: score(r, needle) }))
-      .filter((x) => x.s >= 0)
-      .sort((a, b) => b.s - a.s || a.r.name.localeCompare(b.r.name))
-      .map((x) => x.r)
-  }, [rows, needle])
+  /* Indexed once per role (everything lowercased at index time), ranked on
+     every keystroke with no debounce: a few hundred string comparisons is
+     well under a frame, and a search that answers a keystroke late feels
+     broken in a way no animation can hide. */
+  const index = useMemo(() => buildIndex(rows), [rows])
+  const hits = useMemo<SearchHit<Row>[]>(
+    () => (needle ? rank(index, needle, { recent: recentKeys, pinned: pinKeys }) : []),
+    [index, needle, recentKeys, pinKeys],
+  )
+  const results = useMemo(() => hits.slice(0, RESULT_LIMIT).map((h) => h.doc), [hits])
 
   /* Both filtered through the catalogue, so a feature this account has since
      lost access to simply disappears rather than 404ing on tap. */
@@ -359,13 +381,41 @@ export function BentoLauncher({
   /* What the keyboard walks, in the order it is drawn: the results while
      searching, otherwise pinned, then recent, then every workspace. */
   const slots = useMemo<Slot[]>(() => {
-    if (needle) return results.map((r) => ({ id: `q:${r.key}`, r, context: true }))
+    if (needle) {
+      /* No "where it belongs" under a result: the group heading above it
+         has just said so, and the line it took is the name's second line. */
+      return hits.slice(0, RESULT_LIMIT).map((h, i) => ({ id: `q:${h.doc.key}`, r: h.doc, context: false, runs: h.runs, pop: i }))
+    }
     return [
       ...pinned.map((r) => ({ id: `pin:${r.key}`, r, context: false })),
       ...recents.map((r) => ({ id: `recent:${r.key}`, r, context: true })),
       ...groups.flatMap((g) => g.rows.map((r) => ({ id: `all:${r.key}`, r, context: false }))),
     ]
-  }, [needle, results, pinned, recents, groups])
+  }, [needle, hits, pinned, recents, groups])
+
+  /* RESULTS, GROUPED BY WORKSPACE, BEST FIRST.
+
+     The groups are in the order their best member ranked, and the members
+     keep their rank inside the group, so slot 0 -- the one Enter opens -- is
+     the first tile of the first group. On a phone the groups are drawn
+     bottom-up: the best group sits right above the search pill, within a
+     thumb's reach of the keyboard, and the rest stack away from it. */
+  const resultGroups = useMemo(() => {
+    const out: { name: string; slots: Slot[] }[] = []
+    if (!needle) return out
+    for (const s of slots) {
+      let g = out.find((x) => x.name === s.r.workspace)
+      if (!g) { g = { name: s.r.workspace, slots: [] }; out.push(g) }
+      g.slots.push(s)
+    }
+    return out
+  }, [needle, slots])
+
+  /* The last five searches, kept in this browser, offered while the field is
+     focused and empty: the search somebody made yesterday is the search they
+     are about to make again. */
+  const [focused, setFocused] = useState(false)
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches())
 
   /* The way home, from the panel that lists everywhere else. It resolves to
      the role's first opening feature, exactly as the dock's Home does — the
@@ -376,11 +426,22 @@ export function BentoLauncher({
   const go = useCallback(
     (r: Row) => {
       if (!role) return
+      if (needle) setRecentSearches(recordRecentSearch(q))
       navigate(featurePath(role.key, r.sectionSlug, r.slug))
       onClose()
     },
-    [navigate, onClose, role],
+    [navigate, onClose, role, needle, q],
   )
+
+  /* The question goes to the assistant as typed (AssistantTab listens for
+     the event), and the sheet gets out of its way. */
+  const ask = useCallback(() => {
+    const s = q.trim()
+    if (!s) return
+    setRecentSearches(recordRecentSearch(s))
+    askAssistant(s)
+    onClose()
+  }, [q, onClose])
 
   const onPin = useCallback(
     (r: Row) => {
@@ -508,14 +569,23 @@ export function BentoLauncher({
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        /* One step back at a time: the menu, then the query, then the sheet.
+           A query somebody typed is work; the first Escape must not throw
+           the whole sheet away with it. */
         if (menuFor) setMenuFor(null)
+        else if (q) { e.preventDefault(); setQ('') }
         else close()
         return
       }
       const target = e.target as HTMLElement | null
       /* The "…" and its menu are ordinary buttons; Enter there is theirs. */
       if (target?.closest?.('.lch-more, .lch-menu')) return
-      if (!slots.length) return
+      if (!slots.length) {
+        /* Nothing matched: Enter hands the words to the assistant, which is
+           the row the empty state offers. */
+        if (e.key === 'Enter' && needle) { e.preventDefault(); ask() }
+        return
+      }
       const inInput = target === inputRef.current
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         /* In a field with text in it, left and right belong to the caret. */
@@ -534,7 +604,16 @@ export function BentoLauncher({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, slots, cursor, go, close, menuFor, q.length, stepVertical])
+  }, [open, slots, cursor, go, close, menuFor, q, needle, ask, stepVertical])
+
+  /* ON A PHONE THE RESULTS SIT ON THE KEYBOARD. The sheet is scrolled to its
+     foot whenever the results change, so the best group is right above the
+     pill and the thumb never has to travel up the glass to reach it. */
+  useEffect(() => {
+    if (!phone || !needle) return
+    const el = sheetRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [phone, needle, results.length])
 
   // Keep the cursor in view when it walks past the fold.
   useEffect(() => {
@@ -663,7 +742,7 @@ export function BentoLauncher({
      note on Tile for why it must not simply close over these. */
   const tileProps = {
     roleKey: role.key, pathname, cursor, setCursor, go, onPin, onDashboard, dashKeys,
-    needle, menuFor, setMenuFor,
+    menuFor, setMenuFor,
   }
 
   /* The two header controls. Both are mixed from `--ink-here`, which is by
@@ -722,7 +801,12 @@ export function BentoLauncher({
           paddingTop: 'env(safe-area-inset-top, 0px)',
         } as CSSProperties
       }
-      onClick={() => close()}
+      onClick={() => {
+        /* A tap outside with a query typed puts the keyboard away and keeps
+           the query; only an empty sheet closes on a tap through. */
+        if (q) { inputRef.current?.blur(); return }
+        close()
+      }}
     >
       <div
         className="lch-body"
@@ -757,21 +841,62 @@ export function BentoLauncher({
           </div>
         </div>
 
-        <div ref={listRef}>
+        <div ref={listRef} className={cn(needle && phone && 'lch-list--up')}>
           {needle ? (
             results.length ? (
-              <section className="lch-section" data-band="results">
-                <Label icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
-                {draw(slots)}
-                <p className="mt-6 flex items-center gap-1.5 text-[11.5px] opacity-80">
-                  <CornerDownLeft className="size-3" aria-hidden="true" />
-                  {t('bento.launcher.grid_hint')}
-                </p>
+              /* Keyed by the query so every keystroke pops the new answer in
+                 afresh: each tile rises from 96% and fades in, 20ms after the
+                 one before it, best first. Transform and opacity only, and
+                 nothing at all under reduced motion (launcher.css). */
+              <section
+                key={needle}
+                className={cn('lch-section lch-results', !still && 'lch-pop')}
+                data-band="results"
+                aria-live="polite"
+              >
+                <Label
+                  icon={Search}
+                  label={
+                    hits.length > results.length
+                      ? `${results.length} of ${hits.length} ${t('bento.launcher.results', { count: '' }).trim()}`
+                      : t('bento.launcher.results', { count: String(hits.length) })
+                  }
+                />
+                {(phone ? [...resultGroups].reverse() : resultGroups).map((g) => (
+                  <div key={g.name} className="lch-rgroup" data-workspace={g.name}>
+                    <p className="lch-rgroup__name" style={{ '--t': `var(--dom-${hueFor(g.name)}, currentColor)` } as CSSProperties}>
+                      <span className="lch-dot" aria-hidden="true" />
+                      {g.name}
+                    </p>
+                    {draw(g.slots)}
+                  </div>
+                ))}
+                {!phone && (
+                  <p className="mt-4 flex items-center gap-1.5 text-[11.5px] opacity-80">
+                    <CornerDownLeft className="size-3" aria-hidden="true" />
+                    {t('bento.launcher.grid_hint')}
+                  </p>
+                )}
               </section>
             ) : (
-              <p className="py-10 text-center text-[13.5px] opacity-80">
-                {t('bento.launcher.empty', { q: q.trim() })}
-              </p>
+              <section key={needle} className={cn('lch-section lch-empty', !still && 'lch-pop')} data-band="empty">
+                <p className="lch-empty__title">{t('bento.launcher.empty', { q: q.trim() })}</p>
+                <p className="lch-empty__try">
+                  <span>Try:</span>
+                  {SUGGESTIONS.map((w) => (
+                    <button key={w} type="button" className="lch-chip" onClick={() => { setQ(w); inputRef.current?.focus() }}>
+                      {w}
+                    </button>
+                  ))}
+                </p>
+                {/* The words typed were a question the catalogue cannot
+                    answer; the assistant can. Enter does the same. */}
+                <button type="button" className="lch-ask" data-cursor="true" onClick={ask}>
+                  <Sparkles aria-hidden="true" />
+                  <span className="min-w-0 truncate">Ask the assistant: “{q.trim()}”</span>
+                  <CornerDownLeft className="lch-ask__key" aria-hidden="true" />
+                </button>
+              </section>
             )
           ) : (
             <>
@@ -806,21 +931,56 @@ export function BentoLauncher({
             results scroll above it, lifted over the safe area and over the
             on-screen keyboard (--lch-kb, from visualViewport). */}
         <div className="lch-searchbar">
+          {/* Recent searches, while the field is focused and empty: a row of
+              chips just above the pill, newest first. mousedown is swallowed
+              so the chip's click lands before the field loses focus. */}
+          {focused && !q && recentSearches.length > 0 && (
+            <div className={cn('lch-recentq', !still && 'lch-pop')} onMouseDown={(e) => e.preventDefault()}>
+              {recentSearches.map((sq, i) => (
+                <button
+                  key={sq}
+                  type="button"
+                  className="lch-chip"
+                  style={{ '--i': i } as CSSProperties}
+                  onClick={() => { setQ(sq); inputRef.current?.focus() }}
+                >
+                  <History aria-hidden="true" />
+                  {sq}
+                </button>
+              ))}
+            </div>
+          )}
           {/* The glyph sits ON the field, not on the page, so it takes the
-              card's ink rather than the page's. It is a real button: empty, it
-              drops the cursor in the field; with text, it clears the filter in
-              one tap — a fat target on a phone. */}
+              card's ink rather than the page's. It is a real button that
+              drops the cursor in the field. */}
           <button
             type="button"
-            onClick={() => { if (q) setQ(''); inputRef.current?.focus() }}
-            aria-label={q ? t('bento.launcher.clear') : t('bento.launcher.filter', { count: String(rows.length) })}
-            className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center
+            tabIndex={-1}
+            onClick={() => inputRef.current?.focus()}
+            aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
+            className="absolute bottom-2 left-2 flex h-8 w-8 items-center
                        justify-center rounded-full text-[var(--ink-here)] transition-colors
                        hover:bg-[color-mix(in_srgb,var(--ink-here)_10%,transparent)]
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
           >
-            {q ? <X className="size-4" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
+            <Search className="size-4" aria-hidden="true" />
           </button>
+          {/* The clear, inside the pill on the right: one fat tap empties the
+              field and keeps the keyboard up for the next word. */}
+          {q && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setQ(''); inputRef.current?.focus() }}
+              aria-label={t('bento.launcher.clear')}
+              className="lch-clear absolute bottom-2 right-2 flex h-8 w-8 items-center
+                         justify-center rounded-full text-[var(--ink-here)] transition-colors
+                         hover:bg-[color-mix(in_srgb,var(--ink-here)_10%,transparent)]
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
           {/* The field is a card, so its words are the card's ink. Its edge
               is mixed from the ink rather than taken from `--bento-line`,
               which at 1.13:1 against the page left the one text input on the
@@ -829,6 +989,8 @@ export function BentoLauncher({
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             type="search"
             autoComplete="off"
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
@@ -868,7 +1030,7 @@ const HOLD_SLOP = 10
 
 function Tile({
   slot, index, pinned, roleKey, pathname, cursor, setCursor, go, onPin, onDashboard, dashKeys,
-  needle, menuFor, setMenuFor,
+  menuFor, setMenuFor,
 }: {
   slot: Slot
   index: number
@@ -881,7 +1043,6 @@ function Tile({
   onPin: (r: Row) => void
   onDashboard: (r: Row) => void
   dashKeys: string[]
-  needle: string
   menuFor: string | null
   setMenuFor: (id: string | null) => void
 }) {
@@ -953,10 +1114,14 @@ function Tile({
     if (menuOpen) menuRef.current?.focus()
   }, [menuOpen])
 
-  const pieces = splitMatch(r.name, needle)
+  const pieces = splitRuns(r.name, slot.runs)
 
   return (
-    <div className="lch-cell" data-key={r.key}>
+    <div
+      className="lch-cell"
+      data-key={r.key}
+      style={slot.pop !== undefined ? ({ '--i': slot.pop } as CSSProperties) : undefined}
+    >
       <button
         type="button"
         data-slot={index}
