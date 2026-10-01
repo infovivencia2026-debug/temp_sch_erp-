@@ -2147,6 +2147,7 @@ export const te: Partial<Messages> = {
   'bento.colour.accent_note': 'బటన్‌లు, లింక్‌లు, ఎంచుకున్న స్థితులకు, ప్రతి ఉపరితలంపైనా ఒకే రంగు.',
   'bento.colour.wheel_hint': 'రంగు ఎంచుకోవడానికి చక్రంపై క్లిక్ చేయండి',
   'bento.colour.lightness': 'కాంతి',
+  'bento.colour.wheel_done': 'అయింది',
   'bento.colour.preview': 'ప్రివ్యూ',
   'bento.colour.select_element': 'ఎలిమెంట్ ఎంచుకోండి',
   'bento.colour.pick_on_page': 'పేజీపై ఎంచుకోండి',

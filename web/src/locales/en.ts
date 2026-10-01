@@ -2445,6 +2445,7 @@ export const en = {
   'bento.colour.accent_note': 'One colour for buttons, links and selected states, across every surface.',
   'bento.colour.wheel_hint': 'Click the wheel to choose a colour',
   'bento.colour.lightness': 'Lightness',
+  'bento.colour.wheel_done': 'Done',
   'bento.colour.preview': 'Preview',
   'bento.colour.select_element': 'Select element',
   'bento.colour.picking_hint': 'Click the element to colour · Esc to cancel',
