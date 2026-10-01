@@ -20,6 +20,8 @@ export interface StatusItem {
   url: string
   /** The auth-checked ~320px thumbnail, when the poster's browser drew one. */
   thumb?: string
+  /** Where to report this post seen: signed for the person the feed was built for. Add `&last=1` on the last unseen post of a ring. */
+  seen_url?: string
 }
 
 export interface StatusRing {

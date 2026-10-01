@@ -123,12 +123,12 @@ export function parseRange(h: string | null, size: number): { offset: number; le
 }
 
 /** An R2 object from FILES_WRITE as 200 or 206, with Accept-Ranges and Content-Range. */
-export async function serveRange(c: Ctx, key: string, contentType: string): Promise<Response> {
+export async function serveRange(c: Ctx, key: string, contentType: string, cacheControl = 'private, max-age=3600'): Promise<Response> {
   const head = await c.env.FILES_WRITE.head(key)
   if (!head) throw notFound()
   const size = head.size
   const base: Record<string, string> = {
-    'content-type': contentType, 'accept-ranges': 'bytes', 'cache-control': 'private, max-age=3600',
+    'content-type': contentType, 'accept-ranges': 'bytes', 'cache-control': cacheControl,
     'x-content-type-options': 'nosniff', 'content-disposition': 'inline', etag: head.httpEtag, 'last-modified': head.uploaded.toUTCString(),
   }
   const r = parseRange(c.req.headers.get('range'), size)

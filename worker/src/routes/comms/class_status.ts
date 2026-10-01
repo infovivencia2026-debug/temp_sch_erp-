@@ -62,6 +62,68 @@ interface PostRow {
 const objectsOf = (p: { object_key: string; thumb_key?: string | null }) => [p.object_key, p.thumb_key].filter((k): k is string => !!k)
 
 // ---------------------------------------------------------------------------
+// signed addresses
+
+/* THE FEED VOUCHES FOR WHAT IT LISTS.
+
+   Every thumbnail, every photo and every "seen" used to repeat the whole
+   question of who is looking: the switch, the viewer's sections and children
+   (six reads), the post, the audience test. Measured, 11 reads on the
+   school's database for each one, on top of the sign-in's own; a strip of
+   twenty statuses was two hundred reads to draw its pictures.
+
+   The feed has already answered that question for everything it returns, so
+   it signs each address for the person it was built for: an HMAC over the
+   school, the post, the user and an expiry. The byte and "seen" routes check
+   the signature and read ONE row (the post, with the switch in the same
+   statement). A signature is for one person and one post, cannot be made
+   without the server's key, and is honoured only for a signed-in session of
+   that same person, so passing a link on gives nothing away. An address
+   with no signature goes through the full check, as before.
+
+   The expiry is rounded to a six-hour boundary so the address is the same
+   on every feed refresh inside that window: the browser's cache keeps the
+   picture instead of fetching it again each time the strip redraws. */
+const SIG_WINDOW_MS = 6 * 3_600_000
+const enc = new TextEncoder()
+let hmacKey: { pepper: string; key: Promise<CryptoKey> } | null = null
+function signingKey(c: Ctx): Promise<CryptoKey> {
+  const pepper = c.env.PASSWORD_PEPPER
+  if (hmacKey?.pepper !== pepper) {
+    hmacKey = { pepper, key: crypto.subtle.importKey('raw', enc.encode('class-status-media:' + pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']) }
+  }
+  return hmacKey.key
+}
+const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+async function signature(c: Ctx, postId: string, exp: number): Promise<string> {
+  const msg = `${c.id.institution?.id ?? ''}.${postId}.${c.id.userId}.${exp}`
+  return b64url(await crypto.subtle.sign('HMAC', await signingKey(c), enc.encode(msg)))
+}
+/** `?exp=…&sig=…` for one post, for the person asking. */
+async function signedQuery(c: Ctx, postId: string, exp: number): Promise<string> {
+  return `?exp=${exp}&sig=${await signature(c, postId, exp)}`
+}
+const sigExpiry = () => (Math.floor(Date.now() / SIG_WINDOW_MS) + 2) * SIG_WINDOW_MS
+/** True when the request carries a live signature for this post and this person. */
+async function signed(c: Ctx, postId: string): Promise<boolean> {
+  const sig = c.url.searchParams.get('sig'), exp = Number(c.url.searchParams.get('exp'))
+  if (!sig || !Number.isFinite(exp) || exp < Date.now() || !isUUID(postId)) return false
+  const want = await signature(c, postId.toLowerCase(), exp)
+  if (want.length !== sig.length) return false
+  let diff = 0
+  for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ sig.charCodeAt(i)
+  return diff === 0
+}
+/** The post for a signed request: one read, the switch in the same statement. Live and still showing, or 404. */
+async function signedPost(c: Ctx, id: string): Promise<PostRow> {
+  const p = await c.db.prepare(`SELECT p.*, COALESCE((SELECT m.enabled FROM module_settings m WHERE m.module = ?), 1) AS switched_on
+      FROM status_posts p WHERE p.id = ?`).bind(MODULE, id.toLowerCase()).first<PostRow & { switched_on: number }>()
+  if (!p || !p.switched_on) throw notFound()
+  if (p.posted_by !== c.id.userId && (p.status !== 'live' || !(p.pinned || (p.expires_at ?? '') > now()))) throw notFound()
+  return p
+}
+
+// ---------------------------------------------------------------------------
 // who is looking
 
 interface Viewer {
@@ -326,6 +388,17 @@ async function checkTargets(c: Ctx, v: Viewer, asSchool: boolean, raw: unknown):
 
 // ---------------------------------------------------------------------------
 
+/** Private to the signed-in browser, kept for twelve hours: the bytes behind a post id never change. */
+const KEEP = 'private, max-age=43200, immutable'
+
+/** The post behind a media or thumbnail request: one read on a signed address, the full check otherwise. */
+async function mediaPost(c: Ctx): Promise<PostRow> {
+  if (await signed(c, c.params.id)) return signedPost(c, c.params.id)
+  const pol = await statusPolicy(c.db)
+  if (!pol.enabled) throw notFound()
+  return seeable(c, await viewer(c), c.params.id)
+}
+
 export function registerClassStatus(r: Router): void {
   /* The rings: live posts this person may see, one ring per poster (the
      school's own first), unseen first, with the unseen count for the badge. */
@@ -348,12 +421,15 @@ export function registerClassStatus(r: Router): void {
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
         published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
+    const exp = sigExpiry()
+    const q = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp)] as const)))
     const item = (x: (typeof rows)[number]) => ({
       id: x.id, media_kind: x.media_kind as 'photo' | 'video' | 'text', content_type: x.content_type, caption: x.caption ?? undefined,
       published_at: x.published_at, expires_at: x.expires_at, pinned: !!x.pinned, seen: !!x.seen, mine: x.posted_by === v.userId,
       audience: labels.get(x.id) ?? '', duration_seconds: x.duration_seconds ?? undefined,
-      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`,
-      thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined,
+      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`,
+      thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined,
+      seen_url: `/api/v1/status/posts/${x.id}/view${q.get(x.id)}`,
     })
     const rings = new Map<string, StatusFeed['rings'][number]>()
     const gallery: StatusFeed['gallery'] = []
@@ -507,6 +583,28 @@ export function registerClassStatus(r: Router): void {
 
   /* Seen. The first time only; a poster opening their own does not count. */
   r.post('/status/posts/{id}/view', 'auth', async (c) => {
+    /* On a signed address (the feed's `seen_url`) this is the post, the
+       child, the insert, and the bell when the viewer says this was the
+       last unseen one of the ring: `last=1`. The viewer is trusted on that
+       because all it can do is mark its OWN bell entry read. */
+    if (await signed(c, c.params.id)) {
+      const p = await signedPost(c, c.params.id)
+      if (p.posted_by === c.id.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
+      const family = c.id.roles.some((r) => r === 'parent' || r === 'student')
+      const stmts = [
+        c.db.prepare(`INSERT OR IGNORE INTO status_views (post_id, user_id, student_id, viewed_at) VALUES (?1, ?2, ${family ? `(
+            SELECT e.student_id FROM enrollments e WHERE e.status = 'active'
+               AND e.student_id IN (SELECT id FROM students WHERE user_id = ?2 UNION SELECT sg.student_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE g.user_id = ?2)
+               AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ?1 AND (t.kind = 'school' OR (t.kind = 'class' AND t.target_id = e.class_id) OR (t.kind = 'section' AND t.target_id = e.section_id)))
+             LIMIT 1)` : 'NULL'}, ?3)`).bind(p.id, c.id.userId, now()),
+      ]
+      if (c.url.searchParams.get('last') === '1') {
+        stmts.push(c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
+          .bind(now(), c.id.userId, sourceOf(p)))
+      }
+      const res = await c.db.batch(stmts)
+      return ok({ id: p.id, counted: (res[0].meta.changes ?? 0) > 0 })
+    }
     await policyOn(c)
     const v = await viewer(c)
     const p = await seeable(c, v, c.params.id)
@@ -532,26 +630,22 @@ export function registerClassStatus(r: Router): void {
 
   /* The bytes, after the audience check; Range for video. */
   r.get('/status/posts/{id}/media', 'auth', async (c) => {
-    const pol = await statusPolicy(c.db)
-    if (!pol.enabled) throw notFound()
-    const v = await viewer(c)
-    const p = await seeable(c, v, c.params.id)
+    const p = await mediaPost(c)
     if (!p.object_key) throw notFound()
-    return serveRange(c, p.object_key, p.content_type)
+    // A post's bytes never change, so the browser may keep them for as long as the address lasts.
+    return serveRange(c, p.object_key, p.content_type, KEEP)
   })
 
   /* The small picture for the bell and the strip: the same audience check. */
   r.get('/status/posts/{id}/thumb', 'auth', async (c) => {
-    const pol = await statusPolicy(c.db)
-    if (!pol.enabled) throw notFound()
-    const v = await viewer(c)
-    const p = await seeable(c, v, c.params.id)
+    const p = await mediaPost(c)
     if (!p.thumb_key) throw notFound()
     const obj = await c.env.FILES_WRITE.get(p.thumb_key)
     if (!obj) throw notFound()
     return new Response(obj.body, { headers: {
       'content-type': obj.httpMetadata?.contentType ?? 'image/jpeg',
-      'cache-control': 'private, max-age=86400',
+      'cache-control': KEEP,
+      etag: obj.httpEtag,
       'x-content-type-options': 'nosniff',
     } })
   })

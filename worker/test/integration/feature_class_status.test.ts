@@ -169,7 +169,9 @@ describe('class status', () => {
     const id = (await res.json() as any).id
     const feed = await api('parent', 'GET', '/status/feed')
     const item = feed.body.rings.flatMap((r: any) => r.posts).find((x: any) => x.id === id)
-    expect(item.thumb).toBe(`/api/v1/status/posts/${id}/thumb`)
+    // The address is signed for this viewer (status_perf.test.ts); the path is the post's.
+    expect(item.thumb.split('?')[0]).toBe(`/api/v1/status/posts/${id}/thumb`)
+    expect(item.thumb).toMatch(/\?exp=\d+&sig=[\w-]+$/)
     const got = await call(`/api/v1/status/posts/${id}/thumb`, { cookie: await as('parent') })
     expect(got.status).toBe(200)
     expect(got.headers.get('content-type')).toBe('image/jpeg')
