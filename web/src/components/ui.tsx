@@ -1291,8 +1291,11 @@ export function Badge({
 }) {
   return (
     <span
+      title={typeof children === 'string' ? children : undefined}
       className={cn(
-        'inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
+        /* max-w-full + an inner truncate: a long label ellipsizes inside its
+           cell instead of pushing the row wide; the whole text is the title. */
+        'inline-flex min-w-0 max-w-full items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
         tone === 'success' && 'bg-success/10 text-success',
         tone === 'danger' && 'bg-destructive/10 text-destructive',
         tone === 'warning' && 'bg-warning/15 text-warning',
@@ -1302,7 +1305,7 @@ export function Badge({
         className,
       )}
     >
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   )
 }

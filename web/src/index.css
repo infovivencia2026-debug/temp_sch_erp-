@@ -837,6 +837,23 @@
       background: hsl(var(--surface-subtle));
     }
   }
+  /* A LONG FIRST CELL ON A PHONE ENDS IN AN ELLIPSIS. Frozen and uncapped, a
+     long name took most of the screen and was cut hard at the frame's edge.
+     Capped at 55% of the width; the text and its direct lines truncate. */
+  @media (max-width: 640px) {
+    .responsive-table tbody td:first-child:not([colspan]) {
+      max-width: 55vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .responsive-table tbody td:first-child:not([colspan]) > :where(div, p) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+  }
 
   /* A figure is not a word, wherever it appears.
 
