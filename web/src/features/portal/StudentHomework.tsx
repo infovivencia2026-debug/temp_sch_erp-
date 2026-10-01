@@ -73,7 +73,7 @@ export default function StudentHomework() {
 
   return (
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: homeworkQuery.queryKey })}>
-      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6">
+      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6 lg:max-w-none lg:px-8">
         <div className="flex min-h-[56px] items-center gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="text-[24px] font-semibold leading-tight">Homework</h1>

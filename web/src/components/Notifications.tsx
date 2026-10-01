@@ -252,7 +252,8 @@ export default function Notifications() {
         className="relative grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"
       >
-        <Bell className="h-4 w-4" />
+        {/* Bigger on a phone: the owner asked for larger top-bar buttons there. */}
+        <Bell className="h-[22px] w-[22px] md:h-4 md:w-4" />
         {unread > 0 && (
           <span
             /* 12px, the smallest size text is drawn at anywhere else: at 10 the

@@ -27,6 +27,7 @@ interface PortalSummary {
   outstanding_paise: number; next_exam?: string
   latest_result_exam?: string; latest_result_pct?: number; latest_result_grade?: string
   today: TodayPeriod[]
+  next_day?: { weekday: number; periods: TodayPeriod[] }
 }
 interface TodayPeriod {
   period: string; starts_at?: string; ends_at?: string
@@ -644,6 +645,23 @@ export default function Portal() {
                     </ul>
                   )}
                 </Card>
+                {/* The next school day, as the student's My day shows it. */}
+                {s.next_day && s.next_day.periods.some((x) => x.subject !== 'Free') && (
+                  <Card className="mt-6">
+                    <CardHeader title={`Next school day · ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}`} />
+                    <ul className="space-y-2 p-4">
+                      {s.next_day.periods.filter((x) => x.subject !== 'Free').map((c, i) => (
+                        <li key={`${c.period}-${i}`} className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
+                          <span className="w-28 shrink-0 whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-muted-foreground">
+                            {c.starts_at ?? '-'}{c.ends_at ? `–${c.ends_at}` : ''}
+                          </span>
+                          <span className="min-w-[8rem] flex-1 text-[14px] font-semibold">{c.subject}</span>
+                          <span className="text-[12.5px] text-muted-foreground">{c.period}{c.teacher ? ` · ${c.teacher}` : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
               </div>
 
               <div className="order-1 space-y-6 lg:order-2">

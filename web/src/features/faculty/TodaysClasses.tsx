@@ -141,7 +141,7 @@ export default function TodaysClasses() {
                 {focusP && <p className="mt-1 text-[15px] text-muted-foreground">{span(focusP)}</p>}
               </>
             ) : (
-              <h2 className="text-[22px] font-bold leading-tight">{mine.length ? `All ${mine.length} lessons done` : 'No lessons today'}</h2>
+              <h2 className="text-[22px] font-bold leading-tight">{mine.length ? `All ${mine.length} classes done` : 'No classes today'}</h2>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 border-t pt-4">

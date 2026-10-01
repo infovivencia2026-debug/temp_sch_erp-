@@ -17,7 +17,7 @@ export default function StudentTimetable() {
   const nowMin = now.getHours() * 60 + now.getMinutes()
   return (
     <>
-      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pt-2 md:px-6 md:pt-6">
+      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pt-2 md:px-6 md:pt-6 lg:max-w-none lg:px-8">
         <h1 className="text-[24px] font-semibold leading-tight">Timetable</h1>
         {s.data ? <NowNextCard periods={periods} /> : <Bone className="h-[76px] w-full rounded-2xl" />}
         {periods.length > 0 && (

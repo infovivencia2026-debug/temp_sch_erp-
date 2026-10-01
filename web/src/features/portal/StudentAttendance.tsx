@@ -46,13 +46,14 @@ export default function StudentAttendance() {
 
   return (
     <PullToRefresh onRefresh={() => Promise.all([qc.invalidateQueries({ queryKey: sq.queryKey }), qc.invalidateQueries({ queryKey: dq.queryKey })])}>
-      <StudentPage>
+      <StudentPage wide>
         <StudentHeader title="My attendance" sub={s.data ? `${s.data.total_days} school days so far this year` : undefined} />
 
         {s.error || d.error ? <ErrorState error={s.error ?? d.error} /> : !s.data || !d.data ? (
           <div className="space-y-3"><Bone className="h-[152px] w-full rounded-2xl" /><div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <Bone key={i} className="h-[92px] rounded-2xl" />)}</div><Bone className="h-[360px] w-full rounded-2xl" /></div>
         ) : (
-          <>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,380px)_1fr]">
+          <div className="space-y-3">
             <section className="card stu-rise flex items-center gap-4 p-4" aria-label="This year">
               <Ring pct={pct} hue={pct >= 75 ? 'emerald' : 'amber'} label={`${pct} percent attendance`}>
                 <span className="text-[28px] font-bold leading-none tabular-nums">{pct}<span className="text-[15px] font-semibold">%</span></span>
@@ -69,6 +70,14 @@ export default function StudentAttendance() {
               <Tile i={2} icon={CalendarX} hue="rose" value={s.data.absent_days} label={s.data.absent_days === 1 ? 'day missed' : 'days missed'} />
               <Tile i={3} icon={Flame} hue="amber" value={streak} label="day streak" />
             </div>
+            {leave && (
+              <Link to={leave} className="card stu-press hidden min-h-[56px] items-center gap-3 px-4 lg:flex">
+                <NotebookPen className="h-5 w-5 text-primary" strokeWidth={1.75} />
+                <span className="flex-1"><span className="block text-[15px] font-medium">Going to be away?</span><span className="block text-[13px] text-muted-foreground">Ask for leave</span></span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            )}
+          </div>
 
             <section className="card stu-rise p-4" style={{ ['--i' as string]: 4 }} aria-label="Month">
               <div className="flex items-center gap-2">
@@ -83,13 +92,13 @@ export default function StudentAttendance() {
             </section>
 
             {leave && (
-              <Link to={leave} className="card stu-press flex min-h-[56px] items-center gap-3 px-4">
+              <Link to={leave} className="card stu-press flex min-h-[56px] items-center gap-3 px-4 lg:hidden">
                 <NotebookPen className="h-5 w-5 text-primary" strokeWidth={1.75} />
                 <span className="flex-1"><span className="block text-[15px] font-medium">Going to be away?</span><span className="block text-[13px] text-muted-foreground">Ask for leave</span></span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </Link>
             )}
-          </>
+          </div>
         )}
       </StudentPage>
     </PullToRefresh>
@@ -113,7 +122,7 @@ function MonthGrid({ month, byDate }: { month: string; byDate: Map<string, Day> 
         const t = day ? toneOf(day) : null
         return (
           <span key={i} title={day ? `${t!.label}${day.label ? ` · ${day.label}` : ''}` : undefined}
-            className={cn('flex aspect-square min-h-[40px] items-center justify-center rounded-xl text-[14px] font-medium tabular-nums', t ? t.cls : 'text-muted-foreground', iso === today && 'ring-2 ring-primary ring-offset-1 ring-offset-[var(--color-card,white)]')}>
+            className={cn('flex aspect-square min-h-[40px] items-center justify-center rounded-xl lg:aspect-auto lg:h-14 text-[14px] font-medium tabular-nums', t ? t.cls : 'text-muted-foreground', iso === today && 'ring-2 ring-primary ring-offset-1 ring-offset-[var(--color-card,white)]')}>
             {n}
           </span>
         )

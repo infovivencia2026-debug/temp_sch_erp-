@@ -115,6 +115,23 @@ export function registerFiles(r: Router): void {
           .bind(f.sub_owner, ...(sc.sectionIds.length ? secs.args : []), ...(sc.studentIds.length ? kids.args : [])).first<{ ok: number }>()
         if (!okRow?.ok) throw gone
       }
+    } else if (f.purpose === 'student_photo' || f.purpose === 'staff_photo' || f.purpose === 'employee_photo') {
+      /* PORTRAITS. A child's photo is not one of the child's documents, so it
+         fell to the rule below and only office staff could open it: parents
+         and class teachers saw a blank frame. The child's family and the
+         child's teachers may see it; a staff portrait (the teacher's face in
+         a parent's messages) may be seen by anyone signed in to the school. */
+      const kid = await c.db.prepare(`SELECT id FROM students WHERE photo_file_id = ? LIMIT 1`).bind(c.params.id).first<{ id: string }>()
+      if (kid) {
+        const sc = await resolveScope(c)
+        if (!sc.allStudents && !sc.studentIds.includes(kid.id)) {
+          const q = inList(sc.sectionIds)
+          const okRow = sc.sectionIds.length
+            ? await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = ? AND e.section_id IN ${q.sql}) AS ok`).bind(kid.id, ...q.args).first<{ ok: number }>()
+            : null
+          if (!okRow?.ok && !(f.uploaded_by !== null && f.uploaded_by === c.id.userId)) throw gone
+        }
+      }
     } else if (!BROADCAST_PURPOSE.has(f.purpose)) {
       const self = f.uploaded_by !== null && f.uploaded_by === c.id.userId
       const staff = can(c.id, 'students.read.all') || can(c.id, 'hr.employees.read') || can(c.id, 'finance.fees.read') || can(c.id, 'admissions.read')

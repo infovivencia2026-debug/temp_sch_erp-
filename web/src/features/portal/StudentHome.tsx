@@ -110,23 +110,35 @@ export default function StudentHome() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pb-6 pt-2 md:px-6 md:pt-6">
+      <div className="w-full space-y-4 px-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
         <StatusRings />
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain
             header with the streak and badge chips beside it. */}
-        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/70 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
+        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary/85 to-primary/55 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
           <div>
             <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? `${greeting()}, ${first}` : 'Hello'}</h1>
             <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>
           </div>
+          <span className="flex items-center gap-2">
+          {streak.data && (
+            <>
+              <Link to={toStreak ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
+                <Flame className="h-4 w-4" /> {streak.data.open_streak}
+              </Link>
+              <Link to={toBadges ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
+                <Award className="h-4 w-4" /> {earned}
+              </Link>
+            </>
+          )}
           <span className="rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[13.5px] font-semibold backdrop-blur">
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
           </span>
+          </span>
           <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,transparent_70%)]" />
         </div>
-        <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="min-w-0 flex-1 md:hidden">
+        <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
+          <div className="min-w-0 flex-1">
             <h1 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
             <p className="text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
@@ -145,6 +157,8 @@ export default function StudentHome() {
           )}
         </div>
 
+        <div className="grid items-start gap-4 md:gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-4">
         {summary.error && !s ? <ErrorState error={summary.error} /> : s ? (s.today.length === 0 ? (
           <section className="flex items-center gap-4 rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#f0fdf4] to-card px-5 py-5 shadow-sm">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card text-[22px]">🌴</span>
@@ -220,32 +234,6 @@ export default function StudentHome() {
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
 
-        {/* THE NEXT SCHOOL DAY, from the owner's design: subject, teacher and
-            the time as a chip. */}
-        {s?.next_day && s.next_day.periods.length > 0 && (
-          <section className="card overflow-hidden p-0" aria-label="Next school day">
-            <div className="flex items-center justify-between px-4 pb-2 pt-3">
-              <h2 className="text-[15px] font-bold">
-                {s.next_day.weekday === ((new Date().getDay() + 6) % 7) + 2 || (new Date().getDay() === 0 && s.next_day.weekday === 1)
-                  ? `Tomorrow (${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]})`
-                  : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}
-              </h2>
-              {toTimetable && <Link to={toTimetable} className="text-[13px] font-semibold text-primary">Full week →</Link>}
-            </div>
-            <ul className="flex flex-col gap-2 px-3 pb-3">
-              {s.next_day.periods.filter((x) => x.subject !== 'Free').map((x, i) => (
-                <li key={i} className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold">{x.subject}</span>
-                    <span className="block truncate text-[12px] text-muted-foreground">{[x.period, x.teacher].filter(Boolean).join(' • ')}</span>
-                  </span>
-                  {x.starts_at && <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[12px] font-bold tabular-nums text-primary">{x.starts_at}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {/* Only when there is something in them. */}
         {quizzes.length > 0 && toCourses && (
           <section className="card overflow-hidden p-0">
@@ -286,6 +274,39 @@ export default function StudentHome() {
             </ul>
           </div>
         )}
+        </div>
+        <div className="space-y-4">
+        {/* THE NEXT SCHOOL DAY, from the owner's design: subject, teacher and
+            the time as a chip. */}
+        {s?.next_day && s.next_day.periods.length > 0 && (
+          <section className="card overflow-hidden p-0 md:p-2" aria-label="Next school day">
+            <div className="flex items-center justify-between px-4 pb-2 pt-3">
+              <h2 className="text-[15px] font-bold">
+                {s.next_day.weekday === ((new Date().getDay() + 6) % 7) + 2 || (new Date().getDay() === 0 && s.next_day.weekday === 1)
+                  ? `Tomorrow (${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]})`
+                  : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}
+              </h2>
+              {toTimetable && <Link to={toTimetable} className="text-[13px] font-semibold text-primary">Full week →</Link>}
+            </div>
+            <ul className="flex flex-col gap-2 px-3 pb-3">
+              {s.next_day.periods.filter((x) => x.subject !== 'Free').map((x, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold">{x.subject}</span>
+                    <span className="block truncate text-[12px] text-muted-foreground">{[x.period, x.teacher].filter(Boolean).join(' • ')}</span>
+                  </span>
+                  {x.starts_at && <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[12px] font-bold tabular-nums text-primary">{x.starts_at}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {s?.next_day && s.next_day.periods.length === 0 && (
+          <section className="card px-5 py-4 text-[14px] text-muted-foreground">Nothing is timetabled for the next school day.</section>
+        )}
+        </div>
+        </div>
       </div>
     </PullToRefresh>
   )

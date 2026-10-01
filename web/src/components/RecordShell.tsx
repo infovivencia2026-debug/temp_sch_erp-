@@ -50,7 +50,10 @@ export function RecordShell({
   backLabel = 'Back',
   /** Query-string key holding the open tab, so a tab is linkable. */
   tabParam = 'tab',
+  media,
 }: {
+  /** A picture beside the name -- the student's photo on Student 360. */
+  media?: React.ReactNode
   title: string
   subtitle?: string
   status?: string
@@ -132,6 +135,8 @@ export function RecordShell({
         )}
 
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 items-center gap-4">
+          {media}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="truncate font-display text-[26px] font-semibold tracking-[-0.02em]">
@@ -142,6 +147,7 @@ export function RecordShell({
             {subtitle && (
               <p className="mt-0.5 text-[13.5px] text-muted-foreground">{subtitle}</p>
             )}
+          </div>
           </div>
 
           {actions.length > 0 && (
