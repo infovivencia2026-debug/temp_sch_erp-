@@ -57,3 +57,24 @@ gallery (`?elements=1`) is the living checklist: add every new variant to it.
   vendor is meant.
 - **Phone first.** Check 360 and 390 wide, light and dark, before calling a
   screen done.
+
+## No filler (owner: "no AI slop", "make no errors")
+
+- **Words on screen.** Plain, specific and short, written for a school office:
+  say what the thing does and what to do next. No marketing tone, no
+  "Welcome to your dashboard!", no "seamlessly", "effortlessly", "powerful",
+  no emoji, no exclamation marks, no placeholder or lorem text, no invented
+  numbers or sample names shipped as real content. Help articles and canned
+  replies name the actual screen and button.
+- **Design.** No decoration without a job: no gradient-for-its-own-sake, stock
+  illustration, sparkle icon, generic three-card feature row or badge that
+  says nothing. Every element on a screen must be something the user reads
+  or presses.
+- **Code.** No dead buttons, stubs, TODOs, commented-out blocks, unused props
+  or copy-pasted variants. If a part is not finished, leave it out of the UI
+  and say so in the report.
+- **Verification.** A screen is done when it has been opened and used in a
+  browser at phone and desktop size, light and dark, with no console errors
+  and no failed requests; a route when its tests cover the refusals too.
+  Reports say which items were verified in a browser and which were only
+  type-checked.
