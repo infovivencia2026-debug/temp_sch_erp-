@@ -876,7 +876,7 @@ async function listParentContacts(c: Ctx) {
   if (!sectionId || (!wide && !s.sectionIds.includes(sectionId))) return ok({ items: [] })
   const rows = await c.db.prepare(`
     SELECT st.id AS student_id, st.first_name || COALESCE(' ' || st.last_name, '') AS student_name,
-           g.user_id AS parent_user_id, g.full_name AS parent_name, sg.relation
+           g.user_id AS parent_user_id, g.full_name AS parent_name, g.relation
       FROM enrollments e
       JOIN students st ON st.id = e.student_id AND st.status = 'active'
       JOIN student_guardians sg ON sg.student_id = st.id AND sg.portal_blocked = 0

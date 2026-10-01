@@ -259,15 +259,20 @@ function ApplyForLeave() {
           </Field>
         </FormGrid>
         <SentTo studentId={studentId} />
-        <div className="mt-4">
+        {/* Sent: a quiet tick beside the button, not a box under it (the
+            owner found the boxed notice ugly). Errors keep their box. */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
             {apply.isPending ? t('portal.leave_requests.sending') : t('portal.leave_requests.action_send')}
           </Button>
+          {apply.isSuccess && !ready && (
+            <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#15803d]">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-[#dcfce7] text-[12px]">✓</span>
+              Sent to the school. It is in the list below.
+            </span>
+          )}
         </div>
-        <FormNotice
-          error={apply.error}
-          ok={apply.isSuccess ? t('portal.leave_requests.sent_ok') : undefined}
-        />
+        <FormNotice error={apply.error} />
       </div>
     </Card>
   )
