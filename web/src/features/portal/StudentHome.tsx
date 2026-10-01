@@ -107,12 +107,24 @@ export default function StudentHome() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6">
-        {/* Hello, and the two small chips. */}
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pb-6 pt-2 md:px-6 md:pt-6">
+        {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
+            school's colour with the date as a pill; on a phone it is a plain
+            header with the streak and badge chips beside it. */}
+        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/70 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
+          <div>
+            <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? `${greeting()}, ${first}` : 'Hello'}</h1>
+            <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>
+          </div>
+          <span className="rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[13.5px] font-semibold backdrop-blur">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </span>
+          <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,transparent_70%)]" />
+        </div>
         <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[22px] font-semibold leading-tight">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
-            <p className="text-[13px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <div className="min-w-0 flex-1 md:hidden">
+            <h1 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
+            <p className="text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           {streak.isLoading && <div className="flex gap-2" aria-hidden><Bone className="h-11 w-[64px] rounded-full" /><Bone className="h-11 w-[64px] rounded-full" /></div>}
           {streak.data && (
@@ -129,7 +141,15 @@ export default function StudentHome() {
           )}
         </div>
 
-        {summary.error && !s ? <ErrorState error={summary.error} /> : s ? <NowNextCard periods={s.today} to={toTimetable} /> : <Bone className="h-[76px] w-full rounded-2xl" />}
+        {summary.error && !s ? <ErrorState error={summary.error} /> : s ? (s.today.length === 0 ? (
+          <section className="flex items-center gap-4 rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#f0fdf4] to-card px-5 py-5 shadow-sm">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card text-[22px]">🌴</span>
+            <span>
+              <span className="block text-[16px] font-bold text-[#065f46]">No classes today</span>
+              <span className="block text-[13px] text-[#047857]">Enjoy your day off. School is not in session.</span>
+            </span>
+          </section>
+        ) : <NowNextCard periods={s.today} to={toTimetable} />) : <Bone className="h-[76px] w-full rounded-2xl" />}
 
         {/* Continue learning. */}
         {cont ? (
