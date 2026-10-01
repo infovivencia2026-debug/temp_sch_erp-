@@ -308,33 +308,38 @@ export default function Notifications() {
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-5 py-4">
-              <div className="flex min-w-0 items-center gap-2">
-                <h2 className="text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
-                {unread > 0 && (
-                  <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                    {unread} new
-                  </span>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {unread > 0 && (
-                  <button onClick={() => readAll.mutate()}
-                    className="rounded-lg px-2.5 py-1 text-[12px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                    Mark read
-                  </button>
-                )}
-                {items.length > 0 && (
-                  <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                    className="rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-muted-foreground hover:bg-[#fef2f2] hover:text-[#ef4444] disabled:opacity-50">
-                    {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                  </button>
-                )}
+            {/* TWO ROWS, so the title never breaks: the name and the close on
+                top, the count and the two actions under it. On a narrow drawer
+                one row squeezed "Notifications" onto two lines. */}
+            <header className="shrink-0 border-b bg-card px-5 pb-3 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="whitespace-nowrap text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
                 <button onClick={dismiss} aria-label="Close notifications"
-                  className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
                   <X className="size-4" />
                 </button>
               </div>
+              {items.length > 0 && (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold text-muted-foreground">
+                    {unread > 0
+                      ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">{unread} new</span>
+                      : 'All caught up'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {unread > 0 && (
+                      <button onClick={() => readAll.mutate()}
+                        className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                        Mark read
+                      </button>
+                    )}
+                    <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
+                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[#fef2f2] hover:text-[#ef4444] disabled:opacity-50">
+                      {clearAll.isPending ? 'Clearing…' : 'Clear all'}
+                    </button>
+                  </span>
+                </div>
+              )}
             </header>
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
