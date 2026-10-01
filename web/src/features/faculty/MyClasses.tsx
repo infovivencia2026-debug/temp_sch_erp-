@@ -10,8 +10,7 @@ import {
 import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
 import { warningsApi } from '@/components/ai/smartApi'
 import { cn, formatDate } from '@/lib/utils'
-import { useNavigate } from 'react-router-dom'
-import { useFeatureHref } from '@/features/bento/bento-kit'
+import ProgressDetail from './ProgressDetail'
 
 interface ProgressOption {
   section_id: string
@@ -116,8 +115,7 @@ const CATEGORIES = [
 export default function MyClasses() {
   const [range, setRange] = useRange()
   const [selected, setSelected] = useState<Progress | null>(null)
-  const navigate = useNavigate()
-  const profileHref = useFeatureHref('faculty.my_classes.student_details')
+  const [progressOf, setProgressOf] = useState<Progress | null>(null)
   const [sectionPick, setSectionId] = useState('')
   const [subjectId, setSubjectId] = useState('')
   const [examId, setExamId] = useState('')
@@ -313,9 +311,7 @@ export default function MyClasses() {
                   <Td>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="secondary" onClick={() => setSelected(r)}>{canNote ? 'Add note' : 'Open'}</Button>
-                      {profileHref && (
-                        <Button size="sm" variant="secondary" onClick={() => navigate(`${profileHref}?student=${r.student_id}`)}>Profile</Button>
-                      )}
+                      <Button size="sm" variant="secondary" onClick={() => setProgressOf(r)}>Progress</Button>
                     </div>
                   </Td>
                 </tr>
@@ -325,6 +321,7 @@ export default function MyClasses() {
         </Card>
 
         <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
+        {progressOf && <ProgressDetail row={progressOf} onClose={() => setProgressOf(null)} />}
 
         {reviewDue.length > 0 && (
           <Card>
