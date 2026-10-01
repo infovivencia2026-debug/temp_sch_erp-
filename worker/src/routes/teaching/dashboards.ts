@@ -881,16 +881,20 @@ async function listParentContacts(c: Ctx) {
   const s = await resolveScope(c)
   const sectionId = c.url.searchParams.get('section_id') ?? ''
   const wide = s.allStudents || s.anySection || s.platformAdmin
-  if (!sectionId || (!wide && !s.sectionIds.includes(sectionId))) return ok({ items: [] })
+  /* No section: every class this person may reach, so one search finds any parent. */
+  if (sectionId && !wide && !s.sectionIds.includes(sectionId)) return ok({ items: [] })
+  const secF = sectionId ? { sql: 'e.section_id = ?', args: [sectionId] } : wide ? { sql: '1', args: [] as string[] } : inList('e.section_id', s.sectionIds)
   const rows = await c.db.prepare(`
     SELECT st.id AS student_id, st.first_name || COALESCE(' ' || st.last_name, '') AS student_name,
-           g.user_id AS parent_user_id, g.full_name AS parent_name, g.relation
+           g.user_id AS parent_user_id, g.full_name AS parent_name, g.relation,
+           (SELECT cl.name || '-' || sec.name FROM sections sec JOIN classes cl ON cl.id = sec.class_id WHERE sec.id = e.section_id) AS class_label
       FROM enrollments e
       JOIN students st ON st.id = e.student_id AND st.status = 'active'
       JOIN student_guardians sg ON sg.student_id = st.id AND sg.portal_blocked = 0
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
-     WHERE e.section_id = ? AND e.status = 'active'
-     ORDER BY st.first_name, g.full_name`).bind(sectionId).all<Record<string, unknown>>()
+     WHERE ${secF.sql} AND e.status = 'active'
+     ORDER BY st.first_name, g.full_name
+     LIMIT 2000`).bind(...secF.args).all<Record<string, unknown>>()
   return ok({ items: rows.results })
 }
 
