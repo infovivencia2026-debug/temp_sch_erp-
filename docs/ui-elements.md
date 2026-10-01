@@ -49,13 +49,13 @@ corner setting the viewer has chosen.
 | Segmented | `ui.tsx` `SEG_BAR` + `segClass` | with `SlidingIndicator` | fixed | focus ring added |
 | Student Segmented | `features/portal/student-kit.tsx` | | ok | in gallery |
 | TabStrip (workspace tabs) / ScreenTabs | `components/TabStrip.tsx`, `features/portal/ScreenTabs.tsx` | | ok | shell-level, seen on every screen shot |
-| Badge | `ui.tsx` | neutral/primary/success/warning/danger/info | ok | long text does not ellipsize (open, low) |
+| Badge | `ui.tsx` | neutral/primary/success/warning/danger/info | fixed | long text ellipsizes (max-w-full + inner truncate, full text in title); an icon child sits inline |
 | StatusPill | `components/NeedsAttention.tsx` | known + unknown status | ok | |
 | DueChip / DoneCheck / Tile | `student-kit.tsx` | | ok | fixed hue hex by design (student portal) |
 | Card / CardHeader / Panel | `ui.tsx` | | ok | |
 | Stat / CellGrid (tint grid) | `ui.tsx` | icon, delta ±, clickable, hint | ok | phone figure scales (container query) |
 | Bento CardShell / app icons | `features/bento/bento-cards.tsx`, `FeatureGlyph` | | ok | sizing owned by the bento work in progress |
-| Table / Td / table-frame / scroll-x | `ui.tsx` | rows, empty, sortable, expand | ok | phone: long first cell clips at the frame edge rather than ellipsis (open) |
+| Table / Td / table-frame / scroll-x | `ui.tsx` | rows, empty, sortable, expand | fixed | phone (<=640px): the frozen first cell caps at 55vw and ends in an ellipsis |
 | Showing / paging | `components/rows.tsx`, `ui.tsx` Table paging | | ok | |
 | EmptyState / ErrorState / UnavailableState | `ui.tsx` | | ok | |
 | Loading / skeletons | `ui.tsx` `Loading`, `components/Skeleton.tsx` | page, table, cards, form, inline; Text, Rows, Tiles, Cards, Form | ok | all in gallery |
@@ -65,7 +65,7 @@ corner setting the viewer has chosen.
 | Notification panel rows | `components/Notifications.tsx` | | ok | own drawer (z 100); not migrated |
 | StatusRings / StoryViewer | `features/comms/status/`, `components/StoryViewer.tsx` | | ok | on the dashboard; viewer is full-screen by design |
 | Avatars | `components/StudentAvatar.tsx` | 24–64, selectable | ok | in gallery |
-| Progress rings / bars / meters | `student-kit` Ring/Bar, `lms-shared` ProgressRing, `bento-kit` Meter, `bento-viz` Ring | | ok | four ring implementations: consolidation open |
+| Progress rings / bars / meters | `components/ProgressRing.tsx` (shared); `student-kit` Ring and `lms-shared` ProgressRing wrap it; `bento-viz` Ring; `bento-kit` Meter (bar) | | fixed | two rings merged, same SVG output; bento-viz Ring kept (viewBox-scaled, gradient arc, flat full circle); Meter is a bar |
 | FilePicker | `components/FilePicker.tsx` | chosen / uploading | ok | in gallery |
 | Tooltip | native `title` (Button turns it into aria-label) | | ok | no custom tooltip component |
 | Banners | `OfflineBanner`, role-hint banner, `FormNotice` | | ok | OfflineBanner only shows offline |
@@ -78,18 +78,16 @@ corner setting the viewer has chosen.
 | Pattern | Count | Notes |
 |---|---|---|
 | `fixed inset-0` overlays outside ui.tsx | 29 in 23 files | many are legitimate full-screen pages (StaffRecord, ProgressDetail, RecordBlock sheets, Homework viewer, BulkImport full table, CardViewer, FleetMap) or click-catchers |
-| Dialogs on the shared `Dialog` | 9 call sites | +4 this pass: setup Saved popup, DataPortActions Import, StudentEditDialog, SmartImport |
-| Raw `<select>` | 15 | e.g. the Students/Staff filter on the dashboard tiles; should move to PickerMenu |
-| Raw `className="field"` inputs | 20 | look right (same class) but skip Input's behaviour |
-| Hand-made pills (`rounded-full px-2 text-[10–12px]`) | 15 | candidates for Badge |
+| Dialogs on the shared `Dialog` | 11 call sites | +2 (2026-10-01): Homework viewer, WriteWithAI phone sheet |
+| Raw `<select>` | 0 app-level | moved to PickerMenu (principal dashboard tiles, seller audit/billing, SmartImport, WriteWithAI). Native by design: SettingsRows SelectRow, MetricCells pill, InstitutionSwitch |
+| Raw `className="field"` inputs | 2 (gallery demos) | moved to Input/Textarea; Input gained min/max/disabled/autoFocus/ariaInvalid, Textarea autoFocus. SmartImport's grid-cell boxes stay raw (dense table editor) |
+| Hand-made pills (`rounded-full px-2 text-[10–12px]`) | 5 | 7 moved to Badge (AbsenceFollowup, Profile, AllMessages x3, DayTimeline, NeedsAttention). Left: solid counters (TeacherMessages, Chat, StatusRings), the Now chip, TodaysClasses' eyebrow |
 | `bg-primary text-primary-foreground` outside Button | 26 | mostly selected chips/avatars, not buttons |
 | Hex colours in `features/` | 540 | mostly bento palettes, student hues and charts; not swept |
 
 ## Open
 
-- Remaining hand-made dialogs: Setup "Staff logins" full-screen panel, BulkImport's centred variant, Homework viewer, AppearanceDialog, BentoLauncher sheet, FirstRunTour, CommandSearch, WriteWithAI phone sheet. Each has its own sizing or history wiring; migrate one at a time.
-- 15 raw `<select>` and 15 hand-made pills.
-- Badge with very long text cannot ellipsize (inline-flex).
-- Four progress-ring implementations.
+- Hand-made dialogs kept on purpose (2026-10-01): BentoLauncher sheet (swipe/pull, own scroller), CommandSearch (own arrow/Enter keyboard model), FirstRunTour (spotlight cut-out), AppearanceDialog (Escape steps back a level; colour picker takes the first Escape), BulkImport and Setup "Staff logins" (windowed/full-screen toggle in place; Staff logins is 70rem). BulkImport also ignores a backdrop mouse-up that ends a text selection.
+- Dev only: under StrictMode an overlay using `useOverlayHistory` can close itself at once in headless Chromium (the teardown's `history.back()` pops the new entry). Production unverified; see `lib/overlay-history.ts`.
 - RTL: most spacing utilities are physical (`ml-`, `pl-`), not logical.
 - At 390px in a mouse browser a `size="sm"` button stays 32px beside a 44px field; real phones (coarse pointer) get the 44px floor.
