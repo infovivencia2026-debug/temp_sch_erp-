@@ -113,6 +113,14 @@ const WA_CATEGORIES: Record<string, string> = {}
 for (const k of ['attendance.absent', 'fees.overdue', 'homework.set', 'ptm.reminder', 'reportcard.published', 'payroll.payslip', 'student.remark',
   'announcement.published', 'messaging.direct', 'messaging.test', 'admissions.enquiry_link', 'admissions.portal_login', 'admissions.portal_existing',
   'admissions.portal_ready', 'admissions.applicant_ready', 'admissions.application_received', 'digest.daily']) WA_CATEGORIES[k] = 'UTILITY'
+/** A template that carries a secret (a password, a one-time code) is AUTHENTICATION to Meta,
+    whatever the code's usual category: submitted as UTILITY it is a policy breach that gets
+    the template, and in time the number, disabled. */
+const SECRET_PARAM = /^(password|temp_password|new_password|otp|code|login_code|verify_code|pin)$/
+export function waCategoryOf(code: string, params: string[]): string {
+  if (params.some((p) => SECRET_PARAM.test(p)) || /(^|[._])(otp|login_code|verify_code|password_reset)($|[._])/.test(code)) return 'AUTHENTICATION'
+  return WA_CATEGORIES[code] || 'UTILITY'
+}
 interface WaSubmission { name: string; body: string; params: string[]; examples: string[]; category: string }
 interface WaSubmitResult { code: string; name: string; status: string; category?: string; error?: string }
 
@@ -143,7 +151,7 @@ export function buildSubmission(code: string, body: string): WaSubmission {
   // Go's strings.TrimSpace trims Unicode whitespace; JS trim() is equivalent for practical input.
   if (out.trim().endsWith('}}')) out = out.trim() + '.'
   if (out.trim().startsWith('{{')) out = 'Notice: ' + out.trim()
-  return { name: code.split('.').join('_'), body: out, params: order, examples: order.map(waExample), category: WA_CATEGORIES[code] || 'UTILITY' }
+  return { name: code.split('.').join('_'), body: out, params: order, examples: order.map(waExample), category: waCategoryOf(code, order) }
 }
 
 async function createMetaTemplate(version: string, wabaID: string, token: string, lang: string, sub: WaSubmission): Promise<string> {

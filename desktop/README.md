@@ -45,7 +45,8 @@ cd desktop
 npm install
 npm start                 # run it against the compiled-in address
 PORTAL_URL=http://localhost:5173 npm start
-npm run dist              # Linux AppImage + tar.gz, Windows zip
+npm run dist              # Linux AppImage + tar.gz; Windows NSIS installer + zip (+ AppX on Windows)
+npm run dist:store        # Windows only: the AppX for the Microsoft Store
 ```
 
 The address is compiled in, and only `PORTAL_URL` overrides it — the same
@@ -57,15 +58,22 @@ deployment, change `portal` in `package.json`, or pass it at package time:
 npx electron-builder --linux --win -c.extraMetadata.portal=https://erp.example.in
 ```
 
-Everything cross-builds from Linux. The Windows target is a zip rather than an
-installer because an NSIS installer needs wine on this machine; the zip is
-unpacked anywhere and `EDU CLOUD.exe` run from it. Neither artefact is
-code-signed, so Windows SmartScreen shows "unknown publisher" until somebody
-buys a certificate — that is the same trade the unsigned APKs already make.
+The Linux targets, the NSIS installer and the zip all cross-build from macOS
+or Linux. The AppX for the Microsoft Store does not: electron-builder needs
+Windows itself, or wine plus pwsh, so `dist:store` runs on the Windows build
+box. Before the first store build, copy the three identity values Partner
+Center shows under Product identity into `build.appx` in `package.json`
+(`identityName`, `publisher`, `publisherDisplayName`); the store signs the
+package itself. The installer and zip are not code-signed, so Windows
+SmartScreen shows "unknown publisher" until somebody buys a certificate —
+that is the same trade the unsigned APKs already make. Add `--x64 --arm64`
+to build both architectures; a bare run builds the host's.
 
 ## What it is not
 
 No auto-update: the pages are the product and they update themselves, and a
 shell that updates itself is a second deployment channel to keep honest. If
 the shell itself ever changes, the school downloads it again, which is the
-same cadence as the phone apps.
+same cadence as the phone apps. Copies installed from the Microsoft Store are
+updated by the store. See `docs/apps-release.md` for the release procedure
+across all four platforms.

@@ -66,7 +66,10 @@ export function registerReminders(r: Router): void {
         for (const ch of channels) {
           const to = ch === 'email' ? (pn.email ?? '').trim() : (pn.phone ?? '').trim()
           if (to === '') continue
-          sends.push({ channel: ch, template_code: 'messaging.direct', vars: { text: body, subject: 'School fees outstanding' }, recipient: to })
+          // One reminder per family contact per channel per day: "Remind all" pressed twice,
+          // or a child listed under two guardians who share a phone, is one message.
+          sends.push({ channel: ch, template_code: 'messaging.direct', vars: { text: body, subject: 'School fees outstanding' }, recipient: to,
+            student_id: o.id, source_kind: 'fee_reminder', source_id: o.id, occurrence_key: `${t}:${to.toLowerCase()}` })
         }
       }
     }
@@ -74,7 +77,7 @@ export function registerReminders(r: Router): void {
     // QueueMessage per contact; a gateway the school has not configured is skipped, as Go.
     if (sends.length) {
       const ms = new Messenger(scopeOf(c))
-      for (const s of sends) { try { await ms.queue(s); queued++ } catch { /* continue */ } }
+      for (const s of sends) { try { if (!(await ms.queue(s)).duplicate) queued++ } catch { /* continue */ } }
       await ms.kick()
     }
     return ok({ told, messages_queued: queued, channels, no_account: noAccount })

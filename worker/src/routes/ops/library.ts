@@ -12,6 +12,14 @@ import { instId } from './common'
    audit per campus. Both are checked in the handler before the write. */
 
 const today = () => now().slice(0, 10)
+/** Rs 1/day unless the school has set its own rate (PUT /ops/library/fines/settings). */
+export const DEFAULT_FINE_PER_DAY_PAISE = 100
+async function finePerDayOf(c: Ctx): Promise<number> {
+  const row = await c.db.prepare(`SELECT json_extract(config, '$.fine_per_day_paise') AS v FROM module_settings WHERE module = 'library_fines'`)
+    .first<{ v: unknown }>()
+  const v = Number(row?.v)
+  return row && row.v !== null && Number.isInteger(v) && v >= 0 ? v : DEFAULT_FINE_PER_DAY_PAISE
+}
 const plusDays = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10)
 const conflict = (code: string, message: string) => new HttpError(409, message, { code })
 
@@ -156,7 +164,9 @@ export function registerLibrary(r: Router): void {
 
   // --- fines (mountLibraryFines) -------------------------------------------
 
-  const fineRowSelect = (paid: 0 | 1) => `SELECT l.id AS loan_id,
+  /* fine_paid: 0 owed, 1 collected, 2 waived. A waiver keeps the amount on the
+     loan so the summary can say what was forgiven, not just that it was. */
+  const fineRowSelect = (paid: 0 | 1 | 2) => `SELECT l.id AS loan_id,
              COALESCE(${fullName('st.first_name', 'st.middle_name', 'st.last_name')}, ${fullName('e.first_name', 'e.last_name')}, 'Unknown') AS borrower,
              t.title, cp.accession_no,
              substr(l.due_on, 1, 10) AS due_on, substr(l.returned_on, 1, 10) AS returned_on, l.fine_paise
@@ -172,15 +182,18 @@ export function registerLibrary(r: Router): void {
     due_on: v.due_on, returned_on: str(v.returned_on), fine_paise: num(v.fine_paise) })
 
   r.get('/ops/library/fines/summary', 'operations.library.read', async (c) => {
-    const [tot, outstanding, collected] = await c.db.batch([
+    const [tot, outstanding, collected, waived] = await c.db.batch([
       c.db.prepare(`SELECT COALESCE(SUM(CASE WHEN fine_paid = 1 THEN fine_paise ELSE 0 END), 0) AS collected_paise,
                            SUM(CASE WHEN fine_paid = 1 AND fine_paise > 0 THEN 1 ELSE 0 END) AS collected_count,
                            COALESCE(SUM(CASE WHEN fine_paid = 0 THEN fine_paise ELSE 0 END), 0) AS outstanding_paise,
                            SUM(CASE WHEN fine_paid = 0 AND fine_paise > 0 THEN 1 ELSE 0 END) AS outstanding_count,
+                           COALESCE(SUM(CASE WHEN fine_paid = 2 THEN fine_paise ELSE 0 END), 0) AS waived_paise,
+                           SUM(CASE WHEN fine_paid = 2 AND fine_paise > 0 THEN 1 ELSE 0 END) AS waived_count,
                            SUM(CASE WHEN returned_on IS NULL AND due_on < ? THEN 1 ELSE 0 END) AS overdue_open
                       FROM library_loans`).bind(today()),
       c.db.prepare(fineRowSelect(0)),
       c.db.prepare(fineRowSelect(1)),
+      c.db.prepare(fineRowSelect(2)),
     ])
     const t = (tot.results as Row[])[0] ?? {}
     return ok({
@@ -188,7 +201,10 @@ export function registerLibrary(r: Router): void {
       outstanding_paise: num(t.outstanding_paise), outstanding_count: num(t.outstanding_count),
       overdue_open_loans: num(t.overdue_open),
       outstanding: (outstanding.results as Row[]).map(fineRow),
+      waived_paise: num(t.waived_paise), waived_count: num(t.waived_count),
       collected: (collected.results as Row[]).map(fineRow),
+      waived: (waived.results as Row[]).map(fineRow),
+      fine_per_day_paise: await finePerDayOf(c),
     })
   })
 
@@ -201,17 +217,42 @@ export function registerLibrary(r: Router): void {
     return ok({ collected_paise: num(loan.fine_paise) })
   })
 
+  r.post('/ops/library/loans/{id}/fine/waive', 'operations.library.write', async (c) => {
+    const loanId = uuidParam(c.params.id)
+    const loan = await c.db.prepare('SELECT fine_paise FROM library_loans WHERE id = ? AND fine_paise > 0 AND fine_paid = 0')
+      .bind(loanId).first<{ fine_paise: number }>()
+    if (!loan) throw conflict('nothing_to_waive', 'no unpaid fine on that loan')
+    await c.db.prepare('UPDATE library_loans SET fine_paid = 2 WHERE id = ? AND fine_paise > 0 AND fine_paid = 0').bind(loanId).run()
+    return ok({ waived_paise: num(loan.fine_paise) })
+  })
+
+  /* The school's fine rate. Kept in module_settings under its own module name
+     ('library_fines', not 'library') so writing it can never switch the
+     library module on or off for a plan. 0 means the library does not fine. */
+  r.get('/ops/library/fines/settings', 'operations.library.read', async (c) => ok({ fine_per_day_paise: await finePerDayOf(c) }))
+  r.put('/ops/library/fines/settings', 'operations.library.write', async (c) => {
+    const req = await readJSON<{ fine_per_day_paise?: number }>(c.req)
+    const v = Number(req.fine_per_day_paise)
+    if (!Number.isInteger(v) || v < 0 || v > 100_000) throw badRequest('fine_per_day_paise must be a whole number of paise between 0 and 100000')
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config)
+        VALUES (?1, 'library_fines', 1, json_object('fine_per_day_paise', ?2))
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = json_set(module_settings.config, '$.fine_per_day_paise', ?2)`)
+      .bind(instId(c), v).run()
+    return ok({ fine_per_day_paise: v })
+  })
+
   r.post('/ops/library/loans/{id}/return', 'operations.library.write', async (c) => {
     if (!isUUID(c.params.id)) throw badRequest('invalid loan id')
     const loanId = c.params.id
-    let finePerDay = 100 // Rs 1/day is the common default
+    let finePerDay = await finePerDayOf(c)
     // Go read the body only when ContentLength > 0; an empty body keeps the default.
     const raw = (await c.req.text()).trim()
     if (raw) {
       let req: { fine_per_day_paise?: number }
       try { req = JSON.parse(raw) } catch { throw badRequest('malformed JSON body') }
-      const v = Number(req?.fine_per_day_paise ?? 0)
-      if (Number.isFinite(v) && v > 0) finePerDay = Math.trunc(v)
+      // An explicit rate still wins (older clients sent one); the school's setting is the default.
+      const v = Number(req?.fine_per_day_paise ?? -1)
+      if (Number.isFinite(v) && v >= 0) finePerDay = Math.trunc(v)
     }
     const loan = await c.db.prepare('SELECT copy_id, due_on FROM library_loans WHERE id = ? AND returned_on IS NULL')
       .bind(loanId).first<{ copy_id: string; due_on: string }>()

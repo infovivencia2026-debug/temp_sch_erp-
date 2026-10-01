@@ -31,6 +31,13 @@ export class ImportCtx {
   punchSeen = new Set<string>()
   pastYears = new Map<string, string>()
   pastExams = new Map<string, string>()
+  /* Marks imports: lookups that repeat on every row (a 40-child, 6-subject
+     grid asked the same class-subject and exam-paper questions 240 times, and
+     checked each mark's existence one by one: ~1,200 queries, past D1's
+     per-request budget). Cleared with the rest when a row fails. */
+  classSubjects = new Map<string, string>()
+  examSubjects = new Map<string, { id: string; max: string }>()
+  markIds = new Map<string, Map<string, string>>()
   created: CreatedRow[] = []
   year: string | null = null
   constructor(public c: Ctx, public inst: string, public campus: string, public sheet: SheetFacts, public subjectCols: Record<string, string>) {}
@@ -43,6 +50,7 @@ export class ImportCtx {
   forgetCaches(): void {
     this.classes.clear(); this.sections.clear(); this.teachers.clear(); this.periods = null
     this.pastYears.clear(); this.pastExams.clear()
+    this.classSubjects.clear(); this.examSubjects.clear(); this.markIds.clear()
   }
 
   async classID(name: string): Promise<string> {
@@ -375,10 +383,19 @@ export async function subjectIdFor(ctx: ImportCtx, want: string): Promise<{ id: 
 }
 
 async function classSubjectIdFor(ctx: ImportCtx, classId: string, subject: string): Promise<string> {
+  const key = classId + '\0' + subject.trim().toLowerCase()
+  const hit = ctx.classSubjects.get(key)
+  if (hit) return hit
   const row = await ctx.db.prepare(`SELECT cs.id FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
       WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?)) LIMIT 1`).bind(classId, subject, subject).first<{ id: string }>()
   if (!row) throw new Error('no rows in result set')
+  ctx.classSubjects.set(key, row.id)
   return row.id
+}
+
+/** Whether the class teaches the subject, from the same cache as classSubjectIdFor. */
+async function classTeaches(ctx: ImportCtx, classId: string, subject: string): Promise<boolean> {
+  try { await classSubjectIdFor(ctx, classId, subject); return true } catch { return false }
 }
 
 async function studentIdFor(ctx: ImportCtx, adm: string): Promise<string> {
@@ -1007,8 +1024,7 @@ export const importSpecs: Record<string, ImportSpec> = {
       await studentIdFor(ctx, str(row.admission_no).trim())
       const classId = await ctx.classID(str(row.class))
       const subject = str(row.subject).trim()
-      const okRow = await ctx.db.prepare(`SELECT 1 AS x FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?))`).bind(classId, subject, subject).first()
-      if (!okRow) throw new Error(`${str(row.class).trim()} does not teach "${subject}". Check the class-subject list for the exact name`)
+      if (!(await classTeaches(ctx, classId, subject))) throw new Error(`${str(row.class).trim()} does not teach "${subject}". Check the class-subject list for the exact name`)
     },
     write: async (ctx, row) => {
       const studentId = await studentIdFor(ctx, str(row.admission_no).trim())
@@ -1029,8 +1045,7 @@ export const importSpecs: Record<string, ImportSpec> = {
       if (Object.keys(ctx.subjectCols).length === 0) throw new Error('no subject columns were chosen. Point at least one column at a subject, so the marks in it have somewhere to go')
       const classId = await ctx.classID(ctx.sheet.class)
       for (const [subject, header] of Object.entries(ctx.subjectCols)) {
-        const okRow = await ctx.db.prepare(`SELECT 1 AS x FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?))`).bind(classId, subject, subject).first()
-        if (!okRow) throw new Error(`${ctx.sheet.class} does not teach "${subject}", which you pointed the "${header}" column at`)
+        if (!(await classTeaches(ctx, classId, subject))) throw new Error(`${ctx.sheet.class} does not teach "${subject}", which you pointed the "${header}" column at`)
       }
       for (const subject of Object.keys(ctx.subjectCols)) {
         const v = str(row[normaliseHeader('subject:' + subject)]).trim()
@@ -1198,15 +1213,37 @@ export const importSpecs: Record<string, ImportSpec> = {
 registerImportSpecsExtra(importSpecs)
 
 async function examSubjectFor(ctx: ImportCtx, examId: string, csId: string, maxMarks: number): Promise<string> {
-  const existing = await exists(ctx, `SELECT id FROM exam_subjects WHERE exam_id = ? AND class_subject_id = ?`, examId, csId)
-  if (existing) { await ctx.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE id = ?`).bind(String(maxMarks), existing).run(); return existing }
+  const key = examId + '\0' + csId
+  const max = String(maxMarks)
+  const hit = ctx.examSubjects.get(key)
+  // Already set to this figure by an earlier row: nothing to ask or write.
+  if (hit && hit.max === max) return hit.id
+  const existing = hit?.id ?? await exists(ctx, `SELECT id FROM exam_subjects WHERE exam_id = ? AND class_subject_id = ?`, examId, csId)
+  if (existing) {
+    await ctx.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE id = ?`).bind(max, existing).run()
+    ctx.examSubjects.set(key, { id: existing, max })
+    return existing
+  }
   const id = uuid()
-  await ctx.db.prepare(`INSERT INTO exam_subjects (id, institution_id, exam_id, class_subject_id, max_marks) VALUES (?, ?, ?, ?, ?)`).bind(id, ctx.inst, examId, csId, String(maxMarks)).run()
+  await ctx.db.prepare(`INSERT INTO exam_subjects (id, institution_id, exam_id, class_subject_id, max_marks) VALUES (?, ?, ?, ?, ?)`).bind(id, ctx.inst, examId, csId, max).run()
+  ctx.examSubjects.set(key, { id, max })
   return id
 }
 
+/** The marks already on a paper, student -> mark id, read once per paper. */
+async function marksOnPaper(ctx: ImportCtx, examSubjectId: string): Promise<Map<string, string>> {
+  let m = ctx.markIds.get(examSubjectId)
+  if (!m) {
+    const rows = (await ctx.db.prepare(`SELECT id, student_id FROM marks WHERE exam_subject_id = ?`).bind(examSubjectId).all<{ id: string; student_id: string }>()).results
+    m = new Map(rows.map((r) => [r.student_id, r.id]))
+    ctx.markIds.set(examSubjectId, m)
+  }
+  return m
+}
+
 async function writeMark(ctx: ImportCtx, examSubjectId: string, studentId: string, obtained: string | null, grade: string | null, absent: boolean, keepGrade = false): Promise<void> {
-  const existing = await exists(ctx, `SELECT id FROM marks WHERE exam_subject_id = ? AND student_id = ?`, examSubjectId, studentId)
+  const onPaper = await marksOnPaper(ctx, examSubjectId)
+  const existing = onPaper.get(studentId) ?? null
   if (existing) {
     if (keepGrade) await ctx.db.prepare(`UPDATE marks SET marks_obtained = ?, is_absent = ? WHERE id = ?`).bind(obtained, absent ? 1 : 0, existing).run()
     else await ctx.db.prepare(`UPDATE marks SET marks_obtained = ?, grade = ?, is_absent = ? WHERE id = ?`).bind(obtained, grade, absent ? 1 : 0, existing).run()
@@ -1215,6 +1252,7 @@ async function writeMark(ctx: ImportCtx, examSubjectId: string, studentId: strin
   const id = uuid()
   await ctx.db.prepare(`INSERT INTO marks (id, institution_id, exam_subject_id, student_id, marks_obtained, grade, is_absent, entered_by, entered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(id, ctx.inst, examSubjectId, studentId, obtained, grade, absent ? 1 : 0, ctx.c.id.userId, now()).run()
+  onPaper.set(studentId, id)
   ctx.noteCreated('marks', id, true)
 }
 

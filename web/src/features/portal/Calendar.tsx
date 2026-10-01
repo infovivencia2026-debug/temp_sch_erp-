@@ -12,6 +12,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, WEEKDAYS } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { PtmBooking } from './PtmBooking'
 
 /* The school year on one page.
 
@@ -21,9 +22,9 @@ import { useChildren, childOptions } from './use-children'
    boxes that scroll independently. The server merges them; this groups the
    result by month and gets out of the way.
 
-   Booked meetings appear here but are not managed here. Taking a slot is its
-   own screen with its own catalogue entry, because choosing a time is a task
-   and reading the calendar is a glance. */
+   Booked meetings appear in the schedule; taking or cancelling a slot is the
+   card under it (PtmBooking), since the catalogue's one entry is "Calendar &
+   PTM" and there is no second screen to send a parent to. */
 
 /* What each card counts, said once.
 
@@ -198,6 +199,8 @@ export default function Calendar() {
             </div>
           </Card>
         )}
+
+        <PtmBooking children={children} studentId={studentId} />
 
         {months.length === 0 ? (
           <Card>

@@ -99,7 +99,7 @@ ROLE_ORDER = [
     "institution_admin", "board_member", "hod", "exam_controller", "faculty",
     "librarian", "transport_manager", "operations", "driver",
     "nurse", "counsellor", "discipline_officer", "hostel_warden", "activity_coord",
-    "finance", "admissions", "front_office", "hr", "it_admin",
+    "finance", "admissions", "front_office", "hr", "it_admin", "lms_admin",
     "student", "parent",
 ]
 
@@ -158,6 +158,9 @@ FEATURE_SLUG_OVERRIDE = {
     # Renamed from "EduCloud Channels" when the product became XULO; the key
     # seller_admin.delivery.educloud_channels is a registry entry and a grant.
     "XULO Channels": "educloud_channels",
+    # The LMS Admin row landed with the key lms_admin.lms.courses (a grant and a
+    # registry entry) before the catalogue was regenerated from the sheet.
+    "Courses & material": "courses",
 }
 
 

@@ -4,7 +4,7 @@ import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { can } from '../../identity'
 import { addDays, householdUserIds, isDate, notifyStmt, p, requireOpenPeriod, requireOpenYear, rupeesFixed, syncInvoice, syncPayment, today } from './common'
-import { nextNumber } from './numbering'
+import { nextNumbers } from './numbering'
 import { school } from '../school'
 
 /* Port of generateInvoices (fees.go) with fee_run_lines.go,
@@ -93,6 +93,9 @@ export async function ensureFeeHead(c: Ctx, code: string, name: string): Promise
   }
 }
 
+/** Children per write batch in the fee run: one numbering read and one batch each. */
+const RUN_CHUNK = 40
+
 export function registerInvoicing(r: Router): void {
   r.typed('POST /fees/invoices/generate', 'auth', async (c) => {
     if (!can(c.id, 'finance.invoices.write') && !can(c.id, 'admissions.write')) throw forbidden()
@@ -153,18 +156,47 @@ export function registerInvoicing(r: Router): void {
 
     let createdN = 0, arrearsChildren = 0, arrearsPaise = 0
     const inst = school(c).id
-    for (const { student_id: sid } of students.results) {
-      const cons = (await c.db.prepare(`SELECT fee_head_id, amount_paise, percent FROM fee_concessions
-          WHERE student_id = ? AND academic_year_id = ? AND approved_at IS NOT NULL AND kind <> 'full_payment'`).bind(sid, fs.academic_year_id).all<Concession>()).results
+    /* A whole-school run used to cost five or six round trips per child (three
+       reads, a numbering read, the write): ~8,000 for a school of 1,400, past
+       D1's per-request query budget. The per-child reads are now three reads
+       for everybody, grouped here, and the writes go in chunks of RUN_CHUNK
+       children under one block of invoice numbers each. */
+    const sids = students.results.map((s) => s.student_id)
+    const sidsJSON = JSON.stringify(sids)
+    const byStudent = <T extends { student_id: string }>(rows: T[]) => {
+      const m = new Map<string, T[]>()
+      for (const r of rows) { const l = m.get(r.student_id); if (l) l.push(r); else m.set(r.student_id, [r]) }
+      return m
+    }
+    const [consAll, compsAll, oldAll] = sids.length === 0 ? [[], [], []] as [never[], never[], never[]] : (await c.db.batch([
+      c.db.prepare(`SELECT student_id, fee_head_id, amount_paise, percent FROM fee_concessions
+          WHERE student_id IN (SELECT value FROM json_each(?1)) AND academic_year_id = ?2 AND approved_at IS NOT NULL AND kind <> 'full_payment'`).bind(sidsJSON, fs.academic_year_id),
+      c.db.prepare(`SELECT student_id, fee_head_id, description, amount_paise FROM student_fee_components
+          WHERE student_id IN (SELECT value FROM json_each(?1)) AND academic_year_id = ?2 AND valid_from <= ?3 AND (valid_to IS NULL OR valid_to >= ?3) AND amount_paise > 0`)
+        .bind(sidsJSON, fs.academic_year_id, t),
+      c.db.prepare(`
+        SELECT i.student_id, i.id, i.invoice_no, ay.name AS year_name, i.net_paise - i.paid_paise AS balance
+          FROM invoices i JOIN academic_years ay ON ay.id = i.academic_year_id JOIN academic_years this ON this.id = ?2
+         WHERE i.student_id IN (SELECT value FROM json_each(?1)) AND i.academic_year_id <> ?2 AND ay.starts_on < this.starts_on
+           AND i.status IN ('unpaid','partial','overdue') AND i.net_paise > i.paid_paise
+           AND NOT EXISTS (SELECT 1 FROM invoice_carry_forwards cf WHERE cf.from_invoice_id = i.id)
+         ORDER BY COALESCE(i.due_on, i.issued_on), i.invoice_no`).bind(sidsJSON, fs.academic_year_id),
+    ])).map((r) => r.results as never[])
+    const consBy = byStudent(consAll as (Concession & { student_id: string })[])
+    const compsBy = byStudent(compsAll as { student_id: string; fee_head_id: string; description: string; amount_paise: number }[])
+    const oldBy = byStudent(oldAll as { student_id: string; id: string; invoice_no: string; year_name: string; balance: number }[])
+    let arrearsHead: string | null = null
+    if (oldBy.size) arrearsHead = await ensureFeeHead(c, 'arrears', 'Arrears brought forward')
 
-      type Line = { head_id: string; description: string; amount: number; discount: number }
+    type Line = { head_id: string; description: string; amount: number; discount: number }
+    type Plan = { sid: string; lines: Line[]; old: { id: string; invoice_no: string; year_name: string; balance: number }[] }
+    const plans: Plan[] = []
+    for (const sid of sids) {
+      const cons = consBy.get(sid) ?? []
       const lines: Line[] = run.lines.filter((l) => headNames.has(l.head_id)).map((l) => ({
         head_id: l.head_id, description: headNames.get(l.head_id)!, amount: l.amount_paise, discount: lineDiscount(l.amount_paise, l.head_id, cons) }))
       // The child's own charges (bus fare), priced per instalment covered.
-      const comps = await c.db.prepare(`SELECT fee_head_id, description, amount_paise FROM student_fee_components
-          WHERE student_id = ?1 AND academic_year_id = ?2 AND valid_from <= ?3 AND (valid_to IS NULL OR valid_to >= ?3) AND amount_paise > 0`)
-        .bind(sid, fs.academic_year_id, t).all<{ fee_head_id: string; description: string; amount_paise: number }>()
-      for (const cp of comps.results) {
+      for (const cp of compsBy.get(sid) ?? []) {
         const amt = p(cp.amount_paise) * run.instalments
         lines.push({ head_id: cp.fee_head_id, description: cp.description, amount: amt, discount: lineDiscount(amt, cp.fee_head_id, cons) })
       }
@@ -174,53 +206,50 @@ export function registerInvoicing(r: Router): void {
         const target = [...lines].sort((a, b) => (b.amount - b.discount) - (a.amount - a.discount) || b.amount - a.amount)[0]
         target.discount = Math.min(target.amount, target.discount + flat)
       }
-
       // Arrears from earlier years, restated on this bill and settled by adjustment.
-      const old = await c.db.prepare(`
-        SELECT i.id, i.invoice_no, ay.name AS year_name, i.net_paise - i.paid_paise AS balance
-          FROM invoices i JOIN academic_years ay ON ay.id = i.academic_year_id JOIN academic_years this ON this.id = ?2
-         WHERE i.student_id = ?1 AND i.academic_year_id <> ?2 AND ay.starts_on < this.starts_on
-           AND i.status IN ('unpaid','partial','overdue') AND i.net_paise > i.paid_paise
-           AND NOT EXISTS (SELECT 1 FROM invoice_carry_forwards cf WHERE cf.from_invoice_id = i.id)
-         ORDER BY COALESCE(i.due_on, i.issued_on), i.invoice_no`).bind(sid, fs.academic_year_id).all<{ id: string; invoice_no: string; year_name: string; balance: number }>()
-      let arrearsHead: string | null = null
-      if (old.results.length) arrearsHead = await ensureFeeHead(c, 'arrears', 'Arrears brought forward')
-      for (const o of old.results) lines.push({ head_id: arrearsHead!, description: `Brought forward from ${o.invoice_no} (${o.year_name})`, amount: p(o.balance), discount: 0 })
-
+      const old = oldBy.get(sid) ?? []
+      for (const o of old) lines.push({ head_id: arrearsHead!, description: `Brought forward from ${o.invoice_no} (${o.year_name})`, amount: p(o.balance), discount: 0 })
       if (lines.length === 0) continue // an invoice with nothing on it is not a bill
+      plans.push({ sid, lines, old })
+    }
 
-      const number = await nextNumber(c, 'invoice')
-      const invoiceId = crypto.randomUUID()
-      const gross = lines.reduce((s, l) => s + l.amount, 0)
-      const discount = lines.reduce((s, l) => s + l.discount, 0)
-      const stmts: D1PreparedStatement[] = [
-        ...number.stmts,
-        c.db.prepare(`INSERT INTO invoices (id, institution_id, campus_id, student_id, academic_year_id, invoice_no, instalment_no, issued_on, due_on,
+    for (let at = 0; at < plans.length; at += RUN_CHUNK) {
+      const chunk = plans.slice(at, at + RUN_CHUNK)
+      const numbers = await nextNumbers(c, 'invoice', chunk.length)
+      const stmts: D1PreparedStatement[] = [...numbers.stmts]
+      let chunkMoved = 0, chunkArrears = 0
+      chunk.forEach(({ sid, lines, old }, n) => {
+        const numberText = numbers.texts[n]
+        const invoiceId = crypto.randomUUID()
+        const gross = lines.reduce((s, l) => s + l.amount, 0)
+        const discount = lines.reduce((s, l) => s + l.discount, 0)
+        stmts.push(c.db.prepare(`INSERT INTO invoices (id, institution_id, campus_id, student_id, academic_year_id, invoice_no, instalment_no, issued_on, due_on,
                         gross_paise, discount_paise, fine_paise, net_paise, paid_paise, status, fee_structure_version_id, created_at, updated_at)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 'unpaid', ?, ?, ?)`)
-          .bind(invoiceId, fs.institution_id, fs.campus_id, sid, fs.academic_year_id, number.text, instalmentNo, t, dueOn, gross, discount, gross - discount, source.version_id, now(), now()),
-      ]
-      for (const l of lines) {
-        stmts.push(c.db.prepare(`INSERT INTO invoice_lines (id, institution_id, invoice_id, fee_head_id, description, amount_paise, discount_paise) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-          .bind(crypto.randomUUID(), inst, invoiceId, l.head_id, l.description, l.amount, l.discount))
-      }
-      let moved = 0
-      for (const o of old.results) {
-        const paymentId = crypto.randomUUID()
-        const bal = p(o.balance)
-        stmts.push(c.db.prepare(`INSERT INTO payments (id, institution_id, campus_id, student_id, amount_paise, allocated_paise, mode, paid_on, status, remarks, created_at)
-                                 VALUES (?, ?, ?, ?, ?, 0, 'adjustment', ?, 'success', ?, ?)`)
-          .bind(paymentId, inst, fs.campus_id, sid, bal, t, 'Carried forward to ' + number.text, now()))
-        stmts.push(c.db.prepare(`INSERT INTO payment_allocations (id, institution_id, payment_id, invoice_id, amount_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-          .bind(crypto.randomUUID(), inst, paymentId, o.id, bal, now()))
-        stmts.push(...syncInvoice(c, o.id), syncPayment(c, paymentId))
-        stmts.push(c.db.prepare(`INSERT INTO invoice_carry_forwards (id, institution_id, from_invoice_id, to_invoice_id, payment_id, amount_paise, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-          .bind(crypto.randomUUID(), inst, o.id, invoiceId, paymentId, bal, now()))
-        moved += bal
-      }
+          .bind(invoiceId, fs.institution_id, fs.campus_id, sid, fs.academic_year_id, numberText, instalmentNo, t, dueOn, gross, discount, gross - discount, source.version_id, now(), now()))
+        for (const l of lines) {
+          stmts.push(c.db.prepare(`INSERT INTO invoice_lines (id, institution_id, invoice_id, fee_head_id, description, amount_paise, discount_paise) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), inst, invoiceId, l.head_id, l.description, l.amount, l.discount))
+        }
+        let moved = 0
+        for (const o of old) {
+          const paymentId = crypto.randomUUID()
+          const bal = p(o.balance)
+          stmts.push(c.db.prepare(`INSERT INTO payments (id, institution_id, campus_id, student_id, amount_paise, allocated_paise, mode, paid_on, status, remarks, created_at)
+                                   VALUES (?, ?, ?, ?, ?, 0, 'adjustment', ?, 'success', ?, ?)`)
+            .bind(paymentId, inst, fs.campus_id, sid, bal, t, 'Carried forward to ' + numberText, now()))
+          stmts.push(c.db.prepare(`INSERT INTO payment_allocations (id, institution_id, payment_id, invoice_id, amount_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), inst, paymentId, o.id, bal, now()))
+          stmts.push(...syncInvoice(c, o.id), syncPayment(c, paymentId))
+          stmts.push(c.db.prepare(`INSERT INTO invoice_carry_forwards (id, institution_id, from_invoice_id, to_invoice_id, payment_id, amount_paise, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), inst, o.id, invoiceId, paymentId, bal, now()))
+          moved += bal
+        }
+        if (moved > 0) { chunkArrears++; chunkMoved += moved }
+      })
       await c.db.batch(stmts)
-      if (moved > 0) { arrearsChildren++; arrearsPaise += moved }
-      createdN++
+      arrearsChildren += chunkArrears; arrearsPaise += chunkMoved
+      createdN += chunk.length
     }
     return reply({ created: createdN, skipped: 0, instalment_no: instalmentNo, due_on: dueOn,
       pending_concessions: p(pending?.n), arrears_children: arrearsChildren, arrears_paise: arrearsPaise }, 201)

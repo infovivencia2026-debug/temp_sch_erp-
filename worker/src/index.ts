@@ -18,9 +18,9 @@ import { handlePages } from './pages/index'
 import { groupGate, passwordGate, subscriptionGate } from './gates'
 import { idempotent } from './idempotency'
 import { recordServerError } from './services/background/health'
+import { consumeDeadLetters } from './services/dead_letters'
 import { normalizeRequest, originRefused } from './origin'
 import { PLATFORM_SCOPE, bumpVersion, watchAuthWrites } from './idcache'
-import { consumeDeadLetters } from './services/dead_letters'
 
 export { LiveHub } from './services/live'
 

@@ -534,12 +534,15 @@ function registerAttendance(r: Router) {
         const title = `${m.name} was marked absent`
         const body = `${m.name} was marked absent on ${date}. If this is wrong, please tell the class teacher.`
         if (m.user_id) {
-          stmts.push(notifyStmt(c, m.user_id, m.student, 'attendance', title, body, '/portal/attendance', 'student', m.student))
+          stmts.push(notifyStmt(c, m.user_id, m.student, 'attendance', title, body, '/portal/attendance', 'absence', `${onDate}:${m.student}`))
           told++
         }
         for (const ch of channels) {
           const to = (ch === 'email' ? m.email : m.phone)?.trim() ?? ''
-          if (to !== '') absenceSends.push({ channel: ch, template_code: 'messaging.direct', vars: { text: body, subject: title }, recipient: to })
+          // Once per child per day per contact: a period-wise register marks the child absent
+          // period after period, and each of those is not a new alert.
+          if (to !== '') absenceSends.push({ channel: ch, template_code: 'messaging.direct', vars: { text: body, subject: title }, recipient: to,
+            student_id: m.student, source_kind: 'absence_alert', source_id: m.student, occurrence_key: `${onDate}:${to.toLowerCase()}` })
         }
       }
     }
@@ -548,7 +551,7 @@ function registerAttendance(r: Router) {
     // gateway the school has not configured is skipped, never a failed register.
     if (absenceSends.length) {
       const ms = new Messenger(scopeOf(c))
-      for (const s of absenceSends) { try { await ms.queue(s); queued++ } catch { /* as Go: continue */ } }
+      for (const s of absenceSends) { try { if (!(await ms.queue(s)).duplicate) queued++ } catch { /* as Go: continue */ } }
       await ms.kick()
     }
     return { section_id: sectionId, on_date: onDate, submitted: entries.length, written, newly_absent: nowAbsent.length,
@@ -1392,16 +1395,27 @@ async function publishHomework(c: Ctx): Promise<Response> {
 async function listHomework(c: Ctx): Promise<Response> {
   const res = await resolveScope(c)
   const mine = res.studentIds
-  const ml = inList('hs.student_id', mine)
-  const mineSub = mine.length ? ml.sql : 'FALSE'
-  const mineArgs = () => [...ml.args]
+  /* ONE ROW PER CHILD, NOT PER TASK.
+
+     A guardian of two children in different sections used to get both
+     sections' homework in one list with nothing saying whose it was, and
+     `submitted` true when EITHER child had handed it in. Worse, Done posted
+     no student_id, so the server filed it under the first child. For a
+     student or a family reader the list now joins the reader's own
+     enrolments, so each row names the child it is for and carries that
+     child's own submission; siblings in one section get a row each. */
+  let join = ''
+  const joinArgs: unknown[] = []
+  const subFor = mine.length ? 'hs.student_id = me.student_id' : 'FALSE'
 
   let where: string
   const args: unknown[] = []
   if (mine.length) {
-    const x = inList('e.student_id', mine)
-    where = `h.section_id IN (SELECT e.section_id FROM enrollments e WHERE ${x.sql} AND e.status = 'active')`
-    args.push(...x.args)
+    const x = inList('me.student_id', mine)
+    join = `JOIN enrollments me ON me.section_id = h.section_id AND me.status = 'active' AND ${x.sql}
+      JOIN students ms ON ms.id = me.student_id`
+    joinArgs.push(...x.args)
+    where = 'TRUE'
   } else if (res.allAttendance) where = 'TRUE'
   else if (res.sectionIds.length) { const x = inList('h.section_id', res.sectionIds); where = x.sql; args.push(...x.args) }
   else where = 'FALSE'
@@ -1418,32 +1432,33 @@ async function listHomework(c: Ctx): Promise<Response> {
   if (q.get('mine') === '1' || (forcedMine && mine.length === 0)) { args.push(c.id.userId); where += ' AND h.created_by = ?' }
 
   const rows = await c.db.prepare(`
-    SELECT h.id, h.title, h.kind, sub.name AS subject, c.name AS class_name, sec.name AS section_name,
+    SELECT h.id, ${mine.length ? `me.student_id AS student_id, ${fullName2('ms')} AS student_name,` : ''} h.title, h.kind, sub.name AS subject, c.name AS class_name, sec.name AS section_name,
            h.assigned_on, h.due_on, h.instructions,
            (h.due_on IS NOT NULL AND h.due_on < ?) AS overdue,
            (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id) AS submissions,
            (SELECT count(*) FROM enrollments e WHERE e.section_id = h.section_id AND e.status = 'active') AS strength,
-           EXISTS (SELECT 1 FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${mineSub}) AS submitted,
+           EXISTS (SELECT 1 FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${subFor}) AS submitted,
            u.full_name AS teacher,
            COALESCE((SELECT json_group_array(json_object('file_id', id, 'name', name, 'content_type', content_type, 'size_bytes', size_bytes))
                        FROM (SELECT f.id, f.original_name AS name, f.content_type, f.size_bytes
                                FROM homework_attachments ha JOIN files f ON f.id = ha.file_id AND f.deleted_at IS NULL
                               WHERE ha.homework_id = h.id ORDER BY f.created_at)), '[]') AS files,
-           (SELECT hs.text_answer FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${mineSub}
+           (SELECT hs.text_answer FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${subFor}
              ORDER BY hs.submitted_at IS NULL, hs.submitted_at DESC LIMIT 1) AS my_answer,
-           (SELECT hs.file_id FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${mineSub}
+           (SELECT hs.file_id FROM homework_submissions hs WHERE hs.homework_id = h.id AND ${subFor}
              ORDER BY hs.submitted_at IS NULL, hs.submitted_at DESC LIMIT 1) AS my_file_id,
            (SELECT f2.original_name FROM homework_submissions hs JOIN files f2 ON f2.id = hs.file_id AND f2.deleted_at IS NULL
-             WHERE hs.homework_id = h.id AND ${mineSub} ORDER BY hs.submitted_at IS NULL, hs.submitted_at DESC LIMIT 1) AS my_file_name
+             WHERE hs.homework_id = h.id AND ${subFor} ORDER BY hs.submitted_at IS NULL, hs.submitted_at DESC LIMIT 1) AS my_file_name
       FROM homework h
       JOIN sections sec ON sec.id = h.section_id
       JOIN classes c ON c.id = sec.class_id
       LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id
       LEFT JOIN subjects sub ON sub.id = cs.subject_id
       LEFT JOIN users u ON u.id = h.created_by
+      ${join}
      WHERE h.is_published AND ${where}
-     ORDER BY h.assigned_on DESC, h.due_on IS NULL, h.due_on
-     LIMIT 100`).bind(today(), ...mineArgs(), ...mineArgs(), ...mineArgs(), ...mineArgs(), ...args).all()
+     ORDER BY h.assigned_on DESC, h.due_on IS NULL, h.due_on${mine.length ? ', student_name' : ''}
+     LIMIT 100`).bind(today(), ...joinArgs, ...args).all()
   return ok({ items: rows.results.map((v) => {
     let files: unknown[] = []
     try { files = JSON.parse(v.files as string) } catch { files = [] }
@@ -1453,6 +1468,7 @@ async function listHomework(c: Ctx): Promise<Response> {
       instructions: v.instructions ?? undefined, overdue: bool(v.overdue), submissions: num(v.submissions), strength: num(v.strength),
       files: files.length ? files : undefined, my_answer: v.my_answer ?? undefined, my_file_id: v.my_file_id ?? undefined,
       my_file_name: v.my_file_name ?? undefined, submitted: bool(v.submitted), teacher: v.teacher ?? undefined,
+      student_id: v.student_id ?? undefined, student_name: v.student_name ?? undefined,
     }
   }) })
 }

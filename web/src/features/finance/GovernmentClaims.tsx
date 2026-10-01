@@ -327,6 +327,12 @@ function ClaimDetailPanel({
     onSuccess: invalidate,
   })
 
+  // A child put on a draft claim by mistake comes off before it is submitted.
+  const dropLine = useMutation({
+    mutationFn: (lineId: string) => api.del(`${concessionsBase}/claims/${claimId}/lines/${lineId}`),
+    onSuccess: invalidate,
+  })
+
   if (q.isLoading) return <Loading label="Opening the claim…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
@@ -390,7 +396,7 @@ function ClaimDetailPanel({
             )}
           </div>
         )}
-        <FormNotice error={build.error} />
+        <FormNotice error={build.error ?? dropLine.error} />
 
         {!draft && shortfall > 0 && (
           <div className="rounded-md border border-warning/25 bg-warning/5 px-4 py-3 text-[13px]">
@@ -415,6 +421,7 @@ function ClaimDetailPanel({
           { label: 'Claimed', align: 'right' },
           { label: 'Sanctioned', align: 'right' },
           'Why less',
+          ...(mayWrite && draft ? [''] : []),
         ]}
         empty={d.lines.length === 0}
         emptyLabel={
@@ -424,7 +431,12 @@ function ClaimDetailPanel({
         }
       >
         {d.lines.map((l) => (
-          <ClaimLineRow key={l.id} line={l} />
+          <ClaimLineRow
+            key={l.id}
+            line={l}
+            onRemove={mayWrite && draft ? () => dropLine.mutate(l.id) : undefined}
+            removing={dropLine.isPending}
+          />
         ))}
       </Table>
 
@@ -474,7 +486,9 @@ function ClaimDetailPanel({
   )
 }
 
-function ClaimLineRow({ line }: { line: ClaimLine }) {
+function ClaimLineRow({ line, onRemove, removing }: {
+  line: ClaimLine; onRemove?: () => void; removing?: boolean
+}) {
   const short = line.sanctioned_paise != null && line.shortfall_paise > 0
   return (
     <tr>
@@ -497,6 +511,11 @@ function ClaimLineRow({ line }: { line: ClaimLine }) {
         {line.sanctioned_paise == null ? '-' : inr(line.sanctioned_paise)}
       </Td>
       <Td className="text-[13px] text-muted-foreground">{line.disallowed_reason ?? '-'}</Td>
+      {onRemove && (
+        <Td>
+          <Button size="sm" variant="ghost" disabled={removing} onClick={onRemove}>Remove</Button>
+        </Td>
+      )}
     </tr>
   )
 }

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField,
-  Select, FormNotice, Table, Td, Badge, Button, Input, SkeletonTable, ErrorState,
+  Select, FormNotice, Table, Td, Badge, Button, ConfirmButton, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatPaise } from '@/lib/utils'
@@ -157,8 +157,82 @@ export default function ActivitiesSetup() {
             </Table>
           </Card>
         )}
+
+        <HousesCard mayWrite={mayWrite} />
       </PageBody>
     </>
+  )
+}
+
+/* Houses.
+
+   Children are put in a house from their own record (the edit dialog reads
+   this list); this is the only place a house is created, renamed or removed.
+   A house with children still in it can be removed; they are left without
+   one, which the count beside it warns about first. */
+interface House { id: string; name: string; color?: string; students: number }
+
+function HousesCard({ mayWrite }: { mayWrite: boolean }) {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('#64748b')
+  const houses = useQuery({
+    queryKey: ['academics', 'houses'],
+    queryFn: () => api.get<List<House>>('/api/v1/academics/houses'),
+  })
+  const refresh = () => qc.invalidateQueries({ queryKey: ['academics', 'houses'] })
+  const add = useMutation({
+    mutationFn: () => api.post('/api/v1/academics/houses', { name: name.trim(), color }),
+    onSuccess: () => { setName(''); refresh() },
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/academics/houses/${id}`),
+    onSuccess: refresh,
+  })
+  const rows = houses.data?.items ?? []
+
+  return (
+    <Card>
+      <CardHeader title="Houses" description="The houses children are placed in for sports and inter-house events." />
+      {mayWrite && (
+        <div className="flex flex-wrap items-end gap-3 px-5 pb-4">
+          <FormField label="House name">
+            <Input value={name} onChange={setName} placeholder="Tagore" />
+          </FormField>
+          <FormField label="Colour">
+            <Input type="color" value={color} onChange={setColor} />
+          </FormField>
+          <Button disabled={!name.trim() || add.isPending} onClick={() => add.mutate()}>
+            {add.isPending ? 'Adding…' : 'Add house'}
+          </Button>
+        </div>
+      )}
+      <FormNotice error={add.error ?? remove.error} />
+      {houses.error ? <ErrorState error={houses.error} /> : (
+        <Table loading={houses.isLoading} head={['House', 'Children', '']}
+          empty={!rows.length} emptyLabel="No houses yet.">
+          {rows.map((h) => (
+            <tr key={h.id}>
+              <Td className="font-medium">
+                <span className="mr-2 inline-block h-3 w-3 rounded-full align-middle" style={{ background: h.color || '#64748b' }} />
+                {h.name}
+              </Td>
+              <Td className="tabular-nums">{h.students}</Td>
+              <Td>
+                {mayWrite && (
+                  <ConfirmButton variant="ghost" tone="danger" disabled={remove.isPending}
+                    confirmLabel="Remove"
+                    question={h.students > 0 ? `${h.students} children will be left without a house.` : 'Remove this house?'}
+                    onConfirm={() => remove.mutate(h.id)}>
+                    Remove
+                  </ConfirmButton>
+                )}
+              </Td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Card>
   )
 }
 

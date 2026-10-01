@@ -60,6 +60,11 @@ export const SCHEDULES: Schedule[] = [
   // Early warnings (services/ai/warnings.ts): rules nightly, a digest on Monday mornings.
   { name: 'ai_warnings_nightly', spec: '15 2 * * *', kind: 'ai:warnings_nightly', perInstitution: true, payload: env0 },
   { name: 'ai_warnings_digest', spec: '30 7 * * 1', kind: 'ai:warnings_digest', perInstitution: true, payload: env0 },
+  // Admission drip sequences (routes/admissions/campaigns.ts): queue touches that have come due. Idempotent per touch.
+  { name: 'admission_campaigns', spec: '*/15 * * * *', kind: 'admissions:campaigns_run', perInstitution: true,
+    only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM admission_campaign_sends WHERE status = 'pending'
+        AND due_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now') LIMIT 1`).first().catch(() => null)),
+    payload: env0 },
   { name: 'backup_nightly', spec: '30 1 * * *', kind: 'backup:fanout', perInstitution: false, payload: () => ({}) },
   // Weekly D1-export-API copies to R2, 8 kept (services/background/weekly_export.ts). Sat 21:00 UTC = Sun 02:30 IST.
   { name: 'backup_weekly', spec: '0 21 * * 6', kind: 'backup:weekly_fanout', perInstitution: false, payload: () => ({}) },

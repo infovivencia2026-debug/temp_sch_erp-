@@ -89,6 +89,13 @@ export default function LanguageAllocation() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
+  // Retiring an option hides it from new elections; children already on it keep it.
+  const retire = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/classroom/languages/options/${id}`),
+    onSuccess: () => { toast.ok('Option retired'); invalidate() },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not retire'),
+  })
+
   const elect = useMutation({
     mutationFn: () =>
       api.post('/api/v1/classroom/languages/elections', {
@@ -176,7 +183,7 @@ export default function LanguageAllocation() {
             </Button>
           </div>
           <Table
-            head={['Class', 'Slot', 'Subject', 'Elected', 'Group size']}
+            head={['Class', 'Slot', 'Subject', 'Elected', 'Group size', '']}
             empty={optionRows.length === 0}
             emptyLabel="No language options defined yet."
           >
@@ -187,6 +194,11 @@ export default function LanguageAllocation() {
                 <Td>{o.display_name || o.subject_name}</Td>
                 <Td>{o.elected_count}</Td>
                 <Td>{o.capacity ?? '-'}</Td>
+                <Td>
+                  <Button size="sm" variant="ghost" disabled={retire.isPending} onClick={() => retire.mutate(o.id)}>
+                    Retire
+                  </Button>
+                </Td>
               </tr>
             ))}
           </Table>

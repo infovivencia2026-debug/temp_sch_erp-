@@ -13,6 +13,7 @@ import {
   ALL_CHILDREN, PROXIMITY_MAX, PROXIMITY_MIN, currentFor, proximityError, savePrefs, walkText,
 } from './transport-prefs'
 import { ChildScope } from './transport-prefs-ui'
+import { useT } from '@/lib/i18n'
 
 /* How close before you are told the bus is coming.
 
@@ -31,6 +32,7 @@ import { ChildScope } from './transport-prefs-ui'
 const PRESETS = [300, 500, 800, 1500, 3000]
 
 export default function BusProximityAlert() {
+  const t = useT()
   const qc = useQueryClient()
   const feed = useQuery({
     queryKey: ['me-child-bus'],
@@ -49,7 +51,7 @@ export default function BusProximityAlert() {
   }, [student, current.proximity])
 
   const value = Number(metres)
-  const problem = metres.trim() === '' ? 'Enter a distance in metres.' : proximityError(value)
+  const problem = metres.trim() === '' ? t('portal.bus_proximity_alert.enter_distance') : proximityError(value)
 
   const save = useMutation({
     mutationFn: () =>
@@ -64,28 +66,28 @@ export default function BusProximityAlert() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me-child-bus'] }),
   })
 
-  if (feed.isLoading) return <ScreenSkeleton label="Reading your settings…" />
+  if (feed.isLoading) return <ScreenSkeleton label={t('portal.bus_proximity_alert.loading')} />
   if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (
     <>
       <PageHead
-        eyebrow="Alerts & preferences"
-        title="Tell me when the bus is close"
-        description="Choose how near the bus should be before you hear about it. The distance is measured in a straight line from your child's stop, not along the road, the bus will usually take a little longer to arrive than the number suggests."
+        eyebrow={t('portal.bus_proximity_alert.eyebrow')}
+        title={t('portal.bus_proximity_alert.title')}
+        description={t('portal.bus_proximity_alert.description')}
       />
       <Freshness query={feed} />
       <PageBody width="form">
         {rows.length === 0 ? (
           <EmptyState
-            title="No child of yours is on a school bus"
-            body="This alert follows a child's transport allocation. Once the office puts a child of yours on a route, the setting applies here."
+            title={t('portal.bus_proximity_alert.empty_title')}
+            body={t('portal.bus_proximity_alert.empty_body')}
           />
         ) : (
           <Card>
             <CardHeader
-              title="Approach alert"
-              description={`Anywhere from ${PROXIMITY_MIN} m to ${PROXIMITY_MAX / 1000} km from the stop.`}
+              title={t('portal.bus_proximity_alert.card_title')}
+              description={t('portal.bus_proximity_alert.card_description', { min: PROXIMITY_MIN, max_km: PROXIMITY_MAX / 1000 })}
             />
             <div className="space-y-5 px-5 py-4">
               <ChildScope rows={rows} value={student} onChange={setStudent} mixed={current.mixed} />
@@ -93,8 +95,8 @@ export default function BusProximityAlert() {
               <Checkbox
                 checked={notify}
                 onChange={setNotify}
-                label="Tell me when the bus is approaching the stop"
-                hint="Switch this off and the distance below stops being used, the bus still appears on the live map, you simply are not told about it."
+                label={t('portal.bus_proximity_alert.notify_label')}
+                hint={t('portal.bus_proximity_alert.notify_hint')}
               />
 
               <div className="grid gap-2 sm:grid-cols-2">
@@ -110,7 +112,7 @@ export default function BusProximityAlert() {
                     }
                   >
                     <span className="block text-[14px] font-medium">
-                      {m >= 1000 ? `${m / 1000} km away` : `${m} m away`}
+                      {m >= 1000 ? t('portal.bus_proximity_alert.preset_km', { km: m / 1000 }) : t('portal.bus_proximity_alert.preset_m', { m })}
                     </span>
                     <span className="block text-[12.5px] text-muted-foreground">{walkText(m)}</span>
                   </button>
@@ -118,8 +120,8 @@ export default function BusProximityAlert() {
               </div>
 
               <Field
-                label="Or set it exactly"
-                hint={`In metres, between ${PROXIMITY_MIN} and ${PROXIMITY_MAX}. Closer than ${PROXIMITY_MIN} m and the bus is effectively at the stop before you are told; further than ${PROXIMITY_MAX / 1000} km and it is not really news.`}
+                label={t('portal.bus_proximity_alert.exact_label')}
+                hint={t('portal.bus_proximity_alert.exact_hint', { min: PROXIMITY_MIN, max: String(PROXIMITY_MAX), max_km: PROXIMITY_MAX / 1000 })}
               >
                 <Input value={metres} onChange={setMetres} type="number" className="max-w-[10rem]" />
               </Field>
@@ -127,8 +129,7 @@ export default function BusProximityAlert() {
               {!problem && (
                 <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
                   <Footprints className="mt-0.5 h-4 w-4 shrink-0" />
-                  {value.toLocaleString('en-IN')} m is {walkText(value)}. Measured straight from the
-                  stop, so allow for the roads between.
+                  {t('portal.bus_proximity_alert.walk_note', { m: value, walk: walkText(value) })}
                 </p>
               )}
               {problem && metres.trim() !== '' && (
@@ -137,16 +138,16 @@ export default function BusProximityAlert() {
 
               <div className="flex flex-wrap items-center gap-3 gap-y-2">
                 <Button disabled={!!problem || save.isPending} onClick={() => save.mutate()}>
-                  {save.isPending ? 'Saving…' : 'Save'}
+                  {save.isPending ? t('portal.bus_proximity_alert.saving') : t('portal.bus_proximity_alert.save')}
                 </Button>
                 <span className="text-[13px] text-muted-foreground">
-                  Currently {current.proximity.toLocaleString('en-IN')} m.
+                  {t('portal.bus_proximity_alert.currently', { m: current.proximity })}
                 </span>
               </div>
 
               <FormNotice
                 error={save.error}
-                ok={save.isSuccess && !save.isPending ? 'Saved.' : undefined}
+                ok={save.isSuccess && !save.isPending ? t('portal.bus_proximity_alert.saved') : undefined}
               />
             </div>
           </Card>

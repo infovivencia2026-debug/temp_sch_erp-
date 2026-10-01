@@ -2,8 +2,8 @@ import type { Env } from '../env'
 import type { Ctx } from '../router'
 import { institutionById, tenantDb } from '../tenant'
 import { enqueue, enqueueMany, registerJob, type Job } from './jobs'
-import { BUILTIN_TEMPLATES } from '../routes/admin/msg_templates'
-import { loadGuard, normalisePhone, permits } from '../routes/admin/msg_guard'
+import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATES_TE, isTelugu } from '../routes/admin/msg_templates'
+import { loadGuard, normalisePhone, normaliseRecipient, permits } from '../routes/admin/msg_guard'
 import { PROVIDER as PHONE_PROVIDER, isPhoneGatewayConfig, smsGatewayReason } from '../routes/comms/sms_gateway'
 import { sendSMTP } from './smtp'
 import { sendPush, pushConfigured } from './push'
@@ -11,6 +11,7 @@ import { deliverFamilyAlerts } from '../routes/portal/school_life'
 import {
   afterQuietHours, channelStatus, dedupKeyOf, isDuplicate, liveMap, loadPolicies, loadSettings, looksEmail, messageType, messageTypeOf,
   phoneOf, sentToday, type DeliverySettings, type Policy,
+  isMarketingSend, optOutReason, pricesOf, smsSegments, survivesOptOut,
 } from './delivery'
 
 /* The message pipeline of internal/api/messaging.go on the Worker:
@@ -424,11 +425,18 @@ function goSprint(v: unknown): string {
   return String(v)
 }
 
-export async function resolveTemplate(db: D1Database, code: string, channel: string):
+export async function resolveTemplate(db: D1Database, code: string, channel: string, inst?: string | null):
   Promise<{ subject: string; body: string; dlt: string } | null> {
   const r = await db.prepare(`SELECT subject, body, dlt_template_id FROM message_templates WHERE code = ? AND channel = ? AND is_active = 1`)
     .bind(code, channel).first<{ subject: string | null; body: string | null; dlt_template_id: string | null }>()
   if (r) return { subject: r.subject ?? '', body: r.body ?? '', dlt: r.dlt_template_id ?? '' }
+  /* A Telugu school's parents get the Telugu built-in (login messages only).
+     WhatsApp keeps English: its wording is the Meta-approved template. */
+  const te = BUILTIN_TEMPLATES_TE[code]
+  if (te && inst && channel !== 'whatsapp') {
+    const loc = await db.prepare(`SELECT locale FROM institutions WHERE id = ?`).bind(inst).first<{ locale: string | null }>().catch(() => null)
+    if (isTelugu(loc?.locale)) return { subject: te.subject, body: te.body, dlt: '' }
+  }
   const b = BUILTIN_TEMPLATES[code]
   return b ? { subject: b.subject, body: b.body, dlt: '' } : null
 }
@@ -536,7 +544,18 @@ export class Messenger {
     let type: string | null = messageTypeOf(req.template_code)
     if (req.exact_channel || SENT_BY_PLATFORM[req.template_code] || (req.channel === 'email' && req.attachments?.length)) type = null
     if (type === null && req.channel === 'auto') type = 'other'
-    if (type === null) return this.insert(req, req.channel, { idempotency_key: idem })
+    if (type === null) {
+      // Direct sends (a named channel, typed text) wake a phone as much as the ladder's do:
+      // quiet hours hold them too, unless urgent, a code the person asked for, or forced.
+      let sendAfter = req.send_after ?? null
+      if (quietHoursApply(req)) {
+        const settings = (this.settings ??= await loadSettings(db))
+        const base = sendAfter ? Math.max(Date.parse(sendAfter), Date.now()) : Date.now()
+        const q = afterQuietHours(base, settings.quiet_from, settings.quiet_to)
+        if (q > base) sendAfter = new Date(q).toISOString()
+      }
+      return this.insert({ ...req, send_after: sendAfter }, req.channel, { idempotency_key: idem })
+    }
     return this.ladder(req, type, idem)
   }
 
@@ -591,7 +610,7 @@ export class Messenger {
   private async hold(req: SendRequest, typeKey: string, user: string | null, recipient: string, dedup: string, reason: 'digest' | 'cap'): Promise<void> {
     const { db, inst } = this.m
     const vars = await this.withSchool(req.vars)
-    const t = await resolveTemplate(db, req.template_code, 'in_app')
+    const t = await resolveTemplate(db, req.template_code, 'in_app', inst)
     const body = t ? renderTemplate(t.body, vars).trim() : ''
     let title = t ? renderTemplate(t.subject, vars).trim() : ''
     if (!title) title = String(vars.title ?? '').trim() || body.split('\n')[0].slice(0, 120) || req.template_code
@@ -630,25 +649,27 @@ export class Messenger {
 
     const vars = await this.withSchool(req.vars)
     if (req.media?.url) vars.__media = req.media
-    const t = await resolveTemplate(db, req.template_code, channel)
+    const t = await resolveTemplate(db, req.template_code, channel, inst)
     if (!t) {
       throw new MessagingError('no_template', `there is no ${channel} wording for "${req.template_code}" yet, add it under Communication → ` +
         'Message channels → Wording')
     }
     const subject = renderTemplate(t.subject, vars), body = renderTemplate(t.body, vars)
     const id = crypto.randomUUID(), at = new Date().toISOString()
+    // An SMS is billed per part: a Hindi or emoji body is UCS-2 at 70 characters a part.
+    const seg = channel === 'sms' ? smsSegments(body) : null
     const sk = (req.source_kind ?? '').trim() === '' ? null : req.source_kind!
     const ok = (req.occurrence_key ?? '') === '' ? null : req.occurrence_key!
     const r = await db.prepare(`INSERT INTO message_log (id, institution_id, channel, template_code, recipient, user_id, student_id,
           subject, body, status, provider, source_kind, source_id, occurrence_key, send_after, template_vars, queued_at, attempts,
-          message_type, ladder, dedup_key, idempotency_key, urgent, fallback_of)
-        VALUES (?,?,?,?,?,?,?,?,?,'queued',?,?,?,?,?,?,?,0,?,?,?,?,?,?)
+          message_type, ladder, dedup_key, idempotency_key, urgent, fallback_of, segments, encoding)
+        VALUES (?,?,?,?,?,?,?,?,?,'queued',?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?)
         ON CONFLICT DO NOTHING RETURNING id`)
       .bind(id, inst, channel, req.template_code, recipient, req.to_user_id ?? null, req.student_id ?? null,
         subject.trim() === '' ? null : subject, body, p.name, sk, req.source_id ?? null, ok, req.send_after ?? null,
         JSON.stringify(req.vars === undefined && Object.keys(vars).length === 0 ? null : vars), at,
         extra.message_type ?? null, extra.ladder?.length ? JSON.stringify(extra.ladder) : null, extra.dedup_key ?? null,
-        extra.idempotency_key ?? null, extra.urgent ? 1 : 0, extra.fallback_of ?? null)
+        extra.idempotency_key ?? null, extra.urgent ? 1 : 0, extra.fallback_of ?? null, seg?.segments ?? null, seg?.encoding ?? null)
       .first<{ id: string }>()
     if (!r) return { id: null, duplicate: true }
     if (channel === 'email' && req.attachments?.length) {
@@ -665,6 +686,21 @@ export class Messenger {
     this.kicks = false
     await kickDispatch(this.m.env, this.m.inst)
   }
+}
+
+/** Sources whose direct sends are urgent (quiet hours do not hold them). */
+const URGENT_SOURCES = new Set(['absence_alert', 'emergency', 'transport_trip'])
+
+/** Do quiet hours hold this non-ladder send? Only phone channels; never codes, platform
+    notices, tests, urgent sources or an office resend. */
+export function quietHoursApply(req: Pick<SendRequest, 'channel' | 'template_code' | 'force' | 'source_kind'>): boolean {
+  if (req.force) return false
+  if (req.channel !== 'sms' && req.channel !== 'whatsapp') return false
+  const code = (req.template_code ?? '').trim().toLowerCase()
+  if (SENT_BY_PLATFORM[code] || code === 'messaging.test' || code.startsWith('credits.')) return false
+  const t = messageTypeOf(code)
+  if (t && messageType(t).urgent) return false
+  return !URGENT_SOURCES.has((req.source_kind ?? '').trim())
 }
 
 /** QueueMessage for a single message, with its own dispatch kick. */
@@ -717,25 +753,34 @@ async function creditBalance(_env: Env | null, db: D1Database, _inst: string, ch
 function channelLabel(ch: string): string { return ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : ch }
 
 /** spendCredit: after the row is marked sent. Conditional decrement, then the ledger, then the low/empty alert. */
-async function spendCredit(m: MsgScope, ch: string, msgId: string): Promise<void> {
+async function spendCredit(m: MsgScope, ch: string, msgId: string, parts = 1): Promise<void> {
   if (!metered(ch)) return
   const { db, inst } = m
   const at = new Date().toISOString()
-  const res = await db.prepare(`UPDATE message_credits SET balance = balance - 1, updated_at = ? WHERE channel = ? AND balance > 0`).bind(at, ch).run()
-  if (!res.meta.changes) return
-  try { await alertIfCrossed(m, ch) } catch (e) { console.warn('credit alert not queued', ch, e) }
+  const n = Math.max(1, Math.trunc(parts))
+  // One credit per SMS part (what the carrier bills), never below zero.
+  const prevRow = await db.prepare(`SELECT balance FROM message_credits WHERE channel = ?`).bind(ch).first<{ balance: number }>()
+  if (!prevRow || Number(prevRow.balance) <= 0) return
+  const after = await db.prepare(`UPDATE message_credits SET balance = MAX(balance - ?, 0), updated_at = ? WHERE channel = ? AND balance > 0 RETURNING balance`)
+    .bind(n, at, ch).first<{ balance: number }>()
+  if (!after) return
+  const prev = Number(prevRow.balance)
+  const spent = Math.max(1, Math.min(n, prev - Number(after.balance)))
+  try { await alertIfCrossed(m, ch, prev) } catch (e) { console.warn('credit alert not queued', ch, e) }
   await db.prepare(`INSERT INTO message_credit_entries (id, institution_id, channel, delta, reason, message_id, created_at)
-      VALUES (?, ?, ?, -1, 'send', ?, ?)`).bind(crypto.randomUUID(), inst, ch, msgId || null, at).run()
+      VALUES (?, ?, ?, ?, 'send', ?, ?)`).bind(crypto.randomUUID(), inst, ch, -spent, msgId || null, at).run()
 }
 
-async function alertIfCrossed(m: MsgScope, ch: string): Promise<void> {
+async function alertIfCrossed(m: MsgScope, ch: string, prev?: number): Promise<void> {
   const { db, inst, env } = m
   const r = await db.prepare(`SELECT balance, low_water FROM message_credits WHERE channel = ?`).bind(ch).first<{ balance: number; low_water: number }>()
   if (!r) return
   const balance = Number(r.balance), low = Number(r.low_water)
   let code = ''
-  if (balance === 0) code = 'credits.empty'
-  else if (low > 0 && balance === low) code = 'credits.low'
+  // Crossed, not landed on: a three-part SMS can step from low+1 straight past low.
+  const was = prev ?? balance + 1
+  if (balance === 0 && was > 0) code = 'credits.empty'
+  else if (low > 0 && balance <= low && was > low) code = 'credits.low'
   else return
   const school = (await db.prepare(`SELECT name FROM institutions WHERE id = ?`).bind(inst).first<{ name: string }>())?.name ?? ''
   const vars = { school_name: school, channel: channelLabel(ch), balance, low_water: low }
@@ -792,6 +837,30 @@ export async function whatsappSendFor(db: D1Database, code: string, vars: Record
 
 const LEASE_SECONDS = 120
 
+/** A timeout or dropped connection after the request went out: it may have been delivered. */
+export function ambiguousSendError(e: Error): boolean {
+  if (e instanceof MessagingError || e instanceof PermanentSendError) return false
+  const n = (e as { name?: string }).name ?? ''
+  return n === 'TimeoutError' || n === 'AbortError' || /timed? ?out|socket hang up|connection (reset|closed)|network connection was lost/i.test(e.message)
+}
+/** Providers that make a repeated send of one row a no-op (Resend's Idempotency-Key). */
+const idempotentProvider = (p: Provider) => p.name === 'email:resend' || p.channel === 'in_app'
+
+/** Rows marked 'sending' whose lease ran out: the Worker died between the provider
+    call and the result. Never re-sent (it may have gone); failed with the reason. */
+export async function settleStaleSends(db: D1Database, inst: string): Promise<number> {
+  const at = new Date().toISOString()
+  const cutoff = new Date(Date.now() - LEASE_SECONDS * 1000).toISOString()
+  const stale = (await db.prepare(`SELECT id, provider FROM message_log WHERE status = 'sending' AND send_after < ?`).bind(cutoff)
+    .all<{ id: string; provider: string | null }>()).results
+  const why = 'outcome unknown: the send was started and never confirmed, so it is not retried'
+  for (const r of stale) {
+    const u = await db.prepare(`UPDATE message_log SET status = 'failed', error = ?, failed_at = ? WHERE id = ? AND status = 'sending'`).bind(why, at, r.id).run()
+    if (u.meta.changes) await recordEvent(db, inst, r.id, 'failed', r.provider, why, at)
+  }
+  return stale.length
+}
+
 /** DispatchMessages for one school. Returns counts; throws only on database errors. */
 export async function dispatchMessages(env: Env, db: D1Database, inst: string, limit = 50): Promise<{ sent: number; failed: number; more: boolean }> {
   if (limit <= 0 || limit > 200) limit = 50
@@ -804,12 +873,15 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
   const routes: Record<string, string> = {}
   const guardCtx = { db } as unknown as Ctx
 
+  await settleStaleSends(db, inst)
   for (let i = 0; i < limit; i++) {
     const at = new Date().toISOString()
-    const row = await db.prepare(`SELECT id, channel, recipient, subject, body, template_code, attempts, template_vars, send_after, ladder, user_id
+    const row = await db.prepare(`SELECT id, channel, recipient, subject, body, template_code, attempts, template_vars, send_after, ladder, user_id,
+             source_kind, message_type, segments
         FROM message_log WHERE status = 'queued' AND (send_after IS NULL OR send_after <= ?)
         ORDER BY urgent DESC, queued_at LIMIT 1`).bind(at)
-      .first<{ id: string; channel: string; recipient: string; subject: string | null; body: string | null; template_code: string | null; attempts: number; template_vars: string | null; send_after: string | null; ladder: string | null; user_id: string | null }>()
+      .first<{ id: string; channel: string; recipient: string; subject: string | null; body: string | null; template_code: string | null; attempts: number; template_vars: string | null; send_after: string | null; ladder: string | null; user_id: string | null
+        source_kind: string | null; message_type: string | null; segments: number | null }>()
     if (!row) return { sent, failed, more: false }
     // Claim it: a lease on send_after stands in for FOR UPDATE SKIP LOCKED.
     const lease = new Date(Date.now() + LEASE_SECONDS * 1000).toISOString()
@@ -826,6 +898,14 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
     if (!allowed) {
       await db.prepare(`UPDATE message_log SET status = 'suppressed', error = ?, send_after = NULL WHERE id = ?`).bind(trunc(why, 500), row.id).run()
       continue
+    }
+    if (row.channel !== 'in_app') {
+      const optOut = await optOutReason(db, normaliseRecipient(row.recipient), isMarketingSend(row.source_kind, row.template_code),
+        survivesOptOut(row.template_code, row.message_type))
+      if (optOut) {
+        await db.prepare(`UPDATE message_log SET status = 'suppressed', error = ?, send_after = NULL WHERE id = ?`).bind(trunc(optOut, 500), row.id).run()
+        continue
+      }
     }
     if (!(row.channel in routes)) routes[row.channel] = await routeFor(env, db, inst, row.channel)
     const route = routes[row.channel]
@@ -856,10 +936,27 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
         .all<{ filename: string; content_type: string; bytes: ArrayBuffer }>()).results
         .map((a) => ({ filename: a.filename, content_type: a.content_type, data: new Uint8Array(a.bytes) }))
     }
+    if (!sendErr && row.channel !== 'in_app') {
+      // Mark before the send: from here a crash, a lost 'sent' write or an expired lease
+      // must not put this row back in the queue, or the family gets it twice.
+      const mark = await db.prepare(`UPDATE message_log SET status = 'sending' WHERE id = ? AND status = 'queued'`).bind(row.id).run()
+      if (!mark.meta.changes) continue
+    }
     if (!sendErr) {
       try {
         msgId = await p.send({ to: row.recipient, subject: row.subject ?? '', body: row.body ?? '', dlt, wa, attachments: atts, ref: `${inst}:${row.id}`, media })
       } catch (e) { sendErr = e instanceof Error ? e : new Error(String(e)) }
+    }
+    if (sendErr && ambiguousSendError(sendErr) && !idempotentProvider(p)) {
+      // The request left and no answer came back: the provider may well have sent it.
+      // Retrying (or moving down the ladder) could message the family twice, so stop here.
+      failed++
+      const t = new Date().toISOString()
+      const why = 'outcome unknown, not retried so nobody is messaged twice: ' + sendErr.message
+      await db.prepare(`UPDATE message_log SET status = 'failed', error = ?, attempts = attempts + 1, provider = ?, send_after = ?, failed_at = ? WHERE id = ?`)
+        .bind(trunc(why, 500), p.name, row.send_after, t, row.id).run()
+      await recordEvent(db, inst, row.id, 'failed', p.name, why, t)
+      continue
     }
     if (sendErr) {
       failed++
@@ -882,11 +979,13 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
     }
     sent++
     const sentAt = new Date().toISOString()
+    const parts = row.channel === 'sms' ? Math.max(1, Number(row.segments ?? 0) || smsSegments(row.body ?? '').segments) : 1
+    const cost = (pricesOf(env)[row.channel] ?? 0) * parts
     await db.prepare(`UPDATE message_log SET status = 'sent', sent_at = ?, attempts = attempts + 1, provider = ?,
-        provider_msg_id = NULLIF(?, ''), error = NULL, send_after = ? WHERE id = ?`)
-      .bind(sentAt, p.name, trunc(msgId, 200), row.send_after, row.id).run()
+        provider_msg_id = NULLIF(?, ''), error = NULL, send_after = ?, cost_paise = ?, segments = COALESCE(segments, ?) WHERE id = ?`)
+      .bind(sentAt, p.name, trunc(msgId, 200), row.send_after, cost, row.channel === 'sms' ? parts : null, row.id).run()
     await recordEvent(db, inst, row.id, 'sent', p.name, null, sentAt)
-    await spendCredit(m, row.channel, row.id)
+    await spendCredit(m, row.channel, row.id, parts)
     if (row.channel === 'in_app') {
       const r = await db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, source_kind, source_id, link, created_at)
           SELECT ?, m.institution_id, m.user_id, m.student_id,
@@ -1033,7 +1132,13 @@ export { b64 as base64Bytes }
 
 /* Go's message:send task (queue.TypeMessageSend -> QueueOutbound): queue one
    templated message to an account, keyed on the job so a retry is a duplicate. */
-interface MessageSendJob { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; job_id?: string; source_kind?: string; source_id?: string }
+interface MessageSendJob {
+  channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; job_id?: string; source_kind?: string; source_id?: string
+  /** What this message is about, stable across retries and repeat clicks (e.g. "absence:<day>:<student>").
+      With it, the same key to the same person on the same channel is queued once, ever. */
+  dedupe_key?: string
+  student_id?: string
+}
 registerJob<MessageSendJob>('message:send', async (env, job) => {
   const inst = job.institution_id ?? (job.payload as { institution_id?: string }).institution_id
   if (!inst) return
@@ -1041,23 +1146,31 @@ registerJob<MessageSendJob>('message:send', async (env, job) => {
   if (!db) return
   const p = job.payload
   try {
-    const jobId = p.job_id ?? job.id ?? null
-    await queueMessage({ env, db, inst }, {
-      channel: p.channel, template_code: p.template_key, vars: p.vars, to_user_id: p.to_user_id || null,
-      // A notice's fan-out names its notice, so the delivery screen can count it.
-      source_kind: p.source_kind || 'queue_task', source_id: p.source_id || jobId,
-      occurrence_key: p.source_kind ? `${p.to_user_id}:${p.channel}` : p.template_key,
-      idempotency_key: jobId ? `job:${jobId}:${p.channel}` : null,
-    })
+    await queueMessage({ env, db, inst }, messageSendRequest(p, p.job_id ?? job.id ?? null))
   } catch (e) {
     if (e instanceof MessagingError) { console.warn('message:send not queued', inst, p.template_key, e.message); return }
     throw e
   }
 })
 
+/** The SendRequest a 'message:send' job queues. A dedupe_key makes the idempotency key
+    stable (what the message is about + who + channel), so a second click, a second job
+    for the same thing, or a replayed job is a duplicate; without one it falls back to
+    the job id, which only protects a retry of that one job. */
+export function messageSendRequest(p: MessageSendJob, jobId: string | null): SendRequest {
+  const dk = (p.dedupe_key ?? '').trim()
+  return {
+    channel: p.channel, template_code: p.template_key, vars: p.vars, to_user_id: p.to_user_id || null, student_id: p.student_id || null,
+    // A notice's fan-out names its notice, so the delivery screen can count it.
+    source_kind: p.source_kind || 'queue_task', source_id: p.source_id || (dk ? null : jobId),
+    occurrence_key: dk ? `${dk}:${p.to_user_id}:${p.channel}` : p.source_kind ? `${p.to_user_id}:${p.channel}` : p.template_key,
+    idempotency_key: dk ? `dk:${dk}:${p.to_user_id}:${p.channel}` : jobId ? `job:${jobId}:${p.channel}` : null,
+  }
+}
+
 /** Go's s.Queue.Enqueue(TypeMessageSend, ...) for many recipients: one 'message:send' job each. */
 export async function enqueueMessageSends(env: Env, inst: string,
-  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; source_kind?: string; source_id?: string }[]): Promise<void> {
+  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; source_kind?: string; source_id?: string; dedupe_key?: string; student_id?: string }[]): Promise<void> {
   if (!items.length) return
   await enqueueMany(env, items.map((i) => ({ type: 'message:send', institution_id: inst,
     payload: { institution_id: inst, ...i, job_id: crypto.randomUUID() } as Record<string, unknown> })))

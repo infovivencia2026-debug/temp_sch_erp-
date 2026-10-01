@@ -70,11 +70,13 @@ async function listProviders(c: Ctx): Promise<Response> {
   const rows = await integrationRows(c)
   const set = await loadProviders(c, rows)
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString()
-  const counts = await c.db.prepare(`SELECT channel,
-      sum(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS q,
-      sum(CASE WHEN status IN ('sent','delivered') AND sent_at > ?1 THEN 1 ELSE 0 END) AS s,
-      sum(CASE WHEN status = 'failed' AND queued_at > ?1 THEN 1 ELSE 0 END) AS f
-    FROM message_log GROUP BY channel`).bind(since).all<{ channel: string; q: number; s: number; f: number }>()
+  /* Three index-bounded counts instead of one pass over the whole log: queued
+     and failed through the partial status index, sent through sent_at. */
+  const counts = await c.db.prepare(`SELECT channel, sum(q) AS q, sum(s) AS s, sum(f) AS f FROM (
+      SELECT channel, 1 AS q, 0 AS s, 0 AS f FROM message_log WHERE status = 'queued'
+      UNION ALL SELECT channel, 0, 1, 0 FROM message_log WHERE sent_at > ?1 AND status IN ('sent','delivered')
+      UNION ALL SELECT channel, 0, 0, 1 FROM message_log WHERE status = 'failed' AND queued_at > ?1)
+    GROUP BY channel`).bind(since).all<{ channel: string; q: number; s: number; f: number }>()
   const cm = new Map(counts.results.map((x) => [x.channel, x]))
   const stored = new Map(rows.map((r) => [r.provider, r]))
   const items = CHANNELS.map((ch) => {

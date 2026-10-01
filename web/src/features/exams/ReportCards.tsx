@@ -468,8 +468,11 @@ export default function ReportCards() {
     return (r.rank_in_section ?? 99) < (best.rank_in_section ?? 99) ? r : best
   }, null)
 
-  const avg = all.length
-    ? (all.reduce((a, r) => a + (r.percentage ?? 0), 0) / all.length).toFixed(1)
+  // Only cards that carry a percentage: an unmarked card is not a zero, and
+  // counting it as one drags the section down for marks nobody has entered.
+  const marked = all.filter((r) => r.percentage != null)
+  const avg = marked.length
+    ? (marked.reduce((a, r) => a + (r.percentage as number), 0) / marked.length).toFixed(1)
     : '-'
 
   const papers = readiness.data?.items ?? []

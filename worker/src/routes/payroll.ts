@@ -1,5 +1,6 @@
 import type { Router, Ctx } from '../router'
 import { Messenger, enqueueMessageSends, scopeOf } from '../services/messaging'
+import { normalisePhone } from './admin/msg_guard'
 import { HttpError, badRequest, bool, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { school } from './school'
 import { requireFresh } from './fees/common'
@@ -231,13 +232,24 @@ function registerCommunication(r: Router) {
           const co = circularContactOnly(sections)
           const contacts = (await c.db.prepare(co.sql).bind(audience, ...co.args).all<{ phone: string; email: string }>()).results
           if (contacts.length) {
+            // A contact-only guardian whose number or address an account holder above already
+            // has (the father with no login on the mother's phone) was sent it once already.
+            const taken = new Set<string>()
+            const uids = [...new Set(to.map((u) => u.user_id).filter(Boolean))]
+            for (let i = 0; i < uids.length; i += 500) {
+              const us = (await c.db.prepare(`SELECT phone, email FROM users WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(uids.slice(i, i + 500)))
+                .all<{ phone: string | null; email: string | null }>()).results
+              for (const u of us) { if (u.phone) taken.add(normalisePhone(u.phone) || u.phone.trim()); if (u.email) taken.add(u.email.trim().toLowerCase()) }
+            }
             const ms = new Messenger(scopeOf(c))
             for (const ct of contacts) for (const ch of channels) {
               const addr = ch === 'email' ? ct.email : ct.phone
               if (!addr) continue
+              const norm = ch === 'email' ? addr.trim().toLowerCase() : normalisePhone(addr) || addr.trim()
+              if (taken.has(norm)) continue
               try {
                 const r2 = await ms.queue({ channel: ch, template_code: 'announcement.published', vars: { title, body: msgBody }, recipient: addr,
-                  source_kind: 'announcement', source_id: annId, occurrence_key: addr })
+                  source_kind: 'announcement', source_id: annId, occurrence_key: norm })
                 if (!r2.duplicate) queued[ch]++
               } catch { /* as Go: err != nil is skipped */ }
             }
@@ -1216,11 +1228,29 @@ async function getTaxComputation(c: Ctx) {
     .first<{ gross: number; pt: number; n: number }>()
   let grossAnnual = numOr0(paid?.gross), profTax = numOr0(paid?.pt)
   const monthsPaid = numOr0(paid?.n)
-  let projected = false
-  if (monthsPaid > 0 && monthsPaid < 12) {
-    grossAnnual = Math.trunc(grossAnnual / monthsPaid) * 12
-    profTax = Math.trunc(profTax / monthsPaid) * 12
-    projected = true
+  /* The year is what was actually paid so far plus the months still to come
+     at the salary on file. Multiplying one payslip by twelve made a month with
+     arrears (or a joining month's part pay) the whole year's income. Only when
+     there is no salary structure does it fall back to the average payslip,
+     and projection_basis says which it was. */
+  let projected = false, projectionBasis: 'actual' | 'salary_structure' | 'payslip_average' = 'actual'
+  if (monthsPaid < 12) {
+    const toCome = 12 - monthsPaid
+    const today = todayIST()
+    const st = await c.db.prepare(`SELECT COALESCE(SUM(ssi.amount_paise), 0) AS gross, COUNT(*) AS n FROM salary_structures ss
+        JOIN salary_structure_items ssi ON ssi.salary_structure_id = ss.id JOIN salary_components sc ON sc.id = ssi.component_id
+       WHERE ss.employee_id = ? AND sc.kind = 'earning' AND ss.effective_from <= ? AND (ss.effective_to IS NULL OR ss.effective_to >= ?)`)
+      .bind(employee, today, today).first<{ gross: number; n: number }>()
+    const monthly = numOr0(st?.gross)
+    if (monthly > 0) {
+      grossAnnual += monthly * toCome
+      if (monthsPaid > 0) profTax += Math.trunc(profTax / monthsPaid) * toCome
+      projected = true; projectionBasis = 'salary_structure'
+    } else if (monthsPaid > 0) {
+      grossAnnual += Math.trunc(grossAnnual / monthsPaid) * toCome
+      profTax += Math.trunc(profTax / monthsPaid) * toCome
+      projected = true; projectionBasis = 'payslip_average'
+    }
   }
   const decls = await c.db.prepare(`SELECT id, section, particulars, declared_paise, verified_paise, status FROM investment_declarations
       WHERE employee_id = ? AND fy_start_year = ? ORDER BY section, particulars`).bind(employee, fy).all<Record<string, unknown>>()
@@ -1249,7 +1279,7 @@ async function getTaxComputation(c: Ctx) {
   const remaining = Math.max(1, 12 - monthsPaid)
   return ok({
     employee_id: employee, full_name: emp.name, pan: emp.pan ?? undefined, fy_start_year: fy, regime, elected: !!el?.elected_on,
-    gross_annual_paise: grossAnnual, months_paid: monthsPaid, projected, standard_deduction_paise: standardDed, chapter_via_paise: chapter6A,
+    gross_annual_paise: grossAnnual, gross_paid_paise: numOr0(paid?.gross), months_paid: monthsPaid, projected, projection_basis: projectionBasis, standard_deduction_paise: standardDed, chapter_via_paise: chapter6A,
     professional_tax_paise: profTax, taxable_income_paise: taxable, tax_before_rebate_paise: taxBefore, rebate_paise: rebate, cess_paise: cess,
     tax_payable_paise: taxPayable, monthly_tds_paise: Math.trunc(taxPayable / remaining), declarations,
   })

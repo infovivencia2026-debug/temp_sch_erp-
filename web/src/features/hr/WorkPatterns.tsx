@@ -246,15 +246,15 @@ export default function WorkPatterns() {
                         type="button"
                         onClick={() => toggleDay(i + 1)}
                         className={`rounded-md border px-3 py-1.5 text-sm ${on
-                          ? 'border-brand-500 bg-brand-50 text-brand-700'
-                          : 'border-slate-300 text-slate-500'}`}
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-muted-foreground'}`}
                       >
                         {d}
                       </button>
                     )
                   })}
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Days off are never counted against anybody. School holidays come out on top of these.
                 </p>
               </div>
@@ -312,8 +312,8 @@ export default function WorkPatterns() {
                                   : [...draft.department_ids, d.id],
                               })}
                             className={`rounded-md border px-3 py-1.5 text-sm ${on
-                              ? 'border-brand-500 bg-brand-50 text-brand-700'
-                              : 'border-slate-300 text-slate-500'}`}
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border text-muted-foreground'}`}
                           >
                             {d.name}
                           </button>
@@ -366,7 +366,7 @@ export default function WorkPatterns() {
                   </Td>
                   <Td>{p.working_days.map((d) => WEEKDAYS[d - 1]).join(' ')}</Td>
                   <Td>{rule(p)}</Td>
-                  <Td className="text-slate-500">
+                  <Td className="text-muted-foreground">
                     {[p.departments, p.people ? `${p.people} named` : ''].filter(Boolean).join(' / ') || '-'}
                   </Td>
                   <Td>
@@ -435,8 +435,8 @@ export default function WorkPatterns() {
                         setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])}
                     />
                     <span className="font-medium">{e.full_name || e.employee_code}</span>
-                    {does && <span className="text-xs text-slate-500">{does}</span>}
-                    <span className="ml-auto text-xs text-slate-400">
+                    {does && <span className="text-xs text-muted-foreground">{does}</span>}
+                    <span className="ml-auto text-xs text-muted-foreground">
                       {e.pattern || 'No hours'}{e.own_pattern ? '' : ' (inherited)'}
                     </span>
                   </label>

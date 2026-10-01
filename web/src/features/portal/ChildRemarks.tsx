@@ -7,6 +7,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from './use-children'
+import { useT, type MessageKey } from '@/lib/i18n'
 
 /* What the school has written about your child.
  *
@@ -47,15 +48,16 @@ const TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   academic: 'neutral',
 }
 
-const LABEL: Record<string, string> = {
-  achievement: 'Commendation',
-  participation: 'Participation',
-  concern: 'Concern',
-  behaviour: 'Conduct',
-  academic: 'Academic',
+const LABEL: Record<string, MessageKey> = {
+  achievement: 'portal.child_remarks.kind_achievement',
+  participation: 'portal.child_remarks.kind_participation',
+  concern: 'portal.child_remarks.kind_concern',
+  behaviour: 'portal.child_remarks.kind_behaviour',
+  academic: 'portal.child_remarks.kind_academic',
 }
 
 export default function ChildRemarks() {
+  const t = useT()
   const { children: kids, query: kidsQuery } = useChildren()
   const [studentID, setStudentID] = useState('')
 
@@ -101,11 +103,11 @@ export default function ChildRemarks() {
   if (kids.length === 0) {
     return (
       <>
-        <PageHead eyebrow="My child" title="Remarks" />
+        <PageHead eyebrow={t('portal.child_remarks.eyebrow')} title={t('portal.child_remarks.title')} />
         <PageBody>
           <EmptyState
-            title="No student record linked"
-            body="Your account is not linked to a student yet. Ask the school office to connect it. Once it is, everything your child's teachers write appears here on the day they write it."
+            title={t('portal.child_remarks.unlinked_title')}
+            body={t('portal.child_remarks.unlinked_body')}
           />
         </PageBody>
       </>
@@ -122,16 +124,16 @@ export default function ChildRemarks() {
   return (
     <>
       <PageHead
-        eyebrow="My child"
-        title="Remarks"
-        description="What your child’s teachers have written, newest first."
+        eyebrow={t('portal.child_remarks.eyebrow')}
+        title={t('portal.child_remarks.title')}
+        description={t('portal.child_remarks.description')}
         actions={
           kids.length > 1 && (
             <Select
               value={studentID}
               onChange={setStudentID}
-              placeholder="All my children"
-              options={[{ value: '', label: 'All my children' }, ...childOptions(kids)]}
+              placeholder={t('portal.child_remarks.all_children')}
+              options={[{ value: '', label: t('portal.child_remarks.all_children') }, ...childOptions(kids)]}
             />
           )
         }
@@ -142,31 +144,31 @@ export default function ChildRemarks() {
           <div className="flex flex-wrap gap-3">
             <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <Award className="h-3.5 w-3.5 text-success" aria-hidden />
-              {praise} {praise === 1 ? 'commendation' : 'commendations'}
+              {t('portal.child_remarks.praise', { count: praise })}
             </span>
             <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
-              {concerns} needing a word at home
+              {t('portal.child_remarks.concerns', { count: concerns })}
             </span>
           </div>
         )}
 
         <Card>
           <CardHeader
-            title="Remarks"
-            description={`${items.length} in the record`}
+            title={t('portal.child_remarks.title')}
+            description={t('portal.child_remarks.card_count', { count: items.length })}
           />
           {items.length === 0 ? (
             <EmptyState
-              title="Nothing written yet"
-              body="When a teacher records something about your child, good or otherwise, it appears here and you are told about it the same day."
+              title={t('portal.child_remarks.empty_title')}
+              body={t('portal.child_remarks.empty_body')}
             />
           ) : (
             <ul className="divide-y">
               {items.map((x) => (
                 <li key={x.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-baseline gap-2">
-                    <Badge tone={TONE[x.kind] ?? 'neutral'}>{LABEL[x.kind] ?? x.kind}</Badge>
+                    <Badge tone={TONE[x.kind] ?? 'neutral'}>{LABEL[x.kind] ? t(LABEL[x.kind]) : x.kind}</Badge>
                     <span className="text-[13px] text-muted-foreground">
                       {formatDate(x.observed_on)}
                     </span>

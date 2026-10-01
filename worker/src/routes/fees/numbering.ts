@@ -31,6 +31,14 @@ function renderNumber(format: string, prefix: string, fy: string, seq: number, p
 interface Scheme { prefix: string; suffix: string; padding: number; next_value: number; reset_yearly: number; current_fy: string | null; format: string }
 
 export async function nextNumber(c: Ctx, kind: string, on: string = today()): Promise<Numbered> {
+  const b = await nextNumbers(c, kind, 1, on)
+  return { text: b.texts[0], seq: b.seq, fy: b.fy, stmts: b.stmts }
+}
+
+/** A block of `count` consecutive numbers under one read and one guard, for
+    runs that write many documents (the whole-school fee run): the batch that
+    writes them all carries the stmts, so the series stays gapless. */
+export async function nextNumbers(c: Ctx, kind: string, count: number, on: string = today()): Promise<{ texts: string[]; seq: number; fy: string; stmts: D1PreparedStatement[] }> {
   const inst = school(c).id
   const sel = `SELECT prefix, suffix, padding, next_value, reset_yearly, current_fy, format FROM numbering_schemes WHERE institution_id = ? AND kind = ? AND campus_id IS NULL`
   let scheme = await c.db.prepare(sel).bind(inst, kind).first<Scheme>()
@@ -64,24 +72,26 @@ export async function nextNumber(c: Ctx, kind: string, on: string = today()): Pr
     if (counter) {
       seq = Number(counter.next_value)
       stmts.push(assertInBatch(c, `(SELECT next_value FROM numbering_fy_counters WHERE institution_id = ? AND kind = ? AND fy = ?) = ?`, [inst, kind, fy, seq]))
-      stmts.push(c.db.prepare(`UPDATE numbering_fy_counters SET next_value = ? WHERE institution_id = ? AND kind = ? AND fy = ?`).bind(seq + 1, inst, kind, fy))
+      stmts.push(c.db.prepare(`UPDATE numbering_fy_counters SET next_value = ? WHERE institution_id = ? AND kind = ? AND fy = ?`).bind(seq + count, inst, kind, fy))
     } else {
       seq = seed
       // The primary key makes a concurrent first insert fail the batch.
-      stmts.push(c.db.prepare(`INSERT INTO numbering_fy_counters (institution_id, kind, fy, next_value) VALUES (?, ?, ?, ?)`).bind(inst, kind, fy, seq + 1))
+      stmts.push(c.db.prepare(`INSERT INTO numbering_fy_counters (institution_id, kind, fy, next_value) VALUES (?, ?, ?, ?)`).bind(inst, kind, fy, seq + count))
     }
   } else {
     stmts.push(assertInBatch(c, `(SELECT next_value FROM numbering_schemes WHERE institution_id = ? AND kind = ? AND campus_id IS NULL) = ?`, [inst, kind, seq]))
   }
 
-  const text = renderNumber(scheme.format, scheme.prefix, fy, seq, Number(scheme.padding), scheme.suffix)
+  const sch = scheme
+  const texts = Array.from({ length: count }, (_, i) => renderNumber(sch.format, sch.prefix, fy, seq + i, Number(sch.padding), sch.suffix))
+  const text = texts[count - 1]
   const t = now()
   if (!resetYearly || currentFY === '' || currentFY <= fy) {
     stmts.push(c.db.prepare(`UPDATE numbering_schemes SET next_value = ?, current_fy = NULLIF(?, ''), last_number = ?, last_issued_at = ?, updated_at = ?
-                              WHERE institution_id = ? AND kind = ? AND campus_id IS NULL`).bind(seq + 1, fy, text, t, t, inst, kind))
+                              WHERE institution_id = ? AND kind = ? AND campus_id IS NULL`).bind(seq + count, fy, text, t, t, inst, kind))
   } else {
     stmts.push(c.db.prepare(`UPDATE numbering_schemes SET last_number = ?, last_issued_at = ?, updated_at = ? WHERE institution_id = ? AND kind = ? AND campus_id IS NULL`)
       .bind(text, t, t, inst, kind))
   }
-  return { text, seq, fy, stmts }
+  return { texts, seq, fy, stmts }
 }

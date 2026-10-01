@@ -836,27 +836,41 @@ async function verifyCampusPass(c: Ctx): Promise<Response> {
 
 async function getLiveRevision(c: Ctx): Promise<Response> {
   const res = await resolveScope(c)
-  const mine = res.studentIds.length > 0 ? 1 : 0
+  /* Every 30s from every open tab, so each part must be an index seek, not a
+     scan. The old `(? = 0 OR col IN json_each(?))` form defeated the planner
+     (an OR over a bind) and scanned whole tables. Now two plain shapes:
+     staff/school-wide filters on institution_id, so the baseline's *_live_idx
+     (institution_id, <timestamp>) answer max() from the index end; a family
+     filters on student_id, served by each table's student index. Every row of
+     a tenant database carries the same institution_id, so the answers are the
+     same as before. */
+  const family = res.studentIds.length > 0
+  const inst = institutionId(c)
   const k = JSON.stringify(res.studentIds)
-  const scoped = (col: string) => `(? = 0 OR ${inJSON(col)})`
+  const where = (col: string) => (family ? inJSON(col) : `${col.split('.')[0]}.institution_id = ?`)
+  const arg = family ? k : inst
   const r = await c.db.prepare(`
       SELECT
-        (SELECT max(a.marked_at) FROM student_attendance a WHERE ${scoped('a.student_id')}) AS att_marked,
-        (SELECT max(a.corrected_at) FROM student_attendance a WHERE ${scoped('a.student_id')}) AS att_corrected,
-        (SELECT max(m.entered_at) FROM marks m WHERE ${scoped('m.student_id')}) AS marks,
-        (SELECT max(i.updated_at) FROM invoices i WHERE ${scoped('i.student_id')}) AS invoices,
-        (SELECT max(n.created_at) FROM notifications n WHERE n.user_id = ?) AS notes,
-        (SELECT max(h.updated_at) FROM homework h) AS homework,
-        (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${scoped('rc.student_id')}) AS results,
-        (SELECT max(fc.decided_at) FROM fee_concessions fc WHERE ${scoped('fc.student_id')}) AS concessions`)
-    .bind(mine, k, mine, k, mine, k, mine, k, c.id.userId, mine, k, mine, k)
+        (SELECT max(a.marked_at) FROM student_attendance a WHERE ${where('a.student_id')}) AS att_marked,
+        (SELECT max(a.corrected_at) FROM student_attendance a WHERE ${where('a.student_id')} AND a.corrected_at IS NOT NULL) AS att_corrected,
+        (SELECT max(m.entered_at) FROM marks m WHERE ${where('m.student_id')}) AS marks,
+        (SELECT max(i.updated_at) FROM invoices i WHERE ${where('i.student_id')}) AS invoices,
+        (SELECT max(n.created_at) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ?) AS notes,
+        (SELECT max(h.updated_at) FROM homework h WHERE h.institution_id = ?) AS homework,
+        (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${where('rc.student_id')}) AS results,
+        (SELECT max(fc.decided_at) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
+    .bind(arg, arg, arg, arg, inst, c.id.userId, inst, arg, arg)
     .first<Record<string, string | null>>()
   const v = r ?? {}
   // Postgres greatest() ignores nulls; concat_ws skips them.
   const a1 = parseTs(v.att_marked), a2 = parseTs(v.att_corrected)
   const att = a1 && a2 ? (a1 >= a2 ? v.att_marked : v.att_corrected) : (a1 ? v.att_marked : a2 ? v.att_corrected : null)
+  /* Always seven positions, an empty one where a part has nothing yet: the
+     client (web/src/lib/live.ts) invalidates by position, and dropping nulls
+     as Postgres concat_ws did shifted every later part onto the wrong family
+     (a parent with no attendance yet saw homework changes as notifications). */
   const parts = [att, v.marks, v.invoices, v.notes, v.homework, v.results, v.concessions]
-    .map((s) => ist(s)?.compact ?? null).filter((s): s is string => s !== null)
+    .map((s) => ist(s)?.compact ?? '')
   const n = nowInIndia()
   return json({ rev: parts.join('|'), at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
     200, { 'Cache-Control': 'no-store, max-age=0' })

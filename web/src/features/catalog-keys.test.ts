@@ -14,10 +14,12 @@ import { join, resolve } from 'node:path'
  * type-checks, and is dead; even a direct URL answers "not in your
  * workspace". live-tracking-keys.ts records this happening once already.
  *
- * 19 keys remain frozen below (20 when this test was written; the digital library was the first rewired), nine of them
- * the only door to a finished screen with live endpoints behind it. They are
- * frozen below. Wire one to a real key, or delete it, and take it out of
- * KNOWN. Add a new dead key and this fails, naming it.
+ * Twenty were frozen here when this test was written. By 2026-09-29 every one
+ * was resolved: the finished screens with live endpoints behind them got their
+ * catalogue rows back (as 'advanced' features: off the sidebar, found by
+ * search), and the keys that were a second door to a screen another key
+ * already opens were deleted. KNOWN is empty; keep it so. Add a dead key and
+ * this fails, naming it.
  */
 
 const SRC = resolve(process.cwd(), 'src')
@@ -51,28 +53,8 @@ function mappedKeys(): Map<string, string> {
   return out
 }
 
-/* Dead as of the day this test landed. Shrink it; never grow it. */
-const KNOWN = new Set<string>([
-  'finance.export.tally_prime_xml_export',
-  'finance.student_dues.automated_fee_reminders',
-  'hr.reports.hr_reports',
-  'institution_admin.analysis.custom_report_builder',
-  'institution_admin.analysis.department_reports',
-  'institution_admin.analysis.performance_analytics',
-  'institution_admin.department.department_academics',
-  'institution_admin.department.department_timetable',
-  'institution_admin.directory_workload.faculty_directory',
-  'institution_admin.directory_workload.teacher_workload_timetable_overview',
-  'institution_admin.evaluation.appraisals',
-  'institution_admin.library.annual_book_stock_verification',
-  'institution_admin.library.fine_penalty_summary',
-  'institution_admin.library.new_session_textbook_orders',
-  'institution_admin.statutory_returns.govt_returns',
-  'institution_admin.statutory_returns.instruction_hours',
-  'institution_admin.stores.department_stock_issuance',
-  'institution_admin.stores.item_category_store_setup',
-  'institution_admin.stores.purchase_order_workflow',
-])
+/* Dead keys tolerated. Empty; never grow it. */
+const KNOWN = new Set<string>([])
 
 describe('every wired screen key exists in the catalogue', () => {
   const catalog = catalogKeys()

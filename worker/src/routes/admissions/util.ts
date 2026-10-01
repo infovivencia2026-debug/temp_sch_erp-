@@ -142,6 +142,7 @@ export const customisableKinds: Record<string, Option[]> = {
     { value: 'seat_unavailable', label: 'No seat available' },
     { value: 'chose_another_school', label: 'Chose another school' },
     { value: 'no_response', label: 'No response from parent' },
+    { value: 'other', label: 'Other' },
   ],
 }
 

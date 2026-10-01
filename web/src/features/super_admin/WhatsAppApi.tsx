@@ -6,7 +6,7 @@ import {
 } from '@/components/ui'
 import {
   useWhatsAppSettings, useSaveWhatsApp, useForgetWhatsApp, useTestWhatsApp,
-  useWhatsAppTemplates, useSaveWhatsAppTemplate, useWhatsAppLog,
+  useWhatsAppTemplates, useSaveWhatsAppTemplate, useWhatsAppLog, useSubmitWhatsAppTemplates,
   useRecipientPolicy, useSetRecipientMode, useAddRecipient, useRemoveRecipient,
   waStatusTone, waWhen, waRedact,
   type WhatsAppSettings, type WhatsAppTemplate, type RecipientPolicy,
@@ -455,6 +455,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
  */
 function TemplateMapping() {
   const templates = useWhatsAppTemplates()
+  const submit = useSubmitWhatsAppTemplates()
   const [code, setCode] = useState('')
 
   if (templates.isLoading) return <SkeletonTable columns={5} />
@@ -474,6 +475,23 @@ function TemplateMapping() {
               ? `${unmapped} of this school’s ${items.length} WhatsApp templates have no approved template behind them, and cannot be sent.`
               : 'Every template is mapped to an approved WhatsApp template.'
           }
+          action={
+            unmapped > 0 ? (
+              /* Meta creates the template and reviews it; the mapping is saved
+                 at once and starts working when Meta approves it. */
+              <Button size="sm" variant="secondary" disabled={submit.isPending} onClick={() => submit.mutate({})}>
+                {submit.isPending ? 'Submitting…' : 'Submit unmapped built-ins to Meta'}
+              </Button>
+            ) : undefined
+          }
+        />
+        <FormNotice
+          error={submit.error}
+          ok={submit.data
+            ? submit.data.items.length === 0
+              ? 'Nothing to submit: every built-in is already mapped.'
+              : submit.data.items.map((r) => `${r.code}: ${r.error ? `failed (${r.error})` : r.status || 'submitted'}`).join(' · ')
+            : undefined}
         />
         <Table head={['Template', 'Approved as', 'Language', 'Parameters', 'State']} empty={items.length === 0}>
           {items.map((t) => (

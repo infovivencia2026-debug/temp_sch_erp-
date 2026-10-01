@@ -355,12 +355,14 @@ export function registerTransport(r: Router): void {
     const req = normaliseVehicle(await readJSON(c.req))
     await staffBelongs(c, req.driver, req.attendant)
     await driverFree(c, req.driver, vid)
+    // Moving a bus between campuses: the campus sent is persisted (it was accepted and dropped).
+    await campusBelongs(c, req.campus)
     let changed = 0
     try {
       const res = await c.db.prepare(`UPDATE vehicles SET registration_no = ?, model = ?, capacity = ?, driver_employee_id = ?, attendant_employee_id = ?,
-          insurance_expiry = ?, fitness_expiry = ?, permit_expiry = ?, puc_expiry = ?, status = ? WHERE id = ?`)
+          insurance_expiry = ?, fitness_expiry = ?, permit_expiry = ?, puc_expiry = ?, status = ?, campus_id = COALESCE(?, campus_id) WHERE id = ?`)
         .bind(req.registration, nullable(req.model), req.capacity, req.driver, req.attendant,
-          nullable(req.insurance), nullable(req.fitness), nullable(req.permit), nullable(req.puc), req.status, vid).run()
+          nullable(req.insurance), nullable(req.fitness), nullable(req.permit), nullable(req.puc), req.status, req.campus, vid).run()
       changed = res.meta.changes
     } catch (e) { vehicleWriteFailed(e) }
     if (!changed) throw notFound('resource not found')

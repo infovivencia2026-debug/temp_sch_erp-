@@ -2,7 +2,8 @@ import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
 import { issueSession } from '../auth/session'
-import { loginHTML, type Brand } from '../auth/login-page'
+import { loginHTML, type Brand, type LoginLang } from '../auth/login-page'
+import { isTelugu } from './admin/msg_templates'
 import { askForCode } from '../pages/mfa'
 import { studentLoginRefusal, studentOnlyAccount } from '../services/student_logins'
 import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
@@ -25,13 +26,61 @@ function csrfToken(): string {
    branding; this is the same form with the same field names, unstyled until
    the template is ported. The client code posts identifier, password,
    csrf_token and next, and expects a redirect on success. */
-function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean }): Response {
+const LANG = 'erp_lang'
+
+/* The sign-in page's language: ?lang=en|te first (remembered in a cookie so
+   the form's POST and its errors keep it), then that cookie, then Telugu for
+   a school whose locale is Telugu, then a browser that prefers Telugu over
+   English. English otherwise. */
+export function loginLang(req: Request | undefined, school?: Institution | null): { lang: LoginLang; asked: boolean } {
+  if (!req) return { lang: school && isTelugu(school.locale) ? 'te' : 'en', asked: false }
+  const q = new URL(req.url).searchParams.get('lang')
+  if (q === 'te' || q === 'en') return { lang: q, asked: true }
+  const c = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|;\\s*)${LANG}=(te|en)(?:;|$)`))?.[1]
+  if (c === 'te' || c === 'en') return { lang: c, asked: false }
+  if (school && isTelugu(school.locale)) return { lang: 'te', asked: false }
+  for (const part of (req.headers.get('accept-language') ?? '').split(',')) {
+    const tag = part.split(';')[0].trim().toLowerCase()
+    if (isTelugu(tag)) return { lang: 'te', asked: false }
+    if (tag === 'en' || tag.startsWith('en-')) break
+  }
+  return { lang: 'en', asked: false }
+}
+
+/* The errors this file shows, in Telugu. Anything not here stays English. */
+const ERRORS_TE: Record<string, string> = {
+  'Malformed form submission.': 'ఫారం సరిగా రాలేదు. మళ్ళీ ప్రయత్నించండి.',
+  'Your sign-in form expired. Please try again.': 'సైన్ ఇన్ ఫారం గడువు ముగిసింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.':
+    'యూజర్‌నేమ్/ఈమెయిల్/ఫోన్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
+  "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on.":
+    'మీ పాస్‌వర్డ్ సరైనదే, కానీ ఈ స్కూల్ యాక్సెస్ ప్రస్తుతం ఆపివేయబడింది. ఏ సమాచారం పోలేదు. మళ్ళీ ఆన్ చేయమని స్కూల్ ఆఫీసును అడగండి.',
+  'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.':
+    'ఈ నంబర్/ఈమెయిల్, పాస్‌వర్డ్‌తో ఒకటి కంటే ఎక్కువ స్కూళ్ల అకౌంట్లు ఉన్నాయి. మీ ఈమెయిల్ లేదా యూజర్‌నేమ్‌తో సైన్ ఇన్ చేయండి.',
+}
+const TOO_MANY = /^Too many attempts\. Wait (\d+) minute\(s\), then try again\.$/
+function errorIn(lang: LoginLang, msg: string | undefined): string | undefined {
+  if (!msg || lang !== 'te') return msg
+  const m = msg.match(TOO_MANY)
+  if (m) return `చాలా సార్లు ప్రయత్నించారు. ${m[1]} నిమిషాలు ఆగి మళ్ళీ ప్రయత్నించండి.`
+  return ERRORS_TE[msg] ?? msg
+}
+
+function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean; req?: Request }): Response {
   const tok = csrfToken()
   const action = opts.action ?? '/login'
   const brand = opts.school ? brandOf(opts.school, action) : undefined
-  const html = loginHTML({ csrf: tok, next: opts.next ?? '/', identifier: opts.identifier, error: opts.error, brand })
+  const { lang, asked } = loginLang(opts.req, opts.school)
+  let switchHref: string | undefined
+  if (opts.req) {
+    const u = new URL(opts.req.url)
+    u.searchParams.set('lang', lang === 'te' ? 'en' : 'te')
+    switchHref = action + u.search
+  }
+  const html = loginHTML({ csrf: tok, next: opts.next ?? '/', identifier: opts.identifier, error: errorIn(lang, opts.error), brand, lang, switchHref })
   const secure = env.COOKIE_SECURE !== 'false' ? '; Secure' : ''
-  const headers = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+  const headers = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-language': lang })
+  if (asked) headers.append('set-cookie', `${LANG}=${lang}; Path=/; SameSite=Lax; Max-Age=31536000${secure}`)
   headers.append('set-cookie', `${CSRF}=${tok}; Path=${action}; HttpOnly; SameSite=Lax; Max-Age=900${secure}`)
   /* A visit to a school's own page makes it this browser's home: /login and
      /logout send the browser back here, so a parent never meets the XULO page. */
@@ -66,10 +115,10 @@ export async function showLogin(env: Env, req: Request): Promise<Response> {
   const url = new URL(req.url)
   const next = safeNext(url.searchParams.get('next'))
   const school = await institutionByHost(env, hostOf(req))
-  if (school) return pageFor(env, { next, school })
+  if (school) return pageFor(env, { next, school, req })
   const home = url.searchParams.has('any') ? null : homeOf(req)
   if (home) return new Response(null, { status: 302, headers: { location: next === '/' ? home : `${home}?next=${encodeURIComponent(next)}` } })
-  return pageFor(env, { next })
+  return pageFor(env, { next, req })
 }
 
 /* A school's own sign-in page: /<country>/<slug>. GET shows it, POST signs in,
@@ -80,7 +129,7 @@ export async function schoolLogin(env: Env, req: Request, country: string, slug:
   const action = schoolPath(school)
   const q = new URL(req.url).searchParams
   // ?preview: the seller's Branding screen, which must not become the seller's home.
-  if (req.method === 'GET') return pageFor(env, { next: safeNext(q.get('next')), school, action, remember: !q.has('preview') })
+  if (req.method === 'GET') return pageFor(env, { next: safeNext(q.get('next')), school, action, remember: !q.has('preview'), req })
   if (req.method === 'POST') return login(env, req, school, action)
   return new Response(null, { status: 405, headers: { allow: 'GET, POST' } })
 }
@@ -188,7 +237,7 @@ async function authenticate(env: Env, identifier: string, password: string, only
 export async function login(env: Env, req: Request, school?: Institution | null, action = '/login'): Promise<Response> {
   /* On a school's own domain /login is that school's page too. */
   if (school === undefined) school = await institutionByHost(env, hostOf(req))
-  const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action })
+  const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action, req })
   const form = await req.formData().catch(() => null)
   if (!form) return page(env, { error: 'Malformed form submission.', status: 400 })
   const cookieTok = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|;\\s*)${CSRF}=([^;]+)`))?.[1]

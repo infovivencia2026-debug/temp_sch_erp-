@@ -279,3 +279,69 @@ export const liveMap = (h: ChannelHealth[]) => Object.fromEntries(h.map((x) => [
 /** A phone number this product can send to, or ''. */
 export const phoneOf = (v: string | null | undefined) => (v ? normalisePhone(v) : '')
 export const looksEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())
+
+// ---------------------------------------------------------------------------
+// SMS segments (what the carrier bills)
+
+// GSM 03.38 basic set; the extension set costs two septets each.
+const GSM7_BASIC = '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà'
+const GSM7_EXT = '^{}\\[~]|€\f'
+const GSM7 = new Set([...GSM7_BASIC])
+const GSM7X = new Set([...GSM7_EXT])
+
+/** How many SMS parts a body goes out as: GSM-7 160 / 153 per part, else UCS-2 70 / 67
+    (UTF-16 code units, so an emoji is two). An empty body is one part. */
+export function smsSegments(text: string): { segments: number; encoding: 'gsm7' | 'ucs2'; units: number } {
+  let septets = 0, gsm = true
+  for (const ch of text) {
+    if (GSM7.has(ch)) septets++
+    else if (GSM7X.has(ch)) septets += 2
+    else { gsm = false; break }
+  }
+  if (gsm) return { segments: septets <= 160 ? 1 : Math.ceil(septets / 153), encoding: 'gsm7', units: septets }
+  const units = text.length
+  return { segments: units <= 70 ? 1 : Math.ceil(units / 67), encoding: 'ucs2', units }
+}
+
+// ---------------------------------------------------------------------------
+// opt-out, per contact (message_opt_outs)
+
+/** A reply that means "stop sending me these" (TRAI / Meta practice: STOP, UNSUBSCRIBE). */
+export function isStopKeyword(text: string): boolean {
+  return /^\s*(stop|stop\s*all|stopall|unsubscribe|opt[\s-]?out)\s*[.!]*\s*$/i.test(text ?? '')
+}
+/** A reply that undoes it. */
+export function isStartKeyword(text: string): boolean {
+  return /^\s*(start|unstop|subscribe|opt[\s-]?in)\s*[.!]*\s*$/i.test(text ?? '')
+}
+
+/** Sends that are promotion, not school business: an opt-out for 'marketing' stops these. */
+export function isMarketingSend(sourceKind: string | null | undefined, templateCode: string | null | undefined): boolean {
+  const k = (sourceKind ?? '').trim(), c = (templateCode ?? '').trim().toLowerCase()
+  return k === 'campaign_step' || k === 'enquiry_campaign' || k === 'marketing' || /^(campaign|marketing|promo)[._]/.test(c)
+}
+
+/** Messages an opt-out of 'all' still lets through: codes a person asked for, and emergencies. */
+export function survivesOptOut(templateCode: string | null | undefined, messageTypeKey: string | null | undefined): boolean {
+  const t = messageTypeKey ?? messageTypeOf(templateCode ?? '')
+  return t === 'otp' || t === 'emergency' || /^(password_reset|credits\.)/.test(templateCode ?? '')
+}
+
+/** Why this contact must not get this message, or '' when it may. */
+export async function optOutReason(db: D1Database, contact: string, marketing: boolean, exempt: boolean): Promise<string> {
+  if (!contact) return ''
+  const rows = (await db.prepare(`SELECT scope, source FROM message_opt_outs WHERE contact = ?`).bind(contact)
+    .all<{ scope: string; source: string }>().catch(() => ({ results: [] as { scope: string; source: string }[] }))).results
+  for (const r of rows) {
+    if (r.scope === 'all' && !exempt) return `the recipient opted out of messages (${r.source === 'stop_reply' ? 'replied STOP' : r.source})`
+    if (r.scope === 'marketing' && marketing) return `the recipient opted out of marketing messages (${r.source === 'stop_reply' ? 'replied STOP' : r.source})`
+  }
+  return ''
+}
+
+/** Record an opt-out (idempotent). contact as normaliseRecipient gives it. */
+export async function recordOptOut(db: D1Database, inst: string, contact: string, scope: 'marketing' | 'all', source: string, note?: string | null): Promise<void> {
+  if (!contact) return
+  await db.prepare(`INSERT INTO message_opt_outs (institution_id, contact, scope, source, note, created_at) VALUES (?,?,?,?,?,?)
+      ON CONFLICT (institution_id, contact, scope) DO NOTHING`).bind(inst, contact, scope, source, note ?? null, new Date().toISOString()).run()
+}

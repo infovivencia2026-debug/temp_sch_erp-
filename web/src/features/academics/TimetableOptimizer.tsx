@@ -413,6 +413,16 @@ function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean
       api.put('/api/v1/timetable-optimizer/load-rules', v),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['timetable-optimizer'] }),
   })
+  // Whole days a teacher cannot be given (a part-timer's day off, say).
+  const addOff = useMutation({
+    mutationFn: (v: { teacher_user_id: string; weekday: number }) =>
+      api.post('/api/v1/timetable-optimizer/unavailability', v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timetable-optimizer'] }),
+  })
+  const dropOff = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/timetable-optimizer/unavailability/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timetable-optimizer'] }),
+  })
 
   const teachers = data?.teachers ?? []
   return (
@@ -421,7 +431,7 @@ function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean
         title="Who may teach how much"
         description="Demand is what the requirements ask; the cap is what the school allows. Demand above the cap cannot be timetabled, however good the generator is."
       />
-      <FormNotice error={save.error} />
+      <FormNotice error={save.error ?? addOff.error ?? dropOff.error} />
       <Table
         head={['Teacher', 'Department', 'Demand', 'Cap / week', 'Cap / day', 'Unavailable', '']}
         empty={teachers.length === 0}
@@ -438,6 +448,9 @@ function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean
             onSave: (v) => save.mutate(v),
             saving: save.isPending,
             mayWrite,
+            onAddOff: (weekday) => addOff.mutate({ teacher_user_id: t.user_id, weekday }),
+            onDropOff: (id) => dropOff.mutate(id),
+            offBusy: addOff.isPending || dropOff.isPending,
           }),
         )}
       </Table>
@@ -446,8 +459,11 @@ function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean
 }
 
 function teacherRow({
-  t, value, onChange, onSave, saving, mayWrite,
+  t, value, onChange, onSave, saving, mayWrite, onAddOff, onDropOff, offBusy,
 }: {
+  onAddOff: (weekday: number) => void
+  onDropOff: (id: string) => void
+  offBusy: boolean
   t: NonNullable<InputsResponse['teachers']>[number]
   value: { day: string; week: string }
   onChange: (v: { day: string; week: string }) => void
@@ -496,11 +512,28 @@ function teacherRow({
         />
       </Td>
       <Td className="text-[13px] text-muted-foreground">
-        {t.unavailable.length === 0
-          ? '-'
-          : t.unavailable
-              .map((u) => (u.period_id ? `${WEEKDAYS[u.weekday - 1]} one period` : WEEKDAYS[u.weekday - 1]))
-              .join(', ')}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {t.unavailable.length === 0 && !mayWrite && '-'}
+          {t.unavailable.map((u, i) => (
+            <span key={u.id ?? i} className="inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5">
+              {u.period_id ? `${WEEKDAYS[u.weekday - 1]} one period` : WEEKDAYS[u.weekday - 1]}
+              {mayWrite && u.id && (
+                <button type="button" aria-label={`Remove ${WEEKDAYS[u.weekday - 1]}`}
+                  disabled={offBusy} onClick={() => onDropOff(u.id!)}
+                  className="text-muted-foreground hover:text-foreground">×</button>
+              )}
+            </span>
+          ))}
+          {mayWrite && (
+            <Select
+              value=""
+              onChange={(v) => { if (v) onAddOff(Number(v)) }}
+              placeholder="+ day off"
+              options={WEEKDAYS.map((d, i) => ({ value: String(i + 1), label: d }))
+                .filter((o) => !t.unavailable.some((u) => !u.period_id && u.weekday === Number(o.value)))}
+            />
+          )}
+        </div>
       </Td>
       <Td>
         {mayWrite && dirty && (

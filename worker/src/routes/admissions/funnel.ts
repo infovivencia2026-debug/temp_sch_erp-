@@ -82,7 +82,7 @@ export function registerAdmissionsFunnel(r: Router) {
              NULLIF(TRIM(COALESCE(e.utm_source,'') || CASE WHEN e.utm_medium IS NULL THEN '' ELSE '/' || e.utm_medium END || CASE WHEN e.utm_campaign IS NULL THEN '' ELSE '/' || e.utm_campaign END, '/'), '') AS utm,
              e.status, u.full_name AS assigned_to, e.next_follow_up, ${istDate('e.created_at')} AS created_at,
              CAST(julianday(?) - julianday(COALESCE(e.last_contacted_at, e.created_at)) AS INTEGER) AS days_silent,
-             (e.next_follow_up IS NOT NULL AND e.next_follow_up < ? AND e.status NOT IN ('converted','lost')) AS follow_up_overdue
+             (e.next_follow_up IS NOT NULL AND e.next_follow_up < ? AND e.status NOT IN ('applied','converted','lost')) AS follow_up_overdue
         FROM enquiries e LEFT JOIN classes c ON c.id = e.class_sought LEFT JOIN users u ON u.id = e.assigned_to
        WHERE (? IS NULL OR e.status = ?) AND (? IS NULL OR e.assigned_to = ?) AND (? IS NOT 1 OR e.assigned_to IS NULL)
        ORDER BY (e.next_follow_up IS NOT NULL AND e.next_follow_up < ?) DESC, COALESCE(e.last_contacted_at, e.created_at) LIMIT 400`)
@@ -142,7 +142,7 @@ export function registerAdmissionsFunnel(r: Router) {
     let total = 0, rteAdmitted = 0
     for (const v of quotas.results) { total += v.admitted; if (v.quota === 'rte') rteAdmitted = v.admitted }
     return ok({ items, quotas: quotas.results, admitted_total: total, rte_admitted: rteAdmitted,
-      rte_percent: total > 0 ? 100 * rteAdmitted / total : 0, rte_short_by: Math.max(0, Math.floor((total + 3) / 4) - rteAdmitted) })
+      rte_percent: total > 0 ? 100 * rteAdmitted / total : null, rte_short_by: Math.max(0, Math.floor((total + 3) / 4) - rteAdmitted) })
   })
 
   r.post('/admissions/applications/patch', WRITE, async (c) => {
@@ -183,7 +183,7 @@ export function registerAdmissionsFunnel(r: Router) {
     }
     await c.db.prepare(`
       UPDATE applications SET
-        quota = COALESCE(NULLIF(?,''), quota), rte_status = COALESCE(NULLIF(?,''), rte_status), aadhaar_consent = COALESCE(?, aadhaar_consent),
+        quota = COALESCE(NULLIF(?,''), quota), is_rte = CASE WHEN NULLIF(?,'') IS NULL THEN is_rte WHEN ? = 'rte' THEN 1 ELSE 0 END, rte_status = COALESCE(NULLIF(?,''), rte_status), aadhaar_consent = COALESCE(?, aadhaar_consent),
         aadhaar_last4 = COALESCE(NULLIF(?,''), aadhaar_last4), apaar_id = COALESCE(NULLIF(?,''), apaar_id), prior_udise_code = COALESCE(NULLIF(?,''), prior_udise_code),
         sibling_student_id = COALESCE(NULLIF(?,''), sibling_student_id), alumni_parent_name = COALESCE(NULLIF(?,''), alumni_parent_name),
         medical_conditions = COALESCE(NULLIF(?,''), medical_conditions), allergies = COALESCE(NULLIF(?,''), allergies), immunisation_upto = COALESCE(NULLIF(?,''), immunisation_upto),
@@ -198,7 +198,7 @@ export function registerAdmissionsFunnel(r: Router) {
         parent_email = CASE WHEN ? IS NULL THEN parent_email ELSE NULLIF(?,'') END,
         updated_at = ?
       WHERE id = ?`)
-      .bind(quota, str(req.rte_status), aadhaar, str(req.aadhaar_last4), str(req.apaar_id), str(req.prior_udise_code), sibling, str(req.alumni_parent_name),
+      .bind(quota, quota, quota, str(req.rte_status), aadhaar, str(req.aadhaar_last4), str(req.apaar_id), str(req.prior_udise_code), sibling, str(req.alumni_parent_name),
         str(req.medical_conditions), str(req.allergies), str(req.immunisation_upto), str(req.blood_group), str(req.nationality), str(req.passport_no),
         str(req.visa_type), str(req.visa_expiry), rank, str(req.first_name), classSought, str(req.parent_name), str(req.parent_phone),
         lastName, lastName, dob, dob, gender, gender, category, category, parentEmail, parentEmail, now(), appID).run()
@@ -242,6 +242,58 @@ export function registerAdmissionsFunnel(r: Router) {
     let emailed = 0
     for (const a of next.results) if ((await notifyApplicationStage(c, a.id, 'offered')).sent) emailed++
     return ok({ promoted: next.results.map((a) => a.name), count: next.results.length, emailed })
+  })
+
+  // --- admission sessions (an intake window tied to an academic year) --------------
+  r.get('/admissions/sessions', READ, async (c) => {
+    const rows = await c.db.prepare(`
+      SELECT s.id, s.name, s.academic_year_id, y.name AS academic_year, s.campus_id, s.opens_on, s.closes_on, s.is_open,
+             (SELECT count(*) FROM applications a WHERE a.admission_session_id = s.id) AS applications,
+             (SELECT count(*) FROM admission_forms f WHERE f.admission_session_id = s.id) AS forms
+        FROM admission_sessions s LEFT JOIN academic_years y ON y.id = s.academic_year_id
+       ORDER BY s.is_open DESC, s.opens_on IS NULL, s.opens_on DESC, s.name`).all<Record<string, unknown>>()
+    return ok({ items: rows.results.map((v) => ({ ...v, is_open: bool(v.is_open) })) })
+  })
+
+  const sessionBody = async (c: { db: D1Database }, req: Record<string, unknown>) => {
+    const name = str(req.name).trim()
+    if (name === '') throw badRequest('the session needs a name, e.g. "Admissions 2027-28"')
+    const year = str(req.academic_year_id).trim()
+    if (!isUUIDish(year)) throw badRequest('choose the academic year the children will join in')
+    if (!(await c.db.prepare(`SELECT 1 AS x FROM academic_years WHERE id = ?`).bind(year).first())) throw badRequest('unknown academic year')
+    const opens = str(req.opens_on).trim(), closes = str(req.closes_on).trim()
+    if ((opens !== '' && !isYMD(opens)) || (closes !== '' && !isYMD(closes))) throw badRequest('dates must be YYYY-MM-DD')
+    if (opens !== '' && closes !== '' && closes < opens) throw badRequest('the session closes before it opens')
+    return { name, year, opens, closes, isOpen: req.is_open === undefined ? 1 : (req.is_open ? 1 : 0) }
+  }
+
+  r.post('/admissions/sessions', WRITE, async (c) => {
+    const b = await sessionBody(c, await readJSON(c.req))
+    const campus = await c.db.prepare(`SELECT id FROM campuses ORDER BY created_at LIMIT 1`).first<{ id: string }>()
+    if (!campus) throw badRequest('this school has no campus yet')
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO admission_sessions (id, institution_id, campus_id, academic_year_id, name, opens_on, closes_on, is_open, created_at)
+        VALUES (?,?,?,?,?,NULLIF(?,''),NULLIF(?,''),?,?)`).bind(id, c.id.institution!.id, campus.id, b.year, b.name, b.opens, b.closes, b.isOpen, now()).run()
+    return created({ id })
+  })
+
+  r.put('/admissions/sessions/{id}', WRITE, async (c) => {
+    if (!isUUIDish(c.params.id)) throw badRequest('invalid session id')
+    const b = await sessionBody(c, await readJSON(c.req))
+    const res = await c.db.prepare(`UPDATE admission_sessions SET name = ?, academic_year_id = ?, opens_on = NULLIF(?,''), closes_on = NULLIF(?,''), is_open = ? WHERE id = ?`)
+      .bind(b.name, b.year, b.opens, b.closes, b.isOpen, c.params.id).run()
+    if (res.meta.changes === 0) throw new HttpError(404, 'no such admission session', { code: 'not_found' })
+    return ok({ id: c.params.id })
+  })
+
+  r.del('/admissions/sessions/{id}', WRITE, async (c) => {
+    if (!isUUIDish(c.params.id)) throw badRequest('invalid session id')
+    const used = await c.db.prepare(`SELECT (SELECT count(*) FROM applications WHERE admission_session_id = ?) + (SELECT count(*) FROM admission_forms WHERE admission_session_id = ?) AS n`)
+      .bind(c.params.id, c.params.id).first<{ n: number }>()
+    if ((used?.n ?? 0) > 0) throw new HttpError(409, 'applications or forms already belong to this session. Close it instead of deleting it', { code: 'in_use' })
+    const res = await c.db.prepare(`DELETE FROM admission_sessions WHERE id = ?`).bind(c.params.id).run()
+    if (res.meta.changes === 0) throw new HttpError(404, 'no such admission session', { code: 'not_found' })
+    return ok({ id: c.params.id })
   })
 
   r.post('/admissions/rte/import', WRITE, async (c) => {

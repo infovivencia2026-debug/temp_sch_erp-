@@ -2973,6 +2973,18 @@ body[data-scroll-lock] {
       min-height: 44px;
     }
 
+    /* Every other link that stands on its own line -- a nav entry, a row
+       that is a link, a card that is a link -- is laid out as a box
+       (flex/grid/block), never as a run of text. Keying on that keeps a
+       link inside a sentence untouched while a link that is a target gets
+       the floor. [role='link'] is the same thing written without <a>. */
+    :where(
+      a.flex, a.inline-flex, a.grid, a.block, a.inline-block,
+      nav a, [role='link']
+    ):not(.tap-inline):not(.bento-dot) {
+      min-height: 44px;
+    }
+
     /* A phone number in a row is written as text and pressed as a button:
        an 18px-tall line is too thin to hit. It gets the invisible target
        below rather than a bigger box, so the row keeps its height. */

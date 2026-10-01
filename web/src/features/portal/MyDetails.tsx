@@ -8,6 +8,7 @@ import {
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
 import { ChooseChild } from '@/features/portal/ChooseChild'
+import { useT } from '@/lib/i18n'
 
 /* Update my details.
  *
@@ -80,11 +81,12 @@ function toDraft(d: Details): Draft {
   }
 }
 
-function relationLabel(r: string) {
-  return r ? r.charAt(0).toUpperCase() + r.slice(1) : 'Guardian'
+function relationLabel(r: string, fallback = '-') {
+  return r ? r.charAt(0).toUpperCase() + r.slice(1) : fallback
 }
 
 export default function MyDetails() {
+  const t = useT()
   const qc = useQueryClient()
   const { children: kids, query: kidsQuery, studentId, setChosen } = useChildren()
   const ready = readyFor(kids, studentId)
@@ -131,26 +133,26 @@ export default function MyDetails() {
   return (
     <>
       <PageHead
-        eyebrow="Profile"
-        title="Update my details"
+        eyebrow={t('portal.my_details.eyebrow')}
+        title={t('portal.my_details.title')}
         actions={
           kids.length > 1 && (
-            <Select value={studentId} onChange={setChosen} placeholder="Which child?" options={childOptions(kids)} />
+            <Select value={studentId} onChange={setChosen} placeholder={t('portal.my_details.child_placeholder')} options={childOptions(kids)} />
           )
         }
       />
       <Freshness query={details} />
       <PageBody>
         {kidsQuery.isLoading ? (
-          <ScreenSkeleton rows={6} label="Loading your children" />
+          <ScreenSkeleton rows={6} label={t('portal.my_details.loading_children')} />
         ) : kidsQuery.error ? (
           <ErrorState error={kidsQuery.error} />
         ) : kids.length === 0 ? (
-          <EmptyState title="No child is linked to this account yet." />
+          <EmptyState title={t('portal.my_details.unlinked_title')} />
         ) : !ready ? (
-          <ChooseChild title="Choose a child above." />
+          <ChooseChild title={t('portal.my_details.choose_child')} />
         ) : details.isLoading || !d || !draft ? (
-          <ScreenSkeleton rows={8} label="Loading the record" />
+          <ScreenSkeleton rows={8} label={t('portal.my_details.loading_record')} />
         ) : details.error ? (
           <ErrorState error={details.error} />
         ) : (
@@ -158,36 +160,36 @@ export default function MyDetails() {
             <Card>
               <CardHeader
                 title={d.full_name}
-                description="What the school holds. Name, date of birth, admission number and class change through the office."
+                description={t('portal.my_details.child_description')}
               />
               <dl className="grid gap-x-6 gap-y-3 px-5 py-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-                <Ro label="Admission no." value={d.admission_no} mono />
-                <Ro label="Class" value={d.class_name ? `${d.class_name} ${d.section_name ?? ''}`.trim() : '-'} />
-                <Ro label="Date of birth" value={d.date_of_birth ?? '-'} />
-                <Ro label="Gender" value={d.gender ? relationLabel(d.gender) : '-'} />
+                <Ro label={t('portal.my_details.admission_no')} value={d.admission_no} mono />
+                <Ro label={t('portal.my_details.class')} value={d.class_name ? `${d.class_name} ${d.section_name ?? ''}`.trim() : '-'} />
+                <Ro label={t('portal.my_details.date_of_birth')} value={d.date_of_birth ?? '-'} />
+                <Ro label={t('portal.my_details.gender')} value={d.gender ? relationLabel(d.gender) : '-'} />
               </dl>
             </Card>
 
             <Card>
-              <CardHeader title="Home" description="Where the child lives. Used for the bus stop, the post and the emergency card." />
+              <CardHeader title={t('portal.my_details.home_title')} description={t('portal.my_details.home_description')} />
               <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
-                <Field label="Blood group">
-                  <Select value={draft.blood_group} onChange={(v) => setField({ blood_group: v })} placeholder="Not recorded" options={BLOOD_GROUPS} />
+                <Field label={t('portal.my_details.blood_group')}>
+                  <Select value={draft.blood_group} onChange={(v) => setField({ blood_group: v })} placeholder={t('portal.my_details.not_recorded')} options={BLOOD_GROUPS} />
                 </Field>
                 <div className="hidden sm:block" />
-                <Field label="Address line 1" wide>
-                  <Input value={draft.address_line1} onChange={(v) => setField({ address_line1: v })} placeholder="House no., street" />
+                <Field label={t('portal.my_details.address_line1')} wide>
+                  <Input value={draft.address_line1} onChange={(v) => setField({ address_line1: v })} placeholder={t('portal.my_details.address_line1_placeholder')} />
                 </Field>
-                <Field label="Address line 2" wide>
-                  <Input value={draft.address_line2} onChange={(v) => setField({ address_line2: v })} placeholder="Area, landmark" />
+                <Field label={t('portal.my_details.address_line2')} wide>
+                  <Input value={draft.address_line2} onChange={(v) => setField({ address_line2: v })} placeholder={t('portal.my_details.address_line2_placeholder')} />
                 </Field>
-                <Field label="City / town">
+                <Field label={t('portal.my_details.city')}>
                   <Input value={draft.city} onChange={(v) => setField({ city: v })} />
                 </Field>
-                <Field label="State">
+                <Field label={t('portal.my_details.state')}>
                   <Input value={draft.state} onChange={(v) => setField({ state: v })} />
                 </Field>
-                <Field label="PIN code">
+                <Field label={t('portal.my_details.pincode')}>
                   <Input value={draft.pincode} onChange={(v) => setField({ pincode: v })} />
                 </Field>
               </div>
@@ -195,22 +197,22 @@ export default function MyDetails() {
 
             <Card>
               <CardHeader
-                title="Parents & guardians"
-                description="The phone here is where the school's calls and alerts go. Keep it the number that rings."
+                title={t('portal.my_details.guardians_title')}
+                description={t('portal.my_details.guardians_description')}
               />
               <div className="divide-y">
                 {d.guardians.length === 0 && (
                   <p className="px-5 py-4 text-[13px] text-muted-foreground">
-                    No guardian is on record for this child. Ask the office to add one.
+                    {t('portal.my_details.no_guardian')}
                   </p>
                 )}
                 {d.guardians.map((g, i) => (
                   <div key={g.id} className="px-5 py-4">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="text-[14px] font-medium">{relationLabel(g.relation)}</span>
-                      {g.mine && <Badge tone="info">you</Badge>}
-                      {g.is_primary && <Badge>primary contact</Badge>}
-                      {g.is_emergency && <Badge tone="warning">emergency contact</Badge>}
+                      <span className="text-[14px] font-medium">{relationLabel(g.relation, t('portal.my_details.guardian'))}</span>
+                      {g.mine && <Badge tone="info">{t('portal.my_details.badge_you')}</Badge>}
+                      {g.is_primary && <Badge>{t('portal.my_details.badge_primary')}</Badge>}
+                      {g.is_emergency && <Badge tone="warning">{t('portal.my_details.badge_emergency')}</Badge>}
                     </div>
                     {/* Another adult's row is shown, not edited. It used to be
                         four live inputs with only a "you" badge to tell the
@@ -219,29 +221,29 @@ export default function MyDetails() {
                         the other's row and take every alert. */}
                     {g.mine ? (
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Full name" required>
+                        <Field label={t('portal.my_details.full_name')} required>
                           <Input value={draft.guardians[i]?.full_name ?? ''} onChange={(v) => setGuardian(i, { full_name: v })} />
                         </Field>
-                        <Field label="Mobile number" required>
+                        <Field label={t('portal.my_details.mobile')} required>
                           <Input type="tel" value={draft.guardians[i]?.phone ?? ''} onChange={(v) => setGuardian(i, { phone: v })} />
                         </Field>
-                        <Field label="Email">
+                        <Field label={t('portal.my_details.email')}>
                           <Input type="email" value={draft.guardians[i]?.email ?? ''} onChange={(v) => setGuardian(i, { email: v })} />
                         </Field>
-                        <Field label="Occupation">
+                        <Field label={t('portal.my_details.occupation')}>
                           <Input value={draft.guardians[i]?.occupation ?? ''} onChange={(v) => setGuardian(i, { occupation: v })} />
                         </Field>
                       </div>
                     ) : (
                       <>
                         <dl className="grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-2">
-                          <div><dt className="text-[12px] text-muted-foreground">Full name</dt><dd>{g.full_name}</dd></div>
-                          <div><dt className="text-[12px] text-muted-foreground">Mobile number</dt><dd>{g.phone || '—'}</dd></div>
-                          <div><dt className="text-[12px] text-muted-foreground">Email</dt><dd>{g.email || '—'}</dd></div>
-                          <div><dt className="text-[12px] text-muted-foreground">Occupation</dt><dd>{g.occupation || '—'}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">{t('portal.my_details.full_name')}</dt><dd>{g.full_name}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">{t('portal.my_details.mobile')}</dt><dd>{g.phone || '—'}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">{t('portal.my_details.email')}</dt><dd>{g.email || '—'}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">{t('portal.my_details.occupation')}</dt><dd>{g.occupation || '—'}</dd></div>
                         </dl>
                         <p className="mt-3 text-[12.5px] text-muted-foreground">
-                          Only they can change these from their own sign-in. If something here is wrong, tell the office.
+                          {t('portal.my_details.others_row_note')}
                         </p>
                       </>
                     )}
@@ -252,14 +254,14 @@ export default function MyDetails() {
 
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={() => draft && save.mutate(draft)} disabled={!dirty || save.isPending} pending={save.isPending}>
-                Save changes
+                {t('portal.my_details.save')}
               </Button>
               {dirty && (
                 <Button variant="secondary" onClick={() => setDraft(toDraft(d))} disabled={save.isPending}>
-                  Discard
+                  {t('portal.my_details.discard')}
                 </Button>
               )}
-              {save.isSuccess && !dirty && <FormNotice ok="Saved. The office sees this on Student 360 now." />}
+              {save.isSuccess && !dirty && <FormNotice ok={t('portal.my_details.saved')} />}
               {save.isError && <FormNotice error={save.error} />}
             </div>
           </>

@@ -78,7 +78,7 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
   return (
     <div className="overflow-x-auto p-4">
       <table className="w-full text-[13px]">
-        <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+        <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="py-1 pr-4">Day</th>
             <th className="py-1 pr-4">Due in</th>
@@ -94,20 +94,20 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
           {(q.data?.items ?? []).map((d) => (
             <tr
               key={d.on_date}
-              className={d.expected ? 'border-t' : 'border-t text-slate-400'}
+              className={d.expected ? 'border-t' : 'border-t text-muted-foreground'}
             >
               <td className="py-1 pr-4 tabular-nums whitespace-nowrap">
                 {d.on_date.slice(8)} {d.weekday}
               </td>
               {/* Due beside actual, so a late count explains itself on the
                   row rather than needing the pattern looked up elsewhere. */}
-              <td className="py-1 pr-4 tabular-nums text-slate-400">
+              <td className="py-1 pr-4 tabular-nums text-muted-foreground">
                 {d.expected ? formatTime(d.due_in) : '-'}
               </td>
               <td className="py-1 pr-4 tabular-nums">
                 {d.check_in ? formatTime(d.check_in) : '-'}
               </td>
-              <td className="py-1 pr-4 tabular-nums text-slate-400">
+              <td className="py-1 pr-4 tabular-nums text-muted-foreground">
                 {d.expected ? formatTime(d.due_out) : '-'}
               </td>
               <td className="py-1 pr-4 tabular-nums">
@@ -157,7 +157,7 @@ export default function StaffHours() {
               <Input type="month" value={month} onChange={setMonth} />
             </Field>
             {noPattern > 0 && (
-              <p className="mt-3 text-sm text-slate-500">
+              <p className="mt-3 text-sm text-muted-foreground">
                 {noPattern} of {rows.length} are on no set of hours, so nothing is expected of them
                 and nothing is deducted. Give the school a default under Working hours.
               </p>
@@ -183,12 +183,12 @@ export default function StaffHours() {
               {rows.map((r) => (
                 <Fragment key={r.employee_id}>
                 <tr
-                  className="cursor-pointer hover:bg-slate-50"
+                  className="cursor-pointer hover:bg-muted/50"
                   onClick={() => setOpen(open === r.employee_id ? null : r.employee_id)}
                 >
                   <Td className="font-medium">
                     {r.name}
-                    {r.department && <div className="text-xs text-slate-500">{r.department}</div>}
+                    {r.department && <div className="text-xs text-muted-foreground">{r.department}</div>}
                   </Td>
                   {/* THE TIMES, NOT JUST THE NAME OF THEM.
 
@@ -204,7 +204,7 @@ export default function StaffHours() {
                         <div className="tabular-nums">
                           {formatTime(r.starts_at)}&ndash;{formatTime(r.ends_at)}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted-foreground">
                           {r.pattern} &middot; {r.grace_minutes} min grace
                         </div>
                       </>
@@ -217,7 +217,7 @@ export default function StaffHours() {
                   {/* Silence, kept separate from absence. A school that has not
                       begun marking sees that, rather than a month of absences
                       it never recorded. */}
-                  <Td className="tabular-nums text-slate-400">{r.unmarked_days || ''}</Td>
+                  <Td className="tabular-nums text-muted-foreground">{r.unmarked_days || ''}</Td>
                   <Td className="tabular-nums">{r.late_days || ''}</Td>
                   <Td className="tabular-nums">{r.early_leaves || ''}</Td>
                   <Td className="tabular-nums">{r.lop_days || ''}</Td>
@@ -227,12 +227,12 @@ export default function StaffHours() {
                     <div className="tabular-nums">
                       {r.lop_paise != null ? formatPaise(r.lop_paise) : '-'}
                     </div>
-                    <div className="text-xs text-slate-500">{r.lop_rule}</div>
+                    <div className="text-xs text-muted-foreground">{r.lop_rule}</div>
                   </Td>
                 </tr>
                 {open === r.employee_id && (
                   <tr>
-                    <td colSpan={11} className="bg-slate-50 p-0">
+                    <td colSpan={11} className="bg-muted/40 p-0">
                       <DayList employeeId={r.employee_id} month={month} />
                     </td>
                   </tr>

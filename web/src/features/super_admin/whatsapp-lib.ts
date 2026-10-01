@@ -182,6 +182,28 @@ export function useSaveWhatsAppTemplate() {
   >((body) => api.put(`${BASE}/whatsapp/templates`, body))
 }
 
+/** One built-in template's outcome from Meta's template-creation call. */
+export interface WhatsAppSubmitResult {
+  code: string
+  name: string
+  status: string
+  category?: string
+  error?: string
+}
+
+/**
+ * Submit built-in templates to Meta for approval and store the mapping.
+ * No code submits every built-in that is not already mapped.
+ */
+export function useSubmitWhatsAppTemplates() {
+  return useWhatsAppWrite<{ items: WhatsAppSubmitResult[] }, { code?: string }>(({ code }) =>
+    api.post(
+      code ? `${BASE}/whatsapp/templates/${encodeURIComponent(code)}/submit` : `${BASE}/whatsapp/templates/submit`,
+      {},
+    ),
+  )
+}
+
 export function useSetRecipientMode() {
   return useWhatsAppWrite<RecipientPolicy, { mode: string; note: string; confirm: string }>(
     (body) => api.put(`${BASE}/messaging/recipients/mode`, body),
