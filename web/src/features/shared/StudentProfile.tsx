@@ -1021,7 +1021,7 @@ export default function StudentProfile() {
                 ? formatPaise(p.fees.outstanding_paise)
                 : 'Clear'}
               tone={p.fees.outstanding_paise > 0 ? 'warning' : 'success'}
-              note={p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'}
+              note={`${p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'} · ${formatPaise(p.fees.paid_paise)} received`}
             />
             <QuickTile
               label="Latest result"
@@ -1215,9 +1215,10 @@ export default function StudentProfile() {
               is what actually happens here. */}
           <div className="lg:col-span-2 grid gap-6 lg:grid-cols-[minmax(0,30%)_minmax(0,1fr)] lg:items-start">
             <div className="space-y-6">
-              <Card>
+              <Card className={can('students.write') ? undefined : 'hidden'}>
                 <div className="p-5">
-                  <div className="mx-auto h-[34mm] w-[28mm] overflow-hidden rounded border bg-muted/30">
+                  <p className="text-[14px] font-semibold">Photo</p>
+                  <div className="hidden">
                     {p.photo_file_id && (
                       <img loading="lazy" decoding="async"
                         src={`/api/v1/files/${p.photo_file_id}?inline=1`}
@@ -1233,7 +1234,7 @@ export default function StudentProfile() {
                       Name, class and admission number were three rows inside a
                       table of fifteen, so the things somebody checks first were
                       indistinguishable from the things they check once a year. */}
-                  <p className="mt-3 text-center text-[16px] font-semibold">{p.full_name}</p>
+
                   {/* The roll number is said either way.
 
                       It appeared only when there was one, so the commonest
@@ -1241,12 +1242,7 @@ export default function StudentProfile() {
                       number?" -- was answered by a line that simply was not
                       there, which reads as a screen that does not track it
                       rather than as a number nobody has given them yet. */}
-                  <p className="text-center text-[13px] text-muted-foreground">
-                    {cls} · {p.roll_no ? `Roll ${p.roll_no}` : 'no roll number'}
-                  </p>
-                  <p className="text-center font-mono text-[12px] text-muted-foreground">
-                    {p.admission_no}
-                  </p>
+
                   {can('students.write') && (
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
                       {/* TAKING ONE OFF, which "Change photo" could not do.
@@ -1930,9 +1926,24 @@ export default function StudentProfile() {
     <StudentWarningStrip studentId={selected} />
     <RecordShell
       title={p.full_name}
-      subtitle={`${p.admission_no} · ${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''}`}
+      /* The face and the class at the top, where the eye lands first; the
+         attendance and fee figures are on the Overview tiles below. */
+      media={
+        <span className="relative shrink-0">
+        <span className="relative grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full border-2 border-card bg-primary/10 text-[22px] font-bold text-primary shadow-md">
+          {p.full_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+          {p.photo_file_id && (
+            <img src={`/api/v1/files/${p.photo_file_id}?inline=1`} alt=""
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              className="absolute inset-0 h-full w-full object-cover" />
+          )}
+        </span>
+        {p.status === 'active' && <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card bg-[#22c55e]" />}
+        </span>
+      }
+      subtitle={`${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''} · ${p.admission_no}`}
       status={p.status}
-      facts={[
+      facts={false as boolean ? [
         {
           label: 'Attendance',
           value: `${p.attendance.percent}%`,
@@ -1950,7 +1961,7 @@ export default function StudentProfile() {
         // and any advance not yet applied to a bill — which is why it can
         // exceed the one invoice the Fees tab shows for this year.
         { label: 'Receipts, all years', value: formatPaise(p.fees.paid_paise) },
-      ]}
+      ] : undefined}
       tabs={tabs}
       actions={actions}
       /* ONE PATCH, NOT TWO.
