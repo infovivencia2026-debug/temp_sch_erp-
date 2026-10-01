@@ -1,12 +1,20 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette } from 'lucide-react'
+import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
   ConfirmButton, Checkbox, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
   EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, tabClass,
-  SEG_BAR, segClass, type ActiveRange,
+  SEG_BAR, segClass, Dialog, ExportTable, type ActiveRange,
 } from '@/components/ui'
+import { SkeletonCards, SkeletonRows, SkeletonText } from '@/components/Skeleton'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
+import StudentAvatar from '@/components/StudentAvatar'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import { Ring as StudentRing, Bar, DueChip, DoneCheck, Segmented, Tile } from '@/features/portal/student-kit'
+import { ProgressRing } from '@/features/learning/lms-shared'
+import { Meter } from '@/features/bento/bento-kit'
+import { Ring as BentoRing } from '@/features/bento/bento-viz'
 import { SkeletonTable, SkeletonTiles, SkeletonForm } from '@/components/Skeleton'
 import { StatusPill } from '@/components/NeedsAttention'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -86,6 +94,12 @@ function Gallery() {
   const [seg2, setSeg2] = useState<'on' | 'off'>('on')
   const [slide, setSlide] = useState(1)
   const [dd, setDd] = useState<'subtle' | 'off' | 'strong'>('subtle')
+  const [dlg, setDlg] = useState<'' | 'sm' | 'lg'>('')
+  const [chk2, setChk2] = useState(false)
+  const [file, setFile] = useState<UploadedFile | null>(null)
+  const [picked, setPicked] = useState(false)
+  const [stu, setStu] = useState<'today' | 'week'>('today')
+  const segList = useRef<HTMLDivElement>(null)
 
   return (
     <>
@@ -93,7 +107,7 @@ function Gallery() {
       <PageBody>
         <Section id="buttons" title="Buttons">
           <Card className="space-y-5 p-[var(--card-pad)]">
-            {(['primary', 'secondary', 'ghost'] as const).map((v) => (
+            {(['primary', 'secondary', 'ghost', 'ink', 'outline'] as const).map((v) => (
               <Specimen key={v} label={`${v}: md, sm, hover, focus, disabled, loading, danger, icon`}>
                 <Button variant={v}>Save changes</Button>
                 <Button variant={v} size="sm">Save</Button>
@@ -151,6 +165,7 @@ function Gallery() {
               </Field>
               <Field label="Checkbox" wide>
                 <Checkbox checked={chk} onChange={setChk} label="Send an SMS as well" hint="Costs one credit per parent" />
+                <Checkbox checked={chk2} onChange={setChk2} label={TE} />
               </Field>
             </FormGrid>
           </Card>
@@ -207,11 +222,18 @@ function Gallery() {
                   className={tabClass(tab === i)} onClick={() => setTab(i)}>{t}</button>
               ))}
             </div>
-            <div className={SEG_BAR}>
-              {['Day', 'Week', 'Month'].map((t, i) => (
-                <button key={t} className={segClass(seg === i)} onClick={() => setSeg(i)}>{t}</button>
-              ))}
-            </div>
+            <Specimen label="SEG_BAR + segClass, with the SlidingIndicator">
+              <div ref={segList} className={`${SEG_BAR} relative`} role="tablist">
+                <SlidingIndicator listRef={segList} active={seg} />
+                {['Day', 'Week', 'Month', TE].map((t, i) => (
+                  <button key={t} role="tab" aria-selected={seg === i} className={segClass(seg === i)} onClick={() => setSeg(i)}>{t}</button>
+                ))}
+              </div>
+            </Specimen>
+            <Specimen label="Student portal Segmented">
+              <Segmented value={stu} onChange={setStu} label="Range"
+                options={[{ value: 'today', label: 'Today' }, { value: 'week', label: 'This week' }]} />
+            </Specimen>
           </Card>
         </Section>
 
@@ -237,6 +259,7 @@ function Gallery() {
         <Section id="tables" title="Tables">
           <Card>
             <CardHeader title="Table with rows" action={<Showing shown={3} total={3} />} />
+            <div id="gallery-table">
             <Table head={['Name', 'Class', 'Status', { label: 'Due', align: 'right' }, '']}>
               {[
                 ['Aarav Sharma', '6-A', 'Paid', 'Rs 0'],
@@ -252,6 +275,7 @@ function Gallery() {
                 </tr>
               ))}
             </Table>
+            </div>
           </Card>
           <Card>
             <CardHeader title="Empty table" />
@@ -294,7 +318,88 @@ function Gallery() {
           </Card>
         </Section>
 
-        <Section id="dialog" title="Dialog panel">
+
+        <Section id="dialogs" title="Dialog (live) and sheets">
+          <Card className="p-[var(--card-pad)]">
+            <Specimen label="ui.tsx Dialog: centred on a desk, a bottom sheet on a phone; Escape, the dim and Back close it">
+              <Button variant="secondary" onClick={() => setDlg('sm')} ariaHasPopup="dialog">Small dialog</Button>
+              <Button variant="secondary" onClick={() => setDlg('lg')} ariaHasPopup="dialog">Large dialog with a form</Button>
+            </Specimen>
+          </Card>
+          <Dialog open={dlg === 'sm'} onClose={() => setDlg('')} size="sm" title="Remove this fee head?"
+            description="Nothing already collected changes."
+            footer={<><Button variant="secondary" onClick={() => setDlg('')}>Cancel</Button><Button tone="danger" onClick={() => setDlg('')}>Remove</Button></>}>
+            <p className="text-[14px] text-muted-foreground">{LONG}.</p>
+          </Dialog>
+          <Dialog open={dlg === 'lg'} onClose={() => setDlg('')} size="lg" title={TE} description="A long form scrolls inside; the footer stays put."
+            footer={<><Button variant="secondary" onClick={() => setDlg('')}>Cancel</Button><Button onClick={() => setDlg('')}>Save</Button></>}>
+            <FormGrid>
+              {['Name', 'Class', 'Roll no.', 'Guardian', 'Phone', 'Address', 'House', 'Bus stop'].map((f) => (
+                <Field key={f} label={f}><Input value="" onChange={() => {}} placeholder={f} /></Field>
+              ))}
+            </FormGrid>
+          </Dialog>
+        </Section>
+
+        <Section id="avatars" title="Avatars and photos">
+          <Card className="p-[var(--card-pad)]">
+            <Specimen label="StudentAvatar: 24, 32, 44, 64; selectable; Telugu initials">
+              <StudentAvatar name="Aarav Sharma" size={24} />
+              <StudentAvatar name="Aarav Sharma" size={32} />
+              <StudentAvatar name="శ్రీనివాస్ రెడ్డి" size={44} />
+              <StudentAvatar name="Meera Iyer" size={64} />
+              <StudentAvatar name="Kiran Rao" size={44} selected={picked} onSelect={() => setPicked((v) => !v)} />
+            </Specimen>
+          </Card>
+        </Section>
+
+        <Section id="progress" title="Progress: rings, bars, meters">
+          <Card className="p-[var(--card-pad)] space-y-4">
+            <Specimen label="Student Ring (120 / 64), lms ProgressRing, bento Ring">
+              <StudentRing pct={72} label="Attendance">72%</StudentRing>
+              <StudentRing pct={35} size={64} stroke={7} hue="rose" label="Homework">35%</StudentRing>
+              <ProgressRing pct={60} label="Course" />
+              <div className="w-24"><BentoRing value={18} total={24} srLabel="Classes marked" /></div>
+            </Specimen>
+            <Specimen label="Student Bar and bento Meter (all tones)">
+              <div className="w-56 space-y-2"><Bar pct={64} /><Bar pct={20} hue="amber" /></div>
+              <div className="w-56 space-y-2">
+                {(['primary', 'success', 'warning', 'destructive'] as const).map((t, i) => (
+                  <Meter key={t} value={(i + 1) * 22} total={100} tone={t} srLabel={t} />
+                ))}
+              </div>
+            </Specimen>
+            <Specimen label="DueChip, DoneCheck, Tile">
+              <DueChip due={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} />
+              <DueChip due={new Date(Date.now() - 86400000).toISOString().slice(0, 10)} />
+              <DueChip due={new Date().toISOString().slice(0, 10)} done />
+              <DoneCheck done={false} /><DoneCheck done />
+              <div className="w-40"><Tile icon={BookOpen} hue="indigo" value="12" label="Homework due" /></div>
+            </Specimen>
+          </Card>
+        </Section>
+
+        <Section id="files" title="File picker and export">
+          <Card className="p-[var(--card-pad)] space-y-4">
+            <FilePicker value={file} onChange={setFile} hint="PDF or a photo, up to 20 MB" />
+            <Specimen label="ExportTable (CSV of the table above, by id)">
+              <ExportTable tableId="gallery-table" name="gallery" />
+            </Specimen>
+          </Card>
+        </Section>
+
+        <Section id="skeletons" title="More loading shapes">
+          <Card className="p-[var(--card-pad)] space-y-4">
+            <SkeletonText delay={0} />
+            <SkeletonRows rows={3} cols={3} />
+          </Card>
+          <SkeletonCards n={3} delay={0} />
+          {(['table', 'cards', 'form'] as const).map((sh) => (
+            <Card key={sh} className="p-[var(--card-pad)]"><Loading shape={sh} delay={0} label={`Loading (${sh})`} rows={2} cols={3} /></Card>
+          ))}
+        </Section>
+
+        <Section id="dialog" title="Dialog panel (static drawing)">
           <div className="mx-auto w-full max-w-[26rem] rounded-xl border bg-card shadow-[var(--elev-3)]">
             <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
               <p className="text-[16px] font-semibold">Dialog title</p>
