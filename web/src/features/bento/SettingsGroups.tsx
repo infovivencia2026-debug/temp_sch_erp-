@@ -98,15 +98,16 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
     <section>
       {/* Small, muted, spaced. A section label is read once on the way past;
           at the weight of a heading it competes with the rows under it. */}
-      <h2 className="mb-2 px-1 text-[11.5px] font-semibold uppercase tracking-[0.07em]
+      <h2 className="mb-[6px] px-[16px] text-[12px] font-semibold uppercase tracking-[0.07em]
                      text-muted-foreground">
         {title}
       </h2>
       {/* One card, one hairline, rules only BETWEEN rows. A border on every
           row draws a line under the last one as well, which is what makes a
           list look like a table rather than a card. */}
-      <div className="overflow-hidden rounded-[14px] border bg-card">
-        <div className="divide-y">{children}</div>
+      <div className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))]">
+        {/* Rules inset past the icon, as a phone list draws them. */}
+        <div className="[&>*+*]:border-t [&>*+*]:[border-image:linear-gradient(to_right,transparent_52px,color-mix(in_srgb,currentColor_14%,transparent)_52px)_1]">{children}</div>
       </div>
     </section>
   )
@@ -127,21 +128,18 @@ function Row({ item, value, swatch, onClick }: {
         'flex w-full items-center gap-3 px-4 text-left',
         // 56px, which is the floor a thumb wants and roughly what the row
         // needs anyway once the icon has a box of its own.
-        'min-h-[56px]',
+        'min-h-[50px]',
         // The pressed state was missing entirely: a row that does not answer a
         // tap reads as a dead row for the moment before the screen changes.
         'transition-colors active:bg-muted',
       )}
     >
-      {/* The tile wears the accent's tint and the icon the strong accent
-          (bento-theme.css, --sel-*): nine grey tiles made the landing the one
-          screen with none of the school's colour on it. */}
-      <span
-        aria-hidden
-        className="grid size-[34px] shrink-0 place-items-center rounded-[10px]
-                   bg-[var(--sel-tint)] text-[var(--sel-strong)]"
-      >
-        <Icon className="size-[17px]" />
+      {/* A line icon in the row's own ink, no tile under it: the tinted boxes read
+          as the solid-colour tiles that were turned down. The 24px slot keeps
+          the left edge the eye runs down. The accent (--sel-strong) is not
+          dark-aware outside bento and went near-black on a dark card. */}
+      <span aria-hidden className="grid size-[24px] shrink-0 place-items-center opacity-75">
+        <Icon className="size-[20px]" strokeWidth={1.75} />
       </span>
 
       <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{item.label}</span>
@@ -231,7 +229,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
   }
 
   return (
-    <section className="rounded-[16px] border bg-card p-4">
+    <section className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))] p-4">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <button
@@ -284,7 +282,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
       <button
         type="button"
         onClick={() => onOpen('account')}
-        className="mt-3 flex w-full items-center gap-2 rounded-[10px] px-1 py-2
+        className="-mx-4 -mb-4 mt-3 flex min-h-[48px] w-[calc(100%+32px)] items-center gap-2 border-t px-4
                    text-left text-[14px] font-medium transition-colors active:bg-muted"
       >
         <span className="flex-1">Account and profile</span>

@@ -4656,3 +4656,18 @@ body:has(.bento-frost) [data-assistant-orb] {
 @container drawing (max-height: 2.9em) {
   .bento-board:not([data-pager]) .card-drawing > * { display: none; }
 }
+
+/* THE SETTINGS PAGE FOLLOWS THE CLASSIC THEME OUTSIDE BENTO.
+   --bento-* are declared light on :root and only turned dark under
+   [data-layout='bento'], so under Work in dark mode the settings sheet came out
+   white while its grouped cards (bg-card) went dark with dark ink on them. The
+   dialog already maps the tokens to the classic ones outside bento; the page
+   now does the same. */
+html:not([data-layout='bento']) [data-settings-page] {
+  --bento-card: hsl(var(--card));
+  --bento-card-base: hsl(var(--card));
+  --bento-ink: hsl(var(--card-foreground));
+  --bento-bg: hsl(var(--background));
+  --bento-line: hsl(var(--border));
+  --bento-muted: hsl(var(--muted-foreground));
+}
