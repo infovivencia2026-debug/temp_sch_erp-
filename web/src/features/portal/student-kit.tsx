@@ -1,3 +1,4 @@
+import { ProgressRing } from '../../components/ProgressRing'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw } from 'lucide-react'
@@ -361,17 +362,11 @@ function useGrow(target: number) {
 
 /** A big progress ring with the figure in the middle. `pct` is 0-100. */
 export function Ring({ pct, size = 120, stroke = 11, hue = 'indigo', children, label }: { pct: number; size?: number; stroke?: number; hue?: Hue; children?: ReactNode; label: string }) {
-  const r = (size - stroke) / 2, c = 2 * Math.PI * r
   const shown = useGrow(Math.max(0, Math.min(100, pct)))
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={label}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-muted" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
-          stroke={HUE[hue].stroke} strokeDasharray={c} strokeDashoffset={c - (c * shown) / 100} className="stu-ring-arc" />
-      </svg>
+    <ProgressRing pct={shown} size={size} stroke={stroke} arcColor={HUE[hue].stroke} arcClassName="stu-ring-arc" className="relative shrink-0" label={label}>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
-    </div>
+    </ProgressRing>
   )
 }
 

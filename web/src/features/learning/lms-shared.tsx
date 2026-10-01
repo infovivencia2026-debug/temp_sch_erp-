@@ -1,3 +1,4 @@
+import { ProgressRing as SharedRing } from '../../components/ProgressRing'
 import { Fragment, useRef, useState, type ReactNode } from 'react'
 import {
   BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
@@ -179,16 +180,12 @@ export function dateRange(a?: string | null, b?: string | null): string {
 }
 
 export function ProgressRing({ pct, size = 44, label }: { pct: number; size?: number; label?: string }) {
-  const r = (size - 6) / 2, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, pct))
+  const p = Math.max(0, Math.min(100, pct))
   return (
-    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} role="img" aria-label={label ?? `${p}% done`}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} className="stroke-muted" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (c * p) / 100}
-          className={`transition-[stroke-dashoffset] duration-700 ease-out ${p >= 100 ? 'stroke-success' : 'stroke-primary'}`} />
-      </svg>
+    <SharedRing as="span" pct={p} size={size} stroke={4} inset={6} label={label ?? `${p}% done`} className="relative inline-flex shrink-0 items-center justify-center"
+      arcClassName={`transition-[stroke-dashoffset] duration-700 ease-out ${p >= 100 ? 'stroke-success' : 'stroke-primary'}`}>
       <span className="absolute text-[11px] font-semibold tabular-nums">{p}%</span>
-    </span>
+    </SharedRing>
   )
 }
 
