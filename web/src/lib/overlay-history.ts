@@ -22,6 +22,15 @@ import { useEffect, useRef } from 'react'
  *
  * Returns the function a close button should call.
  */
+/* ONE BACK CLOSES ONE THING: THE ONE ON TOP.
+ *
+ * Every open overlay listens for the same popstate, so a dialog opened over a
+ * drawer took the drawer with it: closing the dialog spent its entry, the
+ * drawer heard that Back as its own and shut too, and its real entry was left
+ * on the stack for the next Back to trip over. The overlays are a stack, in
+ * the order they opened, and only the last one answers. */
+const stack: symbol[] = []
+
 export function useOverlayHistory(open: boolean, onClose: () => void) {
   /* THE CALLBACK IS HELD IN A REF, AND THAT IS NOT A STYLE CHOICE.
    *
@@ -62,6 +71,8 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
   useEffect(() => {
     if (!open) return
     byPop.current = false
+    const me = Symbol('overlay')
+    stack.push(me)
 
     if (pendingBack.current) {
       window.clearTimeout(pendingBack.current)
@@ -71,6 +82,7 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
     }
 
     const pop = () => {
+      if (stack[stack.length - 1] !== me) return
       byPop.current = true
       closeRef.current()
     }
@@ -78,6 +90,8 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
 
     return () => {
       window.removeEventListener('popstate', pop)
+      const at = stack.indexOf(me)
+      if (at >= 0) stack.splice(at, 1)
       /* If the panel was closed by anything other than Back — a button, an
          Escape, a route change — the entry we pushed is still on the stack and
          would otherwise need two Backs to get past. Consuming it here means

@@ -10,7 +10,7 @@
    arrow is not drawn while the capsule is: one arrow, not two.
 
    32px TO LOOK AT, 44px TO PRESS. Each half is 32px wide and 32px tall on
-   screen; its ::after reaches 6px past it up and down, and past the outer
+   screen; its ::after reaches 7px past it up and down, and 12px past the outer
    end, so a fingertip gets the full target without the capsule growing.
 
    SHOWN WHERE THERE IS NO HOVER. The base rules are the touch rules; the
@@ -57,10 +57,10 @@
 [data-layout='bento'] .bento-capsule__btn::after {
   content: '';
   position: absolute;
-  inset: -6px 0;
+  inset: -7px 0;
 }
-[data-layout='bento'] .bento-capsule__btn:first-child::after { left: -6px; }
-[data-layout='bento'] .bento-capsule__btn:last-child::after { right: -6px; }
+[data-layout='bento'] .bento-capsule__btn:first-child::after { left: -12px; }
+[data-layout='bento'] .bento-capsule__btn:last-child::after { right: -12px; }
 [data-layout='bento'] .bento-capsule__btn:focus-visible,
 [data-layout='bento'] .bento-capsule__btn[aria-expanded='true'] {
   background: color-mix(in srgb, currentColor 14%, transparent);
