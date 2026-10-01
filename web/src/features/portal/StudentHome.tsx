@@ -113,7 +113,7 @@ export default function StudentHome() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div className="w-full min-w-0 space-y-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
+      <div className="w-full min-w-0 space-y-4 pt-2 md:space-y-6 md:px-8 md:pb-6 md:pt-6">
         <StatusRings />
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain

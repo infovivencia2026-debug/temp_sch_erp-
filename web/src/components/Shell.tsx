@@ -1259,8 +1259,16 @@ export function Shell({
                is what does. See lib/shell-scroll.ts. */
             data-app-scroll=""
             className={cn(
-              'min-h-0 min-w-0 flex-1 pb-[var(--dock-reserve,0px)]',
-              split ? 'overflow-hidden' : 'overflow-y-auto',
+              /* THE RESERVE MOVED INSIDE THE GROUND (2026-10-01). It was padding
+                 on this scroller, so it was painted by the scroller and not by
+                 the screen's own ground inside it: wherever the two differ (a
+                 dark board, a painted ground, a gradient) the reserve showed as
+                 a band of another colour above the bar. BentoOutlet's wrapper
+                 carries `pb-[var(--page-foot)]` now and paints through it. Split
+                 panes have no such wrapper, so there it stays here. One token,
+                 styles/page-foot.css. */
+              'min-h-0 min-w-0 flex-1',
+              split ? 'overflow-hidden pb-[var(--page-foot,0px)]' : 'overflow-y-auto',
             )}
           >
             {split && renderAt ? (

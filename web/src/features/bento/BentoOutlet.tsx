@@ -172,7 +172,10 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
   // animation plays once per screen, not on every in-place re-render.
   if (layout !== 'bento') {
     return (
-      <div key={key} className="screen-fade">
+      /* The foot of the page: the one reserve, styles/page-foot.css. On this
+         wrapper rather than on the scroller so that a screen which paints its
+         own ground paints the reserve too. */
+      <div key={key} className="screen-fade pb-[var(--page-foot,0px)]">
         <OfflineBanner />
         <SchoolHealthBanner />
         <BackupsLifecycleNotice />
@@ -246,7 +249,12 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          already does for a classic screen falling through this same branch. */
       key={key}
       className={cn(
-        'screen-fade flex flex-col',
+        /* pb: the one reserve at the foot of the page (styles/page-foot.css).
+           Here, inside the ground, so the ground's own colour runs down to
+           the bar; as padding on <main> it was painted by <main>, a different
+           colour on a dark board. The board's height is still measured from
+           it (bento-kit sums the padding between the board and the scroller). */
+        'screen-fade flex flex-col pb-[var(--page-foot,0px)]',
         /* THE BENTO GROUND IS THE BOARD'S, NOT EVERY SCREEN'S.
 
            Under Focus a classic screen fell through this wrapper and was
@@ -317,7 +325,10 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           bolted to the edges; 22px is where it sits. On a desktop
           that is margin; on a phone it is the difference between a figure
           fitting on one line and wrapping. */}
-      <div className="flex-1 w-full pt-6 pb-6 lg:pb-0 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
+      {/* No bottom padding here at any width: the scroller's --page-foot is
+          the whole reserve (styles/page-foot.css), and the pb-6 that stood
+          here below lg was a second gutter under the first. */}
+      <div className="flex-1 w-full pt-6 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
         <OfflineBanner />
         <SchoolHealthBanner />
         <BackupsLifecycleNotice />

@@ -19,6 +19,7 @@ import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
 import { useBoard } from '@/lib/widgets'
 import { usePhone } from '@/lib/viewport'
+import { SlidingIndicator } from '@/components/SlidingIndicator'
 
 /* Navigation and the way out, for a layout with no chrome.
 
@@ -44,6 +45,12 @@ import { usePhone } from '@/lib/viewport'
    The exit moved; it did not go. This layout hides the header, and the header
    is where sign-out and the role switch live, so a Bento with no door is the
    bug that was already fixed once. */
+/* The current tab on the phone pill, whichever of the three shapes it is. */
+const pickDockTab = (list: HTMLElement) =>
+  list.querySelector<HTMLElement>(
+    ":scope > button[aria-current='page'], :scope > .dock-tab > button[aria-current='page'], :scope > .dock-tab > div > button[aria-current='page']",
+  )
+
 export function BentoDock() {
   const { layout } = useLayout()
   const t = useT()
@@ -137,6 +144,8 @@ export function BentoDock() {
      itself when anything is folded, so the "+N" never becomes the thing that
      does not fit. */
   const stripRef = useRef<HTMLSpanElement>(null)
+  /* The phone pill itself, for the mark that slides to the current tab. */
+  const dockRef = useRef<HTMLDivElement>(null)
   /* The dock is sized by its content, so the strip's own width says nothing
      about how much room it has — measuring it would only ever confirm whatever
      was last rendered. What is fixed is everything *else* in the dock (home,
@@ -427,6 +436,7 @@ export function BentoDock() {
   return (
     <>
       <div
+        ref={dockRef}
         className={`bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
                    -translate-x-1/2 items-center gap-2 rounded-full border-none
                    bg-[var(--bento-dock-bg,var(--bento-card))]
@@ -446,13 +456,21 @@ export function BentoDock() {
                      pad above it: icons floating over a deep empty band. Half the
                      strip is enough to keep the glyphs off the indicator, and
                      the row drops to where a tab bar's icons sit. */
-                  paddingBottom: 'max(var(--dock-pad, 8px), calc(env(safe-area-inset-bottom, 0px) * 0.5))',
+                  /* 2026-10-01: the bar floats above the strip now (bottom:
+                     --dock-lift), so the strip is not inside it and the pad
+                     is the same on all four sides. */
+                  paddingBottom: 'var(--dock-pad, 8px)',
                 }
               : null),
             '--ink-here': 'var(--bento-dock-ink, var(--bento-ink))',
           } as CSSProperties
         }
       >
+        {/* The mark behind the current tab slides between tabs, as it does
+            on the student's bar. Phone only: the desktop pill marks nothing. */}
+        {phone && (
+          <SlidingIndicator listRef={dockRef} active={location.pathname} pick={pickDockTab} className="dock-thumb" />
+        )}
 
         {homeHref && (
           <button

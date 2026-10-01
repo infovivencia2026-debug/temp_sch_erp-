@@ -1,0 +1,153 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   THE FOOT OF EVERY PAGE, RESERVED ONCE.
+
+   The last thing on a page ends one gutter (16px) above whatever floats at
+   the bottom of the screen: the phone tab pill, the dock, or the device's
+   home-indicator strip where there is no bar. Where the page is shorter than
+   the screen, its own ground carries on down to the bar.
+
+   What stood here before was four reserves that stacked. The scroller padded
+   itself by --dock-reserve, which already counted the assistant orb (56px)
+   and a gap; AssistantTab added another 76px strip for the same orb in the
+   Work layout; the outlet added pb-6 below that; and a page such as Settings
+   then added 24px plus the safe area of its own. On a student's phone that
+   came to ~230px of empty ground between the last row and the tab bar.
+
+   Two tokens, both declared in this file and nowhere else:
+
+     --dock-reserve   how far the bottom chrome reaches up from the screen's
+                      bottom edge. Read by the things that FLOAT above the
+                      chrome (toasts, a sticky action row).
+     --page-foot      --dock-reserve plus the one gutter. Read by exactly one
+                      thing: the padding-bottom of the screen's wrapper
+                      directly inside the scrolling <main> (BentoOutlet.tsx;
+                      <main> itself when the work area is split into panes).
+                      Inside the ground rather than on the scroller, so the
+                      reserve is painted the page's own colour. No page adds
+                      bottom padding of its own.
+
+   The orb is not counted. It tucks into the screen edge when something
+   pressable is under it (index.css, [data-assistant-orb][data-tucked]).
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  /* A phone's bottom bar is a floating pill; this is its distance from the
+     bottom edge, clear of the home indicator. */
+  --dock-lift: calc(10px + env(safe-area-inset-bottom, 0px));
+  /* The student tab pill's height, border included. */
+  --tabbar-h: 64px;
+
+  /* Work layout, no bar: only the device's own strip. */
+  --dock-reserve: env(safe-area-inset-bottom, 0px);
+  --page-foot: calc(var(--dock-reserve) + 16px);
+}
+
+/* Focus, tablet and up: the dock is a pill floating 24px above the edge at
+   every width (BentoDock: `fixed bottom-6`), sized from its own tokens. */
+:root[data-layout='bento'] {
+  --dock-reserve: calc(
+    var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px +
+    env(safe-area-inset-bottom, 0px)
+  );
+}
+/* Between 768 and 1100 the board's Edit pill steps up above the dock
+   (bento-theme.css), and the page clears that too. */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  :root[data-layout='bento'] {
+    --dock-reserve: calc(
+      var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 48px +
+      env(safe-area-inset-bottom, 0px)
+    );
+  }
+}
+/* Focus on a phone: --dock-h is the pill's top edge measured from the bottom
+   of the screen (bento-theme.css, beside the pill it is sized from). */
+@media (max-width: 767px) {
+  :root[data-layout='bento'] { --dock-reserve: var(--dock-h); }
+}
+/* A student's phone, either layout: the tab pill replaces the dock. Stated
+   after the layout rules and at their specificity, so it wins in both. */
+:root[data-student-tabs] {
+  --dock-reserve: calc(var(--tabbar-h) + var(--dock-lift));
+  --orb-bottom: calc(var(--dock-reserve) + 12px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE STUDENT TAB BAR IS A FLOATING PILL, like the dock on a desktop.
+
+   Glass where the engine can blur, the card's own solid colour where it
+   cannot: a translucent bar with no blur puts the labels on whatever scrolls
+   beneath them. Geometry (inset, lift, height, radius) is on the element in
+   student-kit.tsx; this is the surface.
+   ───────────────────────────────────────────────────────────────────────── */
+.student-tabbar {
+  background: var(--bento-card, var(--color-card, #fff));
+  box-shadow: var(--bento-edge, 0 0 0 0 transparent), var(--elev-2, 0 2px 8px rgba(0, 0, 0, 0.12));
+  transition: transform 220ms var(--motion-ease, ease), opacity 160ms ease;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .student-tabbar {
+    background: color-mix(in srgb, var(--bento-card, var(--color-card, #fff)) 78%, transparent);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+  }
+}
+
+/* WHILE SOMEBODY TYPES, THE PILL IS OUT OF THE WAY.
+
+   lib/keyboard.ts stamps html[data-typing] while a text field a finger chose
+   has focus. On Android the window shrinks to the keyboard and a fixed bar
+   rides up on top of it, over the field being typed in; on iOS it would sit
+   behind the keyboard anyway. Either way it leaves, and comes back when the
+   field is left. */
+@media (max-width: 767px) {
+  html[data-typing] .student-tabbar,
+  html[data-typing][data-layout='bento'] .bento-dock {
+    /* Important, because the dock's transform and opacity are also set by
+       its entrance animation and by the phone rule's own `transform: none`,
+       and this state has to beat whichever of them is in force. */
+    transform: translateY(calc(100% + var(--dock-lift, 10px) + 8px)) !important;
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+  [data-layout='bento'] .bento-dock {
+    transition: transform 220ms var(--motion-ease, ease), opacity 160ms ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-tabbar,
+  [data-layout='bento'] .bento-dock { transition: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   A PAGE THAT IS A SHEET PAINTS THE GROUND ITS OWN COLOUR.
+
+   Settings on a phone is a flush sheet, edge to edge, not a card on a ground.
+   Where it ended, the work area's grey began: a band between the last row and
+   the bar. The page says so on <html> (data-page-ground="sheet") and the
+   scroller takes the sheet's colour, so the reserve at its foot and the space
+   round the pill are the same surface as the page above them.
+
+   Below 640 only, which is where such a page stops being a card.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 639.98px) {
+  /* The shorthand, and three attributes deep: the work area's ground is set
+     by rules as specific as `:root:not(.dark) [data-paint='workarea']` and
+     may be a gradient, which a background-color alone would sit underneath. */
+  html[data-page-ground='sheet'] main[data-app-scroll][data-paint='workarea'] {
+    background: var(--bento-card, hsl(var(--card)));
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PageBody'S OWN FOOT, ON A PHONE.
+
+   PageBody (components/ui.tsx) ends every screen with pb-10, 35px on this
+   root, under which the scroller then reserves its own gutter: 51px of ground
+   between the last card and the bar where the rule is 16. Zeroed here rather
+   than in the component only because ui.tsx was being edited by another
+   session when this was written; the change it stands for is `pb-10` ->
+   `md:pb-10` on PageBody's wrapper, and this rule can go when that lands.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  main[data-app-scroll] [data-page-enter].pb-10 { padding-bottom: 0; }
+}

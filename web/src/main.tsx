@@ -4,6 +4,8 @@ import App from './App'
 import { ensureCatalogue, readStoredLocale } from '@/lib/i18n'
 import './index.css'
 import './features/bento/bento-theme.css'
+// The reserve at the foot of every page, and the phone's floating tab pill.
+import './styles/page-foot.css'
 // The system colours and the motion kit sit on top of the theme: loaded after
 // it so their defaults win at equal specificity, and still under the brand
 // colour (inline), the palettes and the contrast settings. See docs/motion-kit.md.

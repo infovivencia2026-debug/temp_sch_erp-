@@ -2921,9 +2921,16 @@ html:not(.dark)[data-layout='bento'] {
        against an actual 69.5px, so the page dots, placed at --dock-h + 6px,
        were drawn underneath the bar they were supposed to sit above. */
     --dock-tap: 44px;
+    /* 2026-10-01: the bar is a floating pill now, so this is the distance
+       from the bottom of the SCREEN to the pill's top edge -- its lift
+       (--dock-lift, styles/page-foot.css: 10px plus the home-indicator
+       strip) and its height (one tap row and the pad above and below it;
+       the hairline is inside that box). Everything placed from --dock-h (the page dots, the orb,
+       the page's reserve) therefore still clears it. The 12px that stood in
+       this sum was the row of labels, which the bar no longer draws. */
     --dock-h: calc(
-      var(--dock-tap, 44px) + 12px + 2 * var(--dock-pad, 8px) +
-      env(safe-area-inset-bottom, 0px)
+      var(--dock-tap, 44px) + 2 * var(--dock-pad, 8px) +
+      var(--dock-lift, 10px)
     );
     /* THE END OF A PAGE CLEARS THE ORB, NOT ONLY THE BAR.
 
@@ -2932,7 +2939,10 @@ html:not(.dark)[data-layout='bento'] {
        area covered the bar alone, so scrolled to its end a page left its
        last right-hand control -- a table's Next, the last row's action --
        sitting under the orb, where a tap opens the assistant instead. */
-    --dock-reserve: calc(var(--dock-h) + 1.25rem + 56px + 8px);
+    /* 2026-10-01: no longer. Counting the orb here left 84px of empty
+       ground above the bar on every page; the orb tucks into the edge when
+       something pressable is under it instead. The reserve is declared once,
+       in styles/page-foot.css. */
   }
 
   /* THE PAGER. One grid, wide enough for every page, scrolled sideways.
@@ -3047,13 +3057,21 @@ html:not(.dark)[data-layout='bento'] {
      tokens), so the safe-area allowance is added there rather than fought
      with !important here. */
   [data-layout='bento'] .bento-dock {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: none;
+    /* 2026-10-01, the owner: "make the dock rounded and floating in mobile,
+       similar type like desktop". So it is the desktop pill again in
+       everything but its width: inset 12px from each side, lifted clear of
+       the home indicator, fully round, glass, with the dock's own shadow.
+       The page scrolls underneath and --page-foot keeps its last row clear.
+       The objection above (a hovering bar covers the board) is answered by
+       the board's height, which is measured from the scroller's reserve. */
+    left: 12px;
+    right: 12px;
+    bottom: var(--dock-lift, 10px);
+    width: auto;
+    max-width: 28rem;
+    margin-inline: auto;
     transform: none;
-    border-radius: 0;
+    border-radius: 999px;
     gap: 0;
 
     /* ONE ROW OF EQUAL CELLS, NOT FIVE ITEMS SHARING THE SLACK.
@@ -3079,13 +3097,13 @@ html:not(.dark)[data-layout='bento'] {
        for a floating bar and wrong for a full-width one: it shifts every cell
        four pixels left of centre. Marked important because the declaration it
        is answering is an inline style and nothing else can reach it. */
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
 
     /* A bar on the bottom edge casts UP onto the page, and its lip is the
        hairline along its top. */
-    --dock-shadow: 0 -1px 0 var(--hairline), var(--elev-2-up);
-    border-width: 0;
+    /* (It floats again: the pill keeps the base rule's hairline all round
+       and its downward shadow.) */
   }
 
   /* One cell: a fixed icon row with the word under it.
@@ -3213,6 +3231,30 @@ html:not(.dark)[data-layout='bento'] {
     border-radius: 999px;
     padding: 8px;
     box-sizing: content-box;
+  }
+
+  /* THE MARK SLIDES between tabs (SlidingIndicator in BentoDock). Once it has
+     mounted the pill carries data-slide, the glyph's own wash goes and one
+     capsule moves under whichever tab is current. If it never mounts, the
+     wash above is still there: the failure is "no slide". The thumb is the
+     size of the tab; the capsule is drawn inside it, round the glyph. */
+  [data-layout='bento'] .bento-dock[data-slide] > button[aria-current='page'] > svg,
+  [data-layout='bento'] .bento-dock[data-slide] > .dock-tab > button[aria-current='page'] > svg,
+  [data-layout='bento'] .bento-dock[data-slide] > .dock-tab > div > button[aria-current='page'] > svg {
+    background: transparent;
+  }
+  [data-layout='bento'] .bento-dock > .dock-thumb {
+    display: block;
+  }
+  [data-layout='bento'] .bento-dock > .dock-thumb::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: min(100%, 56px);
+    height: 34px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ink-here) 14%, transparent);
   }
 
   /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
@@ -3405,14 +3447,10 @@ html:not(.dark)[data-layout='bento'] {
    ground, a hairline along its top edge to separate it from the board, and the
    assistant moves above it. --dock-h already carries the bar's height
    including the home-indicator strip, so one variable places both. */
-@media (max-width: 767px) {
-  [data-layout='bento'] .bento-dock {
-    background: var(--bento-card) !important;
-    backdrop-filter: none !important;
-    border-top: 1px solid var(--bento-line);
-    box-shadow: none !important;
-  }
-}
+/* 2026-10-01: glass again. The bar floats as a pill now, the orb sits above
+   it rather than under it, and the base .bento-dock rule's glass (with its
+   solid fallback where there is no backdrop-filter) is what it wears. The
+   opaque override that stood here is removed. */
 
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
   .bento-dot { transition: none; }
@@ -3465,12 +3503,9 @@ html:not(.dark)[data-layout='bento'] {
    the scrolling main, and that `lg:pb-0` was written from the same false
    premise and still wins above 1024 whatever this token says. It has to go for
    this fix to reach the page. */
-:root {
-  --dock-reserve: calc(
-    var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 16px +
-    env(safe-area-inset-bottom, 0px)
-  );
-}
+/* The declaration itself lives in styles/page-foot.css with every other
+   reserve, so there is one place that says how much room the foot of a page
+   keeps. */
 
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -4605,12 +4640,7 @@ body:has(.bento-frost) [data-assistant-orb] {
   .bento-edit-pill {
     bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 10px);
   }
-  :root[data-layout='bento'] {
-    --dock-reserve: calc(
-      var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 16px + 48px +
-      env(safe-area-inset-bottom, 0px)
-    );
-  }
+  /* (The matching step in the page's reserve is in styles/page-foot.css.) */
 }
 /* The orb only meets the dock below ~880, where the bar is capped at the
    viewport less its margins and reaches the right edge. The inline bottom

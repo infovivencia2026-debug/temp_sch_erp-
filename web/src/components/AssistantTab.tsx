@@ -995,7 +995,11 @@ export function AssistantTab() {
           The bento layout's reserve already counts the orb (bento-theme.css,
           --dock-reserve), so adding the strip there too left a band of empty
           page under every screen; it applies to the plain layout only. */}
-      {!open && <style>{'@media (max-width:767px){html:not([data-layout=bento]) main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
+      {/* THAT STRIP IS GONE (2026-10-01). It was 76px on top of the reserve the
+          scroller already holds, and with the tab bar's own allowance it left
+          ~200px of empty ground under a short page. The foot of the page is
+          reserved once, in styles/page-foot.css; the orb tucks into the edge
+          when something pressable is under it (data-tucked, below). */}
       <button data-assistant-orb=""
         ref={orbRef}
         type="button"
