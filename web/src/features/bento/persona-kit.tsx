@@ -189,7 +189,10 @@ function BoardPersonaPage({
      `--board-h`, and between the two the ground is `min-h-full` and scrolls,
      which a surface taller than it does not prevent. */
   return (
-    <div className="bento-surface flex h-full w-full flex-col px-0 py-3 sm:p-4 text-[var(--bento-ink)]">
+    /* pt-3, not py-3: on a phone the foot of the page is --page-foot alone
+       (styles/page-foot.css). The 10.5px this added under it made every role
+       dashboard end 26px above the bar instead of 16. */
+    <div className="bento-surface flex h-full w-full flex-col px-0 pt-3 sm:p-4 text-[var(--bento-ink)]">
       {/* On a phone the header is one small line, because every pixel it
           takes is a pixel off three cards that already share the screen with
           the dock. The name is the reader's own child or self — they know

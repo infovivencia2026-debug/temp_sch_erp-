@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
@@ -80,6 +80,16 @@ import { SettingsGroups } from './SettingsGroups'
 export default function SettingsPage() {
   const t = useT()
   const navigate = useNavigate()
+  /* ON A PHONE THIS SHEET IS THE PAGE, SO THE GROUND TAKES ITS COLOUR.
+     The scroller reserves room at its foot for the tab pill, and that room
+     was painted in the work area's grey: a band under a white sheet. The
+     attribute lets styles/page-foot.css paint the scroller as the sheet
+     below 640px, so the page simply continues to the bar. */
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.pageGround = 'sheet'
+    return () => { delete root.dataset.pageGround }
+  }, [])
   /* TWO COMPOSITIONS, NOT ONE SCALED.
 
      Below 1024px Settings is a NAVIGATION: the list of sections, each a
@@ -215,7 +225,10 @@ export default function SettingsPage() {
       /* Bleeding past the outlet's padding is only right in Focus, which has
          it; the classic phone layout has none, so there the bleed cut the
          title off at the top and pushed the rows past both edges. */
-      'py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:-mb-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
+      /* No -mb-6 any more: the outlet's bottom padding it cancelled is gone.
+         A flex column that fills the outlet, so the sheet inside can reach
+         the foot of the work area without asking for a viewport height. */
+      'flex flex-1 flex-col py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
       'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
     )}>
       <div
@@ -236,7 +249,13 @@ export default function SettingsPage() {
              contents, so min-h-full asked for 100% of nothing and the band of
              ground under a short list came back. The sheet may run a little
              past the dock; the ground scrolls and it is only colour. */
-          'min-h-[100dvh] border-b-0 sm:min-h-0 sm:border-b',
+          /* 2026-10-01: flex-1, not min-h-[100dvh]. A sheet as tall as the
+             viewport inside a scroller that also reserves the bar's height is
+             always taller than the room it has: every Settings screen
+             scrolled, and scrolled to its end showed the reserve as a grey
+             band above the tab bar. It fills what the work area has, and the
+             ground below it is painted the same colour (data-page-ground). */
+          'flex-1 border-b-0 sm:flex-none sm:border-b',
           'sm:rounded-[16px] sm:border-x sm:border-t',
           'bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
@@ -322,15 +341,15 @@ export default function SettingsPage() {
              on it lined up with anything else. One number for both. */
           /* The list is inset by the 16px gutter so its cards read as
              grouped sections; a section's rows carry their own 16px, so the
-             pane adds none. The bottom padding clears the dock and the home
-             indicator so the last row is never under either. */
+             pane adds none. No bottom padding: the scroller's --page-foot
+             clears the bar and the home indicator, once, for every page. */
           tab === null ? (
-            <div className="px-[16px] pt-[8px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+            <div className="px-[16px] pt-[8px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
             </div>
           ) : (
-            <div className="pt-[4px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+            <div className="pt-[4px]">
               <SettingsPane tab={tab} onClose={done} />
               {/* Haptics: a phone preference, so it lives on the route a phone
                   uses. The desktop dialog's appearance tab takes the bare

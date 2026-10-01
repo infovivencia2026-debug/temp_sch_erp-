@@ -1610,7 +1610,7 @@ export function calendarSlots(
     somebody will act on it. */
 export function BentoError({ message }: { message: string }) {
   return (
-    <div className="bento-surface min-h-full bg-[var(--bento-bg)] p-3 sm:p-4">
+    <div className="bento-surface min-h-full bg-[var(--bento-bg)] px-3 pt-3 sm:p-4">
       <p
         role="alert"
         className="rounded-[var(--bento-radius)] bg-[var(--bento-pink-tint)] p-6 text-[13.5px] font-medium text-[var(--bento-ink)]"
@@ -1710,7 +1710,7 @@ export function BentoLoading({ message, tiles = 8 }: { message: string; tiles?: 
   const spans: CellSpan[] = ['anchor', 'one', 'one', 'wide', 'one', 'one', 'one', 'wide', 'one', 'one']
   return (
     <div
-      className="bento-surface h-full w-full flex flex-col p-3 text-[var(--bento-ink)] sm:p-4"
+      className="bento-surface h-full w-full flex flex-col px-3 pt-3 text-[var(--bento-ink)] sm:p-4"
       role="status"
       aria-busy="true"
     >
@@ -1852,6 +1852,14 @@ export function useBoardHeight() {
     window.addEventListener('resize', measure)
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
+    /* AND THE DOCK ITSELF. The board's foot is measured against the dock's
+       live top edge, and the dock settles after the first measure runs (its
+       tabs take their height, the bell's count lands). It is fixed, so
+       nothing this hook already watches resizes when it does: measured on a
+       390x844 phone the board was sized against a dock 17px shorter than
+       the one that ended up on screen, and its last card ran under it. */
+    const dockEl = document.querySelector('.bento-dock')
+    if (dockEl) ro.observe(dockEl)
     /* The board's TOP moves when anything above it changes size (the Status
        strip arriving after its fetch, a banner, the header wrapping), and
        none of that resizes the body of a fixed-height shell. Watch every

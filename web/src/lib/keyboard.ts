@@ -44,9 +44,44 @@ const MIN_KEYBOARD_RATIO = 0.25
 
 let started = false
 
+/* WHO IS TYPING.
+
+   The phone's bottom pill (the student tab bar, the Focus dock) leaves while
+   a text field has focus and returns when it is left: styles/page-foot.css
+   reads html[data-typing]. Only for a field a finger chose -- a screen that
+   focuses its search box on arrival opens no keyboard on a phone, and hiding
+   the navigation for it would strand the person on that screen. Moving on
+   with the keyboard's Next key keeps the flag; the check on focusout waits a
+   tick so the next field has taken focus before it is asked about. */
+const TEXT_INPUT = /^(?:text|search|email|tel|url|password|number|date|time|datetime-local|month|week)$/
+
+function typesText(el: Element | null): boolean {
+  if (!(el instanceof HTMLElement)) return false
+  if (el.isContentEditable) return true
+  if (el instanceof HTMLTextAreaElement) return !el.readOnly && !el.disabled
+  if (el instanceof HTMLInputElement) return !el.readOnly && !el.disabled && TEXT_INPUT.test(el.type)
+  return false
+}
+
+function trackTyping() {
+  const root = document.documentElement
+  let touched = 0
+  document.addEventListener('pointerdown', () => { touched = Date.now() }, { capture: true, passive: true })
+  document.addEventListener('focusin', (e) => {
+    if (!typesText(e.target as Element | null)) return
+    if ('typing' in root.dataset || Date.now() - touched < 1000) root.dataset.typing = ''
+  })
+  document.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (!typesText(document.activeElement)) delete root.dataset.typing
+    }, 60)
+  })
+}
+
 export function trackKeyboardInset() {
   if (started) return
   started = true
+  trackTyping()
 
   const vv = window.visualViewport
   const root = document.documentElement

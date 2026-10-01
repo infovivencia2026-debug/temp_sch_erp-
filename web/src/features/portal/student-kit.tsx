@@ -276,19 +276,25 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
        --orb-bottom); it sat at the bar's own height, under it, and showed
        through as a green smudge beside More. The reserve clears both, so the
        last card scrolls out from under the orb too. */
-    root.style.setProperty('--orb-bottom', 'calc(72px + env(safe-area-inset-bottom, 0px))')
-    root.style.setProperty('--dock-reserve', 'calc(68px + 60px + env(safe-area-inset-bottom, 0px))')
+    /* Both lengths are in styles/page-foot.css now, keyed on the attribute
+       below: the reserve is the pill's height plus its lift, and nothing
+       else. It used to be written here with 60px added for the orb, which
+       every page then showed as empty ground above the bar. */
     root.dataset.studentTabs = ''
     const style = document.createElement('style')
     style.textContent = 'html[data-student-tabs] .bento-dock{display:none!important}'
     document.head.appendChild(style)
-    return () => { root.style.removeProperty('--dock-reserve'); root.style.removeProperty('--orb-bottom'); delete root.dataset.studentTabs; style.remove() }
+    return () => { delete root.dataset.studentTabs; style.remove() }
   }, [])
   const barRef = useRef<HTMLDivElement>(null)
-  const item = 'flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[12px] font-medium transition-colors active:scale-95'
+  const item = 'flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-medium leading-none transition-colors active:scale-95'
   return (
-    <nav aria-label="Main" className="student-tabbar fixed inset-x-0 bottom-0 z-40 border-t px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1 md:hidden">
-      <div ref={barRef} className="relative mx-auto flex max-w-md items-stretch gap-1">
+    /* A FLOATING PILL, like the dock on a desktop: inset 12px from each side,
+       lifted clear of the home indicator (--dock-lift), fully rounded, glass
+       with a solid fallback (styles/page-foot.css). The page scrolls under
+       it; --page-foot is what keeps the last row above it. */
+    <nav aria-label="Main" className="student-tabbar fixed inset-x-[12px] bottom-[var(--dock-lift,10px)] z-40 mx-auto box-border h-[var(--tabbar-h,64px)] max-w-md rounded-full border px-[6px] py-[4px] md:hidden">
+      <div ref={barRef} className="relative flex h-full items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
         <SlidingIndicator listRef={barRef} active={loc.pathname} pick={pickTabPill}
           className="rounded-full bg-[hsl(var(--primary)/0.12)]" />
@@ -352,7 +358,9 @@ export function StudentHeader({ title, sub, right }: { title: string; sub?: Reac
 /** The page column every redone student screen sits in. */
 /** `wide`: the full width on a computer, for pages laid out in columns there. */
 export function StudentPage({ children, wide }: { children: ReactNode; wide?: boolean }) {
-  return <div className={cn('mx-auto w-full space-y-3 px-4 pb-6 pt-2 md:px-6 md:pt-6', /* Full width on a computer for every student page: the owner found the
+  /* No pb on a phone: the scroller's --page-foot is the one reserve there
+     (styles/page-foot.css), and pb-6 under it was a second gutter. */
+  return <div className={cn('mx-auto w-full space-y-3 px-4 pt-2 md:px-6 md:pb-6 md:pt-6', /* Full width on a computer for every student page: the owner found the
      web view looked like the phone view. */
     'max-w-3xl lg:max-w-none lg:px-8', wide && '')}>{children}</div>
 }
