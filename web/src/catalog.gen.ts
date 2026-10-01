@@ -1608,7 +1608,6 @@ export const ROLES: Role[] = [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them, commendations and concerns alike, newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
       },
       {

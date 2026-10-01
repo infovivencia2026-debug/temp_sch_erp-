@@ -113,7 +113,7 @@ export default function StudentHome() {
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain
             header with the streak and badge chips beside it. */}
-        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/70 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
+        <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary/85 to-primary/55 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
           <div>
             <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? `${greeting()}, ${first}` : 'Hello'}</h1>
             <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>

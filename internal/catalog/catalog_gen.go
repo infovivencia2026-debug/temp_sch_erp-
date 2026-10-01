@@ -1641,7 +1641,6 @@ var Roles = []Role{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow's PT kit or lab day is never a surprise."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
-					{Key: "parent.academics.child_remarks", Slug: "child_remarks", Name: "Child remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Everything your child's teachers have written about them, commendations and concerns alike, newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening."},
 				},
 			},
 			{
