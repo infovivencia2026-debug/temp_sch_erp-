@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { NavLink } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { featurePath } from '@/lib/catalog'
-import { Loading, ErrorState, EmptyState } from '@/components/ui'
+import { Card, Loading, ErrorState, EmptyState } from '@/components/ui'
 import { useSession } from '@/lib/session'
 import type { List, Section } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -99,111 +99,127 @@ export default function TodaysClasses() {
   const afterP = after ? bell.get(after.period_id) : undefined
   const span = (p?: { starts_at: string; ends_at: string }) => p ? `${p.starts_at.slice(0, 5)} – ${p.ends_at.slice(0, 5)}` : ''
 
+  const subjectsToday = [...new Set(mine.map((e) => e.subject_name).filter(Boolean))]
   return (
-    <div className="mx-auto flex max-w-[980px] flex-col gap-7 px-4 pb-16 pt-8 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
-          <p className="mt-1 text-[14px] text-muted-foreground">
-            {mine.length === 0 ? 'Nothing is timetabled for you today.' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} on your timetable today.`}
+    /* THE OWNER'S WEB LAYOUT: a greeting card across the top, then three
+       columns -- the lesson in session, the day's lessons, and an overview
+       with the figures and the two ways onward as buttons. Drawn in the
+       ERP's own cards and the school's colour, so it sits with every other
+       screen. One column on a phone. */
+    <div className="flex flex-col gap-5">
+      <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
+          <p className="text-[14px] text-muted-foreground">
+            {mine.length === 0 ? 'Nothing is timetabled for you today' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} scheduled on your timetable today`}
           </p>
         </div>
-        <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground shadow-sm">{dateBadge}</span>
-      </header>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground">{dateBadge}</span>
+          {subjectsToday.length > 0 && (
+            <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground">Faculty: {subjectsToday.join(', ')}</span>
+          )}
+        </div>
+      </Card>
 
-      {mine.length === 0 ? (
-        <EmptyState
-          title="No lessons timetabled today"
-          body={weekday >= 6
-            ? 'Today is the weekend. Your full week is on the timetable.'
-            : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
-        />
-      ) : (
-        <section className="grid items-stretch gap-5 md:grid-cols-[320px_1fr]">
-          <aside className="flex flex-col justify-between rounded-[20px] border bg-card px-6 py-7 shadow-sm">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-primary">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
+        <Card className="flex min-h-[22rem] flex-col justify-between border-primary/25 bg-gradient-to-b from-card to-primary/[0.06] px-6 py-6">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.05em] text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               {current ? 'Now in session' : next ? 'Up next' : 'Day complete'}
             </span>
-            <div className="my-8">
-              {focus ? (
-                <>
-                  <h2 className="text-[24px] font-bold leading-tight tracking-[-0.02em]">
-                    {focus.subject_name}<br />{focus.class_name} {focus.section_name}
-                  </h2>
-                  <p className="mt-2 text-[14px] text-muted-foreground">
-                    {focusP?.name ?? focus.period_name}{focusP ? ` · ${span(focusP)}` : ''}
-                  </p>
-                </>
-              ) : (
-                <h2 className="text-[22px] font-bold leading-tight">All {mine.length} lessons done</h2>
-              )}
+            {focusP && <span className="text-[13px] text-muted-foreground">{focusP.name}</span>}
+          </div>
+          <div className="my-8">
+            {focus ? (
+              <>
+                <h2 className="text-[32px] font-bold leading-tight tracking-[-0.02em]">{focus.subject_name}</h2>
+                <p className="text-[19px] font-semibold text-primary">{focus.class_name} {focus.section_name}</p>
+                {focusP && <p className="mt-1 text-[15px] text-muted-foreground">{span(focusP)}</p>}
+              </>
+            ) : (
+              <h2 className="text-[22px] font-bold leading-tight">{mine.length ? `All ${mine.length} lessons done` : 'No lessons today'}</h2>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 border-t pt-4">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Room</span>
+              <strong className="mt-0.5 block text-[16px] font-semibold">{focus?.room || '-'}</strong>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t pt-4">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground/80">Room</span>
-                <strong className="mt-0.5 block text-[15px] font-semibold">{focus?.room || '-'}</strong>
-              </div>
-              <div className="text-right">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground/80">Next up</span>
-                <strong className="mt-0.5 block text-[15px] font-semibold">
-                  {after ? `${after.class_name} ${after.section_name}${afterP ? ` (${afterP.starts_at.slice(0, 5)})` : ''}` : '-'}
-                </strong>
-              </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Next up</span>
+              <strong className="mt-0.5 block text-[16px] font-semibold">
+                {after ? `${after.class_name} ${after.section_name}${afterP ? ` (${afterP.starts_at.slice(0, 5)})` : ''}` : '-'}
+              </strong>
             </div>
-          </aside>
+          </div>
+        </Card>
 
-          <section className="flex flex-col rounded-[20px] border bg-card px-5 py-6 shadow-sm sm:px-7">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[14px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Today's classes</h3>
-              <span className="text-[13px] text-muted-foreground/80">{mine.length} {mine.length === 1 ? 'period' : 'periods'} total</span>
-            </div>
-            <div className="flex flex-col gap-2">
+        <Card className="px-6 py-5">
+          <div className="mb-4 flex items-center justify-between border-b pb-3">
+            <h3 className="text-[16px] font-bold">Today's classes</h3>
+            <span className="text-[13px] text-muted-foreground">{mine.length} {mine.length === 1 ? 'period' : 'periods'} total</span>
+          </div>
+          {mine.length === 0 ? (
+            <EmptyState
+              title="No lessons timetabled today"
+              body={weekday >= 6
+                ? 'Today is the weekend. Your full week is on the timetable.'
+                : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
+            />
+          ) : (
+            <div className="flex flex-col gap-2.5">
               {mine.map((e) => {
                 const p = bell.get(e.period_id)
                 const isNow = current?.id === e.id
                 const isDone = !!p && minutesInto(p.ends_at) <= nowMin
                 return (
                   <div key={e.id}
-                    className={cn('flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 transition-colors',
-                      isNow ? 'border-primary/30 bg-primary/10' : 'border-border/60 bg-muted/30 hover:bg-muted/60')}>
-                    <div className="flex min-w-0 items-center gap-5">
-                      <span className={cn('min-w-[95px] whitespace-nowrap text-[13px] font-semibold tabular-nums', isNow ? 'text-primary' : 'text-muted-foreground')}>
+                    className={cn('flex items-center justify-between gap-3 rounded-xl border px-5 py-4 transition-colors',
+                      isNow ? 'border-primary/40 bg-primary/[0.07] shadow-sm' : 'bg-muted/30 hover:bg-muted/60')}>
+                    <div className="flex min-w-0 items-center gap-6">
+                      <span className={cn('min-w-[100px] whitespace-nowrap text-[14px] font-semibold tabular-nums', isNow ? 'text-primary' : 'text-muted-foreground')}>
                         {p ? span(p) : e.period_name}
                       </span>
                       <div className="min-w-0">
-                        <h4 className="truncate text-[14.5px] font-semibold">{e.subject_name} · {e.class_name} {e.section_name}</h4>
-                        <p className="truncate text-[12.5px] text-muted-foreground">{p?.name ?? e.period_name}{e.room ? ` • ${e.room}` : ''}</p>
+                        <h4 className="truncate text-[15px] font-semibold">{e.subject_name} · {e.class_name} {e.section_name}</h4>
+                        <p className="truncate text-[13px] text-muted-foreground">{p?.name ?? e.period_name}{e.room ? ` • ${e.room}` : ''}</p>
                       </div>
                     </div>
-                    <span className={cn('shrink-0 text-[11.5px]', isNow ? 'font-semibold text-primary' : 'font-medium text-muted-foreground/80')}>
+                    <span className={cn('shrink-0 text-[13px]', isNow ? 'font-semibold text-primary' : isDone ? 'text-muted-foreground' : 'font-medium text-foreground/70')}>
                       {isNow ? 'Active now' : isDone ? 'Completed' : 'Upcoming'}
                     </span>
                   </div>
                 )
               })}
             </div>
-          </section>
-        </section>
-      )}
+          )}
+        </Card>
 
-      <footer className="grid gap-4 sm:grid-cols-3">
-        {[
-          ['Classes today', String(mine.length), `Across ${todaysSections.size} ${todaysSections.size === 1 ? 'section' : 'sections'}`],
-          ['Total students', String(students), 'Enrolled in your sections'],
-          ['Daily progress', `${done} / ${mine.length}`, `${current ? 1 : 0} ongoing, ${upcoming} upcoming`],
-        ].map(([t, v, sub]) => (
-          <div key={t} className="rounded-xl border bg-card px-5 py-4 shadow-sm">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{t}</div>
-            <div className="mb-0.5 mt-1 text-[24px] font-bold tracking-[-0.02em]">{v}</div>
-            <div className="text-[12.5px] text-muted-foreground">{sub}</div>
-          </div>
-        ))}
-      </footer>
-
-      <div className="flex flex-wrap gap-4 text-[13px]">
-        <NavLink className="underline" to={timetableHref}>My timetable</NavLink>
-        <NavLink className="underline" to={workHref}>What is outstanding on me</NavLink>
+        <Card className="flex flex-col gap-3 px-6 py-5">
+          <h3 className="text-[16px] font-bold">Overview</h3>
+          {[
+            ['Daily progress', `${done} / ${mine.length}`, `${current ? 1 : 0} ongoing, ${upcoming} upcoming`],
+            ['Total students', String(students), 'Enrolled in your sections'],
+            ['Classes today', String(mine.length), `Across ${todaysSections.size} ${todaysSections.size === 1 ? 'section' : 'sections'}`],
+          ].map(([t, v, sub]) => (
+            <div key={t} className="rounded-xl border bg-muted/30 px-5 py-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{t}</div>
+              <div className="mt-1 text-[24px] font-bold tracking-[-0.02em]">{v}</div>
+              <div className="text-[13px] text-muted-foreground">{sub}</div>
+            </div>
+          ))}
+          {[
+            ['My timetable', timetableHref],
+            ['What is outstanding on me', workHref],
+          ].map(([label, to]) => (
+            <NavLink key={label} to={to}
+              className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-[14px] font-semibold transition-colors hover:border-primary/40 hover:bg-primary/[0.06] hover:text-primary">
+              {label} <span aria-hidden>→</span>
+            </NavLink>
+          ))}
+        </Card>
       </div>
     </div>
   )
