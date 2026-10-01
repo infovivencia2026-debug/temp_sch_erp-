@@ -77,6 +77,12 @@ export default function StudentHome() {
   const refresh = () => Promise.all(['portal-summary', 'portal-attendance', 'portal-student-homework', 'portal-lms-courses', 'portal-lms-todo', 'portal-lms-home', 'portal-streak']
     .map((k) => qc.invalidateQueries({ queryKey: [k] })))
 
+  /* Before the early return below, not after it: a hook that runs while the
+     summary is loading and is skipped once a 404 lands is "Rendered fewer
+     hooks than expected", which took the whole screen down for a login with
+     no student record. */
+  const titleRef = useCollapsingTitle<HTMLDivElement>()
+
   if (summary.error instanceof ApiError && summary.error.status === 404) {
     return <div className="p-4"><ErrorState error={summary.error} /></div>
   }
@@ -109,7 +115,6 @@ export default function StudentHome() {
   const notices = home.data?.notices ?? []
   const earned = streak.data?.badges.filter((b) => b.earned).length ?? 0
 
-  const titleRef = useCollapsingTitle<HTMLDivElement>()
 
   return (
     <PullToRefresh onRefresh={refresh}>
