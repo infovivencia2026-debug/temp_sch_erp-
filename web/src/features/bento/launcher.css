@@ -43,7 +43,7 @@
 .lch-body {
   margin: 0 auto;
   max-width: 1200px;
-  padding: 2.25rem 1.25rem calc(4rem + env(safe-area-inset-bottom, 0px));
+  padding: 2.25rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 640px) {
   .lch-body { padding-left: 2.5rem; padding-right: 2.5rem; }
@@ -401,3 +401,46 @@
   .lch-app, .lch-plate, .lch-more { transition: none; }
   .lch-app:active .lch-plate { transform: none; }
 }
+
+/* ---- the search pill, floating at the foot ------------------------------ */
+
+/* Sticky to the bottom of the sheet's scroller, so the grid scrolls up
+   behind it; centred; the dock's shape and glass. --lch-kb is the height an
+   on-screen keyboard took from the visual viewport (set in BentoLauncher). */
+.lch-searchbar {
+  position: sticky;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--lch-kb, 0px));
+  z-index: 5;
+  width: min(560px, 100%);
+  margin: auto auto 0;
+  border-top: 1.5rem solid transparent; /* spacing outside the box the glyph centres in */
+}
+/* The body fills the sheet so a short list still leaves the pill at the foot. */
+.lch-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.lch .lch-searchbar__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 1.25rem 0 3rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--ink-here);
+  background-color: color-mix(in srgb, var(--bento-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: var(--bento-edge, none), var(--elev-2);
+  transition: box-shadow 150ms ease;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .lch-searchbar__input { background-color: var(--bento-bg); }
+}
+.lch .lch-searchbar__input:focus-visible {
+  outline: none;
+  box-shadow: var(--bento-edge, none), var(--elev-2), 0 0 0 1.5px color-mix(in srgb, var(--ink-here) 40%, transparent);
+}
+.lch .lch-searchbar__input::placeholder { color: color-mix(in srgb, var(--ink-here) 60%, transparent); }
+@media (pointer: coarse) { .lch .lch-searchbar__input { font-size: 16px; } }
