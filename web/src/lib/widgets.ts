@@ -985,6 +985,105 @@ export function paginate(
   return out
 }
 
+/* THE PHONE HOME: CARDS AND APP ICONS IN ONE RHYTHM.
+
+   The owner drew the phone home as an iOS home screen with widgets, and
+   asked for this rhythm down it:
+
+       [ small | small ]     two small cards, each half the width
+       [ o  o  o  o ]        a row of app icons (four, or three by choice)
+       [     big      ]      one big card, the full width
+       [ o  o  o  o ]        another row of icons
+       ... and again.
+
+   Each app icon is its own unit -- "each icon is one unit, not 4 as one" --
+   so it drags and removes on its own.
+
+   The page is a grid PHONE_GRID_COLS wide and PHONE_GRID_ROWS tall. Twelve
+   columns because twelve divides by four, three and two: an icon spans
+   12/n, a small card 6, a big card 12. A card row is two grid rows, an icon
+   row one, so a page holds exactly one beat of the rhythm (2 + 1 + 2 + 1).
+
+   `rhythm` is the default, for a board nobody has arranged. Once somebody
+   has, their order wins and the same shapes are packed dense, first-fit,
+   left to right, which is what dragging one before another means. */
+export const PHONE_GRID_COLS = 12
+export const PHONE_GRID_ROWS = 6
+export type PhoneKind = 'icon' | 'small' | 'big'
+
+export function packPhone(
+  items: { id: string; kind: PhoneKind }[],
+  iconsPerRow: number,
+  rhythm: boolean,
+): Spot[] {
+  const cols = PHONE_GRID_COLS
+  const rows = PHONE_GRID_ROWS
+  const per = Math.max(1, Math.min(cols, Math.round(iconsPerRow)))
+  const iw = Math.floor(cols / per)
+  const dims = (k: PhoneKind) =>
+    k === 'icon' ? { w: iw, h: 1 } : k === 'small' ? { w: cols / 2, h: 2 } : { w: cols, h: 2 }
+
+  let order = items
+  if (rhythm) {
+    const smalls = items.filter((i) => i.kind === 'small')
+    const bigs = items.filter((i) => i.kind === 'big')
+    const icons = items.filter((i) => i.kind === 'icon')
+    const out: typeof items = []
+    const iconRow = () => { out.push(...icons.splice(0, per)) }
+    let beat = 0
+    while (smalls.length || bigs.length) {
+      // A pair where a pair is due, a big where a big is due; whichever is
+      // missing gives way to the other rather than leaving a hole.
+      const wantPair = beat % 2 === 0
+      if ((wantPair && smalls.length) || !bigs.length) out.push(...smalls.splice(0, 2))
+      else out.push(bigs.shift()!)
+      iconRow()
+      beat++
+    }
+    out.push(...icons)
+    order = out
+  }
+
+  const spots: Spot[] = []
+  let page = 0
+  let taken = new Set<string>()
+  const key = (r: number, c: number) => `${r}:${c}`
+  const free = (r: number, c: number, w: number, h: number) => {
+    if (c + w > cols || r + h > rows) return false
+    for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) if (taken.has(key(y, x))) return false
+    return true
+  }
+  /* In the rhythm a row is never back-filled from below: each item starts
+     at or after the row the previous one started on, so a lone small card
+     keeps its half-row empty rather than pulling icons up beside it. */
+  let floor = 0
+  let lastKind: PhoneKind | null = null
+  for (const item of order) {
+    const { w, h } = dims(item.kind)
+    if (rhythm && lastKind && lastKind !== item.kind && !(lastKind === 'small' && item.kind === 'small')) {
+      // A new kind starts a new row.
+      const prev = spots[spots.length - 1]
+      floor = prev.row + prev.h
+    }
+    let spot: { row: number; col: number } | null = null
+    for (let r = rhythm ? floor : 0; !spot && r <= rows - h; r++) {
+      for (let c = 0; c <= cols - w; c++) {
+        if (free(r, c, w, h)) { spot = { row: r, col: c }; break }
+      }
+    }
+    if (!spot) {
+      page += 1
+      taken = new Set<string>()
+      spot = { row: 0, col: 0 }
+    }
+    for (let y = spot.row; y < spot.row + h; y++) for (let x = spot.col; x < spot.col + w; x++) taken.add(key(y, x))
+    floor = spot.row
+    lastKind = item.kind
+    spots.push({ id: item.id, w, h, page, row: spot.row, col: spot.col })
+  }
+  return spots
+}
+
 /** How many pages that pack came to. Zero widgets is zero pages, so a caller
     can ask this before deciding whether a pager is worth drawing at all. */
 export function pageCount(spots: Spot[]): number {

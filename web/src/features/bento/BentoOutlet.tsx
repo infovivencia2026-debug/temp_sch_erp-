@@ -315,7 +315,7 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           bolted to the edges; 22px is where it sits. On a desktop
           that is margin; on a phone it is the difference between a figure
           fitting on one line and wrapping. */}
-      <div className="flex-1 w-full pt-6 pb-6 px-[14px] sm:px-[20px] lg:px-[24px] flex flex-col">
+      <div className="flex-1 w-full pt-6 pb-6 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
         <OfflineBanner />
         <SchoolHealthBanner />
         <BackupsLifecycleNotice />

@@ -277,14 +277,14 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
            was, the palette had no way in at all there — Ctrl+K was the only
            other door and a phone has no Ctrl. */
         className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap search-pill rounded-full text-[13px] text-foreground/70 transition-[box-shadow,transform] focus-visible:outline-none sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
+          'flex h-10 w-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap search-pill rounded-full text-[13px] text-foreground sm:text-foreground/70 transition-[box-shadow,transform] focus-visible:outline-none sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
           /* The Work header's one control: a field-sized target, the words
              left and the shortcut right, the way a search box reads. */
           wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
         )}
         aria-label="Search features"
       >
-        <Search className={cn('h-3.5 w-3.5', wide && 'md:h-4 md:w-4')} />
+        <Search className={cn('h-5 w-5 sm:h-3.5 sm:w-3.5', wide && 'md:h-4 md:w-4')} />
         <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>
         <kbd className="hidden shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px] sm:inline">{shortcutLabel('K')}</kbd>
       </button>

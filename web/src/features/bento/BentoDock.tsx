@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LayoutGrid, Inbox, House } from 'lucide-react'
+import { LayoutGrid, House } from 'lucide-react'
+import '@/components/feature-glyph.css'
+import './launcher.css'
 import { useLayout } from '@/lib/layout'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { useT } from '@/lib/i18n'
@@ -9,8 +11,8 @@ import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
 import { BentoLauncher, hueFor, uniqueMarks } from './BentoLauncher'
-import { House as DockHouse, Home as DockHome, Inbox as DockInbox, LayoutGrid as DockGrid, Search as DockSearch, Bell as DockBell } from 'lucide-react'
-const DOCK_RESERVED = [DockHouse, DockHome, DockInbox, DockGrid, DockSearch, DockBell]
+import { House as DockHouse, Home as DockHome, LayoutGrid as DockGrid, Search as DockSearch, Bell as DockBell } from 'lucide-react'
+const DOCK_RESERVED = [DockHouse, DockHome, DockGrid, DockSearch, DockBell]
 import { onOpenLauncher } from './launcher-open'
 import { buzz } from '@/lib/haptics'
 import { BentoSettings } from './BentoSettings'
@@ -85,25 +87,6 @@ export function BentoDock() {
     }
   }), [])
 
-  /* Where "Work" goes, per role.
-
-     There is no single queue key across the catalogue: faculty has
-     home.my_work, an institution admin has approvals.approvals, and several
-     roles have neither. So it is resolved against what this account can
-     actually open, and the button is simply not drawn when there is nothing
-     for it to open. A dock item that navigates nowhere is worse than one
-     fewer dock item. */
-  const workHref = useMemo(() => {
-    if (!role) return undefined
-    const wanted = ['my_work', 'approvals', 'needs_attention', 'follow_ups', 'today']
-    for (const want of wanted) {
-      for (const s of role.sections) {
-        const f = s.features.find((x) => usable(x) && x.slug === want)
-        if (f) return featurePath(role.key, s.slug, f.slug)
-      }
-    }
-    return undefined
-  }, [role])
 
   /* Home, always, and first.
 
@@ -496,20 +479,9 @@ export function BentoDock() {
             this mounts — mouse and keyboard reach the same thing. */}
         <CommandSearch />
 
-        {workHref && (
-          <button
-            type="button"
-            onClick={() => navigate(workHref)}
-            className={cn(item, tab)}
-            style={phone ? undefined : btnStyle}
-            data-tip={phone ? undefined : t('bento.dock.work')}
-            aria-label={t('bento.dock.work')}
-            aria-current={at(workHref) ? 'page' : undefined}
-          >
-            <Inbox className="size-[17px]" aria-hidden="true" />
-            {tabLabel(t('bento.dock.work'))}
-          </button>
-        )}
+        {/* No Work item: the owner asked for it off the dock (2026-10-01).
+            Work queues stay one tap away in All features, and switching to
+            the Work layout lives in Settings and the corner switch. */}
 
         {!phone && categories.length > 0 && (
           <span className={rule} aria-hidden="true" />
@@ -609,14 +581,24 @@ export function BentoDock() {
                     they keep the hue that ties them to the launcher's panels
                     and gain an outline. The same 45% the launcher's chips and
                     headings already use, so the three agree. */}
-                <Mark
-                  style={{
-                    width: 'var(--dock-icon, 17px)',
-                    height: 'var(--dock-icon, 17px)',
-                    color: `color-mix(in srgb, var(--dom-${hueFor(c.name)}) 45%, var(--ink-here))`,
-                  }}
+                {/* THE SAME DISC AS THE APP ICONS, SMALL (owner, 2026-10-01:
+                    "in web focus, make the icon like bento but small"): the
+                    launcher's lit neutral plate, the workspace mark on it in
+                    the workspace colour. */}
+                <span
+                  className="fg-plate lch-plate dock-plate"
+                  style={{ '--t': `var(--dom-${hueFor(c.name)}, hsl(var(--primary)))`, '--size': 'min(calc(var(--dock-btn, 40px) - 2px), calc(var(--dock-icon, 17px) + 15px))' } as CSSProperties}
                   aria-hidden="true"
-                />
+                >
+                  <Mark
+                    style={{
+                      width: 'calc(var(--dock-icon, 17px) - 1px)',
+                      height: 'calc(var(--dock-icon, 17px) - 1px)',
+                      color: `color-mix(in srgb, var(--dom-${hueFor(c.name)}) 70%, var(--ink-here))`,
+                    }}
+                    aria-hidden="true"
+                  />
+                </span>
               </button>
             )
           })}

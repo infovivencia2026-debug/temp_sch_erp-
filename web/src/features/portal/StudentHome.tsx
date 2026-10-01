@@ -110,7 +110,7 @@ export default function StudentHome() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div className="w-full space-y-4 px-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
+      <div className="w-full min-w-0 space-y-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
         <StatusRings />
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain
@@ -157,7 +157,7 @@ export default function StudentHome() {
           )}
         </div>
 
-        <div className="grid items-start gap-4 md:gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-4">
         {summary.error && !s ? <ErrorState error={summary.error} /> : s ? (s.today.length === 0 ? (
           <section className="flex items-center gap-4 rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#f0fdf4] to-card px-5 py-5 shadow-sm">

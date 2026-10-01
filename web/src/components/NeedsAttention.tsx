@@ -389,7 +389,8 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
 
   return (
     <div className="flex flex-col gap-6">
-      {!attentionFirst && <div>
+      {/* Clear of the top bar: on a phone the greeting sat flush under it. */}
+      {!attentionFirst && <div className="pt-[var(--page-top)]">
         <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
           {greeting}
           {name ? `, ${name}` : ''}

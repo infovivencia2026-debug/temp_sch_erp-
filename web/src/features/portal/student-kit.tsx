@@ -271,17 +271,22 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
   ].filter((t): t is { to: string; label: string; icon: typeof Home } => !!t.to)
   useEffect(() => {
     const root = document.documentElement
-    root.style.setProperty('--dock-reserve', 'calc(68px + env(safe-area-inset-bottom, 0px))')
+    /* The assistant orb floats above this bar (AssistantTab reads
+       --orb-bottom); it sat at the bar's own height, under it, and showed
+       through as a green smudge beside More. The reserve clears both, so the
+       last card scrolls out from under the orb too. */
+    root.style.setProperty('--orb-bottom', 'calc(72px + env(safe-area-inset-bottom, 0px))')
+    root.style.setProperty('--dock-reserve', 'calc(68px + 60px + env(safe-area-inset-bottom, 0px))')
     root.dataset.studentTabs = ''
     const style = document.createElement('style')
     style.textContent = 'html[data-student-tabs] .bento-dock{display:none!important}'
     document.head.appendChild(style)
-    return () => { root.style.removeProperty('--dock-reserve'); delete root.dataset.studentTabs; style.remove() }
+    return () => { root.style.removeProperty('--dock-reserve'); root.style.removeProperty('--orb-bottom'); delete root.dataset.studentTabs; style.remove() }
   }, [])
   const barRef = useRef<HTMLDivElement>(null)
   const item = 'flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[12px] font-medium transition-colors active:scale-95'
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-[var(--color-card,white)]/95 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1 backdrop-blur md:hidden">
+    <nav aria-label="Main" className="student-tabbar fixed inset-x-0 bottom-0 z-40 border-t px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1 md:hidden">
       <div ref={barRef} className="relative mx-auto flex max-w-md items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
         <SlidingIndicator listRef={barRef} active={loc.pathname} pick={pickTabPill}

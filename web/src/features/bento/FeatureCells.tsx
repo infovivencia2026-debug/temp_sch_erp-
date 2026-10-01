@@ -18,13 +18,17 @@ import './feature-cells.css'
  * square washed with its workspace's colour, the name under it. Not four in
  * a box: the owner rejected the two-by-two shortcut cell.
  *
- * On a desk each icon is a 1x1 Widget of its own, so it drags, hides and
- * reorders like any card and is exactly one cell, square. On a phone the
- * pager draws every card at the full page width (paginate in widgets.ts),
- * which would stretch one icon across the screen, so there the icons are
- * laid out four across in a row band -- each still its own icon with its
- * own target, no enclosing card -- eight to a band. See ICON_SHAPE in
- * lib/size-tiers.ts.
+ * ON A PHONE each icon is a 1x1 Widget of its own, so it drags, hides and
+ * reorders like any card. The pager packs on a grid four (or, by the
+ * person's choice, three) units across (PHONE_UNIT in widgets.ts): a card
+ * spans the page, an icon is one unit. Never grouped there (owner: "each
+ * icon is one unit, not 4 as one").
+ *
+ * ON A DESK four icons share one 1x1 tile, two by two, each its own target
+ * with its own name (owner, 2026-10-01: four in one tile is right on the
+ * web). A fifth starts the next tile. While arranging, each icon in a tile
+ * has its own remove, and removing the tile removes its four.
+ * See ICON_SHAPE in lib/size-tiers.ts.
  *
  * The list is the shortcuts store (lib/shortcuts.ts), resolved through the
  * catalogue every render, so a shortcut to something this account may no
@@ -33,11 +37,11 @@ import './feature-cells.css'
  * home" and the board's own remove agree. */
 
 export const FEATURE_PREFIX = 'feature:'
-/** A phone band of icons: four across, two rows. */
-export const PHONE_BAND = 8
-const BAND_PREFIX = FEATURE_PREFIX + 'band:'
-export function bandId(n: number): string {
-  return `${BAND_PREFIX}${n + 1}`
+/** Icons per desk tile: two by two. */
+export const DESK_QUAD = 4
+const QUAD_PREFIX = FEATURE_PREFIX + 'quad:'
+export function quadId(n: number): string {
+  return `${QUAD_PREFIX}${n + 1}`
 }
 /* THE ICONS LEAD. Declared ahead of every board's own cards (which count up
    from 0), so on a board that has never been arranged the row of app icons
@@ -131,7 +135,6 @@ export function FeatureCells() {
   const stored = useShortcuts()
   const catalog = useCatalogIfAny()
   const { layout, place } = useLayout(layer?.dashboard ?? 'default')
-  const phone = layer?.phone ?? false
 
   /* A NEW HOME IS A HOME SCREEN, NOT ONLY CHARTS. An account that has never
      touched its shortcuts gets a row of its role's main screens, written to
@@ -144,21 +147,24 @@ export function FeatureCells() {
 
   const live = stored.map((k) => resolve(catalog, k)).filter((f): f is Found => f !== null)
 
-  const bands: Found[][] = []
-  for (let i = 0; i < live.length; i += PHONE_BAND) bands.push(live.slice(i, i + PHONE_BAND))
-  const idOf = (f: Found, at: number) => (phone ? bandId(Math.floor(at / PHONE_BAND)) : FEATURE_PREFIX + f.key)
+  const phone = layer?.phone ?? false
+  const quads: Found[][] = []
+  for (let i = 0; i < live.length; i += DESK_QUAD) quads.push(live.slice(i, i + DESK_QUAD))
+  const idOf = (f: Found, at = live.indexOf(f)) => (phone ? FEATURE_PREFIX + f.key : quadId(Math.floor(at / DESK_QUAD)))
 
-  /* An icon (or, on a phone, a band) hidden from the board is its shortcut
-     removed: the two lists must not disagree about what is on the home. */
+  /* An icon (or, on a desk, a tile of four) hidden from the board is its
+     shortcut removed: the two lists must not disagree about what is on the
+     home. Its place is freed again, or the screens that slide into it next
+     would be hidden with it. */
+  const hiddenIds = phone
+    ? live.map((f) => FEATURE_PREFIX + f.key).filter((id) => isRemoved(layout, id))
+    : quads.map((_, n) => quadId(n)).filter((id) => isRemoved(layout, id))
   const hidden = phone
-    ? bands.flatMap((b, n) => (isRemoved(layout, bandId(n)) ? b.map((f) => f.key) : []))
-    : live.filter((f) => isRemoved(layout, FEATURE_PREFIX + f.key)).map((f) => f.key)
-  const hiddenBands = phone ? bands.map((_, n) => bandId(n)).filter((id) => isRemoved(layout, id)) : []
+    ? live.filter((f) => isRemoved(layout, FEATURE_PREFIX + f.key)).map((f) => f.key)
+    : quads.flatMap((q, n) => (isRemoved(layout, quadId(n)) ? q.map((f) => f.key) : []))
   useEffect(() => {
     for (const k of hidden) removeFromDashboard(k)
-    /* The band's place is freed once its icons are gone, or the icons that
-       slide into it next would be hidden with it. */
-    for (const id of hiddenBands) place(id, 2, 1)
+    for (const id of hiddenIds) place(id, 1, 1)
   }, [hidden.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* THE NEW TILE COMES TO YOU: on a phone the pager scrolls to the page the
@@ -173,7 +179,7 @@ export function FeatureCells() {
     if (!fresh) return
     const at = live.findIndex((f) => f.key === fresh)
     if (at < 0) return
-    const id = idOf(live[at], at)
+    const id = idOf(live[at])
     const t = window.setTimeout(() => {
       const page = layer.spots?.get(id)?.page
       if (page === undefined) return
@@ -189,34 +195,51 @@ export function FeatureCells() {
   if (phone) {
     return (
       <>
-        {bands.map((b, n) => {
-          const id = bandId(n)
-          const label = n === 0 ? 'App icons' : `App icons ${n + 1}`
-          return (
-            <Widget key={id} id={id} label={label} size="small" index={ICON_INDEX + n} fixed>
-              {() => (
-                <div className="ai-band" role="group" aria-label={label}>
-                  {b.map((f) => <IconLink key={f.key} f={f} />)}
-                </div>
-              )}
-            </Widget>
-          )
-        })}
+        {live.map((f, i) => (
+          <Widget key={f.key} id={FEATURE_PREFIX + f.key} label={f.name} size="small" index={ICON_INDEX + i} fixed>
+            {() => (
+              <div className="ai-cell">
+                <IconLink f={f} />
+              </div>
+            )}
+          </Widget>
+        ))}
       </>
     )
   }
 
+  const editing = layer.editing
   return (
     <>
-      {live.map((f, i) => (
-        <Widget key={f.key} id={FEATURE_PREFIX + f.key} label={f.name} size="small" index={ICON_INDEX + i} fixed>
-          {() => (
-            <div className="ai-cell">
-              <IconLink f={f} />
-            </div>
-          )}
-        </Widget>
-      ))}
+      {quads.map((q, n) => {
+        const id = quadId(n)
+        const label = q.length === 1 ? q[0].name : q.map((f) => f.name).join(', ')
+        return (
+          <Widget key={id} id={id} label={label} size="small" index={ICON_INDEX + n} fixed>
+            {() => (
+              <div className="ai-quad" role="group" aria-label={label} data-count={q.length}>
+                {q.map((f) => (
+                  <div key={f.key} className="ai-quad__slot">
+                    <IconLink f={f} />
+                    {editing && (
+                      <button
+                        type="button"
+                        className="ai-quad__remove"
+                        aria-label={`Remove ${f.name} from home`}
+                        title={`Remove ${f.name}`}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeFromDashboard(f.key) }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <span aria-hidden="true">−</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Widget>
+        )
+      })}
     </>
   )
 }

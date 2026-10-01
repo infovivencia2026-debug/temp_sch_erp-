@@ -306,6 +306,15 @@ export function AssistantTab() {
   const closeAssistant = useCallback(() => setOpen(false), [])
   useOverlayHistory(open, closeAssistant)
   const [hover, setHover] = useState(false)
+  /* A smaller orb on a phone: at 44px it sat over class-time pills. */
+  const [phoneOrb, setPhoneOrb] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 767px)').matches)
+  useEffect(() => {
+    const m = window.matchMedia?.('(max-width: 767px)')
+    if (!m) return
+    const on = () => setPhoneOrb(m.matches)
+    m.addEventListener?.('change', on)
+    return () => m.removeEventListener?.('change', on)
+  }, [])
   const [state, setState] = useState<OrbState>('idle')
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState('')
@@ -840,7 +849,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-3 z-40 grid size-14 md:right-6 md:size-16 place-items-center rounded-full
+          `fixed right-3 z-40 grid size-12 md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
@@ -848,9 +857,9 @@ export function AssistantTab() {
            focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',
         )}
-        style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
+        style={{ bottom: 'var(--orb-bottom, calc(var(--dock-h, 0px) + 1.25rem))' }}
       >
-        <AssistantOrb state={state} size={44} awake={hover} />
+        <AssistantOrb state={state} size={phoneOrb ? 36 : 44} awake={hover} />
       </button>
 
       {open && (

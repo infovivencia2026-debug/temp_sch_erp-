@@ -60,19 +60,58 @@
   word-break: break-word;
 }
 
-/* The phone band: four across, two rows, each icon its own target. */
-.ai-band {
+/* On a phone the unit is a quarter of the page wide: a smaller plate, one
+   line of name. */
+[data-pager] .ai-cell .ai-tile { --ai-size: clamp(28px, min(62cqw, calc(100cqh - 22px)), 64px); gap: 4px; padding: 0 2px; min-height: 0; }
+[data-pager] .ai-cell .ai-name { font-size: 11px; -webkit-line-clamp: 1; }
+[data-pager][style*='--pager-icons: 3'] .ai-cell .ai-name { font-size: 12.5px; }
+
+/* An app icon carries no card chrome: no open arrow, no corner menu (hold
+   to customize, or the edit mode's own remove, does that). */
+.bento-widget[data-app-icon]:not([data-editing]) > .bento-cue { display: none; }
+
+/* The desk tile: four icons, two by two, each its own target. */
+.ai-quad {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: max-content;
-  align-content: start;
-  gap: 14px 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2px;
   height: 100%;
   min-height: 0;
-  padding: 28px 0 4px;
+  padding: 4px;
 }
-.ai-band .ai-tile { --ai-size: 56px; gap: 6px; padding: 4px 2px; justify-content: flex-start; }
-.ai-band .ai-name { font-size: 11px; }
+.ai-quad__slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+}
+.ai-quad .ai-tile {
+  --ai-size: clamp(28px, min(52cqw, calc(100cqh - 30px)), 56px);
+  gap: 3px;
+  padding: 2px;
+  min-height: 0;
+}
+.ai-quad .ai-name { font-size: 11px; -webkit-line-clamp: 1; }
+.ai-quad__remove {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--color-foreground, #111);
+  color: var(--color-background, #fff);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
 
 /* An app icon is not a card: no card ground under it on the board. */
 .bento-widget[data-app-icon] > div > * { background: transparent; box-shadow: none; }

@@ -2,6 +2,7 @@ import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useM
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
+import { useAppearance } from '@/lib/appearance'
 import { buzz } from '@/lib/haptics'
 import { openLauncher } from './launcher-open'
 import { Check, ChevronDown, LayoutGrid, ListOrdered, Minus, Pencil, Plus, RotateCcw, Sparkles, Undo2 } from 'lucide-react'
@@ -9,12 +10,12 @@ import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
-  paginate, pageCount, PHONE_COLS, PHONE_ROWS,
+  packPhone, pageCount, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
-import { TIERS, PHONE_TIERS, PHONE_TIER_DIMS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
+import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
-import { FeatureCells, FEATURE_PREFIX, PHONE_BAND, bandId } from './FeatureCells'
+import { FeatureCells, FEATURE_PREFIX, DESK_QUAD, quadId } from './FeatureCells'
 import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useShortcuts, addToDashboard } from '@/lib/shortcuts'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
@@ -439,6 +440,18 @@ function CustomizeBar({
 /** The size a placement is DRAWN at, which is the only size any of the
     fit arithmetic below may use. `dimsOf` returns what is stored, and what is
     stored may be a 3 or a 5 from an older layout. */
+function usePhoneIconsPerRow(): number {
+  return useAppearance().appearance.phoneIcons === '3' ? 3 : 4
+}
+
+/** How a widget sits in the phone rhythm (packPhone): an app icon, a small
+    card (one by one, half the width) or a big one (anything larger, the
+    full width). */
+function phoneKind(id: string, d: { w: number; h: number }): PhoneKind {
+  if (id.startsWith(FEATURE_PREFIX)) return 'icon'
+  return d.w <= 1 && d.h <= 1 ? 'small' : 'big'
+}
+
 function drawnDims(
   layout: Parameters<typeof dimsOf>[0],
   id: string,
@@ -502,7 +515,7 @@ export function WidgetLayer({
      whether or not anybody is arranging. */
   const markRef = useRef<HTMLSpanElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, add, place, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
+  const { layout, add, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
   const t = useT()
   const still = useReduceMotion()
   /* A ref and an attribute on the board, NOT state: the touchmove listener
@@ -710,16 +723,20 @@ export function WidgetLayer({
   const paged = phone && inBoard
   useSwipeUpForAll(paged && !arranging, openLauncher)
 
-  const rows = PHONE_ROWS
+  const rows = PHONE_GRID_ROWS
+  /* App icons per row on a phone is the person's choice (Appearance, Home):
+     four, or three bigger ones. The page is that many units across. */
+  const iconsPerRow = usePhoneIconsPerRow()
+  const gridCols = PHONE_GRID_COLS
   const spots = useMemo(() => {
     if (!paged) return null
-    return paginate(
-      visible.map((v) => ({ id: v.id, ...drawnDims(layout, v.id, v.size) })),
-      PHONE_COLS,
-      rows,
+    return packPhone(
+      visible.map((v) => ({ id: v.id, kind: phoneKind(v.id, drawnDims(layout, v.id, v.size)) })),
+      iconsPerRow,
+      !arranged,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, rows])
+  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, iconsPerRow, arranged])
   const pages = spots ? pageCount(spots) : 0
   const spotMap = useMemo(
     () => (spots ? new Map(spots.map((s) => [s.id, s])) : null),
@@ -735,11 +752,15 @@ export function WidgetLayer({
     if (!board || !paged) return
     board.setAttribute('data-pager', '')
     board.style.setProperty('--pager-rows', String(rows))
+    board.style.setProperty('--pager-cols', String(gridCols))
+    board.style.setProperty('--pager-icons', String(iconsPerRow))
     return () => {
       board.removeAttribute('data-pager')
       board.style.removeProperty('--pager-rows')
+      board.style.removeProperty('--pager-cols')
+      board.style.removeProperty('--pager-icons')
     }
-  }, [paged, rows])
+  }, [paged, rows, gridCols, iconsPerRow])
   useEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !arranging) return
@@ -953,9 +974,11 @@ export function WidgetLayer({
       const key = id.slice(FEATURE_PREFIX.length)
       /* Clear any earlier "removed" mark on the place it will land: the
          icon itself on a desk, its band of eight on a phone. */
+      /* On a phone the icon is its own unit; on a desk it joins a tile of
+         four, and only the first of four starts (or un-hides) a tile. */
       const at = shortcuts.length
-      if (phone) place(bandId(Math.floor(at / PHONE_BAND)), PHONE_TIER_DIMS.small.w, 1)
-      else add(id, ICON_SHAPE.w, ICON_SHAPE.h, visible)
+      if (phone) add(id, ICON_SHAPE.w, ICON_SHAPE.h, visible)
+      else if (at % DESK_QUAD === 0) add(quadId(at / DESK_QUAD), ICON_SHAPE.w, ICON_SHAPE.h, visible)
       addToDashboard(key)
     } else {
       add(id, d.w, d.h, visible)
@@ -988,7 +1011,7 @@ export function WidgetLayer({
             data-page={i}
             aria-hidden="true"
             style={{
-              gridColumn: `${i * PHONE_COLS + 1} / span ${PHONE_COLS}`,
+              gridColumn: `${i * gridCols + 1} / span ${gridCols}`,
               gridRow: `1 / span ${rows}`,
             }}
           />
@@ -1005,7 +1028,7 @@ export function WidgetLayer({
           data-board-empty=""
           style={{
             ...ink,
-            gridColumn: paged ? `1 / span ${PHONE_COLS}` : '1 / -1',
+            gridColumn: paged ? `1 / span ${gridCols}` : '1 / -1',
             gridRow: paged ? `1 / span ${rows}` : undefined,
           }}
         >
@@ -1523,6 +1546,7 @@ function ArrangedWidget({
   children: (span: CellSpan) => ReactNode
 }) {
   const layer = useWidgetLayer()
+  const gridCols = PHONE_GRID_COLS
   const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
@@ -1885,7 +1909,7 @@ function ArrangedWidget({
         spot
           ? {
               order,
-              gridColumn: `${spot.page * PHONE_COLS + spot.col + 1} / span ${spot.w}`,
+              gridColumn: `${spot.page * gridCols + spot.col + 1} / span ${spot.w}`,
               gridRow: `${spot.row + 1} / span ${spot.h}`,
             }
           : { order }
@@ -1911,7 +1935,10 @@ function ArrangedWidget({
           inert: still drawn, but neither a link nor a tab stop, so the
           keyboard lands on the controls over it. */}
       <div className="h-full [&>*]:h-full" style={paint} {...(editing ? INERT : {})}>
-        <WidgetSizeContext.Provider value={{ w: spot ? spot.w : cw, h: spot ? spot.h : ch }}>
+        <WidgetSizeContext.Provider value={{
+          w: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? 2 : 1) : cw,
+          h: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? Math.min(2, Math.max(1, ch)) : 1) : ch,
+        }}>
           {children(span)}
         </WidgetSizeContext.Provider>
       </div>
