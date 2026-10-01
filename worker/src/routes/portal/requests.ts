@@ -175,8 +175,9 @@ async function attendanceOwners(c: Ctx, studentId: string): Promise<string[]> {
                 ORDER BY e.enrolled_on DESC LIMIT 1)
        /* or whoever chases absentees: the permission that names the errand,
           not a role key, so a school that renamed its roles still routes. */
-       OR EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
-                   WHERE ur.user_id = u.id AND rp.permission_key = 'academics.attendance.write.any')
+       /* and the institution admin and the principal (the owner's rule) */
+       OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                     WHERE ur.user_id = u.id AND r.key IN ('institution_admin', 'principal'))
      )`).bind(studentId).all<{ id: string }>().catch(() => null)
   return (rows?.results ?? []).map((r) => r.id).filter(Boolean)
 }
