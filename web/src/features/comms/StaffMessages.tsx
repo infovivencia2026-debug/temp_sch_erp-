@@ -411,21 +411,22 @@ export default function StaffMessages() {
           <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
             <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
               {tabs}
-              {/* "Parents", matching the tab above it. The two said different
-                  words for the same list, which reads as two different lists. */}
-              <CardHeader
-                title="Parents"
-                description={
-                  parents.length
-                    ? `${parents.length} conversation${parents.length === 1 ? '' : 's'}`
-                    : undefined
-                }
-              />
               <div className="space-y-2 px-4 pb-3 pt-3">
-                <button type="button" onClick={() => setStarting((v) => !v)}
-                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground hover:opacity-95">
-                  {starting ? 'Close' : '+ New message to a parent'}
-                </button>
+                {/* One tidy row: search, the unread pill, and New. */}
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Input value={find} onChange={setFind} placeholder="Find a parent or child" />
+                  </div>
+                  <button type="button" onClick={() => setUnreadOnly(!unreadOnly)} aria-pressed={unreadOnly}
+                    className={cn('!min-h-0 shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                      unreadOnly ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground')}>
+                    Unread{parentUnread > 0 ? ` ${parentUnread}` : ''}
+                  </button>
+                  <button type="button" onClick={() => setStarting((v) => !v)} title="New message to a parent"
+                    className="!min-h-0 shrink-0 rounded-full bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground hover:opacity-95">
+                    {starting ? 'Close' : '+ New'}
+                  </button>
+                </div>
                 {starting && (
                   <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
                     <Select value={startSection} onChange={(v) => setStartClass(v)}
@@ -451,16 +452,6 @@ export default function StaffMessages() {
                     </ul>
                   </div>
                 )}
-                <Input value={find} onChange={setFind} placeholder="Find a parent, child or class" />
-                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={unreadOnly}
-                    onChange={(e) => setUnreadOnly(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
-                </label>
               </div>
               <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {parents.map((t) => (
