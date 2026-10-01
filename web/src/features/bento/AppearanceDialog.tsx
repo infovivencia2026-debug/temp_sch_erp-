@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { Dialog } from '@/components/ui'
 import {
   Building2, ChevronLeft, LayoutGrid, MessageSquare,
-  Palette, ShieldCheck, Sliders, Type, UserCircle, X,
+  Palette, ShieldCheck, Sliders, Type, UserCircle,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { resetAppearance } from '@/lib/appearance'
@@ -44,7 +44,6 @@ import { tierOf, dimsForTier, tierLabelKey, TIERS, PHONE_TIERS, type SizeTier } 
 import { usePhone } from '@/lib/viewport'
 import { clampSpan, clampRows } from './bento-kit'
 import { useNavigate } from 'react-router-dom'
-import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Choosing a typeface by looking at it.
 
@@ -1090,8 +1089,6 @@ export function AppearanceDialog({
   onClose: () => void
   initialTab?: 'appearance' | 'dock' | 'dashboard'
 }) {
-  // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(open, onClose)
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
@@ -1253,195 +1250,99 @@ export function AppearanceDialog({
     onClose()
   }
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      // The crosshair swallows the first Escape; the dialog takes the second.
-      if (e.key !== 'Escape' || picking) return
-      /* Escape unwinds the same way the back button does, one level at a
-         time. Inside a section on a phone, Escape means "out of here", and
-         out of here is the list -- closing the whole window instead would
-         throw away the one press that got you in. */
-      if (narrow && tab !== null) backToList()
-      else handleClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, picking, narrow, tab, backToList])
+  /* Escape, one level at a time, through the Dialog's veto. The crosshair
+     swallows the first Escape (ColourDialog listens for it itself, so the
+     key is left to travel); inside a section on a phone, Escape means "out
+     of here", and out of here is the list -- closing the whole window
+     instead would throw away the one press that got you in. */
+  const onEscape = () => {
+    if (picking) return false
+    if (narrow && tab !== null) { backToList(); return false }
+    return true
+  }
 
-  if (!open) return null
+  /* THE SHARED DIALOG, WEARING THIS WINDOW'S CLOTHES.
 
-  return createPortal(
-    <div
-      /* While the crosshair is armed the whole dialog stops intercepting, so a
-         click reaches the region underneath instead of the backdrop. Fading
-         rather than closing: closing would lose the channel and colour already
-         chosen, and the point of aiming is to come back and keep working. */
+     The frame -- the dim, Escape, the phone's Back and sheet, the portal, the
+     focus trap -- is the one every other modal has. What is this window's
+     own goes through props: a width of 980px and a FIXED height on a desk
+     (a max-height resized the panel on every page switch and moved the tabs
+     under the cursor); `appearance-overlay` on the scrim, which the dock
+     reads to keep clear (bento-theme.css); `data-appearance-dialog` on the
+     panel, which the colour picker's click-outside test and the print
+     stylesheet both name.
+
+     While the crosshair is armed the dim goes (`overlay="none"`) so a click
+     reaches the region underneath, and the panel is GONE rather than dimmed:
+     at a quarter opacity it still covered the middle of the screen, so the
+     cards a person most wants to point at were the ones they could not reach.
+     `invisible` keeps it mounted, so the channel and colour already chosen
+     are still there when the pick lands. */
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      onEscape={onEscape}
+      label={t('bento.settings.label')}
+      width="980px"
+      overlay={picking ? 'none' : 'dim'}
+      scrimClassName="appearance-overlay"
+      panelProps={{ 'data-appearance-dialog': '' }}
       className={cn(
-        /* NO PADDING ON A PHONE: the panel is the screen there. See the note
-           on the panel's own height. */
-        'appearance-overlay fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-0 sm:p-6',
-        picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
+        'appearance-panel pop-down sm:h-[min(88vh,760px)]',
+        SURFACE, EDGE,
+        picking && 'invisible',
       )}
-      onClick={picking ? undefined : handleClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('bento.settings.label')}
+      bodyClassName="flex flex-col"
+      title={
+        /* WHERE YOU ARE, AND THE WAY BACK, IN THAT ORDER.
+
+           On a phone inside a section the header stops being the window's
+           title and becomes the page's: the back control first, then the
+           section's own name, then that section's own line. The name of the
+           window is the label ON the back control, which is where a name you
+           are returning to belongs. The window is called Settings, not
+           Appearance: Appearance is one of its pages. */
+        <>
+          {narrow && tab !== null && (
+            <button
+              type="button"
+              onClick={backToList}
+              className={cn(
+                'group -ml-2 mb-1 flex min-h-[44px] items-center gap-1 rounded-[8px] pl-1.5 pr-2.5',
+                'text-[13px] font-normal transition-colors', INK, WASH, RING,
+              )}
+            >
+              <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+              {t('bento.settings.label')}
+            </button>
+          )}
+          <span className={cn('block text-[21px]', INK)}>
+            {narrow && current ? current.label : t('bento.settings.label')}
+          </span>
+        </>
+      }
+      description={current
+        ? current.note
+        : 'Everything you can change from here, and where each change lands.'}
     >
-      <div
-        data-appearance-dialog=""
-        /* The panel states its own pair, and its edge is a boundary rather
-           than a seam.
+      {/* The pages, named: one scrolling line of tabs on a desk (SettingsNav
+          hides itself below 768px, where the list replaces it). */}
+      <SettingsNav items={listItems} tab={tab} onPick={(id) => setTab(id)} />
 
-           `bg-popover` with no ink beside it left the words inheriting from
-           <body>; the outer `border` was `--bento-line` at 1.38:1, which is
-           not enough to separate a floating dialog from the page behind it. */
-        className={cn(
-          /* A HEIGHT, not a maximum, and `max-h-full` under it.
-
-             Two things came out of `max-h`. The dialog resized every time
-             somebody moved between its four pages — Colour is a wheel and two
-             sliders, Dashboard is a list — so the tabs moved under the cursor
-             and the whole panel jumped on each switch. And the panel was 88vh
-             plus the dock's 132px of clearance, which is taller than the
-             window: a centred grid item that overflows its container overflows
-             it at BOTH ends, so the top of the dialog, its title and its tabs
-             went off the top of the screen with no way to scroll back up.
-
-             Fixed height fixes the first. `max-h-full` fixes the second by
-             letting the panel give way to the clearance, which the overlay now
-             carries as padding rather than the panel as a margin. */
-          /* AND A FULL SHEET ON A PHONE, WHICH IS WHAT ITS SIBLING IS.
-
-             88vh centred in an 844px window is a 743px card with fifty pixels
-             of dashboard above and below it and the dock showing through
-             underneath, and the last row of the section list cut through the
-             middle at the bottom edge. Its sibling surface, the notification
-             drawer, is a full sheet on a phone. Two panels the same dock opens,
-             two different shapes, is the thing that reads as unfinished rather
-             than either shape on its own.
-
-             The centred dialog is kept from the small breakpoint up, where a
-             window has room to show what is behind it and the panel reads as
-             floating over the work rather than replacing it. */
-          `appearance-panel pop-down flex h-full sm:h-[min(88vh,760px)] max-h-full w-full max-w-[980px]
-           flex-col overflow-hidden rounded-none sm:rounded-[16px] border
-           shadow-[var(--lift-float)]`,
-          SURFACE, EDGE,
-          /* GONE while aiming, not dimmed. At a quarter opacity the settings
-             window still covered the middle of the screen, so the things a
-             person most wants to point at -- the cards under it -- were the
-             ones they could not reach without guessing through a haze. The
-             owner asked for it to disappear. `invisible` keeps it mounted,
-             so the channel and colour already chosen are still there when
-             the pick lands; the colour panel floats a small pill with the
-             way out (Esc) while the window is away. */
-          picking && 'invisible',
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className={cn('flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-7 sm:py-5', SEAM)}>
-          {/* THE WINDOW IS CALLED SETTINGS AGAIN.
-
-              It was headed Appearance, under a subtitle promising the choices
-              are "remembered on this device", which was true of everything it
-              held while everything it held was a font and a palette. It is not
-              true of school setup or of who the school may message: those are
-              the school's, they are on the server, and they are the same for
-              everybody. Leaving the old heading over the new sections would
-              have been a window telling somebody their change is local while
-              it changes the school. So the panel takes the name the cog has
-              always had, and the device promise moves down to the pages it
-              still describes. */}
-          {/* WHERE YOU ARE, AND THE WAY BACK, IN THAT ORDER.
-
-              On a phone inside a section the header stops being the window's
-              title and becomes the page's: the back control first, then the
-              section's own name at the size the window's name used to be, then
-              that section's own line. The name of the window is not lost --
-              it is the label ON the back control, which is where a name you
-              are returning to belongs. Everywhere else the header is what it
-              was.
-
-              The subtitle is now the same sentence the list row carried, for
-              whichever page is open, rather than one blanket promise for all
-              of them. That promise said a change is "remembered on this
-              device", which was true of a typeface and false of who the school
-              may message -- a window telling somebody their change is local
-              while it changes the school for everyone. */}
-          <div className="min-w-0">
-            {narrow && tab !== null && (
-              <button
-                type="button"
-                onClick={backToList}
-                className={cn(
-                  'group -ml-2 mb-1 flex min-h-[44px] items-center gap-1 rounded-[8px] pl-1.5 pr-2.5',
-                  'text-[13px] transition-colors', INK, WASH, RING,
-                )}
-              >
-                <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
-                {t('bento.settings.label')}
-              </button>
-            )}
-            <h2 className={cn('text-[21px] font-semibold', INK)}>
-              {narrow && current ? current.label : t('bento.settings.label')}
-            </h2>
-            <p className={cn('mt-0.5 text-[13px]', INK)}>
-              {current
-                ? current.note
-                : 'Everything you can change from here, and where each change lands.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label={t('bento.launcher.close')}
-            className={cn(
-              'grid size-8 shrink-0 place-items-center rounded-[8px] transition-colors',
-              INK, WASH, RING,
-            )}
-          >
-            <X className="size-4" />
-          </button>
-        </header>
-
-          {/* The pages, named. A dialog that opens on one of them with no way
-              to see the others is a dialog people think is broken.
-
-              THE ROW SCROLLS SIDEWAYS RATHER THAN WRAPPING.
-
-              It was four tabs and could afford `flex`; it is up to eight now,
-              and at 390px eight of them wrapped to three lines, which pushed
-              the panel's content below the fold before it had drawn anything
-              and moved every tab under the finger each time one was pressed.
-              A single scrolling line keeps the header a fixed height and keeps
-              the tab you just pressed where you pressed it. `px-7` stays as
-              scroll padding at the ends so the first and last tabs are not
-              flush against the panel edge.
-
-              Each tab is 44px tall, which is the touch floor, and `shrink-0`
-              so they keep their labels rather than compressing into ellipses
-              when the row is wider than the panel. */}
-          <SettingsNav items={listItems} tab={tab} onPick={(id) => setTab(id)} />
-
-        {/* `.scroll-y` draws the bar rather than waiting for the platform to
-            fade one in. A dialog with four pages behind its tabs — one of them
-            fifteen typeface cards — has to say on its first paint that there is
-            more below the fold. See index.css. */}
-        <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
-          {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
-          <SettingsPane
-            tab={tab}
-            onClose={onClose}
-            onPickingChange={onPickingChange}
-            dockRef={dockRef}
-            dashRef={dashRef}
-          />
-        </div>
-
+      {/* `.scroll-y` draws the bar rather than waiting for the platform to
+          fade one in. See index.css. */}
+      <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
+        {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
+        <SettingsPane
+          tab={tab}
+          onClose={onClose}
+          onPickingChange={onPickingChange}
+          dockRef={dockRef}
+          dashRef={dashRef}
+        />
       </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
 

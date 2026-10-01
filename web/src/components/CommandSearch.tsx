@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { createPortal } from 'react-dom'
 import { shortcutLabel } from '@/lib/platform'
-import { useOverlayHistory } from '@/lib/overlay-history'
 import { useNavigate } from 'react-router-dom'
 import { Search, CornerDownLeft, GraduationCap, UserRound, MessageCircle } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
@@ -10,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { aliasText } from '@/lib/search-aliases'
 import { api } from '@/lib/api'
 import ScrollBox from './ScrollBox'
+import { Dialog } from './ui'
 import { useSession } from '@/lib/session'
 import { FeatureGlyph } from './FeatureGlyph'
 import { hueFor } from '@/features/bento/BentoLauncher'
@@ -49,11 +48,9 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   const navigate = useNavigate()
   const [open, setOpen] = useOpenState(false)
 
-  /* Back closes the panel rather than the app. See useOverlayHistory: this is
-     state, not a route, so nothing was on the history stack for the phone's
-     back gesture to land on. */
+  /* The shared Dialog owns Back, Escape and the dim (overlay-history.ts);
+     this is what the rows call when they have sent somebody somewhere. */
   const close = useCallback(() => setOpen(false), [])
-  useOverlayHistory(open, close)
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -224,9 +221,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setOpen((v) => !v)
-        return
       }
-      if (e.key === 'Escape') setOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -236,8 +231,6 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
     if (open) {
       setQ('')
       setCursor(0)
-      // Focus after paint, or the input is not in the document yet.
-      requestAnimationFrame(() => inputRef.current?.focus())
     }
   }, [open])
 
@@ -315,44 +308,24 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
     setOpen(false)
   }
 
-  /* Rendered into the body, not where it is mounted.
+  /* THE SHARED DIALOG, WITH ITS OWN KEYBOARD.
 
-     This component lives inside the Bento dock, and the dock carries
-     backdrop-blur. A backdrop-filter establishes a containing block, so a
-     fixed-position descendant anchors to the blurred element rather than to
-     the viewport — the scrim stopped being full-screen and became a dark layer
-     painted across the dock itself, with the palette hanging underneath it.
-
-     BentoLauncher already had to be moved outside the pill for exactly this
-     reason and left a comment saying so; this is the same trap one component
-     along. A portal fixes it at the source, so the palette is correct wherever
-     anybody mounts it next. */
-  return createPortal(
-    <>
-      <div className="fixed inset-0 z-50 bg-[hsl(var(--scrim))]" onClick={() => setOpen(false)} aria-hidden />
-      <div
-        role="dialog"
-        aria-label="Search features"
-        /* CENTRED BY MARGINS, NOT BY A TRANSFORM.
-
-           This was `left-1/2 -translate-x-1/2`, and the translate did not
-           survive: measured on the live site the computed transform was the
-           identity matrix while --tw-translate-x still read -50%, so the panel
-           began at exactly half the viewport and ran off the right edge. At
-           768px that put 256px of a 640px panel off-screen, the search field
-           among it, which is the one control the panel exists for.
-
-           Insetting to both edges and centring with auto margins asks the
-           layout engine for the same result without going through a transform
-           that something else can flatten. It also keeps the 1rem gutter on a
-           narrow window, which the width calc was already trying to hold. */
-        className="fixed inset-x-4 top-[12vh] z-50 mx-auto w-auto max-w-[640px]"
-        /* Fixed elements escape the body's notch padding; 12vh from the top
-           edge is not always 12vh below the clock. Zero in a browser and on
-           Android. */
-        style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="overflow-hidden rounded-md border bg-popover shadow-pop">
+     The palette is a Dialog like every other modal -- the dim, Escape, the
+     phone's Back, the portal to the body that a backdrop-blur ancestor made
+     necessary -- but it hangs near the top of the window rather than in the
+     middle, and it keeps its own keys: the arrows walk the list and Enter
+     opens, so the focus trap is off and focus goes straight to the field. */
+  return (
+    <Dialog
+      onClose={close}
+      label="Search features"
+      placement="top"
+      width="640px"
+      trapFocus={false}
+      initialFocus={inputRef}
+      bodyClassName="flex flex-col"
+      className="bg-popover"
+    >
           <div className="flex items-center gap-2.5 border-b px-4">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
@@ -454,10 +427,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
           <div className="flex items-center gap-3 border-t px-4 py-2 text-[12px] text-muted-foreground">
             <span>↑↓ to move</span><span>↵ to open</span><span>esc to close</span>
           </div>
-        </div>
-      </div>
-    </>,
-    document.body,
+    </Dialog>
   )
 }
 

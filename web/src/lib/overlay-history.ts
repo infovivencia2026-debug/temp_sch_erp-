@@ -48,12 +48,27 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
      page underneath — which is precisely "Back exited the app" as reported
      from the launcher. */
   const byPop = useRef(false)
+  /* The teardown's `history.back()`, held for a tick.
+
+     React's development StrictMode mounts, tears down and mounts again,
+     synchronously, and a component that MOUNTS already open -- the shared
+     Dialog, drawn only while it is wanted -- saw its entry pushed, taken
+     back, pushed again; the popstate from that back then landed on the
+     second mount's listener, which closed the dialog as it opened (traced
+     as push, back, push, pop). Deferring the back lets an immediate
+     re-mount cancel it and keep the entry it already has. */
+  const pendingBack = useRef(0)
 
   useEffect(() => {
     if (!open) return
     byPop.current = false
 
-    window.history.pushState({ erpOverlay: true }, '')
+    if (pendingBack.current) {
+      window.clearTimeout(pendingBack.current)
+      pendingBack.current = 0
+    } else {
+      window.history.pushState({ erpOverlay: true }, '')
+    }
 
     const pop = () => {
       byPop.current = true
@@ -71,7 +86,12 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
          Not after a Back, which has already taken it. Guarded on our own
          marker as well, so this never eats an entry belonging to somebody
          else. */
-      if (!byPop.current && window.history.state?.erpOverlay) window.history.back()
+      if (!byPop.current && window.history.state?.erpOverlay) {
+        pendingBack.current = window.setTimeout(() => {
+          pendingBack.current = 0
+          if (window.history.state?.erpOverlay) window.history.back()
+        }, 0)
+      }
     }
   }, [open])
 

@@ -5,7 +5,7 @@ import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
-  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode } from 'react'
+  type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import {
@@ -2810,8 +2810,12 @@ export function segClass(active: boolean): string {
    - Focus: moves into the dialog on open, Tab cycles inside it, Escape and a
      tap on the dim close it, and focus returns to whatever opened it.
    - Portalled to the body, so no transformed ancestor can re-anchor it. */
-const DIALOG_W = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' } as const
+const DIALOG_W = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl', full: 'sm:max-w-none' } as const
 
+/* The props beyond the plain frame exist for the five surfaces that had
+   their own reason to stay hand-made (the search palette, the first-run
+   tour, Settings, the sheet viewer, Staff logins). Each need is one prop,
+   so the exception is declared where it is used and the frame stays one. */
 export function Dialog({
   open = true,
   onClose,
@@ -2820,8 +2824,20 @@ export function Dialog({
   children,
   footer,
   size = 'md',
+  width,
   label,
   raised = false,
+  trapFocus = true,
+  initialFocus = 'auto',
+  onEscape,
+  overlay = 'dim',
+  backdrop,
+  placement = 'center',
+  actions,
+  bodyClassName,
+  className,
+  scrimClassName,
+  panelProps,
 }: {
   open?: boolean
   onClose: () => void
@@ -2831,9 +2847,42 @@ export function Dialog({
   description?: ReactNode
   children: ReactNode
   footer?: ReactNode
+  /** `full` is the whole window at every width: for a sheet of eighteen
+      columns, toggled in place from a windowed size. */
   size?: keyof typeof DIALOG_W
+  /** A max-width of its own (`70rem`, `90vw`) in place of `size`, on desks;
+      a phone's sheet is always the full width. */
+  width?: string
   /** Accessible name when `title` is not plain text. */
   label?: string
+  /** Off for a surface with its own keyboard model -- the search palette,
+      where Tab leaves the field and the arrows walk the list. */
+  trapFocus?: boolean
+  /** Where focus lands on open: the first field (else the panel), the panel
+      itself, or an element of the caller's choosing. */
+  initialFocus?: 'auto' | 'panel' | RefObject<HTMLElement | null>
+  /** Escape, before it closes anything. Return false to keep the dialog
+      open -- a drill-in steps back a level, an armed picker disarms -- and
+      the key is left for whoever else listens. */
+  onEscape?: () => boolean | void
+  /** `none` draws no dim and lets pointer events through to the page, for a
+      spotlight or a picker that aims at what is behind. */
+  overlay?: 'dim' | 'none'
+  /** Drawn on the scrim behind the panel: a cut-out, a highlight ring. */
+  backdrop?: ReactNode
+  /** `top` hangs the panel near the top edge, where a palette belongs. */
+  placement?: 'center' | 'top'
+  /** Header controls beside the close button: Expand, Export. */
+  actions?: ReactNode
+  /** Replaces the body's padding, for content that draws to the edges. */
+  bodyClassName?: string
+  /** On the panel. */
+  className?: string
+  /** On the scrim. */
+  scrimClassName?: string
+  /** Attributes on the panel -- a data- hook a stylesheet or a click-outside
+      test already names. */
+  panelProps?: HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string | undefined>
 }) {
   const panel = useRef<HTMLDivElement>(null)
   /* The phone's Back closes a dialog, like every other overlay; the returned
@@ -2842,20 +2891,38 @@ export function Dialog({
   const close = useOverlayHistory(open, onClose)
   const closeRef = useRef(close)
   closeRef.current = close
+  /* Read through refs: the effect below runs once per opening. */
+  const escRef = useRef(onEscape)
+  escRef.current = onEscape
+  const trapRef = useRef(trapFocus)
+  trapRef.current = trapFocus
+  const focusRef = useRef(initialFocus)
+  focusRef.current = initialFocus
 
   useEffect(() => {
     if (!open) return
     const opener = document.activeElement as HTMLElement | null
     const el = panel.current
+    const want = focusRef.current
     // First field if there is one, else the panel itself: never the close
     // button, or Enter on a freshly opened form would dismiss it.
-    const first = el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
+    const first = want === 'panel'
+      ? null
+      : want !== 'auto'
+        ? want.current
+        : el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
     ;(first ?? el)?.focus({ preventScroll: true })
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); return }
-      if (e.key !== 'Tab' || !el) return
+      if (e.key === 'Escape') {
+        // Vetoed: the key stays live for whoever asked to keep the dialog.
+        if (escRef.current?.() === false) return
+        e.stopPropagation()
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !el || !trapRef.current) return
       const f = [...el.querySelectorAll<HTMLElement>(
         'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
       )].filter((n) => n.offsetParent !== null)
@@ -2875,33 +2942,64 @@ export function Dialog({
   /* Stays mounted through its exit when closed with open={false}. */
   const [present, closing] = usePresence(open)
   if (!present || typeof document === 'undefined') return null
+  const full = size === 'full'
+  const { className: panelExtra, ...panelRest } = panelProps ?? {}
   return createPortal(
     <div
       data-closing={closing || undefined}
-      className={cn('scrim fixed inset-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6', raised ? 'z-[110]' : 'z-[70]')}
+      className={cn(
+        'scrim fixed inset-0 flex justify-center',
+        overlay === 'none' ? 'pointer-events-none bg-transparent' : 'bg-black/40',
+        raised ? 'z-[110]' : 'z-[70]',
+        full
+          ? 'items-stretch p-0'
+          : placement === 'top'
+            ? 'items-start px-4 pt-[calc(12vh+env(safe-area-inset-top,0px))] sm:p-6 sm:pt-[12vh]'
+            : 'items-end sm:items-center sm:p-6',
+        scrimClassName,
+      )}
       onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
+      {backdrop}
       <div
+        {...panelRest}
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={label ?? (typeof title === 'string' ? title : undefined)}
         tabIndex={-1}
+        /* The caller's width is a desk's: through a variable, so the class
+           that reads it can sit behind `sm:` and a phone's sheet stays the
+           full width (an inline max-width of 90vw made it a 351px card). */
+        style={width && !full ? { ['--dialog-w' as string]: width, ...panelRest.style } : panelRest.style}
         className={cn(
-          'ui-dialog flex max-h-[92dvh] w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
-          'rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
-          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
-          DIALOG_W[size],
+          'ui-dialog pointer-events-auto flex w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
+          full
+            ? 'h-[100dvh] max-h-none rounded-none'
+            : placement === 'top'
+              ? cn('max-h-[80dvh] rounded-[var(--radius-dialog)] border border-[color:var(--hairline-lifted)] shadow-[var(--elev-3)] sm:max-h-[min(76dvh,860px)]', width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size])
+              : cn(
+                  'max-h-[92dvh] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+                  'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
+                  width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size],
+                ),
+          className,
+          panelExtra,
         )}
       >
         {/* The grab bar: a phone's sign that this is a sheet. */}
-        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
-        {(title || description) && (
-          <div className="flex shrink-0 items-start gap-3 border-b px-5 pb-3 pt-3 sm:px-6 sm:pt-4">
+        {!full && placement === 'center' && (
+          <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
+        )}
+        {(title || description || actions) && (
+          <div className="flex shrink-0 flex-wrap items-start gap-x-3 border-b px-5 pb-3 pt-3 sm:flex-nowrap sm:px-6 sm:pt-4">
             <div className="min-w-0 flex-1 pt-1.5">
               {title && <h2 className="text-[16px] font-semibold leading-snug">{title}</h2>}
               {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
             </div>
+            {/* On a phone the actions take a row of their own under the title:
+                three buttons beside it left the title one letter wide. */}
+            {actions && <div className="order-last -ml-2 flex w-full flex-wrap items-center gap-1 pt-1 sm:order-none sm:ml-0 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-0.5">{actions}</div>}
             <button
               type="button"
               onClick={close}
@@ -2912,7 +3010,7 @@ export function Dialog({
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">{children}</div>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-5 py-4 sm:px-6')}>{children}</div>
         {footer && (
           <div
             className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-5 py-3 sm:px-6"

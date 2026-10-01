@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2, Minimize2,
 } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
-import { Button, Input, Table, Td, Textarea } from '@/components/ui'
+import { Button, Dialog, Input, Table, Td, Textarea } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { ImportWithAIButton } from '@/components/ai/SmartImport'
-import { useOverlayHistory } from '@/lib/overlay-history'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
 import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
 
@@ -1493,14 +1491,6 @@ export function SheetViewer({
   rows: string[][]
   onClose: () => void
 }) {
-  /* The phone's Back closes this, like every overlay: see overlay-history.ts.
-
-     The hook's return value has to be what the close button calls. Calling
-     onClose directly unmounted the panel, and the hook's cleanup then consumed
-     the history entry it had pushed -- so pressing Close shut the panel and
-     navigated the page back at the same time, which reads as Close doing
-     nothing, or worse, as the app jumping somewhere else. */
-  const close = useOverlayHistory(true, onClose)
   /* Two sizes, because both are wanted.
    *
    * A sheet eighteen columns wide is read edge to edge; the same sheet checked
@@ -1530,102 +1520,73 @@ export function SheetViewer({
   const pages = Math.max(1, Math.ceil(found.length / perPage))
   const current = Math.min(page, pages - 1)
   const shown = found.slice(current * perPage, current * perPage + perPage)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('keydown', onKey)
-    // Restored on close rather than assumed to have been empty: another
-    // overlay may have set it.
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previous
-    }
-  }, [close])
-
-  /* PORTALLED, BECAUSE position: fixed IS NOT ALWAYS THE VIEWPORT.
-
-     A transformed ancestor becomes the containing block for anything fixed
-     inside it, and this window opens from a button inside a .card -- which
-     carries transform: scale(.99) while it is pressed. So the panel laid
-     itself out inside the card instead of over the page: cut off at the top,
-     no dark surround, and the Close button somewhere off the edge. Pressing
-     Close did work; it was not on screen to press.
-
-     The report card viewer already carries this scar and this fix. */
-  return createPortal(
-    <div
-      className={
-        full
-          ? 'fixed inset-0 z-50 bg-background'
-          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+  /* THE SHARED DIALOG, portalled to the body for the reason the hand-made
+     one was: this opens from a button inside a .card, which carries
+     transform: scale(.99) while pressed, and a transformed ancestor is the
+     containing block for anything fixed inside it. Escape, the dim, the
+     phone's Back and the exit all come with the frame; Full screen switches
+     it in place between a 90vw window and the whole screen. A drag that
+     starts on a cell and ends on the dim does not close it: the Dialog
+     closes on mousedown on the dim, and a selection's mousedown is on the
+     table. */
+  return (
+    <Dialog
+      onClose={onClose}
+      title={title}
+      description={
+        <>
+          {query.trim()
+            ? `${found.length} of ${body.length} rows`
+            : `${body.length} rows`}
+          {' · '}
+          {header.length} columns
+        </>
       }
-      /* Only the full-screen variant: fixed elements escape the body's notch
-         padding, so on the iPhone its toolbar would sit under the clock and
-         its bottom under the home indicator. The centred dialog floats clear
-         of both. Zero in a browser and on Android. */
-      style={
-        full
-          ? {
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            }
-          : undefined
+      size={full ? 'full' : 'xl'}
+      width={full ? undefined : '90vw'}
+      bodyClassName="flex flex-col"
+      actions={
+        <Button size="sm" variant="ghost" onClick={() => setFull((v) => !v)}>
+          {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          {full ? 'Windowed' : 'Full screen'}
+        </Button>
       }
-      /* Clicking the dark surround closes it -- unless a drag ended there.
-
-         Reading a sheet means selecting cells, and a selection that runs off
-         the edge of the table finishes its mouse-up on the backdrop. Closing
-         then loses the file the moment somebody highlights a column, which is
-         the one gesture this window exists for. */
-      onClick={(e) => {
-        if (e.target !== e.currentTarget) return
-        if ((window.getSelection()?.toString() ?? '') !== '') return
-        close()
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div
-        className={
-          full
-            ? 'flex h-full w-full flex-col border bg-background'
-            : 'flex max-h-[85vh] w-full max-w-[90vw] flex-col rounded-lg border bg-background shadow-lg'
-        }
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* The title bar is furniture, not content. Dragging across a sheet
-            from top-left otherwise selects the file name and the row count
-            along with the data, which is what makes a highlighted table look
-            like the screen has broken. */}
-        <div className="flex select-none flex-wrap items-center gap-3 border-b px-4 py-3">
-          <p className="text-[14px] font-medium">{title}</p>
-          <span className="text-[12.5px] text-muted-foreground">
-            {query.trim()
-              ? `${found.length} of ${body.length} rows`
-              : `${body.length} rows`}
-            {' · '}
-            {header.length} columns
+      footer={pages > 1 ? (
+        <div className="flex w-full select-none flex-wrap items-center gap-3 text-[12.5px]">
+          <span className="text-muted-foreground">
+            Showing {current * perPage + 1}–
+            {Math.min((current + 1) * perPage, found.length)} of {found.length}
           </span>
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setFull((v) => !v)}>
-            {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            {full ? 'Windowed' : 'Full screen'}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={close}>
-            Close
-          </Button>
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            Rows
+            <PickerMenu
+              className="h-7"
+              align="start"
+              ariaLabel="Rows per page"
+              value={String(perPage)}
+              onChange={(v) => { setPerPage(Number(v)); setPage(0) }}
+              options={[25, 50, 100, 250].map((n) => ({ value: String(n), label: String(n) }))}
+            />
+          </label>
+          <span className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="ghost" disabled={current === 0}
+              onClick={() => setPage(current - 1)}>Previous</Button>
+            <span className="tabular-nums text-muted-foreground">
+              {current + 1} of {pages}
+            </span>
+            <Button size="sm" variant="ghost" disabled={current >= pages - 1}
+              onClick={() => setPage(current + 1)}>Next</Button>
+          </span>
         </div>
-        <div className="select-none border-b px-4 py-2">
-          <Input
-            value={query}
-            onChange={(v) => { setQuery(v); setPage(0) }}
-            placeholder="Find a name, a class, an email…"
-          />
-        </div>
-
+      ) : undefined}
+    >
+      <div className="select-none border-b px-4 py-2">
+        <Input
+          value={query}
+          onChange={(v) => { setQuery(v); setPage(0) }}
+          placeholder="Find a name, a class, an email…"
+        />
+      </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {/* The row numbers are the file's own, not the page's. Somebody
               reading a rejection that says "row 84" has to find row 84, and a
@@ -1643,37 +1604,6 @@ export function SheetViewer({
             </p>
           )}
         </div>
-
-        {pages > 1 && (
-          <div className="flex select-none flex-wrap items-center gap-3 border-t px-4 py-2 text-[12.5px]">
-            <span className="text-muted-foreground">
-              Showing {current * perPage + 1}–
-              {Math.min((current + 1) * perPage, found.length)} of {found.length}
-            </span>
-            <label className="flex items-center gap-1.5 text-muted-foreground">
-              Rows
-              <PickerMenu
-                className="h-7"
-                align="start"
-                ariaLabel="Rows per page"
-                value={String(perPage)}
-                onChange={(v) => { setPerPage(Number(v)); setPage(0) }}
-                options={[25, 50, 100, 250].map((n) => ({ value: String(n), label: String(n) }))}
-              />
-            </label>
-            <span className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="ghost" disabled={current === 0}
-                onClick={() => setPage(current - 1)}>Previous</Button>
-              <span className="tabular-nums text-muted-foreground">
-                {current + 1} of {pages}
-              </span>
-              <Button size="sm" variant="ghost" disabled={current >= pages - 1}
-                onClick={() => setPage(current + 1)}>Next</Button>
-            </span>
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }

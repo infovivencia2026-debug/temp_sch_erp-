@@ -1,8 +1,7 @@
-import { createPortal } from 'react-dom'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
+import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2 } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
 import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
@@ -10,7 +9,6 @@ import { api, type AcademicYear, type Klass, type List, type Section, type Subje
 import { useWorkingYear } from '@/lib/working-year'
 import { Button, Dialog, Field, FormGrid, FormNotice, Input, Select, Badge, ExportTable } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { useOverlayHistory } from '@/lib/overlay-history'
 import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
 import { useOpenState } from '@/lib/motion'
 
@@ -3649,9 +3647,8 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
      over a roll of forty-eight is the same overstatement one line up. */
   const onRoll = staff.filter((t) => !t.status || t.status === 'active')
   const withoutLogin = onRoll.filter((t) => !t.can_sign_in).length
-  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  // The Dialog owns Back, Escape and the dim; this is what it calls.
   const closeLogins = useCallback(() => setOpen(false), [])
-  useOverlayHistory(open, closeLogins)
 
   /* The list, as the file a school actually keeps.
    *
@@ -3772,48 +3769,24 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
     )
   }
 
-  /* PORTALLED TO THE BODY, which is what makes Expand work at all.
+  /* THE SHARED DIALOG, which is also what makes Expand work at all.
 
      `position: fixed` is relative to the viewport only while no ancestor
-     establishes a containing block, and several things do: a transform, a
-     filter, a backdrop-filter, and -- the one that catches this -- CSS
-     containment. `.bento-cell` carries `container-type: size`, which implies
-     `contain: layout style size`, so a fixed child inside one is fixed to the
-     CELL.
-
-     That is why the dialog appeared clipped at the left edge and why Expand
-     looked like it did nothing: it was already filling the box it was trapped
-     in, and toggling between "all of that box" and "85% of that box" is not a
-     visible change.
-
-     Rendered into document.body it is fixed to the viewport, which is what
-     every line of styling below already assumed. */
-  return createPortal(
-    <div
-      className={
-        full
-          ? 'fixed inset-0 z-[80] bg-background'
-          : 'fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4'
-      }
-      onClick={() => setOpen(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Staff logins"
-    >
-    <div
-      className={
-        full
-          ? 'flex h-full w-full flex-col overflow-auto border bg-background p-4'
-          : 'flex max-h-[85vh] w-full max-w-[70rem] flex-col overflow-auto rounded-lg border bg-background p-4 shadow-lg'
-      }
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <p className="text-[15px] font-medium">Staff logins</p>
-        <span className="text-[12.5px] text-muted-foreground">
-          {staff.length} on the roll
-        </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+     establishes a containing block, and `.bento-cell` carries
+     `container-type: size`, so a fixed panel drawn inside one was fixed to
+     the CELL: clipped at the left edge, and Expand toggling between "all of
+     that box" and "85% of that box" was not a visible change. The Dialog is
+     portalled to the body, so it is fixed to the viewport; Expand switches
+     it in place between a 70rem window and the whole screen. */
+  return (
+    <Dialog
+      onClose={closeLogins}
+      title="Staff logins"
+      description={`${staff.length} on the roll`}
+      size={full ? 'full' : 'xl'}
+      width={full ? undefined : '70rem'}
+      actions={
+        <>
           <Button size="sm" variant="ghost" onClick={download}>
             <Download className="h-3.5 w-3.5" />
             Export
@@ -3831,12 +3804,9 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
             {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             {full ? 'Windowed' : 'Expand'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-            <X className="h-3.5 w-3.5" />
-            Close
-          </Button>
-        </div>
-      </div>
+        </>
+      }
+    >
       <div className="mb-2 flex justify-end">
         <ExportTable tableId="setup-names" name="list" />
       </div>
@@ -3939,9 +3909,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
         </p>
       )}
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
-    </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
 
