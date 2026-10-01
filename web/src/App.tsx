@@ -281,6 +281,10 @@ function FeatureRoute() {
      a Home section is a Home section in all seventeen catalogues. */
   const isHome = section.workspace === 'Home' || section.slug === 'home' ||
     section.slug === 'dashboard'
+  /* Only the Home landing page carries the greeting and "Needs your
+     attention". Every other page in the Home section (My calendar, My work)
+     drew the attention list at its foot too, which the owner did not want. */
+  const homeLanding = isHome && section.features[0]?.key === feature.key
 
   if (!Component) {
     if (isHome) {
@@ -335,7 +339,7 @@ function FeatureRoute() {
        * second visit to any screen, and every visit for anyone who has been
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
-        {isHome && (
+        {homeLanding && (
           <PageBody>
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes'} />
           </PageBody>
@@ -350,7 +354,7 @@ function FeatureRoute() {
             it had open. Each screen carries a guard for that, and every screen
             added later would need to remember one. A key ends it at the
             router, where the change actually happens. */}
-        {!isHome && <Component key={feature.key} />}
+        {!homeLanding && <Component key={feature.key} />}
       </Suspense>
     </ChunkBoundary>
   )
