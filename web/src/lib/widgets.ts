@@ -1019,21 +1019,21 @@ export function paginate(
    room. Once somebody has arranged the board their order wins. */
 export const PHONE_GRID_COLS = 4
 export const PHONE_GRID_ROWS = 5
-export type PhoneKind = 'icon' | 'icon2' | 'small' | 'tall' | 'big' | 'large'
+export type PhoneKind = 'icon' | 'icon2' | 'small' | 'big' | 'large'
 
 /** The cells a kind takes on the phone page: `w` columns, `h` rows. */
 export const PHONE_KIND_DIMS: Readonly<Record<PhoneKind, { w: number; h: number }>> = {
   icon: { w: 1, h: 1 },
   icon2: { w: 2, h: 1 },
   small: { w: 2, h: 2 },
-  tall: { w: 2, h: 4 },
   big: { w: 4, h: 2 },
   large: { w: 4, h: 4 },
 }
 
 /** How a stored (desk) shape is drawn on a phone. One column and one row is
     a figure: Small. One row and wider -- a graph, a strip, a banner -- is
-    the wide card. Two rows or more is Large, except the one-column Tall.
+    the wide card. Two rows or more is Large, the desk's one-column Tall
+    included: the phone has no Tall (size-tiers.ts says why).
     An app icon is an icon at the size the person chose (Appearance). */
 export function phoneKindOf(
   d: { w: number; h: number },
@@ -1043,7 +1043,7 @@ export function phoneKindOf(
   if (icon) return iconSpan === 2 ? 'icon2' : 'icon'
   const w = Number.isFinite(d.w) ? d.w : 1
   const h = Number.isFinite(d.h) ? d.h : 1
-  if (h >= 2) return w <= 1 ? 'tall' : 'large'
+  if (h >= 2) return 'large'
   return w <= 1 ? 'small' : 'big'
 }
 
@@ -1059,7 +1059,7 @@ export function packPhone(
   const span = iconSpan >= 2 ? 2 : 1
   const isIcon = (k: PhoneKind) => k === 'icon' || k === 'icon2'
   const dims = (k: PhoneKind) => (k === 'icon' && span === 2 ? PHONE_KIND_DIMS.icon2 : PHONE_KIND_DIMS[k])
-  const half = (k: PhoneKind) => k === 'small' || k === 'tall'
+  const half = (k: PhoneKind) => k === 'small'
   /* Icons in one row: four Normal ones, or two Large. */
   const per = Math.floor(cols / span)
 

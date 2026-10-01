@@ -51,12 +51,12 @@ export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
         small    2 x 2   half width, two rows       (a figure)
         medium   2 x 4   full width, two rows       (the wide card)
         large    4 x 4   full width, four rows
-        tall     4 x 2   half width, four rows
 
-    The owner's list is 2x2, 2x4 and 4x4; Tall is the size the picker
-    already offered and it sits on the same grid, so it stays until somebody
-    says otherwise -- taking it out of PHONE_TIERS removes it from every
-    phone picker, and a stored Tall would then still draw as 4 x 2.
+    The owner's list is 2x2, 2x4 and 4x4, and that is the whole list (owner,
+    2026-10-02). Tall was offered here for a day: at half width and four
+    rows it cut the figure or the top row off six cards on a 360px phone.
+    So the phone has no Tall. A card stored as Tall (1x2 on the desk) keeps
+    that shape for the desk and is drawn Large on a phone.
 
     The stored shape is the desk's own -- 1x1, 1x2, 2x1, 2x2 -- so a size
     chosen on either board is the same size on the other, and what the menu
@@ -72,8 +72,8 @@ export const PHONE_TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   wide: { w: 2, h: 1 },
 }
 
-/** The tiers the phone offers, in picker order: the same four. */
-export const PHONE_TIERS: readonly SizeTier[] = TIERS
+/** The tiers the phone offers, in picker order: the desk's, without Tall. */
+export const PHONE_TIERS: readonly SizeTier[] = TIERS.filter((tier) => tier !== 'tall')
 
 /** The tier a stored width and height reads as.
 
@@ -102,7 +102,8 @@ export const PHONE_TIERS: readonly SizeTier[] = TIERS
 export function tierOf(w: number, h: number, phone: boolean): SizeTier {
   const rows = Number.isFinite(h) ? h : 1
   const cols = Number.isFinite(w) ? w : 1
-  if (rows >= 2) return cols < 2 ? 'tall' : 'large'
+  // Two rows: Tall is the desk's one-column shape; a phone draws it Large.
+  if (rows >= 2) return cols < 2 && !phone ? 'tall' : 'large'
   // A phone page is two halves wide: three columns or more is its Medium.
   if (cols >= 3) return phone ? 'medium' : 'wide'
   if (cols >= 2) return 'medium'

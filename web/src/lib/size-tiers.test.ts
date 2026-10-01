@@ -19,7 +19,7 @@ import { useLayout, dimsOf, tintOf } from './widgets'
 /** The eight shapes the old picker offered, and what each reads as now. */
 const LEGACY: { w: number; h: number; desktop: SizeTier; phone: SizeTier }[] = [
   { w: 1, h: 1, desktop: 'small', phone: 'small' },
-  { w: 1, h: 2, desktop: 'large', phone: 'tall' },
+  { w: 1, h: 2, desktop: 'large', phone: 'large' },
   { w: 2, h: 1, desktop: 'medium', phone: 'medium' },
   { w: 2, h: 2, desktop: 'large', phone: 'large' },
   { w: 3, h: 1, desktop: 'wide', phone: 'medium' },
@@ -94,10 +94,10 @@ describe('dimsForTier and tierOf agree', () => {
     })
   })
 
-  it('the phone offers the desk sizes at the desk shapes, Tall included', () => {
-    expect(PHONE_TIERS).toEqual(TIERS)
+  it('the phone offers the desk sizes at the desk shapes, without Tall', () => {
+    expect(PHONE_TIERS).toEqual(['small', 'medium', 'large'])
     for (const tier of TIERS) expect(PHONE_TIER_DIMS[tier]).toEqual(TIER_DIMS[tier])
-    expect(PHONE_TIER_DIMS.tall).toEqual({ w: 1, h: 2 })
+    expect(tierOf(1, 2, true)).toBe('large')
   })
 
   it('names the locale key the same way for every tier', () => {

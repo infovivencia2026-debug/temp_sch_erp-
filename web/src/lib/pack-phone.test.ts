@@ -44,16 +44,15 @@ describe('the phone grid', () => {
     expect([PHONE_GRID_COLS, PHONE_GRID_ROWS]).toEqual([4, 5])
   })
 
-  it('draws only the allowed sizes: cards 2x2, 2x4, 4x4 (and Tall 4x2), icons 1x1 or 1x2', () => {
+  it('draws only the allowed sizes: cards 2x2, 2x4, 4x4, icons 1x1 or 1x2', () => {
     const d = (k: PhoneKind) => `${PHONE_KIND_DIMS[k].h}x${PHONE_KIND_DIMS[k].w}`
     expect(d('small')).toBe('2x2')
     expect(d('big')).toBe('2x4')
     expect(d('large')).toBe('4x4')
-    expect(d('tall')).toBe('4x2')
     expect(d('icon')).toBe('1x1')
     expect(d('icon2')).toBe('1x2')
     const all: Item[] = [
-      card('s', 'small'), card('b', 'big'), card('l', 'large'), card('t', 'tall'), ...icons(5),
+      card('s', 'small'), card('b', 'big'), card('l', 'large'), ...icons(5),
     ]
     for (const rhythm of [true, false]) {
       for (const span of [1, 2]) {
@@ -70,7 +69,7 @@ describe('the phone grid', () => {
       const k = phoneKindOf(dimsForTier(tier, true))
       return `${tier}:${PHONE_KIND_DIMS[k].h}x${PHONE_KIND_DIMS[k].w}`
     })
-    expect(drawn).toEqual(['small:2x2', 'tall:4x2', 'medium:2x4', 'large:4x4'])
+    expect(drawn).toEqual(['small:2x2', 'medium:2x4', 'large:4x4'])
   })
 })
 
@@ -85,8 +84,8 @@ describe('tier mapping: every stored (desk) shape reads as a phone size', () => 
   it('big cards and tables (2x2, 3x2, 4x2) are the large card, 4x4', () => {
     expect([kind(2, 2), kind(3, 2), kind(4, 2), kind(2, 3)]).toEqual(['large', 'large', 'large', 'large'])
   })
-  it('the one-column two-row card is Tall, 4x2', () => {
-    expect(kind(1, 2)).toBe('tall')
+  it('the desk Tall (1x2) is the large card on a phone: there is no phone Tall', () => {
+    expect(kind(1, 2)).toBe('large')
   })
   it('a shape that is not a number is a figure rather than a crash', () => {
     expect(kind(NaN, NaN)).toBe('small')
@@ -117,7 +116,7 @@ describe('packPhone', () => {
   })
 
   it('never overlaps and never overflows, for any mix, order and icon size', () => {
-    const kinds: PhoneKind[] = ['small', 'big', 'large', 'tall', 'icon']
+    const kinds: PhoneKind[] = ['small', 'big', 'large', 'icon']
     let seed = 7
     const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648
     for (let run = 0; run < 200; run++) {
@@ -201,14 +200,6 @@ describe('packPhone', () => {
   it('nothing is stretched: a lone small card stays 2x2', () => {
     const s = packPhone([card('s', 'small')], 1, true)
     expect([shape(s[0]), s[0].row, s[0].col]).toEqual(['2x2', 0, 0])
-  })
-
-  it('a tall card is half the page and four rows, with a small card beside it', () => {
-    const s = packPhone([card('t', 'tall'), card('s', 'small'), card('l', 'large')], 1, false)
-    const at = byId(s)
-    expect([shape(at.t), at.t.col]).toEqual(['4x2', 0])
-    expect([shape(at.s), at.s.col, at.s.row, at.s.page]).toEqual(['2x2', 2, 0, 0])
-    expect([shape(at.l), at.l.page]).toEqual(['4x4', 1])
   })
 
   it('no widgets is no pages', () => {
