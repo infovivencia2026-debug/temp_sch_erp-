@@ -186,7 +186,7 @@ async function getPortalSummary(c: Ctx): Promise<Response> {
       FROM students st WHERE st.id = ?2`).bind(today, target).first<Record<string, unknown>>()
   if (!row) throw notFound()
 
-  const periods = await c.db.prepare(`
+  const periodsOn = (dow: number) => c.db.prepare(`
     SELECT p.name AS period, substr(p.starts_at, 1, 5) AS starts_at, substr(p.ends_at, 1, 5) AS ends_at,
            COALESCE(sub.name, 'Free') AS subject, u.full_name AS teacher, te.room
       FROM enrollments e
@@ -196,8 +196,13 @@ async function getPortalSummary(c: Ctx): Promise<Response> {
       LEFT JOIN subjects sub ON sub.id = cs.subject_id
       LEFT JOIN users u ON u.id = te.teacher_user_id
      WHERE e.student_id = ? AND e.status = 'active' AND te.weekday = ?
-     ORDER BY p.starts_at, p.name`).bind(target, isodowIST())
+     ORDER BY p.starts_at, p.name`).bind(target, dow)
     .all<{ period: string; starts_at: string | null; ends_at: string | null; subject: string; teacher: string | null; room: string | null }>()
+  const dowToday = isodowIST()
+  /* The next school day, for "Tomorrow" on the student's My day: Monday
+     after a Saturday or a Sunday. */
+  const nextDow = dowToday >= 6 ? 1 : dowToday + 1
+  const [periods, nextPeriods] = await Promise.all([periodsOn(dowToday), periodsOn(nextDow)])
 
   const out: Record<string, unknown> = {
     student_id: target, full_name: row.full_name, attendance_pct: Number(row.attendance_pct),
@@ -211,13 +216,15 @@ async function getPortalSummary(c: Ctx): Promise<Response> {
   put(out, 'latest_result_exam', row.latest_result_exam)
   put(out, 'latest_result_pct', numOrNull(row.latest_result_pct))
   put(out, 'latest_result_grade', row.latest_result_grade)
-  out.today = periods.results.map((p) => {
+  const shape = (p: { period: string; starts_at: string | null; ends_at: string | null; subject: string; teacher: string | null; room: string | null }) => {
     const o: Record<string, unknown> = { period: p.period }
     put(o, 'starts_at', p.starts_at); put(o, 'ends_at', p.ends_at)
     o.subject = p.subject
     put(o, 'teacher', p.teacher); put(o, 'room', p.room)
     return o
-  })
+  }
+  out.today = periods.results.map(shape)
+  out.next_day = { weekday: nextDow, periods: nextPeriods.results.map(shape) }
   return ok(out)
 }
 
