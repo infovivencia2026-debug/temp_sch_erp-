@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useCollapsingTitle } from '@/lib/motion'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
@@ -108,6 +109,8 @@ export default function StudentHome() {
   const notices = home.data?.notices ?? []
   const earned = streak.data?.badges.filter((b) => b.earned).length ?? 0
 
+  const titleRef = useCollapsingTitle<HTMLDivElement>()
+
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="w-full min-w-0 space-y-4 pb-6 pt-2 md:space-y-6 md:px-8 md:pt-6">
@@ -137,20 +140,24 @@ export default function StudentHome() {
           </span>
           <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,transparent_70%)]" />
         </div>
-        <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
+        {/* A LARGE TITLE THAT COLLAPSES. The greeting shrinks toward its
+            compact size and the date fades as the page scrolls, like a phone's
+            navigation title (styles/motion.css .m-large-title). Scale only:
+            the line never reflows. */}
+        <div ref={titleRef} className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
-            <p className="text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="m-large-title text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
+            <p className="m-large-title-sub text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           {streak.isLoading && <div className="flex gap-2" aria-hidden><Bone className="h-11 w-[64px] rounded-full" /><Bone className="h-11 w-[64px] rounded-full" /></div>}
           {streak.data && (
             <div className="flex gap-2">
               <Chip to={toStreak} label={`${streak.data.open_streak} day streak`}>
-                <Flame className={cn('h-4 w-4', streak.data.open_streak ? 'text-[#f59e0b]' : 'text-muted-foreground')} strokeWidth={1.8} />
+                <Flame className={cn('h-4 w-4', streak.data.open_streak ? 'text-[hsl(var(--sys-orange))]' : 'text-muted-foreground')} strokeWidth={1.8} />
                 <span className="tabular-nums">{streak.data.open_streak}</span>
               </Chip>
               <Chip to={toBadges} label={`${earned} badge${earned === 1 ? '' : 's'}`}>
-                <Award className="h-4 w-4 text-[#6366f1]" strokeWidth={1.8} />
+                <Award className="h-4 w-4 text-[hsl(var(--sys-indigo))]" strokeWidth={1.8} />
                 <span className="tabular-nums">{earned}</span>
               </Chip>
             </div>
@@ -221,8 +228,8 @@ export default function StudentHome() {
         {/* Today's attendance. */}
         <Link to={toAttendance ?? '#'} className="card flex min-h-[64px] items-center gap-3 px-4 py-3" aria-label="Attendance">
           <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-            todayMark?.status === 'absent' ? 'bg-[color-mix(in_oklab,#f43f5e_14%,transparent)] text-[#be123c]'
-              : todayMark ? 'bg-[color-mix(in_oklab,#10b981_14%,transparent)] text-[#047857]' : 'bg-muted text-muted-foreground')}>
+            todayMark?.status === 'absent' ? 'bg-[hsl(var(--sys-pink)/0.14)] text-[#be123c]'
+              : todayMark ? 'bg-[hsl(var(--sys-green)/0.14)] text-[#047857]' : 'bg-muted text-muted-foreground')}>
             <CalendarCheck className="h-5 w-5" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
@@ -242,7 +249,7 @@ export default function StudentHome() {
               {quizzes.slice(0, 3).map((z) => (
                 <li key={z.id}>
                   <Link to={placeHref(toCourses, { cs: z.class_subject_id, item: `quiz:${z.id}` })} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
-                    <Timer className="h-5 w-5 shrink-0 text-[#0ea5e9]" strokeWidth={1.75} />
+                    <Timer className="h-5 w-5 shrink-0 text-[hsl(var(--sys-blue))]" strokeWidth={1.75} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">{z.title}</span>
                       <span className="block text-[13px] text-muted-foreground">{z.subject}{z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}</span>
@@ -257,7 +264,7 @@ export default function StudentHome() {
 
         {marks.length > 0 && (
           <Link to={toResults ?? '#'} className="card block px-4 py-3">
-            <span className="flex items-center gap-2 text-[15px] font-semibold"><Star className="h-4 w-4 text-[#f59e0b]" strokeWidth={1.8} /> New marks</span>
+            <span className="flex items-center gap-2 text-[15px] font-semibold"><Star className="h-4 w-4 text-[hsl(var(--sys-orange))]" strokeWidth={1.8} /> New marks</span>
             <ul className="mt-1 space-y-0.5 text-[14px]">
               {marks.slice(0, 3).map((m, i) => (
                 <li key={i} className="flex justify-between gap-3"><span className="truncate text-muted-foreground">{m.subject} · {m.exam}</span><span className="shrink-0 font-medium tabular-nums">{m.is_absent ? 'Absent' : `${m.obtained ?? '–'}/${m.max_marks}`}</span></li>
@@ -268,7 +275,7 @@ export default function StudentHome() {
 
         {notices.length > 0 && (
           <div className="card px-4 py-3">
-            <span className="flex items-center gap-2 text-[15px] font-semibold"><Megaphone className="h-4 w-4 text-[#f43f5e]" strokeWidth={1.8} /> Notices</span>
+            <span className="flex items-center gap-2 text-[15px] font-semibold"><Megaphone className="h-4 w-4 text-[hsl(var(--sys-pink))]" strokeWidth={1.8} /> Notices</span>
             <ul className="mt-1 space-y-1 text-[14px]">
               {notices.slice(0, 3).map((n) => <li key={n.id} className="truncate">{n.title}</li>)}
             </ul>

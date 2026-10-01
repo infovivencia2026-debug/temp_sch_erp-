@@ -1,0 +1,370 @@
+/* THE SYSTEM COLOURS.
+
+   A small set of SOLID accents, the way iOS system colours and Material 3
+   roles work: a few named hues, each tuned for light and for dark, used
+   deliberately and sparingly. The ground stays grey, the cards stay white or
+   near-black, the ink stays neutral. Colour is spent on the one thing you
+   press, on what a status means, on which workspace you are in, on a switch
+   that is on. Nothing is coloured wholesale.
+
+   Loaded after index.css (main.tsx), so these defaults win over the theme's
+   own :root values at equal specificity -- and lose, on purpose, to
+   everything that is supposed to override them:
+
+     - the school's brand colour (lib/brand.ts writes --primary inline on <html>)
+     - a reader's chosen palette (lib/paint.ts, lib/personality.ts selectors)
+     - the contrast settings (:root[data-contrast=...], more specific)
+
+   THREE ROLES PER HUE, because one value cannot do three jobs:
+
+     --sys-<hue>        the vivid colour. Graphics only: a dot, a ring, a
+                        progress arc, a switch that is on, a chart series.
+                        Clears 3:1 against the card in both modes (WCAG
+                        non-text contrast). Never put small text on it.
+     --sys-<hue>-fill   the colour of a filled control that carries white
+                        text: a primary button, a destructive button, a
+                        count badge. White ink clears 4.5:1 on it in both
+                        modes.
+     --sys-<hue>-ink    the colour of text and icons on the card and the
+                        ground: a status word, a link, a tinted badge's
+                        label. Clears 4.5:1 on both surfaces in both modes.
+
+   All values are HSL triplets, like every token in index.css, so Tailwind's
+   `hsl(var(--x) / <alpha>)` binding and the existing utilities keep working.
+   styles/color-system.test.ts measures every one of these against the
+   surfaces it is promised to clear; a value that fails fails the build.
+
+   The two neutrals, gray and brown, are here because nine workspaces cannot
+   share eight hues without two of them looking the same. */
+
+:root {
+  /* --- the eight hues, plus two neutrals (light) --------------------------- */
+  --sys-blue:         211 100% 50%;   /* #0080FF  iOS systemBlue, a shade deeper */
+  --sys-blue-fill:    211 100% 46%;
+  --sys-blue-ink:     211 100% 40%;
+
+  --sys-green:        135  65% 40%;   /* #24A848  Material-grade green; iOS's is too pale on white */
+  --sys-green-fill:   135  65% 32%;
+  --sys-green-ink:    135  65% 29%;
+
+  --sys-orange:        33 100% 43%;   /* #DB7800 */
+  --sys-orange-fill:   33 100% 35%;
+  --sys-orange-ink:    33 100% 31%;
+
+  --sys-red:            3  90% 56%;   /* #F4483B  iOS systemRed */
+  --sys-red-fill:       3  90% 48%;
+  --sys-red-ink:        3  90% 43%;
+
+  --sys-purple:       280  70% 60%;   /* #AF52DE-ish */
+  --sys-purple-fill:  280  70% 55%;
+  --sys-purple-ink:   280  70% 48%;
+
+  --sys-teal:         190  70% 40%;   /* #1F9DAD */
+  --sys-teal-fill:    190  70% 34%;
+  --sys-teal-ink:     190  70% 30%;
+
+  --sys-indigo:       241  62% 62%;   /* #5E5CE6 */
+  --sys-indigo-fill:  241  62% 60%;
+  --sys-indigo-ink:   241  62% 55%;
+
+  --sys-pink:         348 100% 50%;   /* #FF0033-ish, iOS systemPink deepened */
+  --sys-pink-fill:    348 100% 44%;
+  --sys-pink-ink:     348 100% 40%;
+
+  --sys-gray:         220   8% 48%;
+  --sys-gray-fill:    220   8% 42%;
+  --sys-gray-ink:     220   8% 38%;
+
+  --sys-brown:         30  32% 46%;
+  --sys-brown-fill:    30  32% 38%;
+  --sys-brown-ink:     30  32% 34%;
+
+  /* --- semantic roles ------------------------------------------------------
+     What a component asks for. A palette or a school overrides THESE, not
+     the hues, when it wants a different meaning (a school whose brand is
+     red keeps red for danger: brand.ts sets --primary, never --sys-red). */
+  --sys-accent:        var(--sys-blue);
+  --sys-accent-fill:   var(--sys-blue-fill);
+  --sys-accent-ink:    var(--sys-blue-ink);
+
+  --sys-success:       var(--sys-green);
+  --sys-success-fill:  var(--sys-green-fill);
+  --sys-success-ink:   var(--sys-green-ink);
+
+  --sys-warning:       var(--sys-orange);
+  --sys-warning-fill:  var(--sys-orange-fill);
+  --sys-warning-ink:   var(--sys-orange-ink);
+
+  --sys-danger:        var(--sys-red);
+  --sys-danger-fill:   var(--sys-red-fill);
+  --sys-danger-ink:    var(--sys-red-ink);
+
+  --sys-info:          var(--sys-teal);
+  --sys-info-fill:     var(--sys-teal-fill);
+  --sys-info-ink:      var(--sys-teal-ink);
+
+  /* The ON state of every switch: solid green, as on a phone. */
+  --sys-switch-on:     var(--sys-green);
+
+  /* --- the theme's own tokens, rebased ------------------------------------
+     index.css's --primary was the tired #2563EB. The brighter system blue
+     replaces it where no brand or palette has spoken. The status tones feed
+     Badge (bg-success/10 text-success), KindChip, FormNotice, the LMS rings
+     and every `text-success` in the product, so their ink values are the
+     text-grade ones. */
+  --primary:            var(--sys-accent-fill);
+  --primary-hover:      211 100% 41%;
+  --ring:               var(--sys-accent);
+  --success:            var(--sys-success-ink);
+  --warning:            var(--sys-warning-ink);
+  --destructive:        var(--sys-danger-fill);
+  --info:               var(--sys-info-ink);
+
+  /* --- an ordered palette for charts ---------------------------------------
+     Series 1..8 in an order where neighbours never share a hue family, so a
+     two-series chart is blue and orange, a three-series chart adds green.
+     bento-viz keeps its own ink-cast rule for the Focus board; this is for
+     Recharts and the student kit's sparklines. */
+  --chart-1: var(--sys-blue);
+  --chart-2: var(--sys-orange);
+  --chart-3: var(--sys-green);
+  --chart-4: var(--sys-purple);
+  --chart-5: var(--sys-pink);
+  --chart-6: var(--sys-teal);
+  --chart-7: var(--sys-indigo);
+  --chart-8: var(--sys-brown);
+}
+
+.dark {
+  --sys-blue:         211 100% 57%;   /* #2693FF  iOS dark systemBlue, lifted */
+  --sys-blue-fill:    211 100% 46%;
+  --sys-blue-ink:     211 100% 66%;
+
+  --sys-green:        135  60% 50%;   /* #33CC5C */
+  --sys-green-fill:   135  65% 32%;
+  --sys-green-ink:    135  60% 55%;
+
+  --sys-orange:        36 100% 52%;   /* #FF9F0A */
+  --sys-orange-fill:   33 100% 35%;
+  --sys-orange-ink:    36 100% 58%;
+
+  --sys-red:            3 100% 61%;   /* #FF453A */
+  --sys-red-fill:       3  90% 48%;
+  --sys-red-ink:        3 100% 68%;
+
+  --sys-purple:       280  85% 65%;   /* #BF5AF2 */
+  --sys-purple-fill:  280  70% 55%;
+  --sys-purple-ink:   280  85% 72%;
+
+  --sys-teal:         190  72% 56%;   /* #40C8E0 */
+  --sys-teal-fill:    190  70% 34%;
+  --sys-teal-ink:     190  72% 60%;
+
+  --sys-indigo:       240  73% 63%;   /* #5E5CE6 */
+  --sys-indigo-fill:  241  62% 60%;
+  --sys-indigo-ink:   240  80% 76%;
+
+  --sys-pink:         350 100% 61%;   /* #FF375F */
+  --sys-pink-fill:    348 100% 44%;
+  --sys-pink-ink:     350 100% 70%;
+
+  --sys-gray:         220   8% 62%;
+  --sys-gray-fill:    220   8% 42%;
+  --sys-gray-ink:     220   8% 70%;
+
+  --sys-brown:         30  40% 58%;
+  --sys-brown-fill:    30  32% 38%;
+  --sys-brown-ink:     30  45% 66%;
+
+  /* In the dark, --destructive is read far more often as text (text-destructive,
+     border-destructive) than as a fill, and a fill that carries white text is
+     too deep to read as text on a near-black card. The ink wins; a filled
+     destructive button uses .sys-danger, which paints the -fill directly. */
+  --destructive:        var(--sys-danger-ink);
+
+  --primary-hover:      211 100% 52%;
+}
+
+/* THE CONTRAST SETTINGS KEEP THEIR OWN VALUES. index.css defines deeper and
+   paler families under :root[data-contrast=...]; those selectors are more
+   specific than :root and were written against the same surfaces, so they
+   win as before. Nothing to do here but say so. */
+
+/* --- workspace identity -----------------------------------------------------
+   Each workspace is one solid hue, the same one everywhere it shows: the app
+   icon's tint on the launcher, the mark on its cards, the dot beside its
+   section heading, the active tab pill, the selected row. index.css's
+   .classic-skin block gives every workspace --primary; the shipped palettes
+   in lib/paint.ts give each its own, and still do -- their rules come from
+   a stylesheet written after this one. This is the default beneath them. */
+.classic-skin,
+:root {
+  --dom-academics:          hsl(var(--sys-blue));
+  --dom-academics-soft:     hsl(var(--sys-blue) / 0.12);
+  --dom-academics-text:     hsl(var(--sys-blue-ink));
+  --dom-students:           hsl(var(--sys-indigo));
+  --dom-students-soft:      hsl(var(--sys-indigo) / 0.12);
+  --dom-students-text:      hsl(var(--sys-indigo-ink));
+  --dom-staff:              hsl(var(--sys-purple));
+  --dom-staff-soft:         hsl(var(--sys-purple) / 0.12);
+  --dom-staff-text:         hsl(var(--sys-purple-ink));
+  --dom-finance:            hsl(var(--sys-green));
+  --dom-finance-soft:       hsl(var(--sys-green) / 0.12);
+  --dom-finance-text:       hsl(var(--sys-green-ink));
+  --dom-attendance:         hsl(var(--sys-teal));
+  --dom-attendance-soft:    hsl(var(--sys-teal) / 0.12);
+  --dom-attendance-text:    hsl(var(--sys-teal-ink));
+  --dom-admissions:         hsl(var(--sys-orange));
+  --dom-admissions-soft:    hsl(var(--sys-orange) / 0.14);
+  --dom-admissions-text:    hsl(var(--sys-orange-ink));
+  --dom-communication:      hsl(var(--sys-pink));
+  --dom-communication-soft: hsl(var(--sys-pink) / 0.10);
+  --dom-communication-text: hsl(var(--sys-pink-ink));
+  --dom-operations:         hsl(var(--sys-brown));
+  --dom-operations-soft:    hsl(var(--sys-brown) / 0.14);
+  --dom-operations-text:    hsl(var(--sys-brown-ink));
+  --dom-reports:            hsl(var(--sys-gray));
+  --dom-reports-soft:       hsl(var(--sys-gray) / 0.14);
+  --dom-reports-text:       hsl(var(--sys-gray-ink));
+  --dom-critical:           hsl(var(--sys-danger));
+  --dom-critical-soft:      hsl(var(--sys-danger) / 0.12);
+  --dom-critical-text:      hsl(var(--sys-danger-ink));
+  --dom-success:            hsl(var(--sys-success));
+  --dom-success-soft:       hsl(var(--sys-success) / 0.12);
+  --dom-success-text:       hsl(var(--sys-success-ink));
+  --dom-warning:            hsl(var(--sys-warning));
+  --dom-warning-soft:       hsl(var(--sys-warning) / 0.14);
+  --dom-warning-text:       hsl(var(--sys-warning-ink));
+}
+
+/* --- switches: solid green when on --------------------------------------
+   Every switch in the product is a button[role=switch]. The Focus sheet's
+   switch painted its ON track in the ink colour (grey on grey); the Settings
+   rows used the palette's selection accent. Both go green, as on a phone,
+   and the knob stays the card's colour. A palette that wants its own ON
+   colour sets --sys-switch-on. */
+.bento-sheet__switch[aria-checked='true']::before,
+[role='switch'][aria-checked='true'].sys-switch,
+[role='switch'][aria-checked='true'] .sys-switch {
+  background: hsl(var(--sys-switch-on));
+}
+[role='switch'][aria-checked='true'].sys-switch,
+[role='switch'][aria-checked='true'] .sys-switch { border-color: hsl(var(--sys-switch-on)) !important; }
+/* The knob is white on the green in both modes, as on a phone: the card's
+   colour is near-black in the dark and reads as a hole. */
+[role='switch'][aria-checked='true'].sys-switch > span,
+[role='switch'][aria-checked='true'] .sys-switch > span,
+.bento-sheet__switch[aria-checked='true'] .bento-sheet__knob { background: #fff; }
+
+/* --- status dots and solid badges ---------------------------------------
+   The Badge in ui.tsx paints a tint with ink (bg-x/10 text-x). These are the
+   SOLID counterparts for the few places a count or a state must be read at
+   a glance: an unread count, a live indicator, a due-today pill. White ink,
+   on the -fill value, so every one of them clears AA. */
+.sys-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: hsl(var(--sys-accent));
+  flex: 0 0 auto;
+}
+.sys-dot[data-tone='success'] { background: hsl(var(--sys-success)); }
+.sys-dot[data-tone='warning'] { background: hsl(var(--sys-warning)); }
+.sys-dot[data-tone='danger']  { background: hsl(var(--sys-danger)); }
+.sys-dot[data-tone='info']    { background: hsl(var(--sys-info)); }
+.sys-dot[data-tone='neutral'] { background: hsl(var(--sys-gray)); }
+
+.sys-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #fff;
+  background: hsl(var(--sys-accent-fill));
+}
+.sys-badge[data-tone='success'] { background: hsl(var(--sys-success-fill)); }
+.sys-badge[data-tone='warning'] { background: hsl(var(--sys-warning-fill)); }
+.sys-badge[data-tone='danger']  { background: hsl(var(--sys-danger-fill)); }
+.sys-badge[data-tone='info']    { background: hsl(var(--sys-info-fill)); }
+.sys-badge[data-tone='neutral'] { background: hsl(var(--sys-gray-fill)); }
+
+/* --- the one primary action, and the one destructive one -----------------
+   `btn` + data-variant comes from ui.tsx. Primary already reads --primary,
+   which is now the system blue. A destructive primary -- Delete, Remove,
+   Cancel admission -- gets the solid red with these two classes, which the
+   caller passes through Button's className until ui.tsx grows a tone for
+   it (see docs/motion-kit.md for the one-line edit). */
+.btn.sys-danger[data-variant='primary'] {
+  background: hsl(var(--sys-danger-fill));
+  color: #fff;
+}
+.btn.sys-danger[data-variant='primary']:not(:disabled):hover { background: hsl(var(--sys-danger-fill) / 0.9); }
+
+/* --- links ------------------------------------------------------------
+   A link in running text is the accent's ink, which is the text-grade blue.
+   Only links that opt in, so a card that is one big <a> is not blue all over. */
+.sys-link {
+  color: hsl(var(--sys-accent-ink));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--sys-accent-ink) / 0.35);
+  text-underline-offset: 0.15em;
+}
+.sys-link:hover { text-decoration-color: currentColor; }
+
+/* --- tab bars: active item in the accent ---------------------------------
+   tabClass (ui.tsx) underlines the active tab in --primary and so already
+   follows. The dock's active item and the rounded page-tab pills read the
+   same token through these two selectors, which are no-ops wherever the
+   token is already what paints them. */
+[role='tablist'] [role='tab'][aria-selected='true'].sys-tab {
+  color: hsl(var(--sys-accent-ink));
+}
+
+/* --- the status rings strip: unseen is a warm sweep -----------------------
+   One place the product is allowed a gradient: the ring around a face with
+   something new. Orange into pink into purple, like every phone's story
+   ring, and grey when seen. Reads from the system hues, so a palette that
+   moves them moves this. */
+:root {
+  --sys-ring-unseen: conic-gradient(from 200deg, hsl(var(--sys-orange)), hsl(var(--sys-pink)), hsl(var(--sys-purple)), hsl(var(--sys-orange)));
+}
+
+/* --- selection: a selected row carries the workspace's hue ---------------
+   `.sys-selected` on a row or card: a 3px bar on the leading edge in the
+   current workspace's colour (--dom-current, set by the shell or the page
+   via style), a faint wash behind. Neutral ink. */
+.sys-selected {
+  position: relative;
+  background: color-mix(in srgb, var(--dom-current, hsl(var(--sys-accent))) 8%, transparent);
+}
+.sys-selected::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--dom-current, hsl(var(--sys-accent)));
+}
+
+/* --- section heading dot --------------------------------------------------
+   `.sys-section` on a heading: an 8px solid dot in the workspace hue before
+   the words. Set --dom-current on the page; it falls back to the accent. */
+.sys-section::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-inline-end: 8px;
+  border-radius: 999px;
+  vertical-align: 0.05em;
+  background: var(--dom-current, hsl(var(--sys-accent)));
+}

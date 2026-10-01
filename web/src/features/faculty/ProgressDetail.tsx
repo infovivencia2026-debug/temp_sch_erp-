@@ -111,7 +111,7 @@ export default function ProgressDetail({ row, onClose }: { row: Row; onClose: ()
             <ul className="divide-y">
               {(notes.data?.items ?? []).map((n) => (
                 <li key={n.id} className="flex gap-3 px-5 py-3">
-                  <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', n.is_positive ? 'bg-[#22c55e]' : 'bg-[#ef4444]')} />
+                  <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', n.is_positive ? 'bg-[hsl(var(--sys-success))]' : 'bg-[hsl(var(--sys-danger))]')} />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold capitalize">
                       {n.category} <span className="font-normal text-muted-foreground">· {formatDate(n.occurred_on)}{n.recorded_by ? ` · ${n.recorded_by}` : ''}</span>

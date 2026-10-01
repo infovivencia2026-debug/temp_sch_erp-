@@ -353,7 +353,10 @@ export function SwitchRow({
       <span
         aria-hidden="true"
         className={cn(
-          'relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
+          /* ON is the system green (styles/color-system.css, .sys-switch), the
+             way a switch is on a phone; the palette's selection accent stays
+             on everything else that is merely chosen. */
+          'sys-switch relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
           on ? 'bg-[var(--sel-strong)] !border-[var(--sel-strong)]' : cn('bg-transparent', EDGE),
         )}
       >
@@ -425,7 +428,10 @@ export function SwitchSelectRow<T extends string>({
         aria-label={label}
         onClick={onToggle}
         className={cn(
-          'relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
+          /* ON is the system green (styles/color-system.css, .sys-switch), the
+             way a switch is on a phone; the palette's selection accent stays
+             on everything else that is merely chosen. */
+          'sys-switch relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
           on ? 'bg-[var(--sel-strong)] !border-[var(--sel-strong)]' : cn('bg-transparent', EDGE),
           RING,
         )}

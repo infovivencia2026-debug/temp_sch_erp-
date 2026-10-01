@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { containerTransform, useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Plus } from 'lucide-react'
@@ -28,16 +29,20 @@ import { FEED_KEY, fileUrl, useStatusFeed, type AddMode, type Viewed } from './s
    Draws nothing when the school has Class Status switched off, or when there
    is nothing to show and nothing this person may post. */
 
-const RING_ON = 'conic-gradient(from 200deg, hsl(var(--primary)), hsl(var(--primary) / .55), hsl(var(--primary)))'
+/* Unseen is the warm sweep every phone's story ring wears (orange into pink
+   into purple, styles/color-system.css); seen is grey. */
+const RING_ON = 'var(--sys-ring-unseen)'
 
-function Ring({ label, unseen, onClick, children, badge, compact }: { label: string; unseen: boolean; onClick: () => void; children: React.ReactNode; badge?: React.ReactNode; compact?: boolean }) {
+function Ring({ label, unseen, onClick, children, badge, compact }: { label: string; unseen: boolean; onClick: (face: HTMLElement | null) => void; children: React.ReactNode; badge?: React.ReactNode; compact?: boolean }) {
   /* The + badge is a button of its own, so it sits beside the ring rather
-     than inside it: one tap, one meaning. */
+     than inside it: one tap, one meaning. The face is handed to onClick so
+     the viewer can be opened as a container transform from it. */
+  const face = useRef<HTMLSpanElement>(null)
   return (
     <div role="listitem" className={cn('relative shrink-0', compact ? 'w-[64px]' : 'w-[72px]')}>
-      <button type="button" onClick={onClick} className="flex min-h-[44px] w-full flex-col items-center gap-1 text-center" aria-label={label + (unseen ? ', new' : '')}>
+      <button type="button" onClick={() => onClick(face.current)} className="m-press flex min-h-[44px] w-full flex-col items-center gap-1 rounded-xl text-center" aria-label={label + (unseen ? ', new' : '')}>
         <span className={cn('grid place-items-center rounded-full p-[3px]', compact ? 'size-[54px]' : 'size-[62px]', !unseen && 'bg-border')} style={unseen ? { background: RING_ON } : undefined}>
-          <span className="grid size-full place-items-center overflow-hidden rounded-full border-2 border-card bg-muted text-[15px] font-semibold">{children}</span>
+          <span ref={face} className="grid size-full place-items-center overflow-hidden rounded-full border-2 border-card bg-muted text-[15px] font-semibold">{children}</span>
         </span>
         <span className={cn('w-full truncate text-[12px]', unseen ? 'font-medium' : 'text-muted-foreground')}>{label}</span>
       </button>
@@ -132,6 +137,12 @@ export default function StatusRings({ className, compact = false, openId, onOpen
     void api.post(`/api/v1/status/posts/${it.id}/view`).then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => undefined)
   }, [qc])
   const close = useCallback(() => setOpen(null), [])
+  /* The tapped face morphs into the viewer's avatar (a shared element);
+     where the engine cannot, the viewer simply opens. */
+  const openFrom = useCallback((face: HTMLElement | null, at: { group: number; id?: string }) => {
+    containerTransform(face, () => setOpen(at), () => document.querySelector('.story__avatar'))
+  }, [])
+  const stripRef = useStaggerOnce<HTMLDivElement>()
 
   if (!data || !data.enabled) return null
   const canPost = data.can_post || data.can_post_school
@@ -156,10 +167,10 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const myFace = me?.avatar_key ? <img src={fileUrl(me.avatar_key)} alt="" className="size-full object-cover" /> : initials(me?.full_name ?? '')
 
   const strip = (
-    <div className={cn('scroll-x flex gap-3 overflow-x-auto overscroll-x-contain', compact ? 'px-4 py-3' : 'px-4 pb-3 pt-2')} role="list" aria-label="Class status">
+    <div ref={stripRef} className={cn('scroll-x m-snap-x m-stagger flex gap-3 overflow-x-auto overscroll-x-contain', compact ? 'px-4 py-3' : 'px-4 pb-3 pt-2')} role="list" aria-label="Class status">
       {canPost && (
         mineRing ? (
-          <Ring compact={compact} label="My status" unseen={false} onClick={() => setOpen({ group: groups.findIndex((g) => g.id === mineRing.key) })}
+          <Ring compact={compact} label="My status" unseen={false} onClick={(face) => openFrom(face, { group: groups.findIndex((g) => g.id === mineRing.key) })}
             badge={<PlusBadge onClick={() => add(false)} label="Add a status" />}>
             {myFace}
           </Ring>
@@ -172,7 +183,7 @@ export default function StatusRings({ className, compact = false, openId, onOpen
         const ring = data.rings.find((r) => r.key === g.id)
         const unseen = !!ring && ring.unseen > 0
         return (
-          <Ring compact={compact} key={g.id} label={g.name} unseen={unseen} onClick={() => setOpen({ group: idx })}
+          <Ring compact={compact} key={g.id} label={g.name} unseen={unseen} onClick={(face) => openFrom(face, { group: idx })}
             badge={ring?.as_school && data.can_post_school ? <PlusBadge onClick={() => add(true)} label="Post as the school" /> : undefined}>
             {g.avatar ? <img src={g.avatar} alt="" className="size-full object-cover" /> : initials(g.name)}
           </Ring>

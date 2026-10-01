@@ -82,7 +82,7 @@ function Stars({ pct, label }: { pct: number; label: string }) {
   const n = Math.round(pct / 20)
   return (
     <span className="inline-flex items-center gap-0.5" role="img" aria-label={label}>
-      {[0, 1, 2, 3, 4].map((i) => <Star key={i} className={cn('h-4 w-4', i < n ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-muted-foreground/40')} strokeWidth={1.75} aria-hidden />)}
+      {[0, 1, 2, 3, 4].map((i) => <Star key={i} className={cn('h-4 w-4', i < n ? 'fill-[hsl(var(--sys-orange))] text-[hsl(var(--sys-orange))]' : 'text-muted-foreground/40')} strokeWidth={1.75} aria-hidden />)}
     </span>
   )
 }
@@ -803,7 +803,7 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
               : a.overdue ? <Badge tone="danger">Overdue</Badge> : a.allow_submission ? <Badge tone="warning">To hand in</Badge> : <Badge>In your notebook</Badge>}
         {canHandIn && <Button size="sm" variant="secondary" className="ml-auto" onClick={() => setOpen(!open)}>{open ? 'Close' : handed ? 'Change what I handed in' : 'Hand in'}</Button>}
       </div>
-      {sent && <p role="status" className="flex items-center gap-2 rounded-xl bg-[color-mix(in_oklab,#10b981_12%,transparent)] px-3 py-2 font-medium text-[#065f46] dark:text-[#6ee7b7]"><DoneCheck done pop size={24} /> {sent}</p>}
+      {sent && <p role="status" className="flex items-center gap-2 rounded-xl bg-[hsl(var(--sys-green)/0.12)] px-3 py-2 font-medium text-[hsl(var(--sys-green-ink))]"><DoneCheck done pop size={24} /> {sent}</p>}
       {a.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{a.instructions}</p>}
       {a.files.map((f) => <a key={f.file_id} href={`/api/v1/files/${f.file_id}`} target="_blank" rel="noreferrer" className="mr-3 text-primary hover:underline">{f.name}</a>)}
       {a.returned_at && (a.feedback || a.rubric_scores) && (

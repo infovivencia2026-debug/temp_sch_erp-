@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode, useCallback } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { containerTransform } from '@/lib/motion'
 import { openTab } from '@/lib/tabs'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight } from 'lucide-react'
@@ -784,6 +785,7 @@ export function Cue({
 }) {
   const still = useReduceMotion()
   const here = useLocation().pathname
+  const navigate = useNavigate()
   void tone; void dark
   return (
     /* AN ARROW IN THE CORNER, not a pill along the bottom edge.
@@ -828,7 +830,23 @@ export function Cue({
          The strip is `lg:flex`, so this is a desktop behaviour and a phone is
          unaffected -- which is right: tabs are for a person with a keyboard
          working several things at once, not for a parent on a bus. */
-      onClick={() => openTab(to, label, here)}
+      /* ...AND THE CARD OPENS INTO ITS SCREEN (a container transform).
+
+         A plain left click hands the navigation to lib/motion's
+         containerTransform: the card that was pressed is the hero, the
+         arriving page is the same hero, and the engine morphs one into the
+         other. Only that card moves; the dock, the rail and the rest of the
+         board stay still, which is the rule index.css sets for every
+         crossing. Modified clicks (new tab, new window) are the browser's;
+         reduced motion and engines without the API navigate as before. */
+      onClick={(e) => {
+        openTab(to, label, here)
+        if (still || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+        const cell = e.currentTarget.closest('.bento-cell')
+        if (!cell) return
+        e.preventDefault()
+        containerTransform(cell, () => navigate(to, { flushSync: true }), () => document.querySelector('main'))
+      }}
       className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >
       {/* The Link is `display: contents` so the mark itself is the box — one

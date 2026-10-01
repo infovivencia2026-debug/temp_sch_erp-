@@ -86,17 +86,17 @@ export function StudentQuiz({ id, back }: { id: string; back: () => void }) {
               <div className="flex min-w-0 flex-1 gap-1" aria-label={`Question ${idx + 1} of ${total}`}>
                 {s.questions.map((x, i) => {
                   const c = checked[x.test_question_id]
-                  return <span key={x.test_question_id} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', c ? (c.right ? 'bg-success' : 'bg-[#f43f5e]') : i === idx ? 'bg-primary' : 'bg-muted')} />
+                  return <span key={x.test_question_id} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', c ? (c.right ? 'bg-success' : 'bg-[hsl(var(--sys-danger))]') : i === idx ? 'bg-primary' : 'bg-muted')} />
                 })}
               </div>
               {left !== null && (
-                <span className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium tabular-nums', left < 60 ? 'border-[#f59e0b] text-[#b45309]' : 'text-muted-foreground')} aria-label={`${Math.floor(left / 60)} minutes ${left % 60} seconds left`}>
+                <span className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium tabular-nums', left < 60 ? 'border-[hsl(var(--sys-orange))] text-[hsl(var(--sys-orange-ink))]' : 'text-muted-foreground')} aria-label={`${Math.floor(left / 60)} minutes ${left % 60} seconds left`}>
                   <Clock className="h-3.5 w-3.5" /> {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
                 </span>
               )}
             </div>
             {left !== null && totalSec > 0 && (
-              <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden><div className={cn('h-full rounded-full transition-[width] duration-1000 ease-linear', left < 60 ? 'bg-[#f59e0b]' : 'bg-primary/50')} style={{ width: `${Math.min(100, (left / totalSec) * 100)}%` }} /></div>
+              <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden><div className={cn('h-full rounded-full transition-[width] duration-1000 ease-linear', left < 60 ? 'bg-[hsl(var(--sys-orange))]' : 'bg-primary/50')} style={{ width: `${Math.min(100, (left / totalSec) * 100)}%` }} /></div>
             )}
             <div ref={card} className="card space-y-4 p-5">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Question {idx + 1} of {total} · {q.marks} mark{q.marks === 1 ? '' : 's'}</p>
@@ -110,12 +110,12 @@ export function StudentQuiz({ id, back }: { id: string; back: () => void }) {
                     <button key={o.id} type="button" role="radio" aria-checked={picked} disabled={!!mine || check.isPending}
                       onClick={() => check.mutate({ q: q.test_question_id, o: o.id })}
                       className={cn('flex min-h-[52px] w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] transition-colors duration-200',
-                        isRight ? 'border-success bg-[color-mix(in_oklab,#10b981_10%,transparent)]'
-                          : isWrong ? 'border-[#f43f5e] bg-[color-mix(in_oklab,#f43f5e_8%,transparent)]'
+                        isRight ? 'border-success bg-[hsl(var(--sys-green)/0.10)]'
+                          : isWrong ? 'border-[hsl(var(--sys-pink))] bg-[hsl(var(--sys-pink)/0.08)]'
                             : picked ? 'border-primary' : 'border-border enabled:hover:border-primary/60 enabled:active:scale-[.99]',
                         mine && !isRight && !isWrong && 'opacity-60')}>
                       <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold',
-                        isRight ? 'border-success bg-success text-white' : isWrong ? 'border-[#f43f5e] bg-[#f43f5e] text-white' : 'text-muted-foreground')}>
+                        isRight ? 'border-success bg-success text-white' : isWrong ? 'border-[hsl(var(--sys-danger-fill))] bg-[hsl(var(--sys-danger-fill))] text-white' : 'text-muted-foreground')}>
                         {isRight ? <Check className="h-4 w-4" /> : isWrong ? <X className="h-4 w-4" /> : String.fromCharCode(65 + i)}
                       </span>
                       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{o.body}</span>

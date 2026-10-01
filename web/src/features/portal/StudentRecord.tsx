@@ -21,10 +21,10 @@ interface RecordResponse { student_name: string; admission_no: string; apaar_id?
 const q = { queryKey: ['student-record'], queryFn: () => api.get<RecordResponse>('/api/v1/portal/academic-record') }
 
 const STATUS: Record<string, { text: string; cls: string }> = {
-  active: { text: 'This year', cls: 'bg-[color-mix(in_oklab,#6366f1_13%,transparent)] text-[#4338ca] dark:text-[#a5b4fc]' },
-  promoted: { text: 'Moved up', cls: 'bg-[color-mix(in_oklab,#10b981_15%,transparent)] text-[#047857] dark:text-[#6ee7b7]' },
-  completed: { text: 'Completed', cls: 'bg-[color-mix(in_oklab,#10b981_15%,transparent)] text-[#047857] dark:text-[#6ee7b7]' },
-  detained: { text: 'Repeating', cls: 'bg-[color-mix(in_oklab,#f59e0b_17%,transparent)] text-[#92400e] dark:text-[#fcd34d]' },
+  active: { text: 'This year', cls: 'bg-[hsl(var(--sys-indigo)/0.13)] text-[hsl(var(--sys-indigo-ink))]' },
+  promoted: { text: 'Moved up', cls: 'bg-[hsl(var(--sys-green)/0.15)] text-[hsl(var(--sys-green-ink))]' },
+  completed: { text: 'Completed', cls: 'bg-[hsl(var(--sys-green)/0.15)] text-[hsl(var(--sys-green-ink))]' },
+  detained: { text: 'Repeating', cls: 'bg-[hsl(var(--sys-orange)/0.17)] text-[hsl(var(--sys-orange-ink))]' },
 }
 const fmt = (n?: number) => (n === undefined || n === null ? '-' : Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -76,7 +76,7 @@ export default function StudentRecord() {
                 return (
                   <li key={y.academic_year} className="card stu-rise p-4" style={{ ['--i' as string]: i + 3 }}>
                     <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklab,#6366f1_13%,transparent)] text-[#4338ca] dark:text-[#a5b4fc]"><GraduationCap className="h-5 w-5" strokeWidth={1.75} /></span>
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--sys-indigo)/0.13)] text-[hsl(var(--sys-indigo-ink))]"><GraduationCap className="h-5 w-5" strokeWidth={1.75} /></span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[17px] font-semibold">{y.class_name} {y.section_name}</span>

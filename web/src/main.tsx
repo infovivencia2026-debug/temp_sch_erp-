@@ -4,6 +4,11 @@ import App from './App'
 import { ensureCatalogue, readStoredLocale } from '@/lib/i18n'
 import './index.css'
 import './features/bento/bento-theme.css'
+// The system colours and the motion kit sit on top of the theme: loaded after
+// it so their defaults win at equal specificity, and still under the brand
+// colour (inline), the palettes and the contrast settings. See docs/motion-kit.md.
+import './styles/color-system.css'
+import './styles/motion.css'
 // Stamps html[data-personality] and writes the personalities stylesheet.
 import '@/lib/personality'
 import { startOutbox } from './lib/outbox'

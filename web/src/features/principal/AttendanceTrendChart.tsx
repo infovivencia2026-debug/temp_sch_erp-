@@ -26,7 +26,7 @@ export default function AttendanceTrendChart({ items }: { items: { date: string;
         />
         <Area
           type="monotone" dataKey="pct" name="Present %"
-          stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#att)"
+          stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#att)"
         />
       </AreaChart>
     </ResponsiveContainer>

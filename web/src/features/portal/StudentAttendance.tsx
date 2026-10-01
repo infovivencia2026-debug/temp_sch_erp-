@@ -20,10 +20,10 @@ const sq = { queryKey: ['student-att-summary'], queryFn: () => api.get<Summary>(
 const dq = { queryKey: ['student-att-days'], queryFn: () => api.get<List<Day>>('/api/v1/portal/attendance') }
 
 const TONE: Record<string, { cls: string; label: string }> = {
-  present: { cls: 'bg-[color-mix(in_oklab,#10b981_22%,transparent)] text-[#047857] dark:text-[#6ee7b7]', label: 'Present' },
-  late: { cls: 'bg-[color-mix(in_oklab,#f59e0b_24%,transparent)] text-[#92400e] dark:text-[#fcd34d]', label: 'Late' },
-  absent: { cls: 'bg-[color-mix(in_oklab,#f43f5e_20%,transparent)] text-[#be123c] dark:text-[#fda4af]', label: 'Absent' },
-  leave: { cls: 'bg-[color-mix(in_oklab,#0ea5e9_20%,transparent)] text-[#075985] dark:text-[#7dd3fc]', label: 'On leave' },
+  present: { cls: 'bg-[hsl(var(--sys-green)/0.22)] text-[hsl(var(--sys-green-ink))]', label: 'Present' },
+  late: { cls: 'bg-[hsl(var(--sys-orange)/0.24)] text-[hsl(var(--sys-orange-ink))]', label: 'Late' },
+  absent: { cls: 'bg-[hsl(var(--sys-pink)/0.20)] text-[hsl(var(--sys-pink-ink))]', label: 'Absent' },
+  leave: { cls: 'bg-[hsl(var(--sys-blue)/0.20)] text-[hsl(var(--sys-blue-ink))]', label: 'On leave' },
 }
 const toneOf = (d: Day) => (d.on_leave ? TONE.leave : TONE[d.status] ?? TONE.present)
 const came = (d: Day) => d.status === 'present' || d.status === 'late'

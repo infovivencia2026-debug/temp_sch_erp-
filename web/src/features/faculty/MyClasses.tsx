@@ -281,7 +281,7 @@ export default function MyClasses() {
                     {r.attendance_percent == null ? <span className="text-muted-foreground">-</span> : (
                       <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold tabular-nums">
                         <span className={cn('h-2 w-2 rounded-full',
-                          r.attendance_percent >= 90 ? 'bg-[#22c55e]' : r.attendance_percent >= 75 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]')} />
+                          r.attendance_percent >= 90 ? 'bg-[hsl(var(--sys-green))]' : r.attendance_percent >= 75 ? 'bg-[hsl(var(--sys-orange))]' : 'bg-[hsl(var(--sys-danger-fill))]')} />
                         {Math.round(r.attendance_percent)}%
                       </span>
                     )}
@@ -302,7 +302,7 @@ export default function MyClasses() {
                   <Td>
                     <span className={cn('inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold',
                       r.risk_band === 'none' ? 'bg-[#f0fdf4] text-[#15803d]'
-                        : r.risk_band === 'watch' ? 'bg-[#fefce8] text-[#b45309]' : 'bg-[#fef2f2] text-[#b91c1c]')}
+                        : r.risk_band === 'watch' ? 'bg-[#fefce8] text-[hsl(var(--sys-orange-ink))]' : 'bg-[#fef2f2] text-[#b91c1c]')}
                       title={r.risks.join('; ') || undefined}>
                       {r.risk_band === 'none' ? 'On track' : r.risk_band === 'watch' ? 'Under watch' : 'Intervention required'}
                     </span>

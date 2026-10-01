@@ -103,7 +103,7 @@ function Certificates() {
               <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Which certificate">
                 {types.isLoading ? <Bone className="h-[52px] rounded-xl" /> : (types.data?.items ?? []).map((t) => (
                   <button key={t.code} type="button" role="radio" aria-checked={code === t.code} onClick={() => setCode(t.code)}
-                    className={cn('stu-press flex min-h-[52px] items-center gap-3 rounded-xl border px-3 text-left text-[15px] font-medium', code === t.code ? 'border-primary bg-[color-mix(in_oklab,#6366f1_8%,transparent)]' : '')}>
+                    className={cn('stu-press flex min-h-[52px] items-center gap-3 rounded-xl border px-3 text-left text-[15px] font-medium', code === t.code ? 'border-primary bg-[hsl(var(--sys-indigo)/0.08)]' : '')}>
                     <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', code === t.code ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>{code === t.code && <Check className="h-3 w-3" strokeWidth={3} />}</span>
                     {t.name}
                   </button>

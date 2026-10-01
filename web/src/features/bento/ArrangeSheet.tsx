@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useDragDismiss } from '@/lib/motion'
 import { Check, GripVertical } from 'lucide-react'
 import { useLayout, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
 import { buzz } from '@/lib/haptics'
@@ -112,6 +113,14 @@ export function ArrangeSheet({
     return () => document.removeEventListener('keydown', onKey, true)
   }, [onDone])
 
+  const scrimRef = useRef<HTMLDivElement>(null)
+  const handleRef = useRef<HTMLDivElement>(null)
+  const scrimOf = useCallback(() => scrimRef.current, [])
+  const sheetRef = useDragDismiss<HTMLDivElement>({
+    onDismiss: onDone,
+    handle: () => handleRef.current,
+  }, scrimOf)
+
   const rows = drag ? drag.list : visible
   const shift = (i: number): number => {
     if (!drag) return 0
@@ -126,8 +135,9 @@ export function ArrangeSheet({
       {/* A tap on the board while the sheet is up closes the sheet: the bar
           and the cards' own controls are underneath it, and the person is
           reaching for them. Transparent, so the board is seen. */}
-      <div className="bento-sheet-backdrop" onClick={onDone} aria-hidden="true" />
+      <div ref={scrimRef} className="bento-sheet-backdrop" onClick={onDone} aria-hidden="true" />
       <div
+        ref={sheetRef}
         className="bento-sheet"
         role="dialog"
         aria-modal="false"
@@ -137,6 +147,10 @@ export function ArrangeSheet({
         data-still={still ? '' : undefined}
         style={{ '--ink-here': INK_HERE_FROM_PAGE } as CSSProperties}
       >
+        {/* The grip and the title are the handle: pull them down and the
+            sheet follows the finger and leaves (lib/motion useDragDismiss).
+            The list below keeps its own vertical drag for reordering. */}
+        <div ref={handleRef} data-sheet-handle="" style={{ touchAction: 'none' }}>
         <div className="bento-sheet__grip" aria-hidden="true" />
         <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-1">
           <div className="min-w-0">
@@ -147,6 +161,7 @@ export function ArrangeSheet({
             <Check className="size-4" aria-hidden="true" />
             {t('bento.widgets.done')}
           </button>
+        </div>
         </div>
 
         <ul ref={listRef} className="bento-sheet__list" style={{ '--row-h': `${ROW_H}px` } as CSSProperties}>

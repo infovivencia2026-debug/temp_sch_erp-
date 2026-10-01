@@ -1938,7 +1938,7 @@ export default function StudentProfile() {
               className="absolute inset-0 h-full w-full object-cover" />
           )}
         </span>
-        {p.status === 'active' && <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card bg-[#22c55e]" />}
+        {p.status === 'active' && <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card bg-[hsl(var(--sys-green))]" />}
         </span>
       }
       subtitle={`${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''} · ${p.admission_no}`}

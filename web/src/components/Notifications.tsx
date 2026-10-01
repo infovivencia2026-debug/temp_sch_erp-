@@ -421,7 +421,7 @@ export default function Notifications() {
                       </button>
                     )}
                     <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[#fef2f2] hover:text-[#ef4444] disabled:opacity-50">
+                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[hsl(var(--sys-danger)/0.1)] hover:text-[hsl(var(--sys-danger-ink))] disabled:opacity-50">
                       {clearAll.isPending ? 'Clearing…' : 'Clear all'}
                     </button>
                   </span>
@@ -439,7 +439,7 @@ export default function Notifications() {
                 : (statuses.data?.items ?? []).filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length === 0
                   ? <p className="py-16 text-center text-[13px] text-muted-foreground">No status updates this week.</p>
                   : (
-                    <div className="space-y-2">
+                    <div className="m-stagger space-y-2">
                       {(statuses.data?.items ?? [])
                         .filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000)
                         .map((x) => (
@@ -477,7 +477,7 @@ export default function Notifications() {
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{g.day}</span>
                       <span className="text-[11px] font-medium text-muted-foreground">{dateOf(g.notes[0].created_at)}</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="m-stagger space-y-2">
                       {g.notes.map((n) => {
                         const { icon: Icon, label } = kindOf(n.kind)
                         const postId = statusPostId(n)
@@ -553,7 +553,7 @@ export default function Notifications() {
                     <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
                       className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
                         v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
-                      {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[#ef4444] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
+                      {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[hsl(var(--sys-danger-fill))] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
                     </button>
                   ))}
                 </div>

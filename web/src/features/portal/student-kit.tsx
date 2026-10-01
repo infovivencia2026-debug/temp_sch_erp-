@@ -36,11 +36,11 @@ export function shortDate(iso: string) {
 }
 
 const CHIP = {
-  late: 'bg-[color-mix(in_oklab,var(--color-destructive,#e11d48)_12%,transparent)] text-destructive',
-  today: 'bg-[color-mix(in_oklab,#f59e0b_18%,transparent)] text-[#92400e] dark:text-[#fcd34d]',
-  tomorrow: 'bg-[color-mix(in_oklab,#0ea5e9_14%,transparent)] text-[#075985] dark:text-[#7dd3fc]',
+  late: 'bg-[hsl(var(--sys-danger)/0.12)] text-[hsl(var(--sys-danger-ink))]',
+  today: 'bg-[hsl(var(--sys-warning)/0.16)] text-[hsl(var(--sys-warning-ink))]',
+  tomorrow: 'bg-[hsl(var(--sys-blue)/0.12)] text-[hsl(var(--sys-blue-ink))]',
   later: 'bg-muted text-muted-foreground',
-  done: 'bg-[color-mix(in_oklab,#10b981_16%,transparent)] text-[#065f46] dark:text-[#6ee7b7]',
+  done: 'bg-[hsl(var(--sys-success)/0.14)] text-[hsl(var(--sys-success-ink))]',
 }
 /** Today / Tomorrow / Late, as a small coloured chip. */
 export function DueChip({ due, done, className }: { due?: string | null; done?: boolean; className?: string }) {
@@ -158,7 +158,7 @@ export function NowNextCard({ periods, to, compact }: { periods: Period[]; to?: 
   })()
   const inner = (
     <>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklab,#6366f1_14%,transparent)] text-[#4338ca] dark:text-[#a5b4fc]">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--sys-indigo)/0.13)] text-[hsl(var(--sys-indigo-ink))]">
         <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">
@@ -291,14 +291,14 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
       <div ref={barRef} className="relative mx-auto flex max-w-md items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
         <SlidingIndicator listRef={barRef} active={loc.pathname} pick={pickTabPill}
-          className="rounded-full bg-[color-mix(in_oklab,var(--color-primary,#4f46e5)_12%,transparent)]" />
+          className="rounded-full bg-[hsl(var(--primary)/0.12)]" />
         {tabs.map((t) => {
           const on = loc.pathname === t.to || loc.pathname.startsWith(t.to + '/')
           const Icon = t.icon
           return (
             <Link key={t.label} to={t.to} aria-current={on ? 'page' : undefined}
               className={cn(item, on ? 'text-primary' : 'text-muted-foreground')}>
-              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[color-mix(in_oklab,var(--color-primary,#4f46e5)_12%,transparent)]')}>
+              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[hsl(var(--primary)/0.12)]')}>
                 <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2 : 1.6} />
               </span>
               {t.label}
@@ -322,13 +322,17 @@ export function Bone({ className }: { className?: string }) {
 /* ─── The pieces the redone student screens share ──────────────────────── */
 
 /** A soft tint of one of the scheme hues, for an icon disc or a chip. */
+/* The student screens' five hues are the system colours (styles/
+   color-system.css): a 13% wash of the vivid value behind, the text-grade
+   ink in front, the vivid value itself for an arc or a bar. They follow
+   light and dark, and any palette that moves the system hues, on their own. */
 export const HUE = {
-  indigo: { bg: 'bg-[color-mix(in_oklab,#6366f1_13%,transparent)]', fg: 'text-[#4338ca] dark:text-[#a5b4fc]', stroke: '#6366f1' },
-  emerald: { bg: 'bg-[color-mix(in_oklab,#10b981_15%,transparent)]', fg: 'text-[#047857] dark:text-[#6ee7b7]', stroke: '#10b981' },
-  amber: { bg: 'bg-[color-mix(in_oklab,#f59e0b_17%,transparent)]', fg: 'text-[#92400e] dark:text-[#fcd34d]', stroke: '#f59e0b' },
-  sky: { bg: 'bg-[color-mix(in_oklab,#0ea5e9_14%,transparent)]', fg: 'text-[#075985] dark:text-[#7dd3fc]', stroke: '#0ea5e9' },
-  rose: { bg: 'bg-[color-mix(in_oklab,#f43f5e_12%,transparent)]', fg: 'text-[#be123c] dark:text-[#fda4af]', stroke: '#f43f5e' },
-  slate: { bg: 'bg-muted', fg: 'text-muted-foreground', stroke: '#94a3b8' },
+  indigo: { bg: 'bg-[hsl(var(--sys-indigo)/0.13)]', fg: 'text-[hsl(var(--sys-indigo-ink))]', stroke: 'hsl(var(--sys-indigo))' },
+  emerald: { bg: 'bg-[hsl(var(--sys-green)/0.14)]', fg: 'text-[hsl(var(--sys-green-ink))]', stroke: 'hsl(var(--sys-green))' },
+  amber: { bg: 'bg-[hsl(var(--sys-orange)/0.15)]', fg: 'text-[hsl(var(--sys-orange-ink))]', stroke: 'hsl(var(--sys-orange))' },
+  sky: { bg: 'bg-[hsl(var(--sys-blue)/0.12)]', fg: 'text-[hsl(var(--sys-blue-ink))]', stroke: 'hsl(var(--sys-blue))' },
+  rose: { bg: 'bg-[hsl(var(--sys-pink)/0.11)]', fg: 'text-[hsl(var(--sys-pink-ink))]', stroke: 'hsl(var(--sys-pink))' },
+  slate: { bg: 'bg-muted', fg: 'text-muted-foreground', stroke: 'hsl(var(--sys-gray))' },
 } as const
 export type Hue = keyof typeof HUE
 
@@ -423,14 +427,14 @@ export function Trend({ points, labels, height = 96 }: { points: number[]; label
     <svg viewBox={`0 0 ${w} ${h}`} className="block h-auto w-full" role="img" aria-label={`Your scores: ${points.map((p, i) => `${labels[i]} ${Math.round(p)}%`).join(', ')}`}>
       <defs>
         <linearGradient id="stu-trend" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+          <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity="0" />
         </linearGradient>
       </defs>
       {[25, 50, 75].map((g) => <line key={g} x1={pad} x2={w - pad} y1={y(g)} y2={y(g)} stroke="currentColor" className="text-border" strokeDasharray="3 4" />)}
       {points.length > 1 && <path d={area} fill="url(#stu-trend)" />}
-      {points.length > 1 && <path d={line} fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
-      {points.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 5 : 3.5} fill={i === last ? '#6366f1' : 'white'} stroke="#6366f1" strokeWidth="2" />)}
+      {points.length > 1 && <path d={line} fill="none" stroke="hsl(var(--chart-1))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+      {points.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 5 : 3.5} fill={i === last ? 'hsl(var(--chart-1))' : 'hsl(var(--card))'} stroke="hsl(var(--chart-1))" strokeWidth="2" />)}
     </svg>
   )
 }

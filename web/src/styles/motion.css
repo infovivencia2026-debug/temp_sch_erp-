@@ -1,0 +1,266 @@
+/* THE MOTION KIT.
+
+   A small vocabulary, used everywhere the same way. index.css already owns
+   the durations (--motion-press .. --motion-slow) and the two base curves
+   (--motion-ease, --motion-spring); this adds the named springs, and the
+   handful of patterns a phone's interface is built from: press highlight,
+   staggered entrance, container transform, bottom sheet with scrim and
+   drag, swipe-to-dismiss, collapsing large title, scroll snap, the toast's
+   spring, and the Saved tile's tick.
+
+   Rules, all of them:
+     - transform and opacity only. Nothing here animates layout.
+     - reduced motion (the system setting, or the account's own, which
+       lib/motion.ts stamps as html[data-reduce-motion]) makes every one of
+       these instant. index.css already zeroes the duration tokens there;
+       the block at the end covers what is not on a token.
+     - old engines fall back to the thing simply being there. Every
+       animation starts from a state that reads correctly if it never runs
+       (no element is left at opacity 0 by a missing keyframe), every
+       @supports gate has a plain branch.
+
+   docs/motion-kit.md lists each term, where it is used, and how to apply it. */
+
+:root {
+  /* Springs, as curves. A spring's feel is its overshoot and its settle;
+     these three cover what the kit needs. The linear() versions are the
+     real springs (Chrome 113+, Safari 17.2+, Firefox 112+); the cubic-bezier
+     is the fallback every engine has. */
+  --spring-snappy: cubic-bezier(0.22, 1.12, 0.36, 1);   /* a control under the finger: in and settled */
+  --spring-gentle: cubic-bezier(0.32, 0.72, 0, 1);      /* a sheet, a panel: no visible overshoot */
+  --spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);   /* a tick, a badge: one clear bounce */
+  --spring-dur: 380ms;
+  --spring-dur-fast: 240ms;
+  --stagger-step: 24ms;
+}
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --spring-snappy: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077 20.4%, 1.121, 1.149 24.3%, 1.159, 1.163 27%, 1.154, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1);
+    --spring-gentle: linear(0, 0.002, 0.01 3.6%, 0.034, 0.074 9.1%, 0.128 11.4%, 0.194 13.4%, 0.271 15.3%, 0.344 16.7%, 0.544 20.6%, 0.66 23.1%, 0.773 26.1%, 0.863 29.3%, 0.934 33.2%, 0.98 37.5%, 1.007 42.1%, 1.019 47.6%, 1.018 54.1%, 1.011 61.1%, 0.998 73.5%, 1);
+    --spring-bouncy: linear(0, 0.005, 0.02 2.3%, 0.08 4.6%, 0.333 9.4%, 0.6 13.8%, 0.883 19.2%, 1.027 22.8%, 1.133 27.1%, 1.166 30.3%, 1.158 33.6%, 1.11 39.1%, 1.027 46.7%, 0.993 51.7%, 0.983 56.7%, 0.993 67.2%, 1.003 78.3%, 1);
+  }
+}
+
+/* --- press -----------------------------------------------------------------
+   The ripple-less press: a card or row that is a button gets a brief dip
+   and a wash, released on a spring. For things that have room to move.
+   (index.css already scales every <button> on a phone; this is for the
+   wrapper rows and cards that are not buttons.) */
+.m-press {
+  transition: transform var(--spring-dur-fast) var(--spring-snappy), background-color var(--motion-quick) var(--motion-ease), filter var(--motion-quick) var(--motion-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.m-press:active,
+.m-press[data-pressed] {
+  transform: scale(0.985);
+  transition-duration: var(--motion-press);
+  filter: brightness(0.96);
+}
+.dark .m-press:active,
+.dark .m-press[data-pressed] { filter: brightness(1.12); }
+
+/* --- staggered entrance --------------------------------------------------
+   `.m-stagger` on a list or grid: its first twelve children rise in, 24ms
+   apart. Only the mount animates; a re-render of the same keys does not
+   (CSS animations run once per element). The state before the keyframe is
+   the element simply present, so an engine without @keyframes shows the list. */
+@keyframes m-rise {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.m-stagger > * {
+  animation: m-rise var(--motion-enter, 200ms) var(--spring-gentle) both;
+  animation-delay: calc(var(--stagger-step) * var(--m-i, 0));
+}
+.m-stagger > :nth-child(1)  { --m-i: 0; }
+.m-stagger > :nth-child(2)  { --m-i: 1; }
+.m-stagger > :nth-child(3)  { --m-i: 2; }
+.m-stagger > :nth-child(4)  { --m-i: 3; }
+.m-stagger > :nth-child(5)  { --m-i: 4; }
+.m-stagger > :nth-child(6)  { --m-i: 5; }
+.m-stagger > :nth-child(7)  { --m-i: 6; }
+.m-stagger > :nth-child(8)  { --m-i: 7; }
+.m-stagger > :nth-child(9)  { --m-i: 8; }
+.m-stagger > :nth-child(10) { --m-i: 9; }
+.m-stagger > :nth-child(11) { --m-i: 10; }
+.m-stagger > :nth-child(12) { --m-i: 11; }
+/* The thirteenth onward arrive with the twelfth: a long list is not a
+   fireworks display, and nothing below the fold should wait. */
+.m-stagger > :nth-child(n + 13) { --m-i: 11; }
+/* Switched off after the first paint by useStaggerOnce, so a list that
+   re-keys (a filter, a sort) does not play the entrance again. */
+.m-stagger[data-settled] > * { animation: none; }
+
+/* --- container transform / shared element -----------------------------------
+   The View Transitions API. An element given `view-transition-name: m-hero`
+   before a commit, and an element in the new state given the same name,
+   are morphed from one to the other on the compositor. lib/motion.ts
+   `containerTransform(fromEl, commit)` names the element, commits, and
+   clears the name afterwards. Browsers without the API get the commit; the
+   old thing is gone and the new one is there, which is what they did before. */
+::view-transition-group(m-hero) {
+  animation-duration: var(--spring-dur);
+  animation-timing-function: var(--spring-gentle);
+}
+::view-transition-old(m-hero),
+::view-transition-new(m-hero) {
+  /* The two snapshots crossfade inside the morphing group; nothing is
+     stretched, because both are drawn at the group's current size. */
+  mix-blend-mode: normal;
+  animation-duration: var(--spring-dur);
+  animation-timing-function: var(--spring-gentle);
+  height: 100%;
+  object-fit: cover;
+  overflow: clip;
+}
+::view-transition-old(m-hero) { animation-name: m-hero-out; }
+::view-transition-new(m-hero) { animation-name: m-hero-in; }
+@keyframes m-hero-out { to { opacity: 0; } }
+@keyframes m-hero-in { from { opacity: 0; } }
+/* While a hero crossing is in flight, the rest of the screen plain-fades,
+   so the morph is the only thing moving. */
+html[data-vt='hero']::view-transition-old(root) { animation: m-hero-out var(--motion) var(--motion-ease) both; }
+html[data-vt='hero']::view-transition-new(root) { animation: m-hero-in var(--motion) var(--motion-ease) both; }
+
+/* --- bottom sheet with scrim -----------------------------------------------
+   A sheet rises on the gentle spring; its scrim fades. `.m-sheet` on the
+   panel, `.m-scrim` on the backdrop. Dragging (useDragDismiss) sets
+   --m-drag on the panel in px and data-dragging while the finger is down;
+   the transition is suspended under the finger and the release springs it
+   home or away. */
+.m-scrim {
+  animation: m-fade-in var(--motion-enter, 200ms) var(--motion-ease) both;
+}
+@keyframes m-fade-in { from { opacity: 0; } }
+.m-sheet {
+  animation: m-sheet-up var(--spring-dur) var(--spring-gentle) both;
+  transform: translate3d(0, var(--m-drag, 0px), 0);
+  transition: transform var(--spring-dur) var(--spring-gentle);
+  will-change: transform;
+  touch-action: pan-y;
+}
+.m-sheet[data-dragging] { transition: none; }
+.m-sheet[data-closing] { transform: translate3d(0, 110%, 0); }
+@keyframes m-sheet-up { from { transform: translate3d(0, 100%, 0); } }
+/* The Focus board's own sheet (bento-theme.css .bento-sheet) has its slide
+   already; it only needs to follow the finger and leave. */
+.bento-sheet[data-shown][data-dragging] { transform: translate3d(0, var(--m-drag, 0px), 0); transition: none; }
+.bento-sheet[data-shown][data-closing] { transform: translate3d(0, 100%, 0); }
+.bento-sheet-backdrop[data-dragging] { opacity: calc(1 - var(--m-drag-f, 0)); }
+/* The scrim thins as the sheet is pulled down: --m-drag-f is 0..1. */
+.m-scrim[data-dragging] { animation: none; opacity: calc(1 - var(--m-drag-f, 0)); transition: none; }
+
+/* --- swipe to dismiss ------------------------------------------------------
+   useSwipeDismiss sets --m-swipe (px) and data-swiping on the element; on
+   release it either springs back or is sent off the edge with data-dismissed
+   and the caller's onDismiss fires after the exit. */
+.m-swipe {
+  transform: translate3d(var(--m-swipe, 0px), 0, 0);
+  transition: transform var(--spring-dur-fast) var(--spring-snappy), opacity var(--spring-dur-fast) var(--motion-ease);
+  touch-action: pan-y;
+}
+.m-swipe[data-swiping] { transition: none; }
+.m-swipe[data-dismissed] { opacity: 0; transition-duration: var(--motion); transition-timing-function: var(--motion-ease); }
+
+/* --- collapsing large title -----------------------------------------------
+   The home's greeting is a large title that shrinks toward its compact size
+   as the page scrolls, like a navigation bar's large title. useCollapsingTitle
+   writes --m-collapse (0 at the top, 1 once scrolled past the title). The
+   title scales and fades from its origin; its subtitle fades first. Scale,
+   not font-size, so the line never reflows. On engines with scroll-driven
+   animations the same thing is done without JS; the hook is a no-op there. */
+.m-large-title {
+  transform-origin: 0 100%;
+  transform: scale(calc(1 - 0.28 * var(--m-collapse, 0)));
+  opacity: calc(1 - 0.25 * var(--m-collapse, 0));
+  will-change: transform;
+}
+.m-large-title-sub {
+  opacity: calc(1 - var(--m-collapse, 0) * 1.6);
+  transform: translate3d(0, calc(var(--m-collapse, 0) * -4px), 0);
+}
+@supports (animation-timeline: scroll()) {
+  .m-large-title, .m-large-title-sub {
+    animation: m-collapse linear both;
+    animation-timeline: scroll(nearest);
+    animation-range: 0 96px;
+  }
+  @keyframes m-collapse { to { --m-collapse: 1; } }
+}
+@property --m-collapse { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+/* --- scroll snap ------------------------------------------------------
+   A horizontal strip of rings or chips settles on an item rather than
+   stopping between two. proximity, not mandatory: a flick still travels. */
+.m-snap-x {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--page-gutter, 16px);
+  -webkit-overflow-scrolling: touch;
+}
+.m-snap-x > * { scroll-snap-align: start; }
+/* Over-scroll at the ends stays inside the strip: the page does not
+   rubber-band sideways when a chip row is flicked past its last item. */
+.m-snap-x { overscroll-behavior-x: contain; }
+
+/* --- toast / snackbar ------------------------------------------------------
+   The toasts' own stylesheet (Toast.tsx) pops them in. Overridden here, by
+   specificity, so a confirmation rises from the bottom edge on the bouncy
+   spring the way a phone's snackbar does, and the destructive variant
+   shakes once to say no. */
+.toast-glass.toast-confirm { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both; }
+@keyframes m-toast-up {
+  from { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+.toast-glass.toast-confirm.toast-square { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both, toast-fade 350ms ease 950ms forwards; }
+.toast-in.border-destructive\/30 { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both, m-shake 420ms var(--motion-ease) var(--spring-dur) 1; }
+@keyframes m-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translate3d(-6px, 0, 0); }
+  40% { transform: translate3d(5px, 0, 0); }
+  60% { transform: translate3d(-3px, 0, 0); }
+  80% { transform: translate3d(2px, 0, 0); }
+}
+/* The Saved tile's mark is green, not the brand's blue: Saved is a status,
+   and green is what a status that went well looks like. The disc pops on
+   the bouncy spring before the tick draws. */
+.toast-glass.toast-confirm .toast-mark {
+  background: hsl(var(--sys-success-fill));
+  color: #fff;
+  animation: m-pop var(--spring-dur-fast) var(--spring-bouncy) both;
+}
+@keyframes m-pop { from { transform: scale(0.6); } to { transform: none; } }
+
+/* --- generic enter/exit pair --------------------------------------------
+   For a menu, a popover, a chip that appears: scale from 96% on the snappy
+   spring. [data-closing] (usePresence) plays it back. */
+.m-pop-in { animation: m-pop-in var(--spring-dur-fast) var(--spring-snappy) both; }
+.m-pop-in[data-closing] { animation: m-pop-out var(--motion-quick) var(--motion-ease) both; }
+@keyframes m-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes m-pop-out { to { opacity: 0; transform: scale(0.98); } }
+
+/* --- reduced motion ---------------------------------------------------------
+   Everything above becomes a cut. Transforms driven by a drag stay, because
+   the finger is moving them; only the springs and entrances go. */
+@media (prefers-reduced-motion: reduce) {
+  .m-stagger > *, .m-scrim, .m-sheet, .m-pop-in, .m-large-title, .m-large-title-sub,
+  .toast-glass.toast-confirm, .toast-glass.toast-confirm .toast-mark, .toast-in {
+    animation: none !important;
+  }
+  .m-press, .m-sheet, .m-swipe { transition-duration: 1ms !important; }
+  .m-large-title { transform: none; opacity: 1; }
+  ::view-transition-group(m-hero), ::view-transition-old(m-hero), ::view-transition-new(m-hero) { animation-duration: 1ms; }
+}
+html[data-reduce-motion] .m-stagger > *,
+html[data-reduce-motion] .m-scrim,
+html[data-reduce-motion] .m-sheet,
+html[data-reduce-motion] .m-pop-in,
+html[data-reduce-motion] .m-large-title,
+html[data-reduce-motion] .m-large-title-sub,
+html[data-reduce-motion] .toast-glass.toast-confirm,
+html[data-reduce-motion] .toast-glass.toast-confirm .toast-mark,
+html[data-reduce-motion] .toast-in { animation: none !important; }
+html[data-reduce-motion] .m-press,
+html[data-reduce-motion] .m-sheet,
+html[data-reduce-motion] .m-swipe { transition-duration: 1ms !important; }
+html[data-reduce-motion] .m-large-title { transform: none; opacity: 1; }

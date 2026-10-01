@@ -50,7 +50,7 @@ export default function StudentMyCard() {
         ) : (
           <>
             <section className="card stu-rise overflow-hidden p-0" aria-label="ID card">
-              <div className="bg-[linear-gradient(135deg,color-mix(in_oklab,#6366f1_16%,transparent),color-mix(in_oklab,#0ea5e9_12%,transparent))] px-5 pb-12 pt-4">
+              <div className="bg-[linear-gradient(135deg,hsl(var(--sys-indigo)/0.16),hsl(var(--sys-blue)/0.12))] px-5 pb-12 pt-4">
                 <p className="text-[15px] font-semibold">{card.school_name}</p>
                 <p className="text-[12px] text-muted-foreground">{card.campus_name ?? 'Student ID'}</p>
               </div>

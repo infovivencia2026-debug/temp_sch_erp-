@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { flushSync } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -173,4 +173,263 @@ export function usePresence(open: boolean, ms = 180): [boolean, boolean] {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ms])
   return [open || mounted, !open && mounted]
+}
+
+/* ======================================================================
+   THE MOTION KIT -- styles/motion.css is the other half; docs/motion-kit.md
+   lists each pattern, where it is used and how to apply it. Every helper
+   here is a no-op under reduced motion and on an engine without the API it
+   needs; the CSS it drives is written so the thing is simply there.
+   ====================================================================== */
+
+/** Staggered entrance, first paint only. Put the returned ref on the list
+    or grid that carries `.m-stagger`; once the last child's entrance has
+    played (or at once, under reduced motion) the list is marked settled and
+    a later re-key of its children does not play the entrance again. */
+export function useStaggerOnce<T extends HTMLElement = HTMLElement>() {
+  const ref = useRef<T>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (motionReduced()) {
+      el.setAttribute('data-settled', '')
+      return
+    }
+    // Twelve steps of the stagger plus one entrance, with slack.
+    const t = window.setTimeout(() => el.setAttribute('data-settled', ''), 12 * 24 + 200 + 120)
+    return () => window.clearTimeout(t)
+  }, [])
+  return ref
+}
+
+/** Container transform / shared element. Names `from` as the hero, commits
+    the change inside a view transition, and -- once the new state is in --
+    names `to()` (looked up after the commit) as the same hero so the two are
+    morphed between. The name is cleared from both when the crossing ends.
+    Without the API, or under reduced motion, this is `commit()`. */
+export function containerTransform(from: Element | null | undefined, commit: () => void, to?: () => Element | null | undefined) {
+  const doc = document as Doc
+  const root = document.documentElement
+  if (!doc.startViewTransition || motionReduced() || !from) {
+    commit()
+    return
+  }
+  const fromEl = from as HTMLElement
+  fromEl.style.viewTransitionName = 'm-hero'
+  root.setAttribute('data-vt', 'hero')
+  let toEl: HTMLElement | null = null
+  let vt: VT | undefined
+  try {
+    vt = doc.startViewTransition(() => {
+      commitNow(commit)
+      fromEl.style.viewTransitionName = ''
+      toEl = (to?.() as HTMLElement | null | undefined) ?? null
+      if (toEl) toEl.style.viewTransitionName = 'm-hero'
+    })
+  } catch {
+    fromEl.style.viewTransitionName = ''
+    root.removeAttribute('data-vt')
+    commitNow(commit)
+    return
+  }
+  const done = () => {
+    fromEl.style.viewTransitionName = ''
+    if (toEl) toEl.style.viewTransitionName = ''
+    if (root.getAttribute('data-vt') === 'hero') root.removeAttribute('data-vt')
+  }
+  for (const pr of [vt?.ready, vt?.updateCallbackDone]) pr?.catch(() => {})
+  vt?.finished?.then(done, done) ?? done()
+}
+
+type DragOpts = {
+  /** Called once the sheet has been sent away. */
+  onDismiss: () => void
+  /** Travel, in px, past which a release dismisses. Default 96. */
+  threshold?: number
+  /** Only drags that begin on this element (default: the sheet itself)
+      start a dismiss -- so the scrolling list inside a sheet scrolls. */
+  handle?: () => HTMLElement | null
+}
+
+/** Bottom sheet drag-to-dismiss. Put the returned ref on a `.m-sheet`; its
+    `.m-scrim` sibling is found through `scrim`. The sheet follows the finger
+    downward (never up), the scrim thins with it, and a release past the
+    threshold -- or a quick flick -- sends it off the bottom edge before
+    onDismiss fires. Pointer events, so mouse and pen behave the same. */
+export function useDragDismiss<T extends HTMLElement = HTMLElement>(opts: DragOpts, scrim?: () => HTMLElement | null) {
+  const ref = useRef<T>(null)
+  const latest = useRef(opts)
+  latest.current = opts
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window.PointerEvent === 'undefined') return
+    let startY = 0, startT = 0, dy = 0, id = -1, active = false
+    const h = () => latest.current.handle?.() ?? el
+    const sc = () => scrim?.() ?? null
+    const set = (y: number) => {
+      el.style.setProperty('--m-drag', `${y}px`)
+      const s = sc()
+      if (s) s.style.setProperty('--m-drag-f', String(Math.min(1, y / Math.max(1, el.offsetHeight))))
+    }
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return
+      const target = e.target as HTMLElement
+      const handle = h()
+      if (handle !== el && !handle?.contains(target)) return
+      // A scrolled list inside the sheet scrolls; the sheet moves only from the top of it.
+      const scroller = target.closest<HTMLElement>('.scroll-y, [data-sheet-scroll]')
+      if (scroller && el.contains(scroller) && scroller.scrollTop > 0) return
+      startY = e.clientY; startT = e.timeStamp; dy = 0; id = e.pointerId; active = true
+      el.setAttribute('data-dragging', '')
+      sc()?.setAttribute('data-dragging', '')
+    }
+    const move = (e: PointerEvent) => {
+      if (!active || e.pointerId !== id) return
+      dy = Math.max(0, e.clientY - startY)
+      if (dy > 6) { try { el.setPointerCapture(id) } catch { /* already captured, or gone */ } }
+      set(dy)
+    }
+    const up = (e: PointerEvent) => {
+      if (!active || e.pointerId !== id) return
+      active = false
+      el.removeAttribute('data-dragging')
+      const s = sc()
+      s?.removeAttribute('data-dragging')
+      const v = dy / Math.max(1, e.timeStamp - startT)   // px per ms
+      const go = dy > (latest.current.threshold ?? 96) || (dy > 24 && v > 0.6)
+      if (go) {
+        el.style.setProperty('--m-drag', '0px')
+        el.setAttribute('data-closing', '')
+        s?.style.setProperty('--m-drag-f', '1')
+        // A sheet that stays mounted while hidden must not keep the flag, or
+        // it would refuse to come back up the next time it is shown.
+        const fire = () => {
+          latest.current.onDismiss()
+          requestAnimationFrame(() => { el.removeAttribute('data-closing'); el.style.removeProperty('--m-drag'); s?.style.removeProperty('--m-drag-f') })
+        }
+        if (motionReduced()) fire()
+        else window.setTimeout(fire, 200)
+      } else {
+        set(0)
+        s?.style.removeProperty('--m-drag-f')
+      }
+    }
+    el.addEventListener('pointerdown', down)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+    }
+  }, [scrim])
+  return ref
+}
+
+/** Swipe-to-dismiss, sideways. Put the returned ref on a `.m-swipe` (a
+    toast, a notification row). A horizontal drag past the threshold, or a
+    flick, sends it off that edge and calls onDismiss; anything less springs
+    back. Vertical movement is left to the scroller. */
+export function useSwipeDismiss<T extends HTMLElement = HTMLElement>(onDismiss: () => void, opts: { threshold?: number; enabled?: boolean } = {}) {
+  const ref = useRef<T>(null)
+  const cb = useRef(onDismiss)
+  cb.current = onDismiss
+  const { threshold = 72, enabled = true } = opts
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !enabled || typeof window.PointerEvent === 'undefined') return
+    let x0 = 0, y0 = 0, t0 = 0, dx = 0, id = -1, mode: 'idle' | 'maybe' | 'swipe' = 'idle'
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return   // a mouse clicks the X; dragging a toast with it is a surprise
+      x0 = e.clientX; y0 = e.clientY; t0 = e.timeStamp; dx = 0; id = e.pointerId; mode = 'maybe'
+    }
+    const move = (e: PointerEvent) => {
+      if (mode === 'idle' || e.pointerId !== id) return
+      const mx = e.clientX - x0, my = e.clientY - y0
+      if (mode === 'maybe') {
+        if (Math.abs(my) > 8 && Math.abs(my) > Math.abs(mx)) { mode = 'idle'; return }
+        if (Math.abs(mx) < 8) return
+        mode = 'swipe'
+        el.setAttribute('data-swiping', '')
+        try { el.setPointerCapture(id) } catch { /* fine */ }
+      }
+      dx = mx
+      el.style.setProperty('--m-swipe', `${dx}px`)
+      el.style.opacity = String(Math.max(0.2, 1 - Math.abs(dx) / (el.offsetWidth || 320)))
+    }
+    const up = (e: PointerEvent) => {
+      if (mode === 'idle' || e.pointerId !== id) return
+      const was = mode
+      mode = 'idle'
+      el.removeAttribute('data-swiping')
+      if (was !== 'swipe') return
+      const v = Math.abs(dx) / Math.max(1, e.timeStamp - t0)
+      if (Math.abs(dx) > threshold || (Math.abs(dx) > 20 && v > 0.5)) {
+        el.style.setProperty('--m-swipe', `${Math.sign(dx) * (el.offsetWidth || 320) * 1.2}px`)
+        el.style.opacity = ''
+        el.setAttribute('data-dismissed', '')
+        const fire = () => cb.current()
+        if (motionReduced()) fire()
+        else window.setTimeout(fire, 220)
+      } else {
+        el.style.setProperty('--m-swipe', '0px')
+        el.style.opacity = ''
+      }
+    }
+    el.addEventListener('pointerdown', down)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+    }
+  }, [threshold, enabled])
+  return ref
+}
+
+/** Collapsing large title. Put the returned ref on the block that holds a
+    `.m-large-title`; it writes --m-collapse (0..1) there as the nearest
+    scroller moves through the first `range` px. Where the engine has
+    scroll-driven animations the stylesheet does this itself and the hook
+    does nothing. */
+export function useCollapsingTitle<T extends HTMLElement = HTMLElement>(range = 96) {
+  const ref = useRef<T>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || motionReduced()) return
+    try {
+      if (typeof CSS !== 'undefined' && CSS.supports?.('animation-timeline: scroll()')) return
+    } catch { /* fall through to the listener */ }
+    const scroller = (() => {
+      let p: HTMLElement | null = el.parentElement
+      while (p && p !== document.body) {
+        const o = getComputedStyle(p).overflowY
+        if (o === 'auto' || o === 'scroll') return p
+        p = p.parentElement
+      }
+      return null
+    })()
+    const read = () => scroller ? scroller.scrollTop : window.scrollY
+    let raf = 0
+    const on = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        el.style.setProperty('--m-collapse', String(Math.max(0, Math.min(1, read() / range))))
+      })
+    }
+    const target: EventTarget = scroller ?? window
+    target.addEventListener('scroll', on, { passive: true })
+    on()
+    return () => {
+      target.removeEventListener('scroll', on)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [range])
+  return ref
 }
