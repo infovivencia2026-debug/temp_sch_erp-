@@ -38,6 +38,7 @@ const CURATED: Record<string, string> = {
   'calendar & ptm': 'Calendar',
   'all messages': 'Messages',
   'my day': 'Today',
+  'student progress': 'Progress',
   'my pay': 'Payslips',
   'my run': 'Run',
   'my id card': 'ID card',

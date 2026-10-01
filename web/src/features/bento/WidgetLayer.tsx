@@ -738,9 +738,29 @@ export function WidgetLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, iconsPerRow, arranged])
   const pages = spots ? pageCount(spots) : 0
+  /* Only the rows a page actually uses: a home of two card rows and an icon
+     row is five tracks, not six with an empty one at the foot. Arranging
+     keeps all six so there is somewhere to drop. */
+  /* NO EMPTY BAND AT THE FOOT OF A PAGE. The rhythm can leave a page's
+     last track(s) empty (a two-row card does not fit in the one left). Out
+     of arranging, whatever ends lowest on each page grows down to the foot,
+     so the page is full to the dots. Arranging keeps the packed sizes so
+     the drop targets stay where the pack put them. */
+  const drawn = useMemo(() => {
+    if (!spots || arranging) return spots
+    const end = new Map<number, number>()
+    for (const s of spots) end.set(s.page, Math.max(end.get(s.page) ?? 0, s.row + s.h))
+    return spots.map((s) => {
+      const e = end.get(s.page) ?? rows
+      return s.row + s.h === e && e < rows ? { ...s, h: s.h + (rows - e) } : s
+    })
+  }, [spots, arranging, rows])
+  const usedRows = !drawn
+    ? rows
+    : Math.max(1, Math.min(rows, ...drawn.map((s) => s.row + s.h)))
   const spotMap = useMemo(
-    () => (spots ? new Map(spots.map((s) => [s.id, s])) : null),
-    [spots],
+    () => (drawn ? new Map(drawn.map((s) => [s.id, s])) : null),
+    [drawn],
   )
 
   /* The pager is switched on from here, on the element BentoPage owns, and
@@ -751,7 +771,7 @@ export function WidgetLayer({
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !paged) return
     board.setAttribute('data-pager', '')
-    board.style.setProperty('--pager-rows', String(rows))
+    board.style.setProperty('--pager-rows', String(usedRows))
     board.style.setProperty('--pager-cols', String(gridCols))
     board.style.setProperty('--pager-icons', String(iconsPerRow))
     return () => {
@@ -760,7 +780,7 @@ export function WidgetLayer({
       board.style.removeProperty('--pager-cols')
       board.style.removeProperty('--pager-icons')
     }
-  }, [paged, rows, gridCols, iconsPerRow])
+  }, [paged, usedRows, gridCols, iconsPerRow])
   useEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !arranging) return

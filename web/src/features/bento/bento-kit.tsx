@@ -1798,22 +1798,31 @@ export function useBoardHeight() {
       const rootStyle = getComputedStyle(document.documentElement)
       const rows = parseInt(rootStyle.getPropertyValue('--board-rows'), 10) || 3
       const gap = parseFloat(getComputedStyle(board).rowGap) || 0
-      const floor = rows * 148 + (rows - 1) * gap
-      /* STOP ~17px ABOVE THE DOCK when there is one on screen: its live top
-         edge is the truth, whatever padding the scrollers carry. */
+      const paged = board.hasAttribute('data-pager')
+      /* A phone page never scrolls, so it has no floor: it takes the room. */
+      const floor = paged ? 0 : rows * 148 + (rows - 1) * gap
+      /* NO SPACE UNDER THE BOARD BUT THE PAGE DOTS (owner, 2026-10-01). The
+         board ends 12px above the dock, or, when the pager's dots are
+         showing, 7px above the dots. The live edges are the truth, whatever
+         padding the scrollers carry. */
       const dock = document.querySelector<HTMLElement>('.bento-dock')
       const dockBox = dock?.getBoundingClientRect()
-      const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== "hidden" ? dockBox.top : 0
-      const limit = dockTop > top + 100 ? dockTop - 17 : window.innerHeight - reserve
+      const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== 'hidden' ? dockBox.top : 0
+      const dot = paged ? document.querySelector<HTMLElement>('.bento-dots .bento-dot') : null
+      const dotBox = dot?.getBoundingClientRect()
+      const dotTop = dotBox && dotBox.height > 0 ? dotBox.top : 0
+      const edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      const limit = edge || window.innerHeight - reserve
       let room = Math.max(floor, limit - top)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
-      /* The board's own padding and transforms sit between its box and the
-         cards, so line the CARDS up with the dock: one correcting pass. */
-      if (dockTop > top + 100) {
+      /* The board's own padding sits between its box and the cards, so line
+         the CARDS up with that edge: one correcting pass (the desk board,
+         whose rows are exactly the rows in use). */
+      if (edge) {
         const cards = board.querySelectorAll('[data-card]')
         let bottom = 0
         cards.forEach((c) => { bottom = Math.max(bottom, c.getBoundingClientRect().bottom) })
-        const off = dockTop - 17 - bottom
+        const off = edge - bottom
         if (cards.length && Math.abs(off) > 1 && room + off >= floor) {
           room += off
           board.style.setProperty('--board-h', `${Math.round(room)}px`)
