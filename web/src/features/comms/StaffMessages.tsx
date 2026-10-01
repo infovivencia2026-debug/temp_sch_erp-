@@ -7,7 +7,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
-  Loading, ErrorState, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, ErrorState, tabClass, TAB_BAR, Select } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useCan, useSession } from '@/lib/session'
 
@@ -127,6 +127,23 @@ export default function StaffMessages() {
     else next.delete('teacher')
     setParams(next)
   }
+
+  /* A NEW CONVERSATION, started by the teacher: pick the class, then the
+     parent. The owner asked that teachers need not wait for a parent to write. */
+  const [starting, setStarting] = useState(false)
+  const [startClass, setStartClass] = useState('')
+  const [startFind, setStartFind] = useState('')
+  const myClasses = useQuery({
+    queryKey: ['student-progress-options'],
+    queryFn: () => api.get<List<{ section_id: string; label: string; class_teacher: boolean }>>('/api/v1/teaching/progress/options'),
+    enabled: starting,
+  })
+  const startSection = startClass || (myClasses.data?.items.find((x) => x.class_teacher) ?? myClasses.data?.items[0])?.section_id || ''
+  const contacts = useQuery({
+    queryKey: ['parent-contacts', startSection],
+    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string }>>(`/api/v1/teaching/parent-contacts?section_id=${startSection}`),
+    enabled: starting && !!startSection,
+  })
 
   const parentThreads = useQuery({
     queryKey: ['parent-threads'],
@@ -405,6 +422,35 @@ export default function StaffMessages() {
                 }
               />
               <div className="space-y-2 px-4 pb-3 pt-3">
+                <button type="button" onClick={() => setStarting((v) => !v)}
+                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground hover:opacity-95">
+                  {starting ? 'Close' : '+ New message to a parent'}
+                </button>
+                {starting && (
+                  <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
+                    <Select value={startSection} onChange={(v) => setStartClass(v)}
+                      placeholder={myClasses.isLoading ? 'Loading…' : 'Pick a class'}
+                      options={(myClasses.data?.items ?? []).map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))} />
+                    <Input value={startFind} onChange={setStartFind} placeholder="Child or parent name" />
+                    <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-card">
+                      {(contacts.data?.items ?? [])
+                        .filter((x) => !startFind.trim() || `${x.student_name} ${x.parent_name}`.toLowerCase().includes(startFind.trim().toLowerCase()))
+                        .map((x) => (
+                          <li key={`${x.student_id}-${x.parent_user_id}`}>
+                            <button type="button"
+                              onClick={() => { setStarting(false); setOpenChild(x.student_id, x.parent_user_id) }}
+                              className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted/60">
+                              <span className="text-[14px] font-semibold">{x.parent_name}{x.relation ? ` (${x.relation})` : ''}</span>
+                              <span className="text-[12.5px] text-muted-foreground">{x.student_name}</span>
+                            </button>
+                          </li>
+                        ))}
+                      {contacts.data && contacts.data.items.length === 0 && (
+                        <li className="px-3 py-3 text-[13px] text-muted-foreground">No parent in this class has a login yet.</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
                 <Input value={find} onChange={setFind} placeholder="Find a parent, child or class" />
                 <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
                   <input
