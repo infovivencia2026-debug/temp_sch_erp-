@@ -188,17 +188,22 @@ export function usePresence(open: boolean, ms = 180): [boolean, boolean] {
     a later re-key of its children does not play the entrance again. */
 export function useStaggerOnce<T extends HTMLElement = HTMLElement>() {
   const ref = useRef<T>(null)
+  const armed = useRef<Element | null>(null)
+  /* No dependency list, on purpose: a list that draws nothing until its
+     query answers has no element on the first effect, so this looks again
+     after each render until there is one, and arms exactly once per element. */
   useEffect(() => {
     const el = ref.current
-    if (!el) return
+    if (!el || armed.current === el) return
+    armed.current = el
     if (motionReduced()) {
       el.setAttribute('data-settled', '')
       return
     }
-    // Twelve steps of the stagger plus one entrance, with slack.
-    const t = window.setTimeout(() => el.setAttribute('data-settled', ''), 12 * 24 + 200 + 120)
-    return () => window.clearTimeout(t)
-  }, [])
+    // Twelve steps of the stagger plus one entrance, with slack. Not cleared
+    // on re-render: the timer belongs to the element, not to the render.
+    window.setTimeout(() => el.setAttribute('data-settled', ''), 12 * 24 + 200 + 120)
+  })
   return ref
 }
 

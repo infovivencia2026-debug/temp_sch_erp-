@@ -207,13 +207,15 @@ html[data-vt='hero']::view-transition-new(root) { animation: m-hero-in var(--mot
    specificity, so a confirmation rises from the bottom edge on the bouncy
    spring the way a phone's snackbar does, and the destructive variant
    shakes once to say no. */
-.toast-glass.toast-confirm { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both; }
+/* `backwards`, not `both`: once the rise has played the toast holds no
+   animated transform, so a swipe (.m-swipe) can move it. */
+.toast-glass.toast-confirm { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) backwards; }
 @keyframes m-toast-up {
   from { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.96); }
   to   { opacity: 1; transform: none; }
 }
-.toast-glass.toast-confirm.toast-square { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both, toast-fade 350ms ease 950ms forwards; }
-.toast-in.border-destructive\/30 { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) both, m-shake 420ms var(--motion-ease) var(--spring-dur) 1; }
+.toast-glass.toast-confirm.toast-square { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) backwards, toast-fade 350ms ease 950ms forwards; }
+.toast-in.border-destructive\/30 { animation: m-toast-up var(--spring-dur) var(--spring-bouncy) backwards, m-shake 420ms var(--motion-ease) var(--spring-dur) 1; }
 @keyframes m-shake {
   0%, 100% { transform: none; }
   20% { transform: translate3d(-6px, 0, 0); }
