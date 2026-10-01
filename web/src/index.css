@@ -239,6 +239,10 @@
     /* A field is a recess, not a card: a hairline of shade inside its top
        edge is what tells the two apart at a glance. */
     --field-inset: inset 0 1px 2px hsl(var(--elev-ink) / 0.05);
+    /* BORDERLESS FIELDS. A text box, a select and a search pill carry no
+       drawn border: a soft shadow and the faintest ring of shade give the
+       edge, so a form reads as calm surfaces rather than a grid of boxes. */
+    --field-shadow: 0 0 0 1px hsl(var(--elev-ink) / 0.07), 0 1px 3px hsl(var(--elev-ink) / 0.08);
     /* The hairline a level-1 surface draws, and the fainter one a level-3
        surface draws -- a sheet has its shadow to say where it ends. */
     --hairline: hsl(var(--border));
@@ -288,7 +292,7 @@
     /* ONE CONTROL HEIGHT. A field was 40px and a button 32px, so a search box,
        a filter and Apply in one toolbar never lined up. Both read this; a
        finger gets the 44px floor. */
-    --control-h: 36px;
+    --control-h: 40px;
     --radius-card: min(calc(11px * var(--radius-k)), 20px);
     --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
     --radius: var(--radius-card);
@@ -392,6 +396,7 @@
     --elev-press: inset 0 1px 2px hsl(0 0% 0% / calc(0.35 * var(--elev-a)));
     --edge-lip: inset 0 1px 0 hsl(0 0% 100% / calc(0.06 * var(--elev-a)));
     --field-inset: inset 0 1px 2px hsl(0 0% 0% / 0.30);
+    --field-shadow: 0 0 0 1px hsl(0 0% 100% / 0.08), 0 1px 3px hsl(0 0% 0% / 0.45);
     /* The hairline fades as a surface rises: at level 1 it is still the
        edge, at level 3 the tonal step and the shadow have taken over. */
     --hairline: hsl(0 0% 100% / calc(0.08 * var(--hairline-a, 1)));
@@ -1082,20 +1087,20 @@
     .stat { font-size: min(28px, 12.5cqi); white-space: nowrap; }
   }
 
-  @media (pointer: coarse) { :root { --control-h: 44px; } }
+  @media (pointer: coarse), (max-width: 639.98px) { :root { --control-h: 44px; } }
   .field {
     height: var(--control-h);
     width: 100%;
     border-radius: var(--radius-input);
     padding-inline: 12px;
     font-size: 14px;
-    border: 1px solid hsl(var(--input));
+    border: 1px solid transparent;
     background: hsl(var(--card));
     color: hsl(var(--foreground));
     /* Inset, not raised. A field and a card were the same white rectangle
        with the same hairline; the shade inside the top edge is what makes
        one read as a place to type and the other as a thing to read. */
-    box-shadow: var(--field-inset);
+    box-shadow: var(--field-shadow);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   /* A BOX DOES NOT ANSWER THE POINTER.
@@ -1110,12 +1115,12 @@
   .field:focus {
     outline: none;
     border-color: hsl(var(--ring));
-    box-shadow: var(--field-inset), var(--ring-halo);
+    box-shadow: var(--field-shadow), var(--ring-halo);
   }
   /* The same recess for an input that is not a .field -- the launcher's
      filter box, a search bar drawn in utilities. */
-  .inset-field { box-shadow: var(--field-inset); }
-  .inset-field:focus { box-shadow: var(--field-inset), var(--ring-halo); }
+  .inset-field { box-shadow: var(--field-shadow); }
+  .inset-field:focus { box-shadow: var(--field-shadow), var(--ring-halo); }
 
   /* A BUTTON IS A KEY: level 1 at rest, on the page it sits on, and pressed
      it sinks to the page. Ghost buttons are text with a hover wash and stay
@@ -1151,7 +1156,7 @@
   /* Disabled reads as disabled, and an invalid box says so in red. */
   .field:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; }
   .field[aria-invalid='true'] { border-color: hsl(var(--destructive)); }
-  .field[aria-invalid='true']:focus { box-shadow: var(--field-inset), 0 0 0 3px hsl(var(--destructive) / 0.18); }
+  .field[aria-invalid='true']:focus { box-shadow: var(--field-shadow), 0 0 0 3px hsl(var(--destructive) / 0.18); }
 
   /* Status as a dot and a word, not a filled pill. A row of saturated
      lozenges competes with the data for attention and reads as decoration;

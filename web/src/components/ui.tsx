@@ -2318,6 +2318,7 @@ export {
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
 import { useOpenState, usePresence } from '@/lib/motion'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /**
  * Print this page.
@@ -2755,8 +2756,8 @@ export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 
 export function tabClass(active: boolean): string {
   return active
-    ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors'
-    : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground'
+    ? '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
+    : '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
 }
 
 /* The pills never shrink or wrap: on a phone the strip scrolls sideways
@@ -2766,8 +2767,8 @@ export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md 
 
 export function segClass(active: boolean): string {
   return active
-    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
-    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
+    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
+    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
 }
 
 /* THE ONE DIALOG.
@@ -2814,8 +2815,12 @@ export function Dialog({
   label?: string
 }) {
   const panel = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
+  /* The phone's Back closes a dialog, like every other overlay; the returned
+     function is what our own close controls call, so the history entry is
+     spent exactly once whichever way it shuts. */
+  const close = useOverlayHistory(open, onClose)
+  const closeRef = useRef(close)
+  closeRef.current = close
 
   useEffect(() => {
     if (!open) return
@@ -2853,7 +2858,7 @@ export function Dialog({
     <div
       data-closing={closing || undefined}
       className={cn('scrim fixed inset-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6', raised ? 'z-[110]' : 'z-[70]')}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
       <div
         ref={panel}
@@ -2863,8 +2868,8 @@ export function Dialog({
         tabIndex={-1}
         className={cn(
           'ui-dialog flex max-h-[92dvh] w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
-          'rounded-t-2xl shadow-[0_-8px_32px_-12px_rgba(15,23,42,0.28)]',
-          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-card,16px)] sm:border sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]',
+          'rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+          'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
           DIALOG_W[size],
         )}
       >
@@ -2878,7 +2883,7 @@ export function Dialog({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
               aria-label="Close"
               className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >

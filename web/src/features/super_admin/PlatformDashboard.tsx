@@ -8,7 +8,6 @@ import {
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
-import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Every campus, side by side.
 
@@ -235,7 +234,6 @@ export default function PlatformDashboard() {
    opening. */
 function CampusDetail({ c, onClose }: { c: CampusCard; onClose: () => void }) {
   // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(true, onClose)
   const billed = c.collected_paise + c.outstanding_paise
   const owedPct = billed > 0 ? Math.round((c.outstanding_paise / billed) * 100) : 0
   const qc = useQueryClient()
