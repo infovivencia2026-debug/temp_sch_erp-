@@ -53,6 +53,7 @@ export default function Students() {
   const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) })
   if (search.trim()) params.set('q', search.trim())
   if (lockedSection || sectionId) params.set('section_id', lockedSection || sectionId)
+  if (staffSide) params.set('mine', 'class_teacher')
 
   const { data, isLoading, error, isPlaceholderData } = useQuery({
     queryKey: ['students', params.toString()],

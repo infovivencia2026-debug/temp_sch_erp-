@@ -284,7 +284,13 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {items.length > 0 && (
         <section>
           <div className="mb-2.5 flex items-center justify-between gap-3">
-            <p className="eyebrow">Needs your attention</p>
+            {/* A heading, not a grey caption: the owner asked for the words
+                "Needs your attention" to read properly. */}
+            <h2 className="flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fef3c7] text-[13px] text-[#b45309]">!</span>
+              Needs your attention
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[12px] font-semibold text-destructive">{items.length}</span>
+            </h2>
             <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive sm:hidden">
               {items.length} pending
             </span>
@@ -407,7 +413,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
        * the thing every role opens this for, so they take the full width and
        * one row: a card each, the figure large, the mark tinted by what it
        * counts. Three across on a desk, one under another in a hand. */}
-      {/* The staff home shows no attention list: the owner found it ugly there. */}
+      {attentionFirst && attentionBlock}
 
       {!attentionFirst && summary.length > 0 && (
         <section>

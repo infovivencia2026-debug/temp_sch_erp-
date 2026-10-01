@@ -234,6 +234,7 @@ export default function StudentProfile() {
     const f: Record<string, string | undefined> = {}
     if (searching) f.q = needle
     if (sectionID) f.section_id = sectionID
+    if (staffSide) f.mine = 'class_teacher'
     else if (classID) f.class_id = classID
     /* The API takes one status. "Left" is four of them — graduated,
        transferred, withdrawn, alumni — so that view is filtered on the
@@ -251,7 +252,7 @@ export default function StudentProfile() {
     // disagree about what "new this year" means.
     if (roll === 'new') f.new_this_year = '1'
     return f
-  }, [searching, needle, sectionID, classID, roll])
+  }, [searching, needle, sectionID, classID, roll, staffSide])
 
   const results = usePagedList<Student>('/api/v1/students', filters, {
     /* Fifty, not five hundred. It is the size of one answer, and the only

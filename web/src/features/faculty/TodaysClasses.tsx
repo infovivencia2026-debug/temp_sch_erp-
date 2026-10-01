@@ -106,7 +106,7 @@ export default function TodaysClasses() {
        with the figures and the two ways onward as buttons. Drawn in the
        ERP's own cards and the school's colour, so it sits with every other
        screen. One column on a phone. */
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-4">
       <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>

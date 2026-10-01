@@ -862,8 +862,9 @@
   table { border-collapse: collapse; }
   :where(table) :where(th, td) {
     border-bottom: 1px solid hsl(var(--border));
-    border-right: 1px solid hsl(var(--border) / 0.55);
   }
+  /* No column rules: the owner did not want vertical lines in tables
+     anywhere -- they stopped short of the card edge and read as a fault. */
   :where(table) :where(th, td):last-child { border-right: 0; }
   :where(table) tr:last-child :where(td) { border-bottom: 0; }
 

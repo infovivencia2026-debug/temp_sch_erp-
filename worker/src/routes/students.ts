@@ -112,11 +112,19 @@ async function listStudents(c: Ctx): Promise<Page<Student>> {
   if (status === '') status = 'active'
   else if (status === 'all') status = ''
   const newThisYear = q.get('new_this_year') === '1'
-  const sectionId = isUUID(q.get('section_id')) ? q.get('section_id') : null
+  /* Any plain id, not only a UUID: a section id in another shape was dropped
+     here in silence and the filter fell away, so a teacher saw every class. */
+  const plainId = (v: string | null) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null)
+  let sectionId = plainId(q.get('section_id'))
   const classId = isUUID(q.get('class_id')) ? q.get('class_id') : null
   const yearId = isUUID(q.get('academic_year_id')) ? q.get('academic_year_id') : null
 
   const scope = await resolveScope(c)
+  /* mine=class_teacher: only the section this person is class teacher of,
+     decided here so the screen cannot widen it. */
+  if (q.get('mine') === 'class_teacher') {
+    sectionId = sectionId && scope.classTeacherOf.includes(sectionId) ? sectionId : (scope.classTeacherOf[0] ?? '00000000-0000-0000-0000-000000000000')
+  }
   const pred = studentPredicate(scope, 'st')
   const fp = await filterFingerprint(status, search, sectionId ?? '', classId ?? '', yearId ?? '', String(newThisYear), pred.sql, pred.args.join(' '))
   const cur = decodeCursor(q.get('cursor') ?? '', fp)
