@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, ArrowRight, BookOpen, Calculator, Check, Clock, FlaskConical, Globe2, Languages, Lock, Monitor, Music, Palette, Play, Sparkles, Star, Trophy,
+  ArrowLeft, ArrowRight, BookOpen, ExternalLink, Share2, Calculator, Check, Clock, FlaskConical, Globe2, Languages, Lock, Monitor, Music, Palette, Play, Sparkles, Star, Trophy,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
@@ -53,7 +53,7 @@ interface Todo {
 export default function StudentCourses() {
   const [params, setParams] = useSearchParams()
   const open = params.get('cs')
-  if (open) return <Course key={open} cs={open} initial={{ day: params.get('day'), item: params.get('item') }} back={() => setParams({})} />
+  if (open) return <Course key={open} cs={open} initial={{ mod: params.get('mod'), day: params.get('day'), item: params.get('item') }} back={() => setParams({})} />
   return <List onOpen={(cs) => setParams({ cs })} />
 }
 
@@ -126,6 +126,9 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
     ...t.lessons.slice(0, 3).map((l) => ({ id: l.id, cs: l.class_subject_id, kind: 'text', chip: <Badge>Up next</Badge>, title: l.title, meta: `${l.subject} · ${l.unit}` })),
   ] : []
   const ready = !!q.data && (!!t || !!todo.error)
+  const shared = useShared()
+  const names = new Set((q.data?.items ?? []).map((c) => c.subject))
+  const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
     <>
       <PageHead eyebrow="Learning" title="My subjects" />
@@ -162,6 +165,12 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                   )
                 })}
               </section>
+            )}
+            {unfiled.length > 0 && (
+              <Card>
+                <h2 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">Shared by your teachers</h2>
+                <SharedRows items={unfiled} />
+              </Card>
             )}
             {rows.length > 0 && (
               <Card>
@@ -220,54 +229,107 @@ function PathDot({ n, state }: { n: number | string; state: 'done' | 'current' |
   )
 }
 
-function Course({ cs, back, initial }: { cs: string; back: () => void; initial: { day: string | null; item: string | null } }) {
+/* What a teacher shared with the child outside any module (worker
+   portal/learning.ts, study_materials): kept so nothing is lost now that the
+   LMS opens on the subjects. Shown inside its subject, or on the subjects
+   page when it names none. */
+interface Shared {
+  id: string; title: string; description?: string; kind: string; subject?: string; external_url?: string; file_id?: string; file_name?: string
+  content_type?: string; uploaded_by?: string; posted_on: string; seen?: boolean
+}
+const SHARED = 'shared'
+const useShared = () => useQuery({ queryKey: ['learning-resources-lms'], queryFn: () => api.get<{ items: Shared[] }>('/api/v1/portal/learning/resources'), retry: false })
+function sharedKind(r: Shared): string {
+  const ct = r.content_type ?? ''
+  if (!r.file_id) return r.kind === 'video' ? 'video' : 'link'
+  if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'video'
+  if (ct.startsWith('audio/')) return 'audio'
+  if (ct === 'application/pdf') return 'pdf'
+  return 'file'
+}
+const sharedHref = (r: Shared) => (r.file_id ? `/api/v1/files/${r.file_id}?inline=1` : r.external_url ?? '#')
+
+/** Shared items as big rows; opening one marks it seen. */
+function SharedRows({ items }: { items: Shared[] }) {
+  const qc = useQueryClient()
+  const seen = (id: string) => { void api.post(`/api/v1/portal/learning/resources/${id}/seen`, {}).catch(() => undefined).then(() => qc.invalidateQueries({ queryKey: ['learning-resources-lms'] })) }
+  return (
+    <ol className="divide-y">
+      {items.map((r) => {
+        const k = sharedKind(r)
+        return (
+          <li key={r.id}>
+            <a href={sharedHref(r)} target="_blank" rel="noreferrer" onClick={() => seen(r.id)}
+              className="flex min-h-[76px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-muted/40">
+              <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full', r.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/[0.08] text-primary')}><KindIcon kind={k} className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold uppercase tracking-wide text-primary">{KID_KIND_LABEL[k] ?? 'Open'}{!r.seen && <Badge tone="primary">New</Badge>}</span>
+                <span className="block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
+                <span className="block text-[14px] text-muted-foreground">{[r.uploaded_by, r.posted_on].filter(Boolean).join(' · ')}</span>
+              </span>
+              <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+            </a>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+interface Where { mod: string | null; day: string | null; item: string | null }
+
+function Course({ cs, back, initial }: { cs: string; back: () => void; initial: Where }) {
   const qc = useQueryClient()
   const key = ['my-course', cs]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<Detail>(`/api/v1/portal/lms/course?class_subject_id=${cs}`) })
-  const [where, setWhere] = useState<{ day: string | null; item: string | null }>(initial)
+  const shared = useShared()
+  const [where, setWhere] = useState<Where>(initial)
   const [, setParams] = useSearchParams()
-  const [expanded, setExpanded] = useState<string | null>(null)
   const [quiz, setQuiz] = useState<string | null>(null)
   const top = useRef<HTMLDivElement>(null)
   const first = useRef(true)
   useEffect(() => {
     if (first.current) { first.current = false; return }
     top.current?.scrollIntoView({ block: 'start' })
-  }, [where.day, where.item, quiz])
+  }, [where.mod, where.day, where.item, quiz])
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['my-courses'] }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }) }
   const d = q.data
   /* Keep the address and the device's "where I left off" on this place. */
   useEffect(() => {
     const p = new URLSearchParams({ cs })
+    if (where.mod) p.set('mod', where.mod)
     if (where.day) p.set('day', where.day)
     if (where.item) p.set('item', where.item)
     setParams(p, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cs, where.day, where.item])
+  }, [cs, where.mod, where.day, where.item])
   useEffect(() => {
     if (!d) return
     const [ty, iid] = (where.item ?? ':').split(':')
     const title = ty === 'lesson' ? d.modules.flatMap((m) => m.days.flatMap((x) => x.items)).find((x) => x.id === iid)?.lesson?.title
       : ty === 'quiz' ? d.quizzes.find((z) => z.id === iid)?.title : ty === 'assignment' ? d.assignments.find((a) => a.id === iid)?.title : undefined
     const dayName = where.day ? d.modules.flatMap((m) => m.days).find((x) => x.key === where.day)?.name : undefined
-    rememberPlace({ cs, day: where.day, item: where.item, subject: d.course.subject, title: title ?? dayName ?? d.resume?.title ?? d.course.subject })
-  }, [cs, d, where.day, where.item])
+    const modName = where.mod ? d.modules.find((m) => m.id === where.mod)?.title : undefined
+    rememberPlace({ cs, day: where.day, item: where.item, subject: d.course.subject, title: title ?? dayName ?? modName ?? d.resume?.title ?? d.course.subject })
+  }, [cs, d, where.mod, where.day, where.item])
   if (quiz) return <div ref={top}><StudentQuiz id={quiz} back={() => { setQuiz(null); refresh() }} /></div>
 
   const modules = d?.modules ?? []
-  const tops = modules.filter((m) => !m.parent_unit_id || !modules.some((x) => x.id === m.parent_unit_id))
-  const number = (m: SModule) => {
-    if (!m.parent_unit_id) return `Part ${tops.indexOf(m) + 1}`
-    const p = modules.find((x) => x.id === m.parent_unit_id)
-    return p ? `Part ${tops.indexOf(p) + 1}.${modules.filter((x) => x.parent_unit_id === p.id).indexOf(m) + 1}` : 'Part'
-  }
+  const byId = new Map(modules.map((m) => [m.id, m]))
+  const tops = modules.filter((m) => !m.parent_unit_id || !byId.has(m.parent_unit_id))
+  const kids = (id: string) => modules.filter((x) => x.parent_unit_id === id)
+  /** A module and everything inside it, in the order taken. */
+  const subtree = (m: SModule, seen = new Set<string>()): SModule[] => (seen.has(m.id) ? [] : (seen.add(m.id), [m, ...kids(m.id).flatMap((k) => subtree(k, seen))]))
+  const parentOf = (m: SModule) => (m.parent_unit_id ? byId.get(m.parent_unit_id) ?? null : null)
   /* The stops, in the order the course is taken. */
   const stops: Stop[] = modules.flatMap((m) => m.days.flatMap((dd) => dd.items.map((it) => ({ m, d: dd, it }))))
   const loose: SItem[] = d ? [
     ...d.assignments.filter((a) => !a.lms_unit_id).map((a) => ({ type: 'assignment' as const, id: a.id, section: 'assessment' as Section, required: false, done: !!a.submitted_at && a.status !== 'resubmit' || a.status === 'graded', pass_percent: null, locked: false })),
     ...d.quizzes.filter((z) => !z.lms_unit_id).map((z) => ({ type: 'quiz' as const, id: z.id, section: 'assessment' as Section, required: false, done: z.attempts > 0, pass_percent: null, locked: false })),
   ] : []
-  const otherModule: SModule = { id: OTHER, title: 'Other work', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'Other work', name: 'Other work', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
+  const otherModule: SModule = { id: OTHER, title: 'More to do', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'More to do', name: 'More to do', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
+  const mySharedItems = (shared.data?.items ?? []).filter((r) => d && r.subject === d.course.subject)
   /* A link that names only the item (the home's Quiz time) may point at work
      that is on no day; it is then found among the other work. */
   const looseStops = loose.map((it) => ({ m: otherModule, d: otherModule.days[0], it }))
@@ -275,38 +337,59 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   const dayStops = where.day === OTHER || inLoose ? looseStops : stops
   const cur = where.day ? (where.day === OTHER ? { m: otherModule, d: otherModule.days[0] } : (() => { for (const m of modules) { const x = m.days.find((y) => y.key === where.day); if (x) return { m, d: x } } return null })()) : null
   const item = where.item ? dayStops.find((s) => `${s.it.type}:${s.it.id}` === where.item) ?? null : null
+  const mod = !item && !cur && where.mod ? (where.mod === SHARED ? SHARED : byId.get(where.mod) ?? null) : null
   const titleOf = (it: SItem) => it.type === 'lesson' ? it.lesson?.title ?? '' : it.type === 'quiz' ? d?.quizzes.find((z) => z.id === it.id)?.title ?? 'Quiz' : d?.assignments.find((a) => a.id === it.id)?.title ?? 'Homework'
   const allDays = modules.flatMap((m) => m.days)
   const daysDone = allDays.filter((x) => x.state === 'done').length
-  const open = (s: Stop) => setWhere({ day: s.d.key, item: `${s.it.type}:${s.it.id}` })
+  const open = (s: Stop) => setWhere({ mod: s.m.id, day: s.d.key, item: `${s.it.type}:${s.it.id}` })
+  const toModule = (id: string | null) => setWhere({ mod: id, day: null, item: null })
+  /* Back from a day (or from a step with no day to go back to): the day's
+     page, or for the part of a module with no day, the module itself. */
+  const toDay = (k: string) => {
+    const hit = stops.find((s) => s.d.key === k)
+    if (hit && hit.d.day === null) toModule(hit.m.id)
+    else setWhere({ mod: hit?.m.id ?? null, day: k, item: null })
+  }
   /* The day the child is on: the resume's, else the first open one not done. */
   const hereDay = d?.resume?.day_key ?? allDays.find((x) => x.state === 'open')?.key ?? null
-  const hereModule = d?.resume ? (modules.find((x) => x.id === d.resume!.unit_id)?.parent_unit_id ?? d.resume.unit_id)
-    : tops.find((m) => [m, ...modules.filter((x) => x.parent_unit_id === m.id)].some((x) => x.days.some((y) => y.key === hereDay)))?.id ?? tops[0]?.id
+  const hereUnit = modules.find((m) => m.days.some((x) => x.key === hereDay)) ?? null
+  const isHere = (m: SModule) => !!hereUnit && subtree(m).includes(hereUnit)
   const look = subjectLook(d?.course.subject ?? '')
+  const firstTodoIn = (m: SModule) => stops.find((s) => subtree(m).includes(s.m) && !s.it.done && canOpen(s.it)) ?? null
+  const crumb = (m: SModule | null): string => (m ? [crumb(parentOf(m)), m.title].filter(Boolean).join(' · ') : '')
+  const eyebrow = item || cur ? `${d?.course.subject ?? ''}${(item ?? cur)!.m.id === OTHER ? ' · More to do' : ` · ${crumb((item ?? cur)!.m)}`}`
+    : mod && mod !== SHARED ? [d?.course.subject, crumb(parentOf(mod))].filter(Boolean).join(' · ') : mod === SHARED ? d?.course.subject ?? '' : 'My subjects'
+  const title = item ? titleOf(item.it) : cur ? (cur.d.day === null ? cur.m.title : cur.d.name) : mod === SHARED ? 'Shared by your teacher' : mod ? mod.title : d?.course.subject ?? 'Subject'
   return (
     <div ref={top} className="scroll-mt-4">
-      <PageHead
-        eyebrow={cur ? `${d?.course.subject ?? ''} · ${cur.m.id === OTHER ? 'Other work' : `${number(cur.m)} · ${cur.m.title}`}` : 'My subjects'}
-        title={item ? titleOf(item.it) : cur ? cur.d.name : d?.course.subject ?? 'Subject'}
-        actions={!item && !cur ? <Button variant="secondary" className="min-h-[48px] text-[16px]" onClick={back}><ArrowLeft className="h-5 w-5" /> All subjects</Button> : undefined}
-      />
+      <PageHead eyebrow={eyebrow} title={title}
+        actions={!item && !cur && !mod ? <Button variant="secondary" className="min-h-[48px] text-[16px]" onClick={back}><ArrowLeft className="h-5 w-5" /> All subjects</Button> : undefined} />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !d ? <CourseSkeleton /> : item ? (
-          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => setWhere({ day: k, item: null })} onQuiz={setQuiz} />
+          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => (k === OTHER ? setWhere({ mod: null, day: OTHER, item: null }) : toDay(k))} onQuiz={setQuiz} />
         ) : cur ? (
           <DayPage d={d} m={cur.m} day={cur.d} titleOf={titleOf} open={(it) => open({ m: cur.m, d: cur.d, it })}
-            next={allDays[allDays.indexOf(cur.d) + 1] ?? null} toDay={(k) => setWhere({ day: k, item: null })} toCourse={() => setWhere({ day: null, item: null })} />
+            next={(() => { const sib = cur.m.days.filter((x) => x.day !== null); return sib[sib.indexOf(cur.d) + 1] ?? null })()}
+            toDay={toDay} toBack={() => toModule(cur.m.id === OTHER ? null : cur.m.id)} backLabel={cur.m.id === OTHER ? 'All parts' : cur.m.title} />
+        ) : mod === SHARED ? (
+          <div className="space-y-4">
+            <Card>{mySharedItems.length ? <SharedRows items={mySharedItems} /> : <p className="px-[var(--card-pad)] py-4 text-[16px] text-muted-foreground">Nothing shared yet.</p>}</Card>
+            <ArrowBar label="Back"><BackBtn onClick={() => toModule(null)} sub="All parts" /><span /></ArrowBar>
+          </div>
+        ) : mod ? (
+          <ModulePage d={d} m={mod} kids={kids(mod.id)} subtree={subtree} here={hereDay} isHere={isHere} titleOf={titleOf}
+            openItem={(it, day) => open({ m: mod, d: day, it })} openDay={(k) => setWhere({ mod: mod.id, day: k, item: null })} openModule={toModule}
+            next={firstTodoIn(mod)} openStop={open} back={() => toModule(parentOf(mod)?.id ?? null)} backLabel={parentOf(mod)?.title ?? 'All parts'} />
         ) : (
           <div className="space-y-5">
             <Card>
               <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
-                <Ring pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={72} stroke={7} hue={look.hue} label={`${daysDone} of ${allDays.length} days done`}>
+                <Ring pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={72} stroke={7} hue={look.hue} label={`${daysDone} of ${allDays.length} parts done`}>
                   <look.Icon className={cn('h-8 w-8', HUE[look.hue].fg)} strokeWidth={1.6} aria-hidden />
                 </Ring>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[18px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} days done` : 'Nothing to do yet'}</p>
-                  {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} days done`} />}
+                  <p className="text-[18px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} done` : 'Nothing to do yet'}</p>
+                  {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
                   {d.course.teacher && <p className="text-[15px] text-muted-foreground">Your teacher: {d.course.teacher}</p>}
                 </div>
               </div>
@@ -320,66 +403,63 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/15"><Play className="h-6 w-6 fill-current" aria-hidden /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[20px] font-bold leading-tight">{r.started ? 'Keep going' : 'Start here'}</span>
-                    <span className="block text-[15px] leading-snug opacity-90 [overflow-wrap:anywhere]">{shortDay(s.d)} · {KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
+                    <span className="block text-[15px] leading-snug opacity-90 [overflow-wrap:anywhere]">{s.d.day === null ? s.m.title : shortDay(s.d)} · {KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
                   </span>
                   <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
                 </Button>
               )
             })() : allDays.length > 0 && daysDone === allDays.length ? (
-              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished every day. Well done!</p></div></Card>
+              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished everything. Well done!</p></div></Card>
             ) : null}
-            {!modules.length && !loose.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
+            {!modules.length && !loose.length && !mySharedItems.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
               <ol className="relative" aria-label="Your path">
                 {tops.map((m, i) => {
-                  const subs = modules.filter((x) => x.parent_unit_id === m.id)
-                  const all = [m, ...subs]
-                  const days = all.flatMap((x) => x.days)
+                  const days = subtree(m).flatMap((x) => x.days)
                   const done = days.filter((x) => x.state === 'done').length
                   const locked = days.length > 0 && days.every((x) => x.state === 'locked')
                   const finished = days.length > 0 && done === days.length
-                  const here = m.id === hereModule && !finished && !locked
-                  const isOpen = (expanded ?? hereModule) === m.id
+                  const here = isHere(m) && !finished && !locked
                   const range = dateRange(m.starts_on, m.ends_on)
-                  const last = i === tops.length - 1 && !loose.length
+                  const last = i === tops.length - 1 && !loose.length && !mySharedItems.length
                   return (
                     <li key={m.id} className="relative flex gap-3 pb-5">
                       {!last && <span aria-hidden className={cn('absolute bottom-0 left-[26px] top-14 w-1 rounded-full', finished ? 'bg-success' : 'bg-border')} />}
                       <PathDot n={i + 1} state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
-                      <div className={cn('card min-w-0 flex-1 overflow-hidden p-0', here && 'ring-2 ring-primary/40')}>
-                        <button type="button" onClick={() => setExpanded(isOpen ? '' : m.id)} aria-expanded={isOpen} className="flex min-h-[64px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left">
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
-                            <span className="block text-[15px] text-muted-foreground">
-                              {locked ? (days[0]?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} day${days.length === 1 ? '' : 's'} done`}{range ? ` · ${range}` : ''}
-                            </span>
+                      <button type="button" onClick={() => toModule(m.id)}
+                        className={cn('card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left', here && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
+                          <span className="block text-[15px] text-muted-foreground">
+                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
                           </span>
-                          <ArrowRight className={cn('h-5 w-5 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} aria-hidden />
-                        </button>
-                        {isOpen && (
-                          <div className="border-t px-[var(--card-pad)] py-3">
-                            {m.description && <p className="pb-3 text-[16px] text-muted-foreground">{m.description}</p>}
-                            <DayBubbles days={m.days} here={hereDay} onOpen={(k) => setWhere({ day: k, item: null })} />
-                            {subs.map((sx) => (
-                              <div key={sx.id} className="mt-3 border-t pt-3">
-                                <p className="pb-2 text-[16px] font-semibold">{sx.title}</p>
-                                <DayBubbles days={sx.days} here={hereDay} onOpen={(k) => setWhere({ day: k, item: null })} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                        </span>
+                        <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
                     </li>
                   )
                 })}
                 {loose.length > 0 && (
-                  <li className="relative flex gap-3">
+                  <li className={cn('relative flex gap-3', mySharedItems.length > 0 && 'pb-5')}>
+                    {mySharedItems.length > 0 && <span aria-hidden className="absolute bottom-0 left-[26px] top-14 w-1 rounded-full bg-border" />}
                     <PathDot n="+" state={loose.every((x) => x.done) ? 'done' : 'open'} />
-                    <button type="button" onClick={() => setWhere({ day: OTHER, item: null })} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
+                    <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
                       <span className="min-w-0 flex-1">
                         <span className="block text-[18px] font-semibold">More to do</span>
                         <span className="block text-[15px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
                       </span>
-                      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                    </button>
+                  </li>
+                )}
+                {mySharedItems.length > 0 && (
+                  <li className="relative flex gap-3">
+                    <span className="relative z-[1] grid h-14 w-14 shrink-0 place-items-center rounded-full border-2 border-primary/40 bg-card text-primary"><Share2 className="h-6 w-6" aria-hidden /></span>
+                    <button type="button" onClick={() => toModule(SHARED)} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[18px] font-semibold">Shared by your teacher</span>
+                        <span className="block text-[15px] text-muted-foreground">{mySharedItems.length} thing{mySharedItems.length === 1 ? '' : 's'}{mySharedItems.some((r) => !r.seen) ? ` · ${mySharedItems.filter((r) => !r.seen).length} new` : ''}</span>
+                      </span>
+                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
                     </button>
                   </li>
                 )}
@@ -388,6 +468,111 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
           </div>
         )}
       </PageBody>
+    </div>
+  )
+}
+
+/** One step of a day or a module, as a big row: a tick when done, its number, what to do and the title. */
+function StepRow({ d, it, n, isNext, titleOf, onOpen }: { d: Detail; it: SItem; n: number; isNext: boolean; titleOf: (it: SItem) => string; onOpen: () => void }) {
+  const k = kindOf(it)
+  const sched = it.type === 'lesson' && it.lesson?.scheduled
+  const blocked = !canOpen(it)
+  return (
+    <button type="button" disabled={blocked} onClick={onOpen}
+      className={cn('flex min-h-[76px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed', isNext && 'bg-primary/[0.05]')}>
+      {it.done ? <DoneCheck done size={40} />
+        : blocked ? <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" aria-hidden /></span>
+          : <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-[17px] font-bold', isNext ? 'border-primary text-primary' : 'border-border text-muted-foreground')}>{n}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-[14px] font-semibold uppercase tracking-wide text-primary">
+          <KindIcon kind={k} className="h-5 w-5 shrink-0" /> {KID_KIND_LABEL[k] ?? 'Open'}
+          {it.type === 'lesson' && it.lesson?.is_optional && <span className="font-normal normal-case tracking-normal text-muted-foreground">· if you like</span>}
+          {it.lesson?.is_new && !it.done && <Badge tone="primary">New</Badge>}
+        </span>
+        <span className={cn('block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]', blocked && 'text-muted-foreground')}>{titleOf(it)}</span>
+        {sched ? <span className="flex items-center gap-1 text-[14px] text-muted-foreground"><Clock className="h-4 w-4" /> Opens {fmtWhen(it.lesson?.publish_at)}</span>
+          : itemMeta(d, it) ? <span className="block text-[14px] text-muted-foreground">{itemMeta(d, it)}</span> : null}
+      </span>
+      {!blocked && <ArrowRight className={cn('h-6 w-6 shrink-0', isNext ? 'text-primary' : 'text-muted-foreground')} aria-hidden />}
+    </button>
+  )
+}
+
+/* One module: its days as bubbles, what sits straight in it as steps, and
+   the modules inside it as cards, with Back and Next at the bottom. */
+function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, openDay, openModule, next, openStop, back, backLabel }: {
+  d: Detail; m: SModule; kids: SModule[]; subtree: (m: SModule) => SModule[]; here: string | null; isHere: (m: SModule) => boolean; titleOf: (it: SItem) => string
+  openItem: (it: SItem, day: SDay) => void; openDay: (k: string) => void; openModule: (id: string) => void; next: Stop | null; openStop: (s: Stop) => void; back: () => void; backLabel: string
+}) {
+  const all = subtree(m).flatMap((x) => x.days)
+  const done = all.filter((x) => x.state === 'done').length
+  const numbered = m.days.filter((x) => x.day !== null)
+  const loose = m.days.find((x) => x.day === null) ?? null
+  const looseItems = loose ? SECTIONS.flatMap((s) => loose.items.filter((i) => i.section === s)) : []
+  const firstLoose = looseItems.find((it) => !it.done && canOpen(it)) ?? null
+  const range = dateRange(m.starts_on, m.ends_on)
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
+          <Ring pct={all.length ? Math.round((100 * done) / all.length) : 0} size={64} stroke={7} hue={all.length && done === all.length ? 'emerald' : 'indigo'} label={`${done} of ${all.length} done`}>
+            {all.length && done === all.length ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : <span className="text-[17px] font-bold">{done}/{all.length}</span>}
+          </Ring>
+          <div className="min-w-0 flex-1">
+            <p className="text-[18px] font-semibold">{all.length && done === all.length ? 'All done here!' : `${done} of ${all.length} done`}</p>
+            {m.description && <p className="text-[15px] text-muted-foreground">{m.description}</p>}
+            {range && <p className="text-[14px] text-muted-foreground">{range}</p>}
+          </div>
+        </div>
+      </Card>
+      {numbered.length > 0 && (
+        <Card>
+          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">Days</h3>
+          <div className="px-[var(--card-pad)] py-3"><DayBubbles days={numbered} here={here} onOpen={openDay} /></div>
+        </Card>
+      )}
+      {loose && looseItems.length > 0 && (
+        <Card>
+          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">{numbered.length ? 'More in this part' : 'Steps'}</h3>
+          {loose.state === 'locked' && <p className="flex items-center gap-2 px-[var(--card-pad)] pt-3 text-[15px] text-muted-foreground"><Lock className="h-4 w-4" /> {loose.reason ?? 'Not open yet'}</p>}
+          <ol className="divide-y">
+            {looseItems.map((it, i) => <li key={`${it.type}:${it.id}`}><StepRow d={d} it={it} n={i + 1} isNext={it === firstLoose} titleOf={titleOf} onOpen={() => openItem(it, loose)} /></li>)}
+          </ol>
+        </Card>
+      )}
+      {kids.length > 0 && (
+        <section aria-label="Inside this part" className="space-y-2">
+          <h3 className="px-1 text-[17px] font-semibold">Inside this part</h3>
+          <ol className="grid gap-3 sm:grid-cols-2">
+            {kids.map((k) => {
+              const days = subtree(k).flatMap((x) => x.days)
+              const kd = days.filter((x) => x.state === 'done').length
+              const locked = days.length > 0 && days.every((x) => x.state === 'locked')
+              const fin = days.length > 0 && kd === days.length
+              return (
+                <li key={k.id}>
+                  <button type="button" onClick={() => openModule(k.id)}
+                    className={cn('card flex min-h-[84px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left', isHere(k) && !fin && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
+                    {locked ? <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" /></span>
+                      : <Ring pct={days.length ? (100 * kd) / days.length : 0} size={48} stroke={5} hue={fin ? 'emerald' : 'indigo'} label={`${kd} of ${days.length} done`}>{fin ? <Check className="h-5 w-5 text-success" strokeWidth={2.5} /> : null}</Ring>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[17px] font-semibold leading-snug [overflow-wrap:anywhere]">{k.title}</span>
+                      <span className="block text-[14px] text-muted-foreground">{locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : fin ? 'All done!' : `${kd} of ${days.length} done`}</span>
+                    </span>
+                    <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+      )}
+      {!all.length && !kids.length && <EmptyState title="Nothing here yet" body="Your teacher has not added anything here yet." />}
+      <ArrowBar label="Back and next">
+        <BackBtn onClick={back} sub={backLabel} />
+        {next ? <NextBtn hot onClick={() => openStop(next)} label={done ? 'Keep going' : 'Start'} sub={titleOf(next.it)} />
+          : <NextBtn hot={!!all.length && done === all.length} onClick={back} label={all.length && done === all.length ? 'All done' : 'Back up'} sub={backLabel} />}
+      </ArrowBar>
     </div>
   )
 }
@@ -428,8 +613,8 @@ function itemMeta(d: Detail, it: SItem): string {
   return [a?.due_on ? `due ${a.due_on}` : '', it.pass_percent ? `get ${it.pass_percent}% to pass` : ''].filter(Boolean).join(' · ')
 }
 
-function DayPage({ d, m, day, titleOf, open, next, toDay, toCourse }: {
-  d: Detail; m: SModule; day: SDay; titleOf: (it: SItem) => string; open: (it: SItem) => void; next: SDay | null; toDay: (k: string) => void; toCourse: () => void
+function DayPage({ d, m, day, titleOf, open, next, toDay, toBack, backLabel }: {
+  d: Detail; m: SModule; day: SDay; titleOf: (it: SItem) => string; open: (it: SItem) => void; next: SDay | null; toDay: (k: string) => void; toBack: () => void; backLabel: string
 }) {
   const bySection = SECTIONS.map((s) => ({ s, items: day.items.filter((i) => i.section === s) })).filter((x) => x.items.length)
   /* Steps are numbered through the whole day, in order. */
@@ -453,42 +638,16 @@ function DayPage({ d, m, day, titleOf, open, next, toDay, toCourse }: {
         <Card key={s}>
           <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">{m.id === OTHER ? 'Homework and quizzes' : KID_SECTION_LABEL[s]}</h3>
           <ol className="divide-y">
-            {items.map((it) => {
-              const k = kindOf(it)
-              const sched = it.type === 'lesson' && it.lesson?.scheduled
-              const blocked = !canOpen(it)
-              const isNext = it === firstTodo
-              return (
-                <li key={`${it.type}:${it.id}`}>
-                  <button type="button" disabled={blocked} onClick={() => open(it)}
-                    className={cn('flex min-h-[76px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed', isNext && 'bg-primary/[0.05]')}>
-                    {it.done ? <DoneCheck done size={40} />
-                      : blocked ? <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" aria-hidden /></span>
-                        : <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-[17px] font-bold', isNext ? 'border-primary text-primary' : 'border-border text-muted-foreground')}>{ordered.indexOf(it) + 1}</span>}
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5 text-[14px] font-semibold uppercase tracking-wide text-primary">
-                        <KindIcon kind={k} className="h-5 w-5 shrink-0" /> {KID_KIND_LABEL[k] ?? 'Open'}
-                        {it.type === 'lesson' && it.lesson?.is_optional && <span className="font-normal normal-case tracking-normal text-muted-foreground">· if you like</span>}
-                        {it.lesson?.is_new && !it.done && <Badge tone="primary">New</Badge>}
-                      </span>
-                      <span className={cn('block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]', blocked && 'text-muted-foreground')}>{titleOf(it)}</span>
-                      {sched ? <span className="flex items-center gap-1 text-[14px] text-muted-foreground"><Clock className="h-4 w-4" /> Opens {fmtWhen(it.lesson?.publish_at)}</span>
-                        : itemMeta(d, it) ? <span className="block text-[14px] text-muted-foreground">{itemMeta(d, it)}</span> : null}
-                    </span>
-                    {!blocked && <ArrowRight className={cn('h-6 w-6 shrink-0', isNext ? 'text-primary' : 'text-muted-foreground')} aria-hidden />}
-                  </button>
-                </li>
-              )
-            })}
+            {items.map((it) => <li key={`${it.type}:${it.id}`}><StepRow d={d} it={it} n={ordered.indexOf(it) + 1} isNext={it === firstTodo} titleOf={titleOf} onOpen={() => open(it)} /></li>)}
           </ol>
         </Card>
       ))}
       {!bySection.length && <EmptyState title="Nothing on this day yet" body="Your teacher has not added anything here yet." />}
       <ArrowBar label="Back and next">
-        <BackBtn onClick={toCourse} sub="All days" />
+        <BackBtn onClick={toBack} sub={backLabel} />
         {firstTodo ? <NextBtn hot onClick={() => open(firstTodo)} label={day.done ? 'Next step' : 'Start'} sub={titleOf(firstTodo)} />
           : next && m.id !== OTHER ? <NextBtn hot={next.state !== 'locked'} locked={next.state === 'locked'} onClick={() => toDay(next.key)} label="Next day" sub={next.state === 'locked' ? (next.reason ?? 'Not open yet') : next.name} />
-            : <NextBtn hot onClick={toCourse} label="All done" sub="Back to the path" />}
+            : <NextBtn hot onClick={toBack} label="All done" sub={backLabel} />}
       </ArrowBar>
     </div>
   )
@@ -564,7 +723,7 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
           <KindIcon kind={k} className="h-5 w-5 shrink-0" /> {KID_KIND_LABEL[k] ?? 'Open'}
         </span>
         <span className="text-[15px] text-muted-foreground">
-          {shortDay(stop.d)} · {stop.m.id === OTHER ? 'More to do' : KID_SECTION_LABEL[it.section]}{inDay.length > 1 ? ` · step ${inDay.indexOf(it) + 1} of ${inDay.length}` : ''}{meta ? ` · ${meta}` : ''}
+          {stop.d.day === null ? stop.m.title : shortDay(stop.d)} · {stop.m.id === OTHER ? 'More to do' : KID_SECTION_LABEL[it.section]}{inDay.length > 1 ? ` · step ${inDay.indexOf(it) + 1} of ${inDay.length}` : ''}{meta ? ` · ${meta}` : ''}
         </span>
         {it.done && <Badge tone="success">Done</Badge>}
         {l?.is_optional && <Badge>If you like</Badge>}

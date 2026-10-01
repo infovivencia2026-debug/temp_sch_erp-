@@ -107,6 +107,33 @@ async function unitInReach(c: Ctx, s: Scope, unitId: string) {
   return u
 }
 
+/* Modules nest: a module, its sub-modules, theirs, and so on, this many levels in all. */
+export const MAX_DEPTH = 4
+
+/** The modules above this one, nearest first (a guard stops a loop in bad data). */
+async function ancestors(c: Ctx, unitId: string): Promise<string[]> {
+  const out: string[] = []
+  let at: string | null = unitId
+  while (at && out.length <= 16) {
+    const row: { parent_unit_id: string | null } | null = await c.db.prepare(`SELECT parent_unit_id FROM syllabus_units WHERE id = ?`).bind(at).first<{ parent_unit_id: string | null }>()
+    at = row?.parent_unit_id ?? null
+    if (at) { if (out.includes(at)) break; out.push(at) }
+  }
+  return out
+}
+
+/** How many levels a module and what is inside it take up (1 for one with no sub-modules). */
+async function subtreeDepth(c: Ctx, unitId: string): Promise<number> {
+  const rows = await c.db.prepare(`SELECT id, parent_unit_id FROM syllabus_units WHERE class_subject_id = (SELECT class_subject_id FROM syllabus_units WHERE id = ?)`).bind(unitId).all<{ id: string; parent_unit_id: string | null }>()
+  const kids = (id: string) => rows.results.filter((r) => r.parent_unit_id === id).map((r) => r.id)
+  const depth = (id: string, seen: Set<string>): number => {
+    if (seen.has(id)) return 0
+    seen.add(id)
+    return 1 + Math.max(0, ...kids(id).map((k) => depth(k, seen)))
+  }
+  return depth(unitId, new Set())
+}
+
 async function assignmentInReach(c: Ctx, s: Scope, id: string) {
   if (!isUUID(id)) throw notFound()
   const h = await c.db.prepare(`SELECT h.id, h.section_id, h.class_subject_id, h.title, h.due_on, h.max_marks, h.rubric, h.kind, h.allow_submission,
@@ -216,13 +243,13 @@ export function registerLMS(r: Router) {
     if (!title) throw badRequest('give the unit a title')
     const starts = isoDate(b.starts_on, 'starts_on'), ends = isoDate(b.ends_on, 'ends_on')
     if (starts && ends && ends < starts) throw badRequest('the module must end on or after the day it starts')
-    /* A sub-module: inside a module of this course, one level deep. */
+    /* A sub-module: inside a module of this course, nested up to MAX_DEPTH levels. */
     let parent: string | null = null
     if (str(b.parent_unit_id)) {
       const pu = await unitInReach(c, s, needUUID(b.parent_unit_id, 'parent_unit_id'))
-      const row = await c.db.prepare(`SELECT parent_unit_id FROM syllabus_units WHERE id = ?`).bind(pu.id).first<{ parent_unit_id: string | null }>()
       if (pu.class_subject_id !== co.class_subject_id) throw badRequest('that module is not part of this course')
-      if (row?.parent_unit_id) throw badRequest('a sub-module cannot have sub-modules of its own')
+      const chain = await ancestors(c, pu.id)
+      if (chain.length + 1 >= MAX_DEPTH) throw badRequest(`modules go ${MAX_DEPTH} levels deep at most`)
       parent = pu.id
     }
     const id = uuid()
@@ -242,6 +269,20 @@ export function registerLMS(r: Router) {
     const dates = b.starts_on !== undefined || b.ends_on !== undefined
     const starts = isoDate(b.starts_on, 'starts_on'), ends = isoDate(b.ends_on, 'ends_on')
     if (starts && ends && ends < starts) throw badRequest('the module must end on or after the day it starts')
+    /* parent_unit_id moves the module (and everything in it) inside another
+       module of the same course, or to the top level with null; never inside itself. */
+    if (b.parent_unit_id !== undefined) {
+      let to: string | null = null
+      if (str(b.parent_unit_id)) {
+        const pu = await unitInReach(c, s, needUUID(b.parent_unit_id, 'parent_unit_id'))
+        if (pu.class_subject_id !== u.class_subject_id) throw badRequest('that module is not part of this course')
+        const chain = await ancestors(c, pu.id)
+        if (pu.id === u.id || chain.includes(u.id)) throw badRequest('a module cannot go inside itself')
+        if (chain.length + 1 + (await subtreeDepth(c, u.id)) > MAX_DEPTH) throw badRequest(`modules go ${MAX_DEPTH} levels deep at most`)
+        to = pu.id
+      }
+      await c.db.prepare(`UPDATE syllabus_units SET parent_unit_id = ? WHERE id = ?`).bind(to, u.id).run()
+    }
     /* is_active true brings an archived module back. */
     await c.db.prepare(`UPDATE syllabus_units SET title = COALESCE(?, title), description = CASE WHEN ? THEN ? ELSE description END,
         starts_on = CASE WHEN ? THEN ? ELSE starts_on END, ends_on = CASE WHEN ? THEN ? ELSE ends_on END,

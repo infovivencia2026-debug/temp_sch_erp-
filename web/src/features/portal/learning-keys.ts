@@ -15,7 +15,11 @@ import { lazy } from 'react'
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const learningKeys = {
   'student.learning.courses_subjects': screen(() => import('../learning/StudentCourses')),
-  'student.learning.e_learning_resource_hub': screen(() => import('../learning/Resources')),
+  /* The LMS is the courses: Subjects > Modules (with modules inside them) >
+     content. Both menu entries open the same screen; what used to be the
+     flat "Shared with you" list (learning/Resources.tsx) now shows inside
+     its subject, or on the subjects page when it names none. */
+  'student.learning.e_learning_resource_hub': screen(() => import('../learning/StudentCourses')),
   'student.learning.peer_tutoring_study_groups': screen(() => import('../learning/StudyGroups')),
   'student.learning.student_portfolio_management': screen(() => import('../learning/Portfolio')),
   'student.learning.global_university_guidance_counselor': lazy(

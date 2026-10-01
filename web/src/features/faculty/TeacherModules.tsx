@@ -111,13 +111,46 @@ export function Modules({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; 
   return <ModuleList d={d} qkey={qkey} onOpen={setOpen} />
 }
 
-/** "Module 3", or "Module 3.2" for a sub-module. */
+/* Modules nest up to this many levels (the worker's MAX_DEPTH). */
+const MAX_DEPTH = 4
+const activeKids = (d: CourseDetail, id: string) => d.units.filter((x) => x.is_active !== false && x.parent_unit_id === id)
+/** 1 for a top-level module, 2 inside it, and so on. */
+function depthOf(d: CourseDetail, u: Unit): number {
+  let n = 1, at = u.parent_unit_id
+  while (at && n < 10) { n++; at = d.units.find((x) => x.id === at)?.parent_unit_id ?? null }
+  return n
+}
+/** The levels a module and everything inside it take up. */
+function heightOf(d: CourseDetail, u: Unit, seen = new Set<string>()): number {
+  if (seen.has(u.id)) return 0
+  seen.add(u.id)
+  return 1 + Math.max(0, ...d.units.filter((x) => x.parent_unit_id === u.id).map((k) => heightOf(d, k, seen)))
+}
+/** "Module 3", or "Module 3.2", "Module 3.2.1" inside it. */
 function moduleNumber(d: CourseDetail, u: Unit): string {
   const tops = d.units.filter((x) => x.is_active !== false && !x.parent_unit_id)
   if (!u.parent_unit_id) return `Module ${tops.indexOf(u) + 1}`
-  const p = tops.find((x) => x.id === u.parent_unit_id)
-  const subs = d.units.filter((x) => x.is_active !== false && x.parent_unit_id === u.parent_unit_id)
-  return p ? `Module ${tops.indexOf(p) + 1}.${subs.indexOf(u) + 1}` : 'Sub-module'
+  const p = d.units.find((x) => x.id === u.parent_unit_id)
+  if (!p || p.is_active === false) return 'Sub-module'
+  return `${moduleNumber(d, p)}.${activeKids(d, p.id).indexOf(u) + 1}`
+}
+/** Swaps two modules in the course's whole order (sub-modules are ordered among their siblings by it). */
+function swapOrder(d: CourseDetail, a: string, b: string): string[] {
+  const ids = d.units.map((x) => x.id)
+  const i = ids.indexOf(a), j = ids.indexOf(b)
+  if (i >= 0 && j >= 0) [ids[i], ids[j]] = [ids[j], ids[i]]
+  return ids
+}
+
+/** A module's sub-modules (and theirs), indented under it. */
+function SubTree({ d, u, onOpen }: { d: CourseDetail; u: Unit; onOpen: (id: string) => void }) {
+  const subs = activeKids(d, u.id)
+  if (!subs.length) return null
+  return (
+    <ol className="space-y-2 border-l-2 border-primary/15 pl-3 sm:ml-6 sm:pl-4">
+      {subs.map((sx) => <li key={sx.id} className="space-y-2"><ModuleCard d={d} u={sx} onOpen={() => onOpen(sx.id)} /><SubTree d={d} u={sx} onOpen={onOpen} /></li>)}
+    </ol>
+  )
 }
 
 /* ─── The list of modules ──────────────────────────────────────────── */
@@ -178,15 +211,10 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
         {ids.map((id, i) => {
           const u = byId.get(id)
           if (!u) return null
-          const subs = active.filter((x) => x.parent_unit_id === u.id)
           return (
             <li key={id} {...drag.props(id)} className="space-y-2 rounded-xl data-[over]:outline data-[over]:outline-2 data-[over]:outline-primary">
               <ModuleCard d={d} u={u} onOpen={() => onOpen(id)} grip={drag.handle(id)} arrows={<Arrows first={i === 0} last={i === ids.length - 1} up={() => drag.up(id)} down={() => drag.down(id)} label={u.title} />} />
-              {subs.length > 0 && (
-                <ol className="space-y-2 border-l-2 border-primary/15 pl-3 sm:ml-6 sm:pl-4">
-                  {subs.map((sx) => <li key={sx.id}><ModuleCard d={d} u={sx} onOpen={() => onOpen(sx.id)} /></li>)}
-                </ol>
-              )}
+              <SubTree d={d} u={u} onOpen={onOpen} />
             </li>
           )
         })}
@@ -255,9 +283,17 @@ function ModuleForm({ d, u, parent, done }: { d: CourseDetail; u?: Unit; parent?
   const [desc, setDesc] = useState(u?.description ?? '')
   const [from, setFrom] = useState(u?.starts_on ?? '')
   const [to, setTo] = useState(u?.ends_on ?? '')
+  const [inside, setInside] = useState(u?.parent_unit_id ?? '')
+  /* Where an existing module can move: the top level, or inside any module
+     that is not itself or inside it, with room for its own levels. */
+  const homes = u ? [{ value: '', label: 'Top level (its own module)' }, ...d.units.filter((x) => {
+    if (x.is_active === false || x.id === u.id) return false
+    for (let at: Unit | undefined = x; at; at = d.units.find((y) => y.id === at!.parent_unit_id)) if (at.id === u.id) return false
+    return depthOf(d, x) + heightOf(d, u) <= MAX_DEPTH
+  }).map((x) => ({ value: x.id, label: `Inside ${moduleNumber(d, x)} · ${x.title}` }))] : []
   const save = useMutation({
     mutationFn: () => {
-      const body = { title, description: desc, starts_on: from || null, ends_on: to || null }
+      const body = { title, description: desc, starts_on: from || null, ends_on: to || null, ...(u && inside !== (u.parent_unit_id ?? '') ? { parent_unit_id: inside || null } : {}) }
       return u ? api.put(`/api/v1/lms/units/${u.id}`, body)
         : api.post('/api/v1/lms/units', { ...body, section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, parent_unit_id: parent?.id })
     },
@@ -270,6 +306,7 @@ function ModuleForm({ d, u, parent, done }: { d: CourseDetail; u?: Unit; parent?
         <Field label="Short description" hint="Optional. One line on what it covers."><Input value={desc} onChange={setDesc} /></Field>
         <Field label="Starts on" hint="Optional."><Input type="date" value={from} onChange={setFrom} /></Field>
         <Field label="Ends on" hint="Optional."><Input type="date" value={to} onChange={setTo} /></Field>
+        {u && <Field label="Where it sits" hint="Move it, with everything in it, inside another module."><Select value={inside} onChange={setInside} options={homes} /></Field>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>{u ? 'Save' : parent ? 'Add sub-module' : 'Add module'}</Button>
@@ -292,10 +329,15 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   const archive = useMutation({ mutationFn: () => api.del(`/api/v1/lms/units/${u.id}`), onSuccess: () => { refresh(); back() } })
   const addDay = useMutation({ mutationFn: () => api.post(`/api/v1/lms/units/${u.id}/days`, {}), onSuccess: refresh })
   const range = dateRange(u.starts_on, u.ends_on)
-  const subs = d.units.filter((x) => x.is_active !== false && x.parent_unit_id === u.id)
+  const subs = activeKids(d, u.id)
   const parent = d.units.find((x) => x.id === u.parent_unit_id)
   const items = itemsOf(d, u)
-  const days = daysOf(d, u, items)
+  /* "Not on a day" is always there: content can go straight in the module, days or not. */
+  const days = (() => { const x = daysOf(d, u, items); return x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
+  const orderSubs = useMutation({
+    mutationFn: (pair: [string, string]) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: swapOrder(d, pair[0], pair[1]) }),
+    onSuccess: refresh,
+  })
   const numbered = days.filter((x) => x.day !== null).map((x) => x.day as number)
   const orderDays = useMutation({ mutationFn: (next: number[]) => api.post(`/api/v1/lms/units/${u.id}/days/order`, { days: next }), onSuccess: refresh })
   const moveDay = (day: number, by: number) => {
@@ -317,7 +359,7 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => setEditing('module')}><Pencil className="h-4 w-4" /> Edit</Button>
-              {!u.parent_unit_id && <Button variant="secondary" onClick={() => setEditing('sub')}><Plus className="h-4 w-4" /> Sub-module</Button>}
+              {depthOf(d, u) < MAX_DEPTH && <Button variant="secondary" onClick={() => setEditing('sub')}><Plus className="h-4 w-4" /> Sub-module</Button>}
               <Button variant="secondary" pending={archive.isPending} onClick={() => { if (window.confirm(`Archive "${u.title}"? The class stops seeing it. You can restore it from the list of modules.`)) archive.mutate() }}><Archive className="h-4 w-4" /> Archive</Button>
             </div>
           </div>
@@ -327,8 +369,10 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       </Card>
       {subs.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's days</p>
-          {subs.map((sx) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)} />)}
+          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's own content</p>
+          {subs.map((sx, i) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)}
+            arrows={subs.length > 1 ? <Arrows first={i === 0} last={i === subs.length - 1} up={() => orderSubs.mutate([sx.id, subs[i - 1].id])} down={() => orderSubs.mutate([sx.id, subs[i + 1].id])} label={sx.title} /> : undefined} />)}
+          <FormNotice error={orderSubs.error} />
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">

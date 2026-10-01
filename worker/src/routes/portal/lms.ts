@@ -200,7 +200,7 @@ export function registerPortalLMS(r: Router) {
     const itemOut = (i: PItem, state: string) => ({ type: i.type, id: i.id, section: i.section, required: i.required, done: satisfied(i, prog),
       pass_percent: i.pass_percent, locked: state === 'locked',
       ...(i.type === 'lesson' ? { lesson: lessonRows.get(i.id) ?? null } : {}) })
-    const modules = st.units.map((u) => {
+    let modules = st.units.map((u) => {
       const idx = st.steps.map((x, i) => (x.unit_id === u.id ? i : -1)).filter((i) => i >= 0)
       const days = idx.map((i) => {
         const x = st.steps[i], ss = states[i]
@@ -210,7 +210,15 @@ export function registerPortalLMS(r: Router) {
       const done = days.filter((d) => d.state === 'done').length
       return { id: u.id, title: u.title, description: u.description, starts_on: u.starts_on, ends_on: u.ends_on, parent_unit_id: u.parent_unit_id,
         state: !days.length ? 'empty' : done === days.length ? 'done' : days[0].state === 'locked' ? 'locked' : 'open', days_done: done, days: days }
-    }).filter((m) => m.days.length > 0 || st.units.some((x) => x.parent_unit_id === m.id))
+    })
+    /* A module is shown when it, or a module somewhere inside it, has something on it. */
+    const hasDays = new Map(modules.map((m) => [m.id, m.days.length > 0]))
+    const shown = (id: string, seen = new Set<string>()): boolean => {
+      if (seen.has(id)) return false
+      seen.add(id)
+      return !!hasDays.get(id) || st.units.some((x) => x.parent_unit_id === id && shown(x.id, seen))
+    }
+    modules = modules.filter((m) => shown(m.id))
     /* Continue: the open source opened last and not done, else the first open one not done. */
     const flat = modules.flatMap((m) => m.days.flatMap((d) => d.items.map((it) => ({ m, d, it }))))
     const todoItems = flat.filter((x) => !x.it.locked && !x.it.done && !(x.it.lesson && (x.it.lesson as { scheduled?: boolean }).scheduled))

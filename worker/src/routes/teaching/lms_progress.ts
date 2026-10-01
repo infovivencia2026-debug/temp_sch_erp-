@@ -6,7 +6,7 @@ import { js, marks } from './common'
 
    A course (one subject in one section) is a line of steps: each module in
    order, its own days first (Day 1, Day 2, ...; sources with no day come
-   last, as one more step), then its sub-modules the same way. A step is done
+   last, as one more step), then its sub-modules the same way, at any depth. A step is done
    when every required source on it is done and every assessment on it is
    handed in, or passed when the teacher set a pass mark. In a "sequential"
    course (the default) a step opens when the one before it is done, or when a
@@ -68,9 +68,17 @@ export async function loadStructure(c: Ctx, sectionId: string, csId: string, stu
   ])
   const gating = (set.results[0] as { gating?: string } | undefined)?.gating === 'open' ? 'open' : 'sequential'
   const all = units.results as PUnit[]
-  /* Top-level modules in order, each followed by its sub-modules; a sub-module of an archived module is hidden with it. */
+  /* Modules in the order they are taken: each module, then what is inside
+     it (depth first, at any depth). A sub-module of an archived module is
+     hidden with it, since the walk starts from the top and passes only
+     through active modules. */
   const ordered: PUnit[] = []
-  for (const u of all.filter((x) => !x.parent_unit_id)) ordered.push(u, ...all.filter((x) => x.parent_unit_id === u.id))
+  const walk = (u: PUnit) => {
+    if (ordered.includes(u)) return
+    ordered.push(u)
+    for (const k of all.filter((x) => x.parent_unit_id === u.id)) walk(k)
+  }
+  for (const u of all.filter((x) => !x.parent_unit_id)) walk(u)
   const t = now()
   const items: PItem[] = []
   for (const l of lessons.results as { id: string; unit_id: string; day: number | null; section: string | null; sequence: number; is_optional: number; is_published: number; publish_at: string | null }[]) {

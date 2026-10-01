@@ -60,7 +60,7 @@ describe('one by one', () => {
     hw = (await api('teacher', 'POST', '/lms/assignments', { ...CO, title: 'Day 3 sheet', unit_id: A, day: 3, pass_percent: 70, max_marks: 10 })).body.id
     expect((await api('teacher', 'POST', '/lms/assignments', { ...CO, title: 'bad', unit_id: A, day: 3, pass_percent: 150 })).status).toBe(400)
     A1 = (await api('teacher', 'POST', '/lms/units', { ...CO, title: 'Fraction puzzles', parent_unit_id: A })).body.id
-    expect((await api('teacher', 'POST', '/lms/units', { ...CO, title: 'Too deep', parent_unit_id: A1 })).status).toBe(400)
+    // Deeper nesting is covered in lms_nesting.test.ts.
     await add('a1', { title: 'Puzzle one', day: 1 }, A1)
     B = (await api('teacher', 'POST', '/lms/units', { ...CO, title: 'Decimals' })).body.id
     await add('b1', { title: 'Tenths', day: 1 }, B)
