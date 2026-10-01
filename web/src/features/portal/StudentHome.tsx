@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
+import { ArrowRight, Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { ErrorState } from '@/components/ui'
@@ -171,14 +171,14 @@ export default function StudentHome() {
 
         {/* Continue learning. */}
         {cont ? (
-          <Link to={cont.href} className="flex min-h-[72px] items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-sm transition active:scale-[.99]">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-6 w-6" strokeWidth={1.75} /></span>
+          <Link to={cont.href} className="flex min-h-[84px] items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-sm transition active:scale-[.99]">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-7 w-7" strokeWidth={1.75} /></span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12px] font-semibold uppercase tracking-wide opacity-80">Continue learning</span>
-              <span className="block truncate text-[16px] font-semibold">{cont.title}</span>
-              <span className="block truncate text-[13px] opacity-85">{cont.sub}{totalLessons ? ` · ${doneLessons}/${totalLessons} done` : ''}</span>
+              <span className="block text-[20px] font-bold leading-tight">Keep learning</span>
+              <span className="block truncate text-[16px] font-medium opacity-95">{cont.title}</span>
+              <span className="block truncate text-[14px] opacity-85">{cont.sub}{totalLessons ? ` · ${doneLessons}/${totalLessons} done` : ''}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0" />
+            <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
           </Link>
         ) : todo.isLoading ? <Bone className="h-[72px] w-full rounded-2xl" /> : null}
 
