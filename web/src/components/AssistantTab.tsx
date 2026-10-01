@@ -789,8 +789,11 @@ export function AssistantTab() {
           every screen (it covered Export on Results, a calendar day, the ID
           card's last row). The scroller gets a clear strip at its foot the
           height of the orb and its margin, so the last thing on any page can
-          scroll out from under it. Wider screens have side gutters for it. */}
-      {!open && <style>{'@media (max-width:767px){main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
+          scroll out from under it. Wider screens have side gutters for it.
+          The bento layout's reserve already counts the orb (bento-theme.css,
+          --dock-reserve), so adding the strip there too left a band of empty
+          page under every screen; it applies to the plain layout only. */}
+      {!open && <style>{'@media (max-width:767px){html:not([data-layout=bento]) main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
       <button data-assistant-orb=""
         type="button"
         onClick={() => setOpen((v) => !v)}
