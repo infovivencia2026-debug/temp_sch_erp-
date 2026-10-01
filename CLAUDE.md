@@ -23,3 +23,37 @@ The live Pages project `school-erp` builds from `main` -- do not deploy to it by
 
 Another session may be editing the same checkout. Commit only your own hunks;
 never `git add -A`, `git stash`, `reset --hard` or switch branches there.
+
+## UI rules (owner's decisions; follow them in every screen)
+
+Reference: `docs/ui-elements.md` (every element and its status), `docs/motion-kit.md`,
+`web/src/styles/color-system.css`, `web/src/styles/page-foot.css`. The Elements
+gallery (`?elements=1`) is the living checklist: add every new variant to it.
+
+- **Shared components only.** Button, Input, Textarea, PickerMenu, Badge, Dialog,
+  Card, Stat, Table, EmptyState and the shared tab styles from `components/ui.tsx`.
+  No hand-rolled buttons, inputs, pills, selects or dialogs.
+- **Sizes.** Controls 40px on desktop, 44px on phones. Phone gutters 16px. No
+  horizontal page scroll. Long text truncates with an ellipsis or wraps on purpose.
+- **Fields.** No borders on inputs or search boxes: the soft `--field-shadow`.
+  Text areas grow with their content.
+- **Colour.** Tokens only. Solid system colours (`--sys-*`) where they mean
+  something: one primary action per screen, destructive, status, switches,
+  the active tab, a workspace's accent. Everything else neutral. The school's
+  brand colour wins where set. Works in dark and in every palette.
+- **Icons.** Minimal line icons; no glassy or solid-colour icon tiles. App icons
+  use the All features disc, with a one-word label. No two icons alike in a dock.
+- **Search highlights.** Slightly bolder only: no underline, no box.
+- **Bottom space.** Reserved once, from `--page-foot`. Never add a page's own
+  bottom padding for the dock, tab bar or assistant.
+- **Motion.** From the kit only; transform and opacity; never cut off part-way;
+  entrances once per mount, not on refetch; instant under reduced motion.
+- **Haptics.** `buzz()` only at decisions (long-press, drop, page landing, sheet
+  commit, destructive confirm, Saved). Never on plain taps.
+- **Saving.** Show the result at once with `lib/optimistic.ts` for low-risk
+  actions, with rollback and Retry. Money, logins, publishing and admissions
+  wait for the server.
+- **White label.** Nothing school-specific in the source. "XULO" only where the
+  vendor is meant.
+- **Phone first.** Check 360 and 390 wide, light and dark, before calling a
+  screen done.
