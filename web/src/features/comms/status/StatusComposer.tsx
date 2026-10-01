@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, Image as ImageIcon, Type, Video } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -90,6 +91,9 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
   const [preview, setPreview] = useState('')
   const [duration, setDuration] = useState(0)
   const [caption, setCaption] = useState('')
+  // The status text grows with its lines, from five to twelve, then scrolls (lib/auto-grow).
+  const captionBox = useRef<HTMLTextAreaElement>(null)
+  useAutoGrow(captionBox, { minRows: 5, maxRows: 12 }, caption)
   const [choice, setChoice] = useState<Choice>('')
   const [problem, setProblem] = useState('')
   const [done, setDone] = useState('')
@@ -175,6 +179,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
           {text ? (
             <div className="grid place-items-center overflow-hidden rounded-md bg-primary p-5 text-primary-foreground" style={{ aspectRatio: '9 / 16', maxHeight: '46vh' }}>
               <textarea
+                ref={captionBox}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value.slice(0, 700))}
                 rows={5}

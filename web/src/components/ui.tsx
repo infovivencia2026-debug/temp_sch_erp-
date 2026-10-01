@@ -8,6 +8,7 @@ import {
   type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
+import { useAutoGrow } from '@/lib/auto-grow'
 import {
   CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
   Maximize2, Printer, RefreshCw, X,
@@ -2104,15 +2105,21 @@ export function Textarea({
   onChange,
   placeholder,
   rows = 3,
+  maxRows = 10,
   className,
   onSubmit,
   autoFocus,
+  'aria-label': ariaLabel,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
+  /** Where it starts: the box grows from here as the lines come. */
   rows?: number
+  /** Where it stops growing and scrolls inside instead. */
+  maxRows?: number
   className?: string
+  'aria-label'?: string
   /* Enter sends, Shift+Enter starts a line.
 
      A message box where Enter makes a new line is a message box people type
@@ -2122,9 +2129,16 @@ export function Textarea({
   onSubmit?: () => void
   autoFocus?: boolean
 }) {
+  /* GROWS AS THE LINES COME: see lib/auto-grow. `rows` is the floor,
+     `maxRows` the ceiling, and the value is passed so a change from outside
+     (a reset, a restored draft) re-measures too. */
+  const box = useRef<HTMLTextAreaElement>(null)
+  useAutoGrow(box, { minRows: rows, maxRows }, value)
   return (
     <textarea
+      ref={box}
       value={value}
+      aria-label={ariaLabel}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={
         onSubmit
@@ -2144,10 +2158,11 @@ export function Textarea({
       autoFocus={autoFocus}
       // 16px on touch for the same reason as Input: below that iOS zooms in
       // on focus and stays zoomed.
-      className={cn('field h-auto resize-y py-2 leading-relaxed [@media(pointer:coarse)]:text-[16px]', className)}
+      className={cn('field h-auto resize-none py-2 leading-relaxed [@media(pointer:coarse)]:text-[16px]', className)}
     />
   )
 }
+export { useAutoGrow, fitTextarea } from '@/lib/auto-grow'
 
 /**
  * A labelled control.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { createPortal } from 'react-dom'
 import { Sparkles, RefreshCw, X } from 'lucide-react'
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, Textarea } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import { useAnchoredPosition } from '@/components/anchored'
 import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lang } from './aiApi'
@@ -99,8 +99,8 @@ export default function WriteWithAI({
             </label>
           </div>
           <label className="mt-2 block text-xs text-muted-foreground">Points to cover (optional)
-            <textarea className="mt-1 w-full rounded-md border bg-background p-2 text-sm" rows={2} value={notes}
-              onChange={(e) => setNotes(e.target.value)} placeholder="e.g. improved in reading, needs to practise tables" />
+            <Textarea className="mt-1 text-sm" rows={2} maxRows={6} value={notes}
+              onChange={setNotes} placeholder="e.g. improved in reading, needs to practise tables" />
           </label>
           <div className="mt-2 flex gap-2">
             <Button size="sm" onClick={generate} pending={busy}>

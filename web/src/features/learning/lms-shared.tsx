@@ -1,5 +1,6 @@
 import { ProgressRing as SharedRing } from '../../components/ProgressRing'
 import { Fragment, useRef, useState, type ReactNode } from 'react'
+import { useAutoGrow } from '@/lib/auto-grow'
 import {
   BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
 } from 'lucide-react'
@@ -253,6 +254,8 @@ export function NotesView({ text }: { text: string }) {
 /** A text box with a small toolbar that writes the marks NotesView reads. */
 export function NotesEditor({ value, onChange, rows = 10 }: { value: string; onChange: (v: string) => void; rows?: number }) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  // Grows with the notes from `rows` to a screen's worth, then scrolls (lib/auto-grow).
+  useAutoGrow(ref, { minRows: rows, maxRows: 24 }, value)
   const [preview, setPreview] = useState(false)
   const wrap = (before: string, after = before, placeholder = 'text') => {
     const el = ref.current
@@ -284,7 +287,7 @@ export function NotesEditor({ value, onChange, rows = 10 }: { value: string; onC
       </div>
       {preview ? <div className="min-h-[10rem] p-3">{value.trim() ? <NotesView text={value} /> : <p className="text-muted-foreground">Nothing written yet.</p>}</div> : (
         <textarea ref={ref} value={value} rows={rows} onChange={(e) => onChange(e.target.value)} aria-label="Notes"
-          className="block w-full resize-y border-0 bg-transparent p-3 text-[14px] leading-relaxed outline-none [@media(pointer:coarse)]:text-[16px]"
+          className="block w-full resize-none border-0 bg-transparent p-3 text-[14px] leading-relaxed outline-none [@media(pointer:coarse)]:text-[16px]"
           placeholder="Write the notes. Select words and press B to make them bold." />
       )}
     </div>

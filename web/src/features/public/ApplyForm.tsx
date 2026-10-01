@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useAutoGrow } from '@/lib/auto-grow'
 import { PickerMenu } from '@/components/PickerMenu'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -215,7 +216,7 @@ function FieldInput({
   }
   switch (field.field_type) {
     case 'textarea':
-      return <textarea {...common} rows={3} />
+      return <GrowingTextarea {...common} rows={3} />
     case 'select':
       return (
         <PickerMenu
@@ -277,4 +278,11 @@ const input: React.CSSProperties = {
 const button: React.CSSProperties = {
   marginTop: 26, width: '100%', padding: '14px 16px', fontSize: 16, fontWeight: 600,
   color: '#fff', background: '#111', border: 0, borderRadius: 3, cursor: 'pointer',
+}
+
+/** The form's own textarea, growing from three lines to ten (lib/auto-grow). */
+function GrowingTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useAutoGrow(ref, { minRows: props.rows ?? 3, maxRows: 10 }, typeof props.value === 'string' ? props.value : undefined)
+  return <textarea ref={ref} {...props} style={{ ...props.style, resize: 'none' }} />
 }

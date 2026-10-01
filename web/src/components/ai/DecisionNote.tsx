@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MessageSquareText } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, Textarea } from '@/components/ui'
 import { useAnchoredPosition } from '@/components/anchored'
 import WriteWithAI from './WriteWithAI'
 import type { DraftContext, DraftKind } from './aiApi'
@@ -58,7 +58,7 @@ export default function DecisionNote({ kind, context, onDecide, pending, approve
               </label>
             ))}
           </div>
-          <textarea className="w-full rounded-md border bg-background p-2 text-sm" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
+          <Textarea className="text-sm" rows={3} maxRows={8} value={note} onChange={setNote}
             placeholder="A note to go with the decision" />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <WriteWithAI kind={kind} context={{ ...context, decision }} current={note} onInsert={setNote} defaultLength="short" defaultTone="formal" />
