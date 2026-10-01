@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { NavLink } from 'react-router-dom'
-import { Clock } from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath } from '@/lib/catalog'
-import { PageHead, Loading, ErrorState, EmptyState } from '@/components/ui'
+import { Loading, ErrorState, EmptyState } from '@/components/ui'
+import { useSession } from '@/lib/session'
+import type { List, Section } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 /* A teacher's own day, from their own timetable.
@@ -44,6 +45,11 @@ export default function TodaysClasses() {
     queryKey: ['periods'],
     queryFn: () => api.call('GET /timetable/periods'),
   })
+  const session = useSession()
+  const sections = useQuery({
+    queryKey: ['academics', 'sections'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
+  })
   const entries = useQuery({
     queryKey: ['timetable', 'me'],
     queryFn: () => api.call('GET /timetable/entries', { query: { teacher_id: 'me' } }),
@@ -73,102 +79,129 @@ export default function TodaysClasses() {
   const timetableHref = featurePath(role, 'my_classes', 'my_timetable')
   const workHref = featurePath(role, 'home', 'my_work')
 
+  /* THE OWNER'S LAYOUT: a greeting with today's date, the lesson in session
+     (or the next one) as a card on the left, the day's lessons on the right
+     -- done, now, upcoming -- and three figures underneath. */
+  const hour = new Date().getHours()
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const first = (session.user?.full_name ?? '').split(/\s+/)[0]
+  const dateBadge = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
+  const ownSections = [...new Set((entries.data?.items ?? []).map((e) => e.section_id).filter(Boolean))]
+  const todaysSections = new Set(mine.map((e) => e.section_id))
+  const students = (sections.data?.items ?? [])
+    .filter((x) => ownSections.includes(x.id))
+    .reduce((n, x) => n + (x.enrolled ?? 0), 0)
+  const done = mine.filter((e) => { const p = bell.get(e.period_id); return p && minutesInto(p.ends_at) <= nowMin }).length
+  const upcoming = mine.filter((e) => { const p = bell.get(e.period_id); return p && minutesInto(p.starts_at) > nowMin }).length
+  const focus = current ?? next
+  const focusP = focus ? bell.get(focus.period_id) : undefined
+  const after = focus ? mine[mine.indexOf(focus) + 1] : undefined
+  const afterP = after ? bell.get(after.period_id) : undefined
+  const span = (p?: { starts_at: string; ends_at: string }) => p ? `${p.starts_at.slice(0, 5)} – ${p.ends_at.slice(0, 5)}` : ''
+
   return (
-    <div className="mx-auto max-w-5xl px-6 pb-16 pt-8 sm:px-10">
-      <PageHead
-        eyebrow="My classes"
-        title="Today"
-        description={
-          mine.length === 0
-            ? 'Nothing is timetabled for you today.'
-            : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} on your timetable today.`
-        }
-      />
+    <div className="mx-auto flex max-w-[980px] flex-col gap-7 px-4 pb-16 pt-8 sm:px-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[26px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
+          <p className="mt-1 text-[14px] text-muted-foreground">
+            {mine.length === 0 ? 'Nothing is timetabled for you today.' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} on your timetable today.`}
+          </p>
+        </div>
+        <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground shadow-sm">{dateBadge}</span>
+      </header>
 
       {mine.length === 0 ? (
-        /* Says which day it is looking at. An empty day and a day the timetable
-           does not cover are different problems, and a teacher can only tell
-           them apart if the screen says which one it means. */
-        <div className="mt-6">
-          <EmptyState
-            title="No lessons timetabled today"
-            body={
-              weekday >= 6
-                ? 'Today is the weekend. Your full week is on the timetable.'
-                : 'If that is wrong, the timetable for your subjects may not be published yet, the timetable below shows your whole week.'
-            }
-          />
-        </div>
+        <EmptyState
+          title="No lessons timetabled today"
+          body={weekday >= 6
+            ? 'Today is the weekend. Your full week is on the timetable.'
+            : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
+        />
       ) : (
-        <>
-          {(current || next) && (
-            <div className="mt-6 rounded-[14px] border bg-card p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {current ? 'In progress' : 'Next'}
-              </p>
-              {(() => {
-                const e = current ?? next!
-                const p = bell.get(e.period_id)
-                return (
-                  <>
-                    <p className="mt-1 text-[22px] font-semibold leading-tight">
-                      {e.subject_name} · {e.class_name} {e.section_name}
-                    </p>
-                    <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                      <Clock className="size-3.5" aria-hidden="true" />
-                      {/* The line may wrap between its parts; the clock
-                          reading may not break inside itself. */}
-                      {p ? (
-                        <>
-                          {p.name} ·{' '}
-                          <span className="num">{p.starts_at}–{p.ends_at}</span>
-                        </>
-                      ) : (
-                        e.period_name
-                      )}
-                      {e.room ? ` · ${e.room}` : ''}
-                    </p>
-                  </>
-                )
-              })()}
+        <section className="grid items-stretch gap-5 md:grid-cols-[320px_1fr]">
+          <aside className="flex flex-col justify-between rounded-[20px] border bg-card px-6 py-7 shadow-sm">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              {current ? 'Now in session' : next ? 'Up next' : 'Day complete'}
+            </span>
+            <div className="my-8">
+              {focus ? (
+                <>
+                  <h2 className="text-[24px] font-bold leading-tight tracking-[-0.02em]">
+                    {focus.subject_name}<br />{focus.class_name} {focus.section_name}
+                  </h2>
+                  <p className="mt-2 text-[14px] text-muted-foreground">
+                    {focusP?.name ?? focus.period_name}{focusP ? ` · ${span(focusP)}` : ''}
+                  </p>
+                </>
+              ) : (
+                <h2 className="text-[22px] font-bold leading-tight">All {mine.length} lessons done</h2>
+              )}
             </div>
-          )}
+            <div className="flex items-center justify-between gap-3 border-t pt-4">
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground/80">Room</span>
+                <strong className="mt-0.5 block text-[15px] font-semibold">{focus?.room || '-'}</strong>
+              </div>
+              <div className="text-right">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground/80">Next up</span>
+                <strong className="mt-0.5 block text-[15px] font-semibold">
+                  {after ? `${after.class_name} ${after.section_name}${afterP ? ` (${afterP.starts_at.slice(0, 5)})` : ''}` : '-'}
+                </strong>
+              </div>
+            </div>
+          </aside>
 
-          <ol className="mt-6 divide-y overflow-hidden rounded-[14px] border bg-card">
-            {mine.map((e) => {
-              const p = bell.get(e.period_id)
-              const isNow = current?.id === e.id
-              return (
-                <li
-                  key={e.id}
-                  className={cn('flex items-center gap-4 px-5 py-3', isNow && 'bg-primary-soft')}
-                >
-                  {/* A period is one time, not two lines: overflow-wrap
-                      breaks "09:00–09:45" at the dash once the column is
-                      tight, and a clock reading is not a word. */}
-                  <span className="w-24 shrink-0 whitespace-nowrap text-[12px] tabular-nums text-muted-foreground">
-                    {p ? `${p.starts_at}–${p.ends_at}` : e.period_name}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-medium">{e.subject_name}</span>
-                    <span className="block truncate text-[12px] text-muted-foreground">
-                      {e.class_name} {e.section_name}
-                      {e.room ? ` · ${e.room}` : ''}
+          <section className="flex flex-col rounded-[20px] border bg-card px-5 py-6 shadow-sm sm:px-7">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[14px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Today's classes</h3>
+              <span className="text-[13px] text-muted-foreground/80">{mine.length} {mine.length === 1 ? 'period' : 'periods'} total</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {mine.map((e) => {
+                const p = bell.get(e.period_id)
+                const isNow = current?.id === e.id
+                const isDone = !!p && minutesInto(p.ends_at) <= nowMin
+                return (
+                  <div key={e.id}
+                    className={cn('flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 transition-colors',
+                      isNow ? 'border-primary/30 bg-primary/10' : 'border-border/60 bg-muted/30 hover:bg-muted/60')}>
+                    <div className="flex min-w-0 items-center gap-5">
+                      <span className={cn('min-w-[95px] whitespace-nowrap text-[13px] font-semibold tabular-nums', isNow ? 'text-primary' : 'text-muted-foreground')}>
+                        {p ? span(p) : e.period_name}
+                      </span>
+                      <div className="min-w-0">
+                        <h4 className="truncate text-[14.5px] font-semibold">{e.subject_name} · {e.class_name} {e.section_name}</h4>
+                        <p className="truncate text-[12.5px] text-muted-foreground">{p?.name ?? e.period_name}{e.room ? ` • ${e.room}` : ''}</p>
+                      </div>
+                    </div>
+                    <span className={cn('shrink-0 text-[11.5px]', isNow ? 'font-semibold text-primary' : 'font-medium text-muted-foreground/80')}>
+                      {isNow ? 'Active now' : isDone ? 'Completed' : 'Upcoming'}
                     </span>
-                  </span>
-                  {isNow && (
-                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[12px] font-medium text-primary">
-                      Now
-                    </span>
-                  )}
-                </li>
-              )
-            })}
-          </ol>
-        </>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        </section>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-4 text-[13px]">
+      <footer className="grid gap-4 sm:grid-cols-3">
+        {[
+          ['Classes today', String(mine.length), `Across ${todaysSections.size} ${todaysSections.size === 1 ? 'section' : 'sections'}`],
+          ['Total students', String(students), 'Enrolled in your sections'],
+          ['Daily progress', `${done} / ${mine.length}`, `${current ? 1 : 0} ongoing, ${upcoming} upcoming`],
+        ].map(([t, v, sub]) => (
+          <div key={t} className="rounded-xl border bg-card px-5 py-4 shadow-sm">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{t}</div>
+            <div className="mb-0.5 mt-1 text-[24px] font-bold tracking-[-0.02em]">{v}</div>
+            <div className="text-[12.5px] text-muted-foreground">{sub}</div>
+          </div>
+        ))}
+      </footer>
+
+      <div className="flex flex-wrap gap-4 text-[13px]">
         <NavLink className="underline" to={timetableHref}>My timetable</NavLink>
         <NavLink className="underline" to={workHref}>What is outstanding on me</NavLink>
       </div>

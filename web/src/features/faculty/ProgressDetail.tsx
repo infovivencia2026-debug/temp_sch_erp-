@@ -90,12 +90,6 @@ export default function ProgressDetail({ row, onClose }: { row: Row; onClose: ()
           <Stat label="Remarks" value={`+${row.commendations} / −${row.notes_of_concern}`} small="Praise / concern" />
         </div>
 
-        {row.risks.length > 0 && (
-          <div className="rounded-xl border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-[13.5px] text-[#b91c1c]">
-            <b>Needs attention:</b> {row.risks.join(' · ')}
-          </div>
-        )}
-
         {profile.isLoading || detail.isLoading ? <Loading /> : profile.error ? <ErrorState error={profile.error} /> : profile.data && (
           <>
             <AcademicsYear
@@ -103,6 +97,7 @@ export default function ProgressDetail({ row, onClose }: { row: Row; onClose: ()
               marks={detail.data?.subject_marks ?? []}
               loading={false}
               attendancePercent={profile.data.attendance.percent}
+              figures={false}
             />
             <AttendanceCalendar days={profile.data.recent_attendance} />
           </>

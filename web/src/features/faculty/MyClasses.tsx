@@ -7,7 +7,6 @@ import {
   Loading, SkeletonTiles, ErrorState, EmptyState, useSort,
   RangePicker, rangeQuery, useRange, type RangeOption,
 } from '@/components/ui'
-import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
 import { warningsApi } from '@/components/ai/smartApi'
 import { cn, formatDate } from '@/lib/utils'
 import ProgressDetail from './ProgressDetail'
@@ -320,7 +319,6 @@ export default function MyClasses() {
           )}
         </Card>
 
-        <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
         {progressOf && <ProgressDetail row={progressOf} onClose={() => setProgressOf(null)} />}
 
         {reviewDue.length > 0 && (

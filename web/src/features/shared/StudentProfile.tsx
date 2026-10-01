@@ -93,7 +93,10 @@ export default function StudentProfile() {
   /* ON THE STAFF SIDE, ONLY YOUR OWN CLASS. The owner asked that a teacher
      opening My students see the children of the section they are class
      teacher of, with no roll, class or section pickers to wander off with. */
-  const staffSide = typeof window !== 'undefined' && window.location.pathname.startsWith('/faculty')
+  /* Decided by what the person may see, not by the address: the staff
+     workspace is not always under /faculty. Anyone without the whole-school
+     student permission is staff here. */
+  const staffSide = !useSession().permissions.includes('students.read.all')
   const myClass = useQuery({
     queryKey: ['sections', 'class_teacher'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),

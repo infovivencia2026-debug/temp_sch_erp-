@@ -55,11 +55,13 @@ const pct = (m?: string, x?: string) => {
 
 /* ACADEMICS: the year, then the exam, then every subject with its score,
    grade, the change since the previous exam in that subject, and a tag. */
-export function AcademicsYear({ results, marks, loading, attendancePercent }: {
+export function AcademicsYear({ results, marks, loading, attendancePercent, figures = true }: {
   results: StudentProfile['results']
   marks: StudentFullDetail['subject_marks']
   loading: boolean
   attendancePercent: number
+  /** False where the page already shows its own figures above. */
+  figures?: boolean
 }) {
   const years = yearsOf(marks.map((m) => m.on))
   const [year, setYear] = useState(academicYear())
@@ -89,12 +91,12 @@ export function AcademicsYear({ results, marks, loading, attendancePercent }: {
   if (loading) return <Card><SkeletonTable columns={5} /></Card>
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {figures && <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="Overall score" value={overall == null ? '-' : `${overall}%`} small={exam || undefined} />
         <Kpi label="Grade · rank" value={card?.grade || '-'} small={card?.rank ? `Rank ${card.rank}` : undefined} />
         <Kpi label="Attendance" value={`${attendancePercent}%`} small="This year" />
         <Kpi label="Needs attention" value={String(weak)} small={weak === 1 ? 'Subject' : 'Subjects'} tone={weak ? 'text-destructive' : undefined} />
-      </div>
+      </div>}
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
           <div className="flex flex-wrap items-center gap-2.5">
