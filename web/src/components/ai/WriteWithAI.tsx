@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { createPortal } from 'react-dom'
 import { Sparkles, RefreshCw, X } from 'lucide-react'
 import { Button, Dialog } from '@/components/ui'
@@ -80,24 +81,21 @@ export default function WriteWithAI({
     }
   }
 
-  const sel = 'field'
+  const pick = 'mt-1 w-full justify-between'
   const controls = (
     <>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <label className="text-xs text-muted-foreground">Tone
-              <select className={sel + ' mt-1 w-full'} value={tone} onChange={(e) => setTone(e.target.value)}>
-                {TONES.map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
-              </select>
+              <PickerMenu ariaLabel="Tone" align="start" className={pick} menuClassName="z-[220]" value={tone} onChange={setTone}
+                options={TONES.map((t) => ({ value: t, label: t[0].toUpperCase() + t.slice(1) }))} />
             </label>
             <label className="text-xs text-muted-foreground">Length
-              <select className={sel + ' mt-1 w-full'} value={length} onChange={(e) => setLength(e.target.value)}>
-                {LENGTHS.map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
-              </select>
+              <PickerMenu ariaLabel="Length" align="start" className={pick} menuClassName="z-[220]" value={length} onChange={setLength}
+                options={LENGTHS.map((t) => ({ value: t, label: t[0].toUpperCase() + t.slice(1) }))} />
             </label>
             <label className="text-xs text-muted-foreground">Language
-              <select className={sel + ' mt-1 w-full'} value={language} onChange={(e) => setLanguage(e.target.value as Lang)}>
-                {(Object.keys(LANG_LABEL) as Lang[]).map((l) => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}
-              </select>
+              <PickerMenu ariaLabel="Language" align="start" className={pick} menuClassName="z-[220]" value={language} onChange={setLanguage}
+                options={(Object.keys(LANG_LABEL) as Lang[]).map((l) => ({ value: l, label: LANG_LABEL[l] }))} />
             </label>
           </div>
           <label className="mt-2 block text-xs text-muted-foreground">Points to cover (optional)
