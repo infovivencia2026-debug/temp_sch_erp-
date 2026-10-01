@@ -5,7 +5,8 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Select, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
-import { usePlatformAction, type VendorTicket } from '../super_admin/platform-lib'
+import { type VendorTicket } from '../super_admin/platform-lib'
+import { useOptimisticMutation } from '@/lib/optimistic'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
 
@@ -27,7 +28,22 @@ export default function SupportTickets() {
     queryKey: ['platform', 'tickets', status],
     queryFn: () => api.get<List<VendorTicket>>(status ? `${BASE}?status=${status}` : BASE),
   })
-  const update = usePlatformAction('tickets')
+  /* Take and Resolve answer at once (lib/optimistic). The ticket changes in
+     every open filter of this queue the moment it is pressed; the server's
+     answer then replaces the guess, or puts it back with the reason. */
+  const update = useOptimisticMutation<{ path: string; body: { status: string } }>({
+    mutationFn: ({ path, body }) => api.post(`/api/v1/admin/platform${path}`, body),
+    queryKeys: [['platform', 'tickets']],
+    apply: (old, v, key) => {
+      const l = old as List<VendorTicket>
+      const id = v.path.split('/').pop()
+      const filter = String((key as unknown[])[2] ?? '')
+      const next = l.items.map((t) => (t.id === id ? { ...t, status: v.body.status, breached: v.body.status === 'resolved' ? false : t.breached } : t))
+      // In a filtered view a ticket that no longer matches leaves it.
+      return { ...l, items: filter ? next.filter((t) => t.status === filter) : next }
+    },
+    failure: "Couldn't update the ticket",
+  })
 
   if (isLoading && !data) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />

@@ -7,6 +7,8 @@ import { SYSTEM_ROLES } from './routes/admin/static_data'
 
 // rbac.OperatorRoles: platform roles not held to a permission list.
 const OPERATOR_ROLES = new Set(['super_admin', 'seller_admin'])
+/** The vendor's ticket queue (Support → Support): the one screen a support login holds. */
+export const SUPPORT_DESK = 'seller_admin.support.support'
 
 /* Who is calling, resolved once per request from the session cookie. Mirrors
    internal/httpx.Identity. A platform admin acts as a school by sending
@@ -63,6 +65,18 @@ export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContex
   return id
 }
 
+async function hasLiveGrant(env: Env, inst: Institution, operatorId: string): Promise<boolean> {
+  try {
+    const row = await tenantDb(env, inst).prepare(`SELECT 1 FROM impersonation_grants WHERE operator_user_id = ? AND ended_at IS NULL AND expires_at > ? LIMIT 1`)
+      .bind(operatorId, new Date().toISOString()).first()
+    return !!row
+  } catch (err) {
+    // A school whose database cannot be opened grants nothing.
+    console.error(err)
+    return false
+  }
+}
+
 async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: Institution | null): Promise<Identity | null> {
 
   if (s.institution_id === null) {
@@ -70,7 +84,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
       .bind(s.user_id).first<{ full_name: string }>()
     if (!u) return null
     const acting = req.headers.get('x-acting-institution')
-    const institution = acting ? await institutionById(env, acting) : null
+    let institution = acting ? await institutionById(env, acting) : null
     /* Not every platform account is an operator (httpx.Identity.Restricted): only the roles in
        rbac.OperatorRoles may do anything. support_admin reaches across schools but holds only the
        permissions its role grants, or a support desk would inherit every school's records. */
@@ -79,6 +93,24 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
     const operator = roleKeys.some((k) => OPERATOR_ROLES.has(k))
     const permissions = new Set<string>(operator ? ['*'] : [])
     if (!operator) for (const k of roleKeys) for (const p of SYSTEM_ROLES.find((r) => r.key === k)?.permissions ?? []) permissions.add(p)
+    /* THE SUPPORT DESK'S OWN SCREEN. The role's grants are capabilities and
+       name no screen, so a support login signed in to an empty console and
+       could not open the queue it exists to answer. A catalogue key, added
+       here rather than to the role's list: that list is mirrored from Go's
+       rbac, whose permission grid does not carry catalogue keys. It reveals
+       tickets schools raised with the vendor and nothing from a school's
+       own records. */
+    if (!operator && roleKeys.includes('support_admin')) permissions.add(SUPPORT_DESK)
+    /* A SUPPORT LOGIN STANDS INSIDE A SCHOOL ONLY ON A RECORDED SESSION.
+       The header alone used to be enough: any support account could name any
+       school and read its shape, jobs and audit trail, with no reason given
+       and nothing for that school's administrator to see. Now there must be
+       a live grant in that school's own register (impersonation_grants: who,
+       why, until when), which the support screen writes and the school can
+       read and end. No grant, or an expired one, and the request is treated
+       as made from outside every school. Operators are not held to this:
+       running the console means entering schools all day. */
+    if (institution && !operator && !(await hasLiveGrant(env, institution, s.user_id))) institution = null
     return { sessionId: s.id, userId: s.user_id, fullName: u.full_name, platformAdmin: true, restricted: !operator,
       institution, homeInstitutionId: null, permissions, roles: roleKeys.length ? roleKeys : ['platform_admin'], mustChangePassword: false }
   }

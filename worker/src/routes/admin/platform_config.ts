@@ -3,6 +3,8 @@ import { HttpError, badRequest, clampInt, created, isUUID, notFound, now, ok, re
 import { tenantDb, type Institution } from '../../tenant'
 import { institutionId, notImplemented, parseJSON, platformOnly, requireAny, today } from './common'
 import { school } from '../school'
+import { SUPPORT_DESK } from '../../identity'
+import { promisedHours, subscriptionsByInstitution } from '../seller/tenants'
 
 /* Port of internal/api/platform_config.go: statutory masters, board
    affiliation and disclosure, board rules, SQAA, campus classification, the
@@ -575,22 +577,36 @@ export function registerPlatformConfig(r: Router): void {
   // support tickets
   const ticketView = (t: Record<string, unknown>, school?: string) => ({ id: t.id, school, subject: t.subject, category: t.category, priority: t.priority, status: t.status, raised_by: und(t.raised_by as string | null), assigned_to: und(t.assigned_to as string | null),
     created_at: String(t.created_at).slice(0, 10), open_days: Math.floor((Date.now() - Date.parse(String(t.created_at))) / 86_400_000), body: und(t.body as string | null) })
-  const TICKET_SQL = `SELECT t.id, t.subject, t.category, t.priority, t.status, u.full_name AS raised_by, a.full_name AS assigned_to, t.created_at, t.body FROM support_tickets t LEFT JOIN users u ON u.id = t.raised_by LEFT JOIN users a ON a.id = t.assigned_to WHERE t.audience = 'vendor'`
-  r.get('/admin/platform/seller/tickets', vendor, async (c) => {
+  const TICKET_SQL = `SELECT t.id, t.subject, t.category, t.priority, t.status, u.full_name AS raised_by, COALESCE(t.vendor_agent_name, a.full_name) AS assigned_to, t.created_at, t.body FROM support_tickets t LEFT JOIN users u ON u.id = t.raised_by LEFT JOIN users a ON a.id = t.assigned_to WHERE t.audience = 'vendor'`
+  /* The queue is the support desk's own screen, so it is gated on that
+     screen's key rather than on the right to edit tenants: a support login
+     holds the first and not the second, and could not open its own queue.
+     Each ticket carries what was promised for its school's plan and how long
+     it has been open, which the screen draws and this route never sent. */
+  const desk = SUPPORT_DESK
+  r.get('/admin/platform/seller/tickets', desk, async (c) => {
     platformOnly(c)
     const status = (c.url.searchParams.get('status') ?? '').trim() || null
     const items: Record<string, unknown>[] = []
+    const subs = await subscriptionsByInstitution(c.env, `WHERE sub.status IN ('active','trial')`)
     for (const f of await fleet(c)) {
       try {
         const rows = await f.db.prepare(`${TICKET_SQL} AND (? IS NULL OR t.status = ?) AND (? IS NOT NULL OR t.status <> 'closed')`).bind(status, status, status).all<Record<string, unknown>>()
-        for (const t of rows.results) items.push(ticketView(t, f.inst.name))
+        const sub = subs.get(f.inst.id)
+        for (const t of rows.results) {
+          const hours = Math.max(0, Math.trunc((Date.now() - Date.parse(String(t.created_at))) / 3_600_000))
+          const promised = promisedHours(sub?.plan_code ?? '', String(t.priority))
+          const settled = t.status === 'resolved' || t.status === 'closed'
+          items.push({ ...ticketView(t, f.inst.name), open_hours: hours, promised_hours: promised, breached: !settled && hours > promised,
+            plan_code: sub?.plan_code ?? undefined, plan_name: sub?.plan_name ?? undefined })
+        }
       } catch { /* skip */ }
     }
     const pr = (p: unknown) => ({ urgent: 0, high: 1, normal: 2 } as Record<string, number>)[String(p)] ?? 3
     items.sort((a, b) => pr(a.priority) - pr(b.priority) || (String(a.created_at) < String(b.created_at) ? -1 : 1))
     return ok({ items })
   })
-  r.post('/admin/platform/seller/tickets/{id}', vendor, async (c) => {
+  r.post('/admin/platform/seller/tickets/{id}', desk, async (c) => {
     platformOnly(c)
     if (!isUUID(c.params.id)) throw badRequest('id must be a uuid')
     const req = await readJSON<{ status?: string; priority?: string; assigned_to?: string; resolution?: string }>(c.req)
@@ -600,8 +616,11 @@ export function registerPlatformConfig(r: Router): void {
     for (const f of await fleet(c)) {
       try {
         const res = await f.db.prepare(`UPDATE support_tickets SET status = COALESCE(?, status), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), resolution = COALESCE(?, resolution),
-            resolved_at = CASE WHEN ? IN ('resolved','closed') THEN COALESCE(resolved_at, ?) ELSE resolved_at END WHERE id = ? AND audience = 'vendor'`)
-          .bind(status, nz(req.priority), assign, nz(req.resolution), status, now(), c.params.id).run()
+            resolved_at = CASE WHEN ? IN ('resolved','closed') THEN COALESCE(resolved_at, ?) ELSE resolved_at END,
+            vendor_agent_id = COALESCE(vendor_agent_id, ?), vendor_agent_name = COALESCE(vendor_agent_name, ?), updated_at = ?
+            WHERE id = ? AND audience = 'vendor'`)
+          // Whoever on the desk first acts on a ticket holds it (tenant migration 0024): the queue says whose it is.
+          .bind(status, nz(req.priority), assign, nz(req.resolution), status, now(), c.id.userId, c.id.fullName, now(), c.params.id).run()
         if ((res.meta.changes ?? 0) > 0) return ok({ updated: true })
       } catch { /* skip */ }
     }
@@ -639,7 +658,11 @@ export function registerPlatformConfig(r: Router): void {
     items.sort((a, b) => (String(a.started_at) < String(b.started_at) ? 1 : -1))
     return ok({ items: items.slice(0, limit) })
   })
-  r.post('/admin/platform/impersonation', vendor, async (c) => {
+  /* Any platform account may open a session for itself: an operator, and a
+     support login, which is the one that cannot enter a school without it
+     (identity.ts). The reason and the time limit are the control, and the
+     school reads both. */
+  r.post('/admin/platform/impersonation', 'auth', async (c) => {
     platformOnly(c)
     const req = await readJSON<{ institution_id?: string; reason?: string; ticket_id?: string; minutes?: number }>(c.req)
     const iid = (req.institution_id ?? '').trim()
@@ -656,8 +679,8 @@ export function registerPlatformConfig(r: Router): void {
     const db = tenantDb(c.env, inst)
     const id = uuid()
     const expires = new Date(Date.now() + minutes * 60_000).toISOString()
-    /* impersonation_grants.operator_user_id references the tenant's users table, which holds no platform account;
-       under PRAGMA foreign_keys the insert is refused, which is reported rather than hidden. */
+    /* The operator is a platform account, so operator_user_id is not a key into this school's users
+       (tenant migration 0025 removed the reference that made this insert fail). */
     await db.batch([
       db.prepare(`UPDATE impersonation_grants SET ended_at = ?, ended_by = NULL, ended_by_name = ?, ended_reason = 'superseded by a new session' WHERE operator_user_id = ? AND ended_at IS NULL`).bind(now(), c.id.fullName, c.id.userId),
       db.prepare(`INSERT INTO impersonation_grants (id, institution_id, operator_user_id, operator_name, reason, ticket_id, started_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, iid, c.id.userId, c.id.fullName, reason, ticket, now(), expires),

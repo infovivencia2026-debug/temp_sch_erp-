@@ -1,5 +1,5 @@
-import type { Router } from '../../router'
-import { HttpError, badRequest, created, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
+import type { Ctx, Router } from '../../router'
+import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { hashPassword } from '../../auth/password'
 import { defaultAppId, institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
 import type { Env } from '../../env'
@@ -141,7 +141,7 @@ function deriveShortName(name: string): string {
 }
 
 /** What the vendor promised, by plan and by urgency (seller.go promisedHours). */
-function promisedHours(planCode: string, priority: string): number {
+export function promisedHours(planCode: string, priority: string): number {
   let tier = 3
   switch (planCode.toLowerCase()) {
     case 'enterprise': case 'ent': tier = 0; break
@@ -156,7 +156,7 @@ function promisedHours(planCode: string, priority: string): number {
 
 interface SubRow { institution_id: string; plan_code: string | null; plan_name: string | null; status: string | null; renews_on: string | null; licensed_students: number | null; storage_gb: number | null; max_students: number | null; max_storage_gb: number | null }
 
-async function subscriptionsByInstitution(env: Env, where = ''): Promise<Map<string, SubRow>> {
+export async function subscriptionsByInstitution(env: Env, where = ''): Promise<Map<string, SubRow>> {
   const r = await env.CONTROL.prepare(`SELECT sub.institution_id, sub.plan_code, p.name AS plan_name, sub.status, sub.renews_on,
       sub.licensed_students, sub.storage_gb, p.max_students, p.max_storage_gb
       FROM subscriptions sub LEFT JOIN plans p ON p.code = sub.plan_code ${where}`).all<SubRow>()
@@ -626,6 +626,157 @@ export function registerSellerTenants(r: Router): void {
     return created({
       user_id: userId, full_name: fullName, sign_in_as: email || phone, role: 'support_admin', temporary_password: password,
       note: 'Shown once and not stored. Hand it over; they are asked to set their own password the first time they sign in.',
+    })
+  })
+
+  // --- platform staff: everyone who signs in to this console, and what they may do ---
+  /* The support-accounts pair above could create one role and nothing else:
+     a second seller administrator, a support engineer who had left, a
+     forgotten password, all needed SQL on CONTROL. A console that is run by
+     real people has to hire, re-role and let go of them itself.
+
+     Only an operator (seller_admin, super_admin) reaches these: PERM is not
+     in the support role, and `restricted` is checked as well. Three rules
+     hold whatever is asked: nobody changes their own access here, a super
+     admin is only ever touched by a super admin, and the last active
+     operator cannot be suspended or demoted, or the console locks itself. */
+  const STAFF_ROLES = new Set(['seller_admin', 'support_admin'])
+  const OPERATORS = new Set(['seller_admin', 'super_admin'])
+  const operatorOnly = (c: Ctx) => {
+    requirePlatformAdmin(c)
+    if (c.id.restricted) throw forbidden('only a seller administrator manages platform staff')
+  }
+  const staffRoles = async (env: Env, userId: string): Promise<string[]> =>
+    (await env.CONTROL.prepare('SELECT role_key FROM platform_user_roles WHERE user_id = ?').bind(userId).all<{ role_key: string }>()).results.map((r) => r.role_key)
+  const otherActiveOperators = async (env: Env, exceptId: string): Promise<number> =>
+    (await env.CONTROL.prepare(`SELECT count(DISTINCT u.id) AS n FROM platform_users u JOIN platform_user_roles pr ON pr.user_id = u.id
+        WHERE u.status = 'active' AND u.id <> ? AND pr.role_key IN ('seller_admin','super_admin')`).bind(exceptId).first<{ n: number }>())?.n ?? 0
+  const staffTarget = async (c: Ctx): Promise<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; roles: string[] }> => {
+    const u = await c.env.CONTROL.prepare('SELECT id, full_name, email, phone, status FROM platform_users WHERE id = ?').bind(c.params.id)
+      .first<{ id: string; full_name: string; email: string | null; phone: string | null; status: string }>()
+    if (!u) throw notFound('resource not found')
+    if (u.id === c.id.userId) throw badRequest('you cannot change your own access; ask another seller administrator')
+    const roles = await staffRoles(c.env, u.id)
+    if (roles.includes('super_admin') && !c.id.roles.includes('super_admin')) throw forbidden('only a super admin changes a super admin')
+    return { ...u, roles }
+  }
+  const endPlatformSessions = (env: Env, userId: string, reason: string) =>
+    env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = ? WHERE user_id = ? AND institution_id IS NULL AND revoked_at IS NULL`).bind(now(), reason, userId)
+
+  r.get('/seller/staff', PERM, async (c) => {
+    operatorOnly(c)
+    const rows = await c.env.CONTROL.prepare(`SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at,
+        (SELECT group_concat(pr.role_key) FROM platform_user_roles pr WHERE pr.user_id = u.id) AS roles,
+        (SELECT max(le.at) FROM login_events le WHERE le.user_id = u.id AND le.institution_id IS NULL AND le.outcome = 'ok') AS last_login_at
+        FROM platform_users u ORDER BY u.status = 'active' DESC, u.created_at DESC`)
+      .all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; roles: string | null; last_login_at: string | null; created_at: string }>()
+    const items = rows.results.map((u) => {
+      const o: Record<string, unknown> = { id: u.id, full_name: u.full_name, status: u.status, roles: u.roles ? u.roles.split(',') : [],
+        created_at: stamp(u.created_at), you: u.id === c.id.userId }
+      if (u.email) o.email = u.email
+      if (u.phone) o.phone = u.phone
+      if (u.last_login_at) o.last_login_at = stamp(u.last_login_at)
+      return o
+    })
+    return ok({ items })
+  })
+
+  r.post('/seller/staff', PERM, async (c) => {
+    operatorOnly(c)
+    const req = await readJSON<{ full_name?: string; email?: string; phone?: string; role?: string }>(c.req)
+    const fullName = (req.full_name ?? '').trim()
+    const email = (req.email ?? '').trim().toLowerCase()
+    const phone = (req.phone ?? '').trim()
+    const role = (req.role ?? 'support_admin').trim()
+    if (!STAFF_ROLES.has(role)) throw badRequest('role must be seller_admin or support_admin')
+    if (!fullName) throw badRequest('the account needs a name')
+    if (!email && !phone) throw badRequest('an email or a phone number is required to sign in')
+    const subject = email ? `${fullName} <${email}>` : fullName
+    /* Never onto an account that already exists: the old upsert reset the
+       password of whoever held that email, which with a role to choose would
+       be a way to take over a colleague's login. */
+    const clash = await c.env.CONTROL.prepare('SELECT 1 FROM platform_users WHERE (?1 IS NOT NULL AND email = ?1) OR (?2 IS NOT NULL AND phone = ?2)')
+      .bind(nullStr(email), nullStr(phone)).first()
+    if (clash) throw new HttpError(409, 'a platform account already uses that email or phone', { code: 'email_in_use' })
+    const password = temporaryPassword()
+    const hash = await hashPassword(c.env.PASSWORD_PEPPER, password)
+    const t = now()
+    const userId = uuid()
+    try {
+      await c.env.CONTROL.batch([
+        c.env.CONTROL.prepare(`INSERT INTO platform_users (id, email, phone, full_name, password_hash, status, created_at, updated_at) VALUES (?,?,?,?,?,'active',?,?)`)
+          .bind(userId, nullStr(email), nullStr(phone), fullName, hash, t, t),
+        c.env.CONTROL.prepare('INSERT INTO platform_user_roles (user_id, role_key, created_at) VALUES (?, ?, ?)').bind(userId, role, t),
+        ...loginIndexRows(c.env, null, userId, { email: nullStr(email), phone: nullStr(phone) }),
+      ])
+    } catch (e) {
+      await recordPlatformEvent(c.env, 'staff_account', false, null, subject, String(e), c.id.userId)
+      if (isUniqueViolation(e)) throw new HttpError(409, 'a platform account already uses that email or phone', { code: 'email_in_use' })
+      throw e
+    }
+    await recordPlatformEvent(c.env, 'staff_account', true, null, subject, `${role} created`, c.id.userId)
+    return created({
+      user_id: userId, full_name: fullName, sign_in_as: email || phone, role, temporary_password: password,
+      note: 'Shown once and not stored. Hand it over in person or by a private message, and ask them to change it from their profile after signing in.',
+    })
+  })
+
+  r.post('/seller/staff/{id}/status', PERM, async (c) => {
+    operatorOnly(c)
+    const u = await staffTarget(c)
+    const req = await readJSON<{ status?: string; reason?: string }>(c.req)
+    const status = (req.status ?? '').trim()
+    if (status !== 'active' && status !== 'suspended') throw badRequest('status must be active or suspended')
+    const reason = (req.reason ?? '').trim()
+    if (status === 'suspended') {
+      if (reason.length < 4) throw badRequest('say why this account is being suspended')
+      if (u.roles.some((k) => OPERATORS.has(k)) && await otherActiveOperators(c.env, u.id) === 0) {
+        throw badRequest('this is the last active seller administrator; make another before suspending this one')
+      }
+    }
+    const stmts = [c.env.CONTROL.prepare('UPDATE platform_users SET status = ?, updated_at = ? WHERE id = ?').bind(status, now(), u.id)]
+    // A suspended login must stop working now, not when its cookie expires.
+    if (status === 'suspended') stmts.push(endPlatformSessions(c.env, u.id, 'account suspended'))
+    await c.env.CONTROL.batch(stmts)
+    await recordPlatformEvent(c.env, 'staff_account', true, null, u.email ? `${u.full_name} <${u.email}>` : u.full_name,
+      status === 'suspended' ? `suspended: ${reason}` : 'reactivated', c.id.userId)
+    return ok({ id: u.id, status })
+  })
+
+  r.post('/seller/staff/{id}/role', PERM, async (c) => {
+    operatorOnly(c)
+    const u = await staffTarget(c)
+    const role = ((await readJSON<{ role?: string }>(c.req)).role ?? '').trim()
+    if (!STAFF_ROLES.has(role)) throw badRequest('role must be seller_admin or support_admin')
+    if (u.roles.includes('super_admin')) throw badRequest('a super admin keeps that role; it is not changed from this screen')
+    if (role === 'support_admin' && u.status === 'active' && u.roles.some((k) => OPERATORS.has(k)) && await otherActiveOperators(c.env, u.id) === 0) {
+      throw badRequest('this is the last active seller administrator; make another before changing this one')
+    }
+    const t = now()
+    await c.env.CONTROL.batch([
+      c.env.CONTROL.prepare(`DELETE FROM platform_user_roles WHERE user_id = ? AND role_key IN ('seller_admin','support_admin')`).bind(u.id),
+      c.env.CONTROL.prepare('INSERT INTO platform_user_roles (user_id, role_key, created_at) VALUES (?, ?, ?)').bind(u.id, role, t),
+      // What they may do changed: the next request re-reads it rather than a cached session carrying the old role.
+      endPlatformSessions(c.env, u.id, 'role changed'),
+    ])
+    await recordPlatformEvent(c.env, 'staff_account', true, null, u.email ? `${u.full_name} <${u.email}>` : u.full_name,
+      `role ${u.roles.join('+') || 'none'} -> ${role}`, c.id.userId)
+    return ok({ id: u.id, roles: [role] })
+  })
+
+  r.post('/seller/staff/{id}/password', PERM, async (c) => {
+    operatorOnly(c)
+    const u = await staffTarget(c)
+    const password = temporaryPassword()
+    const hash = await hashPassword(c.env.PASSWORD_PEPPER, password)
+    await c.env.CONTROL.batch([
+      c.env.CONTROL.prepare('UPDATE platform_users SET password_hash = ?, updated_at = ? WHERE id = ?').bind(hash, now(), u.id),
+      endPlatformSessions(c.env, u.id, 'password reset by an administrator'),
+    ])
+    await recordPlatformEvent(c.env, 'staff_account', true, null, u.email ? `${u.full_name} <${u.email}>` : u.full_name, 'password reset', c.id.userId)
+    return ok({
+      user_id: u.id, full_name: u.full_name, sign_in_as: u.email || u.phone || '', role: u.roles[0] ?? '', temporary_password: password,
+      note: 'Shown once and not stored. Their other sessions were signed out.',
     })
   })
 
