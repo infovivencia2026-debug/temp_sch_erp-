@@ -49,9 +49,18 @@ const WORD: Record<string, string> = {
   DELETE: 'Removed',
 }
 
+/* An optimistic write (lib/optimistic.ts) has already been drawn on screen
+   by the time the server accepts it, so the late "Saved" square would be
+   news about something the person watched happen a second ago. While any
+   such write is in flight the fallback stays quiet. */
+let optimistic = 0
+export function optimisticBegin() { optimistic++ }
+export function optimisticEnd() { optimistic = Math.max(0, optimistic - 1) }
+
 export function noteWrite(method: string, path: string) {
   const m = method.toUpperCase()
   if (m === 'GET' || m === 'HEAD') return
+  if (optimistic > 0) return
   const clean = path.split('#')[0]
   if (QUIET.some((re) => re.test(clean))) return
   const doneAt = Date.now()

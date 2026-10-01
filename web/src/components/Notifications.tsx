@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
@@ -12,6 +12,7 @@ import { useStatusFeed } from '@/features/comms/status/status-api'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 
 /* The bell in the header, and the panel it opens.
@@ -158,7 +159,6 @@ export default function Notifications() {
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
-  const qc = useQueryClient()
 
   const feed = useQuery({
     queryKey: ['notifications'],
@@ -187,16 +187,27 @@ export default function Notifications() {
     staleTime: 60_000,
     retry: false,
   })
-  const readAll = useMutation({
+  /* Optimistic (lib/optimistic): the badge clears and the list empties the
+     moment either is pressed; a refusal puts them back with the reason. */
+  type Feed = { items?: Note[]; unread?: number }
+  const readAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    queryKeys: [['notifications']],
+    apply: (old) => {
+      const f = old as Feed
+      const now = new Date().toISOString()
+      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
+    },
+    failure: "Couldn't mark them read",
   })
   /* Clear empties the list; Mark all read only quiets the badge. Both were
      asked for by name: a feed a fortnight long that can only be marked read
      is a feed that has to be scrolled past every time. */
-  const clearAll = useMutation({
+  const clearAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    queryKeys: [['notifications']],
+    apply: (old) => ({ ...(old as Feed), unread: 0, items: [] }),
+    failure: "Couldn't clear them",
   })
 
   const navigate = useNavigate()

@@ -1,7 +1,7 @@
 import { ApiError } from '@/lib/api'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -42,7 +42,9 @@ import { I18nProvider } from '@/lib/i18n'
    background, so kept-on-screen data never looks final while it is changing.
    Appears only after 150ms, so quick answers show nothing at all. */
 function FetchBar() {
-  const n = useIsFetching()
+  /* Writes count too: a change already drawn optimistically (lib/optimistic)
+     is still being saved, and this is where that shows. */
+  const n = useIsFetching() + useIsMutating()
   return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 ? '' : undefined} />
 }
 

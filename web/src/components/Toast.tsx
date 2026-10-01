@@ -26,12 +26,14 @@ interface Toast {
   message: string
   /** Offered only where the action can genuinely be taken back. */
   undo?: () => void
+  /** On an error: try the same thing again. */
+  retry?: () => void
 }
 
 interface ToastApi {
   /** Confirm something happened. Name it; "Saved" tells nobody anything. */
   ok: (message: string, undo?: () => void) => void
-  error: (message: string) => void
+  error: (message: string, retry?: () => void) => void
 }
 
 const Ctx = createContext<ToastApi>({ ok: () => {}, error: () => {} })
@@ -56,7 +58,7 @@ export function lastConfirmationAt(): number {
 export function ToastHost({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Toast[]>([])
 
-  const push = useCallback((kind: Kind, message: string, undo?: () => void) => {
+  const push = useCallback((kind: Kind, message: string, undo?: () => void, retry?: () => void) => {
     const id = Date.now() + Math.random()
     if (kind === 'ok') lastOkAt = Date.now()
     /* One confirmation on screen at a time: a new one replaces the last
@@ -69,13 +71,13 @@ export function ToastHost({ children }: { children: ReactNode }) {
         if (cur && cur.message === message && !undo) return prev
         return [...errs, { id, kind, message, undo }]
       }
-      return [...prev.slice(-2), { id, kind, message, undo }]
+      return [...prev.slice(-2), { id, kind, message, undo, retry }]
     })
   }, [])
 
   const api: ToastApi = {
     ok: useCallback((m: string, u?: () => void) => push('ok', m, u), [push]),
-    error: useCallback((m: string) => push('error', m), [push]),
+    error: useCallback((m: string, r?: () => void) => push('error', m, undefined, r), [push]),
   }
   useEffect(() => {
     bus = api
@@ -165,6 +167,18 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
         >
           <Undo2 className="h-3.5 w-3.5" />
           Undo
+        </button>
+      )}
+      {t.retry && (
+        <button
+          type="button"
+          onClick={() => {
+            t.retry?.()
+            onDismiss()
+          }}
+          className="shrink-0 rounded-sm px-1.5 py-0.5 text-[13px] font-medium text-primary hover:bg-accent"
+        >
+          Retry
         </button>
       )}
       <button
