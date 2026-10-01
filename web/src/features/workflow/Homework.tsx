@@ -210,15 +210,24 @@ function Diary({ canPublish }: { canPublish: boolean }) {
               week that crosses a month boundary is exactly the week where
               bare numbers stop meaning anything. It says the month, and both
               months when the week spans two. */}
-          <div className="border-b px-4 pb-2 pt-3 text-[13px] font-semibold text-muted-foreground">
-            {monthSpan(week)}
+          {/* The arrows sit beside the month, not either side of the days:
+              on a phone the 44px tap size made arrows plus seven days wider
+              than the screen, and Saturday and Sunday spilled off it. */}
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-[13px] font-semibold text-muted-foreground">
+            <span>{monthSpan(week)}</span>
+            <span className="flex gap-2">
+                <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                    <button type="button" aria-label="Next week" onClick={() => setWeekOf(addDays(from, 7))}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
+                  <ChevronLeft className="h-4 w-4 rotate-180" />
+                </button>
+                </span>
           </div>
           {/* The week, one day to press. */}
-          <div className="flex items-center gap-1 px-2 py-3">
-            <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+          <div className="flex items-center px-1.5 py-3">
             {/* SEVEN DAYS, NO SCROLLING.
 
                 This was a horizontal scroller, and on a 390px phone the two
@@ -238,7 +247,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 return (
                   <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
-                      'flex min-w-0 flex-1 flex-col items-center rounded-lg border px-0.5 py-2 transition-colors',
+                      'flex !min-h-0 !min-w-0 flex-1 flex-col items-center rounded-lg border px-0 py-2 transition-colors',
                       /* THE TINT IS THE HIGHLIGHT. A selected day was filled solid
                          and its wording turned white, so the day you are looking at
                          was the one day you could not read at a glance -- reversed
@@ -256,10 +265,6 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 )
               })}
             </div>
-            <button type="button" aria-label="Next week" onClick={() => setWeekOf(addDays(from, 7))}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40 disabled:shadow-none">
-              <ChevronLeft className="h-4 w-4 rotate-180" />
-            </button>
           </div>
           {/* A way out, not a banner announcing itself.
 
