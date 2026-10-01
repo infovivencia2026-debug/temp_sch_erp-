@@ -1384,7 +1384,7 @@ export default function StudentProfile() {
                        field, filled or not, is offered. */
                     .filter(([, v]) => v && v !== 'Not issued' && v !== 'Not linked')
                     .map(([k, v]) => (
-                    <div key={k} className="border-b border-r px-4 py-3">
+                    <div key={k} className="px-5 py-3">
                       <p className="eyebrow text-muted-foreground">{k}</p>
                       <p className={cn('mt-0.5 text-[14px]', !v && 'text-muted-foreground')}>
                         {v || 'Not recorded'}
@@ -1395,7 +1395,7 @@ export default function StudentProfile() {
                   {Object.entries(p.custom_fields ?? {})
                     .filter(([k]) => k.startsWith('Details/'))
                     .map(([k, v]) => (
-                      <div key={k} className="border-b border-r px-4 py-3">
+                      <div key={k} className="px-5 py-3">
                         <p className="eyebrow text-muted-foreground">{k.slice(8)}</p>
                         <p className="mt-0.5 text-[14px]">{v || '-'}</p>
                       </div>
