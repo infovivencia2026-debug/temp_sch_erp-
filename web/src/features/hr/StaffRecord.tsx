@@ -622,7 +622,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                   <div className="h-[34mm] w-[28mm] shrink-0 overflow-hidden rounded border bg-muted/30">
                     {d.photo_file_id && (
                       <img loading="lazy" decoding="async" src={`/api/v1/files/${d.photo_file_id}?inline=1`}
-                        alt={`Photograph of ${d.full_name}`}
+                        alt=""
                         /* A photo whose file is gone showed its alt text in a broken frame. */
                         onError={(e) => { e.currentTarget.style.display = 'none' }}
                         className="h-full w-full object-cover" />

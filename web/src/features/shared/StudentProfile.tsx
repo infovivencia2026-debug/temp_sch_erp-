@@ -90,9 +90,20 @@ export default function StudentProfile() {
      in now: pick a class and section to see who is in it, or type a name or
      admission number. They compose, so a name typed while 7-A is chosen
      searches inside 7-A. */
-  const classID = params.get('class') ?? ''
+  /* ON THE STAFF SIDE, ONLY YOUR OWN CLASS. The owner asked that a teacher
+     opening My students see the children of the section they are class
+     teacher of, with no roll, class or section pickers to wander off with. */
+  const staffSide = typeof window !== 'undefined' && window.location.pathname.startsWith('/faculty')
+  const myClass = useQuery({
+    queryKey: ['sections', 'class_teacher'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    enabled: staffSide,
+  })
+  const mySections = myClass.data?.items ?? []
+  const pickedMine = mySections.find((x) => x.id === params.get('section')) ?? mySections[0]
+  const classID = staffSide ? (pickedMine?.class_id ?? '') : (params.get('class') ?? '')
   const setClassID = (v: string) => patch({ class: v || null, section: null })
-  const sectionID = params.get('section') ?? ''
+  const sectionID = staffSide ? (pickedMine?.id ?? '00000000-0000-0000-0000-000000000000') : (params.get('section') ?? '')
   const setSectionID = (v: string) => patch({ section: v || null })
   /* ON THE ROLL, OR GONE — and on the roll is the default.
 
@@ -518,6 +529,13 @@ export default function StudentProfile() {
           description="Search a student to see everything about them on one page."
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              {staffSide && mySections.length > 1 && (
+                <div className="w-40">
+                  <Select value={sectionID} onChange={setSectionID}
+                    options={mySections.map((x) => ({ value: x.id, label: `${x.class_name}-${x.name}` }))} />
+                </div>
+              )}
+              {!staffSide && (<>
               <div className="w-44">
                 <Select
                   value={roll}
@@ -554,6 +572,7 @@ export default function StudentProfile() {
                   ]}
                 />
               </div>
+              </>)}
               {/* Sized, like the three beside it.
 
                   Input is a block element, so a bare one in this row claimed
@@ -1141,7 +1160,7 @@ export default function StudentProfile() {
                     {p.photo_file_id && (
                       <img loading="lazy" decoding="async"
                         src={`/api/v1/files/${p.photo_file_id}?inline=1`}
-                        alt={`Photograph of ${p.full_name}`}
+                        alt=""
                         /* A photo whose file is gone showed its alt text in a broken frame. */
                         onError={(e) => { e.currentTarget.style.display = 'none' }}
                         className="h-full w-full object-cover"
@@ -2026,7 +2045,7 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                       {g.photo_file_id && (
                         <img loading="lazy" decoding="async"
                           src={`/api/v1/files/${g.photo_file_id}?inline=1`}
-                          alt={`Photograph of ${g.full_name}`}
+                          alt=""
                         /* A photo whose file is gone showed its alt text in a broken frame. */
                         onError={(e) => { e.currentTarget.style.display = 'none' }}
                           className="h-full w-full object-cover"
