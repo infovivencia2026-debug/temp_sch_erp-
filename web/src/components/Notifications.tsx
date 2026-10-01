@@ -539,21 +539,21 @@ export default function Notifications() {
             </div>
             {items.length > 0 && (
               <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
-                <div className="flex flex-1 gap-1 rounded-[14px] bg-muted p-[5px]">
+                <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["unread","Unread"],["all","All"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
-                      className={cn('min-h-[44px] flex-1 rounded-[10px] px-3 text-[14.5px] font-bold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
                         (v === 'unread') === onlyUnread ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
                       {label}
                     </button>
                   ))}
                 </div>
-                <div className="flex flex-1 gap-1 rounded-[14px] bg-muted p-[5px]">
+                <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["messages","Messages"],["activity","Activity"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
-                      className={cn('min-h-[44px] flex-1 rounded-[10px] px-3 text-[14.5px] font-bold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
                         v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
-                      {label}{countFor(v) > 0 && <span className="ml-1.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">{countFor(v)}</span>}
+                      {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[#ef4444] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
                     </button>
                   ))}
                 </div>

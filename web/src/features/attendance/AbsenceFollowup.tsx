@@ -115,6 +115,8 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
   const { data, isLoading, error } = useQuery({
     queryKey: ['absentees', onDate, sectionId],
     queryFn: () => api.get<AbsenteesResponse>(`/api/v1/attendance/absentees?${params}`),
+    /* A leave sent after the child was marked absent moves them to "Informed by parent" within a minute. */
+    refetchInterval: 60_000,
   })
 
   /* The section dropdown is built from what the day returns, but a filtered
@@ -136,7 +138,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
   const sections = data?.sections ?? []
   const total = sections.reduce((n, s) => n + s.students.length, 0)
   const pending = sections.reduce(
-    (n, s) => n + s.students.filter((st) => st.call_status === 'not_called').length,
+    (n, s) => n + s.students.filter((st) => st.call_status === 'not_called' && !st.informed).length,
     0,
   )
 
@@ -326,9 +328,18 @@ function SectionCard({
         }
       />
       <div className="divide-y">
-        {section.students.map((st) => {
+        {[...section.students].sort((a, b) => Number(!!a.informed || a.mark === 'leave') - Number(!!b.informed || b.mark === 'leave')).map((st, i, all) => {
           const e = effective(st)
-          return (
+          /* THE PARENT ALREADY WROTE IN: below the ones to ring, under their own
+             heading, so the list to call is only the families nobody has heard from. */
+          const isInf = (x: Absentee) => !!x.informed || x.mark === 'leave'
+          const firstInformed = isInf(st) && (i === 0 || !isInf(all[i - 1]))
+          return (<div key={st.student_id}>
+            {firstInformed && (
+              <div className="bg-[#f0fdf4] px-5 py-2 text-[12px] font-bold uppercase tracking-wide text-[#15803d]">
+                Informed by parent · no call needed
+              </div>
+            )}
             <AbsenteeRow
               key={st.student_id}
               student={st}
@@ -337,7 +348,7 @@ function SectionCard({
                 setEdits((prev) => ({ ...prev, [st.student_id]: { ...e, ...patch } }))
               }
             />
-          )
+          </div>)
         })}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3 border-t px-5 py-3">
@@ -399,7 +410,7 @@ function AbsenteeRow({
           <span className="text-[14px] font-medium">{student.name}</span>
           {student.informed && (
             <span className="ml-2 rounded-md bg-[#dcfce7] px-2 py-0.5 text-[12px] font-semibold text-[#15803d]">
-              Informed by parent: {student.informed.split('|')[0]}
+              {student.mark === 'leave' ? 'On leave (LV)' : 'Informed by parent'}: {student.informed.split('|')[0]}
             </span>
           )}
           <span className="ml-2 font-mono text-[12px] text-muted-foreground">

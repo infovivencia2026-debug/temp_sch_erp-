@@ -639,7 +639,7 @@ async function listAbsentees(c: Ctx): Promise<Response> {
         LEFT JOIN absence_followup_section_done d ON d.section_id = sa.section_id AND d.on_date = sa.on_date
         LEFT JOIN users du ON du.id = d.done_by
        WHERE sa.on_date = ? AND (? IS NULL OR sa.section_id = ?)
-         AND sa.status IS NOT NULL AND sa.status <> 'present' AND sa.status <> 'holiday' AND sa.status <> 'leave'
+         AND sa.status IS NOT NULL AND sa.status <> 'present' AND sa.status <> 'holiday'
          AND ${pred.sql}
        ORDER BY sec.name, st.admission_no`).bind(on, section, section, ...pred.args).all(),
     c.db.prepare(`
@@ -1246,8 +1246,9 @@ async function applyForLeave(c: Ctx): Promise<Response> {
                    JOIN sections sec ON sec.id = e.section_id
                   WHERE e.student_id = ?1 AND e.status = 'active'
                   ORDER BY e.enrolled_on DESC LIMIT 1)
-         OR EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
-                     WHERE ur.user_id = u.id AND rp.permission_key = 'academics.attendance.write.any'))`)
+         /* and the institution admin and the principal (the owner's rule) */
+         OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                     WHERE ur.user_id = u.id AND r.key IN ('institution_admin', 'principal')))`)
       .bind(studentId, c.id.userId).all<{ id: string }>().catch(() => null)
     const span = to !== from ? `${from} to ${to}` : from
     for (const k of keepers?.results ?? []) {
@@ -1318,6 +1319,31 @@ async function decideLeave(c: Ctx): Promise<Response> {
     if (req.decision !== 'approved') { title = 'Your leave was not approved'; body = `Rejected by ${c.id.fullName}.` }
     if (note.trim()) body += ' ' + note.trim()
     stmts.push(notifyStmt(c, row.applied_by, null, 'leave_decided', title, body, '/go/my_profile/leave_self_service', 'leave_request', lid))
+  }
+  /* APPROVED IS MARKED. A child's approved leave sets each day of it to
+     "leave" (LV) in the register, with who approved it and the parent's
+     reason, so nobody marks the child absent or rings the family. A day
+     already marked keeps its mark only if it was present. */
+  if (req.decision === 'approved' && !row.employee_id) {
+    const lr = await c.db.prepare(`SELECT lr.student_id, lr.from_date, lr.to_date, lr.reason,
+        (SELECT e.section_id FROM enrollments e WHERE e.student_id = lr.student_id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS section_id
+        FROM leave_requests lr WHERE lr.id = ?`).bind(lid)
+      .first<{ student_id: string | null; from_date: string; to_date: string; reason: string; section_id: string | null }>()
+    if (lr?.student_id && lr.section_id) {
+      const note = `Leave approved by ${c.id.fullName}: ${lr.reason}`.slice(0, 500)
+      const inst = c.id.institution!.id
+      const ts = now()
+      for (let d = lr.from_date, n = 0; d <= lr.to_date && n < 62; n++) {
+        stmts.push(c.db.prepare(`UPDATE student_attendance SET status = 'leave', remarks = ?, corrected_from = status, corrected_by = ?, corrected_at = ?
+            WHERE student_id = ? AND on_date = ? AND period_id IS NULL AND status <> 'present' AND status <> 'leave'`)
+          .bind(note, c.id.userId, ts, lr.student_id, d))
+        stmts.push(c.db.prepare(`INSERT INTO student_attendance (id, institution_id, student_id, section_id, on_date, period_id, status, minutes_late, remarks, marked_by, marked_at)
+            SELECT ?, ?, ?, ?, ?, NULL, 'leave', NULL, ?, ?, ?
+             WHERE NOT EXISTS (SELECT 1 FROM student_attendance WHERE student_id = ? AND on_date = ? AND period_id IS NULL)`)
+          .bind(uuid(), inst, lr.student_id, lr.section_id, d, note, c.id.userId, ts, lr.student_id, d))
+        const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); d = t.toISOString().slice(0, 10)
+      }
+    }
   }
   if (req.decision === 'approved' && row.employee_id && row.leave_type_id) {
     stmts.push(c.db.prepare(`UPDATE leave_balances SET taken = CAST(CAST(taken AS REAL) + ? AS TEXT) WHERE employee_id = ? AND leave_type_id = ?`)
