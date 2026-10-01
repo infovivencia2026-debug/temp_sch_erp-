@@ -112,6 +112,15 @@ export default function Notifications() {
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
+  const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
+  const hubParent = useFeatureHref('parent.academics.homework_academics')
+  const toHub = hubStudent ?? hubParent
+  const statuses = useQuery({
+    queryKey: ['notif-statuses'],
+    queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
+    enabled: open && type === 'activity',
+    retry: false,
+  })
   const qc = useQueryClient()
 
   const feed = useQuery({
@@ -227,8 +236,11 @@ export default function Notifications() {
   const isMessage = (n: Note) => inKinds(n.kind, ['message', 'chat', 'parent_message', 'teacher_message'])
   /* Messages first if there are any, otherwise activity, so the drawer never
      opens on an empty side by default. */
-  const shownType = type ?? (items.some(isMessage) ? 'messages' : 'activity')
-  const inToggles = (n: Note) => (!onlyUnread || !n.read_at) && (shownType === 'messages' ? isMessage(n) : !isMessage(n))
+  /* The owner's split: Messages is every notification; Activity is status
+     posts (the e-learning hub's photo, video and note statuses). */
+  const shownType = type ?? 'messages'
+  void isMessage
+  const inToggles = (n: Note) => (!onlyUnread || !n.read_at)
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
@@ -343,7 +355,33 @@ export default function Notifications() {
             </header>
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
-              {items.length === 0 ? (
+              {shownType === 'activity' ? (
+                statuses.isLoading ? <p className="py-16 text-center text-[13px] text-muted-foreground">Loading status updates…</p>
+                : (statuses.data?.items ?? []).filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length === 0
+                  ? <p className="py-16 text-center text-[13px] text-muted-foreground">No status updates this week.</p>
+                  : (
+                    <div className="space-y-2">
+                      {(statuses.data?.items ?? [])
+                        .filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000)
+                        .map((x) => (
+                          <button key={x.id} type="button" onClick={() => { dismiss(); if (toHub) navigate(toHub) }}
+                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30">
+                            <span className={cn('grid size-10 shrink-0 place-items-center rounded-full text-[12px] font-bold',
+                              x.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary ring-2 ring-primary ring-offset-2 ring-offset-card')}>
+                              {(x.uploaded_by ?? 'School').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-[13.5px] font-semibold">{x.uploaded_by ?? 'School'}</span>
+                                <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(x.posted_at ?? x.posted_on)}</span>
+                              </span>
+                              <span className="block truncate text-[12.5px] text-muted-foreground">{x.title}</span>
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  )
+              ) : items.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
                   <p className="text-[14px] font-medium">Nothing yet</p>
                   <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] text-muted-foreground">
