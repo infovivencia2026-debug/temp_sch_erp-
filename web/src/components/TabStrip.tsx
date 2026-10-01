@@ -252,13 +252,16 @@ export default function TabStrip() {
                  tell two screens apart; past that the title truncates as it
                  always did, and past the strip's width the row scrolls, which
                  is what the container was always asking for. */
+              /* Rounded all round (owner, 2026-10-01: "tabs are still sharp
+                 bottom side"): the open tab is a soft filled pill, not a hard
+                 2px bar along its foot. */
               `group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
-               border-b-2 px-3 py-2 text-[12.5px] transition-colors`,
+               rounded-[10px] px-3 py-1.5 my-1 text-[12.5px] transition-colors`,
               shown
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:bg-accent',
+                ? 'bg-accent text-foreground shadow-[0_1px_2px_rgba(0,0,0,.06)]'
+                : 'text-muted-foreground hover:bg-accent/60',
               active && 'font-medium',
-              shown && !active && 'border-primary/40',
+              shown && !active && 'bg-accent/50',
             )}
           >
             <button

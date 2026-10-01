@@ -98,46 +98,14 @@ export default function Communication() {
         </CellGrid>
 
         <Card>
-          <CardHeader
-            title="Where to go"
-            description="Each of these writes to the child's record or to the parent's portal."
-          />
-          <ul className="divide-y">
-            <Jump
-              to={ROUTES.remarks}
-              title="Remarks"
-              body="Academic and class observations, shared with the parent unless you keep them staff-only."
-              onGo={navigate}
-            />
-            <Jump
-              to={ROUTES.anecdotal}
-              title="Anecdotal records"
-              body="Private notes on how a child is growing. Never shown to the parent."
-              onGo={navigate}
-            />
-            <Jump
-              to={ROUTES.cards}
-              title="Class teacher remarks"
-              body={
-                (s?.terms ?? 0) === 0
-                  ? 'Term-end remarks for the report card. This school has no terms set up yet.'
-                  : 'The term-end line printed on the report card, plus the principal’s summary.'
-              }
-              onGo={navigate}
-            />
-            <Jump
-              to={ROUTES.ptm}
-              title="PTM notes & action items"
-              body="Who came, what they raised, and what was agreed."
-              onGo={navigate}
-            />
-            <Jump
-              to={ROUTES.broadcast}
-              title="Classroom communication"
-              body="Notices to a whole class or to one child's parent."
-              onGo={navigate}
-            />
-          </ul>
+          <CardHeader title="Where to go" />
+          <div className="flex flex-wrap gap-2 px-5 pb-5">
+            <Jump to={ROUTES.remarks} title="Remarks" onGo={navigate} />
+            <Jump to={ROUTES.anecdotal} title="Anecdotal records" onGo={navigate} />
+            <Jump to={ROUTES.cards} title="Class teacher remarks" onGo={navigate} />
+            <Jump to={ROUTES.ptm} title="PTM notes & action items" onGo={navigate} />
+            <Jump to={ROUTES.broadcast} title="Classroom communication" onGo={navigate} />
+          </div>
         </Card>
 
         <Card>
@@ -196,30 +164,15 @@ export default function Communication() {
   )
 }
 
-function Jump({
-  to,
-  title,
-  body,
-  onGo,
-}: {
-  to: string
-  title: string
-  body: string
-  onGo: (path: string) => void
-}) {
+function Jump({ to, title, onGo }: { to: string; title: string; onGo: (path: string) => void }) {
   return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onGo(to)}
-        className="flex w-full items-start justify-between gap-4 px-5 py-3.5 text-left transition-colors hover:bg-accent"
-      >
-        <span className="min-w-0">
-          <span className="block text-[14px] font-medium">{title}</span>
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">{body}</span>
-        </span>
-        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      </button>
-    </li>
+    <button
+      type="button"
+      onClick={() => onGo(to)}
+      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border bg-card px-4 text-[13.5px] font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {title}
+      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+    </button>
   )
 }
