@@ -118,7 +118,8 @@ export default function Notifications() {
   const statuses = useQuery({
     queryKey: ['notif-statuses'],
     queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
-    enabled: open && type === 'activity',
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
+    enabled: open,
     retry: false,
   })
   const qc = useQueryClient()
@@ -239,6 +240,8 @@ export default function Notifications() {
   /* The owner's split: Messages is every notification; Activity is status
      posts (the e-learning hub's photo, video and note statuses). */
   const shownType = type ?? 'messages'
+  const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
+  const countFor = (v: string) => v === 'messages' ? unread : v === 'activity' ? newStatuses : 0
   void isMessage
   const inToggles = (n: Note) => (!onlyUnread || !n.read_at)
   void setFilter
@@ -445,7 +448,7 @@ export default function Notifications() {
                     <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
                       className={cn('min-h-[44px] flex-1 rounded-[10px] px-3 text-[14.5px] font-bold transition-all',
                         v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
-                      {label}
+                      {label}{countFor(v) > 0 && <span className="ml-1.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">{countFor(v)}</span>}
                     </button>
                   ))}
                 </div>
