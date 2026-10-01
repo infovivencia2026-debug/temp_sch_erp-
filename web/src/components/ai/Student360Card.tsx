@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { Button, Card, CardHeader } from '@/components/ui'
@@ -10,6 +11,8 @@ import { aiApi, AiLabel } from './aiApi'
    school never sees a server error where a summary should be. */
 export default function Student360Card({ studentId, fallback }: { studentId: string; fallback?: string }) {
   const qc = useQueryClient()
+  /* Nothing until asked: the owner wanted the card empty until Summarise is pressed. */
+  const [asked, setAsked] = useState(false)
   const key = ['ai-student-360', studentId]
   const q = useQuery({ queryKey: key, queryFn: () => aiApi.student360(studentId), retry: false })
   const make = useMutation({ mutationFn: () => aiApi.makeStudent360(studentId), onSuccess: (d) => qc.setQueryData(key, d) })
@@ -20,20 +23,23 @@ export default function Student360Card({ studentId, fallback }: { studentId: str
     <Card>
       <CardHeader title="Student 360" action={
         <div className="flex items-center gap-2">
-          {b && <AiLabel text="AI summary" />}
-          {!failed && (!b || stale) && (
-            <Button size="sm" variant="outline" pending={make.isPending} onClick={() => make.mutate()}>
-              <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{b ? 'Update' : 'Summarise'}
+          {asked && b && !failed && <AiLabel text="AI summary" />}
+          {(!asked || (!failed && stale)) && (
+            <Button size="sm" variant="outline" pending={make.isPending} onClick={() => {
+              setAsked(true)
+              if (!failed && (!b || stale)) make.mutate()
+            }}>
+              <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{asked ? 'Update' : 'Summarise'}
             </Button>
           )}
         </div>
       } />
-      <div className="px-[var(--card-pad)] py-3 text-sm">
-        {b && !failed ? <p className="whitespace-pre-wrap">{b.body}</p>
-          : failed || fallback ? <p className="leading-relaxed">{fallback ?? 'A summary will appear here once the records are in.'}</p>
-          : <p className="text-muted-foreground">A one-paragraph summary of this student from their records.</p>}
-        {stale && !failed && <p className="mt-1 text-xs text-muted-foreground">The records have changed since this was written.</p>}
-      </div>
+      {asked && !make.isPending && (
+        <div className="px-[var(--card-pad)] py-3 text-sm">
+          {b && !failed ? <p className="whitespace-pre-wrap leading-relaxed">{b.body}</p>
+            : <p className="whitespace-pre-wrap leading-relaxed">{fallback ?? 'A summary will appear here once the records are in.'}</p>}
+        </div>
+      )}
     </Card>
   )
 }

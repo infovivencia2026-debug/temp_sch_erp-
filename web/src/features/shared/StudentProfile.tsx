@@ -61,14 +61,50 @@ interface Remark {
 }
 
 /* A plain summary from the record itself, for when the AI one is unavailable. */
-function summaryOf(p: { full_name: string; attendance: { percent: number; present: number; total: number }; fees: { outstanding_paise: number }; results: { exam: string; percentage: string; grade: string }[] }): string {
-  const first = p.full_name.split(/s+/)[0]
-  const parts: string[] = []
-  parts.push(p.attendance.total ? `${first} has attended ${p.attendance.present} of ${p.attendance.total} school days (${p.attendance.percent}%)` : `No attendance has been marked for ${first} yet`)
+type Mark = { exam: string; subject: string; marks?: string; max?: string; absent: boolean }
+function summaryOf(
+  p: { full_name: string; attendance: { percent: number; present: number; total: number; below_threshold: boolean }; fees: { outstanding_paise: number; paid_paise: number }; results: { exam: string; percentage: string; grade: string; rank: string }[]; invoices: { status: string }[] },
+  marks: Mark[],
+): string {
+  const name = p.full_name
+  const out: string[] = []
+
+  // Attendance
+  const a = p.attendance
+  if (!a.total) out.push(`Attendance: no days have been marked for ${name} yet.`)
+  else {
+    const absent = Math.max(0, a.total - a.present)
+    out.push(`Attendance: ${name} has been present on ${a.present} of ${a.total} school days (${a.percent}%)${absent ? `, absent on ${absent}` : ', with no absences'}.${a.below_threshold ? ' This is below the 75% needed to sit the board exams.' : a.percent >= 90 ? ' Attendance is very good.' : ''}`)
+  }
+
+  // Academics
   const last = p.results[0]
-  if (last?.percentage) parts.push(`scored ${last.percentage}%${last.grade ? ` (grade ${last.grade})` : ''} in ${last.exam}`)
-  parts.push(p.fees.outstanding_paise > 0 ? `has ${formatPaise(p.fees.outstanding_paise)} in fees outstanding` : 'has no fees outstanding')
-  return parts.join(', ').replace(/, ([^,]*)$/, ' and $1') + '.'
+  const latestExam = last?.exam || marks[0]?.exam
+  const paper = marks.filter((m) => m.exam === latestExam && !m.absent && m.marks != null && Number(m.max) > 0)
+    .map((m) => ({ s: m.subject, p: Math.round((Number(m.marks) / Number(m.max)) * 1000) / 10 }))
+    .sort((x, y) => y.p - x.p)
+  if (!latestExam) out.push('Academics: no marks have been entered yet.')
+  else {
+    let line = `Academics: in ${latestExam}`
+    if (last?.percentage) line += ` ${name} scored ${last.percentage}%${last.grade ? ` (grade ${last.grade})` : ''}${last.rank ? `, rank ${last.rank} in the class` : ''}`
+    else if (paper.length) line += ` ${name} has marks in ${paper.length} subject${paper.length === 1 ? '' : 's'}`
+    line += '.'
+    if (paper.length > 1) {
+      line += ` Strongest in ${paper[0].s} (${paper[0].p}%)`
+      const weak = paper[paper.length - 1]
+      line += weak.p < 50 ? `; needs support in ${weak.s} (${weak.p}%).` : `; lowest is ${weak.s} (${weak.p}%).`
+    }
+    if (p.results.length > 1) line += ` ${p.results.length} report cards published so far.`
+    out.push(line)
+  }
+
+  // Fees
+  const unpaid = p.invoices.filter((x) => x.status !== 'paid' && x.status !== 'cancelled').length
+  out.push(p.fees.outstanding_paise > 0
+    ? `Fees: ${formatPaise(p.fees.outstanding_paise)} is outstanding${unpaid ? ` across ${unpaid} invoice${unpaid === 1 ? '' : 's'}` : ''}; ${formatPaise(p.fees.paid_paise)} has been paid in all.`
+    : `Fees: nothing is outstanding; ${formatPaise(p.fees.paid_paise)} has been paid in all.`)
+
+  return out.join('\n\n')
 }
 
 export default function StudentProfile() {
@@ -953,7 +989,7 @@ export default function StudentProfile() {
             </Card>
           ) : null}
           {/* Student 360: an AI summary on request, cached until the records change; staff only (the card hides itself otherwise). */}
-          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p)} /></div>}
+          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} fallback={summaryOf(p, detail.data?.subject_marks ?? [])} /></div>}
           {/* 4. QUICK STATUS — the three things somebody wants before they
                  have finished reading the name, and the one that cannot wait.
 
