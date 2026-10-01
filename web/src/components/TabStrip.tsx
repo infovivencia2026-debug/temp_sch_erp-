@@ -71,6 +71,22 @@ export default function TabStrip() {
 
   const titleFor = (path: string) => screenTitle(catalog, path)
 
+  /* A REMEMBERED TAB FOR A SCREEN THAT IS GONE. Tabs outlive the menu: when a
+     screen is removed from a role (Apply for leave for students), its old tab
+     stayed in the strip and still opened the page. Once the catalogue is in,
+     any tab whose screen it no longer lists is closed. */
+  useEffect(() => {
+    if (!catalog.roles.length) return
+    for (const tb of tabs) {
+      const [, roleKey, sectionSlug, featureSlug] = tb.path.split('?')[0].split('/')
+      if (!roleKey || !sectionSlug || !featureSlug) continue
+      const role = catalog.roles.find((r) => r.key === roleKey)
+      if (!role) continue
+      const listed = role.sections.some((sec) => sec.slug === sectionSlug && sec.features.some((x) => x.slug === featureSlug))
+      if (!listed) close(tb.path)
+    }
+  }, [catalog, tabs, close])
+
   /* Every navigation opens or refreshes a tab. Doing it here rather than at
      each link means nothing has to remember to participate — including links
      inside screens, which is where most navigation in this product happens. */
