@@ -25,6 +25,8 @@ import {
 interface Summary {
   full_name: string; attendance_pct: number; total_days: number; present_days: number
   today: Period[]
+  /** The next school day's periods (Monday after the weekend). */
+  next_day?: { weekday: number; periods: Period[] }
 }
 interface Day { date: string; status: string }
 export interface StudentHomework {
@@ -215,6 +217,32 @@ export default function StudentHome() {
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
+
+        {/* THE NEXT SCHOOL DAY, from the owner's design: subject, teacher and
+            the time as a chip. */}
+        {s?.next_day && s.next_day.periods.length > 0 && (
+          <section className="card overflow-hidden p-0" aria-label="Next school day">
+            <div className="flex items-center justify-between px-4 pb-2 pt-3">
+              <h2 className="text-[15px] font-bold">
+                {s.next_day.weekday === ((new Date().getDay() + 6) % 7) + 2 || (new Date().getDay() === 0 && s.next_day.weekday === 1)
+                  ? `Tomorrow (${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]})`
+                  : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}
+              </h2>
+              {toTimetable && <Link to={toTimetable} className="text-[13px] font-semibold text-primary">Full week →</Link>}
+            </div>
+            <ul className="flex flex-col gap-2 px-3 pb-3">
+              {s.next_day.periods.filter((x) => x.subject !== 'Free').map((x, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold">{x.subject}</span>
+                    <span className="block truncate text-[12px] text-muted-foreground">{[x.period, x.teacher].filter(Boolean).join(' • ')}</span>
+                  </span>
+                  {x.starts_at && <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[12px] font-bold tabular-nums text-primary">{x.starts_at}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Only when there is something in them. */}
         {quizzes.length > 0 && toCourses && (
