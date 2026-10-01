@@ -864,6 +864,28 @@ async function mySubjectsIn(c: Ctx, userId: string, sectionId: string): Promise<
   return rows.results.map((x) => x.id).filter((x): x is string => !!x)
 }
 
+/* WHO A TEACHER MAY WRITE TO FIRST. Messages used to start only when a parent
+   wrote; the owner asked that a teacher can open the conversation. One class
+   at a time: its pupils and every guardian with a login, for a class this
+   person teaches or is class teacher of (or any class for school-wide roles).
+   The send itself is checked again by teacherMayWrite. */
+async function listParentContacts(c: Ctx) {
+  const s = await resolveScope(c)
+  const sectionId = c.url.searchParams.get('section_id') ?? ''
+  const wide = s.allStudents || s.anySection || s.platformAdmin
+  if (!sectionId || (!wide && !s.sectionIds.includes(sectionId))) return ok({ items: [] })
+  const rows = await c.db.prepare(`
+    SELECT st.id AS student_id, st.first_name || COALESCE(' ' || st.last_name, '') AS student_name,
+           g.user_id AS parent_user_id, g.full_name AS parent_name, sg.relation
+      FROM enrollments e
+      JOIN students st ON st.id = e.student_id AND st.status = 'active'
+      JOIN student_guardians sg ON sg.student_id = st.id AND sg.portal_blocked = 0
+      JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+     WHERE e.section_id = ? AND e.status = 'active'
+     ORDER BY st.first_name, g.full_name`).bind(sectionId).all<Record<string, unknown>>()
+  return ok({ items: rows.results })
+}
+
 /* WHAT THE PROGRESS PICKERS OFFER. Each class this person may look at, whether
    they see all of it (class teacher, or a role that sees every class), the
    subjects they teach in it, and the exams that have papers for that class. */
@@ -921,4 +943,5 @@ export function registerDashboards(r: Router): void {
   r.get('/teaching/parent-messages/thread', 'academics.timetable.read', listTeacherParentMessages)
   r.get('/teaching/progress', 'academics.timetable.read', listStudentProgress)
   r.get('/teaching/progress/options', 'academics.timetable.read', progressOptions)
+  r.get('/teaching/parent-contacts', 'academics.timetable.read', listParentContacts)
 }
