@@ -109,6 +109,9 @@ export default function Notifications() {
      back out the way it came. */
   const [closing, setClosing] = useState(false)
   const [filter, setFilter] = useState('all')
+  /* The owner's design: two toggles at the foot of the drawer. */
+  const [onlyUnread, setOnlyUnread] = useState(false)
+  const [type, setType] = useState<'messages' | 'activity' | null>(null)
   const qc = useQueryClient()
 
   const feed = useQuery({
@@ -221,7 +224,13 @@ export default function Notifications() {
      urgent. */
   const listed = FILTERS.flatMap((x) => x.kinds ?? [])
   const inKinds = (kind: string, ks: string[]) => ks.some((k) => kind === k || kind.startsWith(k + '_'))
-  const inFilter = (n: Note) => filter === 'all' ? true
+  const isMessage = (n: Note) => inKinds(n.kind, ['message', 'chat', 'parent_message', 'teacher_message'])
+  /* Messages first if there are any, otherwise activity, so the drawer never
+     opens on an empty side by default. */
+  const shownType = type ?? (items.some(isMessage) ? 'messages' : 'activity')
+  const inToggles = (n: Note) => (!onlyUnread || !n.read_at) && (shownType === 'messages' ? isMessage(n) : !isMessage(n))
+  void setFilter
+  const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
     /* By prefix: the server sends fee_due, fee_overdue, report_card and so on. */
     : (FILTERS.find((x) => x.key === filter)?.kinds ?? []).some((k) => n.kind === k || n.kind.startsWith(k + '_') || n.kind.startsWith(k.replace(/s$/, '') + '_'))
@@ -301,7 +310,7 @@ export default function Notifications() {
           >
             <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-5 py-4">
               <div className="flex min-w-0 items-center gap-2">
-                <h2 className="text-[15px] font-bold tracking-tight">Notifications</h2>
+                <h2 className="text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
                 {unread > 0 && (
                   <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                     {unread} new
@@ -317,8 +326,8 @@ export default function Notifications() {
                 )}
                 {items.length > 0 && (
                   <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                    className="rounded-lg px-2.5 py-1 text-[12px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50">
-                    {clearAll.isPending ? 'Clearing…' : 'Clear'}
+                    className="rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-muted-foreground hover:bg-[#fef2f2] hover:text-[#ef4444] disabled:opacity-50">
+                    {clearAll.isPending ? 'Clearing…' : 'Clear all'}
                   </button>
                 )}
                 <button onClick={dismiss} aria-label="Close notifications"
@@ -327,18 +336,6 @@ export default function Notifications() {
                 </button>
               </div>
             </header>
-
-            {items.length > 0 && (
-              <div className="flex shrink-0 gap-1 overflow-x-auto border-b bg-muted/40 px-4 py-2">
-                {FILTERS.map((f) => (
-                  <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-                    className={cn('shrink-0 rounded-md px-3 py-1 text-[12px] transition-colors',
-                      filter === f.key ? 'border bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground hover:text-foreground')}>
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            )}
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
               {items.length === 0 ? (
@@ -363,7 +360,7 @@ export default function Notifications() {
                         const { icon: Icon, label } = kindOf(n.kind)
                         return (
                           <button key={n.id} type="button" onClick={() => openNote(n)}
-                            className={cn('flex w-full items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all hover:shadow-md',
+                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30',
                               n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                             <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
                               n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
@@ -389,6 +386,28 @@ export default function Notifications() {
                 ))
               )}
             </div>
+            {items.length > 0 && (
+              <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
+                <div className="flex flex-1 gap-1 rounded-[14px] bg-muted p-[5px]">
+                  {[["unread","Unread"],["all","All"]].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
+                      className={cn('min-h-[44px] flex-1 rounded-[10px] px-3 text-[14.5px] font-bold transition-all',
+                        (v === 'unread') === onlyUnread ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-1 gap-1 rounded-[14px] bg-muted p-[5px]">
+                  {[["messages","Messages"],["activity","Activity"]].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
+                      className={cn('min-h-[44px] flex-1 rounded-[10px] px-3 text-[14.5px] font-bold transition-all',
+                        v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </footer>
+            )}
           </aside>
         </div>,
         document.body,
