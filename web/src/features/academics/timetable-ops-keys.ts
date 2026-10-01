@@ -18,9 +18,6 @@ export const timetableOpsKeys = {
   'super_admin.ai_automation.automated_timetable_optimizer': lazy(
     () => import('./TimetableOptimizer'),
   ),
-  'institution_admin.department.department_timetable': lazy(
-    () => import('../hod/DepartmentTimetable'),
-  ),
   'faculty.timetable.substitution_request_submission': lazy(
     () => import('../faculty/SubstitutionRequest'),
   ),

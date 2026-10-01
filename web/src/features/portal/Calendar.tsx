@@ -8,6 +8,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { PtmBooking } from './PtmBooking'
 
 /* THE SCHOOL YEAR, AS A MONTH AND AS A LIST.
  *
@@ -29,8 +30,8 @@ import { useChildren, childOptions } from './use-children'
  * reader and a black-and-white print -- the tint is how you scan it, the word
  * is how you are sure.
  *
- * Booked meetings appear here but are not made here. Taking a slot is its own
- * screen: choosing a time is a task, reading the calendar is a glance.
+ * Booked meetings appear in the calendar; taking or cancelling a slot is the
+ * card under it (PtmBooking).
  */
 
 interface Entry {
@@ -476,6 +477,9 @@ export default function Calendar() {
           )}
         </div>
 
+        {/* Taking or cancelling a meeting slot. The catalogue's one entry is
+            "Calendar & PTM", so booking sits under the calendar that shows it. */}
+        <PtmBooking children={children} studentId={studentId} />
       </PageBody>
     </>
   )

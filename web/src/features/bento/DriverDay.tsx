@@ -28,7 +28,7 @@ function DriverDay() {
   const toBus = useFeatureHref('driver.transport.my_bus_route')
 
   if (isLoading) return <BentoLoading message="Finding your bus…" />
-  if (error) return <BentoError message={String(error)} />
+  if (error) return <BentoError message="Your bus details could not be loaded. Check your connection and try again." />
   const d = data!
 
   return (

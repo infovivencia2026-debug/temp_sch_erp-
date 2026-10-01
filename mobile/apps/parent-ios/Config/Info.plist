@@ -26,6 +26,8 @@
 	<string>$(PORTAL_URL)</string>
 	<key>PortalHost</key>
 	<string>$(PORTAL_HOST)</string>
+	<key>PortalAliases</key>
+	<string>$(PORTAL_ALIASES)</string>
 
 	<!-- THE SYSTEM SPLASH, ON THE PAGE'S OWN COLOUR.
 

@@ -2,6 +2,9 @@ import type { Env } from '../../env'
 import { json } from '../../env'
 import { institutionById, tenantDb } from '../../tenant'
 import { applyStatus } from '../../services/messaging'
+import { isStartKeyword, isStopKeyword, recordOptOut } from '../../services/delivery'
+import { normaliseRecipient } from '../admin/msg_guard'
+import type { Institution } from '../../tenant'
 
 /* Delivery receipts from the providers, on /api/v1/public/webhooks/*. No
    session: each provider proves itself its own way.
@@ -78,7 +81,7 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
   const sig = (req.headers.get('x-hub-signature-256') ?? '').replace(/^sha256=/, '')
   const want = hex(await hmac(enc.encode(appSecret), body))
   if (!sig || !safeEqual(sig.toLowerCase(), want)) return json({ error: 'bad signature' }, 401)
-  let payload: { entry?: { changes?: { value?: { statuses?: WaStatus[] } }[] }[] }
+  let payload: { entry?: { changes?: { value?: { statuses?: WaStatus[]; messages?: WaInbound[] } }[] }[] }
   try { payload = JSON.parse(body) } catch { return json({ error: 'malformed JSON' }, 400) }
   let applied = 0, unmatched = 0
   for (const e of payload.entry ?? []) for (const ch of e.changes ?? []) for (const st of ch.value?.statuses ?? []) {
@@ -91,7 +94,42 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
     if (await apply(env, ref[1].toLowerCase(), ref[2].toLowerCase(), status, 'whatsapp:cloud', detail, at, st.id)) applied++
     else unmatched++
   }
-  return json({ ok: true, applied, unmatched })
+  let optOuts = 0
+  for (const e of payload.entry ?? []) for (const ch of e.changes ?? []) for (const msg of ch.value?.messages ?? []) {
+    const text = msg.text?.body ?? msg.button?.text ?? msg.button?.payload ?? msg.interactive?.button_reply?.title ?? ''
+    const stop = isStopKeyword(text), start = !stop && isStartKeyword(text)
+    if ((stop || start) && msg.from) optOuts += await applyStopReply(env, msg.from, 'whatsapp', stop)
+  }
+  return json({ ok: true, applied, unmatched, opt_outs: optOuts })
+}
+
+interface WaInbound { from?: string; text?: { body?: string }; button?: { text?: string; payload?: string }; interactive?: { button_reply?: { title?: string } } }
+
+const last10 = (v: string) => v.replace(/[^0-9]/g, '').slice(-10)
+
+/** A STOP (or START) reply from a number. The shared WhatsApp number does not say which
+    school the parent means, so it applies in every school that has messaged that number
+    on that channel in the last 180 days. Returns how many schools it changed. */
+export async function applyStopReply(env: Env, from: string, channel: 'whatsapp' | 'sms', stop: boolean, only?: Institution): Promise<number> {
+  const contact = normaliseRecipient(from)
+  if (!contact.startsWith('phone:')) return 0
+  const since = new Date(Date.now() - 180 * 86_400_000).toISOString()
+  const schools = only ? [only] : (await env.CONTROL.prepare(`SELECT * FROM institutions LIMIT 2000`).all<Institution>().catch(() => ({ results: [] as Institution[] }))).results
+  let n = 0
+  for (const inst of schools) {
+    try {
+      const db = tenantDb(env, inst)
+      if (!only) {
+        const hit = await db.prepare(`SELECT 1 AS x FROM message_log WHERE channel = ? AND queued_at > ?
+            AND substr(replace(replace(replace(recipient,'+',''),' ',''),'-',''), -10) = ? LIMIT 1`).bind(channel, since, last10(from)).first()
+        if (!hit) continue
+      }
+      if (stop) await recordOptOut(db, inst.id, contact, 'all', 'stop_reply', `replied STOP on ${channel}`)
+      else await db.prepare(`DELETE FROM message_opt_outs WHERE contact = ? AND source = 'stop_reply'`).bind(contact).run()
+      n++
+    } catch (e) { console.warn('stop reply', inst.id, e) }
+  }
+  return n
 }
 
 // --- Resend (Svix-signed) ----------------------------------------------------
@@ -169,8 +207,15 @@ export async function smsWebhook(env: Env, req: Request, url: URL, inst: string,
   const row = await institutionById(env, inst).catch(() => null)
   if (!row) return json({ error: 'no such school' }, 404)
   const db = tenantDb(env, row)
-  let applied = 0
+  let applied = 0, optOuts = 0
   for (const r of reports) {
+    // An inbound SMS (a reply) forwarded to the same URL: STOP / START from the sender.
+    const moText = pick(r, ['message', 'text', 'content', 'body', 'sms', 'Message', 'Text'])
+    const moFrom = pick(r, ['from', 'sender', 'mobile', 'msisdn', 'From', 'Sender', 'phone'])
+    if (moText && moFrom && (isStopKeyword(moText) || isStartKeyword(moText))) {
+      optOuts += await applyStopReply(env, moFrom, 'sms', isStopKeyword(moText), row)
+      continue
+    }
     const pid = pick(r, ['request_id', 'requestId', 'requestID', 'message_id', 'messageId', 'msgid', 'id'])
     const status = smsStatusOf(pick(r, ['status', 'Status', 'report_status', 'desc', 'deliveryStatus']))
     if (!pid || !status) continue
@@ -179,7 +224,7 @@ export async function smsWebhook(env: Env, req: Request, url: URL, inst: string,
     const detail = status === 'failed' ? `sms: ${pick(r, ['status', 'Status', 'desc', 'reason', 'error']) || 'undelivered'}` : null
     if (await applyStatus({ env, db, inst }, m.id, status, 'sms', detail, new Date().toISOString())) applied++
   }
-  return json({ ok: true, applied })
+  return json({ ok: true, applied, opt_outs: optOuts })
 }
 
 const SMS_PATH = new RegExp(`^/api/v1/public/webhooks/sms/(${UUIDISH})/([0-9a-f]{32})$`, 'i')

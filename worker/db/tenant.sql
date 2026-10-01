@@ -5324,7 +5324,7 @@ CREATE TABLE IF NOT EXISTS "message_log" (
   "occurrence_key" TEXT,
   "send_after" TEXT,
   "attempts" INTEGER NOT NULL DEFAULT 0,
-  "template_vars" TEXT, read_at TEXT, failed_at TEXT, message_type TEXT, ladder TEXT, fallback_of TEXT, dedup_key TEXT, idempotency_key TEXT, urgent INTEGER NOT NULL DEFAULT 0,
+  "template_vars" TEXT, read_at TEXT, failed_at TEXT, message_type TEXT, ladder TEXT, fallback_of TEXT, dedup_key TEXT, idempotency_key TEXT, urgent INTEGER NOT NULL DEFAULT 0, segments INTEGER, encoding TEXT,
   PRIMARY KEY ("id"),
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE,
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL,
@@ -10460,6 +10460,21 @@ CREATE INDEX IF NOT EXISTS message_log_dedup ON message_log (dedup_key, queued_a
 CREATE INDEX IF NOT EXISTS message_log_provider_msg ON message_log (provider_msg_id) WHERE provider_msg_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS message_log_by_source ON message_log (source_kind, source_id) WHERE source_kind IS NOT NULL;
 CREATE INDEX IF NOT EXISTS message_log_recipient_day ON message_log (recipient, queued_at);
+
+CREATE TABLE IF NOT EXISTS message_opt_outs (
+  institution_id TEXT NOT NULL REFERENCES institutions (id) ON DELETE CASCADE,
+  contact TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'marketing',
+  source TEXT NOT NULL DEFAULT 'office',
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (institution_id, contact, scope)
+);
+CREATE INDEX IF NOT EXISTS message_opt_outs_contact ON message_opt_outs (contact);
+CREATE INDEX IF NOT EXISTS message_log_sent_at ON message_log (sent_at) WHERE sent_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS transport_stop_events_occurred ON transport_stop_events (occurred_at);
+CREATE INDEX IF NOT EXISTS transport_stop_events_trip_occurred ON transport_stop_events (trip_id, occurred_at);
+CREATE INDEX IF NOT EXISTS transport_safety_events_started ON transport_safety_events (started_at);
 CREATE INDEX IF NOT EXISTS student_attendance_student_date ON student_attendance (student_id, on_date, status);
 CREATE INDEX IF NOT EXISTS student_attendance_date_status ON student_attendance (on_date, status);
 CREATE INDEX IF NOT EXISTS staff_attendance_date_status ON staff_attendance (on_date, status);
@@ -10600,6 +10615,9 @@ INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tena
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 11, 'lms_modules', '186f731b38bac89604e9f5412f26501c0fe88b80f97f851e3773567a6d1d4906');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 12, 'lms_progression', '4f6511af475fbf4fb76bdabf8185f9f3cfda1275070a90361570eca894b95599');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 14, 'messaging_delivery', '93c01ff8c7ca13f052e16a097c7ae407bf335a3e6dc70e8bdd254c6e14e9c00d');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 15, 'message_opt_outs', 'b590b8ed542df2f61b80a474496a9a750aa7fcd57957ede43d4042db075d1d90');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 16, 'log_indexes', '5ea9084e96687b7c8da45f8ad470fc1f232a772946d1f6478a0b1f11f4ec7bdf');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 17, 'restore_catalogue_screens', '086b0a9a8ce3b2b29b48b6d0cd218ba60c65c8c02ef7cd32f8f3d7fa6a0a5eb7');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 18, 'query_indexes', 'f0ab999278b998b5fada5bb923aede89465ef2b12834fafbf0840b60cab8201e');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 19, 'school_code_and_login_code', 'b23952cfcde4fdbc3296cc5544a90550ca5a996e56181da52cc576d30b0166b7');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 20, 'feature_class_status', 'f7b4acb1ea43ba9fb65ff64522eb9472932bef33e35cdb70b4f8c60e27eec59f');
@@ -10607,6 +10625,14 @@ INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tena
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 22, 'front_office_status', 'fb3e0d49c70b0f82b910b9b9a726b18100cb6277c6a51e42a66e5347458dcc3f');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 23, 'request_path_indexes', 'ec5d88bcacde27e3063e7e67de7ef21b9d9cf8b1765219c8269f8e132df4fdab');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('lms_admin.lms.courses', 'lms_admin', 'Every course in the school: lessons, assignments and quizzes, for any subject and section.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.analysis.custom_report_builder', 'institution_admin', 'Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.analysis.department_reports', 'institution_admin', 'Attendance, workload, results and a summary for each department side by side.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.analysis.performance_analytics', 'institution_admin', 'Subject pass rates, the term-on-term trend, the spread of marks and the students at risk.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.department.department_academics', 'institution_admin', 'Each department''s subjects, sections and teachers, and how far its syllabus has got.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.evaluation.appraisals', 'institution_admin', 'Run a 360-degree review cycle: peers, students and the principal answer the same questions, and each teacher''s results are released once enough people have answered to keep them anonymous.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.statutory_returns.instruction_hours', 'institution_admin', 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.stores.purchase_order_workflow', 'institution_admin', 'Raise a purchase requisition, approve it within the spending limits, issue the purchase order, record the goods received and match the supplier''s invoice against both before it is paid.');
+INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('finance.student_dues.automated_fee_reminders', 'finance', 'Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending.');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('status.post', 'status', 'Post a class status (photo or short video) to own sections, classes or the school');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('status.manage', 'status', 'Every class status in the school: approve, delete, pin, and the settings');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('status.post_school', 'status', 'Post a status as the school, with its name and logo');

@@ -71,7 +71,7 @@ const key = (k: string) =>
   document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
 
 const more = (id: string) =>
-  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] > .bento-more`)
+  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] > .bento-capsule > .bento-more`)
 
 const menu = () => document.querySelector<HTMLElement>('[data-bento-menu]')
 
@@ -110,7 +110,7 @@ afterEach(async () => {
 describe('quick menu', () => {
   it('every card has a "…" after its link, named for the card, that opens the five rows', async () => {
     await mount()
-    expect(host.querySelectorAll('.bento-widget > .bento-more').length).toBe(CARDS.length)
+    expect(host.querySelectorAll('.bento-widget > .bento-capsule > .bento-more').length).toBe(CARDS.length)
     expect(host.querySelectorAll('.bento-widget[data-more]').length).toBe(CARDS.length)
 
     const btn = more('a')!

@@ -607,7 +607,9 @@ async function generateReportCards(c: Ctx) {
     const inst = c.id.institution!.id
     await enqueueMany(c.env, rcTargets.map((t) => ({ type: 'message:send', institution_id: inst,
       payload: { institution_id: inst, channel: 'email', template_key: 'reportcard.published', to_user_id: t.recipient, job_id: uuid(),
-        vars: { student_name: t.name, exam_name: 'the latest' } } })))
+        vars: { student_name: t.name, exam_name: 'the latest' }, student_id: t.student_id, source_kind: 'report_card',
+        // Once per exam per child per person: publishing the section again tells nobody twice.
+        dedupe_key: `reportcard:${examId}:${t.student_id}` } })))
   }
   return ok({ report_cards: totals.results.length, published: publish })
 }
@@ -706,7 +708,7 @@ async function publishReportCards(c: Ctx) {
     try {
       const t0 = todayIST()
       const rows = await c.db.prepare(`
-        SELECT TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')) AS name, COALESCE(cl.name,'') || '-' || COALESCE(sec.name,'') AS section,
+        SELECT rc.id AS card_id, rc.student_id, TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')) AS name, COALESCE(cl.name,'') || '-' || COALESCE(sec.name,'') AS section,
                COALESCE(rc.percentage, 0) AS pct, COALESCE(rc.grade, '') AS grade, who.phone, who.email
           FROM report_cards rc JOIN students st ON st.id = rc.student_id JOIN enrollments e ON e.id = rc.enrollment_id
           LEFT JOIN sections sec ON sec.id = e.section_id LEFT JOIN classes cl ON cl.id = sec.class_id
@@ -718,7 +720,7 @@ async function publishReportCards(c: Ctx) {
                 UNION ALL
                 SELECT st2.id, u.phone, u.email FROM students st2 JOIN users u ON u.id = st2.user_id WHERE ?2) who ON who.sid = rc.student_id
          WHERE rc.id IN ${inList(cardIds)}`).bind(toParents ? 1 : 0, toStudents ? 1 : 0, t0, js(cardIds))
-        .all<{ name: string; section: string; pct: number; grade: string; phone: string | null; email: string | null }>()
+        .all<{ card_id: string; student_id: string; name: string; section: string; pct: number; grade: string; phone: string | null; email: string | null }>()
       const ms = new Messenger(scopeOf(c))
       for (const n of rows.results) {
         let text = `${n.name} (${n.section}): report card published · ${Number(n.pct).toFixed(1)}%`
@@ -727,7 +729,13 @@ async function publishReportCards(c: Ctx) {
         for (const ch of channels) {
           const to = ((ch === 'email' ? n.email : n.phone) ?? '').trim()
           if (to === '') continue
-          try { await ms.queue({ channel: ch, template_code: 'messaging.direct', vars: { text, subject: 'Report card published' }, recipient: to }); queued++ } catch { /* continue */ }
+          // Keyed on the card and what it says: a double click or a second publish of the same
+          // marks is one message; a card returned, corrected and published again is news.
+          try {
+            const r2 = await ms.queue({ channel: ch, template_code: 'messaging.direct', vars: { text, subject: 'Report card published' }, recipient: to,
+              student_id: n.student_id, source_kind: 'report_card', source_id: n.card_id, occurrence_key: `${Number(n.pct).toFixed(1)}:${n.grade}:${to.toLowerCase()}` })
+            if (!r2.duplicate) queued++
+          } catch { /* continue */ }
         }
       }
       await ms.kick()

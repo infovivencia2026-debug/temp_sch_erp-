@@ -549,7 +549,85 @@ function ReviewCard({ appraisal, onSaved }: { appraisal: Appraisal; onSaved: () 
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
   if (!detail.data) return null
 
-  return <ReviewForm key={detail.data.id} appraisal={detail.data} onSaved={onSaved} />
+  return (
+    <>
+      <ReviewForm key={detail.data.id} appraisal={detail.data} onSaved={onSaved} />
+      {(detail.data.status === 'reviewed' || detail.data.status === 'moderated') && (
+        <ModerationForm key={`mod-${detail.data.id}`} appraisal={detail.data} onSaved={onSaved} />
+      )}
+    </>
+  )
+}
+
+/* Moderation: the HR office's adjustment between review and publication.
+
+   The reviewer's score stands unless a KPI is overridden here; an empty box
+   keeps the reviewer's. Publishing then takes the moderated total over the
+   reviewer's. Back office only (employees.write). */
+function ModerationForm({ appraisal, onSaved }: { appraisal: AppraisalDetail; onSaved: () => void }) {
+  const mayWrite = useCan()('hr.employees.write')
+  const [scores, setScores] = useState<Record<string, string>>(() =>
+    Object.fromEntries(appraisal.ratings.map((r) => [r.kpi_id, r.moderated_score != null ? String(r.moderated_score) : ''])),
+  )
+  const [note, setNote] = useState('')
+  const max = appraisal.score_scale_max
+  const badScore = appraisal.ratings.some((r) => {
+    const raw = (scores[r.kpi_id] ?? '').trim()
+    if (raw === '') return false
+    const n = Number(raw)
+    return !Number.isFinite(n) || n < 0 || n > max
+  })
+  const moderate = useMutation({
+    mutationFn: () =>
+      api.post(`/api/v1/hr-growth/appraisal/records/${appraisal.id}/moderate`, {
+        ratings: appraisal.ratings.flatMap((r) => {
+          const raw = (scores[r.kpi_id] ?? '').trim()
+          return raw === '' ? [] : [{ kpi_id: r.kpi_id, score: Number(raw) }]
+        }),
+        note: note.trim() || undefined,
+      }),
+    onSuccess: onSaved,
+  })
+  if (!mayWrite) return null
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Moderate · ${appraisal.full_name}`}
+        description="Override the reviewer's score on any KPI before publishing. A box left empty keeps the reviewer's score."
+      />
+      <Table
+        head={['KPI', { label: 'Reviewer', align: 'right' }, { label: `Moderated (of ${max})`, align: 'right' }]}
+        empty={appraisal.ratings.length === 0}
+      >
+        {appraisal.ratings.map((r) => (
+          <tr key={r.kpi_id}>
+            <Td className="font-medium">{r.title}</Td>
+            <Td className="text-right tabular-nums text-muted-foreground">
+              {r.reviewer_score != null ? r.reviewer_score.toFixed(2) : '-'}
+            </Td>
+            <Td className="text-right">
+              <Input
+                type="number"
+                srLabel={`Moderated score out of ${max} for ${r.title}`}
+                value={scores[r.kpi_id] ?? ''}
+                onChange={(v) => setScores({ ...scores, [r.kpi_id]: v })}
+              />
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <div className="space-y-4 p-5">
+        <Field label="Moderation note" hint="Why the score was changed. Kept on the record." wide>
+          <Textarea value={note} onChange={setNote} rows={2} />
+        </Field>
+        <FormNotice error={moderate.error} ok={moderate.isSuccess ? 'Moderation recorded.' : undefined} />
+        <Button onClick={() => moderate.mutate()} disabled={badScore || moderate.isPending}>
+          {moderate.isPending ? 'Saving…' : 'Record moderation'}
+        </Button>
+      </div>
+    </Card>
+  )
 }
 
 function ReviewForm({

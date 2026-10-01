@@ -361,7 +361,7 @@ function IncomeTax() {
   })
 
   const t = tax.data as
-    | (Record<string, number> & { declarations: { id: string; section: string; particulars: string; declared_paise: number; verified_paise?: number; status: string; counted_paise: number }[]; regime: string; elected: boolean; projected: boolean })
+    | (Record<string, number> & { declarations: { id: string; section: string; particulars: string; declared_paise: number; verified_paise?: number; status: string; counted_paise: number }[]; regime: string; elected: boolean; projected: boolean; projection_basis?: string })
     | undefined
 
   return (
@@ -399,7 +399,10 @@ function IncomeTax() {
               )}
               {t.projected && (
                 <span className="text-[13px] text-muted-foreground">
-                  Projected from {t.months_paid} month{t.months_paid === 1 ? '' : 's'} paid
+                  {t.months_paid} month{t.months_paid === 1 ? '' : 's'} actually paid, the rest{' '}
+                  {t.projection_basis === 'salary_structure'
+                    ? 'at the salary on file'
+                    : 'estimated from the average payslip (no salary on file)'}
                 </span>
               )}
             </div>

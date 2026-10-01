@@ -46,8 +46,10 @@ async function institutionIntegrations(c: Ctx): Promise<Entry[]> {
   const set = await loadProviders(c, rows)
   const stored = new Map(rows.map((r) => [r.provider, r]))
   const cutoff = new Date(Date.now() - 24 * 3_600_000).toISOString()
-  const failed = new Map((await c.db.prepare(`SELECT channel, sum(CASE WHEN status = 'failed' AND queued_at > ? THEN 1 ELSE 0 END) AS failed
-      FROM message_log GROUP BY channel`).bind(cutoff).all<{ channel: string; failed: number }>()).results.map((r) => [r.channel, Number(r.failed ?? 0)]))
+  // The last day's failures only, read through the queued_at index; the unary
+  // + keeps SQLite from walking the whole log in channel order for the GROUP BY.
+  const failed = new Map((await c.db.prepare(`SELECT +channel AS channel, count(*) AS failed
+      FROM message_log WHERE status = 'failed' AND queued_at > ? GROUP BY +channel`).bind(cutoff).all<{ channel: string; failed: number }>()).results.map((r) => [r.channel, Number(r.failed ?? 0)]))
 
   for (const ch of [
     { key: 'email', label: 'Email (SMTP)', fixKey: 'super_admin.messaging.email_server_smtp_integration', fixLabel: 'Email Server (SMTP)' },

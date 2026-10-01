@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Briefcase, ClipboardList, GraduationCap, UserCheck } from 'lucide-react'
+import { Briefcase, ClipboardList, GraduationCap, Handshake, UserCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import { formatPaise } from '@/lib/utils'
@@ -125,6 +125,7 @@ function band(min?: number, max?: number) {
 const TABS = [
   ['posts', 'Posts', Briefcase],
   ['pipeline', 'Pipeline', ClipboardList],
+  ['interviews', 'Interviews & offers', Handshake],
 ] as const
 
 export default function Recruitment() {
@@ -185,6 +186,7 @@ export default function Recruitment() {
 
         {tab === 'posts' && <PostsTab posts={posts} />}
         {tab === 'pipeline' && <PipelineTab posts={posts} stages={stages} />}
+        {tab === 'interviews' && <InterviewsTab />}
       </PageBody>
     </>
   )
@@ -612,5 +614,204 @@ function HireCard({ candidate, onDone }: { candidate: Candidate; onDone: () => v
         </div>
       </div>
     </Card>
+  )
+}
+
+/* Interviews and offers.
+
+   The server kept both (job_interviews, job_offers) and nothing called them:
+   a candidate could be moved to "Interviewed" or "Offered" with no record of
+   the round, the panel's verdict or the salary put in writing. One row each
+   to schedule and to issue, and the two outcomes recorded in place. */
+interface Interview {
+  id: string
+  candidate: string
+  vacancy_code: string
+  round: string
+  scheduled_at?: string
+  mode: string
+  venue?: string
+  result: string
+  score?: number
+  remarks?: string
+}
+
+interface Offer {
+  id: string
+  candidate: string
+  vacancy_code: string
+  offered_on: string
+  gross_monthly_paise: number
+  joining_on?: string
+  valid_until?: string
+  status: string
+  lapsed: boolean
+}
+
+function InterviewsTab() {
+  const mayWrite = useCan()('hr.employees.write')
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['hr-growth'] })
+
+  const candidates = useQuery({
+    queryKey: ['hr-growth', 'candidates', ''],
+    queryFn: () => api.get<List<Candidate>>('/api/v1/hr-growth/candidates'),
+  })
+  const interviews = useQuery({
+    queryKey: ['hr-growth', 'interviews'],
+    queryFn: () => api.get<List<Interview>>('/api/v1/hr-growth/interviews'),
+  })
+  const offers = useQuery({
+    queryKey: ['hr-growth', 'offers'],
+    queryFn: () => api.get<List<Offer>>('/api/v1/hr-growth/offers'),
+  })
+
+  const [cand, setCand] = useState('')
+  const [round, setRound] = useState('')
+  const [when, setWhen] = useState('')
+  const [venue, setVenue] = useState('')
+  const schedule = useMutation({
+    mutationFn: () => api.post('/api/v1/hr-growth/interviews', {
+      candidate_id: cand, round, scheduled_at: when || undefined, venue: venue || undefined,
+    }),
+    onSuccess: () => { setRound(''); setWhen(''); setVenue(''); invalidate() },
+  })
+  const result = useMutation({
+    mutationFn: (v: { id: string; result: string }) =>
+      api.post(`/api/v1/hr-growth/interviews/${v.id}/result`, { result: v.result }),
+    onSuccess: invalidate,
+  })
+
+  const [offerCand, setOfferCand] = useState('')
+  const [gross, setGross] = useState('')
+  const [joining, setJoining] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const issue = useMutation({
+    mutationFn: () => api.post('/api/v1/hr-growth/offers', {
+      candidate_id: offerCand,
+      gross_monthly_paise: rupeesToPaise(gross),
+      joining_on: joining || undefined,
+      valid_until: validUntil || undefined,
+      send: true,
+    }),
+    onSuccess: () => { setGross(''); setJoining(''); setValidUntil(''); invalidate() },
+  })
+  const respond = useMutation({
+    mutationFn: (v: { id: string; status: string }) =>
+      api.post(`/api/v1/hr-growth/offers/${v.id}/respond`, { status: v.status }),
+    onSuccess: invalidate,
+  })
+
+  const live = (candidates.data?.items ?? []).filter((c) => !['joined', 'rejected', 'withdrawn'].includes(c.stage))
+  const candOptions = live.map((c) => ({ value: c.id, label: `${c.full_name} · ${c.vacancy_code}` }))
+  const ivs = interviews.data?.items ?? []
+  const offs = offers.data?.items ?? []
+
+  return (
+    <>
+      <Card>
+        <CardHeader title="Interviews" description="Each round, when and where, and what the panel decided." />
+        {mayWrite && (
+          <div className="px-5 pb-4">
+            <FormGrid>
+              <Field label="Candidate">
+                <Select value={cand} onChange={setCand} placeholder="Choose a candidate" options={candOptions} />
+              </Field>
+              <Field label="Round">
+                <Input value={round} onChange={setRound} placeholder="e.g. Panel, Principal" />
+              </Field>
+              <Field label="When">
+                <Input type="datetime-local" value={when} onChange={setWhen} />
+              </Field>
+              <Field label="Venue">
+                <Input value={venue} onChange={setVenue} />
+              </Field>
+            </FormGrid>
+            <div className="mt-3">
+              <Button disabled={!cand || !round.trim() || schedule.isPending} onClick={() => schedule.mutate()}>
+                {schedule.isPending ? 'Scheduling…' : 'Schedule interview'}
+              </Button>
+            </div>
+          </div>
+        )}
+        <FormNotice error={schedule.error ?? result.error} />
+        {interviews.error ? <ErrorState error={interviews.error} /> : (
+          <Table loading={interviews.isLoading} head={['Candidate', 'Round', 'When', 'Result', '']}
+            empty={!ivs.length} emptyLabel="No interviews scheduled.">
+            {ivs.map((i) => (
+              <tr key={i.id}>
+                <Td className="font-medium">{i.candidate}<span className="block text-[12px] font-normal text-muted-foreground">{i.vacancy_code}</span></Td>
+                <Td>{i.round}</Td>
+                <Td className="text-muted-foreground">{[i.scheduled_at, i.venue].filter(Boolean).join(' · ') || '-'}</Td>
+                <Td><Badge tone={i.result === 'pass' ? 'success' : i.result === 'scheduled' ? 'info' : 'neutral'}>{i.result.replace('_', ' ')}</Badge></Td>
+                <Td>
+                  {mayWrite && i.result === 'scheduled' && (
+                    <div className="flex gap-1">
+                      {(['pass', 'fail', 'no_show'] as const).map((r) => (
+                        <Button key={r} size="sm" variant={r === 'pass' ? 'primary' : 'secondary'}
+                          disabled={result.isPending} onClick={() => result.mutate({ id: i.id, result: r })}>
+                          {r === 'pass' ? 'Pass' : r === 'fail' ? 'Fail' : 'No show'}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Offers" description="The salary put in writing, and whether the candidate took it." />
+        {mayWrite && (
+          <div className="px-5 pb-4">
+            <FormGrid>
+              <Field label="Candidate">
+                <Select value={offerCand} onChange={setOfferCand} placeholder="Choose a candidate"
+                  options={live.filter((c) => !c.has_live_offer).map((c) => ({ value: c.id, label: `${c.full_name} · ${c.vacancy_code}` }))} />
+              </Field>
+              <Field label="Gross monthly (₹)">
+                <Input value={gross} onChange={setGross} />
+              </Field>
+              <Field label="Joining on">
+                <Input type="date" value={joining} onChange={setJoining} />
+              </Field>
+              <Field label="Valid until">
+                <Input type="date" value={validUntil} onChange={setValidUntil} />
+              </Field>
+            </FormGrid>
+            <div className="mt-3">
+              <Button disabled={!offerCand || !(Number(gross) > 0) || issue.isPending} onClick={() => issue.mutate()}>
+                {issue.isPending ? 'Issuing…' : 'Issue offer'}
+              </Button>
+            </div>
+          </div>
+        )}
+        <FormNotice error={issue.error ?? respond.error} />
+        {offers.error ? <ErrorState error={offers.error} /> : (
+          <Table loading={offers.isLoading} head={['Candidate', 'Gross / month', 'Joining', 'Status', '']}
+            empty={!offs.length} emptyLabel="No offers issued.">
+            {offs.map((o) => (
+              <tr key={o.id}>
+                <Td className="font-medium">{o.candidate}<span className="block text-[12px] font-normal text-muted-foreground">{o.vacancy_code} · {o.offered_on}</span></Td>
+                <Td className="tabular-nums">{formatPaise(o.gross_monthly_paise)}</Td>
+                <Td className="text-muted-foreground">{o.joining_on ?? '-'}</Td>
+                <Td><Badge tone={o.status === 'accepted' ? 'success' : o.lapsed ? 'warning' : 'neutral'}>{o.lapsed ? 'lapsed' : o.status}</Badge></Td>
+                <Td>
+                  {mayWrite && (o.status === 'sent' || o.status === 'draft') && (
+                    <div className="flex gap-1">
+                      <Button size="sm" disabled={respond.isPending} onClick={() => respond.mutate({ id: o.id, status: 'accepted' })}>Accepted</Button>
+                      <Button size="sm" variant="secondary" disabled={respond.isPending} onClick={() => respond.mutate({ id: o.id, status: 'declined' })}>Declined</Button>
+                      <Button size="sm" variant="ghost" disabled={respond.isPending} onClick={() => respond.mutate({ id: o.id, status: 'withdrawn' })}>Withdraw</Button>
+                    </div>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
   )
 }

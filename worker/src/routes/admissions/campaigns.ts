@@ -1,5 +1,10 @@
-import type { Ctx, Router } from '../../router'
-import { Messenger, MessagingError, scopeOf } from '../../services/messaging'
+import type { Router } from '../../router'
+import type { Env } from '../../env'
+import { Messenger, MessagingError } from '../../services/messaging'
+import { optOutReason, recordOptOut } from '../../services/delivery'
+import { normaliseRecipient } from '../admin/msg_guard'
+import { registerJob } from '../../services/jobs'
+import { jobSchool } from '../../services/background/schools'
 import { sendAtFor } from '../../services/message_rules'
 import { HttpError, badRequest, bool, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { activityStmt } from './crm'
@@ -88,7 +93,7 @@ export function registerAdmissionCampaigns(r: Router) {
     return ok({ items: rows.results.map(omitNull) })
   })
 
-  r.post('/admissions/campaigns/run', WRITE, async (c) => ok(await runCampaigns(c)))
+  r.post('/admissions/campaigns/run', WRITE, async (c) => ok(await runCampaigns(c.env, c.db, c.id.institution!.id)))
 
   r.get('/admissions/campaigns/{id}/steps', READ, async (c) => {
     const cid = uuidParam(c.params.id)
@@ -316,6 +321,13 @@ export function registerAdmissionCampaigns(r: Router) {
     const t = now()
     const res = await c.db.prepare(`UPDATE enquiries SET marketing_opt_out = 1, opted_out_at = ?, updated_at = ? WHERE id = ?`).bind(t, t, leadID).run()
     if (res.meta.changes === 0) throw notFound()
+    // The person, not the row: every enquiry and every marketing send to this number or
+    // address stops too (a second enquiry from the same family is not a fresh consent).
+    const lead = await c.db.prepare(`SELECT phone, email FROM enquiries WHERE id = ?`).bind(leadID).first<{ phone: string | null; email: string | null }>()
+    for (const v of [lead?.phone, lead?.email]) {
+      const contact = normaliseRecipient(v ?? '')
+      if (contact) await recordOptOut(c.db, c.id.institution!.id, contact, 'marketing', 'office', 'lead ' + leadID)
+    }
     const stops = await stopEnrolmentsForLead(c.db, leadID, 'the parent asked not to be contacted')
     if (stops.length > 0) await c.db.batch(stops)
     return ok({ id: leadID, opted_out: true })
@@ -324,9 +336,18 @@ export function registerAdmissionCampaigns(r: Router) {
 
 
 
+/* The drip sweep also runs from the cron dispatcher (services/cron.ts
+   'admission_campaigns'). Safe to repeat or overlap: each touch is queued
+   with occurrence_key = its send id, so the messenger dedupes a second
+   queue of the same touch, and only 'pending' rows are picked up. */
+registerJob('admissions:campaigns_run', async (env: Env, job) => {
+  const { inst, db } = await jobSchool(env, job)
+  const r = await runCampaigns(env, db, inst.id)
+  if (r.considered > 0) console.log('admission drip', inst.slug, r)
+})
+
 /** runCampaigns (admissions_growth.go): queue every nurture touch that has come due. */
-async function runCampaigns(c: Ctx) {
-  const db = c.db
+export async function runCampaigns(env: Env, db: D1Database, instID: string) {
   const out = { considered: 0, queued: 0, skipped: 0, enrolments_stopped: 0, enrolments_completed: 0 }
   const batch = (await db.prepare(`SELECT sn.id AS send_id, e.id AS enrol_id, st.channel, st.template_code, st.name AS step, st.quiet_from, st.quiet_to,
         q.student_name, q.parent_name, q.phone, q.email, q.status AS lead_status, q.marketing_opt_out AS opt_out, c.name AS campaign,
@@ -344,7 +365,7 @@ async function runCampaigns(c: Ctx) {
       SET status = ?2, message_id = ?3, note = NULLIF(?4, ''), queued_at = CASE WHEN ?2 = 'queued' THEN ?5 ELSE queued_at END WHERE id = ?1`)
     .bind(id, status, msgId, note, now()).run()
   const stopped = new Set<string>()
-  const ms = new Messenger(scopeOf(c))
+  const ms = new Messenger({ env, db, inst: instID })
   for (const d of batch) {
     if (stopped.has(d.enrol_id)) continue
     let reason = ''
@@ -359,6 +380,12 @@ async function runCampaigns(c: Ctx) {
     }
     const address = ((d.channel === 'email' ? d.email : d.phone) ?? '').trim()
     if (address === '') { await mark(d.send_id, 'skipped', null, `no ${d.channel} address on the enquiry`); out.skipped++; continue }
+    const optOut = await optOutReason(db, normaliseRecipient(address), true, false)
+    if (optOut) {
+      await db.batch(stopEnrolmentStmts(db, d.enrol_id, optOut))
+      stopped.add(d.enrol_id); out.enrolments_stopped++
+      continue
+    }
     const name = d.parent_name ? d.parent_name : d.student_name
     const when = d.quiet_from !== null && d.quiet_to !== null ? sendAtFor({ lead_minutes: 0, quiet_from: d.quiet_from, quiet_to: d.quiet_to }) : null
     try {

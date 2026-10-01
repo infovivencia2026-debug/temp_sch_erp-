@@ -99,7 +99,7 @@ ROLE_ORDER = [
     "institution_admin", "board_member", "hod", "exam_controller", "faculty",
     "librarian", "transport_manager", "operations", "driver",
     "nurse", "counsellor", "discipline_officer", "hostel_warden", "activity_coord",
-    "finance", "admissions", "front_office", "hr", "it_admin",
+    "finance", "admissions", "front_office", "hr", "it_admin", "lms_admin",
     "student", "parent",
 ]
 

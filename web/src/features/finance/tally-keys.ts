@@ -4,11 +4,11 @@ import { screen } from '@/lib/screen'
  * The Tally bridge, keyed by catalogue feature.
  *
  * Kept beside the screens rather than pasted into registry.ts so this module
- * and the two components it names move together. Spread into
+ * and the component it names move together. Spread into
  * FEATURE_COMPONENTS there; scripts/gen_implemented.py reads registry.ts, so
  * the server only marks these live once the spread is in place.
  *
- * Both keys below were checked against internal/catalog/catalog_gen.go before
+ * The key below was checked against internal/catalog/catalog_gen.go before
  * being written. A key the catalogue does not carry renders the placeholder
  * instead of the screen, silently — the screen is built, wired and simply
  * never appears.
@@ -27,6 +27,6 @@ export const tallyKeys = {
   // school, once, against the Tally company the auditor already reads.
   'super_admin.payments_devices.tally_erp_prime_connector': screen(() => import('./TallyConnector')),
 
-  // Accounting — Export. The accountant's quarterly half hour.
-  'finance.export.tally_prime_xml_export': screen(() => import('./TallyExport')),
+  // The export itself is the "Export to Tally" tab of Accounting reports
+  // (finance.banking_reports.accounting_tax_reports, bundles.tsx).
 }

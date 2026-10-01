@@ -1,27 +1,6 @@
 {
   "_comment": "Known inconsistencies as of the date feature:check was introduced. Shrink it; never grow it by hand. `npm run feature:check -- --update-baseline` rewrites it.",
   "known": {
-    "registry key not in the catalogue": [
-      "institution_admin.directory_workload.faculty_directory (web/src/features/registry.ts)",
-      "institution_admin.directory_workload.teacher_workload_timetable_overview (web/src/features/registry.ts)",
-      "institution_admin.statutory_returns.govt_returns (web/src/features/registry.ts)",
-      "institution_admin.stores.item_category_store_setup (web/src/features/registry.ts)",
-      "institution_admin.stores.department_stock_issuance (web/src/features/registry.ts)",
-      "institution_admin.library.fine_penalty_summary (web/src/features/registry.ts)",
-      "institution_admin.library.annual_book_stock_verification (web/src/features/registry.ts)",
-      "institution_admin.library.new_session_textbook_orders (web/src/features/registry.ts)",
-      "institution_admin.department.department_timetable (web/src/features/academics/timetable-ops-keys.ts)",
-      "institution_admin.analysis.custom_report_builder (web/src/features/analytics/report-builder-keys.ts)",
-      "institution_admin.department.department_academics (web/src/features/analytics/rollup-keys.ts)",
-      "institution_admin.analysis.department_reports (web/src/features/analytics/rollup-keys.ts)",
-      "institution_admin.analysis.performance_analytics (web/src/features/analytics/rollup-keys.ts)",
-      "hr.reports.hr_reports (web/src/features/analytics/rollup-keys.ts)",
-      "finance.student_dues.automated_fee_reminders (web/src/features/communication/message-rules-keys.ts)",
-      "institution_admin.statutory_returns.instruction_hours (web/src/features/compliance/statutory-keys.ts)",
-      "finance.export.tally_prime_xml_export (web/src/features/finance/tally-keys.ts)",
-      "institution_admin.stores.purchase_order_workflow (web/src/features/operations/admin-ops-keys.ts)",
-      "institution_admin.evaluation.appraisals (web/src/features/operations/admin-ops-keys.ts)"
-    ],
     "orphan screen (no import reaches it)": [
       "web/src/features/academics/ExamMonitoring.tsx",
       "web/src/features/academics/Outcomes.tsx",

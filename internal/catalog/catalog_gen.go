@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 417 features.
+// Roles is the catalog: 24 roles, 425 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -234,8 +234,8 @@ var Roles = []Role{
 					{Key: "super_admin.payments_devices.payment_gateway_connectors", Slug: "payment_gateway_connectors", Name: "Payment Gateway Connectors", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Merchant keys for Razorpay, Paytm, CCAvenue, BillDesk and Easebuzz, per school or for every school, stored sealed. A record for the day a checkout is wired; no payment is taken through the product yet."},
 					{Key: "super_admin.payments_devices.biometric_device_integration", Slug: "biometric_device_integration", Name: "Biometric Device Integration", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Every school's fingerprint readers on one page: which are talking, which went quiet, which were never pointed at us. ADMS push only; a reader is registered inside its school."},
 					{Key: "super_admin.payments_devices.gps_hardware_integration", Slug: "gps_hardware_integration", Name: "GPS Hardware Integration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Configure bus GPS tracker hardware protocols, IMEI mapping, and refresh intervals."},
-					{Key: "super_admin.payments_devices.virtual_classroom_integration", Slug: "virtual_classroom_integration", Name: "Virtual Classroom Integration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Connect Zoom, Google Meet, and Microsoft Teams tenant accounts for seamless live streaming."},
-					{Key: "super_admin.payments_devices.tally_erp_prime_connector", Slug: "tally_erp_prime_connector", Name: "Tally ERP / Prime Connector", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Configure ledger XML exports, cost-center mapping, and automated batch voucher sync."},
+					{Key: "super_admin.payments_devices.virtual_classroom_integration", Slug: "virtual_classroom_integration", Name: "Virtual Classroom Integration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Record which Zoom, Google Meet or Microsoft Teams account live classes run on, and who may use it. Meetings are not created automatically: a teacher pastes each class's join link, and every request that would have needed an automatic meeting is listed here."},
+					{Key: "super_admin.payments_devices.tally_erp_prime_connector", Slug: "tally_erp_prime_connector", Name: "Tally ERP / Prime Connector", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Map the school's accounts and cost centres to the ledger names in its Tally company, so the voucher export imports cleanly. Vouchers go across as an XML file the accountant imports into Tally; nothing syncs by itself."},
 					{Key: "super_admin.payments_devices.meritto_leadsquared_sync", Slug: "meritto_leadsquared_sync", Name: "Meritto / LeadSquared Sync", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Map lead sources, counselor assignments, and multi-touch lead status sync with external CRMs."},
 				},
 			},
@@ -260,7 +260,7 @@ var Roles = []Role{
 				Name:      "Operations",
 				Workspace: "Platform Setup",
 				Features: []Feature{
-					{Key: "super_admin.operations.data_backup_restore", Slug: "data_backup_restore", Name: "Data Backup & Restore", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Schedule automated cloud database backups and manage point-in-time recovery archives."},
+					{Key: "super_admin.operations.data_backup_restore", Slug: "data_backup_restore", Name: "Data Backup & Restore", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The backup policy each school is held to (how often, how long kept) and the register of backups reported against it, with a warning when the newest restore point is older than the policy allows. Restores are done by the operator, not from this screen."},
 					{Key: "super_admin.operations.system_health_integration_alerts", Slug: "system_health_integration_alerts", Name: "System Health & Integration Alerts", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors."},
 				},
 			},
@@ -457,6 +457,41 @@ var Roles = []Role{
 				Workspace: "Stores",
 				Features: []Feature{
 					{Key: "institution_admin.stores.store_catalogue", Slug: "store_catalogue", Name: "Store catalogue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school store as families see it: every active product with price and stock, display only, alongside the stock and issuance screens."},
+					{Key: "institution_admin.stores.purchase_order_workflow", Slug: "purchase_order_workflow", Name: "Purchase Order Workflow", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Raise a purchase requisition, approve it within the spending limits, issue the purchase order, record the goods received and match the supplier's invoice against both before it is paid."},
+				},
+			},
+			{
+				Slug:      "analysis",
+				Name:      "Analysis",
+				Workspace: "Reports",
+				Features: []Feature{
+					{Key: "institution_admin.analysis.custom_report_builder", Slug: "custom_report_builder", Name: "Custom Report Builder", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it."},
+					{Key: "institution_admin.analysis.department_reports", Slug: "department_reports", Name: "Department reports", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Attendance, workload, results and a summary for each department side by side."},
+					{Key: "institution_admin.analysis.performance_analytics", Slug: "performance_analytics", Name: "Performance analytics", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Subject pass rates, the term-on-term trend, the spread of marks and the students at risk."},
+				},
+			},
+			{
+				Slug:      "department",
+				Name:      "Department",
+				Workspace: "Staff",
+				Features: []Feature{
+					{Key: "institution_admin.department.department_academics", Slug: "department_academics", Name: "Department academics", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Each department's subjects, sections and teachers, and how far its syllabus has got."},
+				},
+			},
+			{
+				Slug:      "evaluation",
+				Name:      "Evaluation",
+				Workspace: "Staff",
+				Features: []Feature{
+					{Key: "institution_admin.evaluation.appraisals", Slug: "appraisals", Name: "Appraisals", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Run a 360-degree review cycle: peers, students and the principal answer the same questions, and each teacher's results are released once enough people have answered to keep them anonymous."},
+				},
+			},
+			{
+				Slug:      "statutory_returns",
+				Name:      "Statutory Returns",
+				Workspace: "Administration",
+				Features: []Feature{
+					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
 				},
 			},
 		},
@@ -787,7 +822,7 @@ var Roles = []Role{
 					{Key: "librarian.library.accession_register", Slug: "accession_register", Name: "Accession register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The statutory accession register, with barcode and spine label printing."},
 					{Key: "librarian.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 					{Key: "librarian.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
-					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, waived and collected."},
+					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it."},
 				},
 			},
 			{
@@ -1225,6 +1260,14 @@ var Roles = []Role{
 					{Key: "finance.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
+			{
+				Slug:      "student_dues",
+				Name:      "Student Dues",
+				Workspace: "Fees",
+				Features: []Feature{
+					{Key: "finance.student_dues.automated_fee_reminders", Slug: "automated_fee_reminders", Name: "Automated Fee Reminders", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending."},
+				},
+			},
 		},
 	},
 	{
@@ -1497,6 +1540,20 @@ var Roles = []Role{
 		},
 	},
 	{
+		Key:  "lms_admin",
+		Name: "LMS Admin",
+		Sections: []Section{
+			{
+				Slug:      "lms",
+				Name:      "LMS",
+				Workspace: "LMS",
+				Features: []Feature{
+					{Key: "lms_admin.lms.courses", Slug: "courses", Name: "Courses & material", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it."},
+				},
+			},
+		},
+	},
+	{
 		Key:  "student",
 		Name: "Student",
 		Sections: []Section{
@@ -1738,20 +1795,6 @@ var Roles = []Role{
 				Workspace: "Store",
 				Features: []Feature{
 					{Key: "parent.store.product_catalogue", Slug: "product_catalogue", Name: "Product catalogue", Scope: Scope("self"), Tier: Tier("core"), Summary: "The school store, to browse, uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter."},
-				},
-			},
-		},
-	},
-	{
-		Key:  "lms_admin",
-		Name: "LMS Admin",
-		Sections: []Section{
-			{
-				Slug:      "lms",
-				Name:      "LMS",
-				Workspace: "LMS",
-				Features: []Feature{
-					{Key: "lms_admin.lms.courses", Slug: "courses", Name: "Courses & material", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it."},
 				},
 			},
 		},

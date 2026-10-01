@@ -1,0 +1,11 @@
+name = "xulo-school-proxy"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+# Needs a proxied DNS record: AAAA  *  100::  (Cloudflare dashboard, DNS).
+routes = [{ pattern = "*.xulo.in/*", zone_name = "xulo.in" }]
+
+[vars]
+# The app every school address serves. Move to the live project at switchover.
+APP_ORIGIN = "https://school-erp-d1.pages.dev"
+COUNTRY = "in"

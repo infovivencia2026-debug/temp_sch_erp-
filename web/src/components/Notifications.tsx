@@ -5,7 +5,7 @@ import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
+  ArrowUpRight, Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useStatusFeed } from '@/features/comms/status/status-api'
@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
+import { Button, Dialog } from '@/components/ui'
 
 /* The bell in the header, and the panel it opens.
 
@@ -220,6 +221,26 @@ export default function Notifications() {
     failure: "Couldn't clear them",
   })
 
+  /* One entry read, not the lot: opening a message used to mark every other
+     one read with it. */
+  const readOne = useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/read`, {}),
+    queryKeys: [['notifications']],
+    apply: (old, id) => {
+      const f = old as Feed
+      const now = new Date().toISOString()
+      const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
+      return {
+        ...f,
+        unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
+        items: (f.items ?? []).map((n) => (n.id === id && !n.read_at ? { ...n, read_at: now } : n)),
+      }
+    },
+    failure: "Couldn't mark it read",
+  })
+  /* The message being read in full, over the drawer. */
+  const [viewing, setViewing] = useState<Note | null>(null)
+
   const navigate = useNavigate()
   // The rings' feed (shared cache with the strip): what each status entry is about.
   const statusFeed = useStatusFeed(open || closing)
@@ -242,10 +263,10 @@ export default function Notifications() {
   useEffect(() => {
     if (!open) return
     // Escape inside the status viewer or a dialog over the drawer closes that, not the drawer.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.story')) dismiss() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !viewing && !document.querySelector('.story')) dismiss() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, viewing])
 
   // Refused, or this account has no feed: show nothing rather than a dead control.
   if (feed.error) return null
@@ -293,12 +314,33 @@ export default function Notifications() {
       setStatusOpen(post)
       return
     }
-    dismiss()
-    const link = linkFor(n)
-    if (link) navigate(link)
+    /* Everything else opens in full, here. A press used to shut the drawer
+       and jump to a screen, so a message with no screen of its own simply
+       vanished and a long one was never readable anywhere. The screen it is
+       about is one button away in the dialog (`follow`). */
+    setViewing(n)
     // Read on open rather than on sight: a count that clears because somebody
     // glanced at the bell is a count that stops meaning anything.
-    if (!n.read_at) readAll.mutate()
+    if (!n.read_at) readOne.mutate(n.id)
+  }
+  const viewingLink = viewing ? linkFor(viewing) : undefined
+  const follow = () => {
+    const link = viewingLink
+    setViewing(null)
+    dismiss()
+    if (!link) return
+    /* Two overlays shut at once, and each hands its history entry back
+       asynchronously (lib/overlay-history). Going to the screen before both
+       have gone would let one of those Backs eat the navigation instead. */
+    if (!window.history.state?.erpOverlay) { navigate(link); return }
+    const go = () => {
+      window.removeEventListener('popstate', settled)
+      window.clearTimeout(giveUp)
+      navigate(link)
+    }
+    const settled = () => { if (!window.history.state?.erpOverlay) go() }
+    const giveUp = window.setTimeout(go, 400)
+    window.addEventListener('popstate', settled)
   }
 
   /* Grouped as it is read: newest day first, in the order the server sent.
@@ -562,6 +604,28 @@ export default function Notifications() {
           </aside>
         </div>,
         document.body,
+      )}
+
+      {viewing && (
+        <Dialog
+          raised
+          onClose={() => setViewing(null)}
+          title={viewing.title}
+          description={[
+            kindOf(viewing.kind).label.replace(/^./, (c) => c.toUpperCase()),
+            viewing.student_name,
+            `${dayOf(viewing.created_at)}, ${timeOf(viewing.created_at)}`,
+          ].filter(Boolean).join(' · ')}
+          footer={viewingLink ? (
+            <Button onClick={follow}>
+              Open {kindOf(viewing.kind).label}<ArrowUpRight className="size-4" />
+            </Button>
+          ) : undefined}
+        >
+          {viewing.body
+            ? <p className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed">{viewing.body}</p>
+            : <p className="text-[13.5px] text-muted-foreground">Nothing more was sent with this notification.</p>}
+        </Dialog>
       )}
     </>
   )

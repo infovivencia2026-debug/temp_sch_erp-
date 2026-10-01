@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button, Field, FormNotice, Input } from '@/components/ui'
+import { I18nProvider, useT } from '@/lib/i18n'
 
 /* The first thing a family sees, and the only thing until it is done.
 
@@ -19,6 +20,19 @@ import { Button, Field, FormNotice, Input } from '@/components/ui'
    No cancel, no skip, and no navigation: there is nothing else to do here, and
    an escape route is the difference between a rule and a suggestion. */
 export default function SetYourPassword({ signInName }: { signInName?: string }) {
+  /* lib/session.tsx renders this screen in place of the whole app, above the
+     I18nProvider in App.tsx, so it brings its own: without it useT falls back
+     to English and a Telugu family's first screen would ignore their choice.
+     The provider reads the same stored locale the app does. */
+  return (
+    <I18nProvider>
+      <SetYourPasswordForm signInName={signInName} />
+    </I18nProvider>
+  )
+}
+
+function SetYourPasswordForm({ signInName }: { signInName?: string }) {
+  const t = useT()
   const qc = useQueryClient()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -48,24 +62,24 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
   return (
     <div className="grid h-full place-items-center p-6">
       <div className="w-full max-w-md">
-        <h1 className="text-[22px] font-semibold">Set your own password</h1>
+        <h1 className="text-[22px] font-semibold">{t('shared.set_your_password.title')}</h1>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {student
-            ? 'Your school gave you a temporary password on a printed slip. Choose one only you know before you go any further, and keep it to yourself.'
-            : 'The school gave you your phone number as a temporary password. Anyone holding the class list knows it, so choose one only you know before you go any further.'}
+            ? t('shared.set_your_password.intro_student')
+            : t('shared.set_your_password.intro_parent')}
         </p>
 
         <div className="mt-6 space-y-4">
           <Field
-            label="The password the school gave you"
-            hint={signInName ? `The same one you just signed in with as ${signInName}.` : undefined}
+            label={t('shared.set_your_password.current_label')}
+            hint={signInName ? t('shared.set_your_password.current_hint', { name: signInName }) : undefined}
           >
             <Input type="password" value={current} onChange={setCurrent} />
           </Field>
-          <Field label="Your new password" hint="At least 12 characters.">
+          <Field label={t('shared.set_your_password.new_label')} hint={t('shared.set_your_password.new_hint')}>
             <Input type="password" value={next} onChange={setNext} />
           </Field>
-          <Field label="Type it again">
+          <Field label={t('shared.set_your_password.again_label')}>
             <Input type="password" value={again} onChange={setAgain} />
           </Field>
 
@@ -74,15 +88,15 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
               two boxes differ is a round trip nobody needed. */}
           {tooShort && (
             <p className="text-[13px] text-destructive">
-              That is {next.length} characters. It needs at least 12.
+              {t('shared.set_your_password.too_short', { n: next.length })}
             </p>
           )}
           {mismatch && (
-            <p className="text-[13px] text-destructive">The two new passwords do not match.</p>
+            <p className="text-[13px] text-destructive">{t('shared.set_your_password.mismatch')}</p>
           )}
           {sameAsCurrent && (
             <p className="text-[13px] text-destructive">
-              That is the password the school gave you. Choose a different one.
+              {t('shared.set_your_password.same_as_current')}
             </p>
           )}
 
@@ -99,11 +113,11 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
             }
             onClick={() => change.mutate()}
           >
-            {change.isPending ? 'Saving…' : 'Save and continue'}
+            {change.isPending ? t('shared.set_your_password.saving') : t('shared.set_your_password.save')}
           </Button>
 
           <p className="text-[13px] text-muted-foreground">
-            Every other device signed in as you is signed out when you do this.
+            {t('shared.set_your_password.signs_out_others')}
           </p>
 
           {/* THE WAY PAST, ADDED ON THE SCHOOL'S INSTRUCTION.
@@ -125,14 +139,14 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
               disabled={skip.isPending || change.isPending}
               onClick={() => skip.mutate()}
             >
-              {skip.isPending ? 'One moment…' : 'Skip for now, keep the password I was given'}
+              {skip.isPending ? t('shared.set_your_password.skipping') : t('shared.set_your_password.skip')}
             </Button>
           )}
           {!student && <FormNotice error={skip.error} />}
         </div>
 
         <a href="/logout" className="mt-6 inline-block text-[13px] text-muted-foreground underline">
-          Sign out instead
+          {t('shared.set_your_password.sign_out')}
         </a>
       </div>
     </div>

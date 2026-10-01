@@ -214,3 +214,52 @@ export const APPLICANT_NOTES: Record<string, BuiltinTemplate> = {
     body: 'Dear {{parent}}, thank you for applying to {{school}} for {{child}}. We are not able to offer a place in {{class}} this session. {{detail}}' },
 }
 for (const [kind, note] of Object.entries(APPLICANT_NOTES)) BUILTIN_TEMPLATES['admissions.' + kind] = note
+
+/* Telugu wording for the parent's first contact: the login messages. Chosen
+   by resolveTemplate when the school's locale is Telugu (te / te-IN) and the
+   school has written no wording of its own; every other school keeps the
+   English above. Placeholders are the same as the English ones. Telugu SMS
+   is UCS-2 (70 characters a segment), so these stay short. */
+export const BUILTIN_TEMPLATES_TE: Record<string, BuiltinTemplate> = {
+  'admissions.portal_login': {
+    subject: '{{school_name}} - మీ పేరెంట్ లాగిన్',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}కు స్వాగతం.\n\n' +
+      'ఫీజులు, హాజరు, హోంవర్క్, బస్సు వివరాలు ఇక్కడ చూడండి:\n{{portal_url}}\n\n' +
+      'లాగిన్: {{sign_in_as}}\nపాస్‌వర్డ్: {{password}}\n\n' +
+      'ఇది మీ మొబైల్ నంబరే. మొదటిసారి సైన్ ఇన్ చేసినప్పుడు మీ సొంత పాస్‌వర్డ్ పెట్టుకోండి.',
+  },
+  'admissions.applicant_login': {
+    subject: '{{school_name}} - మీ అడ్మిషన్ వివరాలు',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}లో {{student_name}} అడ్మిషన్ గురించి అడిగినందుకు ధన్యవాదాలు.\n\n' +
+      'ఫారం, డాక్యుమెంట్లు, పరీక్ష, నిర్ణయం అన్నీ ఇక్కడ చూడండి:\n{{portal_url}}\n\n' +
+      'లాగిన్: {{sign_in_as}}\nపాస్‌వర్డ్: {{password}}\n\n' +
+      'ఇది మీ మొబైల్ నంబరే. మొదటిసారి సైన్ ఇన్ చేసినప్పుడు మీ సొంత పాస్‌వర్డ్ పెట్టుకోండి.',
+  },
+  'admissions.applicant_ready': {
+    subject: '{{school_name}} - మీ అడ్మిషన్ వివరాలు',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}లో {{student_name}} అడ్మిషన్ గురించి అడిగినందుకు ధన్యవాదాలు.\n\n' +
+      'అడ్మిషన్ వివరాలు ఇక్కడ చూడండి:\n{{portal_url}}\n\n' +
+      'లాగిన్: {{sign_in_as}}\nపాస్‌వర్డ్ మీ ఈమెయిల్‌కు పంపాం. ఈమెయిల్ ఇవ్వకపోతే స్కూల్ ఆఫీసులో తీసుకోండి.',
+  },
+  'admissions.portal_ready': {
+    subject: '{{school_name}} - మీ పేరెంట్ లాగిన్',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}కు స్వాగతం.\n\n' +
+      'ఫీజులు, హాజరు, హోంవర్క్, బస్సు వివరాలు ఇక్కడ చూడండి:\n{{portal_url}}\n\n' +
+      'లాగిన్: {{sign_in_as}}\nపాస్‌వర్డ్ మీ ఈమెయిల్‌కు పంపాం. ఈమెయిల్ ఇవ్వకపోతే స్కూల్ ఆఫీసులో తీసుకోండి.',
+  },
+  'admissions.applicant_existing': {
+    subject: '{{school_name}} - మీ ఎంక్వైరీ మీ పాత లాగిన్‌లోనే',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}లో {{student_name}} ఎంక్వైరీని ' +
+      'మీరు ఇప్పటికే వాడుతున్న లాగిన్‌లోనే చూడవచ్చు.\n\n' +
+      'లాగిన్: {{sign_in_as}}\n{{portal_url}}\n\nమీ పాస్‌వర్డ్ మారలేదు.',
+  },
+  'admissions.portal_existing': {
+    subject: '{{school_name}} - మీ రెండో బిడ్డ కూడా మీ లాగిన్‌లో',
+    body: 'నమస్తే {{parent_name}}, {{school_name}}లో కొత్త అడ్మిషన్ ' +
+      'మీరు ఇప్పటికే వాడుతున్న లాగిన్‌లోనే ఉంది.\n\nలాగిన్: {{sign_in_as}}\n{{portal_url}}\n\n' +
+      'మీ పాస్‌వర్డ్ మారలేదు.',
+  },
+}
+
+/** isTelugu: a school or browser locale that asks for Telugu (te, te-IN, te_IN). */
+export const isTelugu = (locale: string | null | undefined): boolean => /^te(?:[-_]|$)/i.test((locale ?? '').trim())

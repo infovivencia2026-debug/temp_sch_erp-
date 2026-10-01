@@ -91,12 +91,14 @@ export function registerAttendanceWorkflow(r: Router) {
     // sendAbsenceAlerts: one attendance.absent SMS job per absent student's primary guardian.
     const onDate = c.url.searchParams.get('on_date') ?? ''
     const day = onDate !== '' ? onDate : todayIST()
-    const targets = (await c.db.prepare(`SELECT g.user_id, trim(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS student
+    // DISTINCT: a period-wise register has a row per period, and a child absent all day is one alert, not six.
+    const targets = (await c.db.prepare(`SELECT DISTINCT g.user_id, st.id AS student_id, trim(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS student
         FROM student_attendance sa JOIN students st ON st.id = sa.student_id
         JOIN student_guardians sg ON sg.student_id = st.id AND sg.is_primary JOIN guardians g ON g.id = sg.guardian_id
-       WHERE substr(sa.on_date,1,10) = ? AND sa.status = 'absent' AND g.user_id IS NOT NULL`).bind(day).all<{ user_id: string; student: string }>()).results
+       WHERE substr(sa.on_date,1,10) = ? AND sa.status = 'absent' AND g.user_id IS NOT NULL`).bind(day).all<{ user_id: string; student_id: string; student: string }>()).results
+    // Keyed per child per day: pressing the button twice, or after a later period, sends nothing new.
     await enqueueMessageSends(c.env, c.id.institution!.id, targets.map((t) => ({ channel: 'sms', template_key: 'attendance.absent', to_user_id: t.user_id,
-      vars: { student: t.student, date: onDate } })))
+      vars: { student: t.student, date: day }, student_id: t.student_id, source_kind: 'absence_alert', dedupe_key: `absence:${day}:${t.student_id}` })))
     return json({ absent_students: targets.length, messages_queued: targets.length }, 202)
   })
 

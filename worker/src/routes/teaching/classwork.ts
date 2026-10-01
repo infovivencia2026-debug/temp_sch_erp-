@@ -214,13 +214,36 @@ export function registerClasswork(r: Router) {
   r.put('/teaching/materials/{id}', P, async (c) => {
     requirePerm(c, HW)
     if (!isUUID(c.params.id)) throw badRequest('invalid material id')
-    const req = await readJSON<{ title?: string; description?: string; kind?: string; external_url?: string; is_published?: boolean }>(c.req)
+    const req = await readJSON<{ title?: string; description?: string; kind?: string; external_url?: string; is_published?: boolean
+      class_subject_id?: string | null; section_id?: string | null; audience?: string; student_ids?: string[]; file_id?: string; expires_in_days?: number }>(c.req)
     if (req.kind && !MATERIAL_KINDS.has(req.kind)) throw badRequest('kind must be note, worksheet, reference, video, link or syllabus')
+    // Changes this handler cannot make are refused, not answered 200 and dropped.
+    if (req.audience !== undefined || req.student_ids !== undefined) throw badRequest('the audience of a shared item cannot be changed; share it again to the new audience')
+    if (req.file_id !== undefined) throw badRequest('the file cannot be replaced; share the new file as a new item')
+    if (req.expires_in_days !== undefined) throw badRequest('the expiry cannot be changed after sharing')
     const s = await resolveScope(c)
     if (!(await materialOwnedOrInReach(c, s, c.params.id))) throw notFound()
+    // Re-targeting to another class-subject or section: checked like a new share, then persisted.
+    const retarget = req.class_subject_id !== undefined || req.section_id !== undefined
+    let csId: string | null = null, secId: string | null = null
+    if (retarget) {
+      const cur = await c.db.prepare(`SELECT audience, class_subject_id, section_id FROM study_materials WHERE id = ?`).bind(c.params.id)
+        .first<{ audience: string; class_subject_id: string | null; section_id: string | null }>()
+      if (!cur) throw notFound()
+      if (cur.audience !== 'class') throw badRequest('only material shared with a class can be moved to another class')
+      csId = req.class_subject_id === undefined ? cur.class_subject_id : nz(req.class_subject_id ?? '')
+      secId = req.section_id === undefined ? cur.section_id : nz(req.section_id ?? '')
+      if (!csId && !secId) throw badRequest('name the class_subject_id or the section_id this is for')
+      if (csId && !isUUID(csId)) throw badRequest('class_subject_id must be a uuid')
+      if (secId && !isUUID(secId)) throw badRequest('section_id must be a uuid')
+      if (secId && !reachesSection(s, secId)) throw forbidden('sharing material with this section')
+      if (csId && !(await classSubjectTaught(c, s, csId))) throw forbidden('sharing material for this subject')
+    }
     const res = await c.db.prepare(`UPDATE study_materials SET title = COALESCE(NULLIF(?, ''), title), description = COALESCE(NULLIF(?, ''), description), kind = COALESCE(NULLIF(?, ''), kind),
-        external_url = COALESCE(NULLIF(?, ''), external_url), is_published = COALESCE(?, is_published) WHERE id = ?`)
-      .bind((req.title ?? '').trim(), req.description ?? '', req.kind ?? '', req.external_url ?? '', typeof req.is_published === 'boolean' ? int(req.is_published) : null, c.params.id).run()
+        external_url = COALESCE(NULLIF(?, ''), external_url), is_published = COALESCE(?, is_published),
+        class_subject_id = CASE WHEN ? THEN ? ELSE class_subject_id END, section_id = CASE WHEN ? THEN ? ELSE section_id END WHERE id = ?`)
+      .bind((req.title ?? '').trim(), req.description ?? '', req.kind ?? '', req.external_url ?? '', typeof req.is_published === 'boolean' ? int(req.is_published) : null,
+        int(retarget), csId, int(retarget), secId, c.params.id).run()
     if (!res.meta.changes) throw notFound()
     return ok({ id: c.params.id })
   })
@@ -278,11 +301,11 @@ export function registerClasswork(r: Router) {
     const status = nz(req.join_url) ? 'scheduled' : 'provider_pending'
     const csId = nz(req.class_subject_id)
     if (csId) {
-      if (!isUUID(csId)) throw new HttpError(500, 'internal')
+      if (!isUUID(csId)) throw badRequest('class_subject_id must be a uuid')
       if (!(await classSubjectTaught(c, s, csId))) throw forbidden('scheduling a live class for this subject')
     }
     const sched = new Date(req.scheduled_at!)
-    if (Number.isNaN(sched.getTime())) throw new HttpError(500, 'internal')
+    if (Number.isNaN(sched.getTime())) throw badRequest('scheduled_at must be a date and time')
     const id = uuid(), ts = now()
     await c.db.prepare(`INSERT INTO virtual_class_sessions (id, institution_id, section_id, class_subject_id, provider_id, topic, agenda, scheduled_at, duration_minutes, join_url, status, created_by, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), ?, ?, ?, ?)`)
@@ -295,17 +318,36 @@ export function registerClasswork(r: Router) {
   r.put('/teaching/virtual-classes/{id}', P, async (c) => {
     requirePerm(c, HW)
     if (!isUUID(c.params.id)) throw badRequest('invalid session id')
-    const req = await readJSON<{ topic?: string; agenda?: string; join_url?: string; status?: string }>(c.req)
+    const req = await readJSON<{ topic?: string; agenda?: string; join_url?: string; status?: string; scheduled_at?: string; duration_minutes?: number
+      provider_id?: string; section_id?: string; class_subject_id?: string }>(c.req)
     if (req.status && !VC_STATUSES.has(req.status)) throw badRequest('status must be provider_pending, scheduled, live, ended or cancelled')
+    // A different section or subject is a different class, not an edit: said out loud rather than accepted and ignored.
+    if (req.section_id !== undefined || req.class_subject_id !== undefined) throw badRequest('a live class cannot be moved to another section or subject; cancel it and schedule a new one')
+    // Rescheduling: the time, the length and the provider are persisted, not dropped.
+    let sched: string | null = null
+    if (req.scheduled_at !== undefined && req.scheduled_at !== null && req.scheduled_at !== '') {
+      const d = new Date(req.scheduled_at)
+      if (Number.isNaN(d.getTime())) throw badRequest('scheduled_at must be a date and time')
+      sched = d.toISOString()
+    }
+    let duration: number | null = null
+    if (req.duration_minutes !== undefined && req.duration_minutes !== null) {
+      if (typeof req.duration_minutes !== 'number' || !(req.duration_minutes > 0)) throw badRequest('duration_minutes must be a positive number')
+      duration = Math.trunc(req.duration_minutes)
+    }
+    const provider = nz(req.provider_id)
+    if (provider && !isUUID(provider)) throw badRequest('provider_id must be a uuid')
     const s = await resolveScope(c)
-    const row = await c.db.prepare(`SELECT section_id, join_url FROM virtual_class_sessions WHERE id = ?`).bind(c.params.id).first<{ section_id: string; join_url: string | null }>()
+    const row = await c.db.prepare(`SELECT section_id, join_url, status FROM virtual_class_sessions WHERE id = ?`).bind(c.params.id).first<{ section_id: string; join_url: string | null; status: string }>()
     if (!row || !reachesSection(s, row.section_id)) throw notFound()
+    if (sched && (row.status === 'ended' || row.status === 'cancelled') && !req.status) throw badRequest(`this class is ${row.status}; it cannot be rescheduled`)
     // virtual_class_sessions_joinable: scheduled/live need a join_url (a CHECK constraint in Postgres).
     const newStatus = req.status || null
     if ((newStatus === 'scheduled' || newStatus === 'live') && !nz(req.join_url) && !row.join_url) throw badRequest('a session cannot be scheduled or live without a join_url')
     const res = await c.db.prepare(`UPDATE virtual_class_sessions SET topic = COALESCE(NULLIF(?, ''), topic), agenda = COALESCE(NULLIF(?, ''), agenda), join_url = COALESCE(NULLIF(?, ''), join_url),
-        status = COALESCE(NULLIF(?, ''), status), ended_at = CASE WHEN ? = 'ended' THEN ? ELSE ended_at END, updated_at = ? WHERE id = ?`)
-      .bind(req.topic ?? '', req.agenda ?? '', req.join_url ?? '', req.status ?? '', req.status ?? '', now(), now(), c.params.id).run()
+        status = COALESCE(NULLIF(?, ''), status), ended_at = CASE WHEN ? = 'ended' THEN ? ELSE ended_at END,
+        scheduled_at = COALESCE(?, scheduled_at), duration_minutes = COALESCE(?, duration_minutes), provider_id = COALESCE(?, provider_id), updated_at = ? WHERE id = ?`)
+      .bind(req.topic ?? '', req.agenda ?? '', req.join_url ?? '', req.status ?? '', req.status ?? '', now(), sched, duration, provider, now(), c.params.id).run()
     if (!res.meta.changes) throw notFound()
     return ok({ id: c.params.id })
   })

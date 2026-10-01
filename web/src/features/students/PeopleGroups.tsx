@@ -8,6 +8,7 @@ import {
   Badge, EmptyState, ErrorState, SkeletonTable, FormNotice, FormGrid, Field,
 } from '@/components/ui'
 import { useOpenState } from '@/lib/motion'
+import { useEmployeeRoster, useStudentRoster } from '@/lib/rosters'
 
 /* The school's own groupings.
 
@@ -143,6 +144,20 @@ export default function PeopleGroups() {
       setShowing(null)
       qc.invalidateQueries({ queryKey: ['people-groups', kind] })
     },
+  })
+
+  // Hand-picked members: added one at a time, removed from their row.
+  const refreshMembers = () => {
+    qc.invalidateQueries({ queryKey: ['people-group-members', showing] })
+    qc.invalidateQueries({ queryKey: ['people-groups', kind] })
+  }
+  const addMember = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/people/groups/${showing}/members`, { ids: [id] }),
+    onSuccess: refreshMembers,
+  })
+  const removeMember = useMutation({
+    mutationFn: (personId: string) => api.del(`/api/v1/people/groups/${showing}/members/${personId}`),
+    onSuccess: refreshMembers,
   })
 
   const setRule = (i: number, patch: Partial<Rule>) =>
@@ -354,7 +369,15 @@ export default function PeopleGroups() {
                   ? `${members.data.count} ${noun}, as the records stand today.`
                   : 'Counting…'
               }
+              action={
+                <PersonPicker
+                  kind={kind}
+                  disabled={addMember.isPending}
+                  onPick={(id) => addMember.mutate(id)}
+                />
+              }
             />
+            <FormNotice error={addMember.error ?? removeMember.error} />
             {members.isLoading ? (
               <SkeletonTable columns={4} />
             ) : members.error ? (
@@ -365,7 +388,7 @@ export default function PeopleGroups() {
                 body="Either the rules are narrower than the roll, or nobody has been added by hand."
               />
             ) : (
-              <Table head={[{ label: 'Name' }, { label: 'Code' }, { label: '' }, { label: 'How' }]}>
+              <Table head={[{ label: 'Name' }, { label: 'Code' }, { label: '' }, { label: 'How' }, { label: '' }]}>
                 {(members.data?.items ?? []).map((m) => (
                   <tr key={m.id}>
                     <Td className="font-medium">{m.name}</Td>
@@ -378,6 +401,20 @@ export default function PeopleGroups() {
                         <span className="text-[13px] text-muted-foreground">By rule</span>
                       )}
                     </Td>
+                    <Td>
+                      {/* Only a hand-picked member can be taken out here; a
+                          rule member leaves when the rule stops matching. */}
+                      {m.picked && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={removeMember.isPending}
+                          onClick={() => removeMember.mutate(m.id)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </Td>
                   </tr>
                 ))}
               </Table>
@@ -386,5 +423,38 @@ export default function PeopleGroups() {
         )}
       </PageBody>
     </>
+  )
+}
+
+/* Adding somebody by hand. Loads the roster only when the group is open. */
+function PersonPicker({ kind, disabled, onPick }: {
+  kind: string; disabled: boolean; onPick: (id: string) => void
+}) {
+  return kind === 'staff'
+    ? <StaffPicker disabled={disabled} onPick={onPick} />
+    : <StudentPicker disabled={disabled} onPick={onPick} />
+}
+
+function StudentPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string) => void }) {
+  const roster = useStudentRoster<{ id: string; full_name: string }>()
+  return (
+    <Select
+      value=""
+      onChange={(v) => { if (v && !disabled) onPick(v) }}
+      placeholder={roster.isLoading ? 'Loading…' : 'Add a child by hand…'}
+      options={(roster.data?.items ?? []).map((s) => ({ value: s.id, label: s.full_name }))}
+    />
+  )
+}
+
+function StaffPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string) => void }) {
+  const roster = useEmployeeRoster()
+  return (
+    <Select
+      value=""
+      onChange={(v) => { if (v && !disabled) onPick(v) }}
+      placeholder={roster.isLoading ? 'Loading…' : 'Add a member of staff by hand…'}
+      options={(roster.data?.items ?? []).map((e) => ({ value: e.id, label: e.full_name ?? e.name ?? e.employee_code ?? e.id }))}
+    />
   )
 }

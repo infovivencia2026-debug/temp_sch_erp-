@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CalendarHeart, ListOrdered, Megaphone, ScrollText, Users } from 'lucide-react'
+import { BookOpen, CalendarHeart, CalendarRange, ListOrdered, Megaphone, ScrollText, Users } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -27,6 +27,8 @@ interface Source {
   admitted: number
   conversion_percent?: number
 }
+const CLOSED_LEAD = new Set(['applied', 'converted', 'lost'])
+
 interface Lead {
   id: string
   student_name: string
@@ -101,6 +103,7 @@ const TABS = [
   ['waitlist', 'Waiting list', ListOrdered],
   ['opendays', 'Open days', CalendarHeart],
   ['prospectus', 'Prospectus', BookOpen],
+  ['sessions', 'Sessions', CalendarRange],
 ] as const
 
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
@@ -165,7 +168,7 @@ export default function Funnel() {
         quotas: Quota[]
         admitted_total: number
         rte_admitted: number
-        rte_percent: number
+        rte_percent: number | null
         rte_short_by: number
       }>('/api/v1/admissions/register'),
   })
@@ -174,8 +177,11 @@ export default function Funnel() {
   if (leads.error) return <ErrorState error={leads.error} />
 
   const rows = leads.data?.items ?? []
-  const overdue = rows.filter((l) => l.follow_up_overdue)
-  const unassigned = rows.filter((l) => !l.assigned_to)
+  // A lead that applied, converted or was lost is not live: counting it made
+  // "Live leads" grow forever and "Nobody chasing" list children already gone.
+  const live = rows.filter((l) => !CLOSED_LEAD.has(l.status))
+  const overdue = live.filter((l) => l.follow_up_overdue)
+  const unassigned = live.filter((l) => !l.assigned_to)
   const reg = register.data
 
   return (
@@ -202,7 +208,7 @@ export default function Funnel() {
             kept being reported as "still the same". */}
         {!view || view.tab === 'leads' ? (
         <CellGrid cols={4}>
-          <Stat label="Live leads" value={rows.length} icon={Users} />
+          <Stat label="Live leads" value={live.length} icon={Users} />
           <Stat
             label="Nobody chasing"
             value={unassigned.length}
@@ -215,11 +221,15 @@ export default function Funnel() {
           <Stat label="Follow-ups overdue" value={overdue.length} />
           <Stat
             label="RTE share"
-            value={reg ? `${reg.rte_percent.toFixed(0)}%` : '-'}
+            value={reg && reg.rte_percent != null ? `${reg.rte_percent.toFixed(0)}%` : '-'}
             delta={
-              reg && reg.rte_short_by > 0
-                ? { value: `${reg.rte_short_by} short of a quarter`, positive: false }
-                : { value: 'At or above a quarter', positive: true }
+              /* Nobody admitted yet is not compliance: 0 of 0 has no share to
+                 be green about, so it says so instead of claiming a quarter. */
+              !reg || reg.rte_percent == null
+                ? { value: 'No admissions yet', positive: undefined }
+                : reg.rte_short_by > 0
+                  ? { value: `${reg.rte_short_by} short of a quarter`, positive: false }
+                  : { value: 'At or above a quarter', positive: true }
             }
           />
         </CellGrid>
@@ -256,6 +266,7 @@ export default function Funnel() {
         {tab === 'waitlist' && <Waitlist />}
         {tab === 'opendays' && <OpenDays />}
         {tab === 'prospectus' && <Prospectus />}
+        {tab === 'sessions' && <Sessions />}
       </PageBody>
     </>
   )
@@ -470,7 +481,7 @@ function Register({
     quotas: Quota[]
     admitted_total: number
     rte_admitted: number
-    rte_percent: number
+    rte_percent: number | null
     rte_short_by: number
   }
 }) {
@@ -546,7 +557,12 @@ function Register({
             </tr>
           ))}
         </Table>
-        {data && (
+        {data && data.rte_percent == null && (
+          <p className="px-4 py-3 text-[13px] text-muted-foreground">
+            Nobody admitted yet, so there is no RTE share to measure.
+          </p>
+        )}
+        {data && data.rte_percent != null && (
           <p className="px-4 py-3 text-[13px] text-muted-foreground">
             {data.rte_admitted} of {data.admitted_total} admitted under RTE (
             {data.rte_percent.toFixed(1)}%).{' '}
@@ -1194,6 +1210,124 @@ function Prospectus() {
                 </Td>
                 <Td className="text-muted-foreground">{s.mode}</Td>
                 <Td className="tabular-nums">₹{rupees(s.amount_paise)}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </>
+  )
+}
+
+interface AdmissionSession {
+  id: string
+  name: string
+  academic_year_id: string
+  academic_year?: string
+  opens_on?: string
+  closes_on?: string
+  is_open: boolean
+  applications: number
+  forms: number
+}
+
+/* Admission sessions: the intake window an application and a form belong to.
+   The session names the academic year the children will join, which is the
+   year the seat guard counts capacity in. */
+function Sessions() {
+  const qc = useQueryClient()
+  const [form, setForm] = useState<Record<string, string>>({})
+  const list = useQuery({
+    queryKey: ['admission-sessions'],
+    queryFn: () => api.get<List<AdmissionSession>>('/api/v1/admissions/sessions'),
+  })
+  const years = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/years'),
+  })
+  const done = () => qc.invalidateQueries({ queryKey: ['admission-sessions'] })
+  const create = useMutation({
+    mutationFn: () => api.post('/api/v1/admissions/sessions', { ...form, is_open: true }),
+    onSuccess: () => { setForm({}); done() },
+  })
+  const toggle = useMutation({
+    mutationFn: (s: AdmissionSession) =>
+      api.put(`/api/v1/admissions/sessions/${s.id}`, {
+        name: s.name, academic_year_id: s.academic_year_id, opens_on: s.opens_on ?? '', closes_on: s.closes_on ?? '', is_open: !s.is_open,
+      }),
+    onSuccess: done,
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/admissions/sessions/${id}`),
+    onSuccess: done,
+  })
+  const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
+  const rows = list.data?.items ?? []
+
+  return (
+    <>
+      <Card>
+        <CardHeader title="New admission session" description="An intake window, tied to the academic year the children will join." />
+        <div className="p-4">
+          <FormGrid>
+            <Field label="Name" required>
+              <Input value={form.name ?? ''} onChange={set('name')} placeholder="Admissions 2027-28" />
+            </Field>
+            <Field label="Joining year" required>
+              <Select
+                value={form.academic_year_id ?? ''}
+                onChange={set('academic_year_id')}
+                placeholder="Choose"
+                options={(years.data?.items ?? []).map((y) => ({ value: y.id, label: y.name }))}
+              />
+            </Field>
+            <Field label="Opens">
+              <Input type="date" value={form.opens_on ?? ''} onChange={set('opens_on')} />
+            </Field>
+            <Field label="Closes">
+              <Input type="date" value={form.closes_on ?? ''} onChange={set('closes_on')} />
+            </Field>
+          </FormGrid>
+          <div className="mt-4">
+            <Button disabled={create.isPending || !form.name?.trim() || !form.academic_year_id} onClick={() => create.mutate()}>
+              {create.isPending ? 'Creating…' : 'Create'}
+            </Button>
+          </div>
+          <FormNotice error={create.error ?? toggle.error ?? remove.error} />
+        </div>
+      </Card>
+      <Card>
+        <CardHeader title="Sessions" description="A session with applications or forms in it can be closed, not deleted." />
+        {list.isLoading ? (
+          <SkeletonTable />
+        ) : list.isError ? (
+          <ErrorState error={list.error} />
+        ) : rows.length === 0 ? (
+          <EmptyState title="No sessions yet" body="Create one above for the next intake." />
+        ) : (
+          <Table head={[{ label: 'Session' }, { label: 'Year' }, { label: 'Window' }, { label: 'Applications' }, { label: '' }]}>
+            {rows.map((s) => (
+              <tr key={s.id}>
+                <Td className="font-medium">
+                  {s.name} <Badge tone={s.is_open ? 'success' : 'neutral'}>{s.is_open ? 'open' : 'closed'}</Badge>
+                </Td>
+                <Td className="text-muted-foreground">{s.academic_year ?? '-'}</Td>
+                <Td className="text-muted-foreground">
+                  {s.opens_on ? formatDate(s.opens_on) : '…'} to {s.closes_on ? formatDate(s.closes_on) : '…'}
+                </Td>
+                <Td className="tabular-nums">{s.applications}</Td>
+                <Td>
+                  <span className="flex gap-1.5">
+                    <Button size="sm" variant="secondary" disabled={toggle.isPending} onClick={() => toggle.mutate(s)}>
+                      {s.is_open ? 'Close' : 'Reopen'}
+                    </Button>
+                    {s.applications === 0 && s.forms === 0 && (
+                      <Button size="sm" variant="secondary" tone="danger" disabled={remove.isPending} onClick={() => remove.mutate(s.id)}>
+                        Delete
+                      </Button>
+                    )}
+                  </span>
+                </Td>
               </tr>
             ))}
           </Table>

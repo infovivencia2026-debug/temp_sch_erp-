@@ -363,6 +363,15 @@ export const FEATURE_ICONS: Record<string, string> = {
   where_the_money_goes: 'donut_small', // Where the money goes
   white_label_branding: 'branding_watermark', // White-Label Branding
   year_rollover: 'update', // Year Rollover
+  // Restored to the catalogue 2026-09-29 (catalog-keys.test.ts).
+  purchase_order_workflow: 'shopping_cart', // Purchase Order Workflow
+  custom_report_builder: 'table_chart', // Custom Report Builder
+  department_reports: 'summarize', // Department reports
+  performance_analytics: 'insights', // Performance analytics
+  department_academics: 'domain', // Department academics
+  appraisals: 'rate_review', // Appraisals
+  instruction_hours: 'hourglass_top', // Instruction Hours
+  automated_fee_reminders: 'notifications_active', // Automated Fee Reminders
 }
 
 /** One per section, the fallback for a slug that somehow has no row above
@@ -448,6 +457,11 @@ export const SECTION_ICONS: Record<string, string> = {
   transport: 'directions_bus', // Transport
   usage_health: 'monitor_heart', // Usage & Health
   welfare: 'health_and_safety', // Welfare
+  analysis: 'query_stats', // Analysis
+  department: 'apartment', // Department
+  evaluation: 'reviews', // Evaluation
+  statutory_returns: 'gavel', // Statutory Returns
+  student_dues: 'pending_actions', // Student Dues
 }
 
 /** The last resort, so the plate is never empty and never letters. */

@@ -5,6 +5,7 @@ import DayTimeline from '@/components/DayTimeline'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
 import { ChooseChild } from '@/features/portal/ChooseChild'
+import { useT } from '@/lib/i18n'
 
 /* Your child's week.
  *
@@ -23,6 +24,7 @@ import { ChooseChild } from '@/features/portal/ChooseChild'
  * overlaid. The child list carries each child's section_id, so the picker
  * chooses and the query names one section. */
 export default function ChildTimetable() {
+  const t = useT()
   const { children: kids, query: kidsQuery, studentId, child, setChosen } = useChildren()
   const sectionId = child?.section_id ?? ''
 
@@ -47,14 +49,14 @@ export default function ChildTimetable() {
   return (
     <>
       <PageHead
-        eyebrow="My child"
-        title="Timetable"
+        eyebrow={t('portal.child_timetable.eyebrow')}
+        title={t('portal.child_timetable.title')}
         actions={
           kids.length > 1 && (
             <Select
               value={studentId}
               onChange={setChosen}
-              placeholder="Which child?"
+              placeholder={t('portal.child_timetable.child_placeholder')}
               options={childOptions(kids)}
             />
           )
@@ -63,23 +65,23 @@ export default function ChildTimetable() {
       <Freshness query={entries} />
       <PageBody>
         {kidsQuery.isLoading ? (
-          <ScreenSkeleton rows={6} label="Loading your children" />
+          <ScreenSkeleton rows={6} label={t('portal.child_timetable.loading_children')} />
         ) : kidsQuery.error ? (
           <ErrorState error={kidsQuery.error} />
         ) : kids.length === 0 ? (
           <EmptyState
-            title="No child is linked to this account yet."
-            body="Once the school links your child, their week appears here."
+            title={t('portal.child_timetable.unlinked_title')}
+            body={t('portal.child_timetable.unlinked_body')}
           />
         ) : !ready ? (
-          <ChooseChild title="Choose a child above to see their week." />
+          <ChooseChild title={t('portal.child_timetable.choose_child')} />
         ) : !sectionId ? (
           <EmptyState
-            title={`${child?.full_name ?? 'Your child'} is not placed in a section yet.`}
-            body="The timetable belongs to a section; it appears once the school places them."
+            title={child?.full_name ? t('portal.child_timetable.no_section_named', { name: child.full_name }) : t('portal.child_timetable.no_section')}
+            body={t('portal.child_timetable.no_section_body')}
           />
         ) : periods.isLoading || entries.isLoading ? (
-          <ScreenSkeleton rows={6} label="Loading the week" />
+          <ScreenSkeleton rows={6} label={t('portal.child_timetable.loading_week')} />
         ) : entries.error ? (
           <ErrorState error={entries.error} />
         ) : (

@@ -29,9 +29,11 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 /** A mark as a percentage of its paper, grace included (the rollups' one definition). */
 const score = `(COALESCE(${n('m.marks_obtained')},0) + ${n('m.grace_marks')})`
 const pctOfPaper = `100.0 * ${score} / NULLIF(${n('es.max_marks')},0)`
-const avgPct = `round(avg(CASE WHEN NOT m.is_absent THEN ${pctOfPaper} END), 1)`
-const passPct = `round(100.0 * count(CASE WHEN NOT m.is_absent AND ${score} >= ${n('es.pass_marks')} THEN 1 END)
-                 / NULLIF(count(CASE WHEN NOT m.is_absent THEN 1 END), 0), 1)`
+/** A paper actually sat and marked: an absent row or one with no mark entered yet is not a zero. */
+const sat = `(NOT m.is_absent AND m.marks_obtained IS NOT NULL)`
+const avgPct = `round(avg(CASE WHEN ${sat} THEN ${pctOfPaper} END), 1)`
+const passPct = `round(100.0 * count(CASE WHEN ${sat} AND ${score} >= ${n('es.pass_marks')} THEN 1 END)
+                 / NULLIF(count(CASE WHEN ${sat} THEN 1 END), 0), 1)`
 
 /** DISTINCT ON (class_subject_id) ... ORDER BY class_subject_id, department_id: one department per class-subject. */
 const csDept = `SELECT sst.class_subject_id, MIN(e.department_id) AS department_id
@@ -427,8 +429,8 @@ export function registerRollups(r: Router) {
     const b = await rollupBoundary(c)
     const f = sp(b, 'sec.id')
     const rows = await c.db.prepare(`
-      SELECT ex.id AS exam_id, ex.name AS exam_name, SUBSTR(ex.starts_on,1,10) AS exam_date, c.name AS class_name,
-             count(DISTINCT m.student_id) AS students, ${avgPct} AS avg_pct, ${passPct} AS pass_pct
+      SELECT ex.id AS exam_id, c.id AS class_id, ex.name AS exam_name, SUBSTR(ex.starts_on,1,10) AS exam_date, c.name AS class_name,
+             count(DISTINCT m.student_id) AS students, ${avgPct} AS avg_pct
         FROM marks m
         JOIN exam_subjects es ON es.id = m.exam_subject_id
         JOIN exams ex ON ex.id = es.exam_id
@@ -439,8 +441,28 @@ export function registerRollups(r: Router) {
        WHERE ${f.sql}
        GROUP BY ex.id, c.id
        ORDER BY ex.starts_on IS NULL, ex.starts_on, c.level, c.name`).bind(...f.args).all<Row>()
+    /* Pass % is per student, not per mark-row: a child who fails one paper of
+       six has not "five-sixths passed". A student passes the exam when every
+       paper sat meets its pass mark; students absent from every paper are left
+       out rather than counted as failing. */
+    const perStudent = await c.db.prepare(`
+      SELECT exam_id, class_id, round(100.0 * sum(CASE WHEN failed = 0 THEN 1 ELSE 0 END) / NULLIF(count(*), 0), 1) AS pass_pct
+        FROM (SELECT ex.id AS exam_id, c.id AS class_id, m.student_id,
+                     sum(CASE WHEN ${sat} AND ${score} < ${n('es.pass_marks')} THEN 1 ELSE 0 END) AS failed
+                FROM marks m
+                JOIN exam_subjects es ON es.id = m.exam_subject_id
+                JOIN exams ex ON ex.id = es.exam_id
+                JOIN class_subjects cs ON cs.id = es.class_subject_id
+                JOIN classes c ON c.id = cs.class_id
+                JOIN enrollments en ON en.student_id = m.student_id AND en.academic_year_id = ex.academic_year_id AND en.status <> 'moved'
+                JOIN sections sec ON sec.id = en.section_id AND sec.class_id = c.id
+               WHERE ${f.sql}
+               GROUP BY ex.id, c.id, m.student_id
+              HAVING sum(CASE WHEN ${sat} THEN 1 ELSE 0 END) > 0)
+       GROUP BY exam_id, class_id`).bind(...f.args).all<{ exam_id: string; class_id: string; pass_pct: number | null }>()
+    const passBy = new Map(perStudent.results.map((v) => [v.exam_id + '|' + v.class_id, v.pass_pct]))
     const items = rows.results.map((v) => omitNull({ exam_id: v.exam_id, exam_name: v.exam_name, exam_date: v.exam_date, class_name: v.class_name,
-      students: num0(v.students), avg_pct: numOrNull(v.avg_pct), pass_pct: numOrNull(v.pass_pct) }))
+      students: num0(v.students), avg_pct: numOrNull(v.avg_pct), pass_pct: numOrNull(passBy.get(String(v.exam_id) + '|' + String(v.class_id)) ?? null) }))
     return respond(c, 'performance-trend', ['Exam', 'Date', 'Class', 'Students', 'Average %', 'Pass %'], items,
       (v) => [String(v.exam_name), strCell(v.exam_date as string | undefined), String(v.class_name), intCell(v.students), pctCell(v.avg_pct), pctCell(v.pass_pct)])
   })
@@ -452,7 +474,7 @@ export function registerRollups(r: Router) {
       WITH cd AS (${csDept})
       SELECT sub.name AS subject, sub.code, count(DISTINCT es.id) AS papers, count(DISTINCT m.student_id) AS students,
              ${avgPct} AS avg_pct, ${passPct} AS pass_pct,
-             count(CASE WHEN NOT m.is_absent AND ${score} < ${n('es.pass_marks')} THEN 1 END) AS failing,
+             count(CASE WHEN ${sat} AND ${score} < ${n('es.pass_marks')} THEN 1 END) AS failing,
              round(100.0 * count(CASE WHEN m.is_absent THEN 1 END) / NULLIF(count(*),0), 1) AS absent_pct
         FROM marks m
         JOIN exam_subjects es ON es.id = m.exam_subject_id
@@ -478,7 +500,7 @@ export function registerRollups(r: Router) {
             JOIN exams ex ON ex.id = es.exam_id
             JOIN enrollments en ON en.student_id = m.student_id AND en.academic_year_id = ex.academic_year_id AND en.status <> 'moved'
             JOIN sections sec ON sec.id = en.section_id
-           WHERE NOT m.is_absent AND ${f.sql}
+           WHERE ${sat} AND ${f.sql}
       ), banded AS (
           SELECT student_id,
                  CASE WHEN pct >= 90 THEN 0 WHEN pct >= 75 THEN 1 WHEN pct >= 60 THEN 2 WHEN pct >= 45 THEN 3 WHEN pct >= 33 THEN 4 ELSE 5 END AS ord,
@@ -506,7 +528,7 @@ export function registerRollups(r: Router) {
             JOIN class_subjects cs ON cs.id = es.class_subject_id
             JOIN enrollments en ON en.student_id = m.student_id AND en.status = 'active'
             JOIN sections sec ON sec.id = en.section_id
-           WHERE NOT m.is_absent AND ${f.sql}
+           WHERE ${sat} AND ${f.sql}
       ), agg AS (
           SELECT student_id, section_id, count(DISTINCT subject_id) AS subjects,
                  count(DISTINCT CASE WHEN failed THEN subject_id END) AS failing, round(avg(pct), 1) AS avg_pct

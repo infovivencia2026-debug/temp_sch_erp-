@@ -2,7 +2,8 @@ import type { Ctx, Router } from '../../router'
 import { autoIssueFamilyLogins } from '../setup/staff'
 import { Messenger, MessagingError, scopeOf } from '../../services/messaging'
 import { HttpError, badRequest, bool, clampInt, created, notFound, now, ok, readJSON, uuid } from '../../http'
-import { fullName, isUUIDish, isYMD, mergeModuleConfig, moduleConfig, nextNumber, nz, oneOfStr, placeholders, js, str, todayIST, workingYear, workingYearSQL } from './util'
+import { fullName, isUUIDish, isYMD, mergeModuleConfig, moduleConfig, nextNumber, nz, oneOfStr, optionsForKind, placeholders, js, str, todayIST, workingYear, workingYearSQL } from './util'
+import { stopEnrolmentsForLead } from './campaigns'
 import { can } from '../../identity'
 import { syncTransportFeeComponent } from '../ops/transport_office'
 import { activityStmt, duplicatesOf } from './crm'
@@ -144,17 +145,33 @@ export function registerAdmissionsWorkflow(r: Router) {
     // No status means "leave it where it is": a follow-up date or a note on its own.
     const status = str(req.status) || before.status
     if (!['new', 'contacted', 'visit_scheduled', 'applied', 'lost'].includes(status)) throw badRequest('invalid status: ' + status)
-    const lost = str(req.lost_reason)
-    if (status === 'lost' && lost.trim() === '') throw badRequest('lost_reason is required when marking an enquiry lost')
-    let notes = str(req.notes)
-    if (lost !== '') notes = (notes + '\nLost: ' + lost).trim()
+    const lost = str(req.lost_reason).trim()
+    if (status === 'lost' && lost === '') throw badRequest('lost_reason is required when marking an enquiry lost')
+    const notes = str(req.notes)
     const follow = nz(req.next_follow_up)
     if (follow !== null && !isYMD(follow)) throw badRequest('next_follow_up must be YYYY-MM-DD')
     const t = now(), inst = c.id.institution!.id
     const stmts = [c.db.prepare(`UPDATE enquiries SET status = ?, next_follow_up = COALESCE(?, next_follow_up),
         notes = CASE WHEN ? IS NULL THEN notes ELSE COALESCE(notes || char(10), '') || ? END, updated_at = ? WHERE id = ?`)
       .bind(status, follow, nz(notes), nz(notes), t, c.params.id)]
-    if (status !== before.status) stmts.push(activityStmt(c.db, inst, c.params.id, 'stage', { from: before.status, to: status, body: nz(lost), follow, author: c.id.userId, at: t }))
+    /* Closing as lost fills the same structured columns as POST /admissions/leads/{id}/lost,
+       so the lost-lead analysis counts it: a reason code the school records is kept as is,
+       free text becomes 'other' with the text as the note. Leaving lost clears them. */
+    let lostLabel = lost
+    if (status === 'lost' && before.status !== 'lost') {
+      const opts = await optionsForKind(c.db, 'lost_reason')
+      const hit = opts.find((o) => o.value === lost) ?? opts.find((o) => o.label.toLowerCase() === lost.toLowerCase())
+      const code = hit ? hit.value : 'other'
+      const note = (str(req.lost_reason_note).trim() || (hit ? '' : lost)).slice(0, 500)
+      if (code === 'other' && note === '') throw badRequest('"Other" needs a note saying what actually happened')
+      lostLabel = (hit?.label ?? 'Other') + (note ? ': ' + note : '')
+      stmts.push(c.db.prepare(`UPDATE enquiries SET lost_reason = ?, lost_reason_note = NULLIF(?,''), lost_at = ?, lost_by = ?, lost_month = ? WHERE id = ?`)
+        .bind(code, note, t, c.id.userId, todayIST().slice(0, 8) + '01', c.params.id))
+      stmts.push(...(await stopEnrolmentsForLead(c.db, c.params.id, 'the lead was closed as lost')))
+    } else if (status !== 'lost' && before.status === 'lost') {
+      stmts.push(c.db.prepare(`UPDATE enquiries SET lost_reason = NULL, lost_reason_note = NULL, lost_at = NULL, lost_by = NULL, lost_month = NULL WHERE id = ?`).bind(c.params.id))
+    }
+    if (status !== before.status) stmts.push(activityStmt(c.db, inst, c.params.id, 'stage', { from: before.status, to: status, body: nz(status === 'lost' ? lostLabel : ''), follow, author: c.id.userId, at: t }))
     const said = str(req.notes).trim()
     if (said !== '') stmts.push(activityStmt(c.db, inst, c.params.id, 'note', { body: said, follow, author: c.id.userId, at: t }))
     await c.db.batch(stmts)
@@ -279,12 +296,23 @@ export function registerAdmissionsWorkflow(r: Router) {
     const feePaise = typeof req.form_fee_paise === 'number' ? req.form_fee_paise : null
     const feePaid = req.form_fee_paid === true && feePaise !== null ? t : null
     const enquiryID = nz(req.enquiry_id)
+    // The quota the desk chose; an RTE tick at the counter is the RTE quota, and either way both columns agree.
+    let quota = str(req.quota).trim() || (req.is_rte ? 'rte' : 'general')
+    if (!oneOfStr(quota, ...QUOTAS)) throw badRequest('unknown quota ' + quota)
+    const isRTE = quota === 'rte' ? 1 : 0
+    const sessionID = nz(req.admission_session_id)
+    if (sessionID !== null) {
+      if (!isUUIDish(sessionID)) throw badRequest('admission_session_id must be a uuid')
+      if (!(await c.db.prepare(`SELECT 1 AS x FROM admission_sessions WHERE id = ?`).bind(sessionID).first())) throw badRequest('unknown admission session')
+    }
     const stmts: D1PreparedStatement[] = [
-      c.db.prepare(`INSERT INTO applications (id, institution_id, campus_id, enquiry_id, application_no, first_name, middle_name, last_name, date_of_birth, gender, category, class_sought,
-          parent_name, parent_phone, parent_email, address, previous_school, is_rte, status, form_fee_paise, form_fee_paid_at, form_fee_receipt, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?,?)`)
-        .bind(appID, campus.institution_id, campus.id, enquiryID, appNo, first, nz(req.middle_name), nz(req.last_name), nz(req.date_of_birth), nz(req.gender), nz(req.category), classSought,
-          parent, phone, nz(req.parent_email), nz(req.address), nz(req.previous_school), req.is_rte ? 1 : 0, feePaise, feePaid, nz(req.form_fee_receipt), t, t),
+      c.db.prepare(`INSERT INTO applications (id, institution_id, campus_id, admission_session_id, enquiry_id, application_no, first_name, middle_name, last_name, date_of_birth, gender, category, class_sought,
+          parent_name, parent_phone, parent_email, address, previous_school, is_rte, quota, rte_status, aadhaar_consent, aadhaar_last4, apaar_id, prior_udise_code,
+          status, form_fee_paise, form_fee_paid_at, form_fee_receipt, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'submitted',?,?,?,?,?)`)
+        .bind(appID, campus.institution_id, campus.id, sessionID, enquiryID, appNo, first, nz(req.middle_name), nz(req.last_name), nz(req.date_of_birth), nz(req.gender), nz(req.category), classSought,
+          parent, phone, nz(req.parent_email), nz(req.address), nz(req.previous_school), isRTE, quota, isRTE ? 'applied' : null,
+          req.aadhaar_consent ? 1 : 0, nz(req.aadhaar_last4), nz(req.apaar_id), nz(req.prior_udise_code), feePaise, feePaid, nz(req.form_fee_receipt), t, t),
     ]
     for (const d of defaultChecklist) {
       stmts.push(c.db.prepare(`INSERT INTO application_documents (id, institution_id, application_id, doc_type, is_required, status, created_at, updated_at) VALUES (?,?,?,?,?,'pending',?,?)`)
@@ -333,15 +361,27 @@ export function registerAdmissionsWorkflow(r: Router) {
     if (!['offered', 'rejected', 'waitlisted', 'on_hold'].includes(decision)) throw badRequest('decision must be offered, rejected, waitlisted or on_hold')
     if (decision === 'offered') {
       const working = await workingYear(c.db, c.id.userId, c.url.searchParams.get('academic_year_id') ?? '')
-      const avail = await c.db.prepare(`
+      /* RTE s.12(1)(c): a quarter of the class's seats are held for RTE admissions. A general
+         offer may not eat into what is left of that quarter; an RTE offer may use any seat. */
+      const seat = await c.db.prepare(`
         WITH yr AS (SELECT COALESCE((SELECT ss.academic_year_id FROM applications a JOIN admission_sessions ss ON ss.id = a.admission_session_id WHERE a.id = ?), ?) AS id)
-        SELECT MAX(0, COALESCE((SELECT sum(sec.capacity) FROM sections sec WHERE sec.class_id = a.class_sought AND sec.academic_year_id = (SELECT id FROM yr)), 0)
-                 - (SELECT count(*) FROM enrollments e WHERE e.class_id = a.class_sought AND e.status='active' AND e.academic_year_id = (SELECT id FROM yr))
-                 - (SELECT count(*) FROM applications a2 LEFT JOIN admission_sessions s2 ON s2.id = a2.admission_session_id
-                     WHERE a2.class_sought = a.class_sought AND a2.status IN ('offered','accepted') AND COALESCE(s2.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr))) AS available
-          FROM applications a WHERE a.id = ?`).bind(appID, working, appID).first<{ available: number }>()
-      if (!avail) throw notFound()
-      if (avail.available <= 0) throw new HttpError(409, 'no seats remain in that class; waitlist the applicant instead', { code: 'no_seats' })
+        SELECT (a.is_rte = 1 OR a.quota = 'rte') AS is_rte,
+               COALESCE((SELECT sum(sec.capacity) FROM sections sec WHERE sec.class_id = a.class_sought AND sec.academic_year_id = (SELECT id FROM yr)), 0) AS capacity,
+               (SELECT count(*) FROM enrollments e WHERE e.class_id = a.class_sought AND e.status='active' AND e.academic_year_id = (SELECT id FROM yr)) AS enrolled,
+               (SELECT count(*) FROM enrollments e JOIN students st ON st.id = e.student_id WHERE st.is_rte = 1 AND e.class_id = a.class_sought AND e.status='active' AND e.academic_year_id = (SELECT id FROM yr)) AS enrolled_rte,
+               (SELECT count(*) FROM applications a2 LEFT JOIN admission_sessions s2 ON s2.id = a2.admission_session_id
+                 WHERE a2.class_sought = a.class_sought AND a2.status IN ('offered','accepted') AND a2.student_id IS NULL AND a2.id <> a.id AND COALESCE(s2.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr)) AS offered,
+               (SELECT count(*) FROM applications a2 LEFT JOIN admission_sessions s2 ON s2.id = a2.admission_session_id
+                 WHERE a2.class_sought = a.class_sought AND a2.status IN ('offered','accepted') AND a2.student_id IS NULL AND a2.id <> a.id AND (a2.is_rte = 1 OR a2.quota = 'rte')
+                   AND COALESCE(s2.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr)) AS offered_rte
+          FROM applications a WHERE a.id = ?`).bind(appID, working, appID)
+        .first<{ is_rte: number; capacity: number; enrolled: number; enrolled_rte: number; offered: number; offered_rte: number }>()
+      if (!seat) throw notFound()
+      const g = seatGuard(seat)
+      if (g.available <= 0) throw new HttpError(409, 'no seats remain in that class; waitlist the applicant instead', { code: 'no_seats' })
+      if (!seat.is_rte && g.general_available <= 0) {
+        throw new HttpError(409, `the only seats left in that class are the ${g.rte_reserved} held for RTE admissions (25%). Waitlist the applicant, or offer the seat to an RTE applicant`, { code: 'rte_reserved' })
+      }
     }
     const t = now()
     const res = await c.db.prepare(`UPDATE applications SET status = ?, decided_by = ?, decided_at = ?, remarks = COALESCE(?, remarks), updated_at = ?,
@@ -425,7 +465,8 @@ export function registerAdmissionsWorkflow(r: Router) {
         throw new HttpError(409, 'this school asks the principal to approve every new joining, and this one is still waiting. It is on their approvals with the fee and any concession beside it', { code: 'admission_not_approved' })
       }
     }
-    const app = await c.db.prepare(`SELECT institution_id, campus_id, class_sought, first_name, middle_name, last_name, date_of_birth, gender, category, parent_name, parent_phone, is_rte, status, student_id
+    const app = await c.db.prepare(`SELECT institution_id, campus_id, class_sought, first_name, middle_name, last_name, date_of_birth, gender, category, parent_name, parent_phone,
+        (is_rte = 1 OR quota = 'rte') AS is_rte, status, student_id, aadhaar_consent, aadhaar_last4, apaar_id, prior_udise_code, previous_school, blood_group, nationality, address
         FROM applications WHERE id = ?`).bind(appID).first<Record<string, unknown>>()
     if (!app) throw notFound()
     const welcome = { note: 'parent login is not issued by the worker' }
@@ -437,9 +478,13 @@ export function registerAdmissionsWorkflow(r: Router) {
     const admissionNo = await nextNumber(c.db, inst, 'admission')
     const studentID = uuid(), t = now(), today = todayIST()
     const stmts: D1PreparedStatement[] = [
-      c.db.prepare(`INSERT INTO students (id, institution_id, campus_id, admission_no, first_name, middle_name, last_name, date_of_birth, gender, category, is_rte, admission_date, status, person_code, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`)
-        .bind(studentID, inst, campusID, admissionNo, app.first_name, app.middle_name, app.last_name, app.date_of_birth, app.gender, app.category, app.is_rte, today, await studentPersonCode(c.db, inst), t, t),
+      // The statutory fields the application collected (UDISE+/APAAR, Aadhaar consent, RTE) travel to the student.
+      c.db.prepare(`INSERT INTO students (id, institution_id, campus_id, admission_no, first_name, middle_name, last_name, date_of_birth, gender, category, is_rte, admission_date, status, person_code,
+          aadhaar_consent, aadhaar_last4, apaar_id, prior_udise_code, prior_school, blood_group, nationality, address_line1, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?,?,?,?,?,COALESCE(?,'Indian'),?,?,?)`)
+        .bind(studentID, inst, campusID, admissionNo, app.first_name, app.middle_name, app.last_name, app.date_of_birth, app.gender, app.category, app.is_rte ? 1 : 0, today, await studentPersonCode(c.db, inst),
+          app.aadhaar_consent ? 1 : 0, app.aadhaar_last4 ?? null, app.apaar_id ?? null, app.prior_udise_code ?? null, app.previous_school ?? null, app.blood_group ?? null,
+          app.nationality ?? null, app.address ?? null, t, t),
       c.db.prepare(`INSERT INTO enrollments (id, institution_id, student_id, academic_year_id, class_id, section_id, enrolled_on, status, created_at) VALUES (?,?,?,?,?,?,?,'active',?)`)
         .bind(uuid(), inst, studentID, yearID, classID, sectionID, today, t),
     ]
@@ -610,4 +655,16 @@ export async function notifyApplicationStage(c: Ctx, appID: string, status: stri
   if (r.ok) return { sent: true, note: '' }
   if (r.noEmail) return { sent: false, note: 'The change is saved. There is no email address on this application, so nothing was sent - tell them by telephone.' }
   return { sent: false, note: 'The change is saved, but the email could not be queued: ' + r.error }
+}
+
+export const QUOTAS = ['general', 'rte', 'ews', 'sibling', 'alumni', 'staff', 'sports', 'management'] as const
+
+/** seatGuard: seats left in a class, and how many of them a non-RTE applicant may take
+    once a quarter of the capacity (floor, as the seats view shows it) is held for RTE. */
+export function seatGuard(s: { capacity: number; enrolled: number; enrolled_rte: number; offered: number; offered_rte: number }) {
+  const taken = s.enrolled + s.offered, takenRTE = s.enrolled_rte + s.offered_rte
+  const reserve = Math.floor(s.capacity / 4)
+  const available = Math.max(0, s.capacity - taken)
+  const rteReserved = Math.max(0, reserve - takenRTE)
+  return { available, rte_reserved: Math.min(available, rteReserved), general_available: Math.max(0, available - rteReserved) }
 }

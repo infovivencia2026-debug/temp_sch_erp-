@@ -34,5 +34,4 @@ export const rollupKeys = {
   'institution_admin.analysis.department_reports': screen(() => import('./DepartmentReports')),
   'institution_admin.analysis.performance_analytics': screen(() => import('./PerformanceAnalytics')),
   'institution_admin.standard.fee_collection': screen(() => import('./CollectionSummaries')),
-  'hr.reports.hr_reports': screen(() => import('./HRReports')),
 }

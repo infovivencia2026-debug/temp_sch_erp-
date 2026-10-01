@@ -4,8 +4,9 @@ import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton,
+  Button, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton, Select,
 } from '@/components/ui'
+import { useStudentRoster } from '@/lib/rosters'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
@@ -64,6 +65,9 @@ export default function Library() {
   const [search, setSearch] = useState('')
   const [openTitle, setOpenTitle] = useState<Title | null>(null)
   const [note, setNote] = useState('')
+  // The copy being issued at the desk, and the reader it goes to.
+  const [issuing, setIssuing] = useState<string | null>(null)
+  const [reader, setReader] = useState('')
 
   // Empty is the whole catalogue; one letter is a search nobody meant yet.
   const needle = useDebouncedValue(search.trim())
@@ -88,9 +92,23 @@ export default function Library() {
 
   const ret = useMutation({
     mutationFn: (id: string) =>
-      api.post(`/api/v1/ops/library/loans/${id}/return`, { fine_per_day_paise: 100 }),
+      // No rate from the browser: the server applies the school's own (Library → Fines).
+      api.post(`/api/v1/ops/library/loans/${id}/return`),
     onSuccess: () => {
       setNote('Returned. Any overdue fine has been recorded against the loan.')
+      qc.invalidateQueries({ queryKey: ['library-loans'] })
+      qc.invalidateQueries({ queryKey: ['library-titles'] })
+      qc.invalidateQueries({ queryKey: ['library-copies'] })
+    },
+  })
+
+  const issue = useMutation({
+    mutationFn: (v: { copy_id: string; student_id: string }) =>
+      api.post('/api/v1/ops/library/issue', v),
+    onSuccess: () => {
+      setNote('Issued for 14 days.')
+      setIssuing(null)
+      setReader('')
       qc.invalidateQueries({ queryKey: ['library-loans'] })
       qc.invalidateQueries({ queryKey: ['library-titles'] })
       qc.invalidateQueries({ queryKey: ['library-copies'] })
@@ -151,7 +169,7 @@ export default function Library() {
           ))}
         </div>
 
-        <FormNotice error={ret.error} ok={note} />
+        <FormNotice error={ret.error ?? issue.error} ok={note} />
 
         {tab === 'catalogue' && (
           <Card>
@@ -210,7 +228,7 @@ export default function Library() {
               action={<Button variant="ghost" onClick={() => setOpenTitle(null)}>Close</Button>}
             />
             <Table loading={copies.isLoading}
-              head={['Accession no.', 'Barcode', 'Rack', 'Status', 'Due']}
+              head={['Accession no.', 'Barcode', 'Rack', 'Status', 'Due', '']}
               empty={!copies.data?.items.length}
               emptyLabel="No copies recorded against this title."
             >
@@ -226,6 +244,25 @@ export default function Library() {
                   </Td>
                   <Td className="text-muted-foreground">
                     {c.due_on ? formatDate(c.due_on) : '-'}
+                  </Td>
+                  <Td>
+                    {mayIssue && !c.on_loan_to && (issuing === c.id ? (
+                      <div className="flex items-center gap-2">
+                        <ReaderSelect value={reader} onChange={setReader} />
+                        <Button
+                          size="sm"
+                          disabled={!reader || issue.isPending}
+                          onClick={() => issue.mutate({ copy_id: c.id, student_id: reader })}
+                        >
+                          {issue.isPending ? 'Issuing…' : 'Issue'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setIssuing(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={() => { setIssuing(c.id); setReader(''); setNote('') }}>
+                        Issue
+                      </Button>
+                    ))}
                   </Td>
                 </tr>
               ))}
@@ -288,5 +325,18 @@ export default function Library() {
         )}
       </PageBody>
     </>
+  )
+}
+
+/** Mounted only while a copy is being issued, so the roster loads on demand. */
+function ReaderSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const students = useStudentRoster<{ id: string; full_name: string }>()
+  return (
+    <Select
+      value={value}
+      onChange={onChange}
+      placeholder={students.isLoading ? 'Loading students…' : 'Choose a student'}
+      options={(students.data?.items ?? []).map((s) => ({ value: s.id, label: s.full_name }))}
+    />
   )
 }

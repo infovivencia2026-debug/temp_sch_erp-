@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 417 features. */
+/** 24 roles, 425 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -187,8 +187,8 @@ export const ROLES: Role[] = [
           { key: 'super_admin.payments_devices.payment_gateway_connectors', slug: 'payment_gateway_connectors', name: 'Payment Gateway Connectors', scope: 'platform', tier: 'core', summary: 'Merchant keys for Razorpay, Paytm, CCAvenue, BillDesk and Easebuzz, per school or for every school, stored sealed. A record for the day a checkout is wired; no payment is taken through the product yet.' },
           { key: 'super_admin.payments_devices.biometric_device_integration', slug: 'biometric_device_integration', name: 'Biometric Device Integration', scope: 'platform', tier: 'advanced', summary: 'Every school\'s fingerprint readers on one page: which are talking, which went quiet, which were never pointed at us. ADMS push only; a reader is registered inside its school.' },
           { key: 'super_admin.payments_devices.gps_hardware_integration', slug: 'gps_hardware_integration', name: 'GPS Hardware Integration', scope: 'platform', tier: 'core', summary: 'Configure bus GPS tracker hardware protocols, IMEI mapping, and refresh intervals.' },
-          { key: 'super_admin.payments_devices.virtual_classroom_integration', slug: 'virtual_classroom_integration', name: 'Virtual Classroom Integration', scope: 'platform', tier: 'core', summary: 'Connect Zoom, Google Meet, and Microsoft Teams tenant accounts for seamless live streaming.' },
-          { key: 'super_admin.payments_devices.tally_erp_prime_connector', slug: 'tally_erp_prime_connector', name: 'Tally ERP / Prime Connector', scope: 'platform', tier: 'advanced', summary: 'Configure ledger XML exports, cost-center mapping, and automated batch voucher sync.' },
+          { key: 'super_admin.payments_devices.virtual_classroom_integration', slug: 'virtual_classroom_integration', name: 'Virtual Classroom Integration', scope: 'platform', tier: 'core', summary: 'Record which Zoom, Google Meet or Microsoft Teams account live classes run on, and who may use it. Meetings are not created automatically: a teacher pastes each class\'s join link, and every request that would have needed an automatic meeting is listed here.' },
+          { key: 'super_admin.payments_devices.tally_erp_prime_connector', slug: 'tally_erp_prime_connector', name: 'Tally ERP / Prime Connector', scope: 'platform', tier: 'advanced', summary: 'Map the school\'s accounts and cost centres to the ledger names in its Tally company, so the voucher export imports cleanly. Vouchers go across as an XML file the accountant imports into Tally; nothing syncs by itself.' },
           { key: 'super_admin.payments_devices.meritto_leadsquared_sync', slug: 'meritto_leadsquared_sync', name: 'Meritto / LeadSquared Sync', scope: 'platform', tier: 'core', summary: 'Map lead sources, counselor assignments, and multi-touch lead status sync with external CRMs.' },
         ],
       },
@@ -213,7 +213,7 @@ export const ROLES: Role[] = [
         name: 'Operations',
         workspace: 'Platform Setup',
         features: [
-          { key: 'super_admin.operations.data_backup_restore', slug: 'data_backup_restore', name: 'Data Backup & Restore', scope: 'platform', tier: 'core', summary: 'Schedule automated cloud database backups and manage point-in-time recovery archives.' },
+          { key: 'super_admin.operations.data_backup_restore', slug: 'data_backup_restore', name: 'Data Backup & Restore', scope: 'platform', tier: 'core', summary: 'The backup policy each school is held to (how often, how long kept) and the register of backups reported against it, with a warning when the newest restore point is older than the policy allows. Restores are done by the operator, not from this screen.' },
           { key: 'super_admin.operations.system_health_integration_alerts', slug: 'system_health_integration_alerts', name: 'System Health & Integration Alerts', scope: 'platform', tier: 'core', summary: 'Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors.' },
         ],
       },
@@ -410,6 +410,41 @@ export const ROLES: Role[] = [
         workspace: 'Stores',
         features: [
           { key: 'institution_admin.stores.store_catalogue', slug: 'store_catalogue', name: 'Store catalogue', scope: 'institution', tier: 'core', summary: 'The school store as families see it: every active product with price and stock, display only, alongside the stock and issuance screens.' },
+          { key: 'institution_admin.stores.purchase_order_workflow', slug: 'purchase_order_workflow', name: 'Purchase Order Workflow', scope: 'institution', tier: 'advanced', summary: 'Raise a purchase requisition, approve it within the spending limits, issue the purchase order, record the goods received and match the supplier\'s invoice against both before it is paid.' },
+        ],
+      },
+      {
+        slug: 'analysis',
+        name: 'Analysis',
+        workspace: 'Reports',
+        features: [
+          { key: 'institution_admin.analysis.custom_report_builder', slug: 'custom_report_builder', name: 'Custom Report Builder', scope: 'institution', tier: 'advanced', summary: 'Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it.' },
+          { key: 'institution_admin.analysis.department_reports', slug: 'department_reports', name: 'Department reports', scope: 'institution', tier: 'advanced', summary: 'Attendance, workload, results and a summary for each department side by side.' },
+          { key: 'institution_admin.analysis.performance_analytics', slug: 'performance_analytics', name: 'Performance analytics', scope: 'institution', tier: 'advanced', summary: 'Subject pass rates, the term-on-term trend, the spread of marks and the students at risk.' },
+        ],
+      },
+      {
+        slug: 'department',
+        name: 'Department',
+        workspace: 'Staff',
+        features: [
+          { key: 'institution_admin.department.department_academics', slug: 'department_academics', name: 'Department academics', scope: 'institution', tier: 'advanced', summary: 'Each department\'s subjects, sections and teachers, and how far its syllabus has got.' },
+        ],
+      },
+      {
+        slug: 'evaluation',
+        name: 'Evaluation',
+        workspace: 'Staff',
+        features: [
+          { key: 'institution_admin.evaluation.appraisals', slug: 'appraisals', name: 'Appraisals', scope: 'institution', tier: 'advanced', summary: 'Run a 360-degree review cycle: peers, students and the principal answer the same questions, and each teacher\'s results are released once enough people have answered to keep them anonymous.' },
+        ],
+      },
+      {
+        slug: 'statutory_returns',
+        name: 'Statutory Returns',
+        workspace: 'Administration',
+        features: [
+          { key: 'institution_admin.statutory_returns.instruction_hours', slug: 'instruction_hours', name: 'Instruction Hours', scope: 'institution', tier: 'advanced', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
         ],
       },
     ],
@@ -740,7 +775,7 @@ export const ROLES: Role[] = [
           { key: 'librarian.library.accession_register', slug: 'accession_register', name: 'Accession register', scope: 'campus', tier: 'core', summary: 'The statutory accession register, with barcode and spine label printing.' },
           { key: 'librarian.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
           { key: 'librarian.library.reservations', slug: 'reservations', name: 'Reservations', scope: 'campus', tier: 'core', summary: 'Holds placed by students and staff, and who is next in the queue.' },
-          { key: 'librarian.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, waived and collected.' },
+          { key: 'librarian.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it.' },
         ],
       },
       {
@@ -1178,6 +1213,14 @@ export const ROLES: Role[] = [
           { key: 'finance.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
+      {
+        slug: 'student_dues',
+        name: 'Student Dues',
+        workspace: 'Fees',
+        features: [
+          { key: 'finance.student_dues.automated_fee_reminders', slug: 'automated_fee_reminders', name: 'Automated Fee Reminders', scope: 'institution', tier: 'advanced', summary: 'Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending.' },
+        ],
+      },
     ],
   },
   {
@@ -1450,6 +1493,20 @@ export const ROLES: Role[] = [
     ],
   },
   {
+    key: 'lms_admin',
+    name: 'LMS Admin',
+    sections: [
+      {
+        slug: 'lms',
+        name: 'LMS',
+        workspace: 'LMS',
+        features: [
+          { key: 'lms_admin.lms.courses', slug: 'courses', name: 'Courses & material', scope: 'institution', tier: 'core', summary: 'Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it.' },
+        ],
+      },
+    ],
+  },
+  {
     key: 'student',
     name: 'Student',
     sections: [
@@ -1691,20 +1748,6 @@ export const ROLES: Role[] = [
         workspace: 'Store',
         features: [
           { key: 'parent.store.product_catalogue', slug: 'product_catalogue', name: 'Product catalogue', scope: 'self', tier: 'core', summary: 'The school store, to browse, uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter.' },
-        ],
-      },
-    ],
-  },
-  {
-    key: 'lms_admin',
-    name: 'LMS Admin',
-    sections: [
-      {
-        slug: 'lms',
-        name: 'LMS',
-        workspace: 'LMS',
-        features: [
-          { key: 'lms_admin.lms.courses', slug: 'courses', name: 'Courses & material', scope: 'institution', tier: 'core', summary: 'Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it.' },
         ],
       },
     ],

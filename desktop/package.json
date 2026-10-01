@@ -12,7 +12,8 @@
     "start": "electron .",
     "dist:linux": "electron-builder --linux",
     "dist:win": "electron-builder --win",
-    "dist": "electron-builder --linux --win"
+    "dist": "electron-builder --linux --win",
+    "dist:store": "electron-builder --win appx"
   },
   "devDependencies": {
     "electron": "44.3.0",
@@ -45,7 +46,24 @@
     },
     "win": {
       "target": [
-        "zip"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-windows-${arch}.${ext}"
     },
@@ -53,7 +71,21 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "shortcutName": "EDU CLOUD"
+    },
+    "appx": {
+      "identityName": "WISEN.EDUCLOUD",
+      "publisher": "CN=00000000-0000-0000-0000-000000000000",
+      "publisherDisplayName": "WISEN",
+      "displayName": "EDU CLOUD",
+      "applicationId": "EDUCLOUD",
+      "backgroundColor": "#0b0c0e",
+      "languages": [
+        "en-IN",
+        "en-US"
+      ],
+      "artifactName": "${productName}-${version}-store-${arch}.${ext}"
     }
   },
   "portalHosts": [

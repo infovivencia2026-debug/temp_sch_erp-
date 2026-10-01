@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
+import ApplicationAnswers from './ApplicationAnswers'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -673,6 +674,10 @@ export default function Applications() {
                   screen had recorded the decision and did not say so, which
                   reads as a button that did nothing. */}
               <StatusPill status={open.status} className="ml-2" />
+            </div>
+
+            <div className="border-b px-5 py-4">
+              <ApplicationAnswers applicationId={open.id} applicationNo={open.application_no} name={open.name} />
             </div>
 
             {terminal ? (

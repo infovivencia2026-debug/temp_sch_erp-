@@ -8,6 +8,7 @@ import {
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
+import { useT, type MessageKey } from '@/lib/i18n'
 
 /* The family's view of their child's digital money.
 
@@ -42,14 +43,16 @@ interface Child {
   section_name?: string
 }
 
-const KIND_LABEL: Record<string, string> = {
-  top_up: 'Money added', spend: 'Spent', refund: 'Refund', adjustment: 'Adjusted by school',
+const KIND_LABEL: Record<string, MessageKey> = {
+  top_up: 'portal.wallet.kind_top_up', spend: 'portal.wallet.kind_spend',
+  refund: 'portal.wallet.kind_refund', adjustment: 'portal.wallet.kind_adjustment',
 }
 const KIND_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> = {
   top_up: 'success', refund: 'success', spend: 'danger', adjustment: 'warning',
 }
 
 export default function PortalWallet() {
+  const t = useT()
   const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
@@ -66,13 +69,13 @@ export default function PortalWallet() {
 
   // The children request is a state of this screen too: a parent linked to
   // nobody must see that, not a spinner that never resolves.
-  if (children.isLoading && !children.data) return <ScreenSkeleton label="Loading your children" />
+  if (children.isLoading && !children.data) return <ScreenSkeleton label={t('portal.wallet.loading_children')} />
   if (children.error) return <ScreenError error={children.error} />
   if (kids.length === 0) {
     return (
       <EmptyState
-        title="No child is linked to this account"
-        body="Ask the school office to link your child, and their wallet will appear here."
+        title={t('portal.wallet.unlinked_title')}
+        body={t('portal.wallet.unlinked_body')}
       />
     )
   }
@@ -83,9 +86,9 @@ export default function PortalWallet() {
   return (
     <>
       <PageHead
-        eyebrow="Fees"
-        title="Wallet"
-        description="Your child's digital money: the prepaid balance the school holds, every top-up you have paid in and everything it has been spent on."
+        eyebrow={t('portal.wallet.eyebrow')}
+        title={t('portal.wallet.title')}
+        description={t('portal.wallet.description')}
         actions={kids.length > 1 ? (
           <Select
             value={child}
@@ -99,46 +102,46 @@ export default function PortalWallet() {
       />
       <PageBody>
         {wallet.error && <ScreenError error={wallet.error} />}
-        {wallet.isLoading && !w && <ScreenSkeleton rows={3} label="Loading the wallet" />}
+        {wallet.isLoading && !w && <ScreenSkeleton rows={3} label={t('portal.wallet.loading_wallet')} />}
 
         {w && (
           <>
             <Freshness query={wallet} />
             <CellGrid cols={2}>
-              <Stat label="Balance" value={formatPaise(w.balance_paise)} icon={WalletIcon}
+              <Stat label={t('portal.wallet.balance')} value={formatPaise(w.balance_paise)} icon={WalletIcon}
                 hint={w.full_name} />
               <Stat
-                label="Wallet"
-                value={<Badge tone={open ? 'success' : 'neutral'}>{open ? w.status : 'Not opened yet'}</Badge>}
+                label={t('portal.wallet.stat_wallet')}
+                value={<Badge tone={open ? 'success' : 'neutral'}>{open ? w.status : t('portal.wallet.not_opened')}</Badge>}
                 hint={open
-                  ? 'Money is added at the school office once you have paid it in.'
-                  : 'It opens the first time the office records a top-up.'}
+                  ? t('portal.wallet.open_hint')
+                  : t('portal.wallet.closed_hint')}
               />
             </CellGrid>
 
             <Card>
-              <CardHeader title="History" description="Newest first." />
+              <CardHeader title={t('portal.wallet.history')} description={t('portal.wallet.newest_first')} />
               <Table
-                head={['When', 'What', { label: 'Amount', align: 'right' }, 'Note']}
+                head={[t('portal.wallet.col_when'), t('portal.wallet.col_what'), { label: t('portal.wallet.col_amount'), align: 'right' }, t('portal.wallet.col_note')]}
                 empty={w.transactions.length === 0}
-                emptyLabel="Nothing yet. Once the office records a top-up, it appears here."
+                emptyLabel={t('portal.wallet.empty')}
               >
-                {w.transactions.map((t) => (
-                  <tr key={t.id}>
-                    <Td className="whitespace-nowrap text-muted-foreground">{formatDate(t.created_at)}</Td>
+                {w.transactions.map((x) => (
+                  <tr key={x.id}>
+                    <Td className="whitespace-nowrap text-muted-foreground">{formatDate(x.created_at)}</Td>
                     <Td>
-                      <Badge tone={KIND_TONE[t.kind] ?? 'neutral'}>{KIND_LABEL[t.kind] ?? t.kind}</Badge>
-                      {t.source_mode && t.kind === 'top_up' && (
-                        <span className="ml-2 text-xs text-muted-foreground">via {t.source_mode.toUpperCase()}</span>
+                      <Badge tone={KIND_TONE[x.kind] ?? 'neutral'}>{KIND_LABEL[x.kind] ? t(KIND_LABEL[x.kind]) : x.kind}</Badge>
+                      {x.source_mode && x.kind === 'top_up' && (
+                        <span className="ml-2 text-xs text-muted-foreground">{t('portal.wallet.via', { mode: x.source_mode.toUpperCase() })}</span>
                       )}
                     </Td>
                     <Td className={cn('text-right tabular-nums font-medium',
-                      t.delta_paise < 0 ? 'text-destructive' : 'text-success')}>
-                      {t.delta_paise < 0 ? '−' : '+'}{formatPaise(Math.abs(t.delta_paise))}
+                      x.delta_paise < 0 ? 'text-destructive' : 'text-success')}>
+                      {x.delta_paise < 0 ? '−' : '+'}{formatPaise(Math.abs(x.delta_paise))}
                     </Td>
                     <Td className="max-w-[32ch] text-muted-foreground">
-                      <span className="block truncate" title={t.note ?? undefined}>
-                        {t.note || (t.reference_no ? `Ref ${t.reference_no}` : '-')}
+                      <span className="block truncate" title={x.note ?? undefined}>
+                        {x.note || (x.reference_no ? t('portal.wallet.ref', { ref: x.reference_no }) : '-')}
                       </span>
                     </Td>
                   </tr>

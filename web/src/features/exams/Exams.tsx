@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton,
   Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
@@ -64,6 +64,17 @@ export default function Exams() {
     onError: () => setDone(''),
   })
 
+  // An exam scheduled by mistake. The server refuses once any mark or report
+  // card hangs off it, and its refusal says how many.
+  const drop = useMutation({
+    mutationFn: (examID: string) => api.del(`/api/v1/setup/exams/${examID}`),
+    onSuccess: () => {
+      setDone('Exam deleted.')
+      qc.invalidateQueries({ queryKey: ['exams-list'] })
+    },
+    onError: () => setDone(''),
+  })
+
   if (exams.isLoading && !exams.data) return <SkeletonTable columns={6} />
   if (exams.error) return <ErrorState error={exams.error} />
   const rows = exams.data?.items ?? []
@@ -97,6 +108,7 @@ export default function Exams() {
 
         {done && <FormNotice ok={done} />}
         {addPapers.error && <FormNotice error={addPapers.error} />}
+        {drop.error && <FormNotice error={drop.error} />}
 
         {empty.length > 0 && (
           <Card>
@@ -149,6 +161,18 @@ export default function Exams() {
                     >
                       {e.papers === 0 ? 'Create papers' : 'Add missing papers'}
                     </Button>
+                    {!e.is_published && (
+                      <ConfirmButton
+                        variant="ghost"
+                        tone="danger"
+                        disabled={drop.isPending}
+                        confirmLabel="Delete"
+                        question={`Delete ${e.name} and its papers?`}
+                        onConfirm={() => drop.mutate(e.id)}
+                      >
+                        Delete
+                      </ConfirmButton>
+                    )}
                   </Td>
                 </tr>
               ))}

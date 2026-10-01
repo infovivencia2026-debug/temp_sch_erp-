@@ -189,8 +189,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.standard.attendance_overview': screen(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.directory_workload.faculty_directory': screen(() => import('./hod/Department')),
-  'institution_admin.directory_workload.teacher_workload_timetable_overview': screen(() => import('./hod/Department')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
   'faculty.home.my_calendar': screen(() => import('./faculty/MyCalendar')),
 
@@ -298,7 +296,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Circulars · Message teacher · Concerns, as tabs of one row (MessagesHub).
   'parent.messages.communication': screen(() => import('./portal/MessagesHub')),
-  'institution_admin.statutory_returns.govt_returns': screen(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.udise_data_sync': screen(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.apaar_id_provisioning': screen(() => import('./compliance/UDISE')),
 
@@ -416,8 +413,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      what is being served. Kept apart from the bed list because allocation is
      a termly job and these three are daily ones. */
 
-  'institution_admin.stores.item_category_store_setup': screen(() => import('./operations/Stores')),
-  'institution_admin.stores.department_stock_issuance': screen(() => import('./operations/Stores')),
 
   // The display-only store catalogue, the same screen for whoever may browse it.
   'institution_admin.stores.store_catalogue': screen(() => import('./finance/StoreCatalogue')),
@@ -464,7 +459,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'librarian.library.accession_register': screen(() => import('./operations/Library')),
   'librarian.library.issue_return': screen(() => import('./operations/Library')),
   'librarian.library.book_issue_return_terminal': screen(() => import('./operations/Library')),
-  'institution_admin.library.fine_penalty_summary': screen(() => import('./operations/Library')),
   'librarian.library.fines': screen(() => import('./operations/Library')),
   // opac_digital_book_search is the digital catalogue: see digital-library-keys.ts.
 
@@ -473,8 +467,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
   'librarian.library.reservations': screen(() => import('./operations/LibraryDesk')),
   'librarian.library.book_reservation_queue': screen(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.annual_book_stock_verification': screen(() => import('./operations/LibraryDesk')),
-  'institution_admin.library.new_session_textbook_orders': screen(() => import('./operations/LibraryDesk')),
   'librarian.library.barcode_spine_label_printing': screen(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
