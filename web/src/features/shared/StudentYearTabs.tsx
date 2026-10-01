@@ -219,3 +219,104 @@ export function FeesYear({ invoices, payments, outstanding }: {
     </>
   )
 }
+
+/* ATTENDANCE AS A MONTH, the way the parent's report draws it: a year and a
+   month picker, the month's figures, and every day tinted -- light green for
+   present, light red for absent, light amber for late or half day, grey for
+   Sundays. The owner asked for the same calendar here. */
+const DAY_TONE: Record<string, string> = {
+  present: 'border-[#86efac] bg-[#dcfce7] font-semibold text-[#15803d]',
+  late: 'border-[#fcd34d] bg-[#fef3c7] font-semibold text-[#b45309]',
+  half_day: 'border-[#fdba74] bg-[#ffedd5] font-semibold text-[#b45309]',
+  absent: 'border-[#fca5a5] bg-[#fee2e2] font-semibold text-[#b91c1c]',
+  leave: 'border-border bg-muted text-muted-foreground',
+  holiday: 'border-border bg-muted text-muted-foreground',
+}
+const KEY_EDGE: Record<string, string> = {
+  present: 'border-[#16a34a] bg-[#dcfce7]', late: 'border-[#d97706] bg-[#fef3c7]',
+  absent: 'border-[#dc2626] bg-[#fee2e2]', half_day: 'border-[#f97316] bg-[#ffedd5]',
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+export function AttendanceCalendar({ days }: { days: { date: string; status: string }[] }) {
+  const byDate = new Map(days.map((d) => [d.date.slice(0, 10), d.status]))
+  const now = new Date()
+  const thisYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const years = yearsOf(days.map((d) => d.date))
+  const [year, setYear] = useState(academicYear())
+  /* The twelve months of the academic year, April first, none in the future. */
+  const start = Number(year.slice(0, 4))
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const m = (3 + i) % 12, y = start + (3 + i >= 12 ? 1 : 0)
+    return `${y}-${String(m + 1).padStart(2, '0')}`
+  }).filter((ym) => ym <= thisYm)
+  const [pick, setPick] = useState(thisYm)
+  const ym = months.includes(pick) ? pick : months[months.length - 1] ?? thisYm
+  const [y, m] = ym.split('-').map(Number)
+  const count = new Date(y, m, 0).getDate()
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7
+  const tally = { present: 0, absent: 0, late: 0, marked: 0 }
+  for (let d = 1; d <= count; d++) {
+    const st = byDate.get(`${ym}-${String(d).padStart(2, '0')}`)
+    if (!st || st === 'holiday') continue
+    tally.marked++
+    if (st === 'present') tally.present++
+    else if (st === 'late') { tally.late++; tally.present++ }
+    else if (st === 'absent') tally.absent++
+  }
+  const pctM = tally.marked ? Math.round((tally.present / tally.marked) * 100) : null
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <h3 className="text-[15px] font-semibold">Attendance calendar</h3>
+        <div className="flex flex-wrap gap-2">
+          <div className="w-32">
+            <Select value={year} onChange={(v) => { setYear(v); setPick('') }} options={years.map((x) => ({ value: x, label: x }))} />
+          </div>
+          <div className="w-40">
+            <Select value={ym} onChange={setPick} options={months.map((x) => ({ value: x, label: `${MONTHS[Number(x.slice(5)) - 1]} ${x.slice(0, 4)}` }))} />
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-5 px-5 py-4 lg:grid-cols-[220px_1fr]">
+        <div className="grid content-start grid-cols-2 gap-3 lg:grid-cols-1">
+          <Kpi label="Present" value={String(tally.present)} small="days" tone="text-[#16a34a]" />
+          <Kpi label="Absent" value={String(tally.absent)} small="days" tone={tally.absent ? 'text-destructive' : undefined} />
+          <Kpi label="This month" value={pctM == null ? '-' : `${pctM}%`} />
+          {tally.late > 0 && <Kpi label="Late" value={String(tally.late)} small="days" tone="text-[#b45309]" />}
+        </div>
+        <div className="min-w-0">
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+              <div key={i} className="pb-1 text-[11px] font-semibold text-muted-foreground">{d}</div>
+            ))}
+            {Array.from({ length: lead }, (_, i) => <div key={`b${i}`} />)}
+            {Array.from({ length: count }, (_, i) => {
+              const day = i + 1
+              const iso = `${ym}-${String(day).padStart(2, '0')}`
+              const st = byDate.get(iso)
+              const sunday = new Date(y, m - 1, day).getDay() === 0
+              return (
+                <div key={day} title={st ? `${formatDate(iso)} · ${st.replace('_', ' ')}` : formatDate(iso)}
+                  className={cn('flex h-10 items-center justify-center rounded-lg border text-[13.5px] tabular-nums',
+                    st ? DAY_TONE[st] ?? 'bg-muted' : sunday ? 'border-transparent bg-muted text-muted-foreground' : 'text-muted-foreground')}>
+                  {day}
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t pt-3 text-[14px] font-medium">
+            {Object.entries(KEY_EDGE).map(([k, cls]) => (
+              <span key={k} className="inline-flex items-center gap-2">
+                <span className={cn('h-4 w-4 rounded-full border-2', cls)} />{k.replace('_', ' ')}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-2">
+              <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/40 bg-muted" />holiday / Sunday
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}

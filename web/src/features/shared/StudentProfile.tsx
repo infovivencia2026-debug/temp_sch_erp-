@@ -28,7 +28,7 @@ import { StudentWarningStrip } from '@/components/ai/EarlyWarnings'
 import StudentEditDialog from './StudentEditDialog'
 import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
-import { AcademicsYear, FeesYear } from './StudentYearTabs'
+import { AcademicsYear, FeesYear, AttendanceCalendar } from './StudentYearTabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -41,11 +41,6 @@ import Student360Card from '@/components/ai/Student360Card'
    than from casts that lie about what the response contains. */
 
 type Profile = StudentProfileBody
-
-const DOT: Record<string, string> = {
-  present: 'bg-success', late: 'bg-warning', absent: 'bg-destructive',
-  half_day: 'bg-warning/60', leave: 'bg-muted-foreground/40', holiday: 'bg-border',
-}
 
 /**
  * Student 360 — the screen a school opens most often, usually with a parent on
@@ -1441,26 +1436,7 @@ export default function StudentProfile() {
             </div>
           </Card>
           <LeaveHistory rows={detail.data?.leave ?? []} />
-          <Card>
-            <CardHeader
-              title="Last 30 marked days"
-              description={p.attendance.below_threshold
-                ? 'Below the 75% board threshold for exam eligibility.'
-                : 'Most recent first.'}
-            />
-            <div className="p-5">
-              {p.recent_attendance.length === 0 ? (
-                <p className="py-4 text-center text-[14px] text-muted-foreground">Nothing marked yet.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {p.recent_attendance.map((d) => (
-                    <span key={d.date} title={`${d.date} · ${d.status}`}
-                      className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
+          <AttendanceCalendar days={p.recent_attendance} />
           <Card>
             <CardHeader title="Recent days" />
             <Table head={['Date', 'Status']} empty={!p.recent_attendance.length}>

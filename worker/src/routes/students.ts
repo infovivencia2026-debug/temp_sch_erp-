@@ -649,7 +649,7 @@ async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
                               WHEN u.status = 'active' THEN 'issued' ELSE u.status END AS login, u.last_login_at
                     FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id LEFT JOIN users u ON u.id = g.user_id
                    WHERE sg.student_id = ? ORDER BY sg.is_primary DESC`).bind(id),
-    c.db.prepare(`SELECT on_date AS date, status FROM student_attendance WHERE student_id = ? ORDER BY on_date DESC LIMIT 30`).bind(id),
+    c.db.prepare(`SELECT on_date AS date, status FROM student_attendance WHERE student_id = ? ORDER BY on_date DESC LIMIT 800`).bind(id),
     c.db.prepare(`SELECT e.name AS exam, COALESCE(rc.percentage,'') AS percentage, COALESCE(rc.grade,'') AS grade, COALESCE(CAST(rc.rank_in_section AS TEXT),'') AS rank
                     FROM report_cards rc LEFT JOIN exams e ON e.academic_year_id = rc.academic_year_id
                    WHERE rc.student_id = ? AND rc.is_published = 1 ORDER BY rc.created_at DESC LIMIT 10`).bind(id),
