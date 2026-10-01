@@ -20,7 +20,7 @@ import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
-  SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
+  FeeLedger, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, CoScholastic,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
@@ -28,6 +28,7 @@ import { StudentWarningStrip } from '@/components/ai/EarlyWarnings'
 import StudentEditDialog from './StudentEditDialog'
 import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
+import { AcademicsYear, FeesYear } from './StudentYearTabs'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -1401,21 +1402,12 @@ export default function StudentProfile() {
       key: 'academics', label: 'Academics',
       render: () => (
         <>
-        <Card>
-          <CardHeader title="Results" description="Published report cards only" />
-          <Table head={['Exam', 'Percentage', 'Grade', 'Rank']} empty={!p.results.length}
-            emptyLabel="Nothing published yet.">
-            {p.results.map((x, i) => (
-              <tr key={i}>
-                <Td className="font-medium">{x.exam || '-'}</Td>
-                <Td>{x.percentage ? `${x.percentage}%` : '-'}</Td>
-                <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '-'}</Td>
-                <Td>{x.rank || '-'}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
-        <SubjectMarks rows={detail.data?.subject_marks ?? []} loading={detail.isLoading} />
+        <AcademicsYear
+          results={p.results}
+          marks={detail.data?.subject_marks ?? []}
+          loading={detail.isLoading}
+          attendancePercent={p.attendance.percent}
+        />
         <CoScholastic
           studentID={p.id}
           rows={detail.data?.co_scholastic ?? []}
@@ -1487,26 +1479,7 @@ export default function StudentProfile() {
       key: 'fees', label: 'Fees', badge: overdue || undefined,
       render: () => (
         <>
-        <Card>
-          <CardHeader
-            title="Fee history"
-            description={p.fees.outstanding_paise
-              ? `${formatPaise(p.fees.outstanding_paise)} outstanding`
-              : 'Settled in full'}
-          />
-          <Table head={['Date', 'Invoice', 'Amount', 'Paid', 'Status']} empty={!p.invoices.length}
-            emptyLabel="No invoices raised.">
-            {p.invoices.map((x) => (
-              <tr key={x.invoice_no}>
-                <Td className="text-muted-foreground">{formatDate(x.date)}</Td>
-                <Td className="font-mono text-[12px]">{x.invoice_no}</Td>
-                <Td>{formatPaise(x.net_paise)}</Td>
-                <Td>{formatPaise(x.paid_paise)}</Td>
-                <Td><StatusPill status={x.status} /></Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
+        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise} />
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety
@@ -1523,7 +1496,6 @@ export default function StudentProfile() {
           }}
         />
         <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
-        <Receipts rows={detail.data?.payments ?? []} />
         </>
       ),
     },
