@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, RefreshCw, X } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, Dialog } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import { useAnchoredPosition } from '@/components/anchored'
 import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lang } from './aiApi'
@@ -43,26 +43,19 @@ export default function WriteWithAI({
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const phone = usePhone()
-  /* On a phone the panel is portalled to the body with a scrim behind it: a
-     card pressed on the way here scales on :active, and a transformed
-     ancestor would re-anchor a fixed sheet to the card. */
-  const sheet = (node: ReactNode) =>
-    createPortal(
-      phone ? (
-        <>
-          <div aria-hidden className="fixed inset-0 z-[74] bg-black/30" onClick={() => setOpen(false)} />
-          {node}
-        </>
-      ) : node,
-      document.body,
-    )
+  /* On a desk the panel is portalled too: a card pressed on the way here
+     scales on :active, and a transformed ancestor would re-anchor a fixed
+     panel to the card. On a phone it is the shared Dialog's bottom sheet
+     (scrim, grab bar, Back closes it, focus trap). */
+  const sheet = (node: ReactNode) => createPortal(node, document.body)
   /* On a desk the panel is anchored to its button in viewport coordinates
      (anchored.ts) rather than drawn absolute inside whatever card holds the
      button, which clipped it or let it run off the bottom of the screen. */
   const place = useAnchoredPosition(open && !phone, box, panel, { align: align === 'right' ? 'end' : 'start', width: 416, maxHeight: 560 })
 
   useEffect(() => {
-    if (!open) return
+    // On a phone the Dialog owns Escape and the outside tap.
+    if (!open || phone) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node
@@ -71,7 +64,7 @@ export default function WriteWithAI({
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onDown)
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown) }
-  }, [open])
+  }, [open, phone])
 
   const generate = async () => {
     setBusy(true); setError(null)
@@ -88,24 +81,8 @@ export default function WriteWithAI({
   }
 
   const sel = 'field'
-  return (
-    <div className="relative inline-block" ref={box}>
-      <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)} ariaHasPopup="dialog" ariaExpanded={open}>
-        <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{label}
-      </Button>
-      {open && sheet(
-        <div role="dialog" aria-label={label} ref={panel} data-anchored-panel=""
-          className={phone
-            /* A bottom sheet on a phone. Anchored under its button it opened
-               below the fold behind the dock, and its three selects ran off
-               the right edge of a 390px screen. */
-            ? 'fixed inset-x-0 bottom-0 z-[75] max-h-[85dvh] overflow-y-auto rounded-t-[16px] border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)]'
-            : 'z-[210] rounded-lg border bg-card p-3 shadow-lg'}
-          style={phone ? undefined : place}>
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">{label}</span>
-            <button type="button" className="text-muted-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="h-4 w-4" /></button>
-          </div>
+  const controls = (
+    <>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <label className="text-xs text-muted-foreground">Tone
               <select className={sel + ' mt-1 w-full'} value={tone} onChange={(e) => setTone(e.target.value)}>
@@ -147,6 +124,29 @@ export default function WriteWithAI({
             </ul>
           )}
           <p className="mt-2 text-[11px] text-muted-foreground">An AI draft from the school's records. Check and edit it; nothing is saved or sent until you do.</p>
+    </>
+  )
+  return (
+    <div className="relative inline-block" ref={box}>
+      <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)} ariaHasPopup="dialog" ariaExpanded={open}>
+        <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{label}
+      </Button>
+      {open && phone && (
+        <Dialog onClose={() => setOpen(false)} title={label}>
+          <div ref={panel}>
+          {controls}
+          </div>
+        </Dialog>
+      )}
+      {open && !phone && sheet(
+        <div role="dialog" aria-label={label} ref={panel} data-anchored-panel=""
+          className="z-[210] rounded-lg border bg-card p-3 shadow-lg"
+          style={place}>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold">{label}</span>
+            <button type="button" className="text-muted-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="h-4 w-4" /></button>
+          </div>
+          {controls}
         </div>,
       )}
     </div>

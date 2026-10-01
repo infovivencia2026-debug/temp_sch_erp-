@@ -1,18 +1,16 @@
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, CheckCircle2, ChevronLeft, Paperclip, Plus, Send, Users } from 'lucide-react'
 import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
-  Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
+  Badge, Button, Dialog, Field, FormGrid, FormNotice, Input, Select, Textarea,
   SkeletonTable, SkeletonTiles, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
-import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* The homework diary, from both ends.
 
@@ -446,36 +444,17 @@ function HomeworkSheet({
      a wall of white below it. */
   showRegister?: boolean
 }) {
-  // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(true, onClose)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
-  }, [onClose])
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={h.title}
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-2 sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className="flex h-[92vh] w-[94vw] max-w-[900px] flex-col overflow-hidden rounded-[4px]
-                   border bg-card"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
-          <Button size="sm" variant="secondary" onClick={onClose}>
+  /* The shared Dialog: Back on a phone, Escape, the dim and the focus trap
+     all close it the one way. Focus lands on the task, not the answer box,
+     so a child reading the question is not handed a keyboard first. */
+  return (
+    <Dialog
+      onClose={onClose}
+      size="xl"
+      label={h.title}
+      footer={
+        <>
+          <Button size="sm" variant="secondary" className="mr-auto" onClick={onClose}>
             <ChevronLeft className="h-3.5 w-3.5" />
             Back
           </Button>
@@ -498,9 +477,10 @@ function HomeworkSheet({
               {pending ? 'Sending…' : 'Done'}
             </Button>
           ) : null}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        </>
+      }
+    >
+        <div data-autofocus tabIndex={-1} className="outline-none">
           <p className="text-[18px] font-medium leading-snug">{h.title}</p>
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13.5px] text-muted-foreground">
             {h.student_name && <span className="font-medium text-foreground">For {h.student_name}</span>}
@@ -609,9 +589,7 @@ function HomeworkSheet({
             </div>
           )}
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
 
