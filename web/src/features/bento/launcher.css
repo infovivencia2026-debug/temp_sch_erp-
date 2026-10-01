@@ -22,15 +22,32 @@
 
 .lch {
   --lch-cols: 4;
-  --lch-plate: 56px;
+  /* BIGGER PLATES (owner, 2026-10-01: "in All features icon size can be
+     bigger"). 64px on a phone, 72px at a desk, up from 56 and 64. The column
+     counts are unchanged and still fit: at 360px the narrowest column is
+     69px (360 less the body's and the panel's padding, three 4px gaps, by
+     four), at 390 it is 76px, and at 1280 and 1440 the 1200px cap gives
+     eight columns of 129px. The plate never exceeds its column. */
+  --lch-plate: 64px;
   --lch-gap: 4px;
   --lch-row-gap: 10px;
   /* The name under the plate. Two lines, then a cut: a label that wraps to
      three is a paragraph, and the grid's rows stop lining up. */
-  --lch-name: 11.5px;
+  --lch-name: 12.5px;
+}
+/* THE NARROWEST PHONES. At 360px a 12.5px "Dashboard" in the weight of the
+   current page is 69px wide and the column's inside was 67, so it broke
+   mid-word. The gutters give up a few pixels each -- the body's, the panel's
+   and the tile's own -- and the column's inside becomes 74px. */
+@media (max-width: 380px) {
+  .lch .lch-body { padding-left: 0.9rem; padding-right: 0.9rem; }
+  .lch .lch-section { padding-left: 0.7rem; padding-right: 0.7rem; }
+  .lch .lch-section[data-band='recent'] .lch-band { padding-inline: 0.7rem; margin-inline: -0.7rem; }
+  .lch .lch-app { padding-left: 0; padding-right: 0; }
+  .lch .lch-name { letter-spacing: 0; }
 }
 @media (min-width: 640px) {
-  .lch { --lch-cols: 6; --lch-plate: 64px; --lch-gap: 8px; --lch-row-gap: 14px; --lch-name: 12px; }
+  .lch { --lch-cols: 6; --lch-plate: 72px; --lch-gap: 8px; --lch-row-gap: 14px; --lch-name: 13px; }
 }
 @media (min-width: 1024px) {
   .lch { --lch-cols: 8; }
@@ -400,6 +417,139 @@
 @media (prefers-reduced-motion: reduce) {
   .lch-app, .lch-plate, .lch-more { transition: none; }
   .lch-app:active .lch-plate { transform: none; }
+  .lch-pop .lch-cell, .lch-pop .lch-chip, .lch-pop .lch-ask, .lch-pop .lch-empty__title { animation: none; }
+}
+
+/* ---- search results ------------------------------------------------------ */
+
+/* THE POP. Each result rises from 96% and fades in, 20ms after the one
+   before it, best first; twelve at most, so the last has begun by 220ms and
+   the whole answer has landed inside a third of a second. Transform and
+   opacity only -- nothing here lays out or paints a neighbour -- and the
+   component leaves the class off altogether when the account asks for
+   reduced motion, with the media query above as the second lock. */
+@keyframes lch-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.lch-pop .lch-cell,
+.lch-pop .lch-chip,
+.lch-pop .lch-ask,
+.lch-pop .lch-empty__title {
+  animation: lch-pop 180ms var(--ease-out, ease) both;
+  animation-delay: calc(var(--i, 0) * 20ms);
+}
+
+/* The best match: the default, the one Enter opens. The same wash as the
+   keyboard cursor (it IS the cursor, at rest on slot 0) with a hairline so
+   it reads as chosen before a key is pressed. No box drawn in a colour. */
+.lch-results .lch-app[data-cursor='true'] {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* One workspace's results: a dot in the workspace's colour, its name, then
+   its tiles. The dot is the same colour the corner mark on each plate is. */
+.lch-rgroup + .lch-rgroup { margin-top: 0.85rem; }
+.lch-rgroup__name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.lch-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--t, currentColor);
+}
+
+/* ON A PHONE THE ANSWER SITS ON THE KEYBOARD. The list is pushed to the foot
+   of the sheet, against the pill, and the component draws the best group
+   last so it is the one nearest the thumb. */
+.lch-list--up { margin-top: auto; }
+/* The pill's own auto margin would share the free space with the list and
+   leave the answer floating mid-sheet; here the list takes all of it. */
+.lch-list--up ~ .lch-searchbar { margin-top: 0; }
+
+/* Nothing matched: say so, offer words that do, and offer the assistant. */
+.lch-empty { text-align: center; padding-top: 1.6rem; padding-bottom: 1.2rem; }
+.lch-empty__title { font-size: 14px; opacity: 0.85; margin: 0 0 0.8rem; }
+.lch-empty__try {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  font-size: 12.5px;
+}
+.lch-empty__try > span { opacity: 0.7; }
+.lch-chip {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.lch-chip:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
+.lch-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+@media (pointer: coarse) { .lch-chip { padding: 9px 14px; font-size: 14px; } }
+
+.lch-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.lch-ask:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
+.lch-ask:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.lch-ask svg { width: 16px; height: 16px; flex: none; }
+.lch-ask .lch-ask__key { width: 13px; height: 13px; opacity: 0.6; }
+
+/* Recent searches: a row of chips resting on the pill, scrolling sideways
+   if five long ones do not fit. */
+.lch-recentq {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  padding: 2px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  color: var(--ink-here);
+}
+.lch-recentq::-webkit-scrollbar { display: none; }
+.lch-recentq .lch-chip svg { width: 13px; height: 13px; flex: none; opacity: 0.65; }
+.lch-recentq .lch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  background: color-mix(in srgb, var(--bento-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--bento-edge, none), var(--elev-1);
 }
 
 /* ---- the search pill, floating at the foot ------------------------------ */
@@ -424,7 +574,7 @@
 .lch .lch-searchbar__input {
   width: 100%;
   height: 48px;
-  padding: 0 1.25rem 0 3rem;
+  padding: 0 3rem 0 3rem;
   border: 0;
   border-radius: 999px;
   font-size: 14px;
@@ -444,3 +594,6 @@
 }
 .lch .lch-searchbar__input::placeholder { color: color-mix(in srgb, var(--ink-here) 60%, transparent); }
 @media (pointer: coarse) { .lch .lch-searchbar__input { font-size: 16px; } }
+
+/* The browser's own clear would be a second x beside ours. */
+.lch .lch-searchbar__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }

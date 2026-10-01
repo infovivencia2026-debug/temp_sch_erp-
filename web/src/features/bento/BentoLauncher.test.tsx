@@ -103,6 +103,15 @@ async function key(k: string, target: EventTarget = window) {
   })
 }
 
+/** The previous test's unmount hands back its history entry on a timer
+    (useOverlayHistory), and that popstate would close THIS test's sheet.
+    Let it land, then forget it, before asserting that something did not close. */
+async function settle() {
+  await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+  onClose.mockReset()
+  await render()
+}
+
 const tiles = (scope: ParentNode = host) => Array.from(scope.querySelectorAll<HTMLButtonElement>('button.lch-app'))
 /** The name under each plate, without the "where it belongs" caption. */
 const names = (scope: ParentNode = host) =>
@@ -225,8 +234,12 @@ describe('BentoLauncher search', () => {
     await type(input, 'fee')
     expect(band('all'), 'the workspaces give way to the results').toBeNull()
     const results = band('results')!
-    // Both start with the needle, so they tie on rank and fall to the alphabet.
-    expect(names(results)).toEqual(['Fee Dashboard', 'Fees'])
+    // Both start with the needle, so they tie on rank; the shorter name leads.
+    expect(names(results)).toEqual(['Fees', 'Fee Dashboard'])
+    // Grouped under the workspace, with its dot, and the best is the default.
+    expect(results.querySelector('.lch-rgroup')!.getAttribute('data-workspace')).toBe('Home')
+    expect(results.querySelector('.lch-rgroup__name .lch-dot')).not.toBeNull()
+    expect(results.querySelector('[data-cursor="true"]')!.closest<HTMLElement>('.lch-cell')!.dataset.key).toBe('home.fees')
     const marks = Array.from(results.querySelectorAll('mark.lch-hl')).map((m) => m.textContent)
     expect(marks).toEqual(['Fee', 'Fee'])
 
@@ -236,6 +249,82 @@ describe('BentoLauncher search', () => {
 
     await type(input, '')
     expect(band('all')).not.toBeNull()
+  })
+
+  it('finds by initials, by a typo and by what the school calls it', async () => {
+    await render()
+    const input = host.querySelector<HTMLInputElement>('input')!
+    await type(input, 'fd')
+    expect(names(band('results')!)).toEqual(['Fee Dashboard'])
+    expect(Array.from(band('results')!.querySelectorAll('mark.lch-hl')).map((m) => m.textContent)).toEqual(['F', 'D'])
+    await type(input, 'attendence')
+    expect(names(band('results')!)).toEqual(['Attendance'])
+    await type(input, 'pay')
+    expect(names(band('results')!)).toContain('Fees')
+    await type(input, 'my child')
+    expect(names(band('results')!)).toEqual(['Attendance', 'Marks & Grades'])
+  })
+
+  it('nothing matched: suggestions fill the field, and the assistant is asked', async () => {
+    const asked: string[] = []
+    const onAsk = (e: Event) => asked.push((e as CustomEvent<{ question: string }>).detail.question)
+    window.addEventListener('erp:ask-assistant', onAsk)
+    const { ASK_EVENT } = await import('@/components/assistant/agent')
+    window.addEventListener(ASK_EVENT, onAsk)
+    try {
+      await render()
+      const input = host.querySelector<HTMLInputElement>('input')!
+      await type(input, 'zzz')
+      const empty = band('empty')!
+      expect([...empty.querySelectorAll('.lch-chip')].map((b) => b.textContent)).toEqual(['attendance', 'fees', 'timetable'])
+      expect(empty.querySelector('.lch-ask')!.textContent).toContain('zzz')
+      await key('Enter', input)
+      expect(asked).toContain('zzz')
+      expect(onClose).toHaveBeenCalled()
+
+      await act(async () => { empty.querySelector<HTMLButtonElement>('.lch-chip')!.click() })
+      expect(input.value).toBe('attendance')
+      expect(names(band('results')!)).toEqual(['Attendance'])
+    } finally {
+      window.removeEventListener('erp:ask-assistant', onAsk)
+      window.removeEventListener(ASK_EVENT, onAsk)
+    }
+  })
+
+  it('Escape clears the query first and closes second; the x clears too', async () => {
+    await render()
+    await settle()
+    const input = host.querySelector<HTMLInputElement>('input')!
+    await type(input, 'fee')
+    await key('Escape', input)
+    expect(input.value).toBe('')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(band('all')).not.toBeNull()
+    await type(input, 'fee')
+    await act(async () => { host.querySelector<HTMLButtonElement>('.lch-clear')!.click() })
+    expect(input.value).toBe('')
+    await key('Escape', input)
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('a tap outside keeps the query; recent searches come back when the field is empty and focused', async () => {
+    await render()
+    await settle()
+    const input = host.querySelector<HTMLInputElement>('input')!
+    await type(input, 'fee')
+    await act(async () => { host.querySelector<HTMLElement>('[role="dialog"]')!.click() })
+    expect(onClose).not.toHaveBeenCalled()
+    expect(input.value).toBe('fee')
+    await key('Enter', input)
+    expect(navigate).toHaveBeenCalledWith('/parent/home/fees')
+    expect(JSON.parse(localStorage.getItem('erp.launcher.searches')!)).toEqual(['fee'])
+
+    await type(input, '')
+    await act(async () => { input.focus() })
+    const chips = [...host.querySelectorAll<HTMLButtonElement>('.lch-recentq .lch-chip')]
+    expect(chips.map((c) => c.textContent)).toEqual(['fee'])
+    await act(async () => { chips[0].click() })
+    expect(input.value).toBe('fee')
   })
 
   it('splitMatch cuts the name around the first hit, case-insensitively', () => {

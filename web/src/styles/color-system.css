@@ -307,6 +307,13 @@
 }
 .btn.sys-danger[data-variant='primary']:not(:disabled):hover { background: hsl(var(--sys-danger-fill) / 0.9); }
 
+/* A SOLID bg-destructive always carries light ink (Button tone=danger,
+   ConfirmButton, a count pill), so it is the fill in both modes -- while
+   text-destructive and border-destructive follow --destructive, which in the
+   dark is the lighter, text-grade red. The tints (bg-destructive/10) are
+   different classes and are untouched. */
+.bg-destructive { background-color: hsl(var(--sys-danger-fill)); }
+
 /* --- links ------------------------------------------------------------
    A link in running text is the accent's ink, which is the text-grade blue.
    Only links that opt in, so a card that is one big <a> is not blue all over. */
