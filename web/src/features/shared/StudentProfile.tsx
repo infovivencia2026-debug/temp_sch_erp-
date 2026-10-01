@@ -143,7 +143,11 @@ export default function StudentProfile() {
   /* Decided by what the person may see, not by the address: the staff
      workspace is not always under /faculty. Anyone without the whole-school
      student permission is staff here. */
-  const staffSide = !useSession().permissions.includes('students.read.all')
+  /* Opened from the staff (faculty) menu, it is always My students -- the
+     class teacher's own section -- even for a teacher whose role can read
+     every student; elsewhere, anyone without that permission. */
+  const staffSide = (typeof window !== 'undefined' && window.location.pathname.split('/')[1] === 'faculty') ||
+    !useSession().permissions.includes('students.read.all')
   const myClass = useQuery({
     queryKey: ['sections', 'class_teacher'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
