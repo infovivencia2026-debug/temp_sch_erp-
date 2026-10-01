@@ -90,6 +90,10 @@ function subscribe(fn: () => void) {
   }
 }
 
+/** For non-React modules that have to move with the theme (lib/paint.ts
+    swaps the shipped palette when light becomes dark). */
+export const subscribeTheme = subscribe
+
 function snapshot(): Theme {
   return current
 }

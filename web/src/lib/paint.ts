@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { applyTheme } from './theme'
+import { applyTheme, currentTheme, resolveTheme, subscribeTheme } from './theme'
 
 /* Painting parts of the interface.
 
@@ -134,6 +134,37 @@ const PALETTE_KEY = 'erp.palette'
 /* Light Modern since 2026-09-23: the owner asked for Aurora -- the mesh
    gradient card faces -- to be removed. */
 export const DEFAULT_PALETTE = 'Light Modern'
+/** Its night half. The default is a decision about the whole surface, and a
+    surface has two halves. */
+export const DEFAULT_DARK_PALETTE = 'Dark Modern'
+
+/* THE PALETTE ON SCREEN FOLLOWS THE THEME.
+
+   Every shipped palette is light or dark, and the 55 tokens it writes inline
+   on the root paint the whole bento surface -- the ground, the cards, the
+   dock, the settings sheets -- in that half. The theme class is set
+   elsewhere (Settings, the account row, the OS at sunset), and until now the
+   two were only kept in step in one direction: choosing a palette flipped the
+   theme to its mode. Flipping the theme did nothing to the palette.
+
+   So a phone in dark mode with the default Light Modern still on the root --
+   which is every phone whose owner never opened the colour dialog -- drew a
+   #f8f8f8 ground and white cards, while Tailwind's `--foreground` went to
+   #fafafa with the theme. Measured on the teacher's timetable: the page
+   heading at 1.02:1, a lesson's subject at 1.04:1. Not dim; absent.
+
+   The stored name is kept exactly as chosen. What is resolved here is the
+   palette that goes on the root: the chosen one when it belongs to the
+   theme that is on, and the default for that theme when it does not. Flip
+   back, and the chosen one is there again -- the same fallback architecture
+   the file opens with, applied to the palette itself. */
+function paletteForTheme(name: string | null): BuiltInPalette | null {
+  const chosen = paletteByName(name) ?? (name ? paletteByName(DEFAULT_PALETTE) : null)
+  if (!chosen) return null
+  const mode = resolveTheme(currentTheme())
+  if (chosen.mode === mode) return chosen
+  return paletteByName(mode === 'dark' ? DEFAULT_DARK_PALETTE : DEFAULT_PALETTE)
+}
 
 let activePalette: string | null =
   typeof window === 'undefined' ? null : (() => {
@@ -226,7 +257,7 @@ function repaint() {
   /* A stored name this build no longer ships (Aurora, removed) is treated
      as the default rather than as "no palette": the person never chose to
      have nothing. */
-  const shipped = paletteByName(activePalette) ?? (activePalette ? paletteByName(DEFAULT_PALETTE) : null)
+  const shipped = paletteForTheme(activePalette)
   if (shipped) for (const [k, v] of Object.entries(shipped.tokens)) set(k, v)
 
   /* WHICH REGIONS ARE ACTUALLY PAINTED, said out loud on the root.
@@ -346,7 +377,15 @@ export function resetPaint() {
     own tint. The worst pairing across all ten is 4.60:1, which is the same
     floor the first four were held to. A palette is a hue family and a ground;
     whether its text can be read is not a matter of taste and is not left to
-    one. */
+    one.
+
+    The muted shade, re-measured 2026-10-01 against the GROUND as well as the
+    card: under the bento layout `text-muted-foreground` is `--bento-muted`
+    (bento-theme.css), and most of that text sits on `--bento-bg` or
+    `--bento-card-2`, not on the card. Nine of the thirteen measured under
+    4.5:1 there -- Dark Modern's #828282 was 4.29:1 on its #1f1f1f ground,
+    which is every caption on a phone in dark mode. Each one was walked toward
+    its ink until it clears 4.6:1 on all three surfaces. */
 export interface BuiltInPalette {
   name: string
   mode: 'light' | 'dark'
@@ -362,7 +401,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#ffffff',
       '--bento-card-2': '#f3f3f3',
       '--bento-ink': '#3b3b3b',
-      '--bento-muted': '#747474',
+      '--bento-muted': '#6d6d6d',
       '--bento-line': '#e5e5e5',
       '--bento-dock-bg': '#f8f8f8',
       '--bento-dock-ink': '#3b3b3b',
@@ -423,7 +462,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#ffffff',
       '--bento-card-2': '#f0f0f0',
       '--bento-ink': '#333333',
-      '--bento-muted': '#747474',
+      '--bento-muted': '#6b6b6b',
       '--bento-line': '#dddddd',
       '--bento-dock-bg': '#f2f2f2',
       '--bento-dock-ink': '#333333',
@@ -484,7 +523,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#fffbf0',
       '--bento-card-2': '#eee8d5',
       '--bento-ink': '#586e75',
-      '--bento-muted': '#62767c',
+      '--bento-muted': '#586e75',
       '--bento-line': '#ddd6c1',
       '--bento-dock-bg': '#eee8d5',
       '--bento-dock-ink': '#546a71',
@@ -545,7 +584,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#ffffff',
       '--bento-card-2': '#f2f2f2',
       '--bento-ink': '#292929',
-      '--bento-muted': '#747474',
+      '--bento-muted': '#6d6d6d',
       '--bento-line': '#0f4a85',
       '--bento-dock-bg': '#ffffff',
       '--bento-dock-ink': '#292929',
@@ -606,7 +645,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#181818',
       '--bento-card-2': '#242424',
       '--bento-ink': '#cccccc',
-      '--bento-muted': '#828282',
+      '--bento-muted': '#8c8c8c',
       '--bento-line': '#2b2b2b',
       '--bento-dock-bg': '#181818',
       '--bento-dock-ink': '#cccccc',
@@ -667,7 +706,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#1e1f1c',
       '--bento-card-2': '#2d2e27',
       '--bento-ink': '#f8f8f2',
-      '--bento-muted': '#898985',
+      '--bento-muted': '#969692',
       '--bento-line': '#414339',
       '--bento-dock-bg': '#1e1f1c',
       '--bento-dock-ink': '#f8f8f2',
@@ -728,7 +767,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#00212b',
       '--bento-card-2': '#073642',
       '--bento-ink': '#93a1a1',
-      '--bento-muted': '#798a8c',
+      '--bento-muted': '#8e9d9d',
       '--bento-line': '#0a4050',
       '--bento-dock-bg': '#00212b',
       '--bento-dock-ink': '#93a1a1',
@@ -789,7 +828,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#060621',
       '--bento-card-2': '#0f1a2e',
       '--bento-ink': '#6688cc',
-      '--bento-muted': '#5b7ab9',
+      '--bento-muted': '#6283c5',
       '--bento-line': '#2b2b4a',
       '--bento-dock-bg': '#060621',
       '--bento-dock-ink': '#6688cc',
@@ -1076,7 +1115,7 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-card': '#ffffff',
       '--bento-card-2': '#dfe3ee',
       '--bento-ink': '#17191f',
-      '--bento-muted': '#70757f',
+      '--bento-muted': '#5e636c',
       '--bento-line': '#c7cddc',
       '--bento-dock-bg': '#eaedf5',
       '--bento-dock-ink': '#17191f',
@@ -1268,9 +1307,11 @@ export function applyPalette(name: string) {
   applyPaint({})
 }
 
-/** Which shipped palette is active, for the dialog to mark. */
+/** Which shipped palette is on the root, for the dialog to mark. The one on
+    screen, not the stored name: in dark with Light Modern stored, the card
+    the person sees is Dark Modern's, and that is the one to tick. */
 export function currentPalette(): string | null {
-  return activePalette
+  return paletteForTheme(activePalette)?.name ?? null
 }
 
 function remember() {
@@ -1313,4 +1354,12 @@ export function usePalettes() {
   return useSyncExternalStore(subscribe, palettesSnapshot, palettesServerSnapshot)
 }
 
-if (typeof document !== 'undefined') applyPaint(paint)
+if (typeof document !== 'undefined') {
+  applyPaint(paint)
+  /* The theme moving is the other way the palette on the root goes stale:
+     re-lay the tokens, and tell the dialog so its tick moves. */
+  subscribeTheme(() => {
+    repaint()
+    emit()
+  })
+}

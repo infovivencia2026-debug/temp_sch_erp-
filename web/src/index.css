@@ -3895,6 +3895,58 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   .fluid-orb, .fluid-orb__blob { animation: none !important; }
 }
 
+/* THE ORB, DARK (owner, 2026-10-01): "make the ai ball dark".
+
+   The pale glass body above read as a white ball with bright blobs -- on a
+   dark page it was the brightest thing on screen, on a light one a smudge.
+   Now the body is charcoal glass in both themes, the same in light and dark,
+   and the five blobs are kept roaming under it in deeper jewel tones --
+   teal, blue, violet -- at a lower alpha, screened over the dark body so the
+   movement still reads. The highlights are turned well down (no white inset
+   over 0.12), the bright glow becomes a soft dark drop shadow, and a thin
+   light rim, drawn as a gradient inside the feathered edge rather than as a
+   border, separates the ball from a dark card behind it. The earlier asks
+   stand: no solid border, blobs that mix, motion you can see; size, placement
+   and reduced motion are untouched. Order wins over the block above. */
+.fluid-orb {
+  background: radial-gradient(circle at 42% 36%,
+    #24242e 0%, #1a1a22 38%, #111117 72%, #0b0b0f 100%);
+  box-shadow:
+    inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .10),
+    inset 0 calc(var(--orb-size) * -.06) calc(var(--orb-size) * .12) rgba(0, 0, 0, .45);
+  /* drop-shadow, not box-shadow: the feathered mask clips anything painted
+     outside the box, and a filter is applied after the mask. */
+  filter: saturate(1.2) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45));
+}
+.fluid-orb__glass {
+  background:
+    /* the rim: a faint light ring where the mask starts to fade */
+    radial-gradient(circle at 50% 50%,
+      rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, .14) 44.5%, rgba(255, 255, 255, .14) 45.5%, rgba(255, 255, 255, 0) 50%),
+    /* one quiet highlight, top left */
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, .12) 0%, rgba(255, 255, 255, 0) 34%);
+  box-shadow: none;
+  mix-blend-mode: normal;
+}
+.fluid-orb__blob { mix-blend-mode: screen; }
+.fluid-orb__blob-1 { background: radial-gradient(circle at 48% 45%, rgba(0, 150, 140, .72) 0%, rgba(0, 120, 115, .42) 45%, rgba(0, 120, 115, 0) 100%); }
+.fluid-orb__blob-2 { background: radial-gradient(circle, rgba(40, 120, 255, .70) 0%, rgba(30, 90, 220, .36) 55%, rgba(30, 90, 220, 0) 100%); }
+.fluid-orb__blob-3 { background: radial-gradient(circle at 42% 46%, rgba(130, 80, 230, .70) 0%, rgba(110, 60, 210, .40) 45%, rgba(110, 60, 210, 0) 100%); }
+.fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .60) 0%, rgba(10, 140, 115, .30) 50%, rgba(10, 140, 115, 0) 100%); }
+.fluid-orb__blob-5 { background: radial-gradient(circle, rgba(90, 90, 230, .62) 0%, rgba(70, 70, 210, .32) 55%, rgba(70, 70, 210, 0) 100%); }
+/* The states keep their lift, over the same shadow. */
+.fluid-orb[data-state='thinking'] { filter: saturate(1.45) brightness(1.15) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+.fluid-orb[data-state='answering'] { filter: saturate(1.3) brightness(1.08) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+.fluid-orb[data-awake] { transform: scale(1.06); filter: saturate(1.35) brightness(1.1) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
+/* The subtle ball: the same dark body, the blobs turned down a little. */
+.fluid-orb[data-subtle] {
+  filter: saturate(1) drop-shadow(0 calc(var(--orb-size) * .06) calc(var(--orb-size) * .16) rgba(0, 0, 0, .35));
+  background: radial-gradient(circle at 42% 36%, #22222b 0%, #18181f 40%, #101015 75%, #0b0b0f 100%);
+  box-shadow: inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .08);
+}
+.fluid-orb[data-subtle] .fluid-orb__blob { opacity: .7; }
+.fluid-orb[data-subtle] .fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .5) 0%, rgba(10, 140, 115, .25) 50%, rgba(10, 140, 115, 0) 100%); }
+
 /* The rail's foot (alerts, row height, account, sign out, settings): the same
    bold tiles and dock hover as the workspace marks, each in its own colour. */
 .rail-foot > button, .rail-foot > a, .rail-foot > div > button:first-child {
@@ -4517,6 +4569,23 @@ html[data-reduce-motion] :active { transform: none !important; }
    to, so the bar had no ground at all and its backdrop blur smeared the
    cards scrolling under it into dark blobs round the icons. A near-opaque
    card colour hides what is behind; the blur only softens the rest. */
+/* `--color-card` AND ITS FOUR SIBLINGS WERE NEVER DEFINED.
+
+   The student screens read `var(--color-card, white)` for the tab bar, the
+   segmented control's pill, the ID card's photo ring and the calendar chips,
+   and feature-cells.css reads `--color-foreground`/`--color-background` for
+   an inverted cell. Tailwind 3 does not emit `--color-*` (that is v4), so
+   every one of those fell through to its fallback, and the fallback is
+   white. In dark that was a white tab bar across the bottom of a black page
+   and white pills with white text in them. Resolved here from the HSL
+   tokens, so they follow the theme and the paint like everything else. */
+:root {
+  --color-card: hsl(var(--card));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-destructive: hsl(var(--destructive));
+}
 .student-tabbar {
   background: var(--color-card, #fff);
 }
