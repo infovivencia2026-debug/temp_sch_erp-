@@ -1146,6 +1146,8 @@ export default function StudentProfile() {
                       <img loading="lazy" decoding="async"
                         src={`/api/v1/files/${p.photo_file_id}?inline=1`}
                         alt={`Photograph of ${p.full_name}`}
+                        /* A photo whose file is gone showed its alt text in a broken frame. */
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
                         className="h-full w-full object-cover"
                       />
                     )}
@@ -2077,6 +2079,8 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                         <img loading="lazy" decoding="async"
                           src={`/api/v1/files/${g.photo_file_id}?inline=1`}
                           alt={`Photograph of ${g.full_name}`}
+                        /* A photo whose file is gone showed its alt text in a broken frame. */
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
                           className="h-full w-full object-cover"
                         />
                       )}

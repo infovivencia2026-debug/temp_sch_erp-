@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Accessibility, AlertTriangle, Award, Users } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
   Loading, SkeletonTiles, ErrorState, EmptyState, useSort,
   RangePicker, rangeQuery, useRange, type RangeOption,
@@ -11,6 +10,33 @@ import {
 import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
 import { warningsApi } from '@/components/ai/smartApi'
 import { cn, formatDate } from '@/lib/utils'
+import { useNavigate } from 'react-router-dom'
+import { useFeatureHref } from '@/features/bento/bento-kit'
+
+interface ProgressOption {
+  section_id: string
+  label: string
+  class_teacher: boolean
+  full: boolean
+  subjects: { id: string; name: string; mine: boolean }[]
+  exams: { id: string; name: string }[]
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]!.toUpperCase()).join('')
+}
+
+function Kpi({ label, value, small, danger }: { label: string; value: string; small?: string; danger?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[10px] border bg-card px-5 py-4">
+      <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
+      <div className={cn('flex items-baseline gap-1.5 text-[22px] font-bold', danger && 'text-destructive')}>
+        {value}
+        {small && <small className="text-[11px] font-medium text-muted-foreground">{small}</small>}
+      </div>
+    </div>
+  )
+}
 
 /* How is this one doing?
 
@@ -77,12 +103,6 @@ interface Plan {
   review_due: boolean
 }
 
-const BAND: Record<Progress['risk_band'], 'neutral' | 'warning' | 'danger'> = {
-  none: 'neutral',
-  watch: 'warning',
-  at_risk: 'danger',
-}
-
 const CATEGORIES = [
   { value: 'conduct', label: 'Conduct' },
   { value: 'kindness', label: 'Kindness' },
@@ -93,22 +113,39 @@ const CATEGORIES = [
   { value: 'property', label: 'Property' },
 ]
 
-function rupees(paise: number) {
-  return (paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
-}
-
 export default function MyClasses() {
   const [range, setRange] = useRange()
   const [selected, setSelected] = useState<Progress | null>(null)
+  const navigate = useNavigate()
+  const profileHref = useFeatureHref('faculty.my_classes.student_details')
+  const [sectionPick, setSectionId] = useState('')
+  const [subjectId, setSubjectId] = useState('')
+  const [examId, setExamId] = useState('')
+  const [chip, setChip] = useState<'all' | 'attention' | 'top'>('all')
+  const options = useQuery({
+    queryKey: ['student-progress-options'],
+    queryFn: () => api.get<List<ProgressOption>>('/api/v1/teaching/progress/options'),
+  })
+  const sections = options.data?.items ?? []
+  /* Your own class first, when you are a class teacher. */
+  const sectionId = sections.some((x) => x.section_id === sectionPick)
+    ? sectionPick
+    : (sections.find((x) => x.class_teacher) ?? sections[0])?.section_id ?? ''
+  const pickedSection = sections.find((x) => x.section_id === sectionId)
+  const filterQuery = [
+    sectionId && `section_id=${sectionId}`,
+    subjectId && `class_subject_id=${subjectId}`,
+    examId && `exam_id=${examId}`,
+  ].filter(Boolean).join('&')
 
   const presets = useQuery({
     queryKey: ['date-ranges'],
     queryFn: () => api.get<{ items: RangeOption[] }>('/api/v1/date-ranges'),
   })
   const progress = useQuery({
-    queryKey: ['student-progress', rangeQuery(range)],
-    queryFn: () => api.get<List<Progress>>(`/api/v1/teaching/progress?${rangeQuery(range)}`),
-    enabled: range.period !== 'custom' || (!!range.from && !!range.to),
+    queryKey: ['student-progress', rangeQuery(range), filterQuery],
+    queryFn: () => api.get<List<Progress>>(`/api/v1/teaching/progress?${rangeQuery(range)}${filterQuery ? '&' + filterQuery : ''}`),
+    enabled: !options.isLoading && (range.period !== 'custom' || (!!range.from && !!range.to)),
   })
   const plans = useQuery({
     queryKey: ['support-plans'],
@@ -136,10 +173,17 @@ export default function MyClasses() {
     { key: 'full_name' },
   )
 
-  if (progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
+  if (options.isLoading || progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
 
   const attention = rows.filter((r) => r.risk_band !== 'none')
+  const top = rows.filter((r) => r.marks_percent != null && r.marks_percent >= 80)
+  const shown = chip === 'attention' ? attention : chip === 'top' ? top : rows
+  const avg = (xs: number[]) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length * 10) / 10 : null
+  const classAvg = avg(rows.map((r) => r.marks_percent).filter((x): x is number => x != null))
+  const attAvg = avg(rows.map((r) => r.attendance_percent).filter((x): x is number => x != null))
+  const pendingHw = rows.reduce((n, r) => n + Math.max(0, r.homework_set - r.homework_submitted), 0)
+  const rangeLabel = (presets.data?.items ?? []).find((o) => o.value === range.period)?.label
   const reviewDue = (plans.data?.items ?? []).filter((p) => p.review_due)
 
   return (
@@ -150,175 +194,128 @@ export default function MyClasses() {
         description="Attendance, marks, homework and conduct in one row per child, with the reason wherever something needs attention."
       />
       <PageBody>
-        <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* The figures take the row: as a bare flex item the grid shrank to
-              its content, a half-width column of tiles on a phone. */}
-          <div className="min-w-0 flex-[1_1_24rem]">
-          <CellGrid cols={4}>
-            <Stat label="Children" value={rows.length} icon={Users} />
-            <Stat
-              label="Needing attention"
-              value={attention.length}
-              icon={AlertTriangle}
-              delta={
-                attention.length
-                  ? { value: 'Two or more signals is at-risk', positive: false }
-                  : { value: 'Nothing flagged', positive: true }
-              }
-            />
-            <Stat
-              label="Commendations"
-              value={rows.reduce((n, r) => n + r.commendations, 0)}
-              icon={Award}
-            />
-            <Stat
-              label="Support plans"
-              value={(plans.data?.items ?? []).length}
-              icon={Accessibility}
-              delta={
-                reviewDue.length
-                  ? { value: `${reviewDue.length} past review`, positive: false }
-                  : undefined
-              }
-            />
-          </CellGrid>
-          </div>
-          <RangePicker
-            value={range}
-            onChange={setRange}
-            options={presets.data?.items ?? []}
-          />
+        {/* THE OWNER'S LAYOUT: four figures, then one card holding the class,
+            subject and exam pickers, the quick filters and the roster.
+            A class teacher sees the whole class and may narrow it to a
+            subject; a subject teacher sees only the subjects they teach the
+            class -- the server enforces it (teaching/progress?section_id). */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Kpi label="Class average" value={classAvg == null ? '-' : `${classAvg}%`} small={pickedSection?.label} />
+          <Kpi label="Avg attendance" value={attAvg == null ? '-' : `${attAvg}%`} small={rangeLabel} />
+          <Kpi label="Pending homework" value={String(pendingHw)} small="Submissions" />
+          <Kpi label="Needs attention" value={String(attention.length)} small="Students" danger={attention.length > 0} />
         </div>
 
-        {attention.length > 0 && (
-          <Card>
-            <CardHeader
-              title="Needing attention"
-              description="The reason is the point. A flag without one is an accusation nobody can act on."
-            />
-            <ul className="divide-y">
-              {attention.map((r) => (
-                <li key={r.student_id} className="flex flex-wrap items-start gap-3 px-4 py-3">
-                  <div className="min-w-[15rem] flex-1">
-                    <div className="font-medium">
-                      {r.full_name}
-                      <span className="text-muted-foreground">
-                        {' '}
-                        · {r.class_name}-{r.section}
-                      </span>
-                    </div>
-                    <ul className="mt-0.5 text-[13px] text-muted-foreground">
-                      {r.risks.map((x) => (
-                        <li key={x}>· {x}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <Badge tone={BAND[r.risk_band]}>
-                    {r.risk_band === 'at_risk' ? 'At risk' : 'Watch'}
-                  </Badge>
-                  <Button size="sm" variant="secondary" onClick={() => setSelected(r)}>
-                    Open
-                  </Button>
-                </li>
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {sections.length > 0 && (
+                <div className="w-44">
+                  <Select value={sectionId} onChange={(v) => { setSectionId(v); setSubjectId(''); setExamId('') }}
+                    options={sections.map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))} />
+                </div>
+              )}
+              {pickedSection && (
+                <div className="w-48">
+                  <Select value={subjectId} onChange={setSubjectId}
+                    placeholder={pickedSection.full ? 'All subjects' : 'My subjects'}
+                    options={[
+                      { value: '', label: pickedSection.full ? 'All subjects' : 'All my subjects' },
+                      ...pickedSection.subjects.map((x) => ({ value: x.id, label: x.name })),
+                    ]} />
+                </div>
+              )}
+              {pickedSection && pickedSection.exams.length > 0 && (
+                <div className="w-48">
+                  <Select value={examId} onChange={setExamId} placeholder="All exams"
+                    options={[{ value: '', label: 'All exams' }, ...pickedSection.exams.map((x) => ({ value: x.id, label: x.name }))]} />
+                </div>
+              )}
+              <RangePicker value={range} onChange={setRange} options={presets.data?.items ?? []} />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ['all', `All students (${rows.length})`],
+                ['attention', `Needs attention (${attention.length})`],
+                ['top', `Top scorers (${top.length})`],
+              ] as const).map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setChip(k)}
+                  className={cn('rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                    chip === k ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground hover:border-primary hover:bg-primary/10 hover:text-primary')}>
+                  {label}
+                </button>
               ))}
-            </ul>
-          </Card>
-        )}
+            </div>
+          </div>
 
-        <Card>
-          <CardHeader
-            title="Roster"
-            description="Attendance and homework follow the chosen window; marks and arrears are true as of today."
-          />
-          {rows.length === 0 ? (
+          {shown.length === 0 ? (
             <EmptyState
-              title="No children in your classes yet"
-              body="Once sections are assigned and the register is marked, each child appears here."
+              title={rows.length === 0 ? 'No children here yet' : 'Nobody in this filter'}
+              body={rows.length === 0 ? 'Once the class is assigned and the register is marked, each child appears here.' : 'Choose All students to see the whole class.'}
             />
           ) : (
             <Table
               head={[
-                { label: 'Child', key: 'full_name' },
-                { label: 'Class', key: 'class_name' },
+                { label: 'Student', key: 'full_name' },
                 { label: 'Attendance', key: 'attendance_percent' },
-                { label: 'Marks', key: 'marks_percent' },
-                { label: 'Homework', key: 'homework_submitted' },
-                { label: 'Notes', key: 'commendations' },
-                { label: 'Owed', key: 'fees_due_paise' },
-                { label: '', key: 'risk_band' },
+                { label: 'Academic score', key: 'marks_percent' },
+                { label: 'Assignments', key: 'homework_submitted' },
+                { label: 'Status', key: 'risk_band' },
+                { label: '', key: 'student_id' },
               ]}
               sort={sort}
             >
-              {sort.sorted.map((r) => (
+              {sort.sorted.filter((r) => shown.includes(r)).map((r) => (
                 <tr key={r.student_id}>
-                  <Td className="font-medium">
-                    {r.full_name}
-                    <div className="text-[12px] font-normal text-muted-foreground">
-                      {r.admission_no}
-                      {r.is_cwsn && ' · CWSN'}
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full bg-primary/10 text-[12.5px] font-bold text-primary">
+                        {initials(r.full_name)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-semibold">{r.full_name}</div>
+                        <div className="text-[12px] text-muted-foreground">
+                          {r.class_name}-{r.section} · {r.admission_no}{r.is_cwsn ? ' · CWSN' : ''}
+                        </div>
+                      </div>
                     </div>
                   </Td>
-                  <Td className="text-muted-foreground">
-                    {r.class_name}-{r.section}
-                  </Td>
                   <Td>
-                    {r.attendance_percent == null ? (
-                      <span className="text-muted-foreground">-</span>
-                    ) : (
-                      <span
-                        className={cn(
-                          'tabular-nums',
-                          r.attendance_percent < 75 && 'text-destructive',
-                        )}
-                      >
+                    {r.attendance_percent == null ? <span className="text-muted-foreground">-</span> : (
+                      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold tabular-nums">
+                        <span className={cn('h-2 w-2 rounded-full',
+                          r.attendance_percent >= 90 ? 'bg-[#22c55e]' : r.attendance_percent >= 75 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]')} />
                         {Math.round(r.attendance_percent)}%
-                        <span className="ml-1 text-[12px] text-muted-foreground">
-                          {r.attendance_present}/{r.attendance_marked}
-                        </span>
                       </span>
                     )}
                   </Td>
                   <Td>
-                    {r.marks_percent == null ? (
-                      <span className="text-muted-foreground">-</span>
-                    ) : (
-                      <span
-                        className={cn('tabular-nums', r.marks_percent < 35 && 'text-destructive')}
-                      >
-                        {r.marks_percent}%
-                        <span className="ml-1 text-[12px] text-muted-foreground">
-                          {r.papers_marked}p
+                    {r.marks_percent == null ? <span className="text-muted-foreground">-</span> : (
+                      <span className="inline-flex items-baseline gap-1.5">
+                        <span className="text-[14px] font-bold tabular-nums">{r.marks_percent}%</span>
+                        <span className="rounded bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
+                          {r.papers_marked} {r.papers_marked === 1 ? 'paper' : 'papers'}
                         </span>
                       </span>
                     )}
-                  </Td>
-                  <Td className="tabular-nums text-muted-foreground">
-                    {r.homework_set === 0 ? '-' : `${r.homework_submitted}/${r.homework_set}`}
                   </Td>
                   <Td className="tabular-nums">
-                    {r.commendations > 0 && <span className="text-success">+{r.commendations}</span>}
-                    {r.commendations > 0 && r.notes_of_concern > 0 && ' '}
-                    {r.notes_of_concern > 0 && (
-                      <span className="text-muted-foreground">−{r.notes_of_concern}</span>
-                    )}
-                    {r.commendations === 0 && r.notes_of_concern === 0 && (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </Td>
-                  <Td className="tabular-nums text-muted-foreground">
-                    {r.fees_due_paise > 0 ? `₹${rupees(r.fees_due_paise)}` : '-'}
+                    {r.homework_set === 0 ? <span className="text-muted-foreground">-</span> : `${r.homework_submitted} / ${r.homework_set} submitted`}
                   </Td>
                   <Td>
-                    <div className="flex items-center gap-2">
-                      {r.risk_band !== 'none' && (
-                        <Badge tone={BAND[r.risk_band]}>
-                          {r.risk_band === 'at_risk' ? 'At risk' : 'Watch'}
-                        </Badge>
+                    <span className={cn('inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold',
+                      r.risk_band === 'none' ? 'bg-[#f0fdf4] text-[#15803d]'
+                        : r.risk_band === 'watch' ? 'bg-[#fefce8] text-[#b45309]' : 'bg-[#fef2f2] text-[#b91c1c]')}
+                      title={r.risks.join('; ') || undefined}>
+                      {r.risk_band === 'none' ? 'On track' : r.risk_band === 'watch' ? 'Under watch' : 'Intervention required'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => setSelected(r)}>{canNote ? 'Add note' : 'Open'}</Button>
+                      {profileHref && (
+                        <Button size="sm" variant="secondary" onClick={() => navigate(`${profileHref}?student=${r.student_id}`)}>Profile</Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => setSelected(r)}>
-                        Open
-                      </Button>
                     </div>
                   </Td>
                 </tr>
@@ -326,6 +323,8 @@ export default function MyClasses() {
             </Table>
           )}
         </Card>
+
+        <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
 
         {reviewDue.length > 0 && (
           <Card>
