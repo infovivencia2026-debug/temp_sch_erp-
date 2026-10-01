@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, CalendarX, ChevronLeft, ChevronRight, Flame, NotebookPen } from 'lucide-react'
+import { CalendarCheck, CalendarX, ChevronLeft, ChevronRight, Flame } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { ErrorState } from '@/components/ui'
-import { useFeatureHref } from '@/features/bento/bento-kit'
+
 import { cn } from '@/lib/utils'
 import { Bone, PullToRefresh, Ring, StudentHeader, StudentPage, Tile, todayISO } from './student-kit'
 
@@ -33,7 +33,6 @@ export default function StudentAttendance() {
   const qc = useQueryClient()
   const s = useQuery(sq)
   const d = useQuery(dq)
-  const leave = useFeatureHref('student.attendance.apply_for_leave')
   const days = [...(d.data?.items ?? [])].sort((a, b) => b.date.localeCompare(a.date))
   let streak = 0
   for (const x of days) { if (came(x)) streak++; else break }
@@ -70,13 +69,6 @@ export default function StudentAttendance() {
               <Tile i={2} icon={CalendarX} hue="rose" value={s.data.absent_days} label={s.data.absent_days === 1 ? 'day missed' : 'days missed'} />
               <Tile i={3} icon={Flame} hue="amber" value={streak} label="day streak" />
             </div>
-            {leave && (
-              <Link to={leave} className="card stu-press hidden min-h-[56px] items-center gap-3 px-4 lg:flex">
-                <NotebookPen className="h-5 w-5 text-primary" strokeWidth={1.75} />
-                <span className="flex-1"><span className="block text-[15px] font-medium">Going to be away?</span><span className="block text-[13px] text-muted-foreground">Ask for leave</span></span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            )}
           </div>
 
             <section className="card stu-rise p-4" style={{ ['--i' as string]: 4 }} aria-label="Month">
@@ -91,13 +83,6 @@ export default function StudentAttendance() {
               </div>
             </section>
 
-            {leave && (
-              <Link to={leave} className="card stu-press flex min-h-[56px] items-center gap-3 px-4 lg:hidden">
-                <NotebookPen className="h-5 w-5 text-primary" strokeWidth={1.75} />
-                <span className="flex-1"><span className="block text-[15px] font-medium">Going to be away?</span><span className="block text-[13px] text-muted-foreground">Ask for leave</span></span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            )}
           </div>
         )}
       </StudentPage>
