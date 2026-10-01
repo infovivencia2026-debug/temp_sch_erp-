@@ -79,7 +79,7 @@ export default function StudentMyCard() {
                 <Detail icon={Droplet} hue="rose" label="Blood group" value={card.blood_group} />
                 <Detail icon={House} hue="amber" label="House" value={card.house} />
                 <Detail icon={UserRound} hue="indigo" label="In an emergency" value={card.guardian_name} />
-                <Detail icon={Phone} hue="emerald" label="Their phone" value={card.guardian_phone && <a className="text-primary" href={`tel:${card.guardian_phone}`}>{card.guardian_phone}</a>} />
+                <Detail icon={Phone} hue="emerald" label="Their phone" value={card.guardian_phone && <a className="inline-flex min-h-[44px] items-center text-primary" href={`tel:${card.guardian_phone}`}>{card.guardian_phone}</a>} />
                 {card.allergies && <Detail icon={ShieldCheck} hue="amber" label="Allergies" value={card.allergies} />}
               </dl>
               <p className="px-4 pb-3 pt-1 text-[12px] text-muted-foreground">Something wrong? Tell your class teacher or the school office.</p>

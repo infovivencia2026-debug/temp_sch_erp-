@@ -306,6 +306,51 @@ export function AssistantTab() {
   const closeAssistant = useCallback(() => setOpen(false), [])
   useOverlayHistory(open, closeAssistant)
   const [hover, setHover] = useState(false)
+  /* NEVER ON TOP OF SOMETHING YOU CAN PRESS. On a phone the orb floats
+     over the page, and mid-scroll it landed on a time pill, an Export
+     button, the last card's link. After every scroll (and on load) the
+     spot under it is sampled; where a control is there, the orb tucks into
+     the screen edge as a sliver (data-tucked), still one tap to open. */
+  const orbRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(max-width: 767px)')
+    let raf = 0
+    let idle = 0
+    const check = () => {
+      raf = 0
+      const orb = orbRef.current
+      if (!orb) return
+      if (!mq.matches) { orb.removeAttribute('data-tucked'); return }
+      orb.style.visibility = 'hidden'
+      const r = orb.getBoundingClientRect()
+      const pts: [number, number][] = [
+        [r.left + r.width / 2, r.top + r.height / 2],
+        [r.left + 4, r.top + 4], [r.right - 4, r.top + 4],
+        [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4],
+      ]
+      let under = false
+      for (const [x, y] of pts) {
+        const el = document.elementFromPoint(x, y)
+        if (el && el.closest('a[href],button,input,select,textarea,[role=button],[role=tab],[role=link],label')) { under = true; break }
+      }
+      orb.style.visibility = ''
+      orb.toggleAttribute('data-tucked', under)
+    }
+    const soon = () => {
+      window.clearTimeout(idle)
+      idle = window.setTimeout(() => { if (!raf) raf = requestAnimationFrame(check) }, 120)
+    }
+    soon()
+    const t = window.setInterval(soon, 1500)
+    document.addEventListener('scroll', soon, { capture: true, passive: true })
+    window.addEventListener('resize', soon)
+    return () => {
+      window.clearTimeout(idle); window.clearInterval(t); if (raf) cancelAnimationFrame(raf)
+      document.removeEventListener('scroll', soon, { capture: true })
+      window.removeEventListener('resize', soon)
+    }
+  }, [])
   /* A smaller orb on a phone: at 44px it sat over class-time pills. */
   const [phoneOrb, setPhoneOrb] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 767px)').matches)
   useEffect(() => {
@@ -804,6 +849,7 @@ export function AssistantTab() {
           page under every screen; it applies to the plain layout only. */}
       {!open && <style>{'@media (max-width:767px){html:not([data-layout=bento]) main[data-app-scroll]{padding-bottom:calc(var(--dock-reserve,0px) + 76px)}}'}</style>}
       <button data-assistant-orb=""
+        ref={orbRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => setHover(true)}

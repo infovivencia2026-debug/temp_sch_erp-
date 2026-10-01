@@ -286,7 +286,7 @@ export default function StudentHome() {
                   ? `Tomorrow (${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]})`
                   : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}
               </h2>
-              {toTimetable && <Link to={toTimetable} className="text-[13px] font-semibold text-primary">Full week →</Link>}
+              {toTimetable && <Link to={toTimetable} className="-my-2 inline-flex min-h-[44px] items-center px-1 text-[13px] font-semibold text-primary">Full week →</Link>}
             </div>
             <ul className="flex flex-col gap-2 px-3 pb-3">
               {s.next_day.periods.filter((x) => x.subject !== 'Free').map((x, i) => (
@@ -319,7 +319,7 @@ function addDays(iso: string, n: number) {
 export { addDays }
 
 function Chip({ to, label, children }: { to?: string; label: string; children: React.ReactNode }) {
-  const cls = 'card inline-flex h-11 min-w-[56px] items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold'
+  const cls = 'card inline-flex h-[44px] min-w-[56px] items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold'
   return to ? <Link to={to} aria-label={label} title={label} className={cls}>{children}</Link> : <span aria-label={label} className={cls}>{children}</span>
 }
 

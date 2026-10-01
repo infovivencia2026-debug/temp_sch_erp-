@@ -354,7 +354,7 @@ export default function Logins() {
         }
       />
       <PageBody>
-        <div role="tablist" aria-label="Whose logins" className="flex flex-wrap gap-1 rounded-full bg-[hsl(var(--muted))] p-1 sm:w-fit">
+        <div role="tablist" aria-label="Whose logins" className="flex max-w-full gap-1 overflow-x-auto rounded-full bg-[hsl(var(--muted))] p-1 [scrollbar-width:none] sm:w-fit">
           {([
             ['', 'Everyone'],
             ['staff', 'Staff'],
@@ -376,7 +376,9 @@ export default function Logins() {
             const on = record === k
             return (
               <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
-                className={cn('min-h-9 flex-1 rounded-full px-4 text-[13.5px] font-medium transition-colors sm:flex-none',
+                className={cn(/* One row that scrolls on a phone: wrapped, the pills squeezed
+                   their labels into each other. */
+                  'min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[13.5px] font-medium transition-colors',
                   on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                 {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
               </button>

@@ -1074,6 +1074,13 @@
        place, which is what makes a dashboard scannable rather than readable. */
     letter-spacing: 0;
   }
+  /* A HEADLINE FIGURE NEVER BREAKS. In a half-width phone cell 28px is wider
+     than "₹47,95,200", so the last digit went to a line of its own. On a
+     phone the cell is a size container and the figure scales to it. */
+  @media (max-width: 639.98px) {
+    .cell { container-type: inline-size; }
+    .stat { font-size: min(28px, 12.5cqi); white-space: nowrap; }
+  }
 
   @media (pointer: coarse) { :root { --control-h: 44px; } }
   .field {
@@ -4498,3 +4505,12 @@ html[data-reduce-motion] :active { transform: none !important; }
     backdrop-filter: saturate(1.6) blur(20px);
   }
 }
+
+/* The assistant orb, tucked: something pressable is under it, so on a phone
+   it slides into the screen edge leaving a sliver (AssistantTab). */
+@media (max-width: 767px) {
+  [data-assistant-orb] { transition: transform 220ms var(--motion-ease, ease), opacity 220ms ease; }
+  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 0.75rem - 12px)); opacity: 0.75; }
+  [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }

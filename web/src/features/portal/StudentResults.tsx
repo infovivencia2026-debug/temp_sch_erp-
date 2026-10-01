@@ -97,7 +97,7 @@ export default function StudentResults() {
             <nav className="flex gap-1 overflow-x-auto rounded-[14px] bg-muted p-1.5">
               {[...cards].reverse().map((x) => (
                 <button key={x.id} type="button" onClick={() => setPicked(x.id)}
-                  className={cn('!min-h-0 flex-1 whitespace-nowrap rounded-[10px] px-4 py-2 text-[13.5px] font-semibold transition-all',
+                  className={cn('min-h-[40px] flex-1 whitespace-nowrap rounded-[10px] px-4 py-2 text-[13.5px] font-semibold transition-all',
                     x.id === current.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                   {x.exam}
                 </button>
