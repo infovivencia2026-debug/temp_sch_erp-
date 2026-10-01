@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { profileBody } from './profile-body'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -303,7 +304,8 @@ function ProfilePanel({ onDone }: PanelProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        save.mutate({ ...(cur ?? {}), ...(f ?? {}) })
+        /* Only the editable keys: the GET carries read-only ones and the server refuses unknown fields, so spreading the whole answer back was "malformed JSON body" on every save. Restored from a commit that never reached main. */
+        save.mutate(profileBody(cur, f) as Partial<Profile>)
       }}
     >
       <FormGrid>
