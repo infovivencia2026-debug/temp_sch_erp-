@@ -5,7 +5,7 @@ import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowUpRight, Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
+  ArrowUpRight, Award, Bell, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useStatusFeed } from '@/features/comms/status/status-api'
@@ -66,8 +66,22 @@ const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
   status: { icon: Camera, label: 'Status' },
 }
 
+/* The server's kinds are finer than a reader's: fee_due and fee_overdue are
+   both "Fees", report_card and result both "Results". Matched by what the
+   kind starts with, so a new variant lands in its family, with its icon,
+   instead of showing a bell and its own raw name. */
+const FAMILIES: [RegExp, { icon: typeof Bell; label: string }][] = [
+  [/^fee|^payment/, { icon: IndianRupee, label: 'Fees' }],
+  [/^homework/, { icon: BookOpen, label: 'Homework' }],
+  [/^attendance|^absen|^leave/, { icon: CalendarCheck, label: 'Attendance' }],
+  [/^report_card|^result|^exam/, { icon: Award, label: 'Results' }],
+  [/^transport|bus/, { icon: Bus, label: 'Bus' }],
+  [/message|^chat/, { icon: MessageSquare, label: 'Messages' }],
+]
+
 function kindOf(kind: string) {
-  return KINDS[kind] ?? { icon: Bell, label: kind.replace(/[-_]/g, ' ') }
+  const k = kind.toLowerCase()
+  return KINDS[k] ?? FAMILIES.find(([re]) => re.test(k))?.[1] ?? { icon: Bell, label: k.replace(/[-_]/g, ' ') }
 }
 
 /* Days, not timestamps.
@@ -606,27 +620,38 @@ export default function Notifications() {
         document.body,
       )}
 
-      {viewing && (
-        <Dialog
-          raised
-          onClose={() => setViewing(null)}
-          title={viewing.title}
-          description={[
-            kindOf(viewing.kind).label.replace(/^./, (c) => c.toUpperCase()),
-            viewing.student_name,
-            `${dayOf(viewing.created_at)}, ${timeOf(viewing.created_at)}`,
-          ].filter(Boolean).join(' · ')}
-          footer={viewingLink ? (
-            <Button onClick={follow}>
-              Open {kindOf(viewing.kind).label}<ArrowUpRight className="size-4" />
-            </Button>
-          ) : undefined}
-        >
-          {viewing.body
-            ? <p className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed">{viewing.body}</p>
-            : <p className="text-[13.5px] text-muted-foreground">Nothing more was sent with this notification.</p>}
-        </Dialog>
-      )}
+      {viewing && (() => {
+        const { icon: KindIcon, label: kindLabel } = kindOf(viewing.kind)
+        return (
+          <Dialog
+            raised
+            onClose={() => setViewing(null)}
+            title={viewing.title}
+            description={`${dayOf(viewing.created_at)}, ${timeOf(viewing.created_at)}`}
+            footer={viewingLink ? (
+              <>
+                <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
+                <Button onClick={follow}>
+                  Open {kindLabel}<ArrowUpRight className="size-4" />
+                </Button>
+              </>
+            ) : undefined}
+          >
+            {/* What it is and whose it is, before what it says. */}
+            <div className="mb-3.5 flex flex-wrap items-center gap-2 text-[12.5px] font-semibold">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 capitalize text-primary">
+                <KindIcon className="size-3.5" aria-hidden />{kindLabel}
+              </span>
+              {viewing.student_name && (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">{viewing.student_name}</span>
+              )}
+            </div>
+            {viewing.body
+              ? <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.65]">{viewing.body}</p>
+              : <p className="text-[13.5px] text-muted-foreground">Nothing more was sent with this notification.</p>}
+          </Dialog>
+        )
+      })()}
     </>
   )
 }

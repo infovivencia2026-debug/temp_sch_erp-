@@ -29,18 +29,21 @@
   align-items: stretch;
   border-radius: 999px;
   color: var(--bento-ink, inherit);
-  /* The card's own surface, a little see-through: tinted with the card, never
-     a generic grey. */
-  background: color-mix(in srgb, var(--bento-card, Canvas) 78%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  /* A wash of the ink over whatever the card is: it takes the card's own
+     tint, on every palette, and is never a white or grey chip. */
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   transition: opacity var(--dur-fast, 150ms) var(--ease-out, ease-out);
 }
-[data-layout='bento'] .bento-capsule__btn {
+[data-layout='bento'] .bento-capsule > .bento-capsule__btn {
   position: relative;
   display: grid;
   width: 32px;
+  /* The global fingertip floor (44px on a coarse pointer) would make each
+     half 44 wide and the capsule 90: wider than a phone card's title leaves
+     room for. The ::after below is the 44px target instead. */
+  min-width: 0;
+  min-height: 0;
   place-items: center;
   padding: 0;
   border: 0;
@@ -67,6 +70,18 @@
 [data-layout='bento'] .bento-capsule__btn:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 55%, transparent);
 }
+/* ROOM FOR IT. A card's heading reserves 44px on the right for one corner
+   square (`pr-11`); two actions reach 70px in from the card's edge, so a long
+   title ran underneath. Widened only where both halves show. */
+[data-layout='bento'] .bento-widget[data-more]:has(.bento-cell .bento-cue):not(:has([data-card][data-quiet])) [data-card] > .pr-11 {
+  padding-right: 3.75rem;
+}
+/* An app icon is its own tap target and is barely bigger than the capsule,
+   which sat on top of the icon. Where a pointer can hover, the "…" appears
+   beside it; on touch, Edit is the way to move or remove an app. */
+@media (hover: none) {
+  [data-layout='bento'] .bento-widget[data-app-icon] > .bento-capsule { display: none; }
+}
 /* The capsule's arrow stands in for the card's own. */
 [data-layout='bento'] .bento-widget[data-more] .bento-cell .bento-cue { display: none; }
 /* Open only where there is something to open: a card with no corner arrow,
@@ -91,14 +106,6 @@
 @media (prefers-reduced-motion: reduce) {
   [data-layout='bento'] .bento-widget > .bento-capsule { transition: none; }
 }
-@media (prefers-reduced-transparency: reduce) {
-  [data-layout='bento'] .bento-widget > .bento-capsule {
-    background: var(--bento-card, Canvas);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-}
-
 /* A heading inside the menu — "Size" over the four tiers — drawn as a
    label, not a row: no hover, not walkable. */
 .bento-menu__head {
