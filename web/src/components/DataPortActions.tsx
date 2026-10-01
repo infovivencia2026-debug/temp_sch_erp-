@@ -1,9 +1,7 @@
-import { useEffect, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { type ReactNode } from 'react'
 import { Upload } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
-import { Button, ExportButton as ReportExportButton } from '@/components/ui'
-import { useOverlayHistory } from '@/lib/overlay-history'
+import { Button, Dialog, ExportButton as ReportExportButton } from '@/components/ui'
 import { useOpenState } from '@/lib/motion'
 
 /* Two header actions for every screen whose data the backend can already read
@@ -117,44 +115,16 @@ function ImportDialog({
   children: ReactNode
   onClose: () => void
 }) {
-  const close = useOverlayHistory(true, onClose)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('keydown', onKey)
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previous
-    }
-  }, [close])
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
-      style={{
-        paddingTop: 'max(2rem, env(safe-area-inset-top, 0px))',
-        paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))',
-      }}
-      onClick={(e) => {
-        if (e.target !== e.currentTarget) return
-        close()
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Import"
+  /* The shared Dialog: portalled clear of any pressed (transformed) card,
+     Escape, the dim and the phone's Back all close it, focus is trapped. */
+  return (
+    <Dialog
+      onClose={onClose}
+      size="lg"
+      label="Import"
+      footer={<Button variant="secondary" onClick={onClose}>Close</Button>}
     >
-      <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-2 flex justify-end">
-          <Button variant="secondary" size="sm" onClick={close}>
-            Close
-          </Button>
-        </div>
-        {children}
-      </div>
-    </div>,
-    document.body,
+      {children}
+    </Dialog>
   )
 }

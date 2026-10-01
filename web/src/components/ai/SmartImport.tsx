@@ -1,9 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera, FileSpreadsheet, Sparkles, X } from 'lucide-react'
-import { Badge, Button, Checkbox, FormNotice } from '@/components/ui'
-import { useOverlayHistory } from '@/lib/overlay-history'
+import { Camera, FileSpreadsheet, Sparkles } from 'lucide-react'
+import { Badge, Button, Checkbox, Dialog, FormNotice } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { smartImportApi, type Analysis, type ColumnMap, type ImportKind, type RunResult, type Table } from './smartApi'
 
@@ -39,7 +37,6 @@ export function ImportWithAIButton({ kind, onDone, size = 'sm', variant = 'secon
 }
 
 export default function SmartImport({ kind: initialKind, onClose, onDone }: { kind?: string; onClose: () => void; onDone?: () => void }) {
-  useOverlayHistory(true, onClose)
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const camRef = useRef<HTMLInputElement>(null)
@@ -100,20 +97,42 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
     return m
   }, [result])
 
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Import with AI">
-      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden bg-card sm:rounded-[12px] sm:border">
-        <div className="flex items-center gap-2 border-b px-4 py-3">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h2 className="text-[15px] font-semibold">Import with AI</h2>
-          <span className="text-[12.5px] text-muted-foreground">
-            {step === 'pick' ? 'Any spreadsheet or a photo of a register' : step === 'review' ? 'Check what was read from the photo'
-              : step === 'map' ? 'Check the columns' : step === 'preview' ? 'Preview: nothing is saved yet' : 'Done'}
-          </span>
-          <Button size="sm" variant="ghost" className="ml-auto" title="Close" onClick={onClose}><X className="h-4 w-4" /></Button>
+  /* The shared Dialog: Escape, the dim and the phone's Back close it, focus
+     is trapped, and on a phone it is a bottom sheet with the steps pinned. */
+  return (
+    <Dialog
+      onClose={onClose}
+      size="xl"
+      label="Import with AI"
+      title={<span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" />Import with AI</span>}
+      description={step === 'pick' ? 'Any spreadsheet or a photo of a register' : step === 'review' ? 'Check what was read from the photo'
+        : step === 'map' ? 'Check the columns' : step === 'preview' ? 'Preview: nothing is saved yet' : 'Done'}
+      footer={step === 'pick' ? undefined : (
+        <div className="flex w-full flex-wrap items-center gap-2">
+          {step === 'review' && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep('pick')}>Back</Button>
+            <Button size="sm" className="ml-auto" disabled={!reviewed || busy} pending={busy} onClick={proposeFromReviewed}>Match columns</Button>
+          </>}
+          {step === 'map' && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep(a?.source === 'photo' ? 'review' : 'pick')}>Back</Button>
+            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || busy} pending={busy} onClick={preview}>Preview</Button>
+          </>}
+          {step === 'preview' && result && <>
+            <Button size="sm" variant="ghost" onClick={() => setStep('map')}>Change columns</Button>
+            {confirm ? (
+              <span className="ml-auto flex items-center gap-2 text-[13px]">
+                Import {result.valid} row{result.valid === 1 ? '' : 's'} as {result.label}?
+                <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>No</Button>
+                <Button size="sm" pending={busy} disabled={busy} onClick={commit}>Yes, import</Button>
+              </span>
+            ) : (
+              <Button size="sm" className="ml-auto" disabled={result.valid === 0 || busy} onClick={() => setConfirm(true)}>Import {result.valid} row{result.valid === 1 ? '' : 's'}</Button>
+            )}
+          </>}
+          {step === 'done' && <Button size="sm" className="ml-auto" onClick={onClose}>Close</Button>}
         </div>
-
-        <div className="min-h-0 flex-1 overflow-auto p-4">
+      )}
+    >
           {error ? <div className="mb-3"><FormNotice error={error} /></div> : null}
 
           {step === 'pick' && (
@@ -224,34 +243,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
               )}
             </>
           )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
-          {step === 'review' && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep('pick')}>Back</Button>
-            <Button size="sm" className="ml-auto" disabled={!reviewed || busy} pending={busy} onClick={proposeFromReviewed}>Match columns</Button>
-          </>}
-          {step === 'map' && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep(a?.source === 'photo' ? 'review' : 'pick')}>Back</Button>
-            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || busy} pending={busy} onClick={preview}>Preview</Button>
-          </>}
-          {step === 'preview' && result && <>
-            <Button size="sm" variant="ghost" onClick={() => setStep('map')}>Change columns</Button>
-            {confirm ? (
-              <span className="ml-auto flex items-center gap-2 text-[13px]">
-                Import {result.valid} row{result.valid === 1 ? '' : 's'} as {result.label}?
-                <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>No</Button>
-                <Button size="sm" pending={busy} disabled={busy} onClick={commit}>Yes, import</Button>
-              </span>
-            ) : (
-              <Button size="sm" className="ml-auto" disabled={result.valid === 0 || busy} onClick={() => setConfirm(true)}>Import {result.valid} row{result.valid === 1 ? '' : 's'}</Button>
-            )}
-          </>}
-          {step === 'done' && <Button size="sm" className="ml-auto" onClick={onClose}>Close</Button>}
-        </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   )
 }
 

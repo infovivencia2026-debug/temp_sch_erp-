@@ -8,7 +8,7 @@ import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { useWorkingYear } from '@/lib/working-year'
-import { Button, Field, FormGrid, FormNotice, Input, Select, Badge, ExportTable } from '@/components/ui'
+import { Button, Dialog, Field, FormGrid, FormNotice, Input, Select, Badge, ExportTable } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
@@ -177,54 +177,22 @@ function Preset({ onClick, children }: { onClick: () => void; children: ReactNod
    people have already stopped looking by the time it appears. It says what
    changed, not just that something did. */
 function SavedDialog({ message, onClose }: { message: string; onClose: () => void }) {
-  // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  /* The hook's return value is what a close control must call. Calling
-     onClose directly unmounts first, and the cleanup then spends the
-     history entry the hook had pushed -- so the panel closes and the page
-     navigates back at the same time. */
-  const close = useOverlayHistory(true, onClose)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [close])
-
-  /* Portalled: a fixed panel inside a transformed ancestor lays itself out
-     against that ancestor, not the viewport, and every card here carries a
-     transform while it is pressed. See BulkImport's SheetViewer. */
-  return createPortal(
-    /* The room dims, the card arrives. The role was on the scrim, so the
-       scrim was what the arrival rule animated -- a full-bleed dim growing
-       from 97% at top centre, which reads as the whole screen twitching.
-       The dim only fades (.scrim); the card carries the dialog and comes
-       from where a dialog comes from. */
-    <div
-      className="scrim fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={close}
-    >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-label="Saved"
-        className="w-full max-w-sm rounded-lg border bg-background p-5 text-center shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
+  /* The shared Dialog: portalled, Escape and the dim close it, the phone's
+     Back closes it (overlay history), and focus returns to Save. */
+  return (
+    <Dialog onClose={onClose} size="sm" label="Saved">
+      <div className="py-2 text-center" role="status">
         <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
           <Check className="h-6 w-6" />
         </div>
         <p className="text-[15px] font-medium">Done</p>
         <p className="mt-1 text-[13.5px] text-muted-foreground">{message}</p>
-        <Button className="mt-4 w-full" onClick={close}>
+        <Button className="mt-4 w-full" onClick={onClose}>
           Close
         </Button>
       </div>
-    </div>
-    ,
-    document.body,
+    </Dialog>
   )
-
 }
 
 function SaveRow({
