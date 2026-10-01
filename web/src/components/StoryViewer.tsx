@@ -35,6 +35,8 @@ export interface StoryItem {
   tag?: string
   /** Under the caption: e.g. the poster's view count. Taps on it do not move the story. */
   footer?: ReactNode
+  /** A small picture of the same thing, shown at once while the full one loads. */
+  poster?: string
 }
 
 export interface StoryGroup {
@@ -174,6 +176,19 @@ export default function StoryViewer({
     if (item && !item.seen) onSeen?.(item)
   }, [item, onSeen])
 
+  /* THE NEXT PICTURE IS ALREADY HERE. While one status is on screen the next
+     photo is fetched, so a tap forward draws at once instead of showing an
+     empty frame for the length of a download. Photos only: a video is big,
+     and its first frame is the poster. */
+  useEffect(() => {
+    const here = groups[g]
+    const next = here?.items[i + 1] ?? groups[g + 1]?.items[0]
+    if (!next?.src || next.media !== 'image') return
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = next.src
+  }, [groups, g, i])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -253,12 +268,25 @@ export default function StoryViewer({
         </div>
 
         <div className="story__media" aria-live="polite">
-          {item.media === 'image' && <img key={item.id} src={item.src} alt={item.title} draggable={false} />}
+          {/* A soft, dimmed copy of the picture behind it, in place of black
+              bars above and below a photo that is not the screen's shape. */}
+          {item.poster && (item.media === 'image' || item.media === 'video') && (
+            <span key={`bg-${item.id}`} aria-hidden className="story__backdrop" style={{ backgroundImage: `url("${item.poster}")` }} />
+          )}
+          {/* The thumbnail is already in the browser's cache (the bell and the
+              strip drew it), so it is painted under the picture: the frame
+              is never black while the full photo arrives. */}
+          {item.media === 'image' && (
+            <img key={item.id} src={item.src} alt={item.title} draggable={false} decoding="async"
+              style={item.poster ? { backgroundImage: `url("${item.poster}")`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined} />
+          )}
           {item.media === 'video' && (
             <video
               key={item.id}
               ref={video}
               src={item.src}
+              poster={item.poster}
+              preload="auto"
               autoPlay
               muted={muted}
               playsInline

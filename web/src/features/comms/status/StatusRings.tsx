@@ -72,7 +72,7 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
 export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, onViews: (id: string) => void): StoryGroup[] {
   const item = (p: StatusItem): StoryItem => ({
     id: p.id, title: p.caption ?? '', media: p.media_kind === 'video' ? 'video' : p.media_kind === 'text' ? 'text' : 'image', src: p.url || undefined,
-    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.audience,
+    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.audience, poster: p.thumb,
     footer: p.mine ? <button type="button" onClick={() => onViews(p.id)}><Eye className="size-4" /> Seen by</button> : undefined,
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({
@@ -133,10 +133,37 @@ export default function StatusRings({ className, compact = false, openId, onOpen
     onOpenHandled?.()
   }, [openId, data, groups, onOpenHandled])
 
+  /* SEEN, WITHOUT ASKING AGAIN. Each post reached used to post the view and
+     then refetch the whole feed and the bell (they share a key), so watching
+     ten statuses loaded both ten times over. The ring is greyed and the
+     count taken down here, in the cache, the moment the post is on screen;
+     the server is told on the post's own signed address (one read there,
+     see class_status.ts), with `last=1` on the ring's final unseen post so
+     it can read the bell entry; and the feed and the bell are fetched once,
+     when the viewer closes. */
+  const sawAny = useRef(false)
   const markSeen = useCallback((it: StoryItem) => {
-    void api.post(`/api/v1/status/posts/${it.id}/view`).then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => undefined)
+    const feedNow = qc.getQueryData<StatusFeed>(FEED_KEY)
+    const ring = feedNow?.rings.find((r) => r.posts.some((x) => x.id === it.id))
+    const post = ring?.posts.find((x) => x.id === it.id)
+    if (!feedNow || !ring || !post || post.seen || post.mine) return
+    const last = ring.unseen <= 1
+    sawAny.current = true
+    qc.setQueryData<StatusFeed>(FEED_KEY, {
+      ...feedNow,
+      unseen: Math.max(0, feedNow.unseen - 1),
+      rings: feedNow.rings.map((r) => (r !== ring ? r : { ...r, unseen: Math.max(0, r.unseen - 1), posts: r.posts.map((x) => (x.id === it.id ? { ...x, seen: true } : x)) })),
+    })
+    const to = post.seen_url ? post.seen_url + (last ? '&last=1' : '') : `/api/v1/status/posts/${it.id}/view`
+    void api.post(to).catch(() => undefined)
   }, [qc])
-  const close = useCallback(() => setOpen(null), [])
+  const close = useCallback(() => {
+    setOpen(null)
+    if (sawAny.current) {
+      sawAny.current = false
+      void qc.invalidateQueries({ queryKey: ['notifications'] })
+    }
+  }, [qc])
   /* The tapped face morphs into the viewer's avatar (a shared element);
      where the engine cannot, the viewer simply opens. */
   const openFrom = useCallback((face: HTMLElement | null, at: { group: number; id?: string }) => {
@@ -185,7 +212,14 @@ export default function StatusRings({ className, compact = false, openId, onOpen
         return (
           <Ring compact={compact} key={g.id} label={g.name} unseen={unseen} onClick={(face) => openFrom(face, { group: idx })}
             badge={ring?.as_school && data.can_post_school ? <PlusBadge onClick={() => add(true)} label="Post as the school" /> : undefined}>
-            {g.avatar ? <img src={g.avatar} alt="" className="size-full object-cover" /> : initials(g.name)}
+            {/* The ring shows what is inside it: the first unseen picture, or
+                the latest. The thumbnail is the signed one the feed sent, so
+                it costs one read and stays in the browser's cache. */}
+            {(() => {
+              const peek = ring?.posts.find((x) => !x.seen && x.thumb)?.thumb ?? [...(ring?.posts ?? [])].reverse().find((x) => x.thumb)?.thumb
+              const face = peek ?? g.avatar
+              return face ? <img src={face} alt="" loading="lazy" decoding="async" className="size-full object-cover" /> : initials(g.name)
+            })()}
           </Ring>
         )
       })}

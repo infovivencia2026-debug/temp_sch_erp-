@@ -1,0 +1,220 @@
+{
+ "date": "2026-10-01",
+ "branch": "cloudflare-workers",
+ "commit": "9815b4e9 plus the changes listed on the Changed today tab",
+ "limits": [
+  "Built by reading source text, not by running the app. A row marked Good means the screen exists and every endpoint it calls is registered; it does not mean a person has clicked through it with real data.",
+  "A screen is linked to endpoints by following its imports three levels deep. Calls made further away are not seen, so \"API calls\" can undercount; those rows are marked Check.",
+  "Tables are linked to a feature through the backend FILE that serves its endpoints, so a feature can list tables a neighbouring route in the same file uses.",
+  "\"Called by the web app: No\" covers device endpoints (SMS gateway, bus tracker), background jobs, public pages and routes whose path the web app builds from variables. It is a list to review, not a list of dead code.",
+  "The Go server (internal/) that production ran before the Workers move is not inventoried here; this is the Worker backend, the React web app and the D1 schema."
+ ],
+ "seller": [
+  [
+   "Platform staff",
+   "Fixed today",
+   "Only a support account could be created from the console, and nobody could be suspended, re-roled or given a new password without SQL on the platform database.",
+   "Team screen now lists everyone and can add a seller administrator or support person, suspend with a reason (signs them out at once), reactivate, change role and reset a password. Guards: nobody changes their own access, a super admin is only changed by a super admin, the last active seller administrator cannot be suspended or demoted. Every change is written to platform_events.",
+   "worker/src/routes/seller/tenants.ts (/seller/staff…), web/src/features/seller/SupportTeam.tsx, worker/test/integration/platform_staff.test.ts"
+  ],
+  [
+   "Support login",
+   "Fixed today",
+   "A support account held no screen: it signed in to an empty console and could not open the ticket queue (the queue needed the right to edit tenants).",
+   "A support login now holds the Support queue screen and only that. Ticket routes are gated on the queue, not on tenant editing.",
+   "worker/src/identity.ts, worker/src/routes/admin/platform_config.ts"
+  ],
+  [
+   "Support tickets: SLA",
+   "Fixed today",
+   "The queue screen draws hours open, hours promised for the plan and \"past what we promised\", but its route never sent those figures, so the SLA display never appeared.",
+   "The route now sends open_hours, promised_hours, breached and the plan for every ticket.",
+   "worker/src/routes/admin/platform_config.ts"
+  ],
+  [
+   "Support tickets: owner",
+   "Fixed today",
+   "\"Take\" changed the status but could not record who took it: assigned_to points at the school's own users.",
+   "Tenant migration 0024 adds the vendor agent (id and name). Whoever on the desk first acts on a ticket holds it, and both the vendor queue and the school see the name.",
+   "worker/migrations/tenant/0024_vendor_ticket_agent.sql"
+  ],
+  [
+   "Entering a school (support)",
+   "Fixed today",
+   "A support session (\"enter this school, say why, for how long\") could never be saved: the table referenced a school user and the operator is a platform account. And nothing checked for a session, so any support login could name any school and read its shape, jobs and audit trail.",
+   "Tenant migration 0025 rebuilds the table without that reference. A support login is now outside every school unless it has a live, unexpired session recorded in that school; the school's administrator can see it and end it. Any platform account can open a session for itself with a reason of at least 8 characters, for at most 4 hours.",
+   "worker/migrations/tenant/0025_support_access_grants.sql, worker/src/identity.ts"
+  ],
+  [
+   "Entering a school (seller admin)",
+   "Open",
+   "Seller administrators and super admins still enter any school without recording a session. That is deliberate for now (running the console means entering schools all day), but their changes inside a school are not attributed in the school's audit log.",
+   "Decide whether operators must also record a reason, and write operator actions into the school's audit trail.",
+   "worker/src/identity.ts, audit middleware"
+  ],
+  [
+   "Two-step sign-in for staff",
+   "Open",
+   "Platform accounts have no MFA; the table has no column for it.",
+   "Add MFA for platform users (control migration, mfa.ts, login).",
+   "worker/src/routes/admin/mfa.ts"
+  ],
+  [
+   "Inviting staff",
+   "Open",
+   "A new account gets a one-time password shown on screen to hand over; there is no emailed invite link, and a platform account is not forced to change the password at first sign-in.",
+   "Add an invite/first-sign-in flow once outgoing email for the platform is settled.",
+   "worker/src/routes/seller/tenants.ts"
+  ],
+  [
+   "Ticket conversation",
+   "Open",
+   "A ticket has a subject, a body and a status. There is no reply thread, no history and no notification to the school when the vendor acts. No screen in a school's console raises a vendor ticket (the endpoint exists).",
+   "Add a thread table, a school-side \"Contact support\" screen and notifications.",
+   "worker/src/routes/admin/platform_config.ts, new web screen"
+  ],
+  [
+   "SLA table",
+   "Open",
+   "What was promised is a fixed table in code keyed on plan codes (enterprise, pro, basic…); a plan with another code gets the slowest tier.",
+   "Store the promise on the plan.",
+   "worker/src/routes/seller/tenants.ts promisedHours"
+  ],
+  [
+   "Online payment of the subscription",
+   "Open",
+   "Invoices, payments, dunning and auto-suspend are real. Checkout creates an order but calls no payment provider; outside production it simulates success.",
+   "Needs a provider decision (e.g. Razorpay) and its keys: create the order with the provider and verify its webhook.",
+   "worker/src/routes/seller/billing.ts"
+  ],
+  [
+   "Restore and database delete",
+   "Open",
+   "Run as dry runs unless CF_API_TOKEN, CF_ACCOUNT_ID and D1_ADMIN_LIVE=true are set on the Worker.",
+   "Set the secrets when ready; document them.",
+   "worker/src/routes/seller/lifecycle.ts"
+  ],
+  [
+   "Tenants, plans, limits, provisioning, lifecycle, export, billing ledger, audit, board members",
+   "Good",
+   "Read and write real platform and school tables end to end. No sample or hardcoded data was found in the seller screens or routes.",
+   "Nothing needed.",
+   "worker/src/routes/seller/"
+  ],
+  [
+   "Instance Health",
+   "Good",
+   "An audit note suggested this pointed at the wrong screen. It does not: Instance Health is a tab inside the Backups screen by design.",
+   "Nothing needed.",
+   "web/src/features/seller/Backups.tsx"
+  ]
+ ],
+ "checks": [
+  [
+   "Web type-check (tsc -b)",
+   "Pass",
+   "No errors."
+  ],
+  [
+   "Web unit tests",
+   "Known",
+   "635 pass, 5 fail. The 5 are listed in web/known-test-failures.txt (size-tier and palette tests that were failing before today)."
+  ],
+  [
+   "Worker type-check",
+   "Pass",
+   "No errors, including the integration tests."
+  ],
+  [
+   "Worker integration tests",
+   "Pass",
+   "293 of 293, including 9 new ones for platform staff, the support queue and recorded school access."
+  ],
+  [
+   "Feature consistency (scripts/feature.mjs check)",
+   "Known",
+   "0 new problems; 29 known ones carried in the baseline file."
+  ],
+  [
+   "Schema files match migrations (schema:check)",
+   "Pass",
+   "control.sql, tenant.sql and tenant_migrations.ts are up to date through control 0013 and tenant 0025."
+  ],
+  [
+   "Go role tests (internal/rbac)",
+   "Pass",
+   "The role lists were left unchanged."
+  ],
+  [
+   "Every endpoint a screen calls exists in the backend",
+   "Pass",
+   "0 unmatched after resolving templated paths. Two first looked unmatched and were confirmed fine by hand (a trailing slash, a templated prefix)."
+  ],
+  [
+   "Catalogue features with a screen",
+   "Known",
+   "415 of 425. The 10 without one are AI, telematics and DigiLocker items listed as Planned."
+  ],
+  [
+   "Tables with no backend code",
+   "Known",
+   "8: the homework and parent forum tables, email_changes and rate_limit_hits. See the Database tab."
+  ]
+ ],
+ "changes": [
+  [
+   "Seller console",
+   "Added today",
+   "Team: list, add (seller administrator or support), suspend/reactivate, change role, reset password, with guards and an event log.",
+   "worker/src/routes/seller/tenants.ts, web/src/features/seller/SupportTeam.tsx"
+  ],
+  [
+   "Support",
+   "Fixed today",
+   "Support logins can open the ticket queue; the queue shows SLA figures and who holds each ticket.",
+   "worker/src/identity.ts, worker/src/routes/admin/platform_config.ts, tenant migration 0024"
+  ],
+  [
+   "Support",
+   "Fixed today",
+   "A support login needs a recorded, time-limited session to look inside a school; sessions can now actually be saved.",
+   "worker/src/identity.ts, tenant migration 0025"
+  ],
+  [
+   "Seller console",
+   "Added today",
+   "Team and ticket actions show at once and are settled by the server (optimistic updates with rollback).",
+   "web/src/features/seller/SupportTeam.tsx, SupportTickets.tsx"
+  ],
+  [
+   "Student home",
+   "Fixed today",
+   "Crash (\"This screen did not load\") for a login with the student role and no student record.",
+   "web/src/features/portal/StudentHome.tsx"
+  ],
+  [
+   "Overlays",
+   "Fixed today",
+   "Closing a dialog opened over a drawer no longer closes the drawer too.",
+   "web/src/lib/overlay-history.ts"
+  ],
+  [
+   "Notifications",
+   "Added today",
+   "A pressed notification opens in full with a button to its screen; only that one is marked read.",
+   "web/src/components/Notifications.tsx"
+  ],
+  [
+   "Home board",
+   "Fixed today",
+   "Cards stop above the dock; phone has Small, Tall, Medium and Large and nothing is stretched; arrow-only on cards; rounded, thicker bars; original assistant ball.",
+   "web/src/features/bento/, web/src/lib/widgets.ts, size-tiers.ts"
+  ],
+  [
+   "Inventory",
+   "Added today",
+   "This workbook and the scripts that build it.",
+   "scripts/inventory/, docs/inventory.xlsx"
+  ]
+ ]
+}

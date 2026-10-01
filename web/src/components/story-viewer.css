@@ -102,6 +102,24 @@
   place-items: center;
   z-index: 1;
 }
+/* The picture's own thumbnail, blurred and dimmed, fills the frame behind it
+   so a photo that is not the screen's shape sits on its own colours rather
+   than on black bars. Purely decorative; the picture is drawn above it. */
+.story__backdrop {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) saturate(1.1);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.story__media > img,
+.story__media > video {
+  position: relative;
+  z-index: 1;
+}
 .story__media > img,
 .story__media > video {
   max-width: 100%;
@@ -113,6 +131,12 @@
   animation: story-in 220ms ease;
 }
 @keyframes story-in { from { opacity: 0; } to { opacity: 1; } }
+/* With a backdrop behind it the picture's own box is clear, so the backdrop
+   shows through the bars; without one it keeps its black. */
+.story__media:has(.story__backdrop) > img,
+.story__media:has(.story__backdrop) > video {
+  background-color: transparent;
+}
 
 /* A document or a link is a card: the icon, the name, one button. */
 .story__card {

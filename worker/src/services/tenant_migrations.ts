@@ -24,4 +24,6 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 21, name: 'status_thumbs_and_text', checksum: '35c71bb45df1c2ffb51a5150e0b1ac79ce7171934d165c89d6e3a582ae252116' },
   { version: 22, name: 'front_office_status', checksum: 'fb3e0d49c70b0f82b910b9b9a726b18100cb6277c6a51e42a66e5347458dcc3f' },
   { version: 23, name: 'request_path_indexes', checksum: 'ec5d88bcacde27e3063e7e67de7ef21b9d9cf8b1765219c8269f8e132df4fdab' },
+  { version: 24, name: 'vendor_ticket_agent', checksum: '7101ae8889fd6193b5a78a289a5867a6759188fcc9f281fe4b9002a481d1fa6d' },
+  { version: 25, name: 'support_access_grants', checksum: '5b64820f205af8f7648bc7dfd80897b45e42b3186b8e34d9ca2ea941ed0bafa8' },
 ]
