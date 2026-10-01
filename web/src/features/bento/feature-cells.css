@@ -38,34 +38,13 @@
   outline-offset: 2px;
 }
 
-.ai-plate {
-  --paper: var(--bento-card, hsl(var(--card, 0 0% 100%)));
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--ai-size, 64px);
-  height: var(--ai-size, 64px);
-  aspect-ratio: 1;
-  border-radius: 24%;
-  color: color-mix(in srgb, var(--t) 78%, var(--bento-ink, currentColor));
-  background: color-mix(in srgb, var(--t) 14%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--t) 22%, transparent);
-  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--t) calc(60% * var(--glow-k, 0.4)), transparent);
-  transition: transform var(--dur-fast, 160ms) var(--ease-out, ease),
-    background-color var(--dur-fast, 160ms) var(--ease-out, ease);
-}
-.ai-plate .msr {
-  font-size: calc(var(--ai-size, 64px) * 0.5);
-}
-@media (prefers-color-scheme: dark) {
-  .ai-plate { background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
-}
-:root[data-theme='dark'] .ai-plate,
-.dark .ai-plate { background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
-:root[data-theme='light'] .ai-plate { background: color-mix(in srgb, var(--t) 14%, var(--paper)); }
+/* The plate is the launcher's own (FeatureGlyph + .lch-plate, see AppIcon):
+   the same tinted disc and glyph as All features. Only its size is set here,
+   through FeatureGlyph's --size, so it still follows the cell. */
+.ai-plate { flex: none; position: relative; }
 
 @media (hover: hover) {
-  .ai-tile:hover .ai-plate { transform: translateY(-2px); background: color-mix(in srgb, var(--t) 20%, var(--paper)); }
+  .ai-tile:hover .ai-plate { transform: translateY(-2px); }
 }
 .ai-tile:active .ai-plate { transform: scale(0.95); }
 

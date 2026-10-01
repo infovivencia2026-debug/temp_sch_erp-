@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { useShortcuts, removeFromDashboard, seedShortcuts } from '@/lib/shortcuts'
 import { useCatalogIfAny, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { useLayout, isRemoved } from '@/lib/widgets'
-import { featureIcon } from './feature-icons'
+import { FeatureGlyph } from '@/components/FeatureGlyph'
+import { markFor } from './BentoLauncher'
+import './launcher.css'
 import { Widget, useWidgetLayer } from './WidgetLayer'
 import { hueFor } from './BentoLauncher'
 import './feature-cells.css'
@@ -88,7 +90,10 @@ function resolve(catalog: CatalogResponse | null, key: string): Found | null {
   return null
 }
 
-/** One app icon: the tinted square, the glyph, the name. */
+/** One app icon, drawn exactly as the All features launcher draws it (owner,
+    2026-10-01: "even in bentos use icons that are like in all features"):
+    the same FeatureGlyph disc tinted from the workspace colour, the same
+    Material Symbol, the workspace's own mark in the corner, then the name. */
 export function AppIcon({ slug, section, workspace, name, size }: {
   slug: string
   section?: string
@@ -96,15 +101,18 @@ export function AppIcon({ slug, section, workspace, name, size }: {
   name?: string
   size?: number
 }) {
-  const style = {
-    '--t': `var(--dom-${hueFor(workspace)}, hsl(var(--primary)))`,
-    ...(size ? { '--ai-size': `${size}px` } : {}),
-  } as CSSProperties
+  const Mark = markFor(workspace)
   return (
     <>
-      <span className="ai-plate" style={style} aria-hidden="true">
-        <span className="msr">{featureIcon(slug, section)}</span>
-      </span>
+      <FeatureGlyph
+        slug={slug}
+        section={section}
+        tint={hueFor(workspace)}
+        className="ai-plate lch-plate"
+        style={{ '--size': size ? `${size}px` : 'var(--ai-size, 64px)' } as CSSProperties}
+      >
+        <span className="lch-plate-mark" title={workspace}><Mark aria-hidden="true" /></span>
+      </FeatureGlyph>
       {name && <span className="ai-name">{name}</span>}
     </>
   )
