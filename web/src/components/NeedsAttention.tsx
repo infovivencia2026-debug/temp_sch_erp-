@@ -282,8 +282,9 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
        * foot carrying the buttons -- the thing to do, and the thing to do
        * about the people who should have done it. */}
       {items.length > 0 && (
-        <section>
-          <div className="mb-2.5 flex items-center justify-between gap-3">
+        /* Room above it, so on a phone it does not sit hard under the top bar. */
+        <section className="pt-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
             {/* A heading, not a grey caption: the owner asked for the words
                 "Needs your attention" to read properly. */}
             <h2 className="flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]">
@@ -291,9 +292,6 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
               Needs your attention
               <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[12px] font-semibold text-destructive">{items.length}</span>
             </h2>
-            <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive sm:hidden">
-              {items.length} pending
-            </span>
           </div>
           {nudged && <p className="mb-2.5 text-[13px] text-success">{nudged}</p>}
           {/* ONE ROW EACH, IN ONE CARD, HOWEVER MANY THERE ARE.
