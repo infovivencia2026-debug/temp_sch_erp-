@@ -407,7 +407,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
        * the thing every role opens this for, so they take the full width and
        * one row: a card each, the figure large, the mark tinted by what it
        * counts. Three across on a desk, one under another in a hand. */}
-      {attentionFirst && attentionBlock}
+      {/* The staff home shows no attention list: the owner found it ugly there. */}
 
       {!attentionFirst && summary.length > 0 && (
         <section>
