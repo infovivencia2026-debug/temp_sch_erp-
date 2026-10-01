@@ -58,10 +58,13 @@ export function Rows({ children, className }: { children: ReactNode; className?:
 /** The skeleton every row shares. `data-row` is what the measurement script
     asserts on: same height floor, same padding, same rule. */
 export function Row({
-  label, value, helper, children, className, as: Tag = 'div', ...rest
+  label, value, helper, children, className, inline, as: Tag = 'div', ...rest
 }: {
   label: ReactNode
   value?: ReactNode
+  /** The control sits on the label's line, right-aligned (a picker, a
+      segmented pair), rather than on a line of its own under it. */
+  inline?: boolean
   helper?: ReactNode
   children?: ReactNode
   className?: string
@@ -76,8 +79,9 @@ export function Row({
       <span className="flex min-h-[24px] items-center justify-between gap-4">
         <span className={cn(LABEL, 'min-w-0 truncate')}>{label}</span>
         {value !== undefined && <span className={cn(VALUE, 'shrink-0 text-right')}>{value}</span>}
+        {inline && children}
       </span>
-      {children}
+      {!inline && children}
       {helper && <span className={HELPER}>{helper}</span>}
     </Tag>
   )
@@ -201,7 +205,7 @@ export function DropdownRow<T extends string>({
   }, [open])
 
   return (
-    <Row label={label} helper={helper}>
+    <Row label={label} helper={helper} inline>
       <div ref={ref} className="relative ml-auto shrink-0">
         <button
           type="button"
@@ -464,7 +468,7 @@ export function SegmentRow<T extends string>({
                       onPick={onPick} helper={helper} />
   }
   return (
-    <Row label={label} helper={helper}>
+    <Row label={label} helper={helper} inline>
       <span
         role="group"
         aria-label={label}
