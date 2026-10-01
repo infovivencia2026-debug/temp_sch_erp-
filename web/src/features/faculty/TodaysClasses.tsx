@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { NavLink } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { featurePath } from '@/lib/catalog'
@@ -107,6 +108,7 @@ export default function TodaysClasses() {
        ERP's own cards and the school's colour, so it sits with every other
        screen. One column on a phone. */
     <div className="flex flex-col gap-5 pt-4">
+      <StatusRings />
       <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>

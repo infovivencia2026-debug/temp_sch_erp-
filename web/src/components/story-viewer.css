@@ -206,3 +206,11 @@
 @media (prefers-reduced-motion: reduce) {
   .story__media > img, .story__media > video, .story__card { animation: none; }
 }
+
+/* A control under the caption (the poster's "Seen by"): the caption ignores
+   pointers so taps reach the zones behind it; this one takes them back. */
+.story__footer { margin-top: 10px; pointer-events: auto; }
+.story__footer button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
+  border-radius: 999px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 13px;
+}

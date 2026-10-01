@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { X, FileText, Link2, Download, ExternalLink } from 'lucide-react'
+import { X, FileText, Link2, Download, ExternalLink, Volume2, VolumeX } from 'lucide-react'
 import './story-viewer.css'
 
 /* MEDIA THE WAY A PHONE SHOWS A STATUS.
@@ -32,12 +32,16 @@ export interface StoryItem {
   postedAt?: string
   seen: boolean
   tag?: string
+  /** Under the caption: e.g. the poster's view count. Taps on it do not move the story. */
+  footer?: ReactNode
 }
 
 export interface StoryGroup {
   id: string
   name: string
   items: StoryItem[]
+  /** A picture for the avatar (a school's logo, a person's photo); initials otherwise. */
+  avatar?: string
 }
 
 const IMAGE_MS = 6000
@@ -71,8 +75,11 @@ export default function StoryViewer({
   start = 0,
   onClose,
   onSeen,
+  startMuted = false,
 }: {
   groups: StoryGroup[]
+  /** Videos start silent, with a button to unmute (Class Status). */
+  startMuted?: boolean
   /** Which poster to open on. */
   start?: number
   onClose: () => void
@@ -88,6 +95,7 @@ export default function StoryViewer({
   })
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [muted, setMuted] = useState(startMuted)
   const video = useRef<HTMLVideoElement | null>(null)
   const group = groups[g]
   const item = group?.items[i]
@@ -216,7 +224,9 @@ export default function StoryViewer({
             ))}
           </div>
           <div className="story__head">
-            <div className="story__avatar" aria-hidden="true">{initials(group.name)}</div>
+            <div className="story__avatar" aria-hidden="true">
+              {group.avatar ? <img src={group.avatar} alt="" className="size-full rounded-full object-cover" /> : initials(group.name)}
+            </div>
             <div className="story__who">
               <div className="story__name">{group.name}</div>
               <div className="story__when">
@@ -224,6 +234,11 @@ export default function StoryViewer({
                 {group.items.length > 1 ? ` · ${i + 1} of ${group.items.length}` : ''}
               </div>
             </div>
+            {item.media === 'video' && (
+              <button type="button" className="story__close" onClick={() => setMuted((m) => !m)} aria-label={muted ? 'Unmute' : 'Mute'}>
+                {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              </button>
+            )}
             <button type="button" className="story__close" onClick={onClose} aria-label="Close">
               <X className="size-4" />
             </button>
@@ -238,6 +253,7 @@ export default function StoryViewer({
               ref={video}
               src={item.src}
               autoPlay
+              muted={muted}
               playsInline
               onTimeUpdate={(e) => {
                 const v = e.currentTarget
@@ -299,6 +315,11 @@ export default function StoryViewer({
             {item.tag && <span className="story__tag">{item.tag}</span>}
             <div className="story__title">{item.title}</div>
             {item.description && <div className="story__desc">{item.description}</div>}
+            {item.footer && (
+              <div className="story__footer" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+                {item.footer}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { api, type List } from '@/lib/api'
@@ -312,6 +313,7 @@ export default function ParentWeek() {
       }
       actions={switcher}
       dashboard={arrange ? 'parent_week' : undefined}
+      lead={<StatusRings />}
     >
       {body}
     </PersonaPage>

@@ -28,6 +28,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   class_360: 'hub', // Class 360
   student_absentees: 'person_off', // Student absentees
   all_messages: 'forum', // All messages
+  class_status: 'photo_camera', // Class Status
   scheduled_digests: 'schedule', // Scheduled digests
   interaction_log: 'timeline', // Interaction log
   store_catalogue: 'inventory_2', // Store catalogue
@@ -144,7 +145,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   driver_sobriety_safety_checklist: 'checklist', // Driver Sobriety & Safety Checklist
   drivers_attendants: 'group', // Drivers & attendants
   dropped_leads: 'person_remove', // Dropped leads
-  e_learning_resource_hub: 'video_library', // E-Learning Resource Hub
+  e_learning_resource_hub: 'video_library', // LMS (key kept from E-Learning Resource Hub)
   educloud_channels: 'hub', // EduCloud Channels
   email_server_smtp_integration: 'mail', // Email Server (SMTP) Integration
   emergency_pickups: 'emergency', // Emergency Pickups

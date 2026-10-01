@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { api, ApiError, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { formatPaise } from '@/lib/utils'
@@ -211,6 +212,7 @@ export function StudentDayBoard() {
       title={s.full_name}
       description={form || undefined}
       dashboard="student_day"
+      lead={<StatusRings />}
     >
       <Widget id="now" label={t('bento.student_day.now_label')} size="large" index={0}>
         {(span) => (

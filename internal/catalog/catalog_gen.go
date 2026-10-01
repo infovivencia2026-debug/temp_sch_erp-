@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 414 features.
+// Roles is the catalog: 24 roles, 417 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -111,7 +111,7 @@ var Roles = []Role{
 				Workspace: "Settings",
 				Features: []Feature{
 					{Key: "seller_admin.delivery.password_reset_delivery", Slug: "password_reset_delivery", Name: "Password Reset Delivery", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own email server and SMS channel, through which every school's password-reset links are sent. A school configures nothing for its staff and parents to get back in."},
-					{Key: "seller_admin.delivery.educloud_channels", Slug: "educloud_channels", Name: "WISEN Channels", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through WISEN sends nothing until these are set up."},
+					{Key: "seller_admin.delivery.educloud_channels", Slug: "educloud_channels", Name: "XULO Channels", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through XULO sends nothing until these are set up."},
 				},
 			},
 			{
@@ -379,6 +379,7 @@ var Roles = []Role{
 					{Key: "institution_admin.communication.school_achievements_showcase", Slug: "school_achievements_showcase", Name: "School Achievements Showcase", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Log awards, sports victories, academic honors, and publish them to parent/student portals."},
 					{Key: "institution_admin.communication.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
 					{Key: "institution_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A message to one colleague, a head of department, a class teacher, rather than a notice to the school. Every member of staff is listed whether or not you have written to them before."},
+					{Key: "institution_admin.communication.class_status", Slug: "class_status", Name: "Class Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length."},
 				},
 			},
 			{
@@ -658,9 +659,11 @@ var Roles = []Role{
 				Name:      "My Classes",
 				Workspace: "My Classes",
 				Features: []Feature{
+					{Key: "faculty.my_classes.my_classes", Slug: "my_classes", Name: "My classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Class roster, subject resources and relevant student academic information."},
 					{Key: "faculty.my_classes.student_progress", Slug: "student_progress", Name: "Student progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "View attendance and academic progress for students taught/mentored by the faculty member."},
 					{Key: "faculty.my_classes.behaviour", Slug: "behaviour", Name: "Behaviour", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told."},
-					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
+					{Key: "faculty.my_classes.my_students", Slug: "my_students", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child in the class with attendance, marks and guardian contact in one place."},
+					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "Student details", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
 					{Key: "faculty.my_classes.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section."},
 				},
 			},
@@ -737,6 +740,7 @@ var Roles = []Role{
 					{Key: "faculty.communication.ptm_notes_action_items", Slug: "ptm_notes_action_items", Name: "PTM notes & action items", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Who came to the parents’ meeting, what they raised, and what was agreed."},
 					{Key: "faculty.communication.classroom_communication", Slug: "classroom_communication", Name: "Classroom communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A notice to a whole class, or to one child’s parent."},
 					{Key: "faculty.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them."},
+					{Key: "faculty.communication.class_status", Slug: "class_status", Name: "Class Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status: it disappears after 24 hours unless you pin it to the class gallery. See who has viewed each post."},
 				},
 			},
 			{
@@ -1537,7 +1541,7 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.learning.courses_subjects", Slug: "courses_subjects", Name: "Courses / subjects", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current enrolled courses/subjects, teacher and learning resources."},
-					{Key: "student.learning.e_learning_resource_hub", Slug: "e_learning_resource_hub", Name: "E-Learning Resource Hub", Scope: Scope("self"), Tier: Tier("core"), Summary: "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links."},
+					{Key: "student.learning.e_learning_resource_hub", Slug: "e_learning_resource_hub", Name: "LMS", Scope: Scope("self"), Tier: Tier("core"), Summary: "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links."},
 					{Key: "student.learning.ai_personal_learning_companion", Slug: "ai_personal_learning_companion", Name: "AI Personal Learning Companion", Scope: Scope("self"), Tier: Tier("core"), Summary: "Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes."},
 					{Key: "student.learning.peer_tutoring_study_groups", Slug: "peer_tutoring_study_groups", Name: "Peer Tutoring & Study Groups", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Sign up as student tutors or request peer study group assistance in specific subjects."},
 					{Key: "student.learning.gamified_learning_streak_counter", Slug: "gamified_learning_streak_counter", Name: "Gamified Learning Streak Counter", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Visual daily login and homework completion streak counter rewarding students with digital badges."},
@@ -1707,7 +1711,7 @@ var Roles = []Role{
 				Name:      "Consent & Permissions",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Consents & Circulars", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every circular and consent the school needs you to sign, with what you have already agreed to and when. Signing is one tap and the record is kept. Trip permissions appear here too, at a school that boards children."},
+					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Permission Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every slip the school needs signed, trips, medical, photography, data, with what you have already agreed to and when. Signing is one tap and the record is kept."},
 				},
 			},
 			{
@@ -1734,6 +1738,20 @@ var Roles = []Role{
 				Workspace: "Store",
 				Features: []Feature{
 					{Key: "parent.store.product_catalogue", Slug: "product_catalogue", Name: "Product catalogue", Scope: Scope("self"), Tier: Tier("core"), Summary: "The school store, to browse, uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "lms_admin",
+		Name: "LMS Admin",
+		Sections: []Section{
+			{
+				Slug:      "lms",
+				Name:      "LMS",
+				Workspace: "LMS",
+				Features: []Feature{
+					{Key: "lms_admin.lms.courses", Slug: "courses", Name: "Courses & material", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it."},
 				},
 			},
 		},

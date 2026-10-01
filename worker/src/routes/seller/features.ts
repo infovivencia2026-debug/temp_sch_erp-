@@ -77,6 +77,7 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'payroll.monthly_payroll': ['/payroll/run', '/payroll/payslips', '/payroll/bank-file'],
   'campus_money.cafeteria_store_sales': ['/portal/cafeteria', '/store/catalogue'],
   'alumni.alumni_network_registration': ['/portal/alumni'],
+  'communication.class_status': ['/status'], // feature:communication.class_status
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }

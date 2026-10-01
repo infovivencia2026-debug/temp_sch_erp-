@@ -421,6 +421,17 @@ var Groups = []Group{
 		Scopes:    fixed("linked_children"),
 		ScopeNote: "Arrives with the guardian link, not from this screen.",
 	},
+	// feature:communication.class_status begin
+	{
+		Key: "communication_class_status", Name: "Class Status", Band: BandOptional,
+		Blurb:     "Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status, gone after 24 hours unless pinned; post as the school; approve and remove posts.",
+		View:      []string{StatusPost},
+		Manage:    []string{StatusPostSchool},
+		Approve:   []string{StatusManage},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:communication.class_status end
 }
 
 // GroupByKey looks a group up by key.

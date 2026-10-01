@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
@@ -110,6 +111,7 @@ export default function StudentHome() {
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="mx-auto w-full max-w-5xl space-y-4 px-4 pb-6 pt-2 md:px-6 md:pt-6">
+        <StatusRings />
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain
             header with the streak and badge chips beside it. */}

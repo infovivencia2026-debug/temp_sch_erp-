@@ -146,6 +146,9 @@ const (
 	SelfAttendanceRead = "self.attendance.read"
 	SelfFeesRead       = "self.fees.read"
 	SelfWalletRead     = "self.wallet.read"
+	StatusPost         = "status.post"        // feature:communication.class_status
+	StatusManage       = "status.manage"      // feature:communication.class_status
+	StatusPostSchool   = "status.post_school" // feature:communication.class_status
 )
 
 // Permission is a seedable row.
@@ -249,6 +252,9 @@ var All = []Permission{
 	{SelfAttendanceRead, "self", "View own attendance"},
 	{SelfFeesRead, "self", "View own fees and invoices"},
 	{SelfWalletRead, "self", "View own wallet balance and history"},
+	{StatusPost, "status", "Post a class status (photo or short video) to own sections, classes or the school"}, // feature:communication.class_status
+	{StatusManage, "status", "Every class status in the school: approve, delete, pin, and the settings"},        // feature:communication.class_status
+	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -404,6 +410,7 @@ var SystemRoles = []Role{
 	// ill" as a matter of course; editing the child's record, or agreeing the
 	// accommodations for one who needs them, is the class teacher's job.
 	{"faculty", "Faculty / Teacher", []string{
+		StatusPost, // feature:communication.class_status
 		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
 		Class360Read,
@@ -419,6 +426,7 @@ var SystemRoles = []Role{
 		ReportCardsGenerate,
 		SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
+		StatusPost, // feature:communication.class_status
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,
 		AttendanceRead, AttendanceWrite, ExamsRead, MarksWrite,
 		ReportCardsGenerate, HomeworkWrite, DisciplineWrite, Class360Read,

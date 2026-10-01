@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
+import StatusRings from '@/features/comms/status/StatusRings'
 
 const AttendanceTrendChart = lazy(() => import('./AttendanceTrendChart'))
 import { useQuery } from '@tanstack/react-query'
@@ -64,6 +65,7 @@ export default function PrincipalDashboard() {
         }
       />
       <PageBody>
+        <StatusRings />
         {/* Before the numbers, not after them. A school that has not finished
             setting up is looking at zeroes, and the explanation has to arrive
             first or the dashboard reads as broken. */}

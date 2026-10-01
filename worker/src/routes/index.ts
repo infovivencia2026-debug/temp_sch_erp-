@@ -24,6 +24,7 @@ import { registerScheduling } from './scheduling'
 import { registerAIWarnings } from './ai/warnings'
 import { registerAIImport } from './ai/import'
 import { registerAi } from './ai'
+import { registerClassStatus } from './comms/class_status' // feature:communication.class_status
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -55,5 +56,6 @@ export function buildRouter(): Router {
   registerAIWarnings(r)
   registerAIImport(r)
   registerAi(r)
+  registerClassStatus(r) // feature:communication.class_status
   return r
 }

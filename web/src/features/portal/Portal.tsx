@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import StatusRings from '@/features/comms/status/StatusRings'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -521,6 +522,7 @@ export default function Portal() {
       />
       <Freshness query={summary} />
       <PageBody>
+        <StatusRings />
         {/* The weekly AI note about this child, once one has been written. */}
         {activeId && <WeeklyNoteCard studentId={activeId} />}
         {/* One dashboard rather than three tabs of it. What needs attention

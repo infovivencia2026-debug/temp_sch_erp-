@@ -5,7 +5,7 @@ import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell, BookOpen, CalendarClock, IndianRupee, Megaphone, MessageSquare, X,
+  Bell, BookOpen, CalendarClock, Camera, IndianRupee, Megaphone, MessageSquare, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -57,6 +57,8 @@ const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
   timetable: { icon: CalendarClock, label: 'Timetable' },
   message: { icon: MessageSquare, label: 'Message' },
   notice: { icon: Megaphone, label: 'Notice' },
+  // Class Status: opens the home with the viewer on that post (/?status=<id>).
+  status: { icon: Camera, label: 'Status' },
 }
 
 function kindOf(kind: string) {

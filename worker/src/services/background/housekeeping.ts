@@ -1,6 +1,7 @@
 import { registerJob } from '../jobs'
 import { daysAgo, forEachSchool } from './schools'
 import { purgeSessionActivity } from '../session_activity'
+import { expireStatuses } from '../class_status'
 
 /* Housekeeping sweeps: session:prune (worker.go sessionPrune),
    security:retention (api/login_security.go handleSecurityRetention) and
@@ -69,4 +70,15 @@ registerJob('diary:reminders', async (env) => {
     sent += rows.length
   })
   if (sent > 0) console.log('diary reminders sent', { count: sent })
+})
+
+/* Class Status: a post is gone 24 hours after it went live unless it was
+   pinned to the class gallery. The R2 object goes with the row. */
+registerJob('status:expire', async (env) => {
+  let gone = 0
+  await forEachSchool(env, async (_inst, db) => {
+    // A school whose database predates the tables has nothing to sweep.
+    gone += await expireStatuses(env, db).catch((e) => { if (/no such table/.test(String(e))) return 0; throw e })
+  })
+  if (gone > 0) console.log('class statuses expired', { count: gone })
 })

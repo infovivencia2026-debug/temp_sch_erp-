@@ -212,6 +212,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.examinations.exams_papers': screen(() => import('./exams/Exams')),
   'institution_admin.examinations.hall_ticket_issue': screen(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
+  /* Class Status: the teacher's composer and own posts; the principal's school-wide view, approvals and settings. */
+  'faculty.communication.class_status': screen(() => import('./comms/ClassStatus')), // feature:communication.class_status
+  'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.
