@@ -1502,7 +1502,7 @@ var Roles = []Role{
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "student.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("self"), Tier: Tier("core"), Summary: "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement."},
-					{Key: "student.home.digital_diary_schedule", Slug: "digital_diary_schedule", Name: "Digital Diary & Schedule", Scope: Scope("self"), Tier: Tier("core"), Summary: "Track personal study schedules, project deadlines, and school calendar events."},
+					{Key: "student.home.digital_diary_schedule", Slug: "digital_diary_schedule", Name: "My planner", Scope: Scope("self"), Tier: Tier("core"), Summary: "Track personal study schedules, project deadlines, and school calendar events."},
 					{Key: "student.home.custom_theme_selection", Slug: "custom_theme_selection", Name: "Custom Theme Selection", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Customize student portal appearance with dark mode, high-contrast mode, or color themes."},
 				},
 			},

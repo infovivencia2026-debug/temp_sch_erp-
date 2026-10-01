@@ -1469,7 +1469,7 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'student.home.my_day', slug: 'my_day', name: 'My day', scope: 'self', tier: 'core', summary: 'Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.' },
-          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'Digital Diary & Schedule', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
+          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'My planner', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
           { key: 'student.home.custom_theme_selection', slug: 'custom_theme_selection', name: 'Custom Theme Selection', scope: 'self', tier: 'optional', summary: 'Customize student portal appearance with dark mode, high-contrast mode, or color themes.' },
         ],
       },
