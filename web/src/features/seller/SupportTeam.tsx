@@ -112,8 +112,25 @@ export default function SupportTeam() {
     onSuccess: (h) => { setCreating(false); setHandover(h) },
   })
 
-  const rows = staff.data?.items ?? []
-  const active = rows.filter((a) => a.status === 'active').length
+  /* The three figures are the filters: pressing a part of one narrows the
+     table to those people, pressing it again shows everyone. */
+  const [focus, setFocus] = useState<{ by: string; key: string } | null>(null)
+  const all = staff.data?.items ?? []
+  const isAdmin = (a: Staff) => a.roles.some((r) => r !== 'support_admin')
+  const weekAgo = Date.now() - 7 * 86_400_000
+  const seen = (a: Staff) => (!a.last_login_at ? 'never' : new Date(a.last_login_at).getTime() >= weekAgo ? 'week' : 'earlier')
+  const tests: Record<string, (a: Staff, k: string) => boolean> = {
+    role: (a, k) => (k === 'seller_admin' ? isAdmin(a) : !isAdmin(a)),
+    seen: (a, k) => seen(a) === k,
+    status: (a, k) => (k === 'active' ? a.status === 'active' : a.status !== 'active'),
+  }
+  const rows = focus ? all.filter((a) => tests[focus.by](a, focus.key)) : all
+  const pick = (by: string) => (key: string | null) => setFocus(key ? { by, key } : null)
+  const on = (by: string) => (focus?.by === by ? focus.key : null)
+  const active = all.filter((a) => a.status === 'active').length
+  const admins = all.filter(isAdmin).length
+  const recent = all.filter((a) => seen(a) === 'week').length
+  const never = all.filter((a) => seen(a) === 'never').length
 
   if (staff.isLoading && !staff.data) return <SkeletonTable columns={6} />
   if (staff.error) return <ErrorState error={staff.error} />
@@ -158,21 +175,55 @@ export default function SupportTeam() {
           </p>
         )}
 
-        {!legacy && rows.length > 0 && (
-          <CellGrid cols={4}>
-            <Stat label="People" value={rows.length} />
-            <Stat label="Seller administrators" value={rows.filter((a) => a.roles.some((r) => r !== 'support_admin')).length} />
-            <Stat label="Support" value={rows.filter((a) => a.roles.includes('support_admin')).length} />
+        {!legacy && all.length > 0 && (
+          <CellGrid cols={3}>
             <Stat
-              label="Suspended"
-              value={rows.length - active}
-              delta={rows.length - active === 0 ? { value: 'Everyone can sign in', positive: true } : undefined}
+              label="People"
+              value={all.length}
+              detail={`${admins} run the console and ${all.length - admins} answer support.`}
+              parts={[
+                { key: 'seller_admin', label: 'Seller administrators', value: admins, tone: 'primary' },
+                { key: 'support_admin', label: 'Support', value: all.length - admins, tone: 'info' },
+              ]}
+              onPart={pick('role')}
+              activePart={on('role')}
+            />
+            <Stat
+              label="Signed in this week"
+              value={recent}
+              detail={never ? `${never} ${never === 1 ? 'person has' : 'people have'} never signed in: their one-time password may still be waiting to be handed over.` : 'Everyone has signed in at least once.'}
+              parts={[
+                { key: 'week', label: 'This week', value: recent, tone: 'success' },
+                { key: 'earlier', label: 'Earlier', value: all.length - recent - never, tone: 'neutral' },
+                { key: 'never', label: 'Never', value: never, tone: 'warning' },
+              ]}
+              onPart={pick('seen')}
+              activePart={on('seen')}
+            />
+            <Stat
+              label="Can sign in"
+              value={`${active} of ${all.length}`}
+              detail={all.length - active ? `${all.length - active} suspended. Suspended accounts keep their history and can be reactivated.` : 'Nobody is suspended.'}
+              parts={[
+                { key: 'active', label: 'Active', value: active, tone: 'success' },
+                { key: 'suspended', label: 'Suspended', value: all.length - active, tone: 'danger' },
+              ]}
+              onPart={pick('status')}
+              activePart={on('status')}
             />
           </CellGrid>
         )}
 
+        {focus && (
+          <p className="flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="text-muted-foreground">Showing</span>
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{rows.length} of {all.length}</span>
+            <Button variant="ghost" size="sm" onClick={() => setFocus(null)}>Clear</Button>
+          </p>
+        )}
+
         <Card>
-          <CardHeader title="People" description={`${active} of ${rows.length} can sign in.`} />
+          <CardHeader title="People" description={focus ? `${rows.length} matching. Press Clear above to see everyone.` : `${all.length} ${all.length === 1 ? 'account' : 'accounts'}.`} />
           {rows.length === 0 ? (
             <EmptyState title="Nobody yet" body="Add the first person to give them a login to this console." />
           ) : (

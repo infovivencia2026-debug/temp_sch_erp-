@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { Dialog } from '@/components/ui'
+import { StatParts } from '@/components/stat-extras'
 import StoryViewer, { initials, type StoryGroup, type StoryItem } from '@/components/StoryViewer'
 import type { StatusFeed, StatusItem, StatusRing } from '@shared/api/feature_class_status'
 import StatusComposer, { AddChooser } from './StatusComposer'
@@ -53,17 +54,56 @@ function Ring({ label, unseen, onClick, children, badge, compact }: { label: str
 
 function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClose: () => void; raised?: boolean }) {
   const q = useQuery({ queryKey: ['class-status-views', postId], queryFn: () => api.get<{ items: Viewed[]; views: number; audience: number }>(`/api/v1/status/posts/${postId}/views`) })
+  /* WHO HAS SEEN IT, SAID IN FULL. This was "3 of 20" and a list. The poster
+     wants to know how far it got, among whom, and who is left: the share, a
+     bar split into parents, students and staff that narrows the list when a
+     part is pressed, when it was first and last opened, and how many it has
+     not reached yet. */
+  const [kind, setKind] = useState<string | null>(null)
+  const d = q.data
+  const n = (k: Viewed['kind']) => d?.items.filter((v) => v.kind === k).length ?? 0
+  const share = d && d.audience > 0 ? Math.min(100, Math.round((100 * d.views) / d.audience)) : null
+  const times = d?.items.map((v) => new Date(v.viewed_at).getTime()).filter((t) => !Number.isNaN(t)) ?? []
+  const clock = (t: number) => new Date(t).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  const list = d?.items.filter((v) => !kind || v.kind === kind) ?? []
   return (
-    <Dialog raised={raised} onClose={onClose} title="Seen by" description={q.data ? `${q.data.views} of ${q.data.audience || '—'}` : undefined} size="sm">
-      {!q.data ? <p className="text-sm text-muted-foreground">Loading…</p> : q.data.items.length === 0 ? <p className="text-sm text-muted-foreground">Nobody yet.</p> : (
-        <ul className="grid gap-2 text-sm">
-          {q.data.items.map((v) => (
-            <li key={v.user_id} className="flex items-baseline justify-between gap-3">
-              <span>{v.full_name}{v.kind === 'parent' && v.student_name ? <span className="text-muted-foreground"> · parent of {v.student_name}</span> : null}</span>
-              <span className="shrink-0 text-[12px] text-muted-foreground">{new Date(v.viewed_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
-            </li>
-          ))}
-        </ul>
+    <Dialog raised={raised} onClose={onClose} title="Seen by" size="sm">
+      {!d ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+        <>
+          <div className="rounded-[var(--radius-card)] border bg-card px-4 py-3.5">
+            <p className="text-[13px] text-muted-foreground">Reached</p>
+            <p className="mt-0.5 text-[26px] font-bold leading-tight tracking-[-0.02em] tabular-nums">
+              {d.views}{d.audience > 0 && <span className="text-[15px] font-medium text-muted-foreground"> of {d.audience}</span>}
+              {share !== null && <span className="ml-2 text-[15px] font-semibold text-primary">{share}%</span>}
+            </p>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+              {d.views === 0
+                ? 'Nobody has opened it yet.'
+                : <>First opened {clock(Math.min(...times))}{times.length > 1 ? `, most recently ${clock(Math.max(...times))}` : ''}.{d.audience > d.views ? ` ${d.audience - d.views} still to see it.` : d.audience > 0 ? ' Everyone it was for has seen it.' : ''}</>}
+            </p>
+            <StatParts
+              parts={[
+                { key: 'parent', label: 'Parents', value: n('parent'), tone: 'primary' },
+                { key: 'student', label: 'Students', value: n('student'), tone: 'info' },
+                { key: 'staff', label: 'Staff', value: n('staff'), tone: 'success' },
+              ]}
+              onPart={setKind}
+              activePart={kind}
+            />
+          </div>
+          {list.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">{d.views === 0 ? 'It will show here as people open it.' : 'Nobody of that kind yet.'}</p>
+          ) : (
+            <ul className="mt-4 grid gap-2.5 text-sm">
+              {list.map((v) => (
+                <li key={v.user_id} className="flex items-baseline justify-between gap-3">
+                  <span>{v.full_name}{v.kind === 'parent' && v.student_name ? <span className="text-muted-foreground"> · parent of {v.student_name}</span> : null}</span>
+                  <span className="shrink-0 text-[12px] text-muted-foreground">{new Date(v.viewed_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </Dialog>
   )

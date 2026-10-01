@@ -105,4 +105,20 @@ describe('class status: what a look costs', () => {
     expect((await count('parent', bare)).status).toBe(200)
     expect((await count('otherParent', bare)).status).toBe(200)
   })
+  it("the poster's own list and the school's list hand out signed addresses that work for posts in any state", async () => {
+    const mine = await api('teacher', 'GET', '/status/mine')
+    const row = mine.body.items.find((x: any) => x.thumb)
+    expect(row.thumb).toMatch(/[?&]k=a&sig=/)
+    const cookie = await as('teacher')
+    log.length = 0
+    const res = await call(row.thumb, { cookie })
+    await res.arrayBuffer()
+    expect(res.status).toBe(200)
+    expect(log.length).toBe(SIGN_IN + 1)
+    const admin = await api('admin', 'GET', '/status/admin/posts')
+    const a = admin.body.items.find((x: any) => x.thumb)
+    expect((await call(a.thumb, { cookie: await as('admin') })).status).toBe(200)
+    // The same address is no use to somebody else.
+    expect((await call(a.thumb, { cookie: await as('finance') })).status).toBe(404)
+  })
 })

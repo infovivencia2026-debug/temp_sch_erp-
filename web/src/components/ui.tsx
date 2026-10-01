@@ -1,4 +1,5 @@
 import { LoaderBlock, TriLoader } from '@/components/Loader'
+import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
 import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
@@ -398,9 +399,25 @@ export function Stat({
   onClick,
   active,
   control,
+  detail,
+  parts,
+  onPart,
+  activePart,
+  trend,
+  trendUnit,
 }: {
   label: string
   value: ReactNode
+  /** One plain sentence under the figure saying what it means right now. */
+  detail?: ReactNode
+  /** What the figure is made of: a bar and a legend (stat-extras.tsx). */
+  parts?: StatPart[]
+  /** Pressing a part narrows the screen to it; null clears. */
+  onPart?: (key: string | null) => void
+  activePart?: string | null
+  /** The figure over time, oldest first: a line that can be read point by point. */
+  trend?: TrendPoint[]
+  trendUnit?: string
   delta?: { value: string; positive?: boolean }
   icon?: React.ComponentType<{ className?: string }>
   hint?: string
@@ -424,24 +441,34 @@ export function Stat({
   /** A small control beside the label (a picker that narrows the figure). */
   control?: ReactNode
 }) {
-  const Box = onClick ? 'button' : 'div'
+  /* A card with parts or a trend holds controls of its own, and a button
+     cannot hold buttons: there the card is a plain box and its heading and
+     figure are the button. */
+  const rich = !!onPart || !!trend
+  const Box = onClick && !rich ? 'button' : 'div'
+  const Head = onClick && rich ? 'button' : 'div'
   return (
     <Box
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      aria-pressed={onClick ? active : undefined}
+      type={onClick && !rich ? 'button' : undefined}
+      onClick={onClick && !rich ? onClick : undefined}
+      aria-pressed={onClick && !rich ? active : undefined}
       className={cn(
         'cell',
-        onClick && 'w-full cursor-pointer text-left transition-colors hover:bg-accent',
+        onClick && !rich && 'w-full cursor-pointer text-left transition-colors hover:bg-accent',
         onClick && active && 'bg-accent',
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[13px] text-muted-foreground">{label}</p>
-        {control}
-        {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
-      </div>
-      <p className="stat">{value}</p>
+      <Head
+        {...(onClick && rich ? { type: 'button' as const, onClick, 'aria-pressed': active } : {})}
+        className={cn('block w-full text-left', onClick && rich && 'tap-inline -m-1 cursor-pointer rounded-md p-1 hover:bg-accent')}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] text-muted-foreground">{label}</p>
+          {control}
+          {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        </div>
+        <p className="stat">{value}</p>
+      </Head>
       {delta && (
         <p
           className={cn(
@@ -453,6 +480,9 @@ export function Stat({
         </p>
       )}
       {hint && !delta && <p className="mt-1.5 text-[13px] text-muted-foreground">{hint}</p>}
+      {detail && <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground">{detail}</p>}
+      {parts && <StatParts parts={parts} onPart={onPart} activePart={activePart} />}
+      {trend && <StatTrend points={trend} unit={trendUnit} />}
       {period && (
         <p className="mt-1.5 text-[12px] text-muted-foreground/80">{period}</p>
       )}
