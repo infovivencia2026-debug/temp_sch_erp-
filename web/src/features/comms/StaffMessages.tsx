@@ -138,11 +138,12 @@ export default function StaffMessages() {
     queryFn: () => api.get<List<{ section_id: string; label: string; class_teacher: boolean }>>('/api/v1/teaching/progress/options'),
     enabled: starting,
   })
-  const startSection = startClass || (myClasses.data?.items.find((x) => x.class_teacher) ?? myClasses.data?.items[0])?.section_id || ''
+  /* Empty means every class I teach: one search across all my parents. */
+  const startSection = startClass
   const contacts = useQuery({
     queryKey: ['parent-contacts', startSection],
-    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string }>>(`/api/v1/teaching/parent-contacts?section_id=${startSection}`),
-    enabled: starting && !!startSection,
+    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string; class_label?: string }>>(`/api/v1/teaching/parent-contacts${startSection ? `?section_id=${startSection}` : ''}`),
+    enabled: starting,
   })
 
   const parentThreads = useQuery({
@@ -430,8 +431,8 @@ export default function StaffMessages() {
                 {starting && (
                   <div className="space-y-2 rounded-xl border bg-muted/30 p-3">
                     <Select value={startSection} onChange={(v) => setStartClass(v)}
-                      placeholder={myClasses.isLoading ? 'Loading…' : 'Pick a class'}
-                      options={(myClasses.data?.items ?? []).map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))} />
+                      placeholder={myClasses.isLoading ? 'Loading…' : 'All my classes'}
+                      options={[{ value: '', label: 'All my classes' }, ...(myClasses.data?.items ?? []).map((x) => ({ value: x.section_id, label: `${x.label}${x.class_teacher ? ' · my class' : ''}` }))]} />
                     <Input value={startFind} onChange={setStartFind} placeholder="Child or parent name" />
                     <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-card">
                       {(contacts.data?.items ?? [])
@@ -442,12 +443,12 @@ export default function StaffMessages() {
                               onClick={() => { setStarting(false); setOpenChild(x.student_id, x.parent_user_id) }}
                               className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted/60">
                               <span className="text-[14px] font-semibold">{x.parent_name}{x.relation ? ` (${x.relation})` : ''}</span>
-                              <span className="text-[12.5px] text-muted-foreground">{x.student_name}</span>
+                              <span className="text-[12.5px] text-muted-foreground">{x.student_name}{x.class_label ? ` · ${x.class_label}` : ''}</span>
                             </button>
                           </li>
                         ))}
                       {contacts.data && contacts.data.items.length === 0 && (
-                        <li className="px-3 py-3 text-[13px] text-muted-foreground">No parent in this class has a login yet.</li>
+                        <li className="px-3 py-3 text-[13px] text-muted-foreground">No parent found.</li>
                       )}
                     </ul>
                   </div>
