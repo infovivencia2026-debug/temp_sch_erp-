@@ -45,6 +45,8 @@ interface Absentee {
   mark?: string
   call_status: CallStatus
   parent_response?: string
+  /** "reason|status" when the parent applied for leave or reported the absence. */
+  informed?: string | null
 }
 
 /* "father" -> "Father". The relation is whatever the guardian was stored as,
@@ -395,6 +397,11 @@ function AbsenteeRow({
       <div className="min-w-0 space-y-2">
         <div>
           <span className="text-[14px] font-medium">{student.name}</span>
+          {student.informed && (
+            <span className="ml-2 rounded-md bg-[#dcfce7] px-2 py-0.5 text-[12px] font-semibold text-[#15803d]">
+              Informed by parent: {student.informed.split('|')[0]}
+            </span>
+          )}
           <span className="ml-2 font-mono text-[12px] text-muted-foreground">
             {student.admission_no}
           </span>

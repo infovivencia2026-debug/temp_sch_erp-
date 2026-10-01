@@ -441,6 +441,26 @@ function registerAttendance(r: Router) {
     })) }
   })
 
+  /* WHO HAS ALREADY TOLD THE SCHOOL, for one day (and one section): the
+     register shows it beside the child so they can be marked On leave rather
+     than absent-and-chased. Pending and approved requests both count: the
+     family has written in either way. */
+  r.get('/attendance/informed', 'academics.attendance.read', async (c) => {
+    const q = c.url.searchParams
+    const on = q.get('on_date') || today()
+    if (!isDate(on)) throw badRequest('on_date must be YYYY-MM-DD')
+    const section = nul(q.get('section_id') ?? '')
+    const rows = await c.db.prepare(`
+      SELECT lr.student_id, lr.reason, lr.status, lr.from_date, lr.to_date
+        FROM leave_requests lr
+        JOIN enrollments e ON e.student_id = lr.student_id AND e.status = 'active'
+       WHERE lr.subject_kind = 'student' AND lr.status IN ('pending','approved')
+         AND ? BETWEEN lr.from_date AND lr.to_date
+         AND (? IS NULL OR e.section_id = ?)
+       ORDER BY lr.created_at DESC`).bind(on, section, section).all<Record<string, unknown>>()
+    return ok({ items: rows.results })
+  })
+
   r.get('/attendance/day.csv', 'academics.attendance.read', async (c) => {
     const on = trim(c.url.searchParams.get('on_date')) || today()
     if (!isDate(on)) throw badRequest('on_date must be YYYY-MM-DD')
@@ -603,7 +623,13 @@ async function listAbsentees(c: Ctx): Promise<Response> {
              sa.student_id, ${fullName3('st')} AS name, st.admission_no, sa.status AS mark,
              ${contactsAgg} AS contacts,
              COALESCE(f.call_status, 'not_called') AS call_status, COALESCE(f.parent_response, '') AS parent_response,
-             COALESCE(fu.full_name, '') AS called_by, f.updated_at AS called_at
+             COALESCE(fu.full_name, '') AS called_by, f.updated_at AS called_at,
+             /* The parent already told the school (leave or an absence report):
+                said on the row, so nobody rings a family that has written in. */
+             (SELECT lr.reason || '|' || lr.status FROM leave_requests lr
+                 WHERE lr.student_id = sa.student_id AND lr.subject_kind = 'student'
+                   AND lr.status IN ('pending','approved') AND sa.on_date BETWEEN lr.from_date AND lr.to_date
+                 ORDER BY lr.created_at DESC LIMIT 1) AS informed
         FROM student_attendance sa
         JOIN students st ON st.id = sa.student_id
         JOIN sections sec ON sec.id = sa.section_id
@@ -640,7 +666,8 @@ async function listAbsentees(c: Ctx): Promise<Response> {
     let contacts: unknown[] = []
     try { contacts = JSON.parse(it.contacts as string) } catch { /* a bad aggregate leaves no numbers rather than no row */ }
     sections[i].students.push({ student_id: it.student_id, name: it.name, admission_no: it.admission_no, mark: it.mark,
-      contacts, call_status: it.call_status, parent_response: it.parent_response, called_by: it.called_by, called_at: it.called_at ?? null })
+      contacts, call_status: it.call_status, parent_response: it.parent_response, called_by: it.called_by, called_at: it.called_at ?? null,
+      informed: it.informed ?? null })
   }
   return ok({ date: on, sections, present: present.results })
 }

@@ -75,6 +75,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     enabled: !!sectionId,
   })
 
+  const informedQ = useQuery({
+    queryKey: ['attendance-informed', sectionId, onDate],
+    queryFn: () => api.get<{ items: { student_id: string; reason: string; status: string }[] }>(`/api/v1/attendance/informed?section_id=${sectionId}&on_date=${onDate}`),
+    enabled: !!sectionId,
+  })
+  const informed = new Map((informedQ.data?.items ?? []).map((x) => [x.student_id, x]))
   const marks = useQuery({
     queryKey: ['attendance', sectionId, onDate],
     queryFn: () =>
@@ -321,7 +327,25 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               return (
                 <tr key={s.id}>
                   <Td className="font-mono text-xs">{s.admission_no}</Td>
-                  <Td className="font-medium">{s.full_name}</Td>
+                  <Td className="font-medium">
+                    {s.full_name}
+                    {/* The parent already told the school: say so here, so the
+                        child is marked On leave instead of absent and chased. */}
+                    {informed.get(s.id) && (
+                      <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] font-normal">
+                        <span className="rounded-md bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#b45309]">
+                          Leave from parent{informed.get(s.id)!.status === 'approved' ? ' (approved)' : ''}
+                        </span>
+                        <span className="text-muted-foreground">{informed.get(s.id)!.reason}</span>
+                        {value !== 'leave' && (
+                          <button type="button" onClick={() => setDraft((d) => ({ ...d, [s.id]: 'leave' }))}
+                            className="tap-inline rounded-md border px-2 py-0.5 font-semibold text-primary hover:bg-primary/10">
+                            Mark On leave
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </Td>
                   <Td>{saved ? <Badge tone={TONE[saved]}>{saved}</Badge> : <span className="text-xs text-muted-foreground">Not marked</span>}</Td>
                   <Td>
                     {/* Six 44px touch targets can't sit in one row on a phone;
