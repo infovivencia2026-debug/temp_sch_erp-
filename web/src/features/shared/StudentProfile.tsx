@@ -607,7 +607,7 @@ export default function StudentProfile() {
               <div className="w-40">
                 <Select
                   value={classID}
-                  onChange={(v) => { setClassID(v); setSectionID('') }}
+                  onChange={(v) => setClassID(v)} /* setClassID clears the section in the same patch; a second patch here undid the first */
                   options={[
                     { value: '', label: 'All classes' },
                     ...(classes.data?.items ?? []).map((c) => ({ value: c.id, label: c.name })),
