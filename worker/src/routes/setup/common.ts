@@ -302,7 +302,7 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
   admissions: { name: 'Admissions & Front Office', permissions: ['office.front_desk.read', 'office.front_desk.write',
     'academics.read', 'admissions.read', 'admissions.write', 'students.read', 'students.write', 'students.read.all',
     'operations.transport.read', ...SELF] },
-  front_office: { name: 'Receptionist / Front Office', permissions: ['academics.read', 'admissions.read', 'students.read',
+  front_office: { name: 'Receptionist / Front Office', permissions: ['status.post', 'status.post_school', 'academics.read', 'admissions.read', 'students.read',
     'office.front_desk.read', 'office.front_desk.write', ...SELF] },
   board_member: { name: 'Board / Trustee', permissions: ['institution.read', 'academics.read', 'finance.fees.read',
     'finance.invoices.read', 'finance.payments.read', 'finance.wallet.read', 'hr.payroll.read', 'operations.inventory.read',

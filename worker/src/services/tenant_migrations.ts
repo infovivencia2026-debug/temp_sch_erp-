@@ -19,4 +19,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 19, name: 'school_code_and_login_code', checksum: 'b23952cfcde4fdbc3296cc5544a90550ca5a996e56181da52cc576d30b0166b7' },
   { version: 20, name: 'feature_class_status', checksum: 'f7b4acb1ea43ba9fb65ff64522eb9472932bef33e35cdb70b4f8c60e27eec59f' },
   { version: 21, name: 'status_thumbs_and_text', checksum: '35c71bb45df1c2ffb51a5150e0b1ac79ce7171934d165c89d6e3a582ae252116' },
+  { version: 22, name: 'front_office_status', checksum: 'fb3e0d49c70b0f82b910b9b9a726b18100cb6277c6a51e42a66e5347458dcc3f' },
 ]

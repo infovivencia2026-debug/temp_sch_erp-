@@ -476,6 +476,10 @@ var SystemRoles = []Role{
 	// role unable to do the one job it has: sign a visitor in.
 	{"front_office", "Receptionist / Front Office", []string{
 		AcademicsRead, AdmissionsRead, StudentsRead, FrontDeskRead, FrontDeskWrite,
+		/* The receptionist is who puts the school's own notices up, so the
+		   front office posts as the school in Class Status. StatusPost is the
+		   group's view rung (model.go): the manage rung implies it. */
+		StatusPost, StatusPostSchool, // feature:communication.class_status
 		SelfProfileRead, SelfProfileWrite}},
 	/* HR keeps the record; the school decides the leave.
 

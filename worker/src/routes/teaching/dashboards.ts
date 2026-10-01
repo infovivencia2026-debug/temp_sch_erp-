@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import type { ClassRollGroup, PendingLeaveGroup, PrincipalDashboard } from '@shared/api'
 import { ok, badRequest, notFound, clampInt, isUUID } from '../../http'
 import { can } from '../../identity'
+import { statusSummary } from '../../services/class_status'
 import {
   resolveScope, marks, js, inList, studentPredicate, resolveRange, rangeJSON,
   todayIST, nowInIndia, weekdayIST, ymd, addDays,
@@ -188,6 +189,13 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
   const secs = (bySection.results as Record<string, unknown>[]).map((r) => ({ section_id: String(r.section_id), label: String(r.label), students: n(r.students) }))
   if (secs.length) k.students_by_section = secs
 
+  /* Class Status on the board: live posts now and posts waiting for the
+     principal, for whoever may act on them. */
+  if (can(c.id, 'status.manage')) {
+    const st = await statusSummary(c.db)
+    if (st.enabled) k.status = { live: st.live, pending: st.pending }
+  }
+
   const ag = ageing.results[0] as Record<string, unknown> | undefined
   if (ag && n(ag.cnt) > 0) {
     k.outstanding_ageing = {
@@ -200,7 +208,7 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
     'outstanding_paise', 'defaulters', 'pending_leave',
     'open_applications', 'unassigned_subjects', 'students', 'staff', 'sections',
     'class_subjects_total', 'open_applications_by_status',
-    'pending_leave_by_type', 'students_by_class', 'students_by_section', 'outstanding_ageing']
+    'pending_leave_by_type', 'students_by_class', 'students_by_section', 'outstanding_ageing', 'status']
   return k
 }
 

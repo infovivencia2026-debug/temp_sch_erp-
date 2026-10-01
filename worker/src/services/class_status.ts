@@ -56,6 +56,19 @@ export async function statusPolicy(db: D1Database): Promise<StatusPolicy> {
   return { ...cleanPolicy({ ...cfg, enabled: !!row.enabled }), chosen: true }
 }
 
+export interface StatusSummary { enabled: boolean; live: number; pending: number }
+
+/** A small figure for the principal's board (GET /status/summary, and the dashboard payload): live now, waiting for approval. */
+export async function statusSummary(db: D1Database): Promise<StatusSummary> {
+  const pol = await statusPolicy(db)
+  if (!pol.enabled) return { enabled: false, live: 0, pending: 0 }
+  const r = await db.prepare(`SELECT
+      (SELECT count(*) FROM status_posts WHERE status = 'live' AND expires_at > ?) AS live,
+      (SELECT count(*) FROM status_posts WHERE status = 'pending') AS pending`).bind(new Date().toISOString())
+    .first<{ live: number; pending: number }>().catch(() => null)
+  return { enabled: true, live: r?.live ?? 0, pending: r?.pending ?? 0 }
+}
+
 /** Deletes expired, unpinned posts and their R2 objects. Returns how many went. */
 export async function expireStatuses(env: Pick<Env, 'FILES_WRITE'>, db: D1Database, at = new Date()): Promise<number> {
   const nowIso = at.toISOString()

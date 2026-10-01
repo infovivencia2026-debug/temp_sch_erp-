@@ -9,8 +9,12 @@
      school   every family, child and member of staff
      staff    staff only (posts as the school)
      class    families and children enrolled in the class; staff who teach
-              one of its sections
+              one of its sections (class teacher, subject teacher, on the
+              timetable) -- they are told, too (AUDIENCE_SQL)
      section  the same, for one section
+   A video's length is read from the file's own movie header (services/
+   video_meta.ts) and held to the school's maximum; the browser's figure
+   counts only for a file that cannot be read that way.
    The bytes are in FILES_WRITE under class-status/<institution>/ and never
    public: GET /status/posts/{id}/media streams them (with Range, for video)
    only after that same check. A school with the switch off sees nothing.
@@ -28,7 +32,8 @@ import { institutionId, js, marks, resolveScope } from '../teaching/common'
 import { serveRange } from '../teaching/videos'
 import { publish } from '../../services/live'
 import { afterQuietHours, loadSettings } from '../../services/delivery'
-import { LIFETIME_MS, MAX_BYTES, MODULE, cleanPolicy, statusPolicy, type StatusPolicy } from '../../services/class_status'
+import { LIFETIME_MS, MAX_BYTES, MODULE, cleanPolicy, statusPolicy, statusSummary, type StatusPolicy } from '../../services/class_status'
+import { videoDurationSeconds } from '../../services/video_meta'
 import type { StatusFeed } from '@shared/api/feature_class_status'
 
 const POST = 'status.post'
@@ -154,27 +159,57 @@ async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string
   return out
 }
 
-/** Everyone the post is for (not the poster): [user, child through whom] pairs. */
-async function audience(c: Ctx, postId: string, posterId: string): Promise<[string, string | null][]> {
-  const pred = `EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ? AND (t.kind = 'school'
-      OR (t.kind = 'class' AND t.target_id = e.class_id) OR (t.kind = 'section' AND t.target_id = e.section_id)))`
-  const rows = (await c.db.prepare(`
-      SELECT g.user_id AS user_id, MIN(e.student_id) AS student_id FROM enrollments e
+/** One row per [post, user] in the audience of any of these posts (the poster included; callers drop them). */
+const AUDIENCE_SQL = `
+      WITH tg AS (SELECT t.post_id, t.kind, t.target_id FROM status_post_targets t WHERE t.post_id IN (SELECT value FROM json_each(?1))),
+      /* The sections a target reaches: the section itself, or every section of the class. */
+      ts AS (SELECT tg.post_id, sec.id AS section_id FROM tg JOIN sections sec ON (tg.kind = 'section' AND sec.id = tg.target_id) OR (tg.kind = 'class' AND sec.class_id = tg.target_id))
+      SELECT tg.post_id, g.user_id AS user_id, MIN(e.student_id) AS student_id FROM tg
+        JOIN enrollments e ON e.status = 'active' AND (tg.kind = 'school' OR (tg.kind = 'class' AND tg.target_id = e.class_id) OR (tg.kind = 'section' AND tg.target_id = e.section_id))
         JOIN student_guardians sg ON sg.student_id = e.student_id AND sg.portal_blocked = 0
         JOIN guardians g ON g.id = sg.guardian_id
-       WHERE e.status = 'active' AND g.user_id IS NOT NULL AND ${pred} GROUP BY g.user_id
+       WHERE g.user_id IS NOT NULL GROUP BY tg.post_id, g.user_id
       UNION ALL
-      SELECT st.user_id, st.id FROM enrollments e JOIN students st ON st.id = e.student_id
-       WHERE e.status = 'active' AND st.user_id IS NOT NULL AND ${pred}
+      SELECT DISTINCT tg.post_id, st.user_id, st.id FROM tg
+        JOIN enrollments e ON e.status = 'active' AND (tg.kind = 'school' OR (tg.kind = 'class' AND tg.target_id = e.class_id) OR (tg.kind = 'section' AND tg.target_id = e.section_id))
+        JOIN students st ON st.id = e.student_id
+       WHERE st.user_id IS NOT NULL
       UNION ALL
-      SELECT u.id, NULL FROM users u
-       WHERE u.status = 'active'
-         AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ? AND t.kind IN ('school', 'staff'))
-         AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key NOT IN ('parent', 'student'))`)
-    .bind(postId, postId, postId).all<{ user_id: string; student_id: string | null }>()).results ?? []
-  const seen = new Map<string, string | null>()
-  for (const r of rows) if (r.user_id !== posterId && !seen.has(r.user_id)) seen.set(r.user_id, r.student_id)
-  return [...seen]
+      SELECT DISTINCT tg.post_id, u.id, NULL FROM tg JOIN users u ON u.status = 'active'
+       WHERE tg.kind IN ('school', 'staff')
+         AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key NOT IN ('parent', 'student'))
+      UNION ALL
+      /* A class or section post reaches its teachers too: the class teacher,
+         whoever is assigned a subject in it, and whoever is on its timetable. */
+      SELECT DISTINCT ts.post_id, u.id, NULL FROM ts JOIN users u ON u.status = 'active'
+       WHERE EXISTS (SELECT 1 FROM sections s WHERE s.id = ts.section_id AND s.class_teacher_id = u.id)
+          OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.section_id = ts.section_id AND sst.teacher_user_id = u.id)
+          OR EXISTS (SELECT 1 FROM timetable_entries te WHERE te.section_id = ts.section_id AND te.teacher_user_id = u.id)`
+
+/** Everyone the post is for (not the poster): [user, child through whom] pairs. */
+async function audience(c: Ctx, postId: string, posterId: string): Promise<[string, string | null][]> {
+  return (await audiences(c, [{ id: postId, posted_by: posterId }])).get(postId) ?? []
+}
+
+/** The same for many posts in one read: post id -> [user, child] pairs. */
+async function audiences(c: Ctx, posts: { id: string; posted_by: string }[]): Promise<Map<string, [string, string | null][]>> {
+  const out = new Map<string, [string, string | null][]>()
+  if (!posts.length) return out
+  const poster = new Map(posts.map((p) => [p.id, p.posted_by]))
+  const seen = new Map<string, Set<string>>()
+  for (let i = 0; i < posts.length; i += 200) {
+    const rows = (await c.db.prepare(AUDIENCE_SQL).bind(js(posts.slice(i, i + 200).map((p) => p.id)))
+      .all<{ post_id: string; user_id: string; student_id: string | null }>()).results ?? []
+    for (const r of rows) {
+      if (r.user_id === poster.get(r.post_id)) continue
+      let s = seen.get(r.post_id)
+      if (!s) { s = new Set(); seen.set(r.post_id, s); out.set(r.post_id, []) }
+      if (s.has(r.user_id)) continue
+      s.add(r.user_id)
+      out.get(r.post_id)!.push([r.user_id, r.student_id])
+    }
+  }
+  return out
 }
 
 // ---------------------------------------------------------------------------
@@ -399,19 +434,27 @@ export function registerClassStatus(r: Router): void {
       if (rawThumb.size > THUMB_MAX) throw badRequest('the thumbnail must be under 256 KB')
       thumb = rawThumb
     }
+    const bytes = file && typeof file !== 'string' ? await file.arrayBuffer() : null
     let duration: number | null = null
     if (type.kind === 'video') {
       if (!pol.allow_video) throw badRequest('this school takes photos only in Class Status', { code: 'no_video' })
-      duration = Number(form.get('duration_seconds'))
+      /* The length the file itself declares (MP4/MOV movie header) is what
+         counts; the browser's figure is used only for a file that cannot be
+         read that way (WebM, a damaged header). */
+      const read = bytes ? videoDurationSeconds(ct, bytes) : null
+      const claimed = Number(form.get('duration_seconds'))
+      duration = read !== null && read > 0 ? read : claimed
       if (!(duration > 0)) throw badRequest('duration_seconds is required for a video')
-      if (duration > pol.max_video_seconds + 0.5) throw badRequest(`a video status can be at most ${pol.max_video_seconds} seconds`, { code: 'too_long' })
+      if (duration > pol.max_video_seconds + 0.5) {
+        throw badRequest(`a video status can be at most ${pol.max_video_seconds} seconds; this one is ${Math.round(duration)}`, { code: 'too_long', duration_seconds: Math.round(duration * 10) / 10, max_video_seconds: pol.max_video_seconds })
+      }
     }
     const caption = String(form.get('caption') ?? '').trim().slice(0, isText ? TEXT_MAX : 500) || null
     if (isText && !caption) throw badRequest('write something for a text status')
     const id = uuid(), inst = institutionId(c), t = now()
     const key = isText ? '' : `class-status/${inst}/${id}${type.ext}`
     const thumbKey = thumb ? `class-status/${inst}/${id}-thumb${THUMB_TYPES[thumb.type.split(';')[0].trim().toLowerCase()]}` : null
-    if (file && typeof file !== 'string') await c.env.FILES_WRITE.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: ct } })
+    if (bytes) await c.env.FILES_WRITE.put(key, bytes, { httpMetadata: { contentType: ct } })
     if (thumb && thumbKey) await c.env.FILES_WRITE.put(thumbKey, await thumb.arrayBuffer(), { httpMetadata: { contentType: thumb.type.split(';')[0].trim().toLowerCase() } })
     const pending = pol.needs_approval && !v.admin
     try {
@@ -550,14 +593,14 @@ export function registerClassStatus(r: Router): void {
         FROM status_posts p JOIN users u ON u.id = p.posted_by WHERE ${where.join(' AND ')}
         ORDER BY (p.status = 'pending') DESC, p.created_at DESC LIMIT 200`).bind(...args)
       .all<Record<string, unknown> & { id: string; posted_by: string; status: string; views: number }>()).results ?? []
-    const labels = await audienceLabels(c, rows.map((x) => x.id))
-    const items = []
-    for (const x of rows) {
-      const size = x.status === 'live' ? (await audience(c, x.id, x.posted_by)).length : 0
-      items.push({ ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '', audience_size: size,
+    // One read for the labels and one for every live post's audience, not one per row.
+    const [labels, sizes] = await Promise.all([audienceLabels(c, rows.map((x) => x.id)), audiences(c, rows.filter((x) => x.status === 'live'))])
+    const items = rows.map((x) => {
+      const size = sizes.get(x.id)?.length ?? 0
+      return { ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '', audience_size: size,
         seen_pct: size ? Math.round((100 * x.views) / size) : 0, thumb_key: undefined,
-        url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined })
-    }
+        url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined }
+    })
     const [posters, classes] = await c.db.batch([
       c.db.prepare(`SELECT DISTINCT u.id, u.full_name AS name FROM status_posts p JOIN users u ON u.id = p.posted_by ORDER BY u.full_name`),
       c.db.prepare(`SELECT id, name FROM classes ORDER BY level, name`),
@@ -585,13 +628,7 @@ export function registerClassStatus(r: Router): void {
   })
 
   /* A small figure for the principal's board: live today, waiting. */
-  r.get('/status/summary', MANAGE, async (c) => {
-    const pol = await statusPolicy(c.db)
-    const r0 = await c.db.prepare(`SELECT
-        (SELECT count(*) FROM status_posts WHERE status = 'live' AND expires_at > ?) AS live,
-        (SELECT count(*) FROM status_posts WHERE status = 'pending') AS pending`).bind(now()).first<{ live: number; pending: number }>()
-    return ok({ enabled: pol.enabled, live: r0?.live ?? 0, pending: r0?.pending ?? 0 })
-  })
+  r.get('/status/summary', MANAGE, async (c) => ok(await statusSummary(c.db)))
 
   r.get('/status/settings', MANAGE, async (c) => ok(await statusPolicy(c.db)))
 
