@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Input, Field, FormGrid, Button, ErrorState } from '@/components/ui'
@@ -76,10 +77,8 @@ export function SellerAuditLog({ base, showSchool, title, schools }: {
           <Field label="Action starts with"><Input value={action} onChange={reset(setAction)} placeholder="e.g. lifecycle, restore, seller.tenants" /></Field>
           {showSchool && schools && (
             <Field label="School">
-              <select className="field" value={school} onChange={(e) => reset(setSchool)(e.target.value)}>
-                <option value="">Every school</option>
-                {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <PickerMenu ariaLabel="School" align="start" className="w-full" value={school} onChange={(v) => reset(setSchool)(v)}
+                options={[{ value: '', label: 'Every school' }, ...schools.map((s) => ({ value: s.id, label: s.name }))]} />
             </Field>
           )}
           <Field label="From"><Input type="date" value={from} onChange={reset(setFrom)} /></Field>

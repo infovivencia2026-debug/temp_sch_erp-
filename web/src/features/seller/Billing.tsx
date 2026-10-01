@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { rupeesToPaise, isBadAmount } from '@/lib/money'
@@ -218,12 +219,8 @@ function InvoiceRow({ i, onChange }: { i: BillingInvoice; onChange: () => void }
           <Td colSpan={8}>
             <div className="flex flex-wrap items-center gap-2">
               <Input value={amount} onChange={setAmount} placeholder={`Rs ${(i.balance_paise / 100).toFixed(2)}`} className="w-[130px]" srLabel="Amount in rupees" />
-              <select className="field w-auto" value={method} onChange={(e) => setMethod(e.target.value)} aria-label="Method">
-                <option value="neft">NEFT / RTGS / IMPS</option>
-                <option value="upi">UPI</option>
-                <option value="cheque">Cheque</option>
-                <option value="cash">Cash</option>
-              </select>
+              <PickerMenu ariaLabel="Method" align="start" value={method} onChange={setMethod}
+                options={[{ value: 'neft', label: 'NEFT / RTGS / IMPS' }, { value: 'upi', label: 'UPI' }, { value: 'cheque', label: 'Cheque' }, { value: 'cash', label: 'Cash' }]} />
               <Input value={reference} onChange={setReference} placeholder="UTR / transaction / cheque no." className="w-[220px]" srLabel="Reference" />
               <Input type="date" value={paidOn} onChange={setPaidOn} className="w-[160px]" srLabel="Paid on" />
               <Button size="sm" pending={pay.isPending} disabled={!!amount.trim() && isBadAmount(amount)} onClick={() => pay.mutate()}>Record</Button>

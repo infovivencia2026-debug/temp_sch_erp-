@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Select,
-  SkeletonTiles, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState, Input, Textarea
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -228,24 +228,23 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
             </Field>
           )}
           <Field label="Observed on">
-            <input
+            <Input
               type="date"
               value={f.observed_on}
-              onChange={(e) => setF({ ...f, observed_on: e.target.value })}
-              className="field"
+              onChange={(v) => setF({ ...f, observed_on: v })}
             />
           </Field>
           <Field label="What you saw" required wide>
-            <textarea
+            <Textarea
               value={f.body}
-              onChange={(e) => setF({ ...f, body: e.target.value })}
+              onChange={(v) => setF({ ...f, body: v })}
               rows={4}
               placeholder={
                 anecdotal
                   ? 'Quieter than usual since half term. Sat alone at lunch on Tuesday and Thursday.'
                   : 'Explained her method to the class without being asked. Third time this month.'
               }
-              className="field h-auto w-full py-2"
+              className="w-full"
             />
             {!anecdotal && f.student_id && (
               <div className="mt-1">

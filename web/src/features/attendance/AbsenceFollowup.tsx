@@ -316,10 +316,10 @@ function SectionCard({
         description={`${section.students.length} absent · ${called} called`}
         action={
           section.done && section.done_at ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <Badge tone="success">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Done{section.done_by ? ` by ${section.done_by}` : ''} · {fmtStamp(section.done_at)}
-            </span>
+            </Badge>
           ) : undefined
         }
       />

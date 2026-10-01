@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Select, Loading, SkeletonTiles, ErrorState, EmptyState, FormNotice, PrintButton,
+  Badge, Button, Select, Loading, SkeletonTiles, ErrorState, EmptyState, FormNotice, PrintButton, Input
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
@@ -385,15 +385,15 @@ function CompetencyRow({
 
       {open && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input
+          <Input
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(v) => setNote(v)}
             placeholder={
               isStaff
                 ? 'An example from this term, a rating with no example is a number pretending to be feedback'
                 : 'What you have noticed at home'
             }
-            className="field flex-1"
+            className="flex-1"
           />
           <Button
             size="sm"

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Checkbox, Field, FormNotice, Input, Select,
-  SkeletonTiles, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState, Textarea
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -245,12 +245,12 @@ function Compose({ onClose }: { onClose: () => void }) {
         </div>
 
         <Input value={f.title} onChange={(v) => setF({ ...f, title: v })} placeholder="Subject" className="w-full" />
-        <textarea
+        <Textarea
           value={f.body}
-          onChange={(e) => setF({ ...f, body: e.target.value })}
+          onChange={(v) => setF({ ...f, body: v })}
           rows={4}
           placeholder="Please send the signed consent slip for Friday's field trip by Wednesday."
-          className="field h-auto w-full py-2"
+          className="w-full"
         />
         <Checkbox
           checked={f.requires_ack}

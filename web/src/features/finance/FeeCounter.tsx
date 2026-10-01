@@ -468,11 +468,11 @@ export default function FeeCounter() {
                       </label>
                       <label className="block">
                         <span className="text-[13px] text-muted-foreground">Instrument date</span>
-                        <input
+                        <Input
                           type="date"
                           value={chequeDate}
-                          onChange={(e) => setChequeDate(e.target.value)}
-                          className="field mt-1 w-full"
+                          onChange={(v) => setChequeDate(v)}
+                          className="mt-1 w-full"
                         />
                         <span className="mt-1 block text-[12px] text-muted-foreground">
                           A future date is held as a post-dated cheque and is not counted as collected.

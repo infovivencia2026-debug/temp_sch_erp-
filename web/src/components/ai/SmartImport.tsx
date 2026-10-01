@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useQueryClient } from '@tanstack/react-query'
 import { Camera, FileSpreadsheet, Sparkles } from 'lucide-react'
 import { Badge, Button, Checkbox, Dialog, FormNotice } from '@/components/ui'
@@ -174,9 +175,8 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
             <>
               <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
                 <span>This looks like</span>
-                <select className="field h-8 w-auto" value={kind} disabled={busy} onChange={(e) => reKind(e.target.value)}>
-                  {kinds.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-                </select>
+                <PickerMenu ariaLabel="Kind of data" align="start" className={busy ? 'pointer-events-none opacity-60' : undefined} value={kind} onChange={reKind}
+                  options={kinds.map((k) => ({ value: k.key, label: k.label }))} />
                 {a?.ai ? <Badge tone="primary">matched by AI</Badge> : <Badge>matched by column names</Badge>}
                 <span className="text-muted-foreground">{table.rows.length} rows</span>
               </div>
@@ -190,10 +190,8 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                         <td className="px-3 py-2 font-medium">{m.header}</td>
                         <td className="max-w-[16rem] truncate px-3 py-2 text-muted-foreground">{table.rows.find((r) => r[m.index])?.[m.index] ?? ''}</td>
                         <td className="px-3 py-2">
-                          <select className="field h-8" value={m.field ?? ''} onChange={(e) => setField(m.index, e.target.value)}>
-                            <option value="">Skip this column</option>
-                            {kindDef.columns.map((c) => <option key={c} value={c}>{c.replace(/_/g, ' ')}{kindDef.required.includes(c) ? ' *' : ''}</option>)}
-                          </select>
+                          <PickerMenu ariaLabel={`Where ${m.header} goes`} align="start" value={m.field ?? ''} onChange={(v) => setField(m.index, v)}
+                            options={[{ value: '', label: 'Skip this column' }, ...kindDef.columns.map((c) => ({ value: c, label: `${c.replace(/_/g, ' ')}${kindDef.required.includes(c) ? ' *' : ''}` }))]} />
                         </td>
                         <td className="px-3 py-2">{m.field ? (m.source === 'user' ? <Badge>you chose</Badge> : <Badge tone={confTone(m.confidence)}>{pct(m.confidence)}</Badge>) : null}</td>
                       </tr>

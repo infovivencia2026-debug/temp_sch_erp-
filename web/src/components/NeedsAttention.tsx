@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { EmbeddedPage, Loading } from '@/components/ui'
+import { EmbeddedPage, Loading, Badge } from '@/components/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -290,7 +290,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
             <h2 className="flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fef3c7] text-[13px] text-[#b45309]">!</span>
               Needs your attention
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[12px] font-semibold text-destructive">{items.length}</span>
+              <Badge tone="danger">{items.length}</Badge>
             </h2>
           </div>
           {nudged && <p className="mb-2.5 text-[13px] text-success">{nudged}</p>}

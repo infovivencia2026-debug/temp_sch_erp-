@@ -1305,7 +1305,7 @@ export function Badge({
         className,
       )}
     >
-      <span className="min-w-0 truncate">{children}</span>
+      <span className="min-w-0 truncate [&>svg]:me-1 [&>svg]:inline [&>svg]:align-[-0.15em]">{children}</span>
     </span>
   )
 }
@@ -1999,6 +1999,11 @@ export function Input({
   onFocus,
   onBlur,
   autoComplete,
+  min,
+  max,
+  disabled,
+  autoFocus,
+  ariaInvalid,
 }: {
   value: string
   onChange: (v: string) => void
@@ -2027,6 +2032,11 @@ export function Input({
      to that person. Pass "new-password" on any box that sets somebody else's
      password, and "off" where a suggestion is merely noise. */
   autoComplete?: string
+  min?: number | string
+  max?: number | string
+  disabled?: boolean
+  autoFocus?: boolean
+  ariaInvalid?: boolean
 }) {
   /* A password can be looked at.
    *
@@ -2051,6 +2061,11 @@ export function Input({
          password is the one autofill nobody wants. */
       autoComplete={autoComplete ?? (isPassword ? 'new-password' : undefined)}
       aria-label={srLabel || undefined}
+      min={min}
+      max={max}
+      disabled={disabled}
+      autoFocus={autoFocus}
+      aria-invalid={ariaInvalid || undefined}
       /* 16px on a touch device, not the 14px the design calls for.
          Safari on iOS zooms the whole page in when a focused box has text
          under 16px, and it never zooms back out, so admitting a student left
@@ -2091,6 +2106,7 @@ export function Textarea({
   rows = 3,
   className,
   onSubmit,
+  autoFocus,
 }: {
   value: string
   onChange: (v: string) => void
@@ -2104,6 +2120,7 @@ export function Textarea({
      on Enter. Opt-in per box, because a box for an address or a set of
      instructions wants Enter to mean a new line and nothing else. */
   onSubmit?: () => void
+  autoFocus?: boolean
 }) {
   return (
     <textarea
@@ -2124,6 +2141,7 @@ export function Textarea({
       }
       placeholder={placeholder}
       rows={rows}
+      autoFocus={autoFocus}
       // 16px on touch for the same reason as Input: below that iOS zooms in
       // on focus and stays zoomed.
       className={cn('field h-auto resize-y py-2 leading-relaxed [@media(pointer:coarse)]:text-[16px]', className)}

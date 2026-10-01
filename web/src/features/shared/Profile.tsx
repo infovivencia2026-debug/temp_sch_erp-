@@ -204,10 +204,10 @@ export default function ProfileView() {
     <PageBody top width="form">
       <div className="flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-semibold text-primary">
+          <Badge tone="primary" className="self-start">
             <Lock className="h-3 w-3" />
             Security centre
-          </span>
+          </Badge>
           <h1 className="text-[26px] font-extrabold tracking-[-0.02em] sm:text-[30px]">
             Account &amp; security
           </h1>

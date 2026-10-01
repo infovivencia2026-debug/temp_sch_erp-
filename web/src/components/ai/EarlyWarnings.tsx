@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check, Eye, RotateCcw, Sparkles, X } from 'lucide-react'
 import { useToast } from '@/components/Toast'
-import { Badge, Button, ErrorState, FormNotice, Loading, PageBody, PageHead, Panel } from '@/components/ui'
+import { Badge, Button, ErrorState, FormNotice, Loading, PageBody, PageHead, Panel, Input } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { warningsApi, type Warning, type WarningStatus } from './smartApi'
@@ -71,7 +71,7 @@ function WarningRow({ w }: { w: Warning }) {
           {w.status_note && <p className="mt-1 text-[12.5px]">Note{w.status_by_name ? ` from ${w.status_by_name}` : ''}: {w.status_note}</p>}
           {noting && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <input autoFocus className="field h-8 min-w-[16rem] flex-1" value={note} onChange={(e) => setNote(e.target.value)}
+              <Input autoFocus className="h-8 min-w-[16rem] flex-1" value={note} onChange={(v) => setNote(v)}
                 placeholder={noting === 'resolved' ? 'What was done? (required)' : 'Note (optional)'} />
               <Button size="sm" variant="ghost" onClick={() => setNoting(null)}>Cancel</Button>
               <Button size="sm" pending={set.isPending} disabled={noting === 'resolved' && !note.trim()} onClick={() => set.mutate({ status: noting, note })}>Save</Button>

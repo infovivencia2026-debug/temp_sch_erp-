@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, FormGrid, FormNotice, Select,
-  SkeletonTiles, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState, Input, Textarea
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -245,11 +245,10 @@ function Compose({ onClose }: { onClose: () => void }) {
             />
           </Field>
           <Field label="Met on">
-            <input
+            <Input
               type="date"
               value={f.met_on}
-              onChange={(e) => setF({ ...f, met_on: e.target.value })}
-              className="field"
+              onChange={(v) => setF({ ...f, met_on: v })}
             />
           </Field>
           <Field label="Who came" required>
@@ -260,11 +259,10 @@ function Compose({ onClose }: { onClose: () => void }) {
             />
           </Field>
           <Field label="Name given at the desk" hint="Guardian records go out of date; write who actually sat down.">
-            <input
+            <Input
               value={f.attended_by}
-              onChange={(e) => setF({ ...f, attended_by: e.target.value })}
+              onChange={(v) => setF({ ...f, attended_by: v })}
               placeholder="Mrs Sunitha Rao"
-              className="field"
             />
           </Field>
           <Field label="How">
@@ -275,29 +273,28 @@ function Compose({ onClose }: { onClose: () => void }) {
             />
           </Field>
           <Field label="What the parent raised" wide>
-            <textarea
+            <Textarea
               value={f.concerns}
-              onChange={(e) => setF({ ...f, concerns: e.target.value })}
+              onChange={(v) => setF({ ...f, concerns: v })}
               rows={3}
               placeholder="Worried about the drop in maths since the move to the afternoon slot."
-              className="field h-auto w-full py-2"
+              className="w-full"
             />
           </Field>
           <Field label="What was agreed" wide>
-            <textarea
+            <Textarea
               value={f.agreed_actions}
-              onChange={(e) => setF({ ...f, agreed_actions: e.target.value })}
+              onChange={(v) => setF({ ...f, agreed_actions: v })}
               rows={3}
               placeholder="Extra practice sheet each Friday; review together at the next meeting."
-              className="field h-auto w-full py-2"
+              className="w-full"
             />
           </Field>
           <Field label="Follow up by" hint="Leave blank if nothing was promised.">
-            <input
+            <Input
               type="date"
               value={f.follow_up_on}
-              onChange={(e) => setF({ ...f, follow_up_on: e.target.value })}
-              className="field"
+              onChange={(v) => setF({ ...f, follow_up_on: v })}
             />
           </Field>
         </FormGrid>

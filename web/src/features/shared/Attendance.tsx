@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody, Input } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
@@ -182,14 +182,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))}
             /></div>
-            <input
+            <Input
               type="date"
               value={onDate}
-              onChange={(e) => { setOnDate(e.target.value); setDraft({}) }}
-              /* The shared field: one control height (44px under a finger),
-                 the same border, fill and focus ring as every other box. */
-              aria-label="Date"
-              className="field w-full sm:w-auto"
+              onChange={(v) => { setOnDate(v); setDraft({}) }}
+              srLabel="Date"
+              className="w-full sm:w-auto"
             />
             {can('academics.attendance.write') && (
               <ImportButton

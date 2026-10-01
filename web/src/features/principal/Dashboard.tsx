@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import StatusRings from '@/features/comms/status/StatusRings'
 
 const AttendanceTrendChart = lazy(() => import('./AttendanceTrendChart'))
@@ -74,32 +75,25 @@ export default function PrincipalDashboard() {
             value={picked ? picked.students : k.students}
             hint={picked ? picked.label : `${k.sections} sections`}
             control={(k.students_by_section?.length ?? 0) > 0 ? (
-              <select
-                aria-label="Section"
+              <PickerMenu
+                ariaLabel="Section"
                 value={sectionId}
-                onChange={(e) => setSectionId(e.target.value)}
-                className="max-w-[9rem] truncate rounded-md border bg-card px-1.5 py-0.5 text-[12px] text-foreground"
-              >
-                <option value="">All</option>
-                {k.students_by_section!.map((sec) => (
-                  <option key={sec.section_id} value={sec.section_id}>{sec.label}</option>
-                ))}
-              </select>
+                onChange={setSectionId}
+                className="h-7 max-w-[9rem] px-2 text-[12px]"
+                options={[{ value: '', label: 'All' }, ...k.students_by_section!.map((sec) => ({ value: sec.section_id, label: sec.label }))]}
+              />
             ) : undefined} />
           <Stat label="Staff" icon={Users} period={asOf}
             value={staffKind === 'teaching' ? (k.staff_teaching ?? 0) : staffKind === 'non_teaching' ? (k.staff_non_teaching ?? 0) : k.staff}
             hint={staffKind === 'all' && k.staff_teaching !== undefined ? `${k.staff_teaching} teaching · ${k.staff_non_teaching ?? 0} non-teaching` : undefined}
             control={k.staff_teaching !== undefined ? (
-              <select
-                aria-label="Staff type"
+              <PickerMenu
+                ariaLabel="Staff type"
                 value={staffKind}
-                onChange={(e) => setStaffKind(e.target.value as 'all' | 'teaching' | 'non_teaching')}
-                className="rounded-md border bg-card px-1.5 py-0.5 text-[12px] text-foreground"
-              >
-                <option value="all">All</option>
-                <option value="teaching">Teaching</option>
-                <option value="non_teaching">Non-teaching</option>
-              </select>
+                onChange={setStaffKind}
+                className="h-7 px-2 text-[12px]"
+                options={[{ value: 'all', label: 'All' }, { value: 'teaching', label: 'Teaching' }, { value: 'non_teaching', label: 'Non-teaching' }] as const}
+              />
             ) : undefined} />
           {/* TODAY, and said so.
             *

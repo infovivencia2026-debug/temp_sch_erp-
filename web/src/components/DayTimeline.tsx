@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Period } from '@/lib/api'
-import { Card } from '@/components/ui'
+import { Card, Badge } from '@/components/ui'
 import { cn, WEEKDAYS } from '@/lib/utils'
 
 /** "09:15:00" → "09:15"; anything odd is shown as it came. */
@@ -141,9 +141,7 @@ export default function DayTimeline({
             <div className="text-[12px] font-medium text-muted-foreground">{where}</div>
           </div>
           {live && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-              {live.name} now
-            </span>
+            <Badge tone="success" className="shrink-0">{live.name} now</Badge>
           )}
         </div>
         <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">

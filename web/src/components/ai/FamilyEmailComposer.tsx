@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Button } from '@/components/ui'
+import { Button, Textarea } from '@/components/ui'
 import WriteWithAI from './WriteWithAI'
 
 /* An e-mail to an applicant's family about the admission decision, sent
@@ -19,7 +19,7 @@ export default function FamilyEmailComposer({ applicationId, status }: { applica
   const failed = send.data?.not_sent?.[0]?.reason
   return (
     <div className="space-y-2">
-      <textarea className="field h-auto w-full py-2" rows={5} value={text} onChange={(e) => setText(e.target.value)}
+      <Textarea className="w-full" rows={5} value={text} onChange={(v) => setText(v)}
         placeholder="What the family should be told about the decision" />
       <div className="flex flex-wrap items-center gap-2">
         <WriteWithAI kind="admission_decision" context={{ application_id: applicationId, decision: status }} current={text} onInsert={setText} defaultTone="formal" />

@@ -4,7 +4,7 @@ import { Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Field, Select, SkeletonTiles, ErrorState, EmptyState,
+  Badge, Button, Field, Select, SkeletonTiles, ErrorState, EmptyState, Textarea
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { useMyClasses, useTerms, type ReportRemark } from './comms'
@@ -169,12 +169,12 @@ function Row({ row, termID }: { row: ReportRemark; termID: string }) {
         ) : null}
       </div>
 
-      <textarea
+      <Textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(v) => setText(v)}
         rows={2}
         placeholder="A steady term. Reads widely and now asks for the harder problems."
-        className="field mt-2 h-auto w-full py-2"
+        className="mt-2 w-full"
       />
       <div className="mt-1">
         <WriteWithAI kind="report_remark" context={{ student_id: row.student_id }} current={text} onInsert={setText} defaultLength="short" />
@@ -188,12 +188,12 @@ function Row({ row, termID }: { row: ReportRemark; termID: string }) {
 
       {canSummarise && (
         <>
-          <textarea
+          <Textarea
             value={principal}
-            onChange={(e) => setPrincipal(e.target.value)}
+            onChange={(v) => setPrincipal(v)}
             rows={2}
             placeholder="Principal's summary comment"
-            className="field mt-2 h-auto w-full py-2"
+            className="mt-2 w-full"
           />
           {row.principal_remark_by && (
             <p className="mt-1 text-[13px] text-muted-foreground">
