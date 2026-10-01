@@ -10,16 +10,16 @@ import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
-  packPhone, pageCount, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
+  packPhone, pageCount, phoneKindOf, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
 import { FeatureCells, FEATURE_PREFIX, DESK_QUAD, quadId } from './FeatureCells'
 import { useCatalogIfAny, usable } from '@/lib/catalog'
-import { useShortcuts, addToDashboard } from '@/lib/shortcuts'
+import { useShortcuts, addToDashboard, removeFromDashboard } from '@/lib/shortcuts'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
-import { QuickMenu, type QuickTier } from './bento-cards'
+import { QuickMenu, type QuickMenuHandle, type QuickTier } from './bento-cards'
 import { usePhone } from '@/lib/viewport'
 import { COL, ROW, spanFor, clampSpan, clampRows, useReduceMotion, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
@@ -440,17 +440,16 @@ function CustomizeBar({
 /** The size a placement is DRAWN at, which is the only size any of the
     fit arithmetic below may use. `dimsOf` returns what is stored, and what is
     stored may be a 3 or a 5 from an older layout. */
-function usePhoneIconsPerRow(): number {
-  return useAppearance().appearance.phoneIcons === '3' ? 3 : 4
+/** Columns an app icon takes on the phone page: one (Normal), or two with
+    Icon size set to Large (Appearance, Dashboard). */
+function usePhoneIconSpan(): 1 | 2 {
+  return useAppearance().appearance.phoneIconSize === 'large' ? 2 : 1
 }
 
-/** How a widget sits in the phone rhythm (packPhone): an app icon, a small
-    card (one by one, half the width) or a big one (anything larger, the
-    full width). */
-function phoneKind(id: string, d: { w: number; h: number }): PhoneKind {
-  if (id.startsWith(FEATURE_PREFIX)) return 'icon'
-  if (d.w <= 1) return d.h >= 2 ? 'tall' : 'small'
-  return d.h >= 2 ? 'large' : 'big'
+/** How a widget sits on the phone page (packPhone): an app icon, or a card
+    at the one of the phone's sizes its stored shape reads as. */
+function phoneKind(id: string, d: { w: number; h: number }, iconSpan: 1 | 2): PhoneKind {
+  return phoneKindOf(d, id.startsWith(FEATURE_PREFIX), iconSpan)
 }
 
 function drawnDims(
@@ -726,19 +725,19 @@ export function WidgetLayer({
   useSwipeUpForAll(paged && !arranging, openLauncher)
 
   const rows = PHONE_GRID_ROWS
-  /* App icons per row on a phone is the person's choice (Appearance, Home):
-     four, or three bigger ones. The page is that many units across. */
-  const iconsPerRow = usePhoneIconsPerRow()
+  /* The page is four columns by five rows, always. An app icon is one cell
+     of it, or two across when the person chose Large icons (Appearance). */
+  const iconSpan = usePhoneIconSpan()
   const gridCols = PHONE_GRID_COLS
   const spots = useMemo(() => {
     if (!paged) return null
     return packPhone(
-      visible.map((v) => ({ id: v.id, kind: phoneKind(v.id, drawnDims(layout, v.id, v.size)) })),
-      iconsPerRow,
+      visible.map((v) => ({ id: v.id, kind: phoneKind(v.id, drawnDims(layout, v.id, v.size), iconSpan) })),
+      iconSpan,
       !arranged,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, iconsPerRow, arranged])
+  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, iconSpan, arranged])
   const pages = spots ? pageCount(spots) : 0
   /* Only the rows a page actually uses: a home of two card rows and an icon
      row is five tracks, not six with an empty one at the foot. Arranging
@@ -768,14 +767,14 @@ export function WidgetLayer({
     board.setAttribute('data-pager', '')
     board.style.setProperty('--pager-rows', String(usedRows))
     board.style.setProperty('--pager-cols', String(gridCols))
-    board.style.setProperty('--pager-icons', String(iconsPerRow))
+    board.setAttribute('data-icon-size', iconSpan === 2 ? 'large' : 'normal')
     return () => {
       board.removeAttribute('data-pager')
       board.style.removeProperty('--pager-rows')
       board.style.removeProperty('--pager-cols')
-      board.style.removeProperty('--pager-icons')
+      board.removeAttribute('data-icon-size')
     }
-  }, [paged, usedRows, gridCols, iconsPerRow])
+  }, [paged, usedRows, gridCols, iconSpan])
   useEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !arranging) return
@@ -812,21 +811,36 @@ export function WidgetLayer({
     board.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => board.removeEventListener('touchmove', onTouchMove)
   }, [arranging, phone])
-  /* HOLD A CARD TO ARRANGE THE BOARD.
+  /* HOLD A CARD FOR ITS MENU; HOLD THE BOARD TO ARRANGE IT.
 
-     Touch only — a mouse has no long press worth the name. One finger,
-     cancelled by movement past the slop, a second finger, the pointer leaving,
-     or any scroll. Half a second, the platform's own long-press timeout. The
-     click that follows is swallowed once, in the capture phase, because every
-     cell is a link and opening a screen is the opposite of what was asked. */
+     Touch only — a mouse has a right button for this. One finger, cancelled
+     by movement past the slop, a second finger, the pointer leaving, or any
+     scroll. 450ms, a beat under the platform's own long press, so this
+     answers before a browser's link menu would.
+
+     The hold used to enter customize mode from anywhere. The card's "…" is
+     no longer drawn (owner, 2026-10-02: arrow only, menu on long-press), so
+     a hold ON A CARD OR AN APP ICON now opens that card's menu at the
+     finger, and "Customize" in it is the way into the mode from there; a
+     hold on EMPTY board space still enters the mode directly.
+
+     The menu is asked for with a `contextmenu` event on what was pressed —
+     the same event a right-click sends, so the card has one way in
+     (ArrangedWidget's onContextMenu) rather than two.
+
+     The click that follows the lift is swallowed, in the capture phase,
+     because every cell is a link and opening a screen is the opposite of
+     what was asked. It is held until the finger actually lifts: a 400ms
+     window from the hold let a slow lift through, and the card opened under
+     its own menu. */
   useEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || arranging) return
 
     let timer: number | undefined
     let from: { x: number; y: number } | null = null
-    const SLOP = 10
-    const HOLD = 500
+    const SLOP = 8
+    const HOLD = 450
 
     const cancel = () => {
       window.clearTimeout(timer)
@@ -834,25 +848,45 @@ export function WidgetLayer({
       from = null
     }
     const swallowNextClick = () => {
-      const once = (e: MouseEvent) => {
+      const done = () => window.removeEventListener('click', eat, { capture: true })
+      /* One click, and never one aimed at the menu that just opened: a
+         quick tap on its first row is a choice, not the tail of the hold. */
+      function eat(e: MouseEvent) {
+        if (e.target instanceof Element && e.target.closest('[data-bento-menu], [data-colour-pop]')) return
         e.preventDefault()
         e.stopPropagation()
+        done()
       }
-      window.addEventListener('click', once, { capture: true, once: true })
-      window.setTimeout(
-        () => window.removeEventListener('click', once, { capture: true }),
-        400,
-      )
+      window.addEventListener('click', eat, { capture: true })
+      /* The click, if there is one, comes straight after the lift. */
+      const lifted = () => {
+        window.removeEventListener('pointerup', lifted, true)
+        window.removeEventListener('pointercancel', lifted, true)
+        window.setTimeout(done, 350)
+      }
+      window.addEventListener('pointerup', lifted, true)
+      window.addEventListener('pointercancel', lifted, true)
     }
 
     const down = (e: PointerEvent) => {
       if (e.pointerType === 'mouse' || !e.isPrimary) return cancel()
-      from = { x: e.clientX, y: e.clientY }
+      const at = { x: e.clientX, y: e.clientY }
+      const pressed = e.target instanceof Element ? e.target : null
+      from = at
+      window.clearTimeout(timer)
       timer = window.setTimeout(() => {
         from = null
         buzz('select')
         swallowNextClick()
-        setArranging(true)
+        const card = pressed?.closest<HTMLElement>('.bento-widget[data-more]')
+        if (!card) {
+          setArranging(true)
+          return
+        }
+        const target = pressed && card.contains(pressed) && pressed.isConnected ? pressed : card
+        target.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true, cancelable: true, clientX: at.x, clientY: at.y, button: 2,
+        }))
       }, HOLD)
     }
     const move = (e: PointerEvent) => {
@@ -1577,6 +1611,11 @@ function ArrangedWidget({
      left to the pager. */
   const drag = useRef<Drag | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  /* The quick menu, and what was under the pointer when it was asked for:
+     on a desk tile of four app icons that is the one icon the menu is about. */
+  const quick = useRef<QuickMenuHandle>(null)
+  const pressed = useRef<HTMLElement | null>(null)
+  const [menuFor, setMenuFor] = useState<{ key: string; name: string } | null>(null)
 
   /* One gate, and it is the board's own answer. `layer.fitted` already folds
      in the removed list, the `optional` default and the three-row ceiling. */
@@ -1895,7 +1934,49 @@ function ArrangedWidget({
     const d = dimsForTier(tier, phone)
     return { tier, on: tier === tierOf(cw, ch, phone), ok: fitsAt(d.w, d.h) }
   })
-  const cardLink = () => wrapRef.current?.querySelector<HTMLElement>('a[href]') ?? null
+  const cardLink = () =>
+    pressed.current?.closest<HTMLElement>('a[href]') ??
+    wrapRef.current?.querySelector<HTMLElement>('a[href]') ?? null
+
+  /* THE MENU'S THREE WAYS IN, none of them a button on the card (see
+     QuickMenu): a right-click, a hold (the layer sends the same
+     `contextmenu` event from the finger's position), and Shift+F10 or the
+     Menu key from the keyboard. Outside customize mode only; inside it the
+     edit surface owns every press. A text field keeps the browser's own
+     menu — paste lives there. */
+  const hasMenu = !!layer && !editing
+  const openMenu = (point: { x: number; y: number } | null, target: HTMLElement | null) => {
+    pressed.current = target
+    const icon = fixed ? (target ?? wrapRef.current)?.closest<HTMLElement>('[data-feature-key]')
+      ?? (target ? null : wrapRef.current?.querySelector<HTMLElement>('[data-feature-key]')) : null
+    setMenuFor(icon
+      ? { key: icon.getAttribute('data-feature-key') ?? '', name: icon.getAttribute('aria-label') ?? label }
+      : null)
+    const focused = document.activeElement instanceof HTMLElement && wrapRef.current?.contains(document.activeElement)
+      ? document.activeElement
+      : null
+    quick.current?.openAt(point, focused)
+  }
+  const onMenuAsk = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasMenu) return
+    const target = e.target as HTMLElement
+    if (target.closest('input, textarea, select, [contenteditable="true"], [data-bento-menu], [data-colour-pop]')) return
+    e.preventDefault()
+    /* A keyboard's own contextmenu event carries no useful point. */
+    const r = wrapRef.current?.getBoundingClientRect()
+    const inside = r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+    openMenu(inside ? { x: e.clientX, y: e.clientY } : r ? { x: r.left + 24, y: r.top + 24 } : null, target)
+  }
+  const onMenuKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!hasMenu) return
+    if (!(e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) return
+    const target = e.target as HTMLElement
+    if (target.closest('input, textarea, select, [contenteditable="true"], [data-bento-menu], [data-colour-pop]')) return
+    e.preventDefault()
+    const r = (target.closest<HTMLElement>('.ai-quad__slot') ?? wrapRef.current)?.getBoundingClientRect()
+    openMenu(r ? { x: r.left + 24, y: r.top + 24 } : null, target)
+  }
+  const menuLabel = menuFor?.name ?? label
 
   return (
     <div
@@ -1927,7 +2008,9 @@ function ArrangedWidget({
       data-app-icon={fixed ? '' : undefined}
       data-lead={lead ? '' : undefined}
       data-editing={editing ? '' : undefined}
-      data-more={layer && !editing ? '' : undefined}
+      data-more={hasMenu ? '' : undefined}
+      onContextMenu={onMenuAsk}
+      onKeyDown={onMenuKey}
       /* `data-dragging` and `data-drop-target` are written by the drag
          itself, straight to the elements — see `Drag`. */
     >
@@ -1946,17 +2029,20 @@ function ArrangedWidget({
         </WidgetSizeContext.Provider>
       </div>
 
-      {/* THE "…" OUTSIDE THE MODE: a sibling of the cell, after it, so the
-          keyboard reaches it after the card's link. Only inside a layer —
-          a card on a board nobody can arrange has no menu to offer. */}
-      {layer && !editing && (
+      {/* THE MENU OUTSIDE THE MODE: a sibling of the cell, after it, so the
+          keyboard reaches its (hidden until focused) button after the
+          card's link. Only inside a layer — a card on a board nobody can
+          arrange has no menu to offer. An app icon's is the short one:
+          Open, Customize, Remove from home. */}
+      {hasMenu && (
         <QuickMenu
-          label={label}
+          ref={quick}
+          label={menuLabel}
           phone={phone}
           tiers={quickTiers}
+          hideLabel={fixed ? t('bento.widgets.remove_from_home') : undefined}
           onOpen={() => cardLink()?.click()}
           canOpen={() => cardLink() !== null}
-          ink={tint ? ({ '--bento-card': cssHsl(tint), '--bento-ink': inkFor(tint) } as React.CSSProperties) : undefined}
           onCustomize={() => layer.enterFor(id)}
           onTier={(tier) => setTier(id, tier, phone, w)}
           period={
@@ -1968,14 +2054,19 @@ function ArrangedWidget({
                 }
               : undefined
           }
-          onHide={() => remove(id)}
-          colour={
+          onHide={() => {
+            /* One icon of a desk tile leaves on its own; the shortcuts
+               list is what FeatureCells draws from on both boards. */
+            if (fixed && menuFor?.key) removeFromDashboard(menuFor.key)
+            else remove(id)
+          }}
+          colour={fixed ? undefined : (
             <ColourPick
               value={tint}
               onPick={(c, coalesce) => recolour(id, c, cw, ch, coalesce)}
               label={t('bento.widgets.colour_row')}
             />
-          }
+          )}
         />
       )}
 

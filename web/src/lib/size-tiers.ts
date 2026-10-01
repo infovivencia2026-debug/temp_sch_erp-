@@ -45,15 +45,18 @@ export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   wide: { w: 3, h: 1 },
 }
 
-/** The phone board: the same four sizes, on a page two halves wide.
+/** The phone board: the same four sizes, on a page FOUR COLUMNS BY FIVE ROWS
+    (packPhone in widgets.ts). Drawn, rows x columns:
 
-    A phone card is half the page or all of it, and one card-row tall or two
-    (packPhone in widgets.ts):
+        small    2 x 2   half width, two rows       (a figure)
+        medium   2 x 4   full width, two rows       (the wide card)
+        large    4 x 4   full width, four rows
+        tall     4 x 2   half width, four rows
 
-        small    half width, one card-row
-        tall     half width, two card-rows
-        medium   full width, one card-row
-        large    full width, two card-rows
+    The owner's list is 2x2, 2x4 and 4x4; Tall is the size the picker
+    already offered and it sits on the same grid, so it stays until somebody
+    says otherwise -- taking it out of PHONE_TIERS removes it from every
+    phone picker, and a stored Tall would then still draw as 4 x 2.
 
     The stored shape is the desk's own -- 1x1, 1x2, 2x1, 2x2 -- so a size
     chosen on either board is the same size on the other, and what the menu
@@ -69,7 +72,7 @@ export const PHONE_TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   wide: { w: 2, h: 1 },
 }
 
-/** The tiers a board actually offers, in picker order: the same four. */
+/** The tiers the phone offers, in picker order: the same four. */
 export const PHONE_TIERS: readonly SizeTier[] = TIERS
 
 /** The tier a stored width and height reads as.
@@ -128,11 +131,12 @@ export function tierLabelKey(tier: SizeTier): string {
    and `tierOf` reads it back as Small. The plate inside is square whatever
    the cell's own proportions, so the icon is 1:1 at every breakpoint.
 
-   A phone draws every card at the page width, so an icon there would be a
-   band the width of the screen; the phone lays icons four across inside one
-   one-row band instead (PHONE_ICON_COLS), each its own tile. */
+   On a phone an icon is one cell of the page's 4 x 5 grid (four across,
+   PHONE_ICON_COLS), or, with Icon size set to Large in Appearance, two
+   cells across with a bigger plate. That is a way of DRAWING it: the stored
+   shape stays 1x1 and the desk is unchanged. */
 export const ICON_SHAPE: Readonly<{ w: number; h: number }> = Object.freeze({ w: 1, h: 1 })
-/** App icons per row on a phone. */
+/** App icons per row on a phone, at the Normal size: the page's columns. */
 export const PHONE_ICON_COLS = 4
 
 /** Whether a stored shape is an app icon's: exactly one by one. */

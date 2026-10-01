@@ -9,8 +9,8 @@ import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
   useAppearance,
-  CONTRASTS, DOCK_SIZES, ICON_SIZES, PHONE_ICONS, SCALE_RANGE,
-  type Contrast, type DockSize, type IconSize, type PhoneIcons, type Scales,
+  CONTRASTS, DOCK_SIZES, ICON_SIZES, PHONE_ICON_SIZES, SCALE_RANGE,
+  type Contrast, type DockSize, type IconSize, type PhoneIconSize, type Scales,
 } from '@/lib/appearance'
 import { useT, useI18n, LOCALES, type MessageKey } from '@/lib/i18n'
 
@@ -1059,13 +1059,14 @@ export function SettingsPane({
         <section ref={dashRef}>
           <Rows>
             <Scale axis="boardText" label={t('bento.settings.board_text')} />
-            {/* App icons per row on a phone home: four, or three bigger ones. */}
-            <Axis<PhoneIcons>
-              label="App icons per row on a phone"
-              value={appearance.phoneIcons}
-              options={PHONE_ICONS}
-              onPick={(v) => set('phoneIcons', v)}
-              name={(v) => (v === '3' ? '3 (bigger)' : '4')}
+            {/* An app icon on the phone home: one cell of the 4 x 5 page, or
+                two across with a bigger plate. */}
+            <Axis<PhoneIconSize>
+              label={t('bento.settings.phone_icon_size')}
+              value={appearance.phoneIconSize}
+              options={PHONE_ICON_SIZES}
+              onPick={(v) => set('phoneIconSize', v)}
+              name={(v) => t(v === 'large' ? 'bento.settings.phone_icon_size.large' : 'bento.settings.phone_icon_size.normal')}
             />
             <DashboardWidgets onArrange={onClose} />
           </Rows>

@@ -125,7 +125,7 @@ export function AppIcon({ slug, section, workspace, name, size }: {
 
 function IconLink({ f, label }: { f: Found; label: string }) {
   return (
-    <Link to={f.href} className="ai-tile" title={`${f.name} (${f.workspace})`} aria-label={f.name}>
+    <Link to={f.href} className="ai-tile" title={`${f.name} (${f.workspace})`} aria-label={f.name} data-feature-key={f.key}>
       <AppIcon slug={f.slug} section={f.section} workspace={f.workspace} name={label} />
     </Link>
   )

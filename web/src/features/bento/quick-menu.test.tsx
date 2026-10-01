@@ -2,13 +2,15 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-/* THE "…" ON EVERY CARD, outside customize mode.
+/* THE CARD'S MENU, outside customize mode -- with no "…" drawn.
 
    The quick menu promises that the things people do most to one card — open
    it, resize it, recolour it, hide it, or start arranging from it — are one
-   press away without entering the mode. These tests reach the control the
-   way a keyboard does, and check its rows act through the store, the same
-   store the mode writes.
+   gesture away without entering the mode: a hold on touch, a right-click
+   with a mouse, Shift+F10 or the Menu key from the keyboard, and a "More
+   options" button that is in the tab order but painted only when focused.
+   These tests reach it each of those ways, and check its rows act through
+   the store, the same store the mode writes.
 
    Same harness as customize.test.tsx: react-dom/client and `act`, a fresh
    dashboard per test, `Board` declared at module level. */
@@ -71,7 +73,17 @@ const key = (k: string) =>
   document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
 
 const more = (id: string) =>
-  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] > .bento-capsule > .bento-more`)
+  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] > .bento-more`)
+
+const card = (id: string) => host.querySelector<HTMLElement>(`.bento-widget[data-widget-id="${id}"]`)!
+
+const touch = (el: Element, type: string, x: number, y: number) =>
+  el.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true, cancelable: true, isPrimary: true, pointerId: 1, pointerType: 'touch',
+      button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y,
+    }),
+  )
 
 const menu = () => document.querySelector<HTMLElement>('[data-bento-menu]')
 
@@ -108,10 +120,12 @@ afterEach(async () => {
 })
 
 describe('quick menu', () => {
-  it('every card has a "…" after its link, named for the card, that opens the five rows', async () => {
+  it('every card has a "More options" button after its link, named for the card, that opens the five rows', async () => {
     await mount()
-    expect(host.querySelectorAll('.bento-widget > .bento-capsule > .bento-more').length).toBe(CARDS.length)
+    expect(host.querySelectorAll('.bento-widget > .bento-more').length).toBe(CARDS.length)
     expect(host.querySelectorAll('.bento-widget[data-more]').length).toBe(CARDS.length)
+    // One corner control a card: no capsule, no second arrow beside the card's own.
+    expect(host.querySelectorAll('.bento-capsule, .bento-capsule__open').length).toBe(0)
 
     const btn = more('a')!
     expect(btn.getAttribute('aria-label')).toBe('bento.widgets.more_for:Card A')
@@ -219,5 +233,136 @@ describe('quick menu', () => {
     expect(document.activeElement).toBe(
       host.querySelector('.bento-widget[data-widget-id="e"] .bento-sizebtn'),
     )
+  })
+})
+
+/* THE GESTURES. No button is drawn for this menu, so these are the ways in
+   that a person actually uses. */
+describe('quick menu: hold, right-click, keyboard', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('a right-click on a card opens its menu at the pointer, and does not enter the mode', async () => {
+    await mount()
+    const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0, button: 2 })
+    await act(async () => {
+      card('a').querySelector('a')!.dispatchEvent(ev)
+    })
+    expect(ev.defaultPrevented, 'the browser menu is replaced').toBe(true)
+    const m = menu()
+    expect(m, 'the menu opened').not.toBeNull()
+    expect(m!.getAttribute('aria-label')).toBe('bento.widgets.more_for:Card A')
+    expect(m!.hasAttribute('data-at-point'), 'placed at the press, not under a button').toBe(true)
+    expect(m!.hasAttribute('data-sheet')).toBe(false)
+    expect(document.querySelector('[role="toolbar"]'), 'not customizing').toBeNull()
+  })
+
+  it('a hold on a card opens its menu after 450ms; Customize in it enters the mode', async () => {
+    await mount()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const link = card('b').querySelector('a')!
+    await act(async () => {
+      touch(link, 'pointerdown', 40, 40)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(440)
+    })
+    expect(menu(), 'not before the hold is up').toBeNull()
+    await act(async () => {
+      vi.advanceTimersByTime(20)
+    })
+    const m = menu()
+    expect(m, 'the hold opened the menu').not.toBeNull()
+    expect(m!.getAttribute('aria-label')).toBe('bento.widgets.more_for:Card B')
+    expect(document.querySelector('[role="toolbar"]'), 'a hold on a card no longer enters the mode').toBeNull()
+
+    // The click the lift produces is swallowed: the card does not open under its menu.
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    await act(async () => {
+      touch(link, 'pointerup', 40, 40)
+      link.dispatchEvent(click)
+    })
+    expect(click.defaultPrevented).toBe(true)
+    expect(menu()).not.toBeNull()
+
+    vi.useRealTimers()
+    await act(async () => {
+      Array.from(menu()!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        .find((b) => b.textContent === 'bento.widgets.customize')!.click()
+    })
+    expect(document.querySelector('[role="toolbar"]'), 'Customize is the way into the mode').not.toBeNull()
+  })
+
+  it('a finger that moves more than 8px is a swipe, not a hold', async () => {
+    await mount()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const link = card('c').querySelector('a')!
+    await act(async () => {
+      touch(link, 'pointerdown', 40, 40)
+      touch(link, 'pointermove', 52, 40)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(menu()).toBeNull()
+    expect(document.querySelector('[role="toolbar"]')).toBeNull()
+  })
+
+  it('a mouse press held on a card does nothing: the right button is its way in', async () => {
+    await mount()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await act(async () => {
+      card('c').querySelector('a')!.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, isPrimary: true, pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 40,
+      }))
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(menu()).toBeNull()
+  })
+
+  it('a hold on empty board space still enters customize mode directly', async () => {
+    await mount()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await act(async () => {
+      touch(host.querySelector('.bento-board')!, 'pointerdown', 300, 500)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(460)
+    })
+    expect(menu()).toBeNull()
+    expect(document.querySelector('[role="toolbar"]')).not.toBeNull()
+  })
+
+  it('Shift+F10 and the Menu key open it from the keyboard, and Escape gives focus back', async () => {
+    await mount()
+    const link = card('d').querySelector<HTMLAnchorElement>('a')!
+    link.focus()
+    await act(async () => {
+      link.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }))
+    })
+    expect(menu()?.getAttribute('aria-label')).toBe('bento.widgets.more_for:Card D')
+    await act(async () => {
+      key('Escape')
+    })
+    expect(menu()).toBeNull()
+    expect(document.activeElement).toBe(link)
+    await act(async () => {
+      link.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true }))
+    })
+    expect(menu()).not.toBeNull()
+  })
+
+  it('in customize mode a right-click opens nothing: the edit surface owns the card', async () => {
+    await mount()
+    await act(async () => {
+      setArranging(true)
+    })
+    await act(async () => {
+      card('a').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }))
+    })
+    expect(menu()).toBeNull()
   })
 })

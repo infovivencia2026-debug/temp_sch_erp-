@@ -15,7 +15,8 @@
      event                                            kind     why
      ------------------------------------------------ -------- ----------------------------------------
      chat: long-press confirms, menu appears          select   a hold has no visible press; this is it
-     bento: long-press enters edit (arrange) mode     select   same: the hold is confirmed, not the tap
+     bento: long-press opens a card's menu, or on     select   same: the hold is confirmed, not the tap
+       empty board space enters edit (arrange) mode
      bento: long-press on a launcher tile, menu       select   same
      bento: card picked up (held until it lifts)      select   the thumb now carries something
      bento: card dropped into a NEW slot              snap     the board accepted the move

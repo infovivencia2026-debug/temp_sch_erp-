@@ -1,4 +1,4 @@
-import { Fragment, createContext, forwardRef, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Fragment, createContext, forwardRef, useCallback, useContext, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
 import { ArrowUpRight, Check, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
@@ -757,14 +757,12 @@ function Figure({ text }: { text: string }) {
    needs the node; every other caller passes no ref and sees no change. */
 export const CornerControl = forwardRef<HTMLElement, {
   as?: any
-  insetLeft?: boolean
   className?: string
   children: ReactNode
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
 } & React.HTMLAttributes<HTMLElement>>(function CornerControl({
   as: Tag = 'button',
-  insetLeft = false,
   className,
   children,
   ...props
@@ -774,8 +772,11 @@ export const CornerControl = forwardRef<HTMLElement, {
       ref={ref}
       {...props}
       className={cn(
-        'bento-cue absolute top-0 z-10 grid size-10 place-items-center',
-        insetLeft ? 'right-10' : 'right-0',
+        /* 32px round, 8px in from the top-right: the same box on every card
+           and every layout. The colours are the stylesheet's (.bento-cue). */
+        /* In px, not rem: the root font follows the text-size setting, and
+           the button is the same 32 at every one of them. */
+        'bento-cue absolute right-[8px] top-[8px] z-10 grid size-[32px] place-items-center rounded-full',
         className,
       )}
     >
@@ -801,20 +802,33 @@ export function CornerMark({
       aria-label={label}
       title={label}
     >
-      <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+      <ArrowUpRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
     </CornerControl>
   )
 }
 
 /* THE QUICK MENU: what iCloud's home page puts behind the "…" on a tile,
-   here on every card outside customize mode.
+   here on every card outside customize mode -- WITH NO BUTTON TO LOOK AT.
 
-   The card body stays the link. This is a second control beside the corner
-   arrow — a `CornerControl` in the arrow's own style, at the very corner,
-   with the arrow slid left while it shows (quick-menu.css says why the arrow
-   is kept rather than replaced). It is rendered by `Widget`, as a sibling of
-   the card rather than inside it, because the card is often itself a Link
-   and a button inside a link is a click that navigates.
+   The owner's decision (2026-10-02: "top right buttons in bento look ugly
+   and inconsistent" -> arrow only, menu on long-press): a card shows ONE
+   corner control, its arrow (`CornerMark`, drawn by the card itself), and
+   this menu is reached the way a phone home screen reaches it:
+
+     touch      hold the card (WidgetLayer times the hold and hands the point
+                over); the menu opens under the finger
+     mouse      right-click the card
+     keyboard   Shift+F10 or the Menu key with focus in the card, or the
+                "More options" button below, which is hidden until it has
+                keyboard focus and is always there for a screen reader
+
+   The capsule that stood here (an Open half and a "…" half, the second
+   hidden by a stylesheet rule) is gone with its second arrow: the card's own
+   corner mark is the arrow, on every board, inside a layer or not.
+
+   Rendered by `Widget`, as a sibling of the card rather than inside it,
+   because the card is often itself a Link and a button inside a link is a
+   click that navigates.
 
    Presentational: the rows are given as callbacks and the colour row as a
    node, so this file knows nothing about the layout store. The tiers arrive
@@ -827,25 +841,19 @@ export interface QuickTier {
   ok: boolean
 }
 
-export function QuickMenu({
-  label,
-  phone,
-  tiers,
-  onOpen,
-  canOpen,
-  onCustomize,
-  onTier,
-  onHide,
-  colour,
-  period,
-  ink,
-}: {
+/** How the layer opens the menu: at a point (a hold, a right-click), or with
+    none, under the "More options" button (the keyboard). */
+export interface QuickMenuHandle {
+  openAt: (point: { x: number; y: number } | null, returnTo?: HTMLElement | null) => void
+}
+
+export const QuickMenu = forwardRef<QuickMenuHandle, {
   label: string
   phone: boolean
-  /** A recoloured card's palette, supplied by the layer, so the capsule is
-      tinted with the card it sits on rather than with the page. */
-  ink?: React.CSSProperties
   tiers: readonly QuickTier[]
+  /** The last row's words: "Hide" on a card, "Remove from home" on an app
+      icon. */
+  hideLabel?: string
   onOpen: () => void
   /** Asked while the menu is open, not at mount — the card's link is in the
       DOM by then. False draws no Open row. */
@@ -863,9 +871,25 @@ export function QuickMenu({
     options: { value: string; label: string }[]
     onChange: (value: string) => void
   }
-}) {
+}>(function QuickMenu({
+  label,
+  phone,
+  tiers,
+  hideLabel,
+  onOpen,
+  canOpen,
+  onCustomize,
+  onTier,
+  onHide,
+  colour,
+  period,
+}, ref) {
   const t = useT()
   const [open, setOpen] = useOpenState(false)
+  /* Where it was asked for; null hangs it off the button. */
+  const [point, setPoint] = useState<{ x: number; y: number } | null>(null)
+  /* What had the keyboard when it opened, to hand focus back to. */
+  const [returnTo, setReturnTo] = useState<HTMLElement | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => setOpen(false), [])
   const name = t('bento.widgets.more_for', { label })
@@ -873,39 +897,42 @@ export function QuickMenu({
     setOpen(false)
     fn()
   }
+  useImperativeHandle(ref, () => ({
+    openAt(p, back) {
+      setPoint(p)
+      setReturnTo(back ?? null)
+      setOpen(true)
+    },
+  }), [setOpen])
 
   return (
     <>
-      {/* ONE CAPSULE, TWO ACTIONS: open the card, or everything else. The
-          card's own corner arrow is not drawn while this is (quick-menu.css);
-          the Open half shows only on a card that has something to open. */}
-      <div
-        className="bento-capsule"
-        style={ink}
+      {/* Not drawn until the keyboard reaches it (quick-menu.css): the one
+          way to this menu that needs neither a hold nor a right-click. */}
+      <button
+        ref={btn}
+        type="button"
+        className="bento-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={name}
+        title={name}
+        onClick={() => {
+          setPoint(null)
+          setReturnTo(null)
+          setOpen((v) => !v)
+        }}
       >
-        <button
-          type="button"
-          className="bento-capsule__btn bento-capsule__open"
-          aria-label={`${t('bento.widgets.open')} ${label}`}
-          title={t('bento.widgets.open')}
-          onClick={onOpen}
-        >
-          <ArrowUpRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
-        </button>
-        <button
-          ref={btn}
-          type="button"
-          className="bento-capsule__btn bento-more"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-label={name}
-          title={name}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <MoreHorizontal className="size-4" strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </div>
-      <Menu open={open} anchor={btn.current} label={name} onClose={close}>
+        <MoreHorizontal className="size-4" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      <Menu
+        open={open}
+        anchor={point ? returnTo : btn.current}
+        point={point}
+        label={name}
+        onClose={close}
+        phone={phone}
+      >
         {(canOpen?.() ?? true) && (
           <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onOpen)}>
             <ArrowUpRight className="size-3.5 shrink-0" aria-hidden="true" />
@@ -960,12 +987,12 @@ export function QuickMenu({
         )}
         <div className="bento-menu__rule" role="separator" />
         <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onHide)}>
-          <span className="min-w-0 flex-1 truncate">{t('bento.widgets.hide')}</span>
+          <span className="min-w-0 flex-1 truncate">{hideLabel ?? t('bento.widgets.hide')}</span>
         </button>
       </Menu>
     </>
   )
-}
+})
 
 /* ── drawings ──────────────────────────────────────────────────────────── */
 /* ROUNDED NOW, EVERYWHERE (owner, 2026-10-01: "few elements are still sharp

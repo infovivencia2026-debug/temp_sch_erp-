@@ -1829,7 +1829,14 @@ export function useBoardHeight() {
       const dot = paged ? document.querySelector<HTMLElement>('.bento-dots .bento-dot') : null
       const dotBox = dot?.getBoundingClientRect()
       const dotTop = dotBox && dotBox.height > 0 ? dotBox.top : 0
-      const edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      let edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      /* While a phone board is being arranged the customize bar stands
+         where the dock was, and its top edge is a little higher than the
+         dots': the page ends 8px above whichever is higher, so the last row
+         is not tucked under the bar. */
+      const bar = paged ? document.querySelector<HTMLElement>('.bento-customize-bar') : null
+      const barTop = bar ? bar.getBoundingClientRect().top : 0
+      if (barTop > top + 100) edge = edge ? Math.min(edge, barTop - 8) : barTop - 8
       const limit = edge || window.innerHeight - reserve
       let room = Math.max(floor, limit - top)
       board.style.setProperty('--board-h', `${Math.round(room)}px`)
