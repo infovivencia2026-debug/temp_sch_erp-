@@ -1143,7 +1143,10 @@ async function applyForLeave(c: Ctx): Promise<Response> {
 
   const haveTypes = await c.db.prepare('SELECT EXISTS (SELECT 1 FROM leave_types) AS x').first<{ x: number }>()
   const leaveType = nul(trim(req.leave_type_id))
-  if (haveTypes?.x && !leaveType) {
+  /* Leave types (casual, sick, earned) are staff leave. A parent asking for
+     a child's day off was refused with "choose the kind of leave" in every
+     school that had set staff types up. */
+  if (haveTypes?.x && !leaveType && !req.student_id) {
     throw badRequest('choose the kind of leave. Casual, sick, or whichever it is. It decides what the days are counted against.')
   }
   let employeeId: string | null = null, studentId: string | null = null
