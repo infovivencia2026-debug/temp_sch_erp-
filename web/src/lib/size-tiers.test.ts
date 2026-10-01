@@ -19,13 +19,13 @@ import { useLayout, dimsOf, tintOf } from './widgets'
 /** The eight shapes the old picker offered, and what each reads as now. */
 const LEGACY: { w: number; h: number; desktop: SizeTier; phone: SizeTier }[] = [
   { w: 1, h: 1, desktop: 'small', phone: 'small' },
-  { w: 1, h: 2, desktop: 'large', phone: 'large' },
-  { w: 2, h: 1, desktop: 'medium', phone: 'small' },
+  { w: 1, h: 2, desktop: 'large', phone: 'tall' },
+  { w: 2, h: 1, desktop: 'medium', phone: 'medium' },
   { w: 2, h: 2, desktop: 'large', phone: 'large' },
-  { w: 3, h: 1, desktop: 'wide', phone: 'small' },
+  { w: 3, h: 1, desktop: 'wide', phone: 'medium' },
   { w: 3, h: 2, desktop: 'large', phone: 'large' },
   { w: 4, h: 2, desktop: 'large', phone: 'large' },
-  { w: 5, h: 1, desktop: 'wide', phone: 'small' },
+  { w: 5, h: 1, desktop: 'wide', phone: 'medium' },
 ]
 
 describe('tierOf classifies every legacy shape', () => {
@@ -47,7 +47,7 @@ describe('tierOf classifies every legacy shape', () => {
     }
   })
 
-  it('a phone never reports medium or wide', () => {
+  it('a phone never reports wide', () => {
     for (const w of [1, 2, 3, 4, 5]) {
       expect(PHONE_TIERS).toContain(tierOf(w, 1, true))
       expect(PHONE_TIERS).toContain(tierOf(w, 2, true))
@@ -70,13 +70,12 @@ describe('dimsForTier and tierOf agree', () => {
     }
   })
 
-  it('on a phone, small and large round-trip; medium and wide collapse to small by design', () => {
+  it('on a phone, all four sizes round-trip; wide is drawn as medium', () => {
     for (const tier of PHONE_TIERS) {
       const { w, h } = dimsForTier(tier, true)
       expect(tierOf(w, h, true)).toBe(tier)
     }
-    expect(tierOf(dimsForTier('medium', true).w, dimsForTier('medium', true).h, true)).toBe('small')
-    expect(tierOf(dimsForTier('wide', true).w, dimsForTier('wide', true).h, true)).toBe('small')
+    expect(tierOf(dimsForTier('wide', true).w, dimsForTier('wide', true).h, true)).toBe('medium')
   })
 
   it('returns a copy, so a caller cannot edit the table through it', () => {
@@ -95,10 +94,10 @@ describe('dimsForTier and tierOf agree', () => {
     })
   })
 
-  it('the phone table draws every card the full page width', () => {
-    for (const tier of TIERS) expect(PHONE_TIER_DIMS[tier].w).toBe(2)
-    expect(PHONE_TIER_DIMS.large.h).toBe(2)
-    expect(PHONE_TIER_DIMS.small.h).toBe(1)
+  it('the phone offers the desk sizes at the desk shapes, Tall included', () => {
+    expect(PHONE_TIERS).toEqual(TIERS)
+    for (const tier of TIERS) expect(PHONE_TIER_DIMS[tier]).toEqual(TIER_DIMS[tier])
+    expect(PHONE_TIER_DIMS.tall).toEqual({ w: 1, h: 2 })
   })
 
   it('names the locale key the same way for every tier', () => {
@@ -157,27 +156,23 @@ describe('setTier writes a tier as a width and a height', () => {
     }
   })
 
-  it('on the phone, writes the height and keeps the width it is given', () => {
+  it('on the phone, writes the whole shape, the same one the desk would', () => {
     const d = freshDashboard()
-    api(d).setTier('fees', 'large', true, 1)
+    api(d).setTier('fees', 'tall', true, 2)
     expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 1, h: 2 })
-    // No width given: the stored one stays.
-    api(d).setTier('fees', 'small', true)
-    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 1, h: 1 })
-    // Never placed and nothing to keep: the phone table's own, a whole shape.
-    const e = freshDashboard()
-    api(e).setTier('fees', 'large', true)
-    expect(dimsOf(api(e).layout, 'fees', 'small')).toEqual({ w: 2, h: 2 })
+    api(d).setTier('fees', 'large', true)
+    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 2, h: 2 })
+    api(d).setTier('fees', 'medium', true)
+    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 2, h: 1 })
   })
 
-  it('a desk Small touched on the phone still reads as Small on the desk', () => {
+  it('a size chosen on the phone reads as the same size on the desk', () => {
     const d = freshDashboard()
-    api(d).setTier('fees', 'small', false)
-    api(d).setTier('fees', 'large', true, 1)
-    api(d).setTier('fees', 'small', true, 1)
-    const { w, h } = dimsOf(api(d).layout, 'fees', 'small')
-    expect({ w, h }).toEqual({ w: 1, h: 1 })
-    expect(tierOf(w, h, false)).toBe('small')
+    for (const tier of TIERS) {
+      api(d).setTier('fees', tier, true)
+      const { w, h } = dimsOf(api(d).layout, 'fees', 'small')
+      expect(tierOf(w, h, false)).toBe(tier)
+    }
   })
 
   it('places a card that was never placed, and un-removes one that was', () => {

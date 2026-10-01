@@ -1,9 +1,8 @@
 /* THE ACTION CAPSULE, outside customize mode.
 
-   One rounded control at the card's top-right holding two actions: Open (the
-   arrow) and More (the "…"). It replaces two unrelated 40px corner squares,
-   one always there and one that appeared on hover, which read as two
-   different kinds of thing.
+   One rounded control at the card's top-right. It was built for two actions,
+   Open (the arrow) and More (the "…"), in place of two unrelated 40px corner
+   squares; the board now shows Open alone (see ONLY THE ARROW below).
 
    The card body is still the link. The capsule is a sibling of the cell (a
    button inside a link is a click that navigates), so the cell's own corner
@@ -70,27 +69,23 @@
 [data-layout='bento'] .bento-capsule__btn:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 55%, transparent);
 }
-/* ROOM FOR IT. A card's heading reserves 44px on the right for one corner
-   square (`pr-11`); two actions reach 70px in from the card's edge, so a long
-   title ran underneath. Widened only where both halves show. */
-[data-layout='bento'] .bento-widget[data-more]:has(.bento-cell .bento-cue):not(:has([data-card][data-quiet])) [data-card] > .pr-11 {
-  padding-right: 3.75rem;
-}
-/* An app icon is its own tap target and is barely bigger than the capsule,
-   which sat on top of the icon. Where a pointer can hover, the "…" appears
-   beside it; on touch, Edit is the way to move or remove an app. */
-@media (hover: none) {
-  [data-layout='bento'] .bento-widget[data-app-icon] > .bento-capsule { display: none; }
+/* ONLY THE ARROW (owner, 2026-10-01: "only the redirect button is enough").
+   The "…" is not drawn on the board: a card at rest offers one thing, going
+   to its screen. Resizing, recolouring and removing are in Edit, where the
+   board is being arranged anyway. The button and its menu stay in the markup
+   (QuickMenu), so bringing it back is deleting this rule. With one action the
+   capsule is a 32px circle and fits the 44px a card's heading already keeps
+   clear. */
+[data-layout='bento'] .bento-capsule > .bento-more { display: none; }
+/* Nothing to open, nothing to show: a card with no link, a quiet card, and
+   an app icon, which is its own tap target. */
+[data-layout='bento'] .bento-widget:not(:has(.bento-cell .bento-cue)) > .bento-capsule,
+[data-layout='bento'] .bento-widget:has([data-card][data-quiet]) > .bento-capsule,
+[data-layout='bento'] .bento-widget[data-app-icon] > .bento-capsule {
+  display: none;
 }
 /* The capsule's arrow stands in for the card's own. */
 [data-layout='bento'] .bento-widget[data-more] .bento-cell .bento-cue { display: none; }
-/* Open only where there is something to open: a card with no corner arrow,
-   a quiet card and an app icon (the icon itself is the tap) keep just "…". */
-[data-layout='bento'] .bento-widget:not(:has(.bento-cell .bento-cue)) .bento-capsule__open,
-[data-layout='bento'] .bento-widget:has([data-card][data-quiet]) .bento-capsule__open,
-[data-layout='bento'] .bento-widget[data-app-icon] .bento-capsule__open {
-  display: none;
-}
 @media (hover: hover) {
   [data-layout='bento'] .bento-widget > .bento-capsule { opacity: 0; }
   [data-layout='bento'] .bento-widget:hover > .bento-capsule,

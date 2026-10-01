@@ -45,31 +45,32 @@ export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   wide: { w: 3, h: 1 },
 }
 
-/** The phone board: every card the full page width, one row or two.
+/** The phone board: the same four sizes, on a page two halves wide.
 
-    Small is the top half of a page and Large is a whole page. Medium and
-    Wide are the same shape as Small — the phone has no width to give them —
-    and `tierOf` reports either of them back as Small, so the picker on a
-    phone shows two sizes and never claims a third.
+    A phone card is half the page or all of it, and one card-row tall or two
+    (packPhone in widgets.ts):
 
-    THE WIDTH HERE IS NEVER WRITTEN BY THE BOARD. `paginate` draws every
-    phone card at the page width whatever is stored, and the store's
-    `setTier` keeps a card's existing width when the phone picks a tier, so
-    a 1x1 desk card made Small on the phone stays 1x1 and the desk still
-    reads it as Small. The `w` column exists so that `dimsForTier` returns a
-    whole shape for a card that has no width yet. */
+        small    half width, one card-row
+        tall     half width, two card-rows
+        medium   full width, one card-row
+        large    full width, two card-rows
+
+    The stored shape is the desk's own -- 1x1, 1x2, 2x1, 2x2 -- so a size
+    chosen on either board is the same size on the other, and what the menu
+    says is what is drawn. (The phone used to draw every card the full width
+    and offer two sizes, then stretched the last card on a page to fill it;
+    nobody could make a page look the way they wanted.) Wide has no third
+    column to take on a phone and is drawn as Medium. */
 export const PHONE_TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
-  small: { w: 2, h: 1 },
-  // A phone has no width to give, so a "tall" card is the full-width two-row
-  // card -- the same shape as Large, which is what tierOf reports it back as.
-  tall: { w: 2, h: 2 },
+  small: { w: 1, h: 1 },
+  tall: { w: 1, h: 2 },
   medium: { w: 2, h: 1 },
   large: { w: 2, h: 2 },
   wide: { w: 2, h: 1 },
 }
 
-/** The tiers a board actually offers, in picker order. A phone offers two. */
-export const PHONE_TIERS: readonly SizeTier[] = ['small', 'large'] as const
+/** The tiers a board actually offers, in picker order: the same four. */
+export const PHONE_TIERS: readonly SizeTier[] = TIERS
 
 /** The tier a stored width and height reads as.
 
@@ -98,13 +99,9 @@ export const PHONE_TIERS: readonly SizeTier[] = ['small', 'large'] as const
 export function tierOf(w: number, h: number, phone: boolean): SizeTier {
   const rows = Number.isFinite(h) ? h : 1
   const cols = Number.isFinite(w) ? w : 1
-  // A phone draws every card the full width, so two rows is always Large there.
-  if (rows >= 2) {
-    if (!phone && cols < 2) return 'tall'
-    return 'large'
-  }
-  if (phone) return 'small'
-  if (cols >= 3) return 'wide'
+  if (rows >= 2) return cols < 2 ? 'tall' : 'large'
+  // A phone page is two halves wide: three columns or more is its Medium.
+  if (cols >= 3) return phone ? 'medium' : 'wide'
   if (cols >= 2) return 'medium'
   return 'small'
 }

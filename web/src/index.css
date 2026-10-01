@@ -3375,13 +3375,7 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
   position: relative;
   display: inline-block;
   flex: none;
-  /* NO FIXED SHAPE. The outline drifts between irregular, organic forms
-     like an amoeba (fluid-amoeba below), slow and never repeating in step
-     with the breathing, so it reads as alive rather than as a button. Every
-     corner is a share of the orb's own size, so the 44px orb in the corner
-     and the 160px one in the panel move the same way. Under reduced motion it
-     holds one irregular form. */
-  border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%;
+  border-radius: 50%;
   overflow: hidden;
   isolation: isolate;
   background:
@@ -3396,16 +3390,7 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
     0 0 calc(var(--orb-size) * 0.03) rgba(181, 201, 205, 0.18);
   filter: saturate(1.05);
   transition: filter 300ms ease, transform 300ms ease;
-  animation: fluid-breathe 8s ease-in-out infinite alternate,
-             fluid-amoeba 13s ease-in-out infinite;
-}
-@keyframes fluid-amoeba {
-  0%   { border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%; }
-  20%  { border-radius: 44% 56% 62% 38% / 55% 41% 59% 45%; }
-  40%  { border-radius: 63% 37% 41% 59% / 38% 62% 44% 56%; }
-  60%  { border-radius: 39% 61% 55% 45% / 60% 48% 52% 40%; }
-  80%  { border-radius: 52% 48% 36% 64% / 43% 57% 63% 37%; }
-  100% { border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%; }
+  animation: fluid-breathe 8s ease-in-out infinite alternate;
 }
 /* The subtle ball: the same circle, the colour turned well down. */
 .fluid-orb[data-subtle] {
@@ -3868,96 +3853,14 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: 0 0 0 2px hsl(var(--sidebar, var(--background))), 0 0 0 4px var(--tile, hsl(var(--primary)));
 }
 
-/* THE ORB, BRIGHTER AND LOOSER (owner, 2026-09-28): no solid rim, colours
-   that melt into each other, and movement you can see from across the room.
-   Overrides the base rules above; the markup and state hooks are unchanged. */
-.fluid-orb {
-  background: radial-gradient(circle at 50% 50%, rgba(120, 240, 210, .35) 0%, rgba(90, 220, 200, .18) 60%, rgba(255, 255, 255, 0) 100%);
-  box-shadow: 0 0 calc(var(--orb-size) * .35) calc(var(--orb-size) * -.05) rgba(40, 210, 170, .45);
-  filter: saturate(1.45) brightness(1.12);
-  /* A feathered edge in place of a hard rim. */
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 58%, rgba(0,0,0,.85) 68%, transparent 74%);
-  mask-image: radial-gradient(circle at 50% 50%, #000 58%, rgba(0,0,0,.85) 68%, transparent 74%);
-  -webkit-mask-size: 135% 135%; mask-size: 135% 135%;
-  -webkit-mask-position: center; mask-position: center;
-  animation: fluid-breathe 5s ease-in-out infinite alternate, fluid-amoeba 7s ease-in-out infinite;
-}
-.fluid-orb__glass {
-  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 32%);
-  box-shadow: none;
-  mix-blend-mode: soft-light;
-}
-.fluid-orb__blob {
-  filter: blur(calc(var(--orb-size) * .13)) !important;
-  mix-blend-mode: screen;
-}
-.fluid-orb__blob-1 { animation: orb-roam-a 5.5s ease-in-out infinite alternate; }
-.fluid-orb__blob-2 { animation: orb-roam-b 4.5s ease-in-out infinite alternate; background: radial-gradient(circle, rgba(0, 220, 255, .95) 0%, rgba(0, 200, 230, .5) 55%, rgba(0, 200, 230, 0) 100%); }
-.fluid-orb__blob-3 { animation: orb-roam-c 6s ease-in-out infinite alternate; }
-.fluid-orb__blob-4 { animation: orb-roam-d 5s ease-in-out infinite alternate; background: radial-gradient(circle, rgba(200, 255, 90, .95) 0%, rgba(170, 240, 80, .6) 50%, rgba(170, 240, 80, 0) 100%); }
-.fluid-orb__blob-5 { animation: orb-roam-e 4s ease-in-out infinite alternate; background: radial-gradient(circle, rgba(140, 120, 255, .85) 0%, rgba(120, 110, 255, .45) 55%, rgba(120, 110, 255, 0) 100%); }
-@keyframes orb-roam-a { 0% { transform: translate(-14%, -10%) scale(1) rotate(0); } 50% { transform: translate(16%, 12%) scale(1.2, .9) rotate(25deg); } 100% { transform: translate(-6%, 18%) scale(.9, 1.2) rotate(-20deg); } }
-@keyframes orb-roam-b { 0% { transform: translate(12%, -8%) scale(1); } 50% { transform: translate(-18%, 16%) scale(1.25, .85); } 100% { transform: translate(10%, 22%) scale(.9, 1.15); } }
-@keyframes orb-roam-c { 0% { transform: translate(8%, 6%) scale(1) rotate(0); } 50% { transform: translate(-20%, -14%) scale(1.15, .9) rotate(-25deg); } 100% { transform: translate(12%, -18%) scale(.92, 1.2) rotate(18deg); } }
-@keyframes orb-roam-d { 0% { transform: translate(-10%, 8%) scale(1); } 50% { transform: translate(22%, -16%) scale(1.25, .88); } 100% { transform: translate(-4%, -22%) scale(.95, 1.2); } }
-@keyframes orb-roam-e { 0% { transform: translate(6%, -12%) scale(1); } 50% { transform: translate(-22%, 10%) scale(1.3); } 100% { transform: translate(-8%, 20%) scale(.85); } }
-.fluid-orb[data-subtle] { filter: saturate(1.2) brightness(1.08); }
-.fluid-orb[data-subtle] .fluid-orb__blob { opacity: .85; }
-@media (prefers-reduced-motion: reduce) {
-  .fluid-orb, .fluid-orb__blob { animation: none !important; }
-}
+/* THE ORB IS THE BALL THE OWNER FIRST HANDED OVER (2026-10-01, restored).
 
-/* THE ORB, DARK (owner, 2026-10-01): "make the ai ball dark".
-
-   The pale glass body above read as a white ball with bright blobs -- on a
-   dark page it was the brightest thing on screen, on a light one a smudge.
-   Now the body is charcoal glass in both themes, the same in light and dark,
-   and the five blobs are kept roaming under it in deeper jewel tones --
-   teal, blue, violet -- at a lower alpha, screened over the dark body so the
-   movement still reads. The highlights are turned well down (no white inset
-   over 0.12), the bright glow becomes a soft dark drop shadow, and a thin
-   light rim, drawn as a gradient inside the feathered edge rather than as a
-   border, separates the ball from a dark card behind it. The earlier asks
-   stand: no solid border, blobs that mix, motion you can see; size, placement
-   and reduced motion are untouched. Order wins over the block above. */
-.fluid-orb {
-  background: radial-gradient(circle at 42% 36%,
-    #24242e 0%, #1a1a22 38%, #111117 72%, #0b0b0f 100%);
-  box-shadow:
-    inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .10),
-    inset 0 calc(var(--orb-size) * -.06) calc(var(--orb-size) * .12) rgba(0, 0, 0, .45);
-  /* drop-shadow, not box-shadow: the feathered mask clips anything painted
-     outside the box, and a filter is applied after the mask. */
-  filter: saturate(1.2) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45));
-}
-.fluid-orb__glass {
-  background:
-    /* the rim: a faint light ring where the mask starts to fade */
-    radial-gradient(circle at 50% 50%,
-      rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, .14) 44.5%, rgba(255, 255, 255, .14) 45.5%, rgba(255, 255, 255, 0) 50%),
-    /* one quiet highlight, top left */
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, .12) 0%, rgba(255, 255, 255, 0) 34%);
-  box-shadow: none;
-  mix-blend-mode: normal;
-}
-.fluid-orb__blob { mix-blend-mode: screen; }
-.fluid-orb__blob-1 { background: radial-gradient(circle at 48% 45%, rgba(0, 150, 140, .72) 0%, rgba(0, 120, 115, .42) 45%, rgba(0, 120, 115, 0) 100%); }
-.fluid-orb__blob-2 { background: radial-gradient(circle, rgba(40, 120, 255, .70) 0%, rgba(30, 90, 220, .36) 55%, rgba(30, 90, 220, 0) 100%); }
-.fluid-orb__blob-3 { background: radial-gradient(circle at 42% 46%, rgba(130, 80, 230, .70) 0%, rgba(110, 60, 210, .40) 45%, rgba(110, 60, 210, 0) 100%); }
-.fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .60) 0%, rgba(10, 140, 115, .30) 50%, rgba(10, 140, 115, 0) 100%); }
-.fluid-orb__blob-5 { background: radial-gradient(circle, rgba(90, 90, 230, .62) 0%, rgba(70, 70, 210, .32) 55%, rgba(70, 70, 210, 0) 100%); }
-/* The states keep their lift, over the same shadow. */
-.fluid-orb[data-state='thinking'] { filter: saturate(1.45) brightness(1.15) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
-.fluid-orb[data-state='answering'] { filter: saturate(1.3) brightness(1.08) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
-.fluid-orb[data-awake] { transform: scale(1.06); filter: saturate(1.35) brightness(1.1) drop-shadow(0 calc(var(--orb-size) * .09) calc(var(--orb-size) * .22) rgba(0, 0, 0, .45)); }
-/* The subtle ball: the same dark body, the blobs turned down a little. */
-.fluid-orb[data-subtle] {
-  filter: saturate(1) drop-shadow(0 calc(var(--orb-size) * .06) calc(var(--orb-size) * .16) rgba(0, 0, 0, .35));
-  background: radial-gradient(circle at 42% 36%, #22222b 0%, #18181f 40%, #101015 75%, #0b0b0f 100%);
-  box-shadow: inset 0 1px calc(var(--orb-size) * .08) rgba(255, 255, 255, .08);
-}
-.fluid-orb[data-subtle] .fluid-orb__blob { opacity: .7; }
-.fluid-orb[data-subtle] .fluid-orb__blob-4 { background: radial-gradient(circle, rgba(20, 170, 135, .5) 0%, rgba(10, 140, 115, .25) 50%, rgba(10, 140, 115, 0) 100%); }
+   Two later looks sat here and overrode the fluid ball above: a rimless,
+   brighter one whose outline wandered (2026-09-28) and a charcoal one
+   (earlier on 2026-10-01). The owner asked for the first design back, so
+   both are gone and the block above is the whole of it again: a pale glass
+   circle, five blobs in teal, cyan, green, lime and emerald drifting under
+   it. Do not restyle the ball from down here; change the block above. */
 
 /* The rail's foot (alerts, row height, account, sign out, settings): the same
    bold tiles and dock hover as the workspace marks, each in its own colour. */

@@ -26,4 +26,15 @@ describe('packPhone', () => {
     const s = packPhone([{ id: 'a', kind: 'big' }, { id: 'b', kind: 'big' }, { id: 'c', kind: 'big' }, { id: 'd', kind: 'big' }], 4, false)
     expect(s.map((x) => x.page)).toEqual([0, 0, 0, 1])
   })
+  it('a tall card is half the page and two card-rows; a large one the full width', () => {
+    const s = packPhone([{ id: 't', kind: 'tall' }, { id: 's', kind: 'small' }, { id: 'l', kind: 'large' }], 4, false)
+    const at = Object.fromEntries(s.map((x) => [x.id, x]))
+    expect([at.t.w, at.t.h, at.t.col]).toEqual([6, 4, 0])
+    expect([at.s.w, at.s.h, at.s.col, at.s.row]).toEqual([6, 2, 6, 0])
+    expect([at.l.w, at.l.h]).toEqual([PHONE_GRID_COLS, 4])
+  })
+  it('nothing is stretched: a lone small card stays one card-row tall', () => {
+    const s = packPhone([{ id: 's', kind: 'small' }], 4, true)
+    expect([s[0].w, s[0].h]).toEqual([6, 2])
+  })
 })

@@ -1837,7 +1837,14 @@ export function useBoardHeight() {
          the CARDS up with that edge: one correcting pass (the desk board,
          whose rows are exactly the rows in use). */
       if (edge) {
-        const cards = board.querySelectorAll('[data-card]')
+        /* The card's OUTER box. `[data-card]` is the content inside a padded
+           cell on most boards, so lining that up with the edge pushed the
+           cell itself a padding's worth past it: measured, a parent's last
+           card ended 5px under the dock (3px on a phone) with nothing to
+           scroll. The cell is what is drawn; a board without cells keeps
+           the old measure. */
+        const cells = board.querySelectorAll('.bento-cell')
+        const cards = cells.length ? cells : board.querySelectorAll('[data-card]')
         let bottom = 0
         cards.forEach((c) => { bottom = Math.max(bottom, c.getBoundingClientRect().bottom) })
         const off = edge - bottom

@@ -418,10 +418,11 @@ export function useLayout(dashboard: string) {
          Small on the phone came back 2x1, which the desk reads as Medium.
          The width the card already has (`currentW`, the caller's stored or
          declared width; else the stored one) is kept. */
-      const w = phone
-        ? currentW ?? current(dashboard).placed.find((p) => p.id === id)?.w ?? d.w
-        : d.w
-      resize(id, w, d.h)
+      /* The phone writes the whole shape now, like the desk: its four sizes
+         are the desk's four (size-tiers.ts), so the width is the phone's to
+         choose and the same card reads as the same size on both boards. */
+      void currentW
+      resize(id, d.w, d.h)
     },
     [resize, dashboard],
   )
@@ -1009,7 +1010,7 @@ export function paginate(
    left to right, which is what dragging one before another means. */
 export const PHONE_GRID_COLS = 12
 export const PHONE_GRID_ROWS = 6
-export type PhoneKind = 'icon' | 'small' | 'big'
+export type PhoneKind = 'icon' | 'small' | 'tall' | 'big' | 'large'
 
 export function packPhone(
   items: { id: string; kind: PhoneKind }[],
@@ -1020,13 +1021,21 @@ export function packPhone(
   const rows = PHONE_GRID_ROWS
   const per = Math.max(1, Math.min(cols, Math.round(iconsPerRow)))
   const iw = Math.floor(cols / per)
+  /* A card-row is two grid rows. Small and Tall are half the page, Medium
+     ('big') and Large all of it; Tall and Large are two card-rows. Nothing
+     is stretched afterwards: a card is the size somebody chose. */
   const dims = (k: PhoneKind) =>
-    k === 'icon' ? { w: iw, h: 1 } : k === 'small' ? { w: cols / 2, h: 2 } : { w: cols, h: 2 }
+    k === 'icon' ? { w: iw, h: 1 }
+      : k === 'small' ? { w: cols / 2, h: 2 }
+      : k === 'tall' ? { w: cols / 2, h: 4 }
+      : k === 'large' ? { w: cols, h: 4 }
+      : { w: cols, h: 2 }
+  const half = (k: PhoneKind) => k === 'small' || k === 'tall'
 
   let order = items
   if (rhythm) {
-    const smalls = items.filter((i) => i.kind === 'small')
-    const bigs = items.filter((i) => i.kind === 'big')
+    const smalls = items.filter((i) => half(i.kind))
+    const bigs = items.filter((i) => i.kind === 'big' || i.kind === 'large')
     const icons = items.filter((i) => i.kind === 'icon')
     const out: typeof items = []
     const iconRow = () => { out.push(...icons.splice(0, per)) }
@@ -1045,40 +1054,52 @@ export function packPhone(
   }
 
   const spots: Spot[] = []
-  let page = 0
-  let taken = new Set<string>()
   const key = (r: number, c: number) => `${r}:${c}`
-  const free = (r: number, c: number, w: number, h: number) => {
-    if (c + w > cols || r + h > rows) return false
-    for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) if (taken.has(key(y, x))) return false
-    return true
-  }
-  /* In the rhythm a row is never back-filled from below: each item starts
-     at or after the row the previous one started on, so a lone small card
-     keeps its half-row empty rather than pulling icons up beside it. */
-  let floor = 0
-  let lastKind: PhoneKind | null = null
-  for (const item of order) {
-    const { w, h } = dims(item.kind)
-    if (rhythm && lastKind && lastKind !== item.kind && !(lastKind === 'small' && item.kind === 'small')) {
-      // A new kind starts a new row.
-      const prev = spots[spots.length - 1]
-      floor = prev.row + prev.h
-    }
-    let spot: { row: number; col: number } | null = null
-    for (let r = rhythm ? floor : 0; !spot && r <= rows - h; r++) {
+  /* One sheet per page: what is taken, and what each row holds. In the
+     rhythm a row is icons or cards, never both, so a lone small card keeps
+     its half-row empty rather than pulling icons up beside it. */
+  type Sheet = { taken: Set<string>; rowKind: ('icon' | 'card' | undefined)[] }
+  const sheets: Sheet[] = [{ taken: new Set(), rowKind: [] }]
+  const fitOn = (sh: Sheet, w: number, h: number, cls: 'icon' | 'card') => {
+    for (let r = 0; r <= rows - h; r++) {
+      if (rhythm) {
+        let mixed = false
+        for (let y = r; y < r + h; y++) if (sh.rowKind[y] && sh.rowKind[y] !== cls) mixed = true
+        if (mixed) continue
+      }
       for (let c = 0; c <= cols - w; c++) {
-        if (free(r, c, w, h)) { spot = { row: r, col: c }; break }
+        let free = true
+        for (let y = r; y < r + h && free; y++) for (let x = c; x < c + w; x++) if (sh.taken.has(key(y, x))) { free = false; break }
+        if (free) return { row: r, col: c }
       }
     }
+    return null
+  }
+  for (const item of order) {
+    const { w, h } = dims(item.kind)
+    const cls = item.kind === 'icon' ? 'icon' : 'card'
+    /* THE DEFAULT FILLS EARLIER PAGES; A PERSON'S ORDER ONLY GOES FORWARD.
+       Nothing is ever resized to fill a page, so on a board nobody has
+       arranged a Large card that does not fit after the first rows would
+       leave half of page one empty: there, each item takes the first page
+       with room for it. Once somebody has arranged the board, order is what
+       they chose, so an item is tried on the last page and then a new one. */
+    let page = rhythm ? 0 : sheets.length - 1
+    let spot: { row: number; col: number } | null = null
+    for (; page < sheets.length; page++) {
+      spot = fitOn(sheets[page], w, h, cls)
+      if (spot) break
+    }
     if (!spot) {
-      page += 1
-      taken = new Set<string>()
+      sheets.push({ taken: new Set(), rowKind: [] })
+      page = sheets.length - 1
       spot = { row: 0, col: 0 }
     }
-    for (let y = spot.row; y < spot.row + h; y++) for (let x = spot.col; x < spot.col + w; x++) taken.add(key(y, x))
-    floor = spot.row
-    lastKind = item.kind
+    const sh = sheets[page]
+    for (let y = spot.row; y < spot.row + h; y++) {
+      sh.rowKind[y] = cls
+      for (let x = spot.col; x < spot.col + w; x++) sh.taken.add(key(y, x))
+    }
     spots.push({ id: item.id, w, h, page, row: spot.row, col: spot.col })
   }
   return spots
@@ -1087,5 +1108,5 @@ export function packPhone(
 /** How many pages that pack came to. Zero widgets is zero pages, so a caller
     can ask this before deciding whether a pager is worth drawing at all. */
 export function pageCount(spots: Spot[]): number {
-  return spots.length === 0 ? 0 : spots[spots.length - 1].page + 1
+  return spots.length === 0 ? 0 : Math.max(...spots.map((s) => s.page)) + 1
 }

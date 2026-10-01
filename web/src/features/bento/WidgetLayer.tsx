@@ -449,7 +449,8 @@ function usePhoneIconsPerRow(): number {
     full width). */
 function phoneKind(id: string, d: { w: number; h: number }): PhoneKind {
   if (id.startsWith(FEATURE_PREFIX)) return 'icon'
-  return d.w <= 1 && d.h <= 1 ? 'small' : 'big'
+  if (d.w <= 1) return d.h >= 2 ? 'tall' : 'small'
+  return d.h >= 2 ? 'large' : 'big'
 }
 
 function drawnDims(
@@ -742,23 +743,16 @@ export function WidgetLayer({
   /* Only the rows a page actually uses: a home of two card rows and an icon
      row is five tracks, not six with an empty one at the foot. Arranging
      keeps all six so there is somewhere to drop. */
-  /* NO EMPTY BAND AT THE FOOT OF A PAGE. The rhythm can leave a page's
-     last track(s) empty (a two-row card does not fit in the one left). Out
-     of arranging, whatever ends lowest on each page grows down to the foot,
-     so the page is full to the dots. Arranging keeps the packed sizes so
-     the drop targets stay where the pack put them. */
-  const drawn = useMemo(() => {
-    if (!spots || arranging) return spots
-    const end = new Map<number, number>()
-    for (const s of spots) end.set(s.page, Math.max(end.get(s.page) ?? 0, s.row + s.h))
-    return spots.map((s) => {
-      const e = end.get(s.page) ?? rows
-      return s.row + s.h === e && e < rows ? { ...s, h: s.h + (rows - e) } : s
-    })
-  }, [spots, arranging, rows])
-  const usedRows = !drawn
-    ? rows
-    : Math.max(1, Math.min(rows, ...drawn.map((s) => s.row + s.h)))
+  /* NOTHING IS STRETCHED (owner, 2026-10-01: "don't auto fill ... how will
+     the user fill it like they want"). The last card on a page used to grow
+     down to the dots, so a card was never the size its menu said and a page
+     could not be composed. A card is the size somebody chose -- Small, Tall,
+     Medium or Large -- and room left on a page is room to put something. */
+  const drawn = spots
+  /* Every page is the whole grid, always. Sizing the tracks to the rows in
+     use made a page with two small cards draw them the full height of the
+     screen: the same stretching by another road. */
+  const usedRows = rows
   const spotMap = useMemo(
     () => (drawn ? new Map(drawn.map((s) => [s.id, s])) : null),
     [drawn],
@@ -1171,6 +1165,7 @@ function PageDots({
   /** Reduce motion: a tap on a dot jumps rather than glides. */
   still?: boolean
 }) {
+  void onEdit
   const t = useT()
   const phone = usePhone()
   const [at, setAt] = useState(0)
@@ -1237,17 +1232,8 @@ function PageDots({
       data-dim={dim ? '' : undefined}
       style={{ color: INK_HERE_FROM_PAGE } as CSSProperties}
     >
-      {!editing && (
-        <button
-          type="button"
-          className="bento-dots__edit"
-          onClick={onEdit}
-          aria-label={t('bento.widgets.edit_home')}
-          title={t('bento.widgets.edit_home')}
-        >
-          <Pencil className="size-4" aria-hidden="true" />
-        </button>
-      )}
+      {/* No pencil here (owner, 2026-10-01): holding a card, or Settings,
+          is the phone's way into editing. */}
       {pages > 1 && (
         <span className="sr-only" aria-live="polite">
           {t('bento.page.indicator', { n: at + 1, total: pages })}
@@ -1954,7 +1940,7 @@ function ArrangedWidget({
       <div className="h-full [&>*]:h-full" style={paint} {...(editing ? INERT : {})}>
         <WidgetSizeContext.Provider value={{
           w: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? 2 : 1) : cw,
-          h: spot ? (fixed ? 1 : spot.w >= PHONE_GRID_COLS ? Math.min(2, Math.max(1, ch)) : 1) : ch,
+          h: spot ? (fixed ? 1 : spot.h >= 4 ? 2 : 1) : ch,
         }}>
           {children(span)}
         </WidgetSizeContext.Provider>

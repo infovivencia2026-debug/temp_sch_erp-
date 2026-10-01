@@ -968,6 +968,12 @@ export function QuickMenu({
 }
 
 /* ── drawings ──────────────────────────────────────────────────────────── */
+/* ROUNDED NOW, EVERYWHERE (owner, 2026-10-01: "few elements are still sharp
+   ... make sure all are rounded and consistent"). The note below argues for
+   square ends and was right about a 5px track; the tracks are 14px and the
+   columns up to 14px wide now, the cards and the dock are all curves, and
+   square marks were the one hard edge left on the board. Every track, fill,
+   column and ring end takes a full round. */
 /* SQUARE CORNERS THROUGHOUT, and it is not a style preference.
 
    Every measure in here is a length the reader compares against another
@@ -1111,7 +1117,7 @@ export function Bars({ values, activeIndex, srLabel }: {
       aria-label={srLabel}
     >
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1 max-w-[6px] rounded-t-[2px]"
+        <span key={i} className="min-w-0 flex-1 max-w-[14px] rounded-full"
               style={{
                 height: `${Math.max(3, (v / hi) * 100)}%`,
                 background: activeIndex === undefined ? MARK : i === activeIndex ? NOW : QUIET,
@@ -1200,8 +1206,8 @@ export function Rows({ items, srLabel, formatValue }: {
               board was accused of. A measure is a rail: 6px, square where it
               starts at the label, rounded 3px at the data end, on a track
               that is the same ink two steps lighter. */}
-          <span className="h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
-            <span className="block h-full rounded-r-[3px]"
+          <span className="h-[14px] overflow-hidden rounded-full" style={{ background: TRACK }}>
+            <span className="block h-full rounded-full"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="text-[length:min(10px,var(--card-note,10px))] leading-none
@@ -1245,11 +1251,11 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
               round cap adds half the stroke width past the true end of the
               arc, so 2% drew as roughly 6% and 0.5% still drew a visible
               lozenge. A butt cap ends where the value ends. */}
-          <circle cx="50" cy="50" r="43" fill="none" stroke={TRACK} strokeWidth={8} />
+          <circle cx="50" cy="50" r="43" fill="none" stroke={TRACK} strokeWidth={11} />
           {pct > 0 && (
             <circle
               cx="50" cy="50" r="43" fill="none"
-              stroke={MARK} strokeWidth={8} strokeLinecap="butt"
+              stroke={MARK} strokeWidth={11} strokeLinecap="round"
               pathLength={100}
               strokeDasharray={`${pct} ${100 - pct}`}
             />
@@ -1276,7 +1282,7 @@ export function Stack({ columns, srLabel }: {
         // Slim columns, 2px of surface between the parts of each (a stack
         // whose parts touch reads as one bar with stripes on it), the top
         // part rounded 2px at the data end, the foot square.
-        <span key={i} className="flex min-w-0 flex-1 max-w-[6px] flex-col gap-[2px] overflow-hidden rounded-t-[2px]"
+        <span key={i} className="flex min-w-0 flex-1 max-w-[14px] flex-col gap-[2px] overflow-hidden rounded-full"
               style={{ height: `${Math.max(4, (c.total / hi) * 100)}%` }}>
           {c.parts.map((p, j) => (
             <span key={j} style={{
@@ -1296,7 +1302,7 @@ export function Distribution({ values, srLabel }: { values: number[]; srLabel: s
   return (
     <div className="flex h-full items-end justify-between gap-[2px]" role="img" aria-label={srLabel}>
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1 max-w-[6px] rounded-t-[2px]"
+        <span key={i} className="min-w-0 flex-1 max-w-[14px] rounded-full"
               style={{ height: `${Math.max(3, (v / hi) * 100)}%`, background: MARK }} />
       ))}
     </div>
@@ -1326,8 +1332,8 @@ export function Compare({ rows, srLabel, formatValue }: {
           <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] opacity-80">
             {r.label}
           </span>
-          <span className="h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
-            <span className="block h-full rounded-r-[3px]"
+          <span className="h-[14px] overflow-hidden rounded-full" style={{ background: TRACK }}>
+            <span className="block h-full rounded-full"
                   style={{ width: `${(r.value / hi) * 100}%`, background: MARK }} />
           </span>
           <b className="text-[9px] font-bold tabular-nums">{fmt(r.value)}</b>
@@ -1369,8 +1375,8 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
         </span>
         <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
       </div>
-      <span className="relative block h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
-        <span className="block h-full rounded-r-[3px]" style={{ width: `${pct}%`, background: MARK }} />
+      <span className="relative block h-[14px] overflow-hidden rounded-full" style={{ background: TRACK }}>
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: MARK }} />
       </span>
       {/* The shortfall, named. Without this the empty end of the track is just
           empty, and the one number a principal came for is the one nobody
@@ -1441,8 +1447,8 @@ export function Funnel({ stages, srLabel, formatValue }: {
     <div className="flex h-full flex-col justify-end gap-1" role="img" aria-label={srLabel}>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
-          <span className="h-[9px] min-w-0 flex-1">
-            <span className="block h-full rounded-r-[3px]"
+          <span className="h-[14px] min-w-0 flex-1">
+            <span className="block h-full rounded-full"
                   style={{ width: `${Math.max(6, (s.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="shrink-0 text-[9px] font-bold tabular-nums">{fmt(s.value)}</b>
@@ -1743,7 +1749,7 @@ export function Ranked({
                            uppercase leading-none tracking-[0.07em] opacity-75">
             {it.label}
           </span>
-          <span className="mt-1.5 block h-[4px]" style={{ background: TRACK }}>
+          <span className="mt-1.5 block h-[8px]" style={{ background: TRACK }}>
             <span
               className="block h-full"
               style={{ width: `${(num(it.value) / hi) * 100}%`, background: MARK }}
@@ -1780,11 +1786,11 @@ export function Rings({
             const pct = Math.max(0, Math.min(100, (num(a.value) / num(a.total)) * 100))
             return (
               <Fragment key={a.label}>
-                <circle cx="50" cy="50" r={r} fill="none" stroke={TRACK} strokeWidth={5} />
+                <circle cx="50" cy="50" r={r} fill="none" stroke={TRACK} strokeWidth={8} />
                 {pct > 0 && (
                   <circle
                     cx="50" cy="50" r={r} fill="none"
-                    stroke={ink(88 - i * 18)} strokeWidth={5} strokeLinecap="butt"
+                    stroke={ink(88 - i * 18)} strokeWidth={8} strokeLinecap="round"
                     pathLength={100} strokeDasharray={`${pct} ${100 - pct}`}
                   />
                 )}

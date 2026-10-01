@@ -278,7 +278,7 @@ export function Ring({
             </linearGradient>
           </defs>
           {/* The whole: a lighter step of the same hue. */}
-          <circle cx={50} cy={50} r={r} fill="none" stroke={track('purple')} strokeWidth={6} vectorEffect="non-scaling-stroke" />
+          <circle cx={50} cy={50} r={r} fill="none" stroke={track('purple')} strokeWidth={8} vectorEffect="non-scaling-stroke" />
           {/* The part. Started at twelve o'clock and drawn clockwise, because
               that is the direction every dial a reader has ever met turns. */}
           <circle
@@ -287,7 +287,7 @@ export function Ring({
             r={r}
             fill="none"
             stroke={`url(#${gid}-arc)`}
-            strokeWidth={6}
+            strokeWidth={8}
             strokeLinecap={complete ? 'butt' : 'round'}
             strokeDasharray={complete ? undefined : `${drawn} ${circumference}`}
             transform="rotate(-90 50 50)"
@@ -387,7 +387,7 @@ export function SegmentBar({
       className={cn('flex w-full flex-col gap-2', className)}
       ref={ref}
     >
-      <div className="flex h-[8px] w-full items-stretch" style={{ gap: '2px' }}>
+      <div className="flex h-[12px] w-full items-stretch" style={{ gap: '2px' }}>
         {drawn.map((s, i) => (
           <div
             key={`${s.label}-${i}`}
@@ -412,7 +412,7 @@ export function SegmentBar({
           const i = usable.indexOf(s)
           return (
             <li key={`${s.label}-${i}`} className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-              <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: category(i) }} />
+              <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: category(i) }} />
               <span className="truncate" style={{ color: VIZ_QUIET }}>{s.label}</span>
               <span className="ml-auto pl-1 font-semibold">{fmt(s.value)}</span>
             </li>
@@ -420,7 +420,7 @@ export function SegmentBar({
         })}
         {folded.length > 0 && (
           <li className="flex min-w-0 items-center gap-1.5 whitespace-nowrap" style={{ color: VIZ_QUIET }}>
-            <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: VIZ_LINE }} />
+            <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: VIZ_LINE }} />
             <span>+{folded.length} more</span>
             <span className="ml-auto pl-1 font-semibold" style={{ color: 'currentColor' }}>
               {fmt(folded.reduce((a, s) => a + s.value, 0))}
@@ -492,9 +492,9 @@ export function AgeBands({
           >
             {b.label}
           </span>
-          <div className="h-[9px] min-w-0 flex-1 overflow-hidden rounded-r-[3px]" style={{ background: track('pink') }}>
+          <div className="h-[14px] min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: track('pink') }}>
             <div
-              className="h-full rounded-r-[3px]"
+              className="h-full rounded-full"
               style={{
                 // A floor, so a band with one item in it is a visible mark and
                 // not an empty rail indistinguishable from a zero.
@@ -568,17 +568,17 @@ export function HeatStrip({
       <div
         role="img"
         aria-label={`${srLabel}: ${cells.map((c) => (c === null ? 'no data' : fmt(c))).join(', ')}.`}
-        className="flex h-[10px] w-full items-stretch"
+        className="flex h-[14px] w-full items-stretch"
         style={{ gap: '2px' }}
       >
         {cells.map((c, i) =>
           c === null || !Number.isFinite(c) ? (
-            <div key={i} title="No data" className="min-w-0 flex-1 rounded-[2px]" style={{ background: VIZ_LINE }} />
+            <div key={i} title="No data" className="min-w-0 flex-1 rounded-full" style={{ background: VIZ_LINE }} />
           ) : (
             <div
               key={i}
               title={fmt(c)}
-              className="min-w-0 flex-1 rounded-[2px]"
+              className="min-w-0 flex-1 rounded-full"
               style={{ background: flat ? seq('purple', 0.5) : seq('purple', (c - lo) / range) }}
             />
           ),
@@ -849,7 +849,7 @@ export function Quadrant({
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[length:var(--viz-label,11px)] leading-tight tabular-nums" aria-hidden="true">
           {shown.map((p, i) => (
             <li key={`${p.label}-${i}`} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: mark('purple') }} />
+              <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: mark('purple') }} />
               <span className="font-semibold">{p.label}</span>
               <span style={{ color: VIZ_QUIET }}>{xLabel} {p.x} · {yLabel} {p.y}</span>
             </li>

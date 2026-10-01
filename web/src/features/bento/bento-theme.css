@@ -3146,7 +3146,7 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-dock > .dock-tab > div > button {
     width: var(--dock-tap, 44px) !important;
     height: var(--dock-tap, 44px) !important;
-    border-radius: 8px !important;
+    border-radius: 999px !important;
 
     /* The gear brings a disc: a border, a tinted fill, a shadow and a blur,
        which are right where it was designed to sit — alone at the edge of the
@@ -3302,7 +3302,9 @@ html:not(.dark)[data-layout='bento'] {
     width: var(--dock-tap, 44px);
     height: auto;
     min-height: var(--dock-tap, 44px);
-    border-radius: 8px;
+    /* A circle, like the current tab's capsule: 8px was the one square
+       corner in a bar of curves. */
+    border-radius: 999px;
     padding: 0;
     justify-content: center;
   }
@@ -4495,6 +4497,9 @@ html.dark [data-layout='bento'] {
   [data-layout='bento'] .bento-dock svg.lucide {
     width: var(--dock-icon, 26px);
     height: var(--dock-icon, 26px);
+    /* A lighter line (owner, 2026-10-01). The glyphs are drawn for 16px at a
+       2 to 2.25 stroke; scaled to 26 that is a heavy mark, five in a row. */
+    stroke-width: 1.6;
   }
 }
 
