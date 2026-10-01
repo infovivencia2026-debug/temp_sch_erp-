@@ -142,9 +142,9 @@ export default function PortalResults() {
             : t('portal.results.none_body')
         }
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {exams.length > 0 && (
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select value={exam} onChange={setExamPick} options={exams.map((x) => ({ value: x, label: x }))} />
             </div>
           )}

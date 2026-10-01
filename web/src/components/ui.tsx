@@ -1825,7 +1825,7 @@ export function Select({
   return (
     <div ref={box} className="relative">
       <input
-        className="field cursor-text pr-8 [@media(pointer:coarse)]:text-[16px]"
+        className="field cursor-text pr-11 [@media(pointer:coarse)]:text-[16px]"
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
@@ -1867,9 +1867,14 @@ export function Select({
           } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
         }}
       />
-      <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-        <ChevronDown className="h-4 w-4" />
-      </span>
+      {/* A real button, not a decoration: the owner asked that every
+          dropdown carry one, so it is plain that the box opens a list. */}
+      <button type="button" tabIndex={-1} aria-label={open ? 'Close list' : 'Open list'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => { setOpen((o) => !o); setActive(0) }}
+        className="absolute inset-y-1 right-1 grid w-8 place-items-center rounded-md border bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground">
+        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+      </button>
 
       {open && box_ && createPortal(
         <div
