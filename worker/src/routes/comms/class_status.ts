@@ -39,14 +39,22 @@ const TYPES: Record<string, { kind: 'photo' | 'video'; ext: string }> = {
   'image/jpeg': { kind: 'photo', ext: '.jpg' }, 'image/png': { kind: 'photo', ext: '.png' }, 'image/webp': { kind: 'photo', ext: '.webp' },
   'video/mp4': { kind: 'video', ext: '.mp4' }, 'video/webm': { kind: 'video', ext: '.webm' }, 'video/quicktime': { kind: 'video', ext: '.mov' },
 }
+/* The small picture the bell and the strip show: drawn by the poster's
+   browser (~320px), JPEG/WebP/PNG, never more than this. */
+const THUMB_TYPES: Record<string, string> = { 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/png': '.png' }
+const THUMB_MAX = 256 << 10
+const TEXT_MAX = 700
 const KINDS = ['school', 'staff', 'class', 'section'] as const
 type Target = { kind: (typeof KINDS)[number]; id: string }
 
 interface PostRow {
   id: string; posted_by: string; as_school: number; media_kind: string; object_key: string; content_type: string
   size_bytes: number; duration_seconds: number | null; caption: string | null; status: string; pinned: number
-  created_at: string; published_at: string | null; expires_at: string | null
+  created_at: string; published_at: string | null; expires_at: string | null; thumb_key: string | null
 }
+
+/** Every R2 object a post owns (a text status has none). */
+const objectsOf = (p: { object_key: string; thumb_key?: string | null }) => [p.object_key, p.thumb_key].filter((k): k is string => !!k)
 
 // ---------------------------------------------------------------------------
 // who is looking
@@ -189,7 +197,7 @@ async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   if (!people.length) return 0
   const label = (await audienceLabels(c, [p.id])).get(p.id) ?? ''
   const title = `${await posterName(c, p)} added a status · ${label}`.slice(0, 200)
-  const body = (p.caption ?? '').slice(0, 240) || (p.media_kind === 'video' ? 'Video' : 'Photo')
+  const body = (p.caption ?? '').slice(0, 240) || (p.media_kind === 'video' ? 'Video' : p.media_kind === 'text' ? 'Text' : 'Photo')
   const link = `/?status=${p.id}`
   const at = now()
   const set = await loadSettings(c.db)
@@ -229,7 +237,8 @@ async function goLive(c: Ctx, p: PostRow): Promise<PostRow> {
 }
 
 async function removePost(c: Ctx, p: PostRow) {
-  await c.env.FILES_WRITE.delete(p.object_key)
+  const keys = objectsOf(p)
+  if (keys.length) await c.env.FILES_WRITE.delete(keys)
   await c.db.batch([
     c.db.prepare(`DELETE FROM status_views WHERE post_id = ?`).bind(p.id),
     c.db.prepare(`DELETE FROM status_post_targets WHERE post_id = ?`).bind(p.id),
@@ -296,18 +305,20 @@ export function registerClassStatus(r: Router): void {
     const vis = visible(v)
     const t = now()
     const rows = (await c.db.prepare(`SELECT p.id, p.posted_by, p.as_school, p.media_kind, p.content_type, p.caption, p.created_at, p.published_at,
-          p.expires_at, p.pinned, p.duration_seconds, u.full_name AS poster_name, u.avatar_key,
+          p.expires_at, p.pinned, p.duration_seconds, p.thumb_key, u.full_name AS poster_name, u.avatar_key,
           EXISTS (SELECT 1 FROM status_views sv WHERE sv.post_id = p.id AND sv.user_id = ?) AS seen
         FROM status_posts p JOIN users u ON u.id = p.posted_by
         WHERE p.status = 'live' AND (p.expires_at > ? OR p.pinned = 1) AND ${vis.sql}
         ORDER BY p.published_at LIMIT 400`).bind(v.userId, t, ...vis.args)
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
-        published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
+        published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
     const item = (x: (typeof rows)[number]) => ({
-      id: x.id, media_kind: x.media_kind as 'photo' | 'video', content_type: x.content_type, caption: x.caption ?? undefined,
+      id: x.id, media_kind: x.media_kind as 'photo' | 'video' | 'text', content_type: x.content_type, caption: x.caption ?? undefined,
       published_at: x.published_at, expires_at: x.expires_at, pinned: !!x.pinned, seen: !!x.seen, mine: x.posted_by === v.userId,
-      audience: labels.get(x.id) ?? '', duration_seconds: x.duration_seconds ?? undefined, url: `/api/v1/status/posts/${x.id}/media`,
+      audience: labels.get(x.id) ?? '', duration_seconds: x.duration_seconds ?? undefined,
+      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`,
+      thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined,
     })
     const rings = new Map<string, StatusFeed['rings'][number]>()
     const gallery: StatusFeed['gallery'] = []
@@ -361,7 +372,9 @@ export function registerClassStatus(r: Router): void {
     })
   })
 
-  /* Post: multipart form -- file, caption, targets (JSON [{kind, id}]), as_school, duration_seconds. */
+  /* Post: multipart form -- file, caption, targets (JSON [{kind, id}]), as_school, duration_seconds,
+     and optionally thumb (a ~320px picture the browser drew). kind=text posts
+     words alone (the caption, up to 700 characters) on the school's colour. */
   r.post('/status/posts', 'auth', async (c) => {
     const pol = await policyOn(c)
     let form: FormData
@@ -370,12 +383,22 @@ export function registerClassStatus(r: Router): void {
     const v = await viewer(c)
     mayPost(c, v, pol, asSchool)
     const targets = await checkTargets(c, v, asSchool, form.get('targets'))
-    const file = form.get('file') as unknown as File | string | null
-    if (!file || typeof file === 'string') throw badRequest("attach the photo or video under 'file'")
-    const ct = (file.type || '').split(';')[0].trim().toLowerCase()
-    const type = TYPES[ct]
+    const isText = String(form.get('kind') ?? '') === 'text'
+    const file = isText ? null : form.get('file') as unknown as File | string | null
+    if (!isText && (!file || typeof file === 'string')) throw badRequest("attach the photo or video under 'file'")
+    const ct = isText ? 'text/plain' : ((file as File).type || '').split(';')[0].trim().toLowerCase()
+    const type = isText ? { kind: 'text' as const, ext: '' } : TYPES[ct]
     if (!type) throw badRequest('a status is a JPEG, PNG or WebP photo, or an MP4, WebM or MOV video')
-    if (!file.size || file.size > MAX_BYTES) throw badRequest('a status must be under 25 MB', { code: 'too_large' })
+    const size = file && typeof file !== 'string' ? file.size : 0
+    if (!isText && (!size || size > MAX_BYTES)) throw badRequest('a status must be under 25 MB', { code: 'too_large' })
+    let thumb: File | null = null
+    const rawThumb = isText ? null : form.get('thumb') as unknown as File | string | null
+    if (rawThumb && typeof rawThumb !== 'string' && rawThumb.size) {
+      const tct = (rawThumb.type || '').split(';')[0].trim().toLowerCase()
+      if (!THUMB_TYPES[tct]) throw badRequest('the thumbnail is a JPEG, PNG or WebP picture')
+      if (rawThumb.size > THUMB_MAX) throw badRequest('the thumbnail must be under 256 KB')
+      thumb = rawThumb
+    }
     let duration: number | null = null
     if (type.kind === 'video') {
       if (!pol.allow_video) throw badRequest('this school takes photos only in Class Status', { code: 'no_video' })
@@ -383,20 +406,24 @@ export function registerClassStatus(r: Router): void {
       if (!(duration > 0)) throw badRequest('duration_seconds is required for a video')
       if (duration > pol.max_video_seconds + 0.5) throw badRequest(`a video status can be at most ${pol.max_video_seconds} seconds`, { code: 'too_long' })
     }
-    const caption = String(form.get('caption') ?? '').trim().slice(0, 500) || null
+    const caption = String(form.get('caption') ?? '').trim().slice(0, isText ? TEXT_MAX : 500) || null
+    if (isText && !caption) throw badRequest('write something for a text status')
     const id = uuid(), inst = institutionId(c), t = now()
-    const key = `class-status/${inst}/${id}${type.ext}`
-    await c.env.FILES_WRITE.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: ct } })
+    const key = isText ? '' : `class-status/${inst}/${id}${type.ext}`
+    const thumbKey = thumb ? `class-status/${inst}/${id}-thumb${THUMB_TYPES[thumb.type.split(';')[0].trim().toLowerCase()]}` : null
+    if (file && typeof file !== 'string') await c.env.FILES_WRITE.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: ct } })
+    if (thumb && thumbKey) await c.env.FILES_WRITE.put(thumbKey, await thumb.arrayBuffer(), { httpMetadata: { contentType: thumb.type.split(';')[0].trim().toLowerCase() } })
     const pending = pol.needs_approval && !v.admin
     try {
       await c.db.batch([
-        c.db.prepare(`INSERT INTO status_posts (id, institution_id, posted_by, as_school, media_kind, object_key, content_type, size_bytes, duration_seconds, caption, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`)
-          .bind(id, inst, c.id.userId, asSchool ? 1 : 0, type.kind, key, ct, file.size, duration, caption, t),
+        c.db.prepare(`INSERT INTO status_posts (id, institution_id, posted_by, as_school, media_kind, object_key, content_type, size_bytes, duration_seconds, caption, status, created_at, thumb_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`)
+          .bind(id, inst, c.id.userId, asSchool ? 1 : 0, type.kind, key, ct, size, duration, caption, t, thumbKey),
         ...targets.map((x) => c.db.prepare(`INSERT INTO status_post_targets (post_id, kind, target_id) VALUES (?, ?, ?)`).bind(id, x.kind, x.id)),
       ])
     } catch (e) {
-      await c.env.FILES_WRITE.delete(key).catch(() => {})
+      const keys = objectsOf({ object_key: key, thumb_key: thumbKey })
+      if (keys.length) await c.env.FILES_WRITE.delete(keys).catch(() => {})
       throw e
     }
     let p = await load(c, id)
@@ -414,12 +441,13 @@ export function registerClassStatus(r: Router): void {
   /* The poster's own posts, with views. */
   r.get('/status/mine', 'auth', async (c) => {
     if (!can(c.id, POST) && !can(c.id, SCHOOL)) throw forbidden()
-    const rows = (await c.db.prepare(`SELECT p.id, p.as_school, p.media_kind, p.content_type, p.caption, p.status, p.pinned, p.created_at, p.published_at, p.expires_at,
+    const rows = (await c.db.prepare(`SELECT p.id, p.as_school, p.media_kind, p.content_type, p.caption, p.status, p.pinned, p.created_at, p.published_at, p.expires_at, p.thumb_key,
           (SELECT count(*) FROM status_views sv WHERE sv.post_id = p.id) AS views
         FROM status_posts p WHERE p.posted_by = ? ORDER BY p.created_at DESC LIMIT 200`).bind(c.id.userId)
       .all<Record<string, unknown> & { id: string }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
-    return ok({ items: rows.map((x) => ({ ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '', url: `/api/v1/status/posts/${x.id}/media` })) })
+    return ok({ items: rows.map(({ thumb_key, ...x }) => ({ ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '',
+      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined })) })
   })
 
   /* Who has seen it: names, and for a parent which child they came through. */
@@ -465,7 +493,24 @@ export function registerClassStatus(r: Router): void {
     if (!pol.enabled) throw notFound()
     const v = await viewer(c)
     const p = await seeable(c, v, c.params.id)
+    if (!p.object_key) throw notFound()
     return serveRange(c, p.object_key, p.content_type)
+  })
+
+  /* The small picture for the bell and the strip: the same audience check. */
+  r.get('/status/posts/{id}/thumb', 'auth', async (c) => {
+    const pol = await statusPolicy(c.db)
+    if (!pol.enabled) throw notFound()
+    const v = await viewer(c)
+    const p = await seeable(c, v, c.params.id)
+    if (!p.thumb_key) throw notFound()
+    const obj = await c.env.FILES_WRITE.get(p.thumb_key)
+    if (!obj) throw notFound()
+    return new Response(obj.body, { headers: {
+      'content-type': obj.httpMetadata?.contentType ?? 'image/jpeg',
+      'cache-control': 'private, max-age=86400',
+      'x-content-type-options': 'nosniff',
+    } })
   })
 
   r.post('/status/posts/{id}/pin', 'auth', async (c) => {
@@ -501,7 +546,7 @@ export function registerClassStatus(r: Router): void {
     if (st === 'pending' || st === 'live') { where.push('p.status = ?'); args.push(st) }
     if (q.get('pinned') === '1') where.push('p.pinned = 1')
     const rows = (await c.db.prepare(`SELECT p.id, p.posted_by, u.full_name AS poster_name, p.as_school, p.media_kind, p.content_type, p.caption, p.status,
-          p.pinned, p.created_at, p.published_at, p.expires_at, (SELECT count(*) FROM status_views sv WHERE sv.post_id = p.id) AS views
+          p.pinned, p.created_at, p.published_at, p.expires_at, p.thumb_key, (SELECT count(*) FROM status_views sv WHERE sv.post_id = p.id) AS views
         FROM status_posts p JOIN users u ON u.id = p.posted_by WHERE ${where.join(' AND ')}
         ORDER BY (p.status = 'pending') DESC, p.created_at DESC LIMIT 200`).bind(...args)
       .all<Record<string, unknown> & { id: string; posted_by: string; status: string; views: number }>()).results ?? []
@@ -510,7 +555,8 @@ export function registerClassStatus(r: Router): void {
     for (const x of rows) {
       const size = x.status === 'live' ? (await audience(c, x.id, x.posted_by)).length : 0
       items.push({ ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '', audience_size: size,
-        seen_pct: size ? Math.round((100 * x.views) / size) : 0, url: `/api/v1/status/posts/${x.id}/media` })
+        seen_pct: size ? Math.round((100 * x.views) / size) : 0, thumb_key: undefined,
+        url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined })
     }
     const [posters, classes] = await c.db.batch([
       c.db.prepare(`SELECT DISTINCT u.id, u.full_name AS name FROM status_posts p JOIN users u ON u.id = p.posted_by ORDER BY u.full_name`),
@@ -532,7 +578,8 @@ export function registerClassStatus(r: Router): void {
     const p = await load(c, c.params.id)
     if (p.status !== 'pending') throw new HttpError(409, 'this status is not waiting for approval', { code: 'not_pending' })
     // Nobody will ever see it: the bytes go now, the row stays a day for the poster's "My posts".
-    await c.env.FILES_WRITE.delete(p.object_key)
+    const keys = objectsOf(p)
+    if (keys.length) await c.env.FILES_WRITE.delete(keys)
     await c.db.prepare(`UPDATE status_posts SET status = 'rejected', decided_by = ?, decided_at = ? WHERE id = ?`).bind(c.id.userId, now(), p.id).run()
     return ok({ id: p.id, status: 'rejected' })
   })

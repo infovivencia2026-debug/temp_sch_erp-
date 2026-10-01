@@ -2799,9 +2799,12 @@ export function Dialog({
   footer,
   size = 'md',
   label,
+  raised = false,
 }: {
   open?: boolean
   onClose: () => void
+  /** Above the notification drawer (z 100): a dialog opened from inside it. */
+  raised?: boolean
   title?: ReactNode
   description?: ReactNode
   children: ReactNode
@@ -2846,7 +2849,7 @@ export function Dialog({
   if (!open || typeof document === 'undefined') return null
   return createPortal(
     <div
-      className="scrim fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-6"
+      className={cn('scrim fixed inset-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6', raised ? 'z-[110]' : 'z-[70]')}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div

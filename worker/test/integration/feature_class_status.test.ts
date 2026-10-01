@@ -158,6 +158,62 @@ describe('class status', () => {
     expect((await api('admin', 'DELETE', `/status/posts/${p.body.id}`)).body.deleted).toBe(true)
   })
 
+  it('a thumbnail is stored with the post and served only to its audience', async () => {
+    const thumb = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 9, 9, 9])], { type: 'image/jpeg' })
+    const f = new FormData()
+    f.set('file', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3])], { type: 'image/jpeg' }), 'p.jpg')
+    f.set('thumb', thumb, 't.jpg')
+    f.set('targets', JSON.stringify([{ kind: 'section', id: IDS.section }]))
+    const res = await call('/api/v1/status/posts', { method: 'POST', cookie: await as('teacher'), body: f })
+    expect(res.status).toBe(200)
+    const id = (await res.json() as any).id
+    const feed = await api('parent', 'GET', '/status/feed')
+    const item = feed.body.rings.flatMap((r: any) => r.posts).find((x: any) => x.id === id)
+    expect(item.thumb).toBe(`/api/v1/status/posts/${id}/thumb`)
+    const got = await call(`/api/v1/status/posts/${id}/thumb`, { cookie: await as('parent') })
+    expect(got.status).toBe(200)
+    expect(got.headers.get('content-type')).toBe('image/jpeg')
+    expect(new Uint8Array(await got.arrayBuffer())[3]).toBe(9)
+    // Not in the audience (staff who do not teach the section): 404.
+    expect((await call(`/api/v1/status/posts/${id}/thumb`, { cookie: await as('finance') })).status).toBe(404)
+    // A post without one has no thumb route.
+    expect((await call(`/api/v1/status/posts/${first}/thumb`, { cookie: await as('parent') })).status).toBe(404)
+    // Deleting the post takes the thumbnail object with it.
+    const key = (await E.TENANT_TEST.prepare(`SELECT thumb_key FROM status_posts WHERE id = ?`).bind(id).first<{ thumb_key: string }>())!.thumb_key
+    expect(await E.FILES_WRITE.head(key)).toBeTruthy()
+    expect((await api('teacher', 'DELETE', `/status/posts/${id}`)).body.deleted).toBe(true)
+    expect(await E.FILES_WRITE.head(key)).toBeNull()
+  })
+
+  it('refuses a thumbnail that is not a picture', async () => {
+    const f = new FormData()
+    f.set('file', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'p.jpg')
+    f.set('thumb', new Blob(['<svg/>'], { type: 'image/svg+xml' }), 't.svg')
+    f.set('targets', JSON.stringify([{ kind: 'section', id: IDS.section }]))
+    expect((await call('/api/v1/status/posts', { method: 'POST', cookie: await as('teacher'), body: f })).status).toBe(400)
+  })
+
+  it('a text status: words on the school colour, no media, seen by its audience only', async () => {
+    const empty = await post('teacher', [{ kind: 'section', id: IDS.section }], { kind: 'text', caption: '   ' })
+    expect(empty.status).toBe(400)
+    const p = await post('teacher', [{ kind: 'section', id: IDS.section }], { kind: 'text', caption: 'Holiday tomorrow!' })
+    expect(p.status).toBe(200)
+    expect(p.body.status).toBe('live')
+    const feed = await api('parent', 'GET', '/status/feed')
+    const item = feed.body.rings.flatMap((r: any) => r.posts).find((x: any) => x.id === p.body.id)
+    expect(item.media_kind).toBe('text')
+    expect(item.caption).toBe('Holiday tomorrow!')
+    expect(item.url).toBe('')
+    expect(item.thumb).toBeUndefined()
+    const other = await api('finance', 'GET', '/status/feed')
+    expect(other.body.rings.flatMap((r: any) => r.posts).some((x: any) => x.id === p.body.id)).toBe(false)
+    expect((await call(`/api/v1/status/posts/${p.body.id}/media`, { cookie: await as('parent') })).status).toBe(404)
+    expect((await api('parent', 'POST', `/status/posts/${p.body.id}/view`)).body.counted).toBe(true)
+    const bell = await bellStatus('parent')
+    expect(bell.length).toBe(1)
+    expect((await api('teacher', 'DELETE', `/status/posts/${p.body.id}`)).body.deleted).toBe(true)
+  })
+
   it('the switch off hides everything and refuses posting', async () => {
     await settings({ enabled: false })
     const feed = await api('parent', 'GET', '/status/feed')

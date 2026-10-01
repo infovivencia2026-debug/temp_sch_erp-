@@ -62,12 +62,13 @@ export async function expireStatuses(env: Pick<Env, 'FILES_WRITE'>, db: D1Databa
   const dayAgo = new Date(at.getTime() - LIFETIME_MS).toISOString()
   let gone = 0
   for (;;) {
-    const rows = (await db.prepare(`SELECT id, object_key FROM status_posts
+    const rows = (await db.prepare(`SELECT id, object_key, thumb_key FROM status_posts
         WHERE pinned = 0 AND ((status = 'live' AND expires_at <= ?) OR (status <> 'live' AND created_at <= ?))
-        LIMIT 200`).bind(nowIso, dayAgo).all<{ id: string; object_key: string }>()).results ?? []
+        LIMIT 200`).bind(nowIso, dayAgo).all<{ id: string; object_key: string; thumb_key: string | null }>()).results ?? []
     if (!rows.length) break
     // The bytes first: a row left behind is retried next hour, an orphaned object never would be.
-    await env.FILES_WRITE.delete(rows.map((r) => r.object_key))
+    const keys = rows.flatMap((r) => [r.object_key, r.thumb_key]).filter((k): k is string => !!k)
+    if (keys.length) await env.FILES_WRITE.delete(keys)
     const ids = JSON.stringify(rows.map((r) => r.id))
     await db.batch([
       db.prepare(`DELETE FROM status_views WHERE post_id IN (SELECT value FROM json_each(?))`).bind(ids),

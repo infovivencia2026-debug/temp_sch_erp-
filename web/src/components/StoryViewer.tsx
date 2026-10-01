@@ -18,7 +18,8 @@ import './story-viewer.css'
    gestures are four, the state is two numbers, and a dependency for that
    would be the thing that breaks on the next WebView. */
 
-export type StoryMedia = 'image' | 'video' | 'pdf' | 'link' | 'file'
+/** 'text': the title drawn large and centred on the theme's accent (a text status). */
+export type StoryMedia = 'image' | 'video' | 'pdf' | 'link' | 'file' | 'text'
 
 export interface StoryItem {
   id: string
@@ -76,7 +77,10 @@ export default function StoryViewer({
   onClose,
   onSeen,
   startMuted = false,
+  startId,
 }: {
+  /** Open on this item (a notification about one post) rather than the first unseen. */
+  startId?: string
   groups: StoryGroup[]
   /** Videos start silent, with a button to unmute (Class Status). */
   startMuted?: boolean
@@ -90,7 +94,10 @@ export default function StoryViewer({
   const [i, setI] = useState(() => {
     /* Open on the first thing not yet seen, as a status does; the seen ones
        are still there behind a tap to the left. */
-    const first = groups[Math.min(start, groups.length - 1)]?.items.findIndex((it) => !it.seen) ?? 0
+    const items = groups[Math.min(start, groups.length - 1)]?.items ?? []
+    const wanted = startId ? items.findIndex((it) => it.id === startId) : -1
+    if (wanted >= 0) return wanted
+    const first = items.findIndex((it) => !it.seen)
     return first < 0 ? 0 : first
   })
   const [progress, setProgress] = useState(0)
@@ -262,6 +269,9 @@ export default function StoryViewer({
               onEnded={goNext}
             />
           )}
+          {item.media === 'text' && (
+            <div className="story__text" key={item.id}><p>{item.title}</p></div>
+          )}
           {(item.media === 'pdf' || item.media === 'file' || item.media === 'link') && (
             <div className="story__card" key={item.id}>
               <div className="story__card-icon">
@@ -310,10 +320,10 @@ export default function StoryViewer({
 
         {paused && <div className="story__hint">Paused</div>}
 
-        {(item.media === 'image' || item.media === 'video') && (
+        {(item.media === 'image' || item.media === 'video' || item.media === 'text') && (
           <div className="story__caption">
             {item.tag && <span className="story__tag">{item.tag}</span>}
-            <div className="story__title">{item.title}</div>
+            {item.media !== 'text' && <div className="story__title">{item.title}</div>}
             {item.description && <div className="story__desc">{item.description}</div>}
             {item.footer && (
               <div className="story__footer" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>

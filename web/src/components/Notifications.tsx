@@ -5,8 +5,11 @@ import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell, BookOpen, CalendarClock, Camera, IndianRupee, Megaphone, MessageSquare, X,
+  Bell, BookOpen, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
+import StatusRings from '@/features/comms/status/StatusRings'
+import { useStatusFeed } from '@/features/comms/status/status-api'
+import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
@@ -92,6 +95,7 @@ const FILTERS: { key: string; label: string; kinds?: string[] }[] = [
   { key: 'message', label: 'Messages', kinds: ['message', 'chat'] },
   { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'report', 'attendance', 'leave'] },
   { key: 'fees', label: 'Fees', kinds: ['fee', 'fees', 'payment'] },
+  { key: 'status', label: 'Status', kinds: ['status'] },
   { key: 'other', label: 'Other' },
 ]
 
@@ -99,6 +103,46 @@ function timeOf(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+/* The post a status notification is about: its link is "/?status=<id>". */
+function statusPostId(n: Note): string | null {
+  if (n.kind !== 'status' || !n.link) return null
+  const m = /[?&]status=([0-9a-f-]{36})/i.exec(n.link)
+  return m ? m[1].toLowerCase() : null
+}
+
+function seconds(n?: number): string {
+  if (!n) return ''
+  const s = Math.round(n)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/* A STATUS AS A MEDIA NOTIFICATION: the picture (the auth-checked ~320px
+   thumbnail), a play tile with the length for a video without one, the
+   accent for a text status, the type icon when nothing else is known. */
+function StatusThumb({ post, read }: { post?: StatusItem; read: boolean }) {
+  const [broken, setBroken] = useState(false)
+  const kind = post?.media_kind
+  const box = 'relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg'
+  if (kind === 'text') {
+    return <span className={cn(box, 'bg-primary p-1 text-center text-[9px] font-semibold leading-tight text-primary-foreground')} aria-hidden>
+      <span className="line-clamp-3">{post?.caption || <Type className="size-4" />}</span>
+    </span>
+  }
+  const video = kind === 'video'
+  return (
+    <span className={cn(box, post?.thumb && !broken ? 'bg-black' : read ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
+      {post?.thumb && !broken
+        ? <img src={post.thumb} alt="" loading="lazy" className="size-full object-cover" onError={() => setBroken(true)} />
+        : video ? <Play className="size-5" /> : kind === 'photo' ? <ImageIcon className="size-5" /> : <Camera className="size-5" />}
+      {video && (
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-1 pb-0.5 pt-2 text-[10px] font-semibold text-white">
+          <Play className="size-2.5 fill-current" />{seconds(post?.duration_seconds)}
+        </span>
+      )}
+    </span>
+  )
 }
 
 export default function Notifications() {
@@ -153,6 +197,13 @@ export default function Notifications() {
   })
 
   const navigate = useNavigate()
+  // The rings' feed (shared cache with the strip): what each status entry is about.
+  const statusFeed = useStatusFeed(open || closing)
+  const [statusOpen, setStatusOpen] = useState<string | null>(null)
+  const statusHandled = useCallback(() => setStatusOpen(null), [])
+  const postById = new Map<string, StatusItem>()
+  for (const r of statusFeed.data?.rings ?? []) for (const p of r.posts) postById.set(p.id, p)
+  for (const p of statusFeed.data?.gallery ?? []) postById.set(p.id, p)
 
   const dismiss = useCallback(() => {
     setClosing(true)
@@ -166,7 +217,8 @@ export default function Notifications() {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
+    // Escape inside the status viewer or a dialog over the drawer closes that, not the drawer.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.story')) dismiss() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
@@ -210,6 +262,13 @@ export default function Notifications() {
     return undefined
   }
   const openNote = (n: Note) => {
+    /* A status opens the viewer at that post, over the drawer; seeing it
+       is what reads the entry (POST /status/posts/{id}/view). */
+    const post = statusPostId(n)
+    if (post && postById.has(post)) {
+      setStatusOpen(post)
+      return
+    }
     dismiss()
     const link = linkFor(n)
     if (link) navigate(link)
@@ -330,6 +389,10 @@ export default function Notifications() {
               </div>
             </header>
 
+            {/* Class Status: Add, then the rings, unseen first. Draws nothing
+                when the school has it off or there is nothing to show. */}
+            <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />
+
             {items.length > 0 && (
               <div className="flex shrink-0 gap-1 overflow-x-auto border-b bg-muted/40 px-4 py-2">
                 {FILTERS.map((f) => (
@@ -363,6 +426,35 @@ export default function Notifications() {
                     <div className="space-y-2">
                       {g.notes.map((n) => {
                         const { icon: Icon, label } = kindOf(n.kind)
+                        const postId = statusPostId(n)
+                        if (postId) {
+                          const post = postById.get(postId)
+                          const chip = post?.media_kind === 'video' ? 'Video' : post?.media_kind === 'text' ? 'Text' : post ? 'Photo' : 'Status'
+                          /* The title is "<poster> added a status · <audience>". */
+                          const [who, aud] = n.title.split(' added a status · ')
+                          const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
+                          return (
+                            <button key={n.id} type="button" onClick={() => openNote(n)}
+                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-all hover:shadow-md',
+                                n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
+                              <StatusThumb post={post} read={!!n.read_at} />
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-baseline justify-between gap-2">
+                                  <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{who || n.title}</span>
+                                  <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
+                                </span>
+                                <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px]">
+                                  <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px font-semibold text-primary">{chip}</span>
+                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || aud || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
+                                </span>
+                                {excerpt && post?.media_kind !== 'text' && (
+                                  <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-muted-foreground">{excerpt}</span>
+                                )}
+                                {!post && statusFeed.data && <span className="mt-1 block text-[11.5px] text-muted-foreground">No longer showing</span>}
+                              </span>
+                            </button>
+                          )
+                        }
                         return (
                           <button key={n.id} type="button" onClick={() => openNote(n)}
                             className={cn('flex w-full items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all hover:shadow-md',

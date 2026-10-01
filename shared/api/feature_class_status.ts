@@ -4,7 +4,8 @@
 
 export interface StatusItem {
   id: string
-  media_kind: 'photo' | 'video'
+  /** 'text': words alone (the caption) on the school's colour; no media. */
+  media_kind: 'photo' | 'video' | 'text'
   content_type: string
   caption?: string
   published_at: string
@@ -15,8 +16,10 @@ export interface StatusItem {
   /** "Class 5 A", "Whole school", ... */
   audience: string
   duration_seconds?: number
-  /** The auth-checked media route. */
+  /** The auth-checked media route; empty for a text status. */
   url: string
+  /** The auth-checked ~320px thumbnail, when the poster's browser drew one. */
+  thumb?: string
 }
 
 export interface StatusRing {
