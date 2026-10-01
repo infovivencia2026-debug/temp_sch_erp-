@@ -1,4 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
+import { useFeatureHref } from '@/features/bento/bento-kit'
 import {
   CalendarDays, CheckCircle2, ClipboardCheck, FileText, Megaphone, Repeat,
 } from 'lucide-react'
@@ -46,6 +49,14 @@ const KIND: Record<string, { label: string; icon: typeof FileText }> = {
 const ORDER = ['submissions', 'marks', 'substitution', 'announcement', 'leave']
 
 export default function MyWork() {
+  /* Each row opens the page where it is dealt with (the owner asked for it). */
+  const hrefs: Record<string, string | undefined> = {
+    submissions: useFeatureHref('faculty.teaching.homework_classwork'),
+    marks: useFeatureHref('faculty.marks_report_cards.marks_entry'),
+    substitution: useFeatureHref('faculty.timetable.my_timetable'),
+    announcement: useFeatureHref('faculty.communication.messages'),
+    leave: useFeatureHref('faculty.my_profile.student_leave_requests'),
+  }
   const { data, isLoading, error } = useQuery({
     queryKey: ['my-work'],
     queryFn: () => api.get<MyWorkView>('/api/v1/teaching/my-work'),
@@ -121,7 +132,8 @@ export default function MyWork() {
                 const K = KIND[it.kind] ?? { label: it.kind, icon: FileText }
                 const Icon = K.icon
                 return (
-                  <li key={i} className="flex items-start gap-3 px-5 py-4">
+                  <li key={i}>
+                  <Link to={hrefs[it.kind] ?? '#'} className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
                     <span
                       className={cn(
                         'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md',
@@ -143,11 +155,8 @@ export default function MyWork() {
                         )}
                       </p>
                     </div>
-                    {it.count > 1 && (
-                      <span className="shrink-0 text-[18px] font-semibold tabular-nums">
-                        {it.count}
-                      </span>
-                    )}
+                    <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
                   </li>
                 )
               })}
