@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, Pin, PinOff, Plus, Trash2 } from 'lucide-react'
+import { Eye, Image as ImageIcon, Pin, PinOff, Play, Plus, Trash2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useOptimisticMutation, useUndoableDelete } from '@/lib/optimistic'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, PageBody, PageHead } from '@/components/ui'
@@ -13,11 +14,23 @@ import { hoursLeft, type MyPost } from './status/status-api'
    its audience, how many have seen it (and who), and pin or delete.
    Reads /api/v1/status/* (worker/src/routes/comms/class_status.ts). */
 
-export function PostThumb({ p }: { p: Pick<MyPost, 'media_kind' | 'url' | 'status'> }) {
-  if (p.status === 'rejected') return <div className="size-14 shrink-0 rounded-md bg-muted" />
-  return p.media_kind === 'video'
-    ? <video src={p.url} className="size-14 shrink-0 rounded-md bg-black object-cover" muted playsInline preload="metadata" />
-    : <img src={p.url} alt="" className="size-14 shrink-0 rounded-md bg-muted object-cover" loading="lazy" />
+/* The small picture beside a post in a list. The thumbnail the poster's
+   browser drew (a few KB), never the full photo or the video itself: this
+   used to load a 1600px picture, or start a video, to fill 56 pixels, once
+   per row. A text status has no picture and gets its own tile; so does a
+   post with no thumbnail. */
+export function PostThumb({ p }: { p: Pick<MyPost, 'media_kind' | 'url' | 'status' | 'thumb' | 'caption'> }) {
+  const box = 'grid size-14 shrink-0 place-items-center overflow-hidden rounded-md'
+  if (p.status === 'rejected') return <div className={cn(box, 'bg-muted')} />
+  if (p.media_kind === 'text') {
+    return <div className={cn(box, 'bg-primary p-1 text-center text-[9px] font-semibold leading-tight text-primary-foreground')} aria-hidden><span className="line-clamp-3">{p.caption || 'Aa'}</span></div>
+  }
+  if (p.thumb) return <img src={p.thumb} alt="" className={cn(box, 'bg-muted object-cover')} loading="lazy" decoding="async" />
+  return (
+    <div className={cn(box, p.media_kind === 'video' ? 'bg-black text-white' : 'bg-muted text-muted-foreground')} aria-hidden>
+      {p.media_kind === 'video' ? <Play className="size-5" /> : <ImageIcon className="size-5" />}
+    </div>
+  )
 }
 
 export default function ClassStatus() {

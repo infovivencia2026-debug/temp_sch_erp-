@@ -95,31 +95,37 @@ function signingKey(c: Ctx): Promise<CryptoKey> {
   return hmacKey.key
 }
 const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-async function signature(c: Ctx, postId: string, exp: number): Promise<string> {
-  const msg = `${c.id.institution?.id ?? ''}.${postId}.${c.id.userId}.${exp}`
+/* `scope` is part of what is signed: 'l' (the feed) opens a post only while it
+   is live and showing; 'a' (the poster's own list, the school's list) opens
+   it in any state, because those lists show pending and expired posts to the
+   people who may manage them. */
+type SigScope = 'l' | 'a'
+async function signature(c: Ctx, postId: string, exp: number, scope: SigScope = 'l'): Promise<string> {
+  const msg = `${c.id.institution?.id ?? ''}.${postId}.${c.id.userId}.${exp}.${scope}`
   return b64url(await crypto.subtle.sign('HMAC', await signingKey(c), enc.encode(msg)))
 }
 /** `?exp=…&sig=…` for one post, for the person asking. */
-async function signedQuery(c: Ctx, postId: string, exp: number): Promise<string> {
-  return `?exp=${exp}&sig=${await signature(c, postId, exp)}`
+async function signedQuery(c: Ctx, postId: string, exp: number, scope: SigScope = 'l'): Promise<string> {
+  return `?exp=${exp}${scope === 'a' ? '&k=a' : ''}&sig=${await signature(c, postId, exp, scope)}`
 }
 const sigExpiry = () => (Math.floor(Date.now() / SIG_WINDOW_MS) + 2) * SIG_WINDOW_MS
 /** True when the request carries a live signature for this post and this person. */
-async function signed(c: Ctx, postId: string): Promise<boolean> {
+async function signed(c: Ctx, postId: string): Promise<SigScope | null> {
   const sig = c.url.searchParams.get('sig'), exp = Number(c.url.searchParams.get('exp'))
-  if (!sig || !Number.isFinite(exp) || exp < Date.now() || !isUUID(postId)) return false
-  const want = await signature(c, postId.toLowerCase(), exp)
-  if (want.length !== sig.length) return false
+  if (!sig || !Number.isFinite(exp) || exp < Date.now() || !isUUID(postId)) return null
+  const scope: SigScope = c.url.searchParams.get('k') === 'a' ? 'a' : 'l'
+  const want = await signature(c, postId.toLowerCase(), exp, scope)
+  if (want.length !== sig.length) return null
   let diff = 0
   for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ sig.charCodeAt(i)
-  return diff === 0
+  return diff === 0 ? scope : null
 }
 /** The post for a signed request: one read, the switch in the same statement. Live and still showing, or 404. */
-async function signedPost(c: Ctx, id: string): Promise<PostRow> {
+async function signedPost(c: Ctx, id: string, scope: SigScope = 'l'): Promise<PostRow> {
   const p = await c.db.prepare(`SELECT p.*, COALESCE((SELECT m.enabled FROM module_settings m WHERE m.module = ?), 1) AS switched_on
       FROM status_posts p WHERE p.id = ?`).bind(MODULE, id.toLowerCase()).first<PostRow & { switched_on: number }>()
   if (!p || !p.switched_on) throw notFound()
-  if (p.posted_by !== c.id.userId && (p.status !== 'live' || !(p.pinned || (p.expires_at ?? '') > now()))) throw notFound()
+  if (scope === 'l' && p.posted_by !== c.id.userId && (p.status !== 'live' || !(p.pinned || (p.expires_at ?? '') > now()))) throw notFound()
   return p
 }
 
@@ -393,7 +399,8 @@ const KEEP = 'private, max-age=43200, immutable'
 
 /** The post behind a media or thumbnail request: one read on a signed address, the full check otherwise. */
 async function mediaPost(c: Ctx): Promise<PostRow> {
-  if (await signed(c, c.params.id)) return signedPost(c, c.params.id)
+  const scope = await signed(c, c.params.id)
+  if (scope) return signedPost(c, c.params.id, scope)
   const pol = await statusPolicy(c.db)
   if (!pol.enabled) throw notFound()
   return seeable(c, await viewer(c), c.params.id)
@@ -565,8 +572,10 @@ export function registerClassStatus(r: Router): void {
         FROM status_posts p WHERE p.posted_by = ? ORDER BY p.created_at DESC LIMIT 200`).bind(c.id.userId)
       .all<Record<string, unknown> & { id: string }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
+    const exp = sigExpiry()
+    const q = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp, 'a')] as const)))
     return ok({ items: rows.map(({ thumb_key, ...x }) => ({ ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '',
-      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined })) })
+      url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`, thumb: thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined })) })
   })
 
   /* Who has seen it: names, and for a parent which child they came through. */
@@ -587,7 +596,7 @@ export function registerClassStatus(r: Router): void {
        child, the insert, and the bell when the viewer says this was the
        last unseen one of the ring: `last=1`. The viewer is trusted on that
        because all it can do is mark its OWN bell entry read. */
-    if (await signed(c, c.params.id)) {
+    if (await signed(c, c.params.id) === 'l') {
       const p = await signedPost(c, c.params.id)
       if (p.posted_by === c.id.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
       const family = c.id.roles.some((r) => r === 'parent' || r === 'student')
@@ -689,11 +698,13 @@ export function registerClassStatus(r: Router): void {
       .all<Record<string, unknown> & { id: string; posted_by: string; status: string; views: number }>()).results ?? []
     // One read for the labels and one for every live post's audience, not one per row.
     const [labels, sizes] = await Promise.all([audienceLabels(c, rows.map((x) => x.id)), audiences(c, rows.filter((x) => x.status === 'live'))])
+    const exp = sigExpiry()
+    const sig = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp, 'a')] as const)))
     const items = rows.map((x) => {
       const size = sizes.get(x.id)?.length ?? 0
       return { ...x, pinned: !!x.pinned, as_school: !!x.as_school, audience: labels.get(x.id) ?? '', audience_size: size,
         seen_pct: size ? Math.round((100 * x.views) / size) : 0, thumb_key: undefined,
-        url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media`, thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb` : undefined }
+        url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${sig.get(x.id)}`, thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${sig.get(x.id)}` : undefined }
     })
     const [posters, classes] = await c.db.batch([
       c.db.prepare(`SELECT DISTINCT u.id, u.full_name AS name FROM status_posts p JOIN users u ON u.id = p.posted_by ORDER BY u.full_name`),
