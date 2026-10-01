@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Plus, X } from 'lucide-react'
+import { Check, Copy, Plus, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api, ApiError, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Dialog, Field, FormGrid, FormNotice,
   Input, Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
@@ -56,9 +57,11 @@ const ROLE_NAME: Record<string, string> = {
   support_admin: 'Support',
 }
 const ROLE_OPTIONS = [
-  { value: 'support_admin', label: 'Support (read-only across schools)' },
-  { value: 'seller_admin', label: 'Seller administrator (runs this console)' },
+  { value: 'support_admin', label: 'Support', about: 'Answers schools’ tickets. Looks across schools, changes nothing, and sees no child’s records.' },
+  { value: 'seller_admin', label: 'Seller administrator', about: 'Runs this console: schools, plans, billing and this team.' },
 ]
+const STATUS_NAME: Record<string, string> = { active: 'Active', suspended: 'Suspended', invited: 'Invited' }
+const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
 
 export default function SupportTeam() {
   const qc = useQueryClient()
@@ -125,11 +128,11 @@ export default function SupportTeam() {
           <Button
             onClick={() => {
               setHandover(null)
-              setCreating((c) => !c)
+              setCreating(true)
             }}
           >
-            {creating ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {creating ? 'Cancel' : 'Add a person'}
+            <Plus className="h-3.5 w-3.5" />
+            Add a person
           </Button>
         }
       />
@@ -155,41 +158,61 @@ export default function SupportTeam() {
           </p>
         )}
 
+        {!legacy && rows.length > 0 && (
+          <CellGrid cols={4}>
+            <Stat label="People" value={rows.length} />
+            <Stat label="Seller administrators" value={rows.filter((a) => a.roles.some((r) => r !== 'support_admin')).length} />
+            <Stat label="Support" value={rows.filter((a) => a.roles.includes('support_admin')).length} />
+            <Stat
+              label="Suspended"
+              value={rows.length - active}
+              delta={rows.length - active === 0 ? { value: 'Everyone can sign in', positive: true } : undefined}
+            />
+          </CellGrid>
+        )}
+
         <Card>
-          <CardHeader
-            title="People"
-            description={`${rows.length} ${rows.length === 1 ? 'account' : 'accounts'}, ${active} active.`}
-          />
+          <CardHeader title="People" description={`${active} of ${rows.length} can sign in.`} />
           {rows.length === 0 ? (
             <EmptyState title="Nobody yet" body="Add the first person to give them a login to this console." />
           ) : (
-            <Table head={['Name', 'Signs in as', 'Role', 'Status', 'Last sign-in', '']}>
+            <Table head={['Name', 'Role', 'Status', 'Signs in as', 'Last sign-in', '']}>
               {rows.map((a) => {
                 const fixed = a.you || a.roles.includes('super_admin')
                 const role = a.roles.find((r) => r === 'super_admin') ?? a.roles.find((r) => r === 'seller_admin') ?? a.roles[0] ?? ''
+                const off = a.status !== 'active'
                 return (
                   <tr key={a.id}>
                     <Td className="whitespace-nowrap font-medium">
-                      {a.full_name}
-                      {a.you && <span className="ml-2 text-[12px] font-normal text-muted-foreground">you</span>}
+                      <span className="inline-flex items-center gap-2.5">
+                        <span
+                          aria-hidden
+                          className={cn('grid size-8 shrink-0 place-items-center rounded-full text-[12px] font-semibold',
+                            off ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')}
+                        >
+                          {initials(a.full_name)}
+                        </span>
+                        <span className={off ? 'text-muted-foreground' : undefined}>{a.full_name}</span>
+                        {a.you && !legacy && <Badge tone="info">You</Badge>}
+                      </span>
                     </Td>
-                    <Td className="whitespace-nowrap font-mono text-[13px]">{a.email ?? a.phone ?? '-'}</Td>
-                    <Td className="min-w-[13rem]">
+                    <Td className="min-w-[14.5rem]">
                       {fixed ? (
                         <span className="text-[13.5px]">{ROLE_NAME[role] ?? (role || 'No role')}</span>
                       ) : (
                         <Select
                           value={role}
                           onChange={(v) => { if (v && v !== role) setRole.mutate({ id: a.id, role: v }) }}
-                          options={ROLE_OPTIONS.map((o) => ({ value: o.value, label: ROLE_NAME[o.value] }))}
+                          options={ROLE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                         />
                       )}
                     </Td>
                     <Td>
-                      <Badge tone={STATUS_TONE[a.status] ?? 'neutral'}>{a.status}</Badge>
+                      <Badge tone={STATUS_TONE[a.status] ?? 'neutral'}>{STATUS_NAME[a.status] ?? a.status}</Badge>
                     </Td>
-                    <Td className="num text-muted-foreground">
-                      {a.last_login_at ? formatDate(a.last_login_at) : 'never'}
+                    <Td className="whitespace-nowrap font-mono text-[13px]">{a.email ?? a.phone ?? '-'}</Td>
+                    <Td className="num whitespace-nowrap text-muted-foreground">
+                      {a.last_login_at ? formatDate(a.last_login_at) : 'Not yet'}
                     </Td>
                     <Td className="whitespace-nowrap text-right">
                       {!fixed && (
@@ -208,12 +231,7 @@ export default function SupportTeam() {
                               Suspend
                             </Button>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={setStatus.isPending}
-                              onClick={() => setStatus.mutate({ id: a.id, status: 'active' })}
-                            >
+                            <Button variant="secondary" size="sm" onClick={() => setStatus.mutate({ id: a.id, status: 'active' })}>
                               Reactivate
                             </Button>
                           )}
@@ -350,25 +368,28 @@ function CreateForm({
   const ready = f.full_name.trim() !== '' && (f.email.trim() !== '' || f.phone.trim() !== '')
 
   return (
-    <Card>
-      <CardHeader
-        title="Add a person"
-        description="Creates their login and shows a one-time password to hand over."
-      />
+    <Dialog
+      onClose={onCancel}
+      title="Add a person"
+      description="Creates their login and shows a one-time password to hand over."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button disabled={create.isPending || !ready} onClick={() => create.mutate()}>
+            {create.isPending ? 'Creating…' : 'Create and show password'}
+          </Button>
+        </>
+      }
+    >
       <form
-        className="px-5 py-5"
         onSubmit={(e) => {
           e.preventDefault()
-          create.mutate()
+          if (ready && !create.isPending) create.mutate()
         }}
       >
         <FormGrid>
           <Field label="Full name" required wide>
-            <Input
-              value={f.full_name}
-              onChange={(x) => set('full_name', x)}
-              placeholder="Priya Nair"
-            />
+            <Input value={f.full_name} onChange={(x) => set('full_name', x)} placeholder="Priya Nair" />
           </Field>
           <Field label="Email" hint="What they sign in with. Email or phone is required.">
             <Input type="email" value={f.email} onChange={(x) => set('email', x)} />
@@ -376,21 +397,42 @@ function CreateForm({
           <Field label="Phone">
             <Input value={f.phone} onChange={(x) => set('phone', x)} />
           </Field>
-          {!legacy && <Field label="Role" required wide hint="Support can look across schools but changes nothing and sees no child's records. A seller administrator can do everything in this console, including this screen.">
-            <Select value={f.role} onChange={(x) => set('role', x || 'support_admin')} options={ROLE_OPTIONS} />
-          </Field>}
         </FormGrid>
 
+        {!legacy && (
+          <fieldset className="mt-4">
+            <legend className="mb-1.5 text-[13px] font-medium text-secondary-foreground">Role</legend>
+            {/* Two choices with what each can do, side by side: a select hid
+                the difference behind a click and one long hint. */}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ROLE_OPTIONS.map((o) => {
+                const on = f.role === o.value
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => set('role', o.value)}
+                    className={cn('flex flex-col justify-start rounded-[var(--radius-input)] border px-3.5 py-3 text-left transition-colors',
+                      on ? 'border-primary bg-primary/5' : 'hover:bg-muted/50')}
+                  >
+                    <span className="flex items-center justify-between gap-2 text-[14px] font-semibold">
+                      {o.label}
+                      {on && <Check className="size-4 text-primary" aria-hidden />}
+                    </span>
+                    <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">{o.about}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
+
         <FormNotice error={create.error} />
-        <div className="mt-5 flex items-center gap-2">
-          <Button type="submit" disabled={create.isPending || !ready}>
-            {create.isPending ? 'Creating…' : 'Create and show password'}
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
+        {/* Enter in a field submits. */}
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>
-    </Card>
+    </Dialog>
   )
 }

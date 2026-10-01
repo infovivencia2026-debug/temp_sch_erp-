@@ -133,7 +133,10 @@ export default function FirstRunTour() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tour'] }),
   })
 
-  const showing = !!data && !data.seen && !dismissed
+  /* Only for somebody in a school. A platform account (seller, support) has
+     no school: it was greeted with "Welcome to " and a blank, then told about
+     its sections and its children. */
+  const showing = !!data && !data.seen && !dismissed && !!data.school_name?.trim()
   const dismiss = useCallback(() => {
     setDismissed(true)
     finish.mutate()

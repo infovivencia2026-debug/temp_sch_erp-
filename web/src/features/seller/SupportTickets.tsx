@@ -10,6 +10,9 @@ import { useOptimisticMutation } from '@/lib/optimistic'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
 
+const STATUS_NAME: Record<string, string> = { open: 'Open', in_progress: 'In progress', waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed' }
+const STATUS_TONE: Record<string, 'info' | 'warning' | 'success' | 'neutral'> = { open: 'info', in_progress: 'warning', waiting: 'neutral', resolved: 'success', closed: 'neutral' }
+
 /**
  * The vendor's support queue.
  *
@@ -126,9 +129,9 @@ export default function SupportTickets() {
                     </span>
                   )}
                 </Td>
-                <Td>{t.category}</Td>
+                <Td className="capitalize">{t.category.replace(/_/g, ' ')}</Td>
                 <Td>
-                  <Badge tone={tone(t.priority)}>{t.priority}</Badge>
+                  <Badge tone={tone(t.priority)}><span className="capitalize">{t.priority}</span></Badge>
                 </Td>
                 {/* The clock against the promise, in one cell. Two numbers
                     side by side say more than either alone: 30h against a
@@ -146,8 +149,10 @@ export default function SupportTickets() {
                     </span>
                   )}
                 </Td>
-                <Td>{t.assigned_to ?? <span className="text-muted-foreground">Nobody</span>}</Td>
-                <Td>{t.status}</Td>
+                <Td className="whitespace-nowrap">{t.assigned_to ?? <span className="text-muted-foreground">Unassigned</span>}</Td>
+                <Td>
+                  <Badge tone={STATUS_TONE[t.status] ?? 'neutral'}>{STATUS_NAME[t.status] ?? t.status}</Badge>
+                </Td>
                 <Td>
                   <div className="flex items-center gap-2">
                     {t.status === 'open' && (
