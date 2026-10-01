@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { shortLabels } from './short-labels'
 import { Link } from 'react-router-dom'
 import { useShortcuts, removeFromDashboard, seedShortcuts } from '@/lib/shortcuts'
 import { useCatalogIfAny, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
@@ -122,10 +123,10 @@ export function AppIcon({ slug, section, workspace, name, size }: {
   )
 }
 
-function IconLink({ f }: { f: Found }) {
+function IconLink({ f, label }: { f: Found; label: string }) {
   return (
     <Link to={f.href} className="ai-tile" title={`${f.name} (${f.workspace})`} aria-label={f.name}>
-      <AppIcon slug={f.slug} section={f.section} workspace={f.workspace} name={f.name} />
+      <AppIcon slug={f.slug} section={f.section} workspace={f.workspace} name={label} />
     </Link>
   )
 }
@@ -148,6 +149,9 @@ export function FeatureCells() {
   const live = stored.map((k) => resolve(catalog, k)).filter((f): f is Found => f !== null)
 
   const phone = layer?.phone ?? false
+  /* One word under each icon, none repeated on the board (short-labels.ts). */
+  const shorts = shortLabels(live.map((f) => f.name))
+  const shortOf = (f: Found) => shorts[live.indexOf(f)] ?? f.name
   const quads: Found[][] = []
   for (let i = 0; i < live.length; i += DESK_QUAD) quads.push(live.slice(i, i + DESK_QUAD))
   const idOf = (f: Found, at = live.indexOf(f)) => (phone ? FEATURE_PREFIX + f.key : quadId(Math.floor(at / DESK_QUAD)))
@@ -199,7 +203,7 @@ export function FeatureCells() {
           <Widget key={f.key} id={FEATURE_PREFIX + f.key} label={f.name} size="small" index={ICON_INDEX + i} fixed>
             {() => (
               <div className="ai-cell">
-                <IconLink f={f} />
+                <IconLink f={f} label={shortOf(f)} />
               </div>
             )}
           </Widget>
@@ -220,7 +224,7 @@ export function FeatureCells() {
               <div className="ai-quad" role="group" aria-label={label} data-count={q.length}>
                 {q.map((f) => (
                   <div key={f.key} className="ai-quad__slot">
-                    <IconLink f={f} />
+                    <IconLink f={f} label={shortOf(f)} />
                     {editing && (
                       <button
                         type="button"

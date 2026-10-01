@@ -261,17 +261,14 @@
   max-width: 100%;
 }
 
-/* The match, in the name. A <mark> defaults to a yellow the theme did not
-   choose; here it is the same ink, made heavier and underlined in the
-   workspace's colour, so the hit is legible on every palette. */
+/* The match, in the name. A <mark> defaults to a yellow box the theme did
+   not choose. The owner found an underline ugly too, so the hit is only the
+   same ink a little heavier: no underline, no background. */
 .lch-hl {
   background: transparent;
   color: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-  text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
+  font-weight: 650;
+  text-decoration: none;
 }
 
 /* ---- the "…" and its one-item menu -------------------------------------- */
