@@ -1970,6 +1970,7 @@ function ArrangedWidget({
           tiers={quickTiers}
           onOpen={() => cardLink()?.click()}
           canOpen={() => cardLink() !== null}
+          ink={tint ? ({ '--bento-card': cssHsl(tint), '--bento-ink': inkFor(tint) } as React.CSSProperties) : undefined}
           onCustomize={() => layer.enterFor(id)}
           onTier={(tier) => setTier(id, tier, phone, w)}
           period={

@@ -838,9 +838,13 @@ export function QuickMenu({
   onHide,
   colour,
   period,
+  ink,
 }: {
   label: string
   phone: boolean
+  /** A recoloured card's palette, supplied by the layer, so the capsule is
+      tinted with the card it sits on rather than with the page. */
+  ink?: React.CSSProperties
   tiers: readonly QuickTier[]
   onOpen: () => void
   /** Asked while the menu is open, not at mount — the card's link is in the
@@ -872,18 +876,35 @@ export function QuickMenu({
 
   return (
     <>
-      <CornerControl
-        ref={btn}
-        type="button"
-        className="bento-more"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={name}
-        title={name}
-        onClick={() => setOpen((v) => !v)}
+      {/* ONE CAPSULE, TWO ACTIONS: open the card, or everything else. The
+          card's own corner arrow is not drawn while this is (quick-menu.css);
+          the Open half shows only on a card that has something to open. */}
+      <div
+        className="bento-capsule"
+        style={ink}
       >
-        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
-      </CornerControl>
+        <button
+          type="button"
+          className="bento-capsule__btn bento-capsule__open"
+          aria-label={`${t('bento.widgets.open')} ${label}`}
+          title={t('bento.widgets.open')}
+          onClick={onOpen}
+        >
+          <ArrowUpRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+        <button
+          ref={btn}
+          type="button"
+          className="bento-capsule__btn bento-more"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={name}
+          title={name}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <MoreHorizontal className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
       <Menu open={open} anchor={btn.current} label={name} onClose={close}>
         {(canOpen?.() ?? true) && (
           <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onOpen)}>
