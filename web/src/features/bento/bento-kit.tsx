@@ -442,10 +442,18 @@ export function Cell({
            3.61:1 across the twelve domains, every one of them failing — and it
            is why a board of tinted cells read as a rainbow. `-text` is still
            honoured first, because the palettes set it. */
-        backgroundColor: `var(--dom-${domain}-soft, var(--dom-${domain}))`,
-        color: `var(--dom-${domain}-text, var(--dom-${domain}))`,
-        ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--dom-${domain}))`,
-        borderColor: 'transparent',
+        /* COLOUR IS EARNED BY CONTENT. The grounds are solid now, and a solid
+           slab around a card with nothing on it is the loudest thing on the
+           board saying the least. The `--quiet-*` three are set by the
+           stylesheet on a cell whose card reports `[data-quiet]` (see COLOUR
+           IS EARNED in bento-theme.css) and are undefined everywhere else, so
+           a card with something to say takes the domain pair exactly as
+           before. Fallbacks rather than a second inline branch, because quiet
+           is known only to the card's own drawing, in the DOM. */
+        backgroundColor: `var(--quiet-bg, var(--dom-${domain}-soft, var(--dom-${domain})))`,
+        color: `var(--quiet-ink, var(--dom-${domain}-text, var(--dom-${domain})))`,
+        ['--bento-muted' as string]: `var(--quiet-ink, var(--dom-${domain}-text, var(--dom-${domain})))`,
+        borderColor: 'var(--quiet-line, transparent)',
       }
     : { ...baseStyle, ...artStyle }
 

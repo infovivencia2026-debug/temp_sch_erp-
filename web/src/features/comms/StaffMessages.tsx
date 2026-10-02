@@ -410,7 +410,7 @@ export default function StaffMessages() {
       <PageBody>
         {box === 'parents' ? (
           <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-            <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
+            <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
               {tabs}
               <div className="space-y-2 px-4 pb-3 pt-3">
                 {/* One tidy row: search, the unread pill, and New. */}
@@ -608,7 +608,7 @@ export default function StaffMessages() {
           </div>
         ) : (
         <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-          <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
+          <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
             {tabs}
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
             <div className="space-y-2 px-4 pb-3 pt-3">

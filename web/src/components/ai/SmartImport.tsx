@@ -280,7 +280,7 @@ export function AssistantImportWithAI({ disabled }: { disabled?: boolean }) {
     <>
       <button type="button" onClick={() => setOpen(true)} disabled={disabled}
         aria-label="Import with AI: any spreadsheet or a photo of a register" title="Import with AI: any spreadsheet or a photo of a register"
-        className="grid size-8 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40">
+        className="grid size-9 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40">
         <Sparkles className="size-3.5" />
       </button>
       {open && <SmartImport onClose={() => setOpen(false)} />}

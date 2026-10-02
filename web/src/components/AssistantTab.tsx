@@ -1532,7 +1532,15 @@ export function AssistantTab() {
               aria-hidden="true"
               tabIndex={-1}
             />
-            <div className="flex shrink-0 items-center gap-1 pb-[7px]">
+            {/* ONE ROW HEIGHT, AND EVERYTHING CENTRES ON IT. The two button groups
+                were bottom-aligned with a hand-tuned padding each (7px, 5px),
+                measured against 34px desktop buttons. On a phone the tap-size
+                rule makes every button 44px, the paddings stayed, and Send sat
+                1px under the pill's top edge and 6px above its bottom. `--row`
+                (assistant-chat.css) is the height of a one-line box; each group
+                is exactly that tall, centres its buttons, and sits at the foot,
+                so they stay level with the last line as the box grows. */}
+            <div className="flex h-[calc(var(--row,44px)+2px)] shrink-0 items-center gap-1 self-end">
               <button
                 type="button"
                 onClick={chooseFile}
@@ -1563,10 +1571,10 @@ export function AssistantTab() {
                 aria-label="Your question"
                 enterKeyHint="enter"
                 /* 16px keeps iOS from zooming the page when the field is focused. */
-                className="assistant-input block max-h-[164px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-[10px]
+                className="assistant-input block max-h-[164px] min-h-[var(--row,44px)] min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-[calc((var(--row,44px)-1.5rem)/2)]
                            text-[16px] leading-6 !shadow-none !outline-none focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0"
               />
-              <div className="flex shrink-0 items-center gap-1 pb-[5px] pl-1">
+              <div className="flex h-[var(--row,44px)] shrink-0 items-center gap-1 self-end pl-1">
                 {/* Drawn only where it works: Firefox has no speech recognition,
                     and a button that does nothing is worse than none. */}
                 {dictation.supported && (

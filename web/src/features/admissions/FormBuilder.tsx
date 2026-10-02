@@ -579,11 +579,18 @@ export default function FormBuilder() {
                     </Field>
                   </FormGrid>
 
-                  <Checkbox
-                    checked={draft.is_required}
-                    onChange={(v) => setDraft({ ...draft, is_required: v })}
-                    label="Required"
-                  />
+                  {draft.field_type === 'bring' ? (
+                    <p className="rounded-md bg-muted px-3 py-2.5 text-[13px] leading-snug text-muted-foreground">
+                      Not asked online. The form lists it under “Bring these to the school”, and again on the receipt after the
+                      family applies. Use the label for what to bring and the help text for any detail, such as “original and one copy”.
+                    </p>
+                  ) : (
+                    <Checkbox
+                      checked={draft.is_required}
+                      onChange={(v) => setDraft({ ...draft, is_required: v })}
+                      label="Required"
+                    />
+                  )}
 
                   <FormNotice error={saveField.error} />
                   <Button
