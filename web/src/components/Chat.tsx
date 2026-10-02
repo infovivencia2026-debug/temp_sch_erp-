@@ -892,7 +892,7 @@ export function ChatThread({
             )}
             <button
               type="button"
-              className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5"
+              className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5"
               title="Find in this conversation"
               aria-label="Find in this conversation"
               onClick={() => setFinding((v) => !v)}
@@ -910,7 +910,7 @@ export function ChatThread({
             {allowAttachments && (
               <button
                 type="button"
-                className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5"
+                className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5"
                 title="Attach a photo or file"
                 aria-label="Attach a photo or file"
                 onClick={() => fileInput.current?.click()}
@@ -1766,7 +1766,7 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
       disabled={disabled}
       title="Record a voice note"
       aria-label="Record a voice note"
-      className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5 disabled:opacity-40"
+      className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5 disabled:opacity-40"
     >
       <Mic className="h-5 w-5" />
     </button>

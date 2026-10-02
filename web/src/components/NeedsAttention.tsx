@@ -546,7 +546,7 @@ function RoleNote({ roleName }: { roleName?: string }) {
             // tomorrow, which is the harmless half of that failure.
           }
         }}
-        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="ml-auto grid shrink-0 place-items-center rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <X className="h-3.5 w-3.5" />
       </button>

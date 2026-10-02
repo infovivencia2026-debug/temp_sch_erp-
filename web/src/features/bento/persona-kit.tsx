@@ -487,9 +487,18 @@ export function Split({ row = false, children }: { row?: boolean; children: Reac
   )
 }
 
-export function Part({ grow = 1, children }: { grow?: number; children: ReactNode }) {
+/* `keep`: this half takes the height its contents need and does not shrink --
+   for a drawing with a fixed pitch (two labelled bars are 43px) that a ratio
+   squeezed to 30px and cut through its own labels, while the list under it
+   overflowed upward into it. The other half takes what is left, and is its
+   own `drawing` container (`card-part`, bento-theme.css) so a list in it
+   drops rows against the room it actually has, not the whole row's. */
+export function Part({ grow = 1, keep = false, children }: { grow?: number; keep?: boolean; children: ReactNode }) {
   return (
-    <div className="min-h-0 min-w-0 overflow-hidden" style={{ flex: `${grow} 1 0%` }}>
+    <div
+      className={cn('min-h-0 min-w-0 overflow-hidden', !keep && 'card-part')}
+      style={{ flex: keep ? '0 0 auto' : `${grow} 1 0%` }}
+    >
       {children}
     </div>
   )
