@@ -51,7 +51,9 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
 
   return (
     <>
-      <div className="flex justify-center px-[var(--page-gutter)] pt-4">
+      {/* pb-3: on the bento layout --page-top is 0, so without it the strip
+          sat flush on the page title beneath. */}
+      <div className="flex justify-center px-[var(--page-gutter)] pb-3 pt-4">
         <div
           role="tablist"
           aria-label={label}

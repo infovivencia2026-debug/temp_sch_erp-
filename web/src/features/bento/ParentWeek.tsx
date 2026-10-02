@@ -566,7 +566,7 @@ export function FeesCell({
 
   const drawing = tall ? (
     <Split>
-      <Part grow={2}>{tracks}</Part>
+      <Part keep>{tracks}</Part>
       <Part grow={3}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
     </Split>
   ) : tracks
