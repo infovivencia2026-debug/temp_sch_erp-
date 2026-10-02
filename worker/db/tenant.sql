@@ -10600,6 +10600,29 @@ CREATE TABLE IF NOT EXISTS "impersonation_grants" (
 CREATE INDEX IF NOT EXISTS "impersonation_grants_school" ON "impersonation_grants" ("institution_id", "started_at");
 CREATE INDEX IF NOT EXISTS "impersonation_grants_live" ON impersonation_grants (operator_user_id, expires_at DESC) WHERE (ended_at IS NULL);
 
+CREATE TABLE IF NOT EXISTS enquiry_links (
+  id TEXT NOT NULL PRIMARY KEY,
+  institution_id TEXT NOT NULL REFERENCES institutions (id) ON DELETE CASCADE,
+  campus_id TEXT REFERENCES campuses (id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  -- what enquiries.source is set to: walk_in | phone | website | referral | campaign | other
+  source TEXT NOT NULL DEFAULT 'website',
+  is_open INTEGER NOT NULL DEFAULT 1,
+  heading TEXT,
+  intro TEXT,
+  thanks TEXT,
+  ask TEXT NOT NULL DEFAULT '{}',
+  -- offer "Continue to the application" after the enquiry, on this form
+  apply_form_id TEXT REFERENCES admission_forms (id) ON DELETE SET NULL,
+  created_by TEXT REFERENCES users (id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS enquiry_links_slug ON enquiry_links (slug);
+CREATE UNIQUE INDEX IF NOT EXISTS enquiry_links_name ON enquiry_links (institution_id, lower(name));
+CREATE INDEX IF NOT EXISTS enquiries_utm_campaign ON enquiries (utm_campaign) WHERE utm_campaign IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS support_ticket_followers (
   ticket_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -10650,6 +10673,7 @@ INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tena
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 23, 'request_path_indexes', 'ec5d88bcacde27e3063e7e67de7ef21b9d9cf8b1765219c8269f8e132df4fdab');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 24, 'vendor_ticket_agent', '7101ae8889fd6193b5a78a289a5867a6759188fcc9f281fe4b9002a481d1fa6d');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 25, 'support_access_grants', '5b64820f205af8f7648bc7dfd80897b45e42b3186b8e34d9ca2ea941ed0bafa8');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 26, 'enquiry_links', '591d5815bc29a928742f2ea966380214aa73ad9e2d5dd364c7beaf5dee00bcf9');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 30, 'feature_helpdesk', 'd21267a94241151261f7b54739add5a65e427fba81daf8bd2e240a9f8c633e79');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 31, 'help_requests', '14967d6cb15591e9cc569a1a2d86058fc06a597f1a4138d85d653d46eef327cb');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('lms_admin.lms.courses', 'lms_admin', 'Every course in the school: lessons, assignments and quizzes, for any subject and section.');

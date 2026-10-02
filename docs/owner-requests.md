@@ -39,6 +39,7 @@ Last checked: 2026-10-02.
 | Backend: fewer queries per request, 13 indexes, feature-switch cache, status gaps | Worker |
 | Phone home is a 4 x 5 page: cards 2x2, 2x4, 4x4 only (no Tall on phones); icons 1x1 or 1x2 by the Icon size setting | Focus home on phones |
 | Bento card: one round arrow; the menu on a long press (right-click or keyboard on desktop) | Focus home |
+| Page dots never overlap the dock or the cards: their own band, 9px from each | Phone home (measured 390 and 360, three roles) |
 | Deploy guard and rule; always push main | scripts/deploy-guard.sh, CLAUDE.md |
 
 ## Building
@@ -49,6 +50,20 @@ Last checked: 2026-10-02.
 | Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Restarted 2026-10-02; builds on the other session's Team screen, ticket queue and recorded support access |
 | User guide for every role, as one HTML book | Restarted 2026-10-02 |
 | Every screen checked for silly UI mistakes | Restarted 2026-10-02 |
+
+## Done on `cloudflare-workers`, not deployed (session of 2026-10-01/02; needs the Worker and tenant migrations 0024-0026)
+
+| Asked | Where | Note for the integrator |
+|---|---|---|
+| Notification pressed: open in full, with a button to its screen | Bell panel | Live already |
+| "Make the seller admin and support real", for real people | Seller > Support > Team, Support tickets | `/seller/staff` routes; support logins hold only the ticket queue; a support login enters a school only on a recorded session (tenant 0025 rebuilds `impersonation_grants`). Overlaps the Help Centre / support desk item under Building: reconcile, do not duplicate |
+| Ticket queue shows SLA and who holds each ticket | Support tickets | tenant 0024 |
+| Class Status "good and efficient" | Class Status | Feed signs media, thumbnail and seen addresses per viewer: 1 read instead of 11; no feed reload per post seen. `status_perf.test.ts` holds the ceilings |
+| Stats: detailed, descriptive, interactive (Neon / Cloudflare style) | Shared `Stat` (`components/stat-extras.tsx`); used on Support tickets, Team, Status "Seen by", Enquiry links | Other screens take `parts`, `trend`, `detail` as they are revisited |
+| Enquiry and CRM: a link the parent fills in; application details that need no hard copy; customisable | Admissions > Enquiries > Enquiry links; lead panel "Send application link"; form builder field type "Bring to school (hard copy)" | tenant 0026 `enquiry_links`; public page `/admissions/enquire/<slug>`; a new enquiry rings the bell of everyone with admissions.write (one entry while unread); `enquiry_links.test.ts` |
+| Inventory of every feature, route and table | `docs/inventory.xlsx`, `scripts/inventory/` | Regenerate after merges |
+| Bento board "can be made better"; "modern solid colors for default" | Focus home, default palettes (Light Modern, Dark Modern) | Each domain card is one solid colour with white text; a card with nothing to show sits on the plain card, so colour marks the cards with a figure. Picked card colours untouched. Parent board has no domain colours (by design), so it stays white |
+| Misaligned buttons and elements, "make a list and fix them" | Assistant composer, parent-teacher chat, role note, page headers, screen tab strip, phone dock Settings, parent fees card, Reload | Nine fixes measured in a browser at 1440, 390 and 360, light and dark. Staff messages and the teacher / student boards share the fix but were not opened (no seed login) |
 
 ## Next
 
@@ -64,6 +79,7 @@ Last checked: 2026-10-02.
 | Assistant ball | dark ball | "the first fluid ball back" | first fluid ball |
 | Phone card sizes | 2x2, 2x4, 4x4 on a 4x5 page | Small, Tall, Medium, Large | settled by the owner 2026-10-02: no Tall on phones (it clipped content at 360px); a desk Tall draws Large |
 | "Status" in the bell's Activity tab | Class Status only | learning-hub items of the week | both |
+| Card colour | CLAUDE.md UI rule: solid colour only where it means something, everything else neutral | "modern solid colors for default" (2026-10-02) | solid domain grounds, but only on cards that carry a figure |
 
 ## Waiting on the owner
 

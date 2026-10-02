@@ -71,21 +71,21 @@ export function StatParts({ parts, onPart, activePart }: {
           const body = (
             <>
               <span aria-hidden className={cn('size-2 shrink-0 rounded-full', FILL[p.tone ?? 'primary'])} />
-              <span className={cn(on ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{p.label}</span>
-              <span className="tabular-nums font-semibold text-foreground">{p.value}</span>
-              <span className="tabular-nums text-muted-foreground/80">{pct(p.value, total)}%</span>
+              {/* The name may shorten; the count and its share never break apart. */}
+              <span className={cn('min-w-0 truncate', on ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{p.label}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums"><span className="font-semibold text-foreground">{p.value}</span> <span className="text-muted-foreground/80">{pct(p.value, total)}%</span></span>
             </>
           )
           return (
             <li key={p.key} onPointerEnter={() => setHover(p.key)} onPointerLeave={() => setHover(null)}
-              className={cn('transition-opacity duration-150', lit && lit !== p.key && 'opacity-50')}>
+              className={cn('min-w-0 max-w-full transition-opacity duration-150', lit && lit !== p.key && 'opacity-50')}>
               {onPart ? (
                 <button type="button" aria-pressed={on} onClick={() => onPart(on ? null : p.key)}
-                  className={cn('tap-inline inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[12px] hover:bg-accent', on && 'bg-accent')}>
+                  className={cn('tap-inline inline-flex max-w-full items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[12px] hover:bg-accent', on && 'bg-accent')}>
                   {body}
                 </button>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-[12px]">{body}</span>
+                <span className="inline-flex max-w-full items-center gap-1.5 text-[12px]">{body}</span>
               )}
             </li>
           )

@@ -98,7 +98,7 @@ export interface ApplicationAnswer {
 
 export type FieldType =
   | 'text' | 'textarea' | 'number' | 'date' | 'select'
-  | 'checkbox' | 'file' | 'email' | 'phone'
+  | 'checkbox' | 'file' | 'email' | 'phone' | 'bring'
 
 export const FIELD_TYPES: FieldOption[] = [
   { value: 'text', label: 'Single line of text' },
@@ -110,6 +110,8 @@ export const FIELD_TYPES: FieldOption[] = [
   { value: 'file', label: 'File or link' },
   { value: 'email', label: 'Email address' },
   { value: 'phone', label: 'Phone number' },
+  // Not a question: listed at the end of the form as something to carry in on paper.
+  { value: 'bring', label: 'Bring to school (hard copy)' },
 ]
 
 /* The codes that write through to the application record itself.

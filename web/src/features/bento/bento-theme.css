@@ -3219,6 +3219,11 @@ html:not(.dark)[data-layout='bento'] {
     background: color-mix(in srgb, var(--ink-here) 14%, transparent);
     border-radius: 999px;
     padding: 8px;
+    /* The padding is paint, not layout. Without the matching negative margin
+       the current tab's glyph box grew by 16px: in the round Settings button
+       (42px inside its border) a 46px box cannot centre and sat 2px right and
+       down of where the same glyph sits on every other screen. */
+    margin: -8px;
     box-sizing: content-box;
   }
 
@@ -3321,7 +3326,14 @@ html:not(.dark)[data-layout='bento'] {
        keeps finding, so the strip moves up until the whole of it is reachable. */
     /* Owner, 2026-10-01: the dots are the only thing between the board and
        the bar, with tight even margins; the dot sits ~7px above the bar. */
-    bottom: calc(var(--dock-h, 56px) - 3px);
+    /* THE DOTS HAVE THEIR OWN BAND (owner, 2026-10-02: "take care of nav
+       dots, should not overlap"). Once the dock became a floating pill,
+       --dock-h is the pill's TOP edge, and "- 3px" put the 7px dot 4px
+       inside the pill: measured on every phone and every account, the dock
+       won the tap at the dot's centre. The dot now ends 9px above the pill;
+       the board ends 9px above the dot (useBoardHeight); the dot's target
+       below is 24px tall, so it stops short of both. */
+    bottom: calc(var(--dock-h, 56px) + 9px);
     z-index: 45;
     display: flex;
     align-items: center;
@@ -3397,7 +3409,10 @@ html:not(.dark)[data-layout='bento'] {
        overlap, so there is no dead strip between them and no dot hidden under
        the one after it. */
     width: calc(100% + var(--bento-dot-gap, 22px));
-    height: 44px;
+    /* 24px, centred: 8.5px above and below the dot, inside the 9px it keeps
+       from the last card and from the dock, so the target never lies over
+       either and neither steals a tap from it. Sideways it is the full pitch. */
+    height: 24px;
     transform: translate(-50%, -50%);
     border-radius: 8px;
   }
@@ -3630,6 +3645,23 @@ html:not(.dark)[data-layout='bento'] {
 }
 [data-layout='bento'] .bento-widget[data-lead]:has([data-card]:not([data-quiet])) [data-card] .card-fig {
   font-weight: 600;
+}
+
+
+/* COLOUR IS EARNED: a domain card with nothing to say sits on the plain card.
+
+   The default grounds are solid, and solid is a claim on the eye. A card
+   whose drawing reported nothing (`[data-quiet]`, written by the card) has
+   no claim to make, so its cell falls back to the palette's own card and
+   ink and the coloured cards on the board are exactly the ones carrying a
+   figure. The cell reads these three through fallbacks in its inline style
+   (bento-kit.tsx), so nothing here has to out-rank an inline declaration.
+   A colour a person PICKED is not touched: the widget wrapper repoints
+   --bento-card and --bento-ink to that colour, and these resolve to it. */
+[data-layout='bento'] .bento-cell[data-domain]:has([data-card][data-quiet]) {
+  --quiet-bg: var(--bento-card);
+  --quiet-ink: var(--bento-ink);
+  --quiet-line: var(--bento-line);
 }
 
 
@@ -4673,6 +4705,14 @@ body:has(.bento-frost) [data-assistant-orb] {
   container-type: size;
   container-name: drawing;
   overflow: clip;
+}
+/* A half of a split drawing measures ITSELF. The row was the only container,
+   so a facts list sharing it with a chart was counted against the whole
+   row's height and kept rows it had no room for. Named the same, so every
+   threshold below (and the pager's above) applies to the nearer box. */
+[data-layout='bento'] .bento-board .card-drawing .card-part {
+  container-type: size;
+  container-name: drawing;
 }
 @container drawing (max-height: 7.8em) {
   .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 5), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 5) { display: none; }

@@ -26,6 +26,14 @@ html[data-assistant-open] body {
   padding-bottom: 0.5rem;
 }
 
+/* The height of a one-line question box, and so of the button groups beside
+   and inside it (AssistantTab.tsx). 52px where buttons are 44px tap targets,
+   so Send keeps the same 4-5px of air inside the pill that it has on a desk. */
+[data-assistant-chat] .assistant-composer { --row: 44px; }
+@media (pointer: coarse) {
+  [data-assistant-chat] .assistant-composer { --row: 52px; }
+}
+
 /* Pinned to the VISIBLE viewport on a phone: iOS draws the keyboard over a
    fixed element, so the sheet follows visualViewport instead of the window.
    Without the variables (no visualViewport) it is the plain full screen. */
