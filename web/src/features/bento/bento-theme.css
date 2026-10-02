@@ -215,52 +215,49 @@
    sitting inside a card is not floating, and when everything is a capsule the
    capsule stops meaning anything. */
 [data-layout='bento'] .bento-cue {
-  /* A SQUARE IN THE CORNER.
+  /* ONE ROUND BUTTON, THE SAME ON EVERY CARD (owner, 2026-10-02: "top right
+     buttons in bento look ugly and inconsistent").
 
-     Square because everything else on this board is: the cells butt together
-     with no corner between them, the tracks and bars are rectangles, and a
-     capsule floating in the corner of a square card is the one rounded thing
-     left on the screen. It reads as borrowed from another design.
+     This was a 40px square tab tucked into the card's corner, with a
+     hairline on its two inner edges and the card's radius on its outer one.
+     A square fights a round corner at every radius but its own, and beside
+     it sat a second, different control (a capsule drawn by the widget
+     layer, on hover, on the boards that had a layer). Two shapes, two
+     positions, and on a desk neither was there until the pointer arrived.
 
-     currentColor throughout, for the reason the pill was changed to it and
-     then kept: `--bento-card` and `--bento-ink` describe the DEFAULT card and
-     say nothing about the one this button sits on, and on a domain-tinted cell
-     the pair can resolve to the same colour — which is how it once rendered as
-     a white square with a white arrow. The cell has already resolved its own
-     ink against its own ground; borrowing it cannot collapse.
+     Now: 32px round, 8px in from the top and the right (the box is
+     CornerControl's, bento-cards.tsx), and the only corner control a card
+     has. The card's other actions are a hold or a right-click away
+     (QuickMenu).
 
-     Quiet until wanted. At rest it is a hairline and a faint arrow, so a board
-     of twelve cards is not a board of twelve buttons; on hover or focus it
-     fills. The whole 32px square is the target either way. */
-  background: color-mix(in srgb, currentColor 6%, transparent);
+     A SOFT TINT OF THE CARD'S OWN WASH, never a grey chip: the fill and the
+     ring are mixed from currentColor, the ink the cell has already resolved
+     against its own ground, so the button takes the card's colour on every
+     palette, tinted or not, light or dark. `--bento-card` and `--bento-ink`
+     describe the DEFAULT card and can resolve to one colour on a tinted one,
+     which is how this once rendered white on white. */
+  background: color-mix(in srgb, currentColor 7%, transparent);
   color: inherit;
-  border-left: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-  /* THE CARD IS NOT SQUARE ANY MORE, SO NEITHER IS THIS.
-
-     The comment above argues for a square, and the argument was right when the
-     cells butted together with no corner between them. They do not: the
-     Corners axis rounds every card, and a hard 90-degree box tucked into a
-     20px curve leaves the arrow poking out past the card's own edge, which is
-     what it looks like on screen.
-
-     The outer corner now takes the card's radius, so the button ends exactly
-     where the card ends. The inner corner takes a small one so it reads as a
-     shape rather than a wedge, and the two edges that face into the card keep
-     their hairline. Derived from --radius-card, so this follows the axis
-     instead of being a second number to keep in step with it. */
-  border-radius: 0 var(--radius-card, 11px) 0 6px;
-  /* Quieter still at rest. The whole card is the link, so the corner arrow is a
-     hint that a tap opens something, not the control itself. At 0.4 it is barely
-     there until the pointer or keyboard focus reaches the card, at which point
-     the rule below brings it fully up — discoverable, not decorative. */
-  opacity: 0.4;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 999px;
+}
+/* The glyph is the quiet part, not the button: the ring is always there to
+   be found, the arrow comes up to full ink with the pointer or the keyboard. */
+[data-layout='bento'] .bento-cue > svg { opacity: 0.72; }
+/* 32px to look at, 44px to press: the target reaches 6px past the ring on
+   every side, which is still inside the card's own corner. */
+[data-layout='bento'] .bento-cue::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
 }
 [data-layout='bento'] .bento-cue:focus-visible {
-  background: color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, currentColor 14%, transparent);
   border-color: color-mix(in srgb, currentColor 45%, transparent);
-  opacity: 1;
 }
+[data-layout='bento'] .bento-cue:focus-visible > svg,
+[data-layout='bento'] a:focus-visible .bento-cue > svg { opacity: 1; }
 /* HOVER IS FOR THINGS THAT CAN HOVER. A touchscreen has no pointer to lift
    off, so a tapped element keeps matching :hover until the next tap lands
    somewhere else -- the last card or button you touched sits there wearing
@@ -269,11 +266,12 @@
    `hoverOnlyWhenSupported`. Where a rule paired :hover with a keyboard, press
    or base selector, the pair is split so only the hover half is gated. */
 @media (hover: hover) {
-  [data-layout='bento'] .bento-cue:hover {
-    background: color-mix(in srgb, currentColor 16%, transparent);
-    border-color: color-mix(in srgb, currentColor 45%, transparent);
-    opacity: 1;
+  [data-layout='bento'] .bento-cue:hover,
+  [data-layout='bento'] .bento-cell:hover .bento-cue {
+    background: color-mix(in srgb, currentColor 14%, transparent);
   }
+  [data-layout='bento'] .bento-cue:hover > svg,
+  [data-layout='bento'] .bento-cell:hover .bento-cue > svg { opacity: 1; }
 }
 
 /* TEXT ON A TINTED CARD IS FULL INK.
@@ -571,7 +569,7 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
        through — on a dark or anchor cell that put black text on a dark
        translucent field the moment the pointer touched the card. The button
        keeps one face; coming forward is the border's job. */
-    border-color: color-mix(in srgb, var(--bento-ink) 35%, var(--bento-line));
+    border-color: color-mix(in srgb, currentColor 30%, transparent);
   }
 }
 
@@ -910,19 +908,9 @@ html.dark[data-skin='focus'] .bento-dock {
    outline rather than a filled capsule. The corner square is already an
    outline in currentColor, and the two skins now want the same thing — so this
    only makes it a shade quieter, which is what Focus is for. */
-html[data-skin='focus'] [data-layout='bento'] .bento-cue,
-html[data-skin='focus'][data-layout='bento'] .bento-cue {
-  background: transparent;
-  opacity: 0.45;
-}
-
-@media (hover: hover) {
-  html[data-skin='focus'] [data-layout='bento'] .bento-cue:hover,
-  html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
-    background: color-mix(in srgb, currentColor 12%, transparent);
-    opacity: 1;
-  }
-}
+/* 2026-10-02: no longer. One button on every card means one on every skin;
+   the round mark is already quiet (a 7% wash), and a second, fainter version
+   of it here was the inconsistency the owner reported. */
 
 @media (prefers-reduced-motion: no-preference) {
   html[data-skin='focus'] .bento-cue:active:not(:has(:is(button, input, select, textarea, [role='button'], [role='tab'], [role='switch'], [role='option']):active)) { transform: scale(0.98); }
@@ -2549,7 +2537,8 @@ html[data-layout='bento'] body {
      -- the whole cell is a link, but the cue is what the eye aims at. It gets
      the full 44 here, where the pointer is a fingertip. */
   [data-layout='bento'] .bento-cell { --cell-pad: 1.125rem; padding: var(--cell-pad); }
-  [data-layout='bento'] .bento-cue { width: 2.75rem; height: 2.75rem; }
+  /* 2026-10-02: the cue stays 32px to look at; its ::after is the 44px
+     target (see .bento-cue above), so nothing is resized here. */
 
   /* A LINE LENGTH, NOT A COLUMN WIDTH.
 
@@ -2966,19 +2955,19 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-board[data-pager] {
     display: grid !important;
     grid-template-columns: none !important;
-    /* TWELVE COLUMNS a page, matching PHONE_GRID_COLS in widgets.ts
-       (packPhone): an app icon spans 12/n, a small card six, a big one all
-       twelve. --pager-cols is written by WidgetLayer from the same number,
-       so the snap stride cannot drift. */
-    grid-auto-columns: calc((100% - (var(--pager-cols, 12) - 1) * var(--bento-gap)) / var(--pager-cols, 12));
-    /* TWO, matching PHONE_ROWS in web/src/lib/widgets.ts: a card is the top
-       half of the page or all of it. The two numbers must agree: the pager's
-       inline grid-row comes from PHONE_ROWS and the track count from
-       --pager-rows below, and a mismatch silently drops a row off the page. */
-    /* `--pager-rows` is written by WidgetLayer from the same number it packs
-       with, so the two cannot drift. Two at every text size: the zoom
-       threshold that once made it three-or-two is gone (WidgetLayer). */
-    grid-template-rows: repeat(var(--pager-rows, 6), minmax(0, 1fr)) !important;
+    /* FOUR COLUMNS a page, matching PHONE_GRID_COLS in widgets.ts
+       (packPhone): an app icon is one column (two at the Large icon size),
+       a small card two, a wide or large card all four. --pager-cols is
+       written by WidgetLayer from the same number, so the snap stride
+       cannot drift. */
+    grid-auto-columns: calc((100% - (var(--pager-cols, 4) - 1) * var(--bento-gap)) / var(--pager-cols, 4));
+    /* FIVE ROWS, matching PHONE_GRID_ROWS in web/src/lib/widgets.ts, each a
+       fifth of the height between the header and the page dots: an icon is
+       one row, a small or wide card two, a large or tall card four. The two
+       numbers must agree: the pager's inline grid-row comes from the pack
+       and the track count from --pager-rows, which WidgetLayer writes from
+       the same number, and a mismatch silently drops a row off the page. */
+    grid-template-rows: repeat(var(--pager-rows, 5), minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--bento-gap) !important;
@@ -3719,9 +3708,9 @@ html:not(.dark)[data-layout='bento'] {
    the arrow came back at full strength (measured 1.0 beside 0.4 on the
    white cards). One rest opacity for the mark everywhere; hover and focus
    still restore it. */
-[data-layout='bento'] .bento-widget[data-tinted] .bento-cell:not(:hover) [data-card] .bento-cue:not(:focus-visible) {
-  opacity: 0.4;
-}
+/* 2026-10-02: the mark no longer fades as a whole (its ring is always
+   drawn); only its glyph is quiet, and that is an svg the full-ink rule
+   does not reach. The 0.4 this set is gone with the square it was for. */
 
 /* THE ARROW SITS IN THE CORNER, ON EVERY CARD.
 
@@ -3753,8 +3742,11 @@ html:not(.dark)[data-layout='bento'] {
      Offset by exactly the padding, read from the same variable that sets it,
      so the two cannot drift apart the way a hardcoded 16px would the next time
      somebody tightens a cell. */
-  top: 0;
-  right: 0;
+  /* 8px in from both edges, measured from the TILE (the rule below takes
+     the card's wrapper out of the positioning chain): the same place on
+     every card, and clear of the corner's curve at every Corners setting. */
+  top: 8px;
+  right: 8px;
 }
 
 /* ANCHOR IT TO THE TILE, DO NOT PULL IT OUT OF THE WRAPPER.
@@ -3768,7 +3760,11 @@ html:not(.dark)[data-layout='bento'] {
    rule. The cue then measures from the cell in every card, padded or not, so
    `top: 0; right: 0` is flush against the corner everywhere and no card needs
    a compensating negative number. */
-[data-layout='bento'] .bento-cell [data-card]:has(> .bento-cue) {
+[data-layout='bento'] .bento-cell [data-card]:has(> .bento-cue),
+/* The persona boards (student, teacher, parent, my work) wrap the card in a
+   positioned link and hang the mark off that, inside the cell's padding: the
+   arrow sat 16px further in on those four boards than on every other. */
+[data-layout='bento'] .bento-cell a:has(> .bento-cue) {
   position: static;
 }
 
@@ -4735,7 +4731,12 @@ html:not([data-layout='bento']) [data-settings-page] {
   [data-layout='bento'] main:has(.bento-board[data-pager]:not([data-arranging])) {
     padding-bottom: 0 !important;
   }
-  [data-layout='bento'] .bento-board[data-pager]:not([data-arranging]) {
+  /* While arranging too (2026-10-02): the page is the same five rows whether
+     or not the mode is on. Left to flex, the board grew into the room the
+     dock had left and its last row ran under the customize bar, so a card
+     changed size the moment it was picked up. The dots stay through the
+     mode, and the bar sits where the dock was, below them. */
+  [data-layout='bento'] .bento-board[data-pager] {
     flex: 0 0 auto;
     height: var(--board-h, auto);
   }

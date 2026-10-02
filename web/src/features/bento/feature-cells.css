@@ -64,13 +64,23 @@
   letter-spacing: 0.005em;
 }
 
-/* On a phone the unit is a quarter of the page wide: a smaller plate, one
-   line of name. */
-[data-pager] .ai-cell .ai-tile { --ai-size: clamp(28px, min(62cqw, calc(100cqh - 22px)), 64px); gap: 4px; padding: 0 2px; min-height: 0; }
+/* On a phone an icon is ONE CELL of the page's 4 x 5 grid (1x1): a quarter
+   of the page wide and a fifth of the board tall. The plate is sized from
+   the cell, with room kept under it for one line of name. */
+[data-pager] .ai-cell .ai-tile { --ai-size: clamp(28px, min(70cqw, calc(100cqh - 24px)), 64px); gap: 4px; padding: 0 2px; min-height: 0; }
 [data-pager] .ai-cell .ai-name { font-size: 12.5px; }
+/* ICON SIZE: LARGE (Appearance, Dashboard). The tile is two cells across
+   (1x2), and the icon is scaled up with it rather than left small in a
+   wider box: the plate takes the height the row has, the name a size up. */
+[data-pager][data-icon-size='large'] .ai-cell .ai-tile {
+  --ai-size: clamp(40px, min(58cqw, calc(100cqh - 28px)), 96px);
+  gap: 6px;
+}
+[data-pager][data-icon-size='large'] .ai-cell .ai-name { font-size: 14px; font-weight: 600; }
 
-/* An app icon carries no card chrome: no open arrow, no corner menu (hold
-   to customize, or the edit mode's own remove, does that). */
+/* An app icon carries no card chrome: no open arrow, no corner button. Its
+   small menu (Open, Customize, Remove from home) is a hold or a right-click
+   away, like a card's. */
 .bento-widget[data-app-icon]:not([data-editing]) > .bento-cue { display: none; }
 
 /* The desk tile: four icons, two by two, each its own target. */

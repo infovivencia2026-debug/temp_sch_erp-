@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useAnchoredPosition } from '@/components/anchored'
 import { dimsForTier, type SizeTier } from '@/lib/size-tiers'
 
 /* ONE POPOVER FOR EVERY MENU ON THE BOARD: the size menu on a card, the
@@ -24,6 +25,14 @@ import { dimsForTier, type SizeTier } from '@/lib/size-tiers'
    width    Pixel width on a wide screen (default 208). On a phone the menu
             is a full-width sheet above the bar instead, the same answer the
             colour wheel gives, and `width` is ignored.
+   point    Open AT A POINT instead of under a button: where a card was
+            long-pressed or right-clicked, in viewport coordinates. Placed by
+            the product's one placement helper (components/anchored.ts), so
+            it is shifted back on screen, flips above the point when there is
+            no room below, and scrolls inside itself when it is taller than
+            the room. On a phone too: a menu asked for under a finger opens
+            there, not as a sheet at the foot of the screen. `anchor` is then
+            only where focus returns on close.
    phone    Which of the two shapes to draw. The board passes the same flag
             it lays itself out by (usePhone, < 768px); without it the menu
             reads the window (< 640px), which a phone in landscape gets wrong.
@@ -60,6 +69,7 @@ export function Menu({
   onClose,
   width = 208,
   centre,
+  point,
   phone,
   still: stillProp,
   children,
@@ -77,13 +87,35 @@ export function Menu({
      hanging it off a dock that is itself centred at the bottom edge put it
      in the corner of the screen, pointing at nothing. */
   centre?: boolean
+  point?: { x: number; y: number } | null
   phone?: boolean
   still?: boolean
   children: ReactNode
 }) {
   const pop = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState<{ left: number; top: number; up: boolean } | null>(null)
-  const narrow = phone ?? (typeof window !== 'undefined' && window.innerWidth < 640)
+  const narrow = !point && (phone ?? (typeof window !== 'undefined' && window.innerWidth < 640))
+  /* The press point, as the zero-sized "trigger" the placement helper
+     measures. A plain object: the helper only asks it for its rectangle. */
+  const pointRef = useRef<HTMLElement | null>(null)
+  pointRef.current = point
+    ? ({
+        getBoundingClientRect: () => ({
+          x: point.x, y: point.y, left: point.x, right: point.x, top: point.y, bottom: point.y, width: 0, height: 0,
+        }),
+      } as unknown as HTMLElement)
+    : null
+  const placed = useAnchoredPosition(open && !!point, pointRef, pop, {
+    width: Math.min(width, typeof window !== 'undefined' ? window.innerWidth - 16 : width),
+    gap: 4,
+    maxHeight: 560,
+  })
+  /* Kept for the exit: the helper hides the panel the moment `open` drops,
+     and the menu still has a fade to finish where it stood. */
+  const lastPlaced = useRef<CSSProperties | null>(null)
+  if (open && point && placed.visibility !== 'hidden') lastPlaced.current = placed
+  if (!point) lastPlaced.current = null
+  const pointStyle = point ? (open ? placed : lastPlaced.current ?? placed) : null
   const still = stillProp || osStill()
   const { mounted, shown } = useEnterExit(open, still, DUR_FAST_MS)
 
@@ -164,12 +196,15 @@ export function Menu({
       data-bento-menu=""
       data-shown={shown ? '' : undefined}
       data-still={still ? '' : undefined}
-      data-up={at?.up ? '' : undefined}
+      data-up={(pointStyle ? pointStyle.bottom !== undefined : at?.up) ? '' : undefined}
+      data-at-point={point ? '' : undefined}
       data-sheet={narrow ? '' : undefined}
       className="bento-menu"
       onKeyDown={onKeyDown}
       style={
-        narrow
+        pointStyle
+          ? pointStyle
+          : narrow
           ? { left: 12, right: 12, bottom: 'calc(var(--customize-bar-h, 84px) + env(safe-area-inset-bottom, 0px))', width: 'auto' }
           : { left: at?.left ?? 0, top: at?.top ?? 0, width, visibility: at ? 'visible' : 'hidden' }
       }

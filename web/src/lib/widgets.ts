@@ -986,57 +986,88 @@ export function paginate(
   return out
 }
 
-/* THE PHONE HOME: CARDS AND APP ICONS IN ONE RHYTHM.
+/* THE PHONE HOME: ONE GRID, FOUR COLUMNS BY FIVE ROWS A PAGE.
 
-   The owner drew the phone home as an iOS home screen with widgets, and
-   asked for this rhythm down it:
+   The owner's rule (2026-10-02: "5 rows, 4 cols. A bento box can be 2x2,
+   2x4, 4x4 and an icon can be 1x1, 1x2"), sizes written rows x columns:
 
-       [ small | small ]     two small cards, each half the width
-       [ o  o  o  o ]        a row of app icons (four, or three by choice)
-       [     big      ]      one big card, the full width
-       [ o  o  o  o ]        another row of icons
-       ... and again.
+       kind     rows x cols   what it is
+       icon     1 x 1         an app icon, one cell
+       icon2    1 x 2         the Large icon: a wider tile, a bigger plate
+       small    2 x 2         a figure card, half the width
+       big      2 x 4         a wide card (Medium): the full width, two rows
+       large    4 x 4         the full width, four rows
+       tall     4 x 2         half the width, four rows -- the fourth size
+                              the picker already offered; it sits on the same
+                              grid, and dropping it is one line in
+                              PHONE_TIERS (size-tiers.ts)
 
-   Each app icon is its own unit -- "each icon is one unit, not 4 as one" --
-   so it drags and removes on its own.
+   Nothing else is ever drawn on a phone: every stored shape reads as one of
+   these (phoneKindOf), and nothing is stretched afterwards.
 
-   The page is a grid PHONE_GRID_COLS wide and PHONE_GRID_ROWS tall. Twelve
-   columns because twelve divides by four, three and two: an icon spans
-   12/n, a small card 6, a big card 12. A card row is two grid rows, an icon
-   row one, so a page holds exactly one beat of the rhythm (2 + 1 + 2 + 1).
+   THE PACK IS FIRST-FIT, PAGE BY PAGE. An item takes the first free place,
+   scanning rows then columns; one that does not fit the page moves to the
+   next. A card never goes back past the card before it -- the order is what
+   a person dragged -- but an app icon does: it back-fills the first hole on
+   any page, so a lone small card has icons beside it instead of an empty
+   half row.
 
-   `rhythm` is the default, for a board nobody has arranged. Once somebody
-   has, their order wins and the same shapes are packed dense, first-fit,
-   left to right, which is what dragging one before another means. */
-export const PHONE_GRID_COLS = 12
-export const PHONE_GRID_ROWS = 6
-export type PhoneKind = 'icon' | 'small' | 'tall' | 'big' | 'large'
+   `rhythm` is the default, for a board nobody has arranged: two small
+   cards, a row of icons, one wide or large card, a row of icons, and again.
+   It only decides the ORDER; the same grid and the same first-fit place it,
+   and on a board nobody arranged every item may take the first page with
+   room. Once somebody has arranged the board their order wins. */
+export const PHONE_GRID_COLS = 4
+export const PHONE_GRID_ROWS = 5
+export type PhoneKind = 'icon' | 'icon2' | 'small' | 'big' | 'large'
+
+/** The cells a kind takes on the phone page: `w` columns, `h` rows. */
+export const PHONE_KIND_DIMS: Readonly<Record<PhoneKind, { w: number; h: number }>> = {
+  icon: { w: 1, h: 1 },
+  icon2: { w: 2, h: 1 },
+  small: { w: 2, h: 2 },
+  big: { w: 4, h: 2 },
+  large: { w: 4, h: 4 },
+}
+
+/** How a stored (desk) shape is drawn on a phone. One column and one row is
+    a figure: Small. One row and wider -- a graph, a strip, a banner -- is
+    the wide card. Two rows or more is Large, the desk's one-column Tall
+    included: the phone has no Tall (size-tiers.ts says why).
+    An app icon is an icon at the size the person chose (Appearance). */
+export function phoneKindOf(
+  d: { w: number; h: number },
+  icon = false,
+  iconSpan: 1 | 2 = 1,
+): PhoneKind {
+  if (icon) return iconSpan === 2 ? 'icon2' : 'icon'
+  const w = Number.isFinite(d.w) ? d.w : 1
+  const h = Number.isFinite(d.h) ? d.h : 1
+  if (h >= 2) return 'large'
+  return w <= 1 ? 'small' : 'big'
+}
 
 export function packPhone(
   items: { id: string; kind: PhoneKind }[],
-  iconsPerRow: number,
+  /** Columns an app icon takes: 1 (Normal) or 2 (Large). An 'icon' item is
+      drawn at this span, so a caller need not rename its kinds. */
+  iconSpan: number,
   rhythm: boolean,
 ): Spot[] {
   const cols = PHONE_GRID_COLS
   const rows = PHONE_GRID_ROWS
-  const per = Math.max(1, Math.min(cols, Math.round(iconsPerRow)))
-  const iw = Math.floor(cols / per)
-  /* A card-row is two grid rows. Small and Tall are half the page, Medium
-     ('big') and Large all of it; Tall and Large are two card-rows. Nothing
-     is stretched afterwards: a card is the size somebody chose. */
-  const dims = (k: PhoneKind) =>
-    k === 'icon' ? { w: iw, h: 1 }
-      : k === 'small' ? { w: cols / 2, h: 2 }
-      : k === 'tall' ? { w: cols / 2, h: 4 }
-      : k === 'large' ? { w: cols, h: 4 }
-      : { w: cols, h: 2 }
-  const half = (k: PhoneKind) => k === 'small' || k === 'tall'
+  const span = iconSpan >= 2 ? 2 : 1
+  const isIcon = (k: PhoneKind) => k === 'icon' || k === 'icon2'
+  const dims = (k: PhoneKind) => (k === 'icon' && span === 2 ? PHONE_KIND_DIMS.icon2 : PHONE_KIND_DIMS[k])
+  const half = (k: PhoneKind) => k === 'small'
+  /* Icons in one row: four Normal ones, or two Large. */
+  const per = Math.floor(cols / span)
 
   let order = items
   if (rhythm) {
     const smalls = items.filter((i) => half(i.kind))
     const bigs = items.filter((i) => i.kind === 'big' || i.kind === 'large')
-    const icons = items.filter((i) => i.kind === 'icon')
+    const icons = items.filter((i) => isIcon(i.kind))
     const out: typeof items = []
     const iconRow = () => { out.push(...icons.splice(0, per)) }
     let beat = 0
@@ -1054,52 +1085,36 @@ export function packPhone(
   }
 
   const spots: Spot[] = []
-  const key = (r: number, c: number) => `${r}:${c}`
-  /* One sheet per page: what is taken, and what each row holds. In the
-     rhythm a row is icons or cards, never both, so a lone small card keeps
-     its half-row empty rather than pulling icons up beside it. */
-  type Sheet = { taken: Set<string>; rowKind: ('icon' | 'card' | undefined)[] }
-  const sheets: Sheet[] = [{ taken: new Set(), rowKind: [] }]
-  const fitOn = (sh: Sheet, w: number, h: number, cls: 'icon' | 'card') => {
+  const sheets: boolean[][] = [new Array(rows * cols).fill(false)]
+  const fitOn = (sh: boolean[], w: number, h: number) => {
     for (let r = 0; r <= rows - h; r++) {
-      if (rhythm) {
-        let mixed = false
-        for (let y = r; y < r + h; y++) if (sh.rowKind[y] && sh.rowKind[y] !== cls) mixed = true
-        if (mixed) continue
-      }
       for (let c = 0; c <= cols - w; c++) {
         let free = true
-        for (let y = r; y < r + h && free; y++) for (let x = c; x < c + w; x++) if (sh.taken.has(key(y, x))) { free = false; break }
+        for (let y = r; y < r + h && free; y++) for (let x = c; x < c + w; x++) if (sh[y * cols + x]) { free = false; break }
         if (free) return { row: r, col: c }
       }
     }
     return null
   }
+  /* The page the last CARD landed on: the next card starts looking there. */
+  let cursor = 0
   for (const item of order) {
     const { w, h } = dims(item.kind)
-    const cls = item.kind === 'icon' ? 'icon' : 'card'
-    /* THE DEFAULT FILLS EARLIER PAGES; A PERSON'S ORDER ONLY GOES FORWARD.
-       Nothing is ever resized to fill a page, so on a board nobody has
-       arranged a Large card that does not fit after the first rows would
-       leave half of page one empty: there, each item takes the first page
-       with room for it. Once somebody has arranged the board, order is what
-       they chose, so an item is tried on the last page and then a new one. */
-    let page = rhythm ? 0 : sheets.length - 1
+    const icon = isIcon(item.kind)
+    let page = rhythm || icon ? 0 : cursor
     let spot: { row: number; col: number } | null = null
     for (; page < sheets.length; page++) {
-      spot = fitOn(sheets[page], w, h, cls)
+      spot = fitOn(sheets[page], w, h)
       if (spot) break
     }
     if (!spot) {
-      sheets.push({ taken: new Set(), rowKind: [] })
+      sheets.push(new Array(rows * cols).fill(false))
       page = sheets.length - 1
       spot = { row: 0, col: 0 }
     }
     const sh = sheets[page]
-    for (let y = spot.row; y < spot.row + h; y++) {
-      sh.rowKind[y] = cls
-      for (let x = spot.col; x < spot.col + w; x++) sh.taken.add(key(y, x))
-    }
+    for (let y = spot.row; y < spot.row + h; y++) for (let x = spot.col; x < spot.col + w; x++) sh[y * cols + x] = true
+    if (!icon) cursor = Math.max(cursor, page)
     spots.push({ id: item.id, w, h, page, row: spot.row, col: spot.col })
   }
   return spots

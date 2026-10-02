@@ -37,16 +37,18 @@ Last checked: 2026-10-02.
 | Colour wheel has Done; tick on chosen, cross on the rest | Settings > Colour |
 | Every element listed and checked | docs/ui-elements.md, Elements gallery |
 | Backend: fewer queries per request, 13 indexes, feature-switch cache, status gaps | Worker |
+| Phone home is a 4 x 5 page: cards 2x2, 2x4, 4x4 only (no Tall on phones); icons 1x1 or 1x2 by the Icon size setting | Focus home on phones |
+| Bento card: one round arrow; the menu on a long press (right-click or keyboard on desktop) | Focus home |
 | Deploy guard and rule; always push main | scripts/deploy-guard.sh, CLAUDE.md |
 
 ## Building
 
 | Asked | Notes |
 |---|---|
-| Phone bento rules: 4 columns x 5 rows; cards 2x2, 2x4, 4x4; icons 1x1 or 1x2 | In progress, on top of another session's Small / Tall / Medium / Large |
-| Bento card: arrow only, menu on long-press (right-click on desktop) | In progress |
-| Animations never cut off part-way | In progress |
-| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | In progress, six steps |
+| Animations never cut off part-way | Restarted 2026-10-02 (a restart lost the first attempt) |
+| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Restarted 2026-10-02; builds on the other session's Team screen, ticket queue and recorded support access |
+| User guide for every role, as one HTML book | Restarted 2026-10-02 |
+| Every screen checked for silly UI mistakes | Restarted 2026-10-02 |
 
 ## Done on `cloudflare-workers`, not deployed (session of 2026-10-01/02; needs the Worker and tenant migrations 0024-0026)
 
@@ -64,7 +66,7 @@ Last checked: 2026-10-02.
 
 | Asked | Notes |
 |---|---|
-| Native apps | After the Help Centre. Waiting: one app for all schools, or one per school |
+| Native apps: ONE generic XULO app, plus a per-school app on demand; both ready | Decided 2026-10-02. Offline first like WhatsApp: local data, an outbox that sends when the network returns, push, biometrics, camera, background sync. Android, iOS, Windows |
 | Apple-like extras: drag-to-close sheets everywhere, slide between screens, shrinking large titles | Partly in the motion kit |
 
 ## Clash (asked differently in two sessions; the later ask is live)
@@ -72,12 +74,12 @@ Last checked: 2026-10-02.
 | Thing | Session A | Session B | Live now |
 |---|---|---|---|
 | Assistant ball | dark ball | "the first fluid ball back" | first fluid ball |
-| Phone card sizes | 2x2, 2x4, 4x4 on a 4x5 page | Small, Tall, Medium, Large | being reconciled onto the 4x5 page |
+| Phone card sizes | 2x2, 2x4, 4x4 on a 4x5 page | Small, Tall, Medium, Large | settled by the owner 2026-10-02: no Tall on phones (it clipped content at 360px); a desk Tall draws Large |
 | "Status" in the bell's Activity tab | Class Status only | learning-hub items of the week | both |
 
 ## Waiting on the owner
 
-- Native apps: one app or one per school; Apple Team ID; Play key password (not in chat).
+- Native apps: Apple Team ID; Play key password (not in chat).
 - `*.xulo.in` DNS record and the school-address proxy deploy; switchover go-ahead.
 - PhonePe keys; WhatsApp, SMS, email and push accounts; Gemini key rotation.
 - Yajur and JSM admin sign-ins, to issue logins there.

@@ -39,8 +39,11 @@ export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
 export type Contrast = 'soft' | 'normal' | 'medium' | 'high' | 'maximum'
 export type DockSize = 'compact' | 'default' | 'large'
 export type IconSize = 'small' | 'default' | 'large'
-/** App icons per row on a phone home: four (default) or three, bigger. */
-export type PhoneIcons = '4' | '3'
+/** An app icon on the phone home: Normal is one cell of the page's 4 x 5
+    grid (1x1), Large is two cells across (1x2) with a bigger plate. Replaces
+    "icons per row" (four or three), which could not be said on a grid of
+    four columns; see migratePhoneIcons. */
+export type PhoneIconSize = 'normal' | 'large'
 
 /* HOW A TIME OF DAY IS WRITTEN.
 
@@ -79,7 +82,19 @@ export const CONTRASTS: readonly Contrast[] =
   ['soft', 'normal', 'medium', 'high', 'maximum'] as const
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
-export const PHONE_ICONS: readonly PhoneIcons[] = ['4', '3'] as const
+export const PHONE_ICON_SIZES: readonly PhoneIconSize[] = ['normal', 'large'] as const
+
+/** What a device stored under the old "icons per row" key, as an icon size:
+    four a row was the small icon, so Normal; three was "bigger", so Large.
+    Anything else -- nothing stored, a value from some other build -- is
+    null, and the caller falls back to the default. */
+export function migratePhoneIcons(raw: string | null | undefined): PhoneIconSize | null {
+  if (raw == null) return null
+  const v = raw.startsWith('"') ? raw.slice(1, -1) : raw
+  if (v === '4') return 'normal'
+  if (v === '3') return 'large'
+  return null
+}
 export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
 export const GLOWS: readonly Glow[] = ['off', 'faint', 'subtle', 'medium', 'strong'] as const
 export const HAPTICS: readonly Haptics[] = ['on', 'off'] as const
@@ -156,7 +171,7 @@ export interface Appearance {
   contrast: Contrast
   dockSize: DockSize
   iconSize: IconSize
-  phoneIcons: PhoneIcons
+  phoneIconSize: PhoneIconSize
   /** Comma-separated list of workspace names hidden from the dock */
   hiddenDockItems: string
   clock: Clock
@@ -176,7 +191,7 @@ const DEFAULTS: Appearance = {
   contrast: 'normal',
   dockSize: 'compact',
   iconSize: 'large',
-  phoneIcons: '4',
+  phoneIconSize: 'normal',
   clock: '12h',
   glow: 'subtle',
   haptics: 'on',
@@ -196,11 +211,14 @@ const KEYS = {
   contrast: 'erp.contrast',
   dockSize: 'erp.dockSize',
   iconSize: 'erp.iconSize',
-  phoneIcons: 'erp.phoneIcons',
+  phoneIconSize: 'erp.phoneIconSize',
   hiddenDockItems: 'erp.hiddenDockItems',
   clock: 'erp.clock',
   haptics: 'erp.haptics',
 } as const
+
+/** Where "icons per row" lived. Read once, by `read`, and never written. */
+const LEGACY_PHONE_ICONS_KEY = 'erp.phoneIcons'
 
 function readRaw(key: string): string | undefined {
   try {
@@ -283,7 +301,13 @@ function read(): Appearance {
     contrast: one(KEYS.contrast, CONTRASTS, DEFAULTS.contrast),
     dockSize: one(KEYS.dockSize, DOCK_SIZES, DEFAULTS.dockSize),
     iconSize: one(KEYS.iconSize, ICON_SIZES, DEFAULTS.iconSize),
-    phoneIcons: one(KEYS.phoneIcons, PHONE_ICONS, DEFAULTS.phoneIcons),
+    /* The new key when it has been written; else whatever the old
+       "icons per row" key held, read as a size (4 -> Normal, 3 -> Large). */
+    phoneIconSize: one(
+      KEYS.phoneIconSize,
+      PHONE_ICON_SIZES,
+      migratePhoneIcons(readRaw(LEGACY_PHONE_ICONS_KEY)) ?? DEFAULTS.phoneIconSize,
+    ),
     clock: one(KEYS.clock, CLOCKS, DEFAULTS.clock),
     glow: one(KEYS.glow, GLOWS, DEFAULTS.glow),
     haptics: one(KEYS.haptics, HAPTICS, DEFAULTS.haptics),
@@ -388,7 +412,7 @@ export function applyAppearance(next: Appearance) {
     // runs, and changing the format here would blank it for one paint.
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
-                     'contrast', 'dockSize', 'iconSize', 'phoneIcons', 'hiddenDockItems',
+                     'contrast', 'dockSize', 'iconSize', 'phoneIconSize', 'hiddenDockItems',
                      'clock', 'glow', 'haptics'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }

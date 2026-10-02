@@ -1,106 +1,62 @@
-/* THE ACTION CAPSULE, outside customize mode.
+/* THE CARD'S MENU HAS NO BUTTON TO LOOK AT.
 
-   One rounded control at the card's top-right. It was built for two actions,
-   Open (the arrow) and More (the "…"), in place of two unrelated 40px corner
-   squares; the board now shows Open alone (see ONLY THE ARROW below).
+   A card at rest shows one corner control: its arrow (.bento-cue, drawn by
+   the card, styled in bento-theme.css). The menu that used to sit behind a
+   "…" beside it is opened by holding the card (touch), right-clicking it
+   (mouse), or Shift+F10 / the Menu key (keyboard); see QuickMenu in
+   bento-cards.tsx and the hold in WidgetLayer.tsx.
 
-   The card body is still the link. The capsule is a sibling of the cell (a
-   button inside a link is a click that navigates), so the cell's own corner
-   arrow is not drawn while the capsule is: one arrow, not two.
-
-   32px TO LOOK AT, 44px TO PRESS. Each half is 32px wide and 32px tall on
-   screen; its ::after reaches 7px past it up and down, and 12px past the outer
-   end, so a fingertip gets the full target without the capsule growing.
-
-   SHOWN WHERE THERE IS NO HOVER. The base rules are the touch rules; the
-   (hover: hover) block is the only place it may hide at rest, and
-   focus-within brings it up for a keyboard.
+   The button below is the fourth way, for a keyboard and a screen reader:
+   it is in the tab order after the card's link and has a name, but it is
+   not painted until it has keyboard focus -- clipped rather than
+   `display: none`, which would take it out of both. When it shows, it sits
+   beside the arrow in the arrow's own shape.
 
    The wrapper (`.bento-widget`) sets every child to full height so the cell
-   stretches; the capsule is a child of that wrapper and must not. */
-[data-layout='bento'] .bento-widget > .bento-capsule {
+   stretches; this is a child of that wrapper and must not. */
+.bento-widget > .bento-more {
   position: absolute;
   top: 8px;
-  right: 8px;
-  z-index: 10;
-  display: inline-flex;
-  height: 32px;
-  align-items: stretch;
-  border-radius: 999px;
-  color: var(--bento-ink, inherit);
-  /* A wash of the ink over whatever the card is: it takes the card's own
-     tint, on every palette, and is never a white or grey chip. */
-  background: color-mix(in srgb, currentColor 7%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-  transition: opacity var(--dur-fast, 150ms) var(--ease-out, ease-out);
-}
-[data-layout='bento'] .bento-capsule > .bento-capsule__btn {
-  position: relative;
+  right: 48px;
+  z-index: 11;
   display: grid;
   width: 32px;
-  /* The global fingertip floor (44px on a coarse pointer) would make each
-     half 44 wide and the capsule 90: wider than a phone card's title leaves
-     room for. The ::after below is the 44px target instead. */
+  height: 32px;
   min-width: 0;
   min-height: 0;
   place-items: center;
   padding: 0;
-  border: 0;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   border-radius: 999px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  background: var(--bento-card, Canvas);
+  color: var(--bento-ink, CanvasText);
   cursor: pointer;
-  opacity: 0.72;
+  clip-path: inset(50%);
+  opacity: 0;
+  pointer-events: none;
 }
-[data-layout='bento'] .bento-capsule__btn::after {
-  content: '';
-  position: absolute;
-  inset: -7px 0;
-}
-[data-layout='bento'] .bento-capsule__btn:first-child::after { left: -12px; }
-[data-layout='bento'] .bento-capsule__btn:last-child::after { right: -12px; }
-[data-layout='bento'] .bento-capsule__btn:focus-visible,
-[data-layout='bento'] .bento-capsule__btn[aria-expanded='true'] {
-  background: color-mix(in srgb, currentColor 14%, transparent);
+/* An app icon has no arrow to sit beside. */
+.bento-widget[data-app-icon] > .bento-more { right: 8px; }
+.bento-widget > .bento-more:focus-visible,
+.bento-widget > .bento-more[aria-expanded='true']:focus {
+  clip-path: none;
   opacity: 1;
-  outline: none;
+  pointer-events: auto;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
-[data-layout='bento'] .bento-capsule__btn:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 55%, transparent);
-}
-/* ONLY THE ARROW (owner, 2026-10-01: "only the redirect button is enough").
-   The "…" is not drawn on the board: a card at rest offers one thing, going
-   to its screen. Resizing, recolouring and removing are in Edit, where the
-   board is being arranged anyway. The button and its menu stay in the markup
-   (QuickMenu), so bringing it back is deleting this rule. With one action the
-   capsule is a 32px circle and fits the 44px a card's heading already keeps
-   clear. */
-[data-layout='bento'] .bento-capsule > .bento-more { display: none; }
-/* Nothing to open, nothing to show: a card with no link, a quiet card, and
-   an app icon, which is its own tap target. */
-[data-layout='bento'] .bento-widget:not(:has(.bento-cell .bento-cue)) > .bento-capsule,
-[data-layout='bento'] .bento-widget:has([data-card][data-quiet]) > .bento-capsule,
-[data-layout='bento'] .bento-widget[data-app-icon] > .bento-capsule {
-  display: none;
-}
-/* The capsule's arrow stands in for the card's own. */
-[data-layout='bento'] .bento-widget[data-more] .bento-cell .bento-cue { display: none; }
-@media (hover: hover) {
-  [data-layout='bento'] .bento-widget > .bento-capsule { opacity: 0; }
-  [data-layout='bento'] .bento-widget:hover > .bento-capsule,
-  [data-layout='bento'] .bento-widget:focus-within > .bento-capsule,
-  [data-layout='bento'] .bento-widget > .bento-capsule:has([aria-expanded='true']) {
-    opacity: 1;
-  }
-  [data-layout='bento'] .bento-capsule__btn:hover {
-    background: color-mix(in srgb, currentColor 14%, transparent);
-    opacity: 1;
+
+/* A HOLD IS FOR THE MENU, not for the browser's own: no link preview on
+   iOS, no text selection starting under the finger. Touch only; a mouse
+   still selects a figure to copy it. */
+@media (pointer: coarse) {
+  .bento-board .bento-widget {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  [data-layout='bento'] .bento-widget > .bento-capsule { transition: none; }
-}
+
 /* A heading inside the menu — "Size" over the four tiers — drawn as a
    label, not a row: no hover, not walkable. */
 .bento-menu__head {
