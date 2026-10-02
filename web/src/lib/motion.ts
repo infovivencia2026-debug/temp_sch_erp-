@@ -489,13 +489,16 @@ export const JUMP_FLOOR = 0.15
     timeline passed between the two frames (0..1). A curve's steepest stretch
     runs at a few times its average pace (the kit's springs up to 6x), so
     that much is allowed; a restart or an end snap moves further. */
-export function isJump(a: Sample, b: Sample, share: number): string {
+export function isJump(a: Sample, b: Sample, share: number, travel?: { x: number; y: number }): string {
   const allow = Math.max(JUMP_FLOOR, 6 * Math.max(0, share))
   const dO = Math.abs(b.opacity - a.opacity)
   if (dO > allow) return `opacity ${a.opacity.toFixed(2)} to ${b.opacity.toFixed(2)}`
   const dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y)
-  if (dx > 4 && dx / a.w > allow) return `x ${Math.round(a.x)} to ${Math.round(b.x)}px`
-  if (dy > 4 && dy / a.h > allow) return `y ${Math.round(a.y)} to ${Math.round(b.y)}px`
+  // Measured against the distance the animation travels when that is known
+  // (a thumb crossing four tabs moves further per frame than its own width).
+  const span = (d: number, own: number) => Math.max(own, d)
+  if (dx > 4 && dx / span(travel?.x ?? 0, a.w) > allow) return `x ${Math.round(a.x)} to ${Math.round(b.x)}px`
+  if (dy > 4 && dy / span(travel?.y ?? 0, a.h) > allow) return `y ${Math.round(a.y)} to ${Math.round(b.y)}px`
   const dS = Math.max(Math.abs(b.sx - a.sx), Math.abs(b.sy - a.sy))
   if (dS > allow) return `scale ${a.sx.toFixed(2)} to ${b.sx.toFixed(2)}`
   return ''
@@ -616,6 +619,8 @@ export function carryOn(frames: ComputedKeyframe[], from: { opacity: string; tra
 }
 
 let guardOn = false
+/** Surfaces the guard gave an exit to after React removed them. */
+export const ghosted = new WeakSet<Element>()
 export function installMotionGuard() {
   if (guardOn || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return
   if (typeof document.getAnimations !== 'function') return
@@ -744,6 +749,7 @@ export function installMotionGuard() {
     if (node.querySelector(NO_COPY)) return
     const copy = node.cloneNode(true) as HTMLElement
     copy.setAttribute('data-ghost', '')
+    ghosted.add(node)
     copy.setAttribute('aria-hidden', 'true')
     copy.setAttribute('inert', '')
     copy.removeAttribute('id')
