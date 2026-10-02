@@ -387,7 +387,7 @@ describe('BentoLauncher pins', () => {
          unreachable on a phone, where the "…" is hidden on purpose. */
       expect(localStorage.getItem(PINS_KEY)).toBeNull()
       const items = [...cell.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-      expect(items.map((b) => b.textContent)).toEqual(['bento.launcher.pin', 'Add to home'])
+      expect(items.map((b) => b.textContent)).toEqual(['bento.launcher.pin', 'bento.launcher.home_add'])
       await act(async () => { items[0].click() })
       expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(['child.marks'])
       expect(host.querySelector('[role="status"]')!.textContent).toBe('bento.launcher.pinned_note[Marks & Grades]')
