@@ -504,60 +504,6 @@ export function isJump(a: Sample, b: Sample, share: number, travel?: { x: number
   return ''
 }
 
-/** The output (0..1, may overshoot) of a CSS easing at time fraction `t`.
-    Reads cubic-bezier(), linear() and the keywords; anything else is linear. */
-export function easeAt(easing: string, t: number): number {
-  const x = Math.max(0, Math.min(1, t))
-  const e = easing.trim()
-  const named: Record<string, [number, number, number, number]> = {
-    ease: [0.25, 0.1, 0.25, 1], 'ease-in': [0.42, 0, 1, 1], 'ease-out': [0, 0, 0.58, 1], 'ease-in-out': [0.42, 0, 0.58, 1],
-  }
-  const cb = /^cubic-bezier\(([^)]+)\)$/.exec(e)
-  const pts = cb ? cb[1].split(',').map(Number) : named[e]
-  if (pts && pts.length === 4 && pts.every((n) => Number.isFinite(n))) {
-    const [x1, y1, x2, y2] = pts
-    const at = (a: number, b: number, u: number) => 3 * a * u * (1 - u) * (1 - u) + 3 * b * u * u * (1 - u) + u * u * u
-    let lo = 0, hi = 1
-    for (let i = 0; i < 24; i++) {
-      const mid = (lo + hi) / 2
-      if (at(x1, x2, mid) < x) lo = mid
-      else hi = mid
-    }
-    return at(y1, y2, (lo + hi) / 2)
-  }
-  const lin = /^linear\((.+)\)$/.exec(e)
-  if (lin) {
-    const stops: { v: number; p: number | null }[] = []
-    for (const part of lin[1].split(',')) {
-      const bits = part.trim().split(/\s+/)
-      const v = Number(bits[0])
-      if (!Number.isFinite(v)) return x
-      const ps = bits.slice(1).map((b) => parseFloat(b) / 100)
-      stops.push({ v, p: ps.length ? ps[0] : null })
-      if (ps.length > 1) stops.push({ v, p: ps[1] })
-    }
-    if (stops.length < 2) return x
-    if (stops[0].p === null) stops[0].p = 0
-    if (stops[stops.length - 1].p === null) stops[stops.length - 1].p = 1
-    for (let i = 1; i < stops.length - 1; i++) {
-      if (stops[i].p !== null) continue
-      let j = i
-      while (stops[j].p === null) j++
-      const a = stops[i - 1].p as number, b = stops[j].p as number
-      for (let k = i; k < j; k++) stops[k].p = a + ((b - a) * (k - i + 1)) / (j - i + 1)
-    }
-    for (let i = 1; i < stops.length; i++) {
-      const a = stops[i - 1], b = stops[i]
-      if (x <= (b.p as number)) {
-        const span = (b.p as number) - (a.p as number)
-        return span <= 0 ? b.v : a.v + ((b.v - a.v) * (x - (a.p as number))) / span
-      }
-    }
-    return stops[stops.length - 1].v
-  }
-  return x
-}
-
 /* ======================================================================
    THE GUARD: NOTHING IS CUT OFF PART-WAY.  installMotionGuard(), once, from
    main.tsx.
