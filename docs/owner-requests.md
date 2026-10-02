@@ -48,6 +48,18 @@ Last checked: 2026-10-02.
 | Animations never cut off part-way | In progress |
 | Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | In progress, six steps |
 
+## Done on `cloudflare-workers`, not deployed (session of 2026-10-01/02; needs the Worker and tenant migrations 0024-0026)
+
+| Asked | Where | Note for the integrator |
+|---|---|---|
+| Notification pressed: open in full, with a button to its screen | Bell panel | Live already |
+| "Make the seller admin and support real", for real people | Seller > Support > Team, Support tickets | `/seller/staff` routes; support logins hold only the ticket queue; a support login enters a school only on a recorded session (tenant 0025 rebuilds `impersonation_grants`). Overlaps the Help Centre / support desk item under Building: reconcile, do not duplicate |
+| Ticket queue shows SLA and who holds each ticket | Support tickets | tenant 0024 |
+| Class Status "good and efficient" | Class Status | Feed signs media, thumbnail and seen addresses per viewer: 1 read instead of 11; no feed reload per post seen. `status_perf.test.ts` holds the ceilings |
+| Stats: detailed, descriptive, interactive (Neon / Cloudflare style) | Shared `Stat` (`components/stat-extras.tsx`); used on Support tickets, Team, Status "Seen by", Enquiry links | Other screens take `parts`, `trend`, `detail` as they are revisited |
+| Enquiry and CRM: a link the parent fills in; application details that need no hard copy; customisable | Admissions > Enquiries > Enquiry links; lead panel "Send application link"; form builder field type "Bring to school (hard copy)" | tenant 0026 `enquiry_links`; public page `/admissions/enquire/<slug>`; `enquiry_links.test.ts` |
+| Inventory of every feature, route and table | `docs/inventory.xlsx`, `scripts/inventory/` | Regenerate after merges |
+
 ## Next
 
 | Asked | Notes |

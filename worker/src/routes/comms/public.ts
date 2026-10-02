@@ -4,6 +4,7 @@ import { handleSMSGatewayPublic } from './sms_gateway_public'
 import { sendPublicTestMessage } from './message_test'
 import { publicErrorResponse } from './public_common'
 import { handlePublicAdmissionForms } from '../admissions/public_forms'
+import { handlePublicEnquiry } from '../admissions/enquiry_links'
 
 /**
  * The sessionless /api/v1/public/... routes: the SMS gateway's claim and
@@ -21,5 +22,5 @@ export async function handlePublic(env: Env, req: Request, url: URL): Promise<Re
   if (p === '/api/v1/public/message-test' && req.method === 'POST') {
     try { return await sendPublicTestMessage(env, req) } catch (err) { return publicErrorResponse(err) }
   }
-  return handlePublicAdmissionForms(env, req, p)
+  return (await handlePublicEnquiry(env, req, p)) ?? handlePublicAdmissionForms(env, req, p)
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, Phone, PhoneCall, StickyNote, MapPin, ArrowRightLeft, X } from 'lucide-react'
+import { Link2, MessageCircle, Phone, PhoneCall, StickyNote, MapPin, ArrowRightLeft, X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   Card, CardHeader, Button, Input, Select, Textarea, ErrorState, FormNotice, Loading, SEG_BAR, segClass,
@@ -96,6 +96,50 @@ export function useLostReasons() {
 }
 
 /** Closing a lead as lost, with one of the school's reasons, so the lost-leads report can use it. */
+/* THIS LEAD'S OWN WAY INTO THE APPLICATION. The address of the open form,
+   signed for this enquiry: the family opens it with what the school already
+   knows filled in, and what they send is attached to this lead rather than
+   matched by phone number afterwards. Fetched when asked for, because it is
+   signed for thirty days from that moment. Copy it, or open WhatsApp with
+   the message written. */
+function ApplyLink({ id, phone }: { id: string; phone: string }) {
+  const [copied, setCopied] = useState(false)
+  const link = useMutation({
+    mutationFn: async () => {
+      const r = await api.get<{ path: string; message_template: string; form: string }>(`/api/v1/admissions/workflow/enquiries/${id}/apply-link`)
+      // The address a family opens is this site's, whatever host the API answered from.
+      const url = window.location.origin + r.path
+      return { url, form: r.form, message: r.message_template.replace('{url}', url) }
+    },
+  })
+  if (!link.data) {
+    return (
+      <>
+        <Button variant="secondary" disabled={link.isPending} onClick={() => link.mutate()}>
+          <Link2 className="h-3.5 w-3.5" /> {link.isPending ? 'Making the link…' : 'Send application link'}
+        </Button>
+        {link.error && <FormNotice error={link.error} />}
+      </>
+    )
+  }
+  return (
+    <div className="w-full rounded-[var(--radius-card)] border bg-card px-3.5 py-3">
+      <p className="text-[13px] font-medium">Application link for this family</p>
+      <p className="mt-0.5 text-[12.5px] text-muted-foreground">Opens “{link.data.form}” with their details filled in. Good for 30 days.</p>
+      <p className="mt-2 break-all font-mono text-[12px] text-muted-foreground">{link.data.url}</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <Button size="sm" onClick={() => { void navigator.clipboard?.writeText(link.data!.url); setCopied(true); setTimeout(() => setCopied(false), 1800) }}>
+          {copied ? 'Copied' : 'Copy link'}
+        </Button>
+        <a href={waLink(phone, link.data.message)} target="_blank" rel="noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-[13px] font-medium hover:bg-accent">
+          <MessageCircle className="h-3.5 w-3.5" /> Send on WhatsApp
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export function LostForm({ id, onDone, onCancel }: { id: string; onDone: () => void; onCancel: () => void }) {
   const qc = useQueryClient()
   const reasons = useLostReasons()
@@ -252,6 +296,7 @@ export default function LeadPanel({ id, onClose, onOpen }: { id: string; onClose
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => nav(convertHref({ ...e }))}>Convert to application</Button>
+                <ApplyLink id={id} phone={e.phone} />
                 <Button variant="secondary" tone="danger" onClick={() => setLosing((v) => !v)}>Lost</Button>
               </div>
               {losing && <LostForm id={id} onDone={() => { setLosing(false); setOk('Closed as lost.') }} onCancel={() => setLosing(false)} />}

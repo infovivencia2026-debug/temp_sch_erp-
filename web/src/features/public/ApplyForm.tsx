@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { PickerMenu } from '@/components/PickerMenu'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 /* THE APPLICATION FORM, FOR SOMEBODY WITH NO ACCOUNT.
@@ -60,18 +60,26 @@ interface FormDef {
   slug: string
   sections: Section[]
 }
-interface Payload { school: string; form: FormDef }
+interface Payload { school: string; form: FormDef; prefill?: Record<string, string> }
+interface Bring { label: string; note?: string }
 
 export default function ApplyForm() {
   const { slug = '' } = useParams()
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [problems, setProblems] = useState<Record<string, string>>({})
-  const [done, setDone] = useState<string | null>(null)
+  const [done, setDone] = useState<{ no: string; bring: Bring[] } | null>(null)
+  const [list, setList] = useState<string[]>([])
+  /* A lead's own link (?lead=...): the school signed it for one enquiry, so
+     the form opens with what that family already told the school, and what
+     is sent is attached to that enquiry. Passed through untouched. */
+  const [params] = useSearchParams()
+  const lead = params.get('lead')
+  const q = lead ? `?lead=${encodeURIComponent(lead)}` : ''
 
   const form = useQuery({
-    queryKey: ['public-form', slug],
+    queryKey: ['public-form', slug, lead],
     queryFn: async (): Promise<Payload> => {
-      const res = await fetch(`/api/v1/public/admissions/forms/${encodeURIComponent(slug)}`)
+      const res = await fetch(`/api/v1/public/admissions/forms/${encodeURIComponent(slug)}${q}`)
       if (!res.ok) throw new Error('not_found')
       return res.json()
     },
@@ -80,7 +88,7 @@ export default function ApplyForm() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/v1/public/admissions/forms/${encodeURIComponent(slug)}`, {
+      const res = await fetch(`/api/v1/public/admissions/forms/${encodeURIComponent(slug)}${q}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
@@ -91,13 +99,21 @@ export default function ApplyForm() {
            against the fields is the difference between "some answers need
            attention" and knowing which. */
         const details = body?.error?.details
-        if (details && typeof details === 'object') setProblems(details as Record<string, string>)
+        // The server sends a list of sentences, each naming its question.
+        if (Array.isArray(details)) setList(details.map(String))
+        else if (details && typeof details === 'object') setProblems(details as Record<string, string>)
         throw new Error(body?.error?.message ?? 'Could not submit')
       }
-      return body as { application_no: string }
+      return body as { application_no: string; bring?: Bring[] }
     },
-    onSuccess: (b) => setDone(b.application_no),
+    onSuccess: (b) => setDone({ no: b.application_no, bring: b.bring ?? [] }),
   })
+
+  // Filled in once, when the form arrives; never over something already typed.
+  const prefill = form.data?.prefill
+  useEffect(() => {
+    if (prefill) setAnswers((a) => ({ ...prefill, ...a }))
+  }, [prefill])
 
   if (form.isLoading) {
     return <Frame><p style={{ opacity: 0.7 }}>Loading the form…</p></Frame>
@@ -123,12 +139,13 @@ export default function ApplyForm() {
         <h1 style={h1}>Application received</h1>
         <p style={{ lineHeight: 1.6 }}>
           {school} has your application. Your application number is{' '}
-          <strong>{done}</strong>.
+          <strong>{done.no}</strong>.
         </p>
         <p style={{ opacity: 0.75, lineHeight: 1.6, marginTop: 12 }}>
           Write it down. The school will ask for it when you call, and this page
           will not show it again.
         </p>
+        <BringList items={done.bring} />
       </Frame>
     )
   }
@@ -144,11 +161,17 @@ export default function ApplyForm() {
         {school}
       </p>
       <h1 style={h1}>{def.form_name}</h1>
+      {prefill && (
+        <p style={{ marginTop: 10, padding: '10px 12px', background: '#f1f6ff', borderRadius: 8, fontSize: 14, lineHeight: 1.5 }}>
+          We have filled in what you already told the school. Please check it and complete the rest.
+        </p>
+      )}
 
       <form
         onSubmit={(e) => {
           e.preventDefault()
           setProblems({})
+          setList([])
           submit.mutate()
         }}
       >
@@ -159,7 +182,7 @@ export default function ApplyForm() {
               <p style={{ opacity: 0.7, fontSize: 14, marginTop: 4 }}>{sec.description}</p>
             )}
             <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
-              {sec.fields.map((f) => (
+              {sec.fields.filter((f) => f.field_type !== 'bring').map((f) => (
                 <label key={f.id} style={{ display: 'block' }}>
                   <span style={{ display: 'block', fontSize: 14, marginBottom: 5 }}>
                     {f.label}
@@ -182,10 +205,14 @@ export default function ApplyForm() {
           </section>
         ))}
 
+        {/* What is not asked here because it is brought on paper. */}
+        <BringList items={def.sections.flatMap((sec) => sec.fields.filter((f) => f.field_type === 'bring').map((f) => ({ label: f.label, note: f.help_text })))} />
+
         {submit.error && (
-          <p style={{ color: '#c0392b', marginTop: 20, fontSize: 14 }}>
-            {(submit.error as Error).message}
-          </p>
+          <div style={{ color: '#c0392b', marginTop: 20, fontSize: 14 }}>
+            <p style={{ margin: 0 }}>{(submit.error as Error).message}</p>
+            {list.length > 0 && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{list.map((x) => <li key={x}>{x}</li>)}</ul>}
+          </div>
         )}
 
         <button type="submit" disabled={submit.isPending} style={button}>
@@ -225,7 +252,7 @@ function FieldInput({
           onChange={(v) => onChange(v)}
           ariaLabel={field.label}
           align="start"
-          className="w-full justify-between"
+          className="w-full justify-between !h-[44px] !rounded-[3px] !border !border-solid !border-[#c9c9cf] !bg-white !px-3 !text-[15px] !text-[#111] !shadow-none"
         />
       )
     case 'checkbox':
@@ -254,7 +281,24 @@ function FieldInput({
    must not depend on the app's stylesheet loading or on any token the theme
    sets — a parent on a slow connection should get a readable form even if the
    CSS never arrives. */
-function Frame({ children }: { children: React.ReactNode }) {
+/* The originals the school wants to see in person, said once and plainly so a
+   family does not go looking for a place to upload them. */
+function BringList({ items }: { items: Bring[] }) {
+  if (!items.length) return null
+  return (
+    <section style={{ marginTop: 28, padding: '14px 16px', background: '#f7f7f8', borderRadius: 8 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Bring these to the school</h2>
+      <p style={{ opacity: 0.7, fontSize: 13.5, margin: '4px 0 0' }}>Nothing to upload for these: carry them when you visit.</p>
+      <ul style={{ margin: '10px 0 0', paddingLeft: 18, lineHeight: 1.6 }}>
+        {items.map((b) => (
+          <li key={b.label}>{b.label}{b.note && <span style={{ opacity: 0.65 }}> · {b.note}</span>}</li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+export function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: '100vh', background: '#f7f7f8', color: '#111', padding: '24px 16px' }}>
       <div
@@ -270,18 +314,18 @@ function Frame({ children }: { children: React.ReactNode }) {
   )
 }
 
-const h1: React.CSSProperties = { fontSize: 24, fontWeight: 600, margin: '6px 0 0' }
-const input: React.CSSProperties = {
+export const h1: React.CSSProperties = { fontSize: 24, fontWeight: 600, margin: '6px 0 0' }
+export const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontSize: 15,
   border: '1px solid #c9c9cf', borderRadius: 3, background: '#fff', color: '#111',
 }
-const button: React.CSSProperties = {
+export const button: React.CSSProperties = {
   marginTop: 26, width: '100%', padding: '14px 16px', fontSize: 16, fontWeight: 600,
   color: '#fff', background: '#111', border: 0, borderRadius: 3, cursor: 'pointer',
 }
 
 /** The form's own textarea, growing from three lines to ten (lib/auto-grow). */
-function GrowingTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function GrowingTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null)
   useAutoGrow(ref, { minRows: props.rows ?? 3, maxRows: 10 }, typeof props.value === 'string' ? props.value : undefined)
   return <textarea ref={ref} {...props} style={{ ...props.style, resize: 'none' }} />

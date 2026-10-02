@@ -3,6 +3,7 @@ import { json } from '../../env'
 import { isUUID, now, uuid } from '../../http'
 import { loadFormDefinition, type FormDefinition } from './forms'
 import { nextNumber, optionsForKind, todayIST } from './util'
+import { leadFromToken } from './enquiry_links'
 import { allTenants, callerAddress, decodeStrict, goError, goInternal, goNotFound, rateLimited, type Tenant } from '../comms/public_common'
 
 /* Port of mountAdmissionsPublic (admissions_growth.go): GET and POST
@@ -45,14 +46,31 @@ async function resolveFieldOptions(db: D1Database, def: FormDefinition): Promise
   }
 }
 
-async function getPublicAdmissionForm(env: Env, slug: string): Promise<Response> {
+async function getPublicAdmissionForm(env: Env, slug: string, lead: string | null): Promise<Response> {
   if (!validFormSlug(slug)) return goNotFound()
   const found = await resolvePublicForm(env, slug)
   if (!found) return goNotFound()
   const def = await loadFormDefinition(found.t.db, found.versionID)
   if (!def) return goInternal()
   await resolveFieldOptions(found.t.db, def)
-  return json({ school: found.t.inst.name, form: def })
+  /* A lead's own link (enquiry_links.ts leadToken): what the school already
+     knows is handed back so the family does not type it again. Only the
+     reserved fields an enquiry holds, and only on a signature that names
+     this school's enquiry. */
+  let prefill: Record<string, string> | undefined
+  const enquiryId = await leadFromToken(env, found.t.inst.id, lead)
+  if (enquiryId) {
+    const e = await found.t.db.prepare('SELECT student_name, parent_name, phone, email, class_sought FROM enquiries WHERE id = ?').bind(enquiryId)
+      .first<{ student_name: string; parent_name: string | null; phone: string; email: string | null; class_sought: string | null }>()
+    if (e) {
+      const [first, ...rest] = e.student_name.trim().split(/\s+/)
+      prefill = {}
+      const put = (k: string, v: string | null | undefined) => { if (v) prefill![k] = v }
+      put('first_name', first); put('last_name', rest.join(' ')); put('parent_name', e.parent_name); put('parent_phone', e.phone)
+      put('parent_email', e.email); put('class_sought', e.class_sought)
+    }
+  }
+  return json({ school: found.t.inst.name, form: def, prefill })
 }
 
 // ---------------------------------------------------------------- validation
@@ -159,6 +177,8 @@ function validateSubmission(def: FormDefinition, req: Submission): [Checked[], s
   for (const code of Object.keys(given)) if (!allowed.has(code)) errs.push('this form has no question called ' + code)
 
   for (const sec of def.sections) for (const f of sec.fields) {
+    // Brought to the school on paper: nothing to check, nothing to store.
+    if (f.field_type === 'bring') continue
     if (f.visible_when && (given[f.visible_when.field.toLowerCase()] ?? '') !== f.visible_when.equals) continue
     if (f.field_type === 'file') {
       const fileRaw = (req.files?.[f.code] ?? '').trim(), urlRaw = (req.urls?.[f.code] ?? '').trim()
@@ -197,7 +217,7 @@ function validateSubmission(def: FormDefinition, req: Submission): [Checked[], s
 // ---------------------------------------------------------------- insert
 
 /** insertPublicApplication. Returns the application number; an Error is a 500, as in Go. */
-async function insertPublicApplication(t: Tenant, versionID: string, def: FormDefinition, answers: Checked[], from: string): Promise<string> {
+async function insertPublicApplication(t: Tenant, versionID: string, def: FormDefinition, answers: Checked[], from: string, leadId: string | null = null): Promise<string> {
   const { db } = t, inst = t.inst.id
   const core: Record<string, string> = {}
   let classID: string | null = null
@@ -223,7 +243,12 @@ async function insertPublicApplication(t: Tenant, versionID: string, def: FormDe
 
   const appNo = await nextNumber(db, inst, 'application', todayIST())
 
-  const enq = await db.prepare(`SELECT e.id FROM enquiries e
+  /* The lead this application came from: the one its link named, when that
+     lead has no application yet; otherwise the newest enquiry on the same
+     phone or email, as before. */
+  const named = leadId ? await db.prepare(`SELECT e.id FROM enquiries e WHERE e.id = ? AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.enquiry_id = e.id)`)
+    .bind(leadId).first<{ id: string }>() : null
+  const enq = named ?? await db.prepare(`SELECT e.id FROM enquiries e
       WHERE (e.phone = ? OR (NULLIF(?, '') IS NOT NULL AND e.email = ?))
         AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.enquiry_id = e.id)
       ORDER BY e.created_at DESC LIMIT 1`).bind(c('parent_phone'), c('parent_email'), c('parent_email')).first<{ id: string }>()
@@ -267,7 +292,7 @@ async function insertPublicApplication(t: Tenant, versionID: string, def: FormDe
   return appNo
 }
 
-async function submitPublicAdmissionForm(env: Env, req: Request, slug: string): Promise<Response> {
+async function submitPublicAdmissionForm(env: Env, req: Request, slug: string, lead: string | null): Promise<Response> {
   if (!validFormSlug(slug)) return goNotFound()
   const limited = await rateLimited(env, 'public_form', WINDOW_S, BURST, callerAddress(req),
     'too many applications from this connection. Please wait a few minutes and try again.')
@@ -281,8 +306,10 @@ async function submitPublicAdmissionForm(env: Env, req: Request, slug: string): 
   await resolveFieldOptions(found.t.db, def)
   const [checked, problems] = validateSubmission(def, body)
   if (problems.length) return goError(400, 'validation_failed', 'Some answers need attention.', { details: problems })
-  const appNo = await insertPublicApplication(found.t, found.versionID, def, checked, callerAddress(req))
-  return json({ application_no: appNo, message: 'Your application has been received. Please keep this number for reference.' }, 201)
+  const appNo = await insertPublicApplication(found.t, found.versionID, def, checked, callerAddress(req), await leadFromToken(env, found.t.inst.id, lead))
+  // What must still be carried in on paper, said again on the receipt.
+  const bring = def.sections.flatMap((sec) => sec.fields.filter((f) => f.field_type === 'bring').map((f) => ({ label: f.label, note: f.help_text ?? undefined })))
+  return json({ application_no: appNo, message: 'Your application has been received. Please keep this number for reference.', bring }, 201)
 }
 
 /** GET/POST /api/v1/public/admissions/forms/{slug}; null for anything else. */
@@ -293,7 +320,8 @@ export async function handlePublicAdmissionForms(env: Env, req: Request, path: s
   let slug: string
   try { slug = decodeURIComponent(m[1]).trim().toLowerCase() } catch { return goNotFound() }
   try {
-    return req.method === 'GET' ? await getPublicAdmissionForm(env, slug) : await submitPublicAdmissionForm(env, req, slug)
+    const lead = new URL(req.url).searchParams.get('lead')
+    return req.method === 'GET' ? await getPublicAdmissionForm(env, slug, lead) : await submitPublicAdmissionForm(env, req, slug, lead)
   } catch (err) {
     console.error(err)
     return goInternal()

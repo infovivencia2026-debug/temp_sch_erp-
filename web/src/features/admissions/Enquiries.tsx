@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, Phone, Plus } from 'lucide-react'
+import { Link2, MessageCircle, Phone, Plus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
@@ -10,6 +10,7 @@ import {
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { formatDate } from '@/lib/utils'
+import EnquiryLinks from './EnquiryLinks'
 import LeadPanel, { LostForm, SOURCES, STAGES, convertHref, stageLabel, waLink, ymdIn } from './LeadPanel'
 
 /* The admissions desk, as a working queue rather than a list.
@@ -61,6 +62,7 @@ export default function Enquiries() {
   const nav = useNavigate()
   const [status, setStatus] = useState('')
   const [adding, setAdding] = useState(false)
+  const [links, setLinks] = useState(false)
   /* "All leads" and "My follow-ups" read the same enquiries and are not the
      same question: one is the whole pipeline, the other is what a counsellor
      has to do before this evening. */
@@ -187,11 +189,18 @@ export default function Enquiries() {
             : 'Every lead that has not become a student yet, with where it has got to and who is chasing it.'
         }
         actions={
-          <Button onClick={() => setAdding((v) => !v)}>
-            <Plus className="h-3.5 w-3.5" /> Add lead
-          </Button>
+          <>
+            {/* The family fills in its own enquiry: links to hand out, and what each brought. */}
+            <Button variant="secondary" onClick={() => setLinks(true)}>
+              <Link2 className="h-3.5 w-3.5" /> Enquiry links
+            </Button>
+            <Button onClick={() => setAdding((v) => !v)}>
+              <Plus className="h-3.5 w-3.5" /> Add lead
+            </Button>
+          </>
         }
       />
+      {links && <EnquiryLinks onClose={() => { setLinks(false); void qc.invalidateQueries({ queryKey: ['enquiries'] }) }} />}
       <PageBody>
         <CellGrid cols={4}>
           <Stat label="Open enquiries" value={all.filter((e) => OPEN(e.status)).length} />
