@@ -132,4 +132,23 @@ describe('enquiry links', () => {
   it('a class teacher cannot make or change links', async () => {
     expect((await api('teacher', 'POST', '/admissions/enquiry-links', { name: 'Nope' })).status).toBe(403)
   })
+  it("the admissions desk is told: one bell entry that opens the lead, collapsed while unread, none for a teacher", async () => {
+    const bell = (user: string) => T().prepare(`SELECT title, body, link, read_at FROM notifications WHERE user_id = ? AND kind = 'enquiry'`).bind(user).all<any>()
+    const first = (await bell(IDS.admin)).results
+    expect(first).toHaveLength(1)
+    expect(first[0].link).toMatch(/^\/go\/enquiries\/enquiries/)
+    // Several enquiries came in already (Nila, again, the applications' leads): one unread entry, saying there are several.
+    expect(first[0].title).toBe('New enquiries')
+    expect(first[0].body).toContain('Latest:')
+    expect((await bell(IDS.teacher)).results).toHaveLength(0)
+    // Read it; the next enquiry brings it back as a fresh one that opens that lead.
+    await T().prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'enquiry'`).bind(new Date().toISOString(), IDS.admin).run()
+    expect((await pub('POST', `/enquiry/${link.slug}`, { student_name: 'Ira Das', parent_name: 'Rohan Das', phone: '9000088888', class_sought: IDS.klass, message: 'Visit?' }, '198.51.100.21')).status).toBe(201)
+    const again = (await bell(IDS.admin)).results
+    expect(again).toHaveLength(1)
+    expect(again[0]).toMatchObject({ title: 'New enquiry', read_at: null })
+    expect(again[0].body).toContain('Ira Das')
+    const lead = await T().prepare(`SELECT id FROM enquiries WHERE student_name = 'Ira Das'`).first<{ id: string }>()
+    expect(again[0].link).toBe(`/go/enquiries/enquiries?lead=${lead!.id}`)
+  })
 })

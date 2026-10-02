@@ -199,6 +199,41 @@ export function registerEnquiryLinks(r: Router) {
   })
 }
 
+// ---------------------------------------------------------------- telling the admissions desk
+
+/* A lead that arrives at nine at night has to be seen in the morning. Every
+   active person who may work enquiries (admissions.write, through a role or
+   granted directly) gets a bell entry that opens the lead. One entry per
+   person while it is unread: a second enquiry before they look updates it
+   ("3 new enquiries", the latest named) instead of stacking another, the
+   same way Class Status collapses a poster's posts. In-app only; nothing is
+   sent by SMS or WhatsApp. */
+function alertDesk(db: D1Database, inst: string, enquiryId: string, child: string, linkName: string, again: boolean): D1PreparedStatement[] {
+  const at = now()
+  const link = `/go/enquiries/enquiries?lead=${enquiryId}`
+  const what = again ? `${child} asked again through "${linkName}"` : `${child}, through "${linkName}"`
+  const desk = `SELECT DISTINCT u.id FROM users u WHERE u.status = 'active' AND (
+        EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_key = 'admissions.write')
+     OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_key = 'admissions.write'))`
+  return [
+    // An unread entry: count it up and name the latest.
+    db.prepare(`UPDATE notifications SET
+          title = 'New enquiries',
+          body = ?, link = '/go/enquiries/enquiries', created_at = ?, pushed_at = NULL
+        WHERE kind = 'enquiry' AND source_kind = 'enquiry_link' AND source_id = 'desk' AND read_at IS NULL AND dismissed_at IS NULL
+          AND user_id IN (${desk})`).bind(`Latest: ${what}. Open the list to see them all.`, at),
+    // Read, cleared or never had one: a fresh entry for this lead.
+    db.prepare(`UPDATE notifications SET title = ?, body = ?, link = ?, created_at = ?, read_at = NULL, dismissed_at = NULL, pushed_at = NULL
+        WHERE kind = 'enquiry' AND source_kind = 'enquiry_link' AND source_id = 'desk' AND (read_at IS NOT NULL OR dismissed_at IS NOT NULL)
+          AND user_id IN (${desk})`).bind('New enquiry', `${what}. Due a call today.`, link, at),
+    db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+        SELECT lower(hex(randomblob(16))), ?, d.id, 'enquiry', 'New enquiry', ?, ?, 'enquiry_link', 'desk', ?
+          FROM (${desk}) d
+         WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = d.id AND n.kind = 'enquiry' AND n.source_kind = 'enquiry_link' AND n.source_id = 'desk')`)
+      .bind(inst, `${what}. Due a call today.`, link, at),
+  ]
+}
+
 // ---------------------------------------------------------------- the family's side (no session)
 
 async function resolveLink(env: Env, slug: string): Promise<{ t: Tenant; link: LinkRow & { apply_slug: string | null } } | null> {
@@ -285,6 +320,7 @@ async function submitPublicEnquiry(env: Env, req: Request, slug: string): Promis
     await t.db.batch([
       activityStmt(t.db, inst, same.id, 'note', { body: `Enquired again through "${link.name}".${said ? '\n' + said : ''}`, follow: today, author: null, at: ts }),
       t.db.prepare(`UPDATE enquiries SET next_follow_up = COALESCE(next_follow_up, ?), updated_at = ? WHERE id = ?`).bind(today, ts, same.id),
+      ...alertDesk(t.db, inst, same.id, student, link.name, true),
     ])
     return json({ message: thanks, apply_url: await apply(same.id) }, 201)
   }
@@ -297,6 +333,7 @@ async function submitPublicEnquiry(env: Env, req: Request, slug: string): Promis
           next_follow_up, notes, status, created_at, updated_at) VALUES (?,?,?,?,?,?,NULLIF(?, ''),?,?,?,?,?,?,NULLIF(?, ''),'new',?,?)`)
       .bind(id, inst, campus, student, parent, phoneRaw, val.email, classID, link.source, link.name, 'enquiry_link', link.slug, today, said, ts, ts),
     activityStmt(t.db, inst, id, 'created', { body: `Filled in by the family through "${link.name}".${said ? '\n' + said : ''}`, to: 'new', follow: today, author: null, at: ts }),
+    ...alertDesk(t.db, inst, id, student, link.name, false),
   ])
   return json({ message: thanks, apply_url: await apply(id) }, 201)
 }

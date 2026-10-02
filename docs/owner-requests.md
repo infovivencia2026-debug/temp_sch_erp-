@@ -59,7 +59,7 @@ Last checked: 2026-10-02.
 | Ticket queue shows SLA and who holds each ticket | Support tickets | tenant 0024 |
 | Class Status "good and efficient" | Class Status | Feed signs media, thumbnail and seen addresses per viewer: 1 read instead of 11; no feed reload per post seen. `status_perf.test.ts` holds the ceilings |
 | Stats: detailed, descriptive, interactive (Neon / Cloudflare style) | Shared `Stat` (`components/stat-extras.tsx`); used on Support tickets, Team, Status "Seen by", Enquiry links | Other screens take `parts`, `trend`, `detail` as they are revisited |
-| Enquiry and CRM: a link the parent fills in; application details that need no hard copy; customisable | Admissions > Enquiries > Enquiry links; lead panel "Send application link"; form builder field type "Bring to school (hard copy)" | tenant 0026 `enquiry_links`; public page `/admissions/enquire/<slug>`; `enquiry_links.test.ts` |
+| Enquiry and CRM: a link the parent fills in; application details that need no hard copy; customisable | Admissions > Enquiries > Enquiry links; lead panel "Send application link"; form builder field type "Bring to school (hard copy)" | tenant 0026 `enquiry_links`; public page `/admissions/enquire/<slug>`; a new enquiry rings the bell of everyone with admissions.write (one entry while unread); `enquiry_links.test.ts` |
 | Inventory of every feature, route and table | `docs/inventory.xlsx`, `scripts/inventory/` | Regenerate after merges |
 
 ## Next
