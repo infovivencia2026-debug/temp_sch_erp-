@@ -1982,6 +1982,10 @@
      These two are the only durations the eye reads as "a new page"; the
      press, the hover and the travelling panels above stay where they are. */
   --motion-enter: 200ms;   /* the arrival of something that was not there */
+  /* Leaving. Both are shorter than EXIT_MS in lib/motion.ts (240ms), the time
+     a closed surface stays mounted: an exit longer than that is cut off. */
+  --motion-exit: 160ms;        /* a menu, a popover, a centred dialog, the dim */
+  --motion-exit-sheet: 220ms;  /* a sheet or drawer going back off its edge */
   --motion-route: 260ms;   /* a feature screen settling in on navigation */
 
   /* THE PRESS AND THE RELEASE ARE NOT THE SAME EVENT, AND THEY WERE TIMED AS
@@ -2293,10 +2297,10 @@ dialog[open],
    it mounted for exactly this animation and unmounts on animationend. */
 [role='dialog'][data-side='right'][data-closing] {
   animation-name: drawer-out-right;
+  animation-duration: var(--motion-exit-sheet);
   animation-fill-mode: forwards;
 }
 @keyframes drawer-out-right {
-  from { transform: none; }
   to   { transform: translateX(100%); }
 }
 
@@ -2409,6 +2413,8 @@ dialog,
     --motion: 120ms;
     --motion-slow: 120ms;
     --motion-enter: 120ms;
+    --motion-exit: 100ms;
+    --motion-exit-sheet: 100ms;
     --motion-spring: var(--motion-ease);
   }
 
@@ -3223,13 +3229,12 @@ body[data-scroll-lock] {
    itself. --motion-enter is 140ms, and it leaves at speed rather than
    decelerating into nothing. */
 @keyframes motion-exit {
-  from { opacity: 1; transform: none; }
   to   { opacity: 0; transform: scale(0.98); }
 }
 
 :where(.motion-enter, [role='menu'], [role='listbox'], [role='tooltip'],
        [role='dialog'], [popover])[data-closing]:not([data-side]) {
-  animation: motion-exit var(--motion-enter) var(--ease-phone-in) forwards;
+  animation: motion-exit var(--motion-exit) var(--ease-phone-in) forwards;
 }
 
 /* REDUCED MOTION, PER SURFACE, THE WAY THE REST OF THIS FILE DOES IT.
@@ -3841,12 +3846,17 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 .rail-tile:hover::before { opacity: 1; animation: rail-sheen 700ms ease forwards; }
 .rail-tile:hover + .rail-tile,
 .rail-tile:has(+ .rail-tile:hover) { transform: scale(1.12) translateX(1px); }
-.rail-tile:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+/* The icon leans while the pointer is on it and comes back when it leaves.
+   It used to play a one-shot keyframe on :hover, and a keyframe tied to
+   :hover is cancelled the moment the pointer moves off: the icon snapped
+   upright from mid-tilt. A transition turns round from wherever it is. */
+.rail-tile svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-tile:hover svg { transform: scale(1.1) rotate(-5deg); }
 @keyframes rail-sheen { to { background-position: -50% 0; } }
-@keyframes rail-bob { 0% { transform: scale(1); } 45% { transform: scale(1.15) rotate(-6deg); } 100% { transform: scale(1) rotate(0); } }
 @media (prefers-reduced-motion: reduce) {
   .rail-tile, .rail-tile:hover, .rail-tile:hover + .rail-tile, .rail-tile:has(+ .rail-tile:hover) { transform: none; }
-  .rail-tile:hover::before, .rail-tile:hover svg { animation: none; }
+  .rail-tile:hover::before { animation: none; }
+  .rail-tile:hover svg { transform: none; }
 }
 .rail-tile:focus-visible,
 .rail-tile-on {
@@ -3875,14 +3885,15 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 }
 .rail-foot > div > button:first-child { --tile: hsl(var(--primary)); }
 .rail-foot > div > button:first-child:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.12); }
-.rail-foot > div > button:first-child:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-foot > div > button:first-child:hover svg { transform: scale(1.1) rotate(-5deg); }
 .rail-foot > div > button:first-child svg { width: 20px; height: 20px; }
 .rail-foot > button svg, .rail-foot > a svg { width: 20px; height: 20px; }
 .rail-foot > button:hover, .rail-foot > a:hover {
   transform: scale(1.28) translateX(3px); filter: brightness(1.12) saturate(1.15); z-index: 5;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile) 75%, transparent);
 }
-.rail-foot > button:hover svg, .rail-foot > a:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.1) rotate(-5deg); }
 .rail-foot > :is(button, a):hover + :is(button, a),
 .rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.12) translateX(1px); }
 .rail-foot > button[aria-label*="otification" i], .rail-foot > button[aria-label*="lert" i] { --tile: var(--dom-warning, hsl(var(--warning))); }
@@ -3891,7 +3902,7 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 .rail-foot > a[href="/logout"] { --tile: var(--dom-critical, hsl(var(--destructive))); }
 @media (prefers-reduced-motion: reduce) {
   .rail-foot > :is(button, a), .rail-foot > :is(button, a):hover { transform: none; }
-  .rail-foot > :is(button, a):hover svg { animation: none; }
+  .rail-foot > :is(button, a):hover svg, .rail-foot > div > button:first-child:hover svg { transform: none; }
 }
 
 /* The Focus dock magnifies like the Mac dock: the icon under the pointer
@@ -3903,13 +3914,15 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
     position: relative;
   }
   html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-8px) scale(1.45) !important; z-index: 5; }
-  .bento-dock .dock-mag:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+  .bento-dock .dock-mag svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
+  .bento-dock .dock-mag:hover svg { transform: scale(1.1) rotate(-5deg); }
   .bento-dock .dock-mag:hover + .dock-mag,
   .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-4px) scale(1.2); }
   .bento-dock .dock-mag:hover + .dock-mag + .dock-mag,
   .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.07); }
 }
 @media (prefers-reduced-motion: reduce) {
+  .bento-dock .dock-mag:hover svg { transform: none; }
   .bento-dock .dock-mag, .bento-dock .dock-mag:hover { transform: none !important; }
 }
 
@@ -3928,11 +3941,16 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background-size: 200vw 100%;
   background-attachment: fixed;
   background-repeat: no-repeat;
-  animation: skeleton-in 360ms ease-out both, skeleton-sweep-screen 1.9s cubic-bezier(.4, 0, .2, 1) infinite;
+  animation: skeleton-in 360ms ease-out both, skeleton-sweep-screen 1.9s linear infinite;
 }
+/* The band is the middle quarter of a 200vw image, so it is off the right
+   edge at 100vw and only off the left edge at -125vw. It used to stop at
+   -100vw, with half the band still on the left of the screen, and the loop
+   restarting made it vanish there: a seam every 1.9s. Both ends are now off
+   screen, and the pace is even, so the restart cannot be seen. */
 @keyframes skeleton-sweep-screen {
   from { background-position: 100vw 0; }
-  to   { background-position: -100vw 0; }
+  to   { background-position: -125vw 0; }
 }
 @keyframes skeleton-in {
   from { opacity: 0; transform: translateY(3px); }
@@ -4257,9 +4275,14 @@ main, [data-paint='workarea'] {
   background-size: 200% 100%;
   opacity: 0; transition: opacity 200ms ease;
 }
-.fetch-bar[data-on] { opacity: .85; transition-delay: 150ms; animation: fetch-bar-run 1.1s linear infinite; }
+/* The sweep is always on the bar and only paused while it is hidden: taking
+   the animation away when the fetch ended snapped the band back to its start
+   while the bar was still fading out. Paused, it holds its place through the
+   fade and carries on from there next time. */
+.fetch-bar { animation: fetch-bar-run 1.1s linear infinite paused; }
+.fetch-bar[data-on] { opacity: .85; transition-delay: 150ms; animation-play-state: running; }
 @keyframes fetch-bar-run { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-@media (prefers-reduced-motion: reduce) { .fetch-bar[data-on] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fetch-bar, .fetch-bar[data-on] { animation: none; } }
 
 /* HOME: NOTHING UNDER THE OVERVIEW UNTIL THE OVERVIEW HAS ITS SIZE.
    The role's overview renders empty, then as a skeleton, then as itself,
@@ -4452,10 +4475,12 @@ html[data-fade='in'] #root { opacity: 1; transition-duration: 180ms; }
   to { transform: translateY(100%); }
 }
 [data-closing] { pointer-events: none; }
-.scrim[data-closing] { animation: scrim-out 180ms var(--motion-ease) both; }
-.scrim[data-closing] > [role='dialog'] { animation: motion-exit 180ms var(--motion-ease) both; }
+.scrim[data-closing] { animation: scrim-out var(--motion-exit) var(--motion-ease) both; }
+.scrim[data-closing] > [role='dialog'] { animation: motion-exit var(--motion-exit) var(--motion-ease) both; }
 @media (max-width: 639px) {
-  .scrim[data-closing] > [role='dialog'] { animation: sheet-out 220ms var(--motion-ease) both; }
+  /* The dim stays for as long as the sheet takes to go, so they leave together. */
+  .scrim[data-closing] { animation-duration: var(--motion-exit-sheet); }
+  .scrim[data-closing] > [role='dialog'] { animation: sheet-out var(--motion-exit-sheet) var(--motion-ease) both; }
 }
 
 /* REDUCED MOTION: everything above is instant. The system setting stops this

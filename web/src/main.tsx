@@ -15,6 +15,7 @@ import './styles/motion.css'
 import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
+import { installMotionGuard } from './lib/motion'
 import { trackKeyboardInset } from './lib/keyboard'
 import { clearPersistedQueriesOnSignOut } from './lib/query-persist'
 
@@ -348,6 +349,18 @@ if ('serviceWorker' in navigator) {
       })
     }).catch(() => {})
   })
+}
+
+/* Nothing is cut off part-way: exits for surfaces React unmounts in one frame,
+   and an animation interrupted by its opposite carries on from where it was.
+   See installMotionGuard in lib/motion.ts. */
+installMotionGuard()
+
+/* The motion audit, in development only: window.__motionAudit() reports every
+   animation that was cancelled, cut off by an unmount, jumped or replayed.
+   The dynamic import keeps it out of the production bundle. */
+if (import.meta.env.DEV) {
+  void import('./lib/motion-audit').then((m) => m.installMotionAudit())
 }
 
 /* The stored language's catalogue before the first paint, so a Telugu

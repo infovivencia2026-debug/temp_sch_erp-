@@ -48,6 +48,47 @@ function commitNow(commit: () => void) {
 
 let fading = false
 
+/* ONE CROSSING AT A TIME.
+
+   The browser runs a single view transition per document. Starting a second
+   while one is in flight does not queue it: the first is skipped to its end
+   in one frame -- the cut the owner saw when Focus/Work was pressed twice, or
+   Back was pressed while a card was still opening. So while a crossing runs,
+   the next change is committed plainly inside it: the arriving snapshot is
+   live, so the new state shows through the crossing already under way and
+   nothing is aborted. */
+let crossing = false
+/** Whether a view transition started by the kit is still running. */
+export function crossingNow(): boolean { return crossing }
+
+/** Runs `commit` inside a view transition when one can be started, and
+    plainly otherwise (no API, reduced motion, or a crossing already running).
+    Returns the transition, or null when the commit was plain. */
+function cross(commit: () => void, before?: () => void, after?: () => void): VT | null {
+  const doc = document as Doc
+  if (!doc.startViewTransition || motionReduced() || crossing) {
+    commitNow(commit)
+    return null
+  }
+  before?.()
+  let vt: VT | undefined
+  try {
+    vt = doc.startViewTransition(() => commitNow(commit))
+  } catch {
+    after?.()
+    commitNow(commit)
+    return null
+  }
+  crossing = true
+  const done = () => { crossing = false; after?.() }
+  // Overtaken or skipped, these reject "Transition was skipped"; the commit
+  // already ran, so the rejection is not an error.
+  for (const pr of [vt?.ready, vt?.updateCallbackDone]) pr?.catch(() => {})
+  if (vt?.finished) vt.finished.then(done, done)
+  else done()
+  return vt ?? null
+}
+
 /* A WHOLE-SCREEN CHANGE OF SHAPE CROSSES OVER; IT DOES NOT CUT.
 
    Focus <-> Work swaps the entire chrome: the dock for the sidebar, one
@@ -60,29 +101,17 @@ let fading = false
    Elsewhere, the app root fades out over 120ms onto the page ground (never
    white -- body keeps its colour), the change commits behind it, and it fades
    back in. Engines without CSS transitions, and anyone who asked for reduced
-   motion, get the change instantly. A second press during a fallback fade
-   commits straight away rather than queueing another fade. */
+   motion, get the change instantly. A second press during either kind of
+   crossing commits inside it rather than starting another. */
 export function crossfade(commit: () => void, name = 'layout') {
   const doc = document as Doc
   const root = document.documentElement
-  if (motionReduced() || fading) {
+  if (motionReduced() || fading || crossing) {
     commitNow(commit)
     return
   }
-  if (doc.startViewTransition) {
-    root.setAttribute('data-vt', name)
-    let vt: VT | undefined
-    try {
-      vt = doc.startViewTransition(() => commitNow(commit))
-    } catch {
-      root.removeAttribute('data-vt')
-      commitNow(commit)
-      return
-    }
-    const done = () => root.removeAttribute('data-vt')
-    if (vt?.finished) vt.finished.then(done, done)
-    else done()
-    for (const pr of [vt?.ready, vt?.updateCallbackDone]) pr?.catch(() => {})
+  if (typeof doc.startViewTransition === 'function') {
+    cross(commit, () => root.setAttribute('data-vt', name), () => root.removeAttribute('data-vt'))
     return
   }
   if (!('transition' in root.style)) {
@@ -104,22 +133,7 @@ export function crossfade(commit: () => void, name = 'layout') {
 }
 
 export function transitioned(commit: () => void) {
-  const doc = document as Doc
-  if (!doc.startViewTransition || motionReduced()) {
-    commit()
-    return
-  }
-  const vt = doc.startViewTransition(() => {
-    try {
-      flushSync(commit)
-    } catch {
-      commit()
-    }
-  })
-  // Overtaken by the next transition (a menu closing as a route changes),
-  // these reject "Transition was skipped" as unhandled page errors; the
-  // commit already ran, so the rejection is not an error.
-  for (const pr of [vt?.ready, vt?.finished, vt?.updateCallbackDone]) pr?.catch(() => {})
+  cross(commit)
 }
 
 export function useOpenState<T>(initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
@@ -153,10 +167,17 @@ export function useRootReduceMotion() {
   }, [on])
 }
 
+/** How long a closed surface stays mounted for its exit. Longer than the
+    longest exit in index.css (the phone sheet, --motion-exit-sheet, 220ms):
+    an exit that outlives its element is cut off part-way. */
+export const EXIT_MS = 240
+
 /** Keep a surface mounted for `ms` after it is closed, flagged as closing,
-    so its exit can play (index.css [data-closing]). Instant under reduced
-    motion. Returns [mounted, closing]. */
-export function usePresence(open: boolean, ms = 180): [boolean, boolean] {
+    so its exit can play (index.css [data-closing]). Reopened during the exit,
+    the timer is dropped and the surface stays; the guard below carries the
+    entrance on from where the exit had got to. Instant under reduced motion.
+    Returns [mounted, closing]. */
+export function usePresence(open: boolean, ms = EXIT_MS): [boolean, boolean] {
   const [mounted, setMounted] = useState(open)
   useEffect(() => {
     if (open) {
@@ -173,6 +194,25 @@ export function usePresence(open: boolean, ms = 180): [boolean, boolean] {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ms])
   return [open || mounted, !open && mounted]
+}
+
+/** Calls `done` once, when `el` finishes the transition or animation it is
+    running, or after `max` ms if no end event comes (nothing was running, the
+    element was hidden, the engine dropped the event). Returns a cancel. */
+export function afterMotion(el: HTMLElement, done: () => void, max = 600): () => void {
+  let over = false
+  const end = (e?: Event) => {
+    if (over || (e && e.target !== el)) return
+    over = true
+    window.clearTimeout(t)
+    el.removeEventListener('transitionend', end)
+    el.removeEventListener('animationend', end)
+    if (e || el.isConnected) done()
+  }
+  const t = window.setTimeout(() => end(), max)
+  el.addEventListener('transitionend', end)
+  el.addEventListener('animationend', end)
+  return () => { over = true; window.clearTimeout(t); el.removeEventListener('transitionend', end); el.removeEventListener('animationend', end) }
 }
 
 /* ======================================================================
@@ -213,37 +253,30 @@ export function useStaggerOnce<T extends HTMLElement = HTMLElement>() {
     morphed between. The name is cleared from both when the crossing ends.
     Without the API, or under reduced motion, this is `commit()`. */
 export function containerTransform(from: Element | null | undefined, commit: () => void, to?: () => Element | null | undefined) {
-  const doc = document as Doc
   const root = document.documentElement
-  if (!doc.startViewTransition || motionReduced() || !from) {
+  if (!from) {
     commit()
     return
   }
   const fromEl = from as HTMLElement
-  fromEl.style.viewTransitionName = 'm-hero'
-  root.setAttribute('data-vt', 'hero')
   let toEl: HTMLElement | null = null
-  let vt: VT | undefined
-  try {
-    vt = doc.startViewTransition(() => {
-      commitNow(commit)
+  cross(
+    () => {
+      commit()
       fromEl.style.viewTransitionName = ''
       toEl = (to?.() as HTMLElement | null | undefined) ?? null
       if (toEl) toEl.style.viewTransitionName = 'm-hero'
-    })
-  } catch {
-    fromEl.style.viewTransitionName = ''
-    root.removeAttribute('data-vt')
-    commitNow(commit)
-    return
-  }
-  const done = () => {
-    fromEl.style.viewTransitionName = ''
-    if (toEl) toEl.style.viewTransitionName = ''
-    if (root.getAttribute('data-vt') === 'hero') root.removeAttribute('data-vt')
-  }
-  for (const pr of [vt?.ready, vt?.updateCallbackDone]) pr?.catch(() => {})
-  vt?.finished?.then(done, done) ?? done()
+    },
+    () => {
+      fromEl.style.viewTransitionName = 'm-hero'
+      root.setAttribute('data-vt', 'hero')
+    },
+    () => {
+      fromEl.style.viewTransitionName = ''
+      if (toEl) toEl.style.viewTransitionName = ''
+      if (root.getAttribute('data-vt') === 'hero') root.removeAttribute('data-vt')
+    },
+  )
 }
 
 type DragOpts = {
@@ -312,8 +345,10 @@ export function useDragDismiss<T extends HTMLElement = HTMLElement>(opts: DragOp
           latest.current.onDismiss()
           requestAnimationFrame(() => { el.removeAttribute('data-closing'); el.style.removeProperty('--m-drag'); s?.style.removeProperty('--m-drag-f') })
         }
+        // When the sheet has finished leaving, not at a guessed time: a timer
+        // shorter than the spring unmounted it part-way down.
         if (motionReduced()) fire()
-        else window.setTimeout(fire, 200)
+        else afterMotion(el, fire, 500)
       } else {
         set(0)
         s?.style.removeProperty('--m-drag-f')
@@ -377,7 +412,7 @@ export function useSwipeDismiss<T extends HTMLElement = HTMLElement>(onDismiss: 
         el.setAttribute('data-dismissed', '')
         const fire = () => cb.current()
         if (motionReduced()) fire()
-        else window.setTimeout(fire, 220)
+        else afterMotion(el, fire, 400)
       } else {
         el.style.setProperty('--m-swipe', '0px')
         el.style.opacity = ''
@@ -437,4 +472,364 @@ export function useCollapsingTitle<T extends HTMLElement = HTMLElement>(range = 
     }
   }, [range])
   return ref
+}
+
+/* ======================================================================
+   WHAT COUNTS AS A BREAK. Shared by the dev audit (lib/motion-audit.ts) and
+   the tests: one frame's computed opacity and transform against the next.
+   ====================================================================== */
+export type Sample = { opacity: number; x: number; y: number; sx: number; sy: number; w: number; h: number }
+
+/** A change between two frames smaller than this share of the whole is never
+    called a jump, however slow the animation. */
+export const JUMP_FLOOR = 0.15
+
+/** Says why two consecutive frames are a jump, or '' when the change is what
+    the animation could cover. `share` is how much of the animation's own
+    timeline passed between the two frames (0..1). A curve's steepest stretch
+    runs at a few times its average pace (the kit's springs up to 6x), so
+    that much is allowed; a restart or an end snap moves further. */
+export function isJump(a: Sample, b: Sample, share: number): string {
+  const allow = Math.max(JUMP_FLOOR, 6 * Math.max(0, share))
+  const dO = Math.abs(b.opacity - a.opacity)
+  if (dO > allow) return `opacity ${a.opacity.toFixed(2)} to ${b.opacity.toFixed(2)}`
+  const dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y)
+  if (dx > 4 && dx / a.w > allow) return `x ${Math.round(a.x)} to ${Math.round(b.x)}px`
+  if (dy > 4 && dy / a.h > allow) return `y ${Math.round(a.y)} to ${Math.round(b.y)}px`
+  const dS = Math.max(Math.abs(b.sx - a.sx), Math.abs(b.sy - a.sy))
+  if (dS > allow) return `scale ${a.sx.toFixed(2)} to ${b.sx.toFixed(2)}`
+  return ''
+}
+
+/** The output (0..1, may overshoot) of a CSS easing at time fraction `t`.
+    Reads cubic-bezier(), linear() and the keywords; anything else is linear. */
+export function easeAt(easing: string, t: number): number {
+  const x = Math.max(0, Math.min(1, t))
+  const e = easing.trim()
+  const named: Record<string, [number, number, number, number]> = {
+    ease: [0.25, 0.1, 0.25, 1], 'ease-in': [0.42, 0, 1, 1], 'ease-out': [0, 0, 0.58, 1], 'ease-in-out': [0.42, 0, 0.58, 1],
+  }
+  const cb = /^cubic-bezier\(([^)]+)\)$/.exec(e)
+  const pts = cb ? cb[1].split(',').map(Number) : named[e]
+  if (pts && pts.length === 4 && pts.every((n) => Number.isFinite(n))) {
+    const [x1, y1, x2, y2] = pts
+    const at = (a: number, b: number, u: number) => 3 * a * u * (1 - u) * (1 - u) + 3 * b * u * u * (1 - u) + u * u * u
+    let lo = 0, hi = 1
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2
+      if (at(x1, x2, mid) < x) lo = mid
+      else hi = mid
+    }
+    return at(y1, y2, (lo + hi) / 2)
+  }
+  const lin = /^linear\((.+)\)$/.exec(e)
+  if (lin) {
+    const stops: { v: number; p: number | null }[] = []
+    for (const part of lin[1].split(',')) {
+      const bits = part.trim().split(/\s+/)
+      const v = Number(bits[0])
+      if (!Number.isFinite(v)) return x
+      const ps = bits.slice(1).map((b) => parseFloat(b) / 100)
+      stops.push({ v, p: ps.length ? ps[0] : null })
+      if (ps.length > 1) stops.push({ v, p: ps[1] })
+    }
+    if (stops.length < 2) return x
+    if (stops[0].p === null) stops[0].p = 0
+    if (stops[stops.length - 1].p === null) stops[stops.length - 1].p = 1
+    for (let i = 1; i < stops.length - 1; i++) {
+      if (stops[i].p !== null) continue
+      let j = i
+      while (stops[j].p === null) j++
+      const a = stops[i - 1].p as number, b = stops[j].p as number
+      for (let k = i; k < j; k++) stops[k].p = a + ((b - a) * (k - i + 1)) / (j - i + 1)
+    }
+    for (let i = 1; i < stops.length; i++) {
+      const a = stops[i - 1], b = stops[i]
+      if (x <= (b.p as number)) {
+        const span = (b.p as number) - (a.p as number)
+        return span <= 0 ? b.v : a.v + ((b.v - a.v) * (x - (a.p as number))) / span
+      }
+    }
+    return stops[stops.length - 1].v
+  }
+  return x
+}
+
+/* ======================================================================
+   THE GUARD: NOTHING IS CUT OFF PART-WAY.  installMotionGuard(), once, from
+   main.tsx.
+
+   Three things broke an animation in the middle, and none of them is the
+   fault of the screen that happened to show it, so they are mended here for
+   every screen at once.
+
+   1. CLOSED WHILE STILL OPENING (or reopened while still closing). An exit
+      is a different @keyframes from the entrance, and a keyframe animation
+      always starts at its own first frame: a menu 40% faded in jumped to
+      full, then faded out. When [data-closing] flips on an element, the
+      guard works out where the interrupted animation had got to and rewrites
+      the first frame of the one that replaced it, so it carries on from there.
+
+   2. UNMOUNTED WITH NO EXIT. Most menus, popovers and dialogs are rendered
+      as `{open && <Menu/>}`: React removes them in the frame the state flips
+      and there is nothing left to animate. When such a surface leaves the
+      document, the guard puts an inert copy back where it was for the length
+      of the exit (styles/motion.css, [data-ghost]) and removes it after. The
+      copy cannot be pressed, focused or read by a screen reader. A surface
+      that manages its own exit says so with [data-closing] (usePresence) and
+      is left alone; so is one swapped for another of the same kind in the
+      same update.
+
+   3. LOOPS RUNNING WHERE NOBODY IS LOOKING. html[data-tab-hidden] pauses
+      every animation while the tab is in the background (motion.css).
+
+   Skipped under reduced motion, and on an engine without MutationObserver or
+   the Web Animations API: there the surface is simply gone, as before. */
+
+const OVERLAY = '[role="menu"],[role="listbox"],[role="dialog"],[role="alertdialog"],[role="tooltip"],.scrim,.motion-enter,[data-exit]'
+const NO_COPY = 'iframe,object,embed,video,canvas'
+/** Longest a ghost may stay: its exit plus slack. */
+const GHOST_MAX_MS = 420
+
+type Played = { a: Animation; t0: number }
+
+/** Where an animation that began `elapsed` ms ago had got to: null when it
+    had already finished (or never ran), so there is nothing to carry on from. */
+export function interruptedAt(elapsed: number, delay: number, duration: number): number | null {
+  if (!(duration > 0)) return null
+  const t = elapsed - delay
+  if (t >= duration) return null
+  return Math.max(0, t)
+}
+
+/** The first frame of the replacing animation, rewritten to start from the
+    values the interrupted one had reached. `frames` is getKeyframes() output. */
+export function carryOn(frames: ComputedKeyframe[], from: { opacity: string; transform: string }): Keyframe[] {
+  const clean = frames.map((f) => {
+    const { computedOffset: _c, ...rest } = f
+    return rest as Keyframe
+  })
+  const start = { opacity: from.opacity, transform: from.transform }
+  if (clean.length && clean[0].offset === 0) clean[0] = { ...clean[0], ...start }
+  else clean.unshift({ offset: 0, ...start })
+  return clean
+}
+
+let guardOn = false
+export function installMotionGuard() {
+  if (guardOn || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return
+  if (typeof document.getAnimations !== 'function') return
+  guardOn = true
+  const root = document.documentElement
+
+  // -- 3. the tab in the background
+  const vis = () => {
+    if (document.hidden) root.setAttribute('data-tab-hidden', '')
+    else root.removeAttribute('data-tab-hidden')
+  }
+  document.addEventListener('visibilitychange', vis)
+  vis()
+
+  // Every finite animation that is running, and when it began.
+  const playing = new Map<Element, Played>()
+  document.addEventListener('animationstart', (e) => {
+    const el = e.target as Element
+    if (!(el instanceof HTMLElement) || el.closest('[data-ghost]')) return
+    const a = el.getAnimations().find((x) => (x as CSSAnimation).animationName === e.animationName)
+    const t = a?.effect?.getComputedTiming()
+    if (!a || !t || t.iterations === Infinity) return
+    playing.set(el, { a, t0: performance.now() - Math.max(0, Number(a.currentTime) || 0) })
+  }, true)
+  const forget = (e: Event) => {
+    const p = playing.get(e.target as Element)
+    if (p && (p.a as CSSAnimation).animationName === (e as AnimationEvent).animationName) playing.delete(e.target as Element)
+  }
+  document.addEventListener('animationend', forget, true)
+  document.addEventListener('animationcancel', forget, true)
+
+  // Where things inside overlays were scrolled to, for the ghost.
+  const scrolled = new Map<Element, [number, number]>()
+  document.addEventListener('scroll', (e) => {
+    const el = e.target
+    if (!(el instanceof HTMLElement)) return
+    if (scrolled.size > 40) for (const k of scrolled.keys()) { if (!k.isConnected) scrolled.delete(k) }
+    if (scrolled.size > 80) scrolled.clear()
+    scrolled.set(el, [el.scrollLeft, el.scrollTop])
+  }, { capture: true, passive: true })
+
+  /** The values `el` would show `at` ms into the animation that was playing
+      on it, read by replaying that animation on `on` (el itself, or its copy). */
+  const valuesAt = (p: Played, at: number, on: HTMLElement): { opacity: string; transform: string } | null => {
+    try {
+      const eff = p.a.effect as KeyframeEffect
+      const t = eff.getComputedTiming()
+      const frames = eff.getKeyframes().map((f) => { const { computedOffset: _c, ...rest } = f; return rest as Keyframe })
+      if (!frames.length) return null
+      const probe = on.animate(frames, { duration: Number(t.duration), easing: t.easing, fill: 'both' })
+      probe.pause()
+      probe.currentTime = at
+      const c = getComputedStyle(on)
+      const out = { opacity: c.opacity, transform: c.transform }
+      probe.cancel()
+      return out
+    } catch {
+      return null
+    }
+  }
+  const cutShort = (el: Element, now: number): { p: Played; at: number } | null => {
+    const p = playing.get(el)
+    if (!p) return null
+    const t = p.a.effect?.getComputedTiming()
+    if (!t) return null
+    const at = interruptedAt(now - p.t0, Number(t.delay) || 0, Number(t.duration) || 0)
+    return at === null ? null : { p, at }
+  }
+
+  // -- 1. [data-closing] flipped on a surface that was still moving
+  const retarget = (host: HTMLElement, now: number) => {
+    const hit: { el: HTMLElement; p: Played; at: number }[] = []
+    for (const el of playing.keys()) {
+      if (!(el instanceof HTMLElement) || !host.contains(el)) continue
+      const c = cutShort(el, now)
+      if (c) hit.push({ el, ...c })
+    }
+    if (!hit.length) return
+    void getComputedStyle(host).opacity   // the flip takes effect: old animations cancel, new ones start
+    for (const { el, p, at } of hit) {
+      if (p.a.playState === 'running') continue   // not replaced: it was not interrupted
+      const next = el.getAnimations().filter((a) => a !== p.a && typeof (a as CSSAnimation).animationName === 'string' && a.playState === 'running')
+      if (!next.length) { playing.delete(el); continue }
+      const from = valuesAt(p, at, el)
+      if (!from) continue
+      for (const a of next) {
+        try {
+          const eff = a.effect as KeyframeEffect
+          eff.setKeyframes(carryOn(eff.getKeyframes(), from))
+        } catch { /* the plain restart, as before */ }
+      }
+      playing.set(el, { a: next[0], t0: now })
+    }
+  }
+
+  // -- 2. an overlay removed with no exit
+  const ghostOf = (node: HTMLElement): HTMLElement | null => {
+    if (node.matches(OVERLAY)) return node
+    const only = node.childElementCount === 1 ? node.firstElementChild : null
+    if (only instanceof HTMLElement && only.matches(OVERLAY)) return node
+    return null
+  }
+  const sameKind = (a: HTMLElement, b: HTMLElement) => {
+    const ra = a.matches(OVERLAY) ? a : (a.firstElementChild as HTMLElement | null)
+    const rb = b.matches?.(OVERLAY) ? b : (b.firstElementChild as HTMLElement | null)
+    if (!ra || !rb || !rb.matches?.(OVERLAY)) return false
+    return ra.getAttribute('role') === rb.getAttribute('role') && ra.getAttribute('aria-label') === rb.getAttribute('aria-label')
+  }
+  const pathTo = (from: Node, to: Node): number[] | null => {
+    const path: number[] = []
+    let n: Node | null = to
+    while (n && n !== from) {
+      const parent: Node | null = n.parentNode
+      if (!parent) return null
+      path.unshift(Array.prototype.indexOf.call(parent.childNodes, n))
+      n = parent
+    }
+    return n === from ? path : null
+  }
+  const follow = (from: Node, path: number[]): Node | null => {
+    let n: Node | null = from
+    for (const i of path) n = n?.childNodes[i] ?? null
+    return n
+  }
+  const leaveGhost = (node: HTMLElement, parent: Node, before: Node | null, now: number) => {
+    if (node.querySelector(NO_COPY)) return
+    const copy = node.cloneNode(true) as HTMLElement
+    copy.setAttribute('data-ghost', '')
+    copy.setAttribute('aria-hidden', 'true')
+    copy.setAttribute('inert', '')
+    copy.removeAttribute('id')
+    for (const el of copy.querySelectorAll('[id]')) el.removeAttribute('id')
+    for (const el of copy.querySelectorAll('img')) el.setAttribute('decoding', 'sync')
+    // What was typed and ticked: a clone carries attributes, not live values.
+    const live = node.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input,textarea,select')
+    const dead = copy.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input,textarea,select')
+    live.forEach((el, i) => {
+      const c = dead[i]
+      if (!c) return
+      try {
+        c.value = el.value
+        if ('checked' in el && 'checked' in c) (c as HTMLInputElement).checked = (el as HTMLInputElement).checked
+      } catch { /* a file input refuses; it is fading anyway */ }
+    })
+    const mid: { path: number[]; p: Played; at: number }[] = []
+    for (const el of playing.keys()) {
+      if (!node.contains(el)) continue
+      const c = cutShort(el, now)
+      const path = c && pathTo(node, el)
+      if (c && path) mid.push({ path, ...c })
+      playing.delete(el)
+    }
+    const scrolls: { path: number[]; xy: [number, number] }[] = []
+    for (const [el, xy] of scrolled) {
+      if (!node.contains(el)) continue
+      const path = pathTo(node, el)
+      if (path) scrolls.push({ path, xy })
+      scrolled.delete(el)
+    }
+    try {
+      parent.insertBefore(copy, before && before.parentNode === parent ? before : null)
+    } catch {
+      return
+    }
+    const cs = getComputedStyle(copy)
+    const inner = copy.matches(OVERLAY) ? cs : getComputedStyle(copy.firstElementChild as Element)
+    const floats = (c: CSSStyleDeclaration) => c.position === 'fixed' || c.position === 'absolute'
+    if (cs.display === 'none' || !(floats(cs) || floats(inner))) {
+      copy.remove()   // in the flow of the page: holding it would hold the layout
+      return
+    }
+    for (const { path, xy } of scrolls) {
+      const el = follow(copy, path)
+      if (el instanceof HTMLElement) { el.scrollLeft = xy[0]; el.scrollTop = xy[1] }
+    }
+    // Still arriving when it was removed: leave from where it had got to.
+    for (const { path, p, at } of mid) {
+      const el = follow(copy, path)
+      if (!(el instanceof HTMLElement)) continue
+      const v = valuesAt(p, at, el)
+      if (!v) continue
+      el.style.opacity = v.opacity
+      el.style.transform = v.transform
+    }
+    let gone = false
+    const drop = () => { if (!gone) { gone = true; copy.remove() } }
+    copy.addEventListener('animationend', (e) => { if (e.target === copy) drop() })
+    window.setTimeout(drop, GHOST_MAX_MS)
+  }
+
+  const mo = new MutationObserver((records) => {
+    const now = performance.now()
+    const reduced = motionReduced()
+    let added: HTMLElement[] | null = null
+    for (const r of records) {
+      if (r.type === 'attributes') {
+        if (!reduced && r.target instanceof HTMLElement && r.target.isConnected && !r.target.hasAttribute('data-ghost')) retarget(r.target, now)
+        continue
+      }
+      if (reduced || crossing || !r.removedNodes.length) continue
+      for (const n of r.removedNodes) {
+        if (!(n instanceof HTMLElement) || n.isConnected) continue
+        if (n.hasAttribute('data-ghost') || n.hasAttribute('data-closing') || n.hasAttribute('data-no-exit')) continue
+        if (!r.target.isConnected) continue
+        const g = ghostOf(n)
+        if (!g) continue
+        if (!added) {
+          added = []
+          for (const x of records) for (const a of x.addedNodes) if (a instanceof HTMLElement && a.isConnected) added.push(a)
+        }
+        if (added.some((a) => sameKind(g, a))) continue
+        leaveGhost(g, r.target, r.nextSibling, now)
+      }
+    }
+  })
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-closing'] })
 }

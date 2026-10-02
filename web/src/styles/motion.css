@@ -136,10 +136,11 @@ html[data-vt='hero']::view-transition-new(root) { animation: m-hero-in var(--mot
   animation: m-sheet-up var(--spring-dur) var(--spring-gentle) both;
   transform: translate3d(0, var(--m-drag, 0px), 0);
   transition: transform var(--spring-dur) var(--spring-gentle);
-  will-change: transform;
   touch-action: pan-y;
 }
-.m-sheet[data-dragging] { transition: none; }
+/* Promoted to its own layer only while the finger has it: a standing
+   will-change keeps a layer alive for a sheet nobody is moving. */
+.m-sheet[data-dragging] { transition: none; will-change: transform; }
 .m-sheet[data-closing] { transform: translate3d(0, 110%, 0); }
 @keyframes m-sheet-up { from { transform: translate3d(0, 100%, 0); } }
 /* The Focus board's own sheet (bento-theme.css .bento-sheet) has its slide
@@ -173,7 +174,6 @@ html[data-vt='hero']::view-transition-new(root) { animation: m-hero-in var(--mot
   transform-origin: 0 100%;
   transform: scale(calc(1 - 0.28 * var(--m-collapse, 0)));
   opacity: calc(1 - 0.25 * var(--m-collapse, 0));
-  will-change: transform;
 }
 .m-large-title-sub {
   opacity: calc(1 - var(--m-collapse, 0) * 1.6);
@@ -240,6 +240,36 @@ html[data-vt='hero']::view-transition-new(root) { animation: m-hero-in var(--mot
 .m-pop-in[data-closing] { animation: m-pop-out var(--motion-quick) var(--motion-ease) both; }
 @keyframes m-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes m-pop-out { to { opacity: 0; transform: scale(0.98); } }
+
+/* --- exits for what React unmounts in one frame ----------------------------
+   lib/motion.ts (installMotionGuard) puts an inert copy of a menu, popover or
+   dialog back where it was when it is removed with no exit of its own, marked
+   [data-ghost]. The copy leaves the way a kept-mounted surface does: the
+   whole thing fades; a shared Dialog's panel settles back, or on a phone
+   drops off the bottom edge; a side drawer slides out. Nothing inside it
+   animates -- an entrance must not replay in something that is leaving. The
+   keyframes have no first frame, so the exit starts from whatever the copy
+   was given (a surface removed half-way in leaves from half-way). */
+@keyframes m-ghost-out { to { opacity: 0; } }
+[data-ghost],
+[data-ghost] * { pointer-events: none !important; }
+[data-ghost] *,
+[data-ghost] *::before,
+[data-ghost] *::after { animation: none !important; transition: none !important; }
+[data-ghost] { animation: m-ghost-out var(--motion-exit, 160ms) var(--motion-ease) both !important; transition: none !important; }
+.scrim[data-ghost] > [role='dialog'] { animation: motion-exit var(--motion-exit, 160ms) var(--motion-ease) both !important; }
+@media (max-width: 639px) {
+  .scrim[data-ghost] { animation-duration: var(--motion-exit-sheet, 220ms) !important; }
+  .scrim[data-ghost] > [role='dialog'] { animation: sheet-out var(--motion-exit-sheet, 220ms) var(--motion-ease) both !important; }
+}
+[role='dialog'][data-side='right'][data-ghost] { animation: drawer-out-right var(--motion-exit-sheet, 220ms) var(--motion-ease) both !important; }
+
+/* --- the tab in the background ----------------------------------------------
+   Every loop (skeleton sweep, spinner, the assistant orb) holds still while
+   the tab is hidden, and carries on from the same frame when it is shown. */
+html[data-tab-hidden] *,
+html[data-tab-hidden] *::before,
+html[data-tab-hidden] *::after { animation-play-state: paused !important; }
 
 /* --- reduced motion ---------------------------------------------------------
    Everything above becomes a cut. Transforms driven by a drag stay, because
