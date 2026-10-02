@@ -3219,6 +3219,11 @@ html:not(.dark)[data-layout='bento'] {
     background: color-mix(in srgb, var(--ink-here) 14%, transparent);
     border-radius: 999px;
     padding: 8px;
+    /* The padding is paint, not layout. Without the matching negative margin
+       the current tab's glyph box grew by 16px: in the round Settings button
+       (42px inside its border) a 46px box cannot centre and sat 2px right and
+       down of where the same glyph sits on every other screen. */
+    margin: -8px;
     box-sizing: content-box;
   }
 
@@ -3630,6 +3635,23 @@ html:not(.dark)[data-layout='bento'] {
 }
 [data-layout='bento'] .bento-widget[data-lead]:has([data-card]:not([data-quiet])) [data-card] .card-fig {
   font-weight: 600;
+}
+
+
+/* COLOUR IS EARNED: a domain card with nothing to say sits on the plain card.
+
+   The default grounds are solid, and solid is a claim on the eye. A card
+   whose drawing reported nothing (`[data-quiet]`, written by the card) has
+   no claim to make, so its cell falls back to the palette's own card and
+   ink and the coloured cards on the board are exactly the ones carrying a
+   figure. The cell reads these three through fallbacks in its inline style
+   (bento-kit.tsx), so nothing here has to out-rank an inline declaration.
+   A colour a person PICKED is not touched: the widget wrapper repoints
+   --bento-card and --bento-ink to that colour, and these resolve to it. */
+[data-layout='bento'] .bento-cell[data-domain]:has([data-card][data-quiet]) {
+  --quiet-bg: var(--bento-card);
+  --quiet-ink: var(--bento-ink);
+  --quiet-line: var(--bento-line);
 }
 
 
@@ -4673,6 +4695,14 @@ body:has(.bento-frost) [data-assistant-orb] {
   container-type: size;
   container-name: drawing;
   overflow: clip;
+}
+/* A half of a split drawing measures ITSELF. The row was the only container,
+   so a facts list sharing it with a chart was counted against the whole
+   row's height and kept rows it had no room for. Named the same, so every
+   threshold below (and the pager's above) applies to the nearer box. */
+[data-layout='bento'] .bento-board .card-drawing .card-part {
+  container-type: size;
+  container-name: drawing;
 }
 @container drawing (max-height: 7.8em) {
   .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 5), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 5) { display: none; }

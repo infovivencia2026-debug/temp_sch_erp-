@@ -108,7 +108,10 @@ export function PageHead({
        in the product and it separates a heading from its own content -- the
        28px of space below does the same job without drawing anything. */
     <div data-page-enter="" data-page-head="" className={cn('px-[var(--page-gutter)] pb-[var(--page-head-gap)] pt-[var(--page-top)]', WIDTH[width])}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      {/* items-center, not items-start: the description is no longer drawn, so
+          the left block is one line, and a 40px action beside a 30px title
+          top-aligned sat 5px below the title's own centre line. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           {/* The breadcrumb must not break mid-word.
 
@@ -2803,7 +2806,7 @@ export function Reload({
   label?: string
 }) {
   return (
-    <Button variant="ghost" size="sm" onClick={onClick} disabled={busy} title={label}>
+    <Button variant="ghost" size="sm" className="aspect-square px-0" onClick={onClick} disabled={busy} title={label}>
       <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin')} aria-hidden />
     </Button>
   )

@@ -61,6 +61,8 @@ Last checked: 2026-10-02.
 | Stats: detailed, descriptive, interactive (Neon / Cloudflare style) | Shared `Stat` (`components/stat-extras.tsx`); used on Support tickets, Team, Status "Seen by", Enquiry links | Other screens take `parts`, `trend`, `detail` as they are revisited |
 | Enquiry and CRM: a link the parent fills in; application details that need no hard copy; customisable | Admissions > Enquiries > Enquiry links; lead panel "Send application link"; form builder field type "Bring to school (hard copy)" | tenant 0026 `enquiry_links`; public page `/admissions/enquire/<slug>`; `enquiry_links.test.ts` |
 | Inventory of every feature, route and table | `docs/inventory.xlsx`, `scripts/inventory/` | Regenerate after merges |
+| Bento board "can be made better"; "modern solid colors for default" | Focus home, default palettes (Light Modern, Dark Modern) | Each domain card is one solid colour with white text; a card with nothing to show sits on the plain card, so colour marks the cards with a figure. Picked card colours untouched. Parent board has no domain colours (by design), so it stays white |
+| Misaligned buttons and elements, "make a list and fix them" | Assistant composer, parent-teacher chat, role note, page headers, screen tab strip, phone dock Settings, parent fees card, Reload | Nine fixes measured in a browser at 1440, 390 and 360, light and dark. Staff messages and the teacher / student boards share the fix but were not opened (no seed login) |
 
 ## Next
 
@@ -76,6 +78,7 @@ Last checked: 2026-10-02.
 | Assistant ball | dark ball | "the first fluid ball back" | first fluid ball |
 | Phone card sizes | 2x2, 2x4, 4x4 on a 4x5 page | Small, Tall, Medium, Large | settled by the owner 2026-10-02: no Tall on phones (it clipped content at 360px); a desk Tall draws Large |
 | "Status" in the bell's Activity tab | Class Status only | learning-hub items of the week | both |
+| Card colour | CLAUDE.md UI rule: solid colour only where it means something, everything else neutral | "modern solid colors for default" (2026-10-02) | solid domain grounds, but only on cards that carry a figure |
 
 ## Waiting on the owner
 
