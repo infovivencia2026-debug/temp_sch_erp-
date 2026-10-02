@@ -362,7 +362,9 @@ export function AssistantTab() {
       window.removeEventListener('resize', soon)
     }
   }, [])
-  /* A smaller orb on a phone: at 44px it sat over class-time pills. */
+  /* A smaller orb on a phone than on a desk: at 44px it sat over class-time
+     pills, at 36px it read as too slight (owner, 2026-10-02: "a little
+     bigger"), so 42px in a 52px button. */
   const [phoneOrb, setPhoneOrb] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 767px)').matches)
   useEffect(() => {
     const m = window.matchMedia?.('(max-width: 767px)')
@@ -1047,7 +1049,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-3 z-40 grid size-12 md:right-6 md:size-16 place-items-center rounded-full
+          `fixed right-3 z-40 grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
@@ -1057,7 +1059,7 @@ export function AssistantTab() {
         )}
         style={{ bottom: 'var(--orb-bottom, calc(var(--dock-h, 0px) + 1.25rem))' }}
       >
-        <AssistantOrb state={state} size={phoneOrb ? 36 : 44} awake={hover} />
+        <AssistantOrb state={state} size={phoneOrb ? 42 : 44} awake={hover} />
       </button>
 
       {open && (
