@@ -40,6 +40,8 @@ export function SlidingIndicator({
   const placed = useRef(false)
   /** The last size and place written, so an unchanged measurement is a no-op. */
   const at = useRef('')
+  /** The row's width at the last placement: only a change in it is a resize. */
+  const rowW = useRef(-1)
 
   useLayoutEffect(() => {
     const list = listRef.current
@@ -63,7 +65,16 @@ export function SlidingIndicator({
        Unchanged measurements are left alone, so an observer firing in the
        middle of a slide does not cut it short. */
     const place = (slide: boolean) => {
+      const was = target
       target = find()
+      // A resize that lands with a new selection (a tab opened and chosen in
+      // one update) is a change of selection: it slides.
+      if (target !== was) slide = true
+      // The row kept its width (a tab added or closed beside the chosen one):
+      // the chosen one moved within the row, and the thumb follows it.
+      const lw = list.clientWidth
+      if (lw === rowW.current) slide = true
+      rowW.current = lw
       if (!target) {
         ind.style.opacity = '0'
         return
