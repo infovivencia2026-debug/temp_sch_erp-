@@ -1821,15 +1821,16 @@ export function useBoardHeight() {
       const floor = paged ? 0 : rows * 148 + (rows - 1) * gap
       /* NO SPACE UNDER THE BOARD BUT THE PAGE DOTS (owner, 2026-10-01). The
          board ends 12px above the dock, or, when the pager's dots are
-         showing, 7px above the dots. The live edges are the truth, whatever
-         padding the scrollers carry. */
+         showing, 9px above the dots -- the same 9px the dots keep from the
+         dock, so the band is even and the dots' 24px target touches neither.
+         The live edges are the truth, whatever padding the scrollers carry. */
       const dock = document.querySelector<HTMLElement>('.bento-dock')
       const dockBox = dock?.getBoundingClientRect()
       const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== 'hidden' ? dockBox.top : 0
       const dot = paged ? document.querySelector<HTMLElement>('.bento-dots .bento-dot') : null
       const dotBox = dot?.getBoundingClientRect()
       const dotTop = dotBox && dotBox.height > 0 ? dotBox.top : 0
-      let edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      let edge = dotTop > top + 100 ? dotTop - 9 : dockTop > top + 100 ? dockTop - 12 : 0
       /* While a phone board is being arranged the customize bar stands
          where the dock was, and its top edge is a little higher than the
          dots': the page ends 8px above whichever is higher, so the last row

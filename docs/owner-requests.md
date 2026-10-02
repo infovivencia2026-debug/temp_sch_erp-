@@ -39,6 +39,7 @@ Last checked: 2026-10-02.
 | Backend: fewer queries per request, 13 indexes, feature-switch cache, status gaps | Worker |
 | Phone home is a 4 x 5 page: cards 2x2, 2x4, 4x4 only (no Tall on phones); icons 1x1 or 1x2 by the Icon size setting | Focus home on phones |
 | Bento card: one round arrow; the menu on a long press (right-click or keyboard on desktop) | Focus home |
+| Page dots never overlap the dock or the cards: their own band, 9px from each | Phone home (measured 390 and 360, three roles) |
 | Deploy guard and rule; always push main | scripts/deploy-guard.sh, CLAUDE.md |
 
 ## Building

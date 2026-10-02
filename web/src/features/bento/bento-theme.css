@@ -3321,7 +3321,14 @@ html:not(.dark)[data-layout='bento'] {
        keeps finding, so the strip moves up until the whole of it is reachable. */
     /* Owner, 2026-10-01: the dots are the only thing between the board and
        the bar, with tight even margins; the dot sits ~7px above the bar. */
-    bottom: calc(var(--dock-h, 56px) - 3px);
+    /* THE DOTS HAVE THEIR OWN BAND (owner, 2026-10-02: "take care of nav
+       dots, should not overlap"). Once the dock became a floating pill,
+       --dock-h is the pill's TOP edge, and "- 3px" put the 7px dot 4px
+       inside the pill: measured on every phone and every account, the dock
+       won the tap at the dot's centre. The dot now ends 9px above the pill;
+       the board ends 9px above the dot (useBoardHeight); the dot's target
+       below is 24px tall, so it stops short of both. */
+    bottom: calc(var(--dock-h, 56px) + 9px);
     z-index: 45;
     display: flex;
     align-items: center;
@@ -3397,7 +3404,10 @@ html:not(.dark)[data-layout='bento'] {
        overlap, so there is no dead strip between them and no dot hidden under
        the one after it. */
     width: calc(100% + var(--bento-dot-gap, 22px));
-    height: 44px;
+    /* 24px, centred: 8.5px above and below the dot, inside the 9px it keeps
+       from the last card and from the dock, so the target never lies over
+       either and neither steals a tap from it. Sideways it is the full pitch. */
+    height: 24px;
     transform: translate(-50%, -50%);
     border-radius: 8px;
   }
