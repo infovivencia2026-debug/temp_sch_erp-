@@ -5,7 +5,7 @@ import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowUpRight, Award, Bell, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
+  ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useStatusFeed } from '@/features/comms/status/status-api'
@@ -72,6 +72,7 @@ const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
    instead of showing a bell and its own raw name. */
 const FAMILIES: [RegExp, { icon: typeof Bell; label: string }][] = [
   [/^fee|^payment/, { icon: IndianRupee, label: 'Fees' }],
+  [/^enquir|^admission/, { icon: UserPlus, label: 'Admissions' }],
   [/^homework/, { icon: BookOpen, label: 'Homework' }],
   [/^attendance|^absen|^leave/, { icon: CalendarCheck, label: 'Attendance' }],
   [/^report_card|^result|^exam/, { icon: Award, label: 'Results' }],

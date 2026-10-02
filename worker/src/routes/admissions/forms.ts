@@ -12,7 +12,11 @@ const READ = 'admissions.read', WRITE = 'admissions.write'
 const reservedFields = new Set(['first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'category', 'class_sought',
   'parent_name', 'parent_phone', 'parent_email', 'address', 'previous_school'])
 const requiredReserved = ['first_name', 'parent_name', 'parent_phone', 'class_sought']
-const fieldTypes = ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'file', 'email', 'phone']
+/* 'bring' is not a question: it is something the family brings to the school
+   on paper (the transfer certificate, the birth certificate's original). It
+   is never answered online; the form lists every one of them at the end and
+   on the receipt, so what must be carried in is said once, in one place. */
+const fieldTypes = ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'file', 'email', 'phone', 'bring']
 
 function validFormSlug(s: string): boolean {
   if (s.length < 3 || s.length > 64) return false
@@ -318,7 +322,8 @@ export function registerAdmissionForms(r: Router) {
         const m = await c.db.prepare(`SELECT count(*) AS n FROM admission_form_fields WHERE version_id = ? AND code = ?`).bind(versionID, visible.field).first<{ n: number }>()
         if ((m?.n ?? 0) === 0) throw badRequest('visible_when names a field this version does not have: ' + visible.field)
       }
-      const args = [sectionID, code, label, fieldType, str(req.help_text), str(req.placeholder), req.is_required ? 1 : 0, sequence, opts, optionKind,
+      // Something brought on paper is never "required" of the online form: there is nothing to answer.
+      const args = [sectionID, code, label, fieldType, str(req.help_text), str(req.placeholder), req.is_required && fieldType !== 'bring' ? 1 : 0, sequence, opts, optionKind,
         numOrNull(req.min_length), numOrNull(req.max_length), numOrNull(req.min_number), numOrNull(req.max_number), str(req.pattern), vis]
       if (fieldID) {
         const res = await c.db.prepare(`UPDATE admission_form_fields SET section_id = ?, code = ?, label = ?, field_type = ?, help_text = NULLIF(?,''), placeholder = NULLIF(?,''),

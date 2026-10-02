@@ -442,10 +442,18 @@ export function Cell({
            3.61:1 across the twelve domains, every one of them failing — and it
            is why a board of tinted cells read as a rainbow. `-text` is still
            honoured first, because the palettes set it. */
-        backgroundColor: `var(--dom-${domain}-soft, var(--dom-${domain}))`,
-        color: `var(--dom-${domain}-text, var(--dom-${domain}))`,
-        ['--bento-muted' as string]: `var(--dom-${domain}-text, var(--dom-${domain}))`,
-        borderColor: 'transparent',
+        /* COLOUR IS EARNED BY CONTENT. The grounds are solid now, and a solid
+           slab around a card with nothing on it is the loudest thing on the
+           board saying the least. The `--quiet-*` three are set by the
+           stylesheet on a cell whose card reports `[data-quiet]` (see COLOUR
+           IS EARNED in bento-theme.css) and are undefined everywhere else, so
+           a card with something to say takes the domain pair exactly as
+           before. Fallbacks rather than a second inline branch, because quiet
+           is known only to the card's own drawing, in the DOM. */
+        backgroundColor: `var(--quiet-bg, var(--dom-${domain}-soft, var(--dom-${domain})))`,
+        color: `var(--quiet-ink, var(--dom-${domain}-text, var(--dom-${domain})))`,
+        ['--bento-muted' as string]: `var(--quiet-ink, var(--dom-${domain}-text, var(--dom-${domain})))`,
+        borderColor: 'var(--quiet-line, transparent)',
       }
     : { ...baseStyle, ...artStyle }
 
@@ -1821,15 +1829,16 @@ export function useBoardHeight() {
       const floor = paged ? 0 : rows * 148 + (rows - 1) * gap
       /* NO SPACE UNDER THE BOARD BUT THE PAGE DOTS (owner, 2026-10-01). The
          board ends 12px above the dock, or, when the pager's dots are
-         showing, 7px above the dots. The live edges are the truth, whatever
-         padding the scrollers carry. */
+         showing, 9px above the dots -- the same 9px the dots keep from the
+         dock, so the band is even and the dots' 24px target touches neither.
+         The live edges are the truth, whatever padding the scrollers carry. */
       const dock = document.querySelector<HTMLElement>('.bento-dock')
       const dockBox = dock?.getBoundingClientRect()
       const dockTop = dockBox && dockBox.height > 0 && getComputedStyle(dock!).visibility !== 'hidden' ? dockBox.top : 0
       const dot = paged ? document.querySelector<HTMLElement>('.bento-dots .bento-dot') : null
       const dotBox = dot?.getBoundingClientRect()
       const dotTop = dotBox && dotBox.height > 0 ? dotBox.top : 0
-      let edge = dotTop > top + 100 ? dotTop - 7 : dockTop > top + 100 ? dockTop - 12 : 0
+      let edge = dotTop > top + 100 ? dotTop - 9 : dockTop > top + 100 ? dockTop - 12 : 0
       /* While a phone board is being arranged the customize bar stands
          where the dock was, and its top edge is a little higher than the
          dots': the page ends 8px above whichever is higher, so the last row

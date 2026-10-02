@@ -279,7 +279,7 @@ export default function TeacherMessages() {
           </Card>
           )}
           {!phone && (
-            <Card className="flex h-[calc(100vh-14rem)] min-h-[28rem] flex-col overflow-hidden">
+            <Card className="flex h-[calc(100dvh-14rem-var(--dock-reserve,0px))] min-h-[28rem] flex-col overflow-hidden">
               {chosenTeacher ? (
                 <>
                   <div className="flex items-center gap-3 border-b px-4 py-3">

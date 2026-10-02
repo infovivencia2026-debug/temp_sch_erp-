@@ -9,7 +9,6 @@ import {
   Input, Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
-import { useOptimisticMutation } from '@/lib/optimistic'
 
 /* The vendor's own people: everyone who signs in to this console.
 
@@ -88,24 +87,16 @@ export default function SupportTeam() {
   const legacy = staff.data?.legacy === true
   const refresh = () => qc.invalidateQueries({ queryKey: ['platform-staff'] })
 
-  /* Shown at once, settled by the server (lib/optimistic): the row changes
-     the moment the control is pressed, and if the server refuses -- the last
-     seller administrator, your own account -- it is put back with the reason. */
-  const patch = (id: string, change: Partial<Staff>) => (old: unknown) => {
-    const l = old as List<Staff>
-    return { ...l, items: l.items.map((a) => (a.id === id ? { ...a, ...change } : a)) }
-  }
-  const setStatus = useOptimisticMutation<{ id: string; status: string; reason?: string }>({
-    mutationFn: (v) => api.post(`/api/v1/seller/staff/${v.id}/status`, { status: v.status, reason: v.reason }),
-    queryKeys: [['platform-staff']],
-    apply: (old, v) => patch(v.id, { status: v.status })(old),
-    failure: "Couldn't change that account",
+  /* These wait for the server (CLAUDE.md: logins are never shown before
+     they are saved). Whether somebody can sign in, and as what, must not be
+     on screen as done while the server may still refuse it. */
+  const setStatus = useMutation({
+    mutationFn: (v: { id: string; status: string; reason?: string }) => api.post(`/api/v1/seller/staff/${v.id}/status`, { status: v.status, reason: v.reason }),
+    onSuccess: () => { setSuspending(null); refresh() },
   })
-  const setRole = useOptimisticMutation<{ id: string; role: string }>({
-    mutationFn: (v) => api.post(`/api/v1/seller/staff/${v.id}/role`, { role: v.role }),
-    queryKeys: [['platform-staff']],
-    apply: (old, v) => patch(v.id, { roles: [v.role] })(old),
-    failure: "Couldn't change the role",
+  const setRole = useMutation({
+    mutationFn: (v: { id: string; role: string }) => api.post(`/api/v1/seller/staff/${v.id}/role`, { role: v.role }),
+    onSuccess: refresh,
   })
   const resetPassword = useMutation({
     mutationFn: (id: string) => api.post<Handover>(`/api/v1/seller/staff/${id}/password`, {}),
@@ -168,7 +159,7 @@ export default function SupportTeam() {
           />
         )}
 
-        <FormNotice error={resetPassword.error} />
+        <FormNotice error={setStatus.error ?? setRole.error ?? resetPassword.error} />
         {legacy && (
           <p className="rounded-md border bg-muted px-3 py-2.5 text-[13px] text-muted-foreground">
             The server has not been updated yet, so this shows support accounts only and cannot suspend, re-role or reset them.
@@ -300,11 +291,9 @@ export default function SupportTeam() {
       {suspending && (
         <SuspendDialog
           who={suspending}
+          pending={setStatus.isPending}
           onClose={() => setSuspending(null)}
-          onConfirm={(reason) => {
-            setStatus.mutate({ id: suspending.id, status: 'suspended', reason })
-            setSuspending(null)
-          }}
+          onConfirm={(reason) => setStatus.mutate({ id: suspending.id, status: 'suspended', reason })}
         />
       )}
     </>
@@ -313,8 +302,9 @@ export default function SupportTeam() {
 
 /* Suspending takes a reason: it is written to the platform's event log, and
    the next administrator to look needs to know why a colleague cannot sign in. */
-function SuspendDialog({ who, onClose, onConfirm }: {
+function SuspendDialog({ who, pending, onClose, onConfirm }: {
   who: Staff
+  pending: boolean
   onClose: () => void
   onConfirm: (reason: string) => void
 }) {
@@ -328,8 +318,8 @@ function SuspendDialog({ who, onClose, onConfirm }: {
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button tone="danger" disabled={reason.trim().length < 4} onClick={() => onConfirm(reason.trim())}>
-            Suspend
+          <Button tone="danger" disabled={pending || reason.trim().length < 4} onClick={() => onConfirm(reason.trim())}>
+            {pending ? 'Suspending…' : 'Suspend'}
           </Button>
         </>
       }
