@@ -432,6 +432,16 @@ var Groups = []Group{
 		ScopeNote: "The whole school.",
 	},
 	// feature:communication.class_status end
+	// feature:help.helpdesk begin
+	{
+		Key: "help_helpdesk", Name: "Helpdesk", Band: BandOptional,
+		Blurb:     "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.",
+		View:      []string{HelpDeskRead},
+		Manage:    []string{HelpDeskWrite},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:help.helpdesk end
 }
 
 // GroupByKey looks a group up by key.

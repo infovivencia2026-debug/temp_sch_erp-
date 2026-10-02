@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 425 features. */
+/** 24 roles, 426 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -445,6 +445,14 @@ export const ROLES: Role[] = [
         workspace: 'Administration',
         features: [
           { key: 'institution_admin.statutory_returns.instruction_hours', slug: 'instruction_hours', name: 'Instruction Hours', scope: 'institution', tier: 'advanced', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
+        ],
+      },
+      {
+        slug: 'help',
+        name: 'Help',
+        workspace: 'Home',
+        features: [
+          { key: 'institution_admin.help.helpdesk', slug: 'helpdesk', name: 'Helpdesk', scope: 'institution', tier: 'core', summary: 'Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.' },
         ],
       },
     ],

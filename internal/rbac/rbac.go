@@ -149,6 +149,8 @@ const (
 	StatusPost         = "status.post"        // feature:communication.class_status
 	StatusManage       = "status.manage"      // feature:communication.class_status
 	StatusPostSchool   = "status.post_school" // feature:communication.class_status
+	HelpDeskRead       = "help.desk.read"     // feature:help.helpdesk
+	HelpDeskWrite      = "help.desk.write"    // feature:help.helpdesk
 )
 
 // Permission is a seedable row.
@@ -255,6 +257,8 @@ var All = []Permission{
 	{StatusPost, "status", "Post a class status (photo or short video) to own sections, classes or the school"}, // feature:communication.class_status
 	{StatusManage, "status", "Every class status in the school: approve, delete, pin, and the settings"},        // feature:communication.class_status
 	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
+	{HelpDeskRead, "help", "View Helpdesk"},                                                                     // feature:help.helpdesk
+	{HelpDeskWrite, "help", "Manage Helpdesk"},                                                                  // feature:help.helpdesk
 }
 
 // Role is a seeded system role and the keys it grants.

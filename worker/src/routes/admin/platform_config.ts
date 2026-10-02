@@ -639,7 +639,8 @@ export function registerPlatformConfig(r: Router): void {
     const category = req.category || 'other'
     if (!VENDOR_CATEGORIES.has(category)) throw badRequest('unknown category for a vendor ticket')
     const id = uuid()
-    await c.db.prepare(`INSERT INTO support_tickets (id, institution_id, raised_by, category, subject, body, priority, audience, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'vendor', ?, ?)`)
+    // origin 'help': the same model as a request raised from the Help Centre (tenant migration 0031), so its raiser can follow the replies there.
+    await c.db.prepare(`INSERT INTO support_tickets (id, institution_id, raised_by, category, subject, body, priority, audience, origin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'vendor', 'help', ?, ?)`)
       .bind(id, inst, c.id.userId, category, subject, body, req.priority || 'normal', now(), now()).run()
     return created({ id })
   })

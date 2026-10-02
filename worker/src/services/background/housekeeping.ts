@@ -2,6 +2,7 @@ import { registerJob } from '../jobs'
 import { daysAgo, forEachSchool } from './schools'
 import { purgeSessionActivity } from '../session_activity'
 import { expireStatuses } from '../class_status'
+import { pruneErrorRefs } from '../error_refs'
 
 /* Housekeeping sweeps: session:prune (worker.go sessionPrune),
    security:retention (api/login_security.go handleSecurityRetention) and
@@ -43,7 +44,13 @@ registerJob('security:retention', async (env) => {
     // The pre-migration copies of the platform tables in each school database.
     await db.prepare(`DELETE FROM login_events WHERE created_at < ?`).bind(daysAgo(365)).run()
   })
-  console.log('security retention sweep', { screens, session_activity: activity, login_events: ev.meta.changes, sessions: se.meta.changes, jobs: jb.meta.changes })
+  // Error references (services/error_refs.ts): 14 days. Quick Assist codes and their throttle: a day.
+  const refs = await pruneErrorRefs(env).catch((e) => { if (/no such table/.test(String(e))) return 0; throw e })
+  await env.CONTROL.batch([
+    env.CONTROL.prepare(`DELETE FROM assist_codes WHERE expires_at < ?`).bind(daysAgo(1)),
+    env.CONTROL.prepare(`DELETE FROM assist_attempts WHERE window_started_at < ?`).bind(daysAgo(1)),
+  ]).catch((e) => { if (!/no such table/.test(String(e))) throw e })
+  console.log('security retention sweep', { error_refs: refs, screens, session_activity: activity, login_events: ev.meta.changes, sessions: se.meta.changes, jobs: jb.meta.changes })
 })
 
 /* Reminders the child (or parent) asked for, delivered when they asked.
