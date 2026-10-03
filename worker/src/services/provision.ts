@@ -4,6 +4,8 @@ import { cfApiFromEnv, httpD1, type CfD1Api } from './d1http'
 import { PERMISSIONS, ROLES } from './provision_seed'
 import tenantSql from '../../db/tenant.sql'
 import { TENANT_MIGRATIONS } from './tenant_migrations'
+import { roleTemplates } from './role_templates'
+import { seedNewSchool } from './settings_registry'
 
 /* Creating a school from the seller console, without a shell or a deploy.
 
@@ -193,8 +195,10 @@ async function seedTenant(d: ProvisionDeps, p: ProvisionRow, db: D1Database): Pr
   const have = await db.prepare(`SELECT id, key, customised_at FROM roles WHERE institution_id = ?`).bind(inst)
     .all<{ id: string; key: string; customised_at: string | null }>()
   const byKey = new Map(have.results.map((r) => [r.key, r]))
+  // The vendor's role templates (seller Controls > Roles) replace the built-in lists.
+  const templates = await roleTemplates(d.control)
   const stmts: D1PreparedStatement[] = []
-  for (const role of ROLES) {
+  for (const role of ROLES.map((r) => ({ ...r, perms: templates.get(r.key) ?? r.perms }))) {
     let r = byKey.get(role.key)
     if (!r) {
       r = { id: crypto.randomUUID(), key: role.key, customised_at: null }
@@ -223,6 +227,8 @@ async function seedTenant(d: ProvisionDeps, p: ProvisionRow, db: D1Database): Pr
     }
   }
   for (const part of chunk(stmts, 50)) await db.batch(part)
+  // The vendor's platform and plan defaults for school settings (seller Controls).
+  try { await seedNewSchool(d.control, db, inst, p.plan_code) } catch (e) { console.error('provision: setting defaults not applied', e) }
 }
 
 /** CONTROL's rows for the school: the directory entry, the subscription, the sign-in index. Last, so a half-built school never shows. */

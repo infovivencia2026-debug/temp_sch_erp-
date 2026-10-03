@@ -64,6 +64,7 @@ Last checked: 2026-10-02.
 | Inventory of every feature, route and table | `docs/inventory.xlsx`, `scripts/inventory/` | Regenerate after merges |
 | Bento board "can be made better"; "modern solid colors for default" | Focus home, default palettes (Light Modern, Dark Modern) | Each domain card is one solid colour with white text; a card with nothing to show sits on the plain card, so colour marks the cards with a figure. Picked card colours untouched. Parent board has no domain colours (by design), so it stays white |
 | Misaligned buttons and elements, "make a list and fix them" | Assistant composer, parent-teacher chat, role note, page headers, screen tab strip, phone dock Settings, parent fees card, Reload | Nine fixes measured in a browser at 1440, 390 and 360, light and dark. Staff messages and the teacher / student boards share the fix but were not opened (no seed login) |
+| Seller admin controls everything (configuration, never a school's records) | Seller > Entitlements opens on Controls: School settings (grouped, source chip, Reset, search), Apply to schools (preview), Defaults (platform and per plan), Role templates (push, skips schools that changed the role), Configuration templates (export / import); Plan matrix and Feature switches beside it | building: on `main`, not deployed. CONTROL 0014; `docs/seller-controls.md`; `seller_controls.test.ts`. Support logins read only |
 
 ## Next
 
