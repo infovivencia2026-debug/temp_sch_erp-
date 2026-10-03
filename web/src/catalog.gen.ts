@@ -450,7 +450,7 @@ export const ROLES: Role[] = [
       {
         slug: 'help',
         name: 'Help',
-        workspace: 'Home',
+        workspace: 'Help',
         features: [
           { key: 'institution_admin.help.helpdesk', slug: 'helpdesk', name: 'Helpdesk', scope: 'institution', tier: 'core', summary: 'Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.' },
         ],

@@ -497,7 +497,7 @@ var Roles = []Role{
 			{
 				Slug:      "help",
 				Name:      "Help",
-				Workspace: "Home",
+				Workspace: "Help",
 				Features: []Feature{
 					{Key: "institution_admin.help.helpdesk", Slug: "helpdesk", Name: "Helpdesk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child."},
 				},
