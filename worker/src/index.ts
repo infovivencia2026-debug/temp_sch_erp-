@@ -9,7 +9,7 @@ import { getSession } from './routes/session'
 import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
 import { identityFrom, can, type Identity } from './identity'
-import { errorResponse, forbidden, unauthorized, unexpectedError } from './http'
+import { HttpError, errorResponse, forbidden, unauthorized, unexpectedError } from './http'
 import { newErrorRef, recordErrorRef } from './services/error_refs'
 import { tenantSession, type TenantSession } from './tenant'
 import { handleSMSGatewayDevice } from './routes/comms/sms_gateway'
@@ -83,6 +83,10 @@ export default {
         if (!id) throw unauthorized()
         schoolId = id.institution?.id
         who = id
+        // A Quick Assist session reads and does nothing else; ending it is the one write it may make.
+        if (id.readOnly && m !== 'GET' && m !== 'HEAD' && !/\/impersonation\/[^/]+\/end$/.test(pathname)) {
+          throw new HttpError(403, 'this support session can only look. Nothing can be changed during it.', { code: 'read_only_session' })
+        }
         if (hit.route.perm !== 'auth' && !can(id, hit.route.perm)) throw forbidden()
         // Go's group-level RequirePermission, password gate and paywall; see gates.ts.
         groupGate(id, pathname)

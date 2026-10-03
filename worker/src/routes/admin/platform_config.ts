@@ -177,12 +177,14 @@ async function getBackupPosture(c: Ctx): Promise<Response> {
   return ok(out)
 }
 
-const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_name AS operator, g.reason, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
+const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_name AS operator, g.reason, g.read_only, g.consent_user_name, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
     (g.ended_at IS NULL AND g.expires_at > ?1) AS live,
     (SELECT count(*) FROM audit_log a WHERE a.actor_user_id = g.operator_user_id AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at)) AS changes
     FROM impersonation_grants g`
 const grantView = (g: Record<string, unknown>, school: string | undefined) => ({ id: g.id, institution_id: g.institution_id, school, operator: g.operator, reason: g.reason, ticket_id: und(g.ticket_id as string | null),
-  started_at: g.started_at, expires_at: g.expires_at, ended_at: und(g.ended_at as string | null), ended_by: und(g.ended_by as string | null), ended_reason: und(g.ended_reason as string | null), live: !!g.live, changes: g.changes })
+  started_at: g.started_at, expires_at: g.expires_at, ended_at: und(g.ended_at as string | null), ended_by: und(g.ended_by as string | null), ended_reason: und(g.ended_reason as string | null), live: !!g.live, changes: g.changes,
+  // Quick Assist (help/assist.ts): read-only, and who in the school agreed to it.
+  read_only: !!g.read_only, consented_by: und(g.consent_user_name as string | null) })
 
 /** The register is read across the fleet by a platform operator with no school, otherwise in the acting school. */
 async function grantScopes(c: Ctx): Promise<{ db: D1Database; school: string }[]> {

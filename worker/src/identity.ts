@@ -26,6 +26,8 @@ export interface Identity {
   permissions: Set<string>
   roles: string[]
   mustChangePassword: boolean
+  /** Inside a school on a Quick Assist session: reads only. */
+  readOnly?: boolean
 }
 
 /* The session row and the cache versions in one CONTROL round trip; then the
@@ -65,15 +67,16 @@ export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContex
   return id
 }
 
-async function hasLiveGrant(env: Env, inst: Institution, operatorId: string): Promise<boolean> {
+/** The operator's live session in a school: null when none; read_only for a Quick Assist session (help/assist.ts). */
+async function liveGrant(env: Env, inst: Institution, operatorId: string): Promise<{ read_only: boolean } | null> {
   try {
-    const row = await tenantDb(env, inst).prepare(`SELECT 1 FROM impersonation_grants WHERE operator_user_id = ? AND ended_at IS NULL AND expires_at > ? LIMIT 1`)
-      .bind(operatorId, new Date().toISOString()).first()
-    return !!row
+    const row = await tenantDb(env, inst).prepare(`SELECT read_only FROM impersonation_grants WHERE operator_user_id = ? AND ended_at IS NULL AND expires_at > ? ORDER BY started_at DESC LIMIT 1`)
+      .bind(operatorId, new Date().toISOString()).first<{ read_only: number | null }>()
+    return row ? { read_only: !!row.read_only } : null
   } catch (err) {
     // A school whose database cannot be opened grants nothing.
     console.error(err)
-    return false
+    return null
   }
 }
 
@@ -110,9 +113,15 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
        read and end. No grant, or an expired one, and the request is treated
        as made from outside every school. Operators are not held to this:
        running the console means entering schools all day. */
-    if (institution && !operator && !(await hasLiveGrant(env, institution, s.user_id))) institution = null
+    /* A QUICK ASSIST SESSION ONLY READS. The person who read out the code
+       agreed to be looked at, not to have their school changed: while the
+       newest live session in this school is read-only, index.ts refuses every
+       write, operators included. */
+    const grant = institution ? await liveGrant(env, institution, s.user_id) : null
+    if (institution && !operator && !grant) institution = null
     return { sessionId: s.id, userId: s.user_id, fullName: u.full_name, platformAdmin: true, restricted: !operator,
-      institution, homeInstitutionId: null, permissions, roles: roleKeys.length ? roleKeys : ['platform_admin'], mustChangePassword: false }
+      institution, homeInstitutionId: null, permissions, roles: roleKeys.length ? roleKeys : ['platform_admin'], mustChangePassword: false,
+      readOnly: !!(institution && grant?.read_only) }
   }
 
   const home = prefetched?.id === s.institution_id ? prefetched : await institutionById(env, s.institution_id)

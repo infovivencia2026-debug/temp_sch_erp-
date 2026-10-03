@@ -29,6 +29,7 @@ import { registerHelpdesk } from './help/helpdesk' // feature:help.helpdesk
 import { registerHelpRequests } from './help/requests'
 import { registerSupportDesk, registerSupportDeskMore } from './help/desk'
 import { registerTroubleshooters } from './help/troubleshoot'
+import { registerAssist } from './help/assist'
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -66,5 +67,6 @@ export function buildRouter(): Router {
   registerSupportDesk(r)
   registerSupportDeskMore(r)
   registerTroubleshooters(r)
+  registerAssist(r)
   return r
 }
