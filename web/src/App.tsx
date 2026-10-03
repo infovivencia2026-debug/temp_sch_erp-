@@ -40,6 +40,7 @@ import NeedsAttention from '@/components/NeedsAttention'
 import { I18nProvider } from '@/lib/i18n'
 import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
 import { onSent } from '@/lib/outbox'
+import { shell } from '@/lib/shell'
 
 /* A hairline at the top of the window while anything is being fetched in the
    background, so kept-on-screen data never looks final while it is changing.
@@ -126,6 +127,12 @@ const queryClient = new QueryClient({
    server's copy replaces the guess and any conflict shows as it really is. */
 rememberBootQueries(queryClient)
 onSent(() => void queryClient.invalidateQueries())
+/* The app-icon badge follows the bell's unread count (lib/shell.ts). */
+queryClient.getQueryCache().subscribe((ev) => {
+  if (ev.type !== 'updated' || ev.action.type !== 'success' || ev.query.queryKey[0] !== 'notifications') return
+  const n = (ev.query.state.data as { unread?: number } | undefined)?.unread
+  if (typeof n === 'number') shell()?.setBadge?.(n)
+})
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     if (bootedOffline()) void queryClient.invalidateQueries({ queryKey: ['session'] })

@@ -21,37 +21,8 @@
    Nothing happens outside the app — the bridge is absent in every browser, so
    this is a no-op on the web and there is no branch to keep in step. */
 
-interface ErpShell {
-  setAtTop(v: boolean): void
-  /* The app lock (features/portal/AppLock.tsx). Absent in older builds of the
-     app and in every browser, so both are optional and the screen says so. */
-  setAppLock?(on: boolean): void
-  appLockEnabled?(): boolean
-  /* Whether the phone can actually ask for a fingerprint or face. */
-  biometricsAvailable?(): boolean
-  /* The handset's own haptic click (lib/haptics.ts). Absent in older builds
-     of the app and in every browser. */
-  haptic?(kind: string): void
-  /* The device's push token, or null until the app has one; lib/push.ts
-     hands it to the server after sign-in. */
-  pushToken?(): string | null
-  /* The phone's print sheet, with Save as PDF (lib/print.ts). Absent in
-     older builds of the app and in every browser, where window.print is
-     the answer. */
-  print?(): void
-  /* A 32-byte key, base64, held in the platform keystore; seals the
-     offline store (lib/local-store.ts). */
-  storeKey?(): string | null
-  /* Delete what the app itself keeps (files saved for offline, the queued
-     background uploads) after a remote sign-out. */
-  wipe?(): void
-}
-
-declare global {
-  interface Window {
-    ErpShell?: ErpShell
-  }
-}
+/* window.ErpShell is declared in lib/shell.ts, the whole contract. */
+import './shell'
 
 /* An overlay counts as "not at the top" whatever its own scroll position.
 
@@ -85,7 +56,7 @@ export function reportScrollToShell() {
     if (now === last) return
     last = now
     try {
-      bridge.setAtTop(now)
+      bridge.setAtTop?.(now)
     } catch {
       /* The bridge can go away mid-session when the WebView is torn down. */
     }

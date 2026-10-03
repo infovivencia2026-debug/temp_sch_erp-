@@ -13,7 +13,8 @@ import './styles/color-system.css'
 import './styles/motion.css'
 // Stamps html[data-personality] and writes the personalities stylesheet.
 import '@/lib/personality'
-import { startOutbox } from './lib/outbox'
+import { startOutbox, subscribe as subscribeOutbox, stateOf } from './lib/outbox'
+import { startShell } from './lib/shell'
 import { reportScrollToShell } from './lib/shell-scroll'
 import { installMotionGuard } from './lib/motion'
 import { trackKeyboardInset } from './lib/keyboard'
@@ -35,6 +36,16 @@ for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
    after a component that happens to care has mounted, since the screen the
    person lands on is usually not the screen they were on when it failed. */
 startOutbox()
+/* The native shells' events (lib/shell.ts): deep links, shares, the network,
+   and a copy of the outbox for their background sender. */
+startShell((path) => {
+  window.history.pushState({}, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+})
+subscribeOutbox((q) => {
+  const waiting = q.filter((r) => stateOf(r) === 'pending')
+  try { window.ErpShell?.outboxChanged?.(JSON.stringify(waiting)) } catch { /* older app */ }
+})
 
 /* Tells the Android shell where the page's scroller is, so its pull-to-refresh
    only fires at the top. A no-op in every browser: the bridge does not exist

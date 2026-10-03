@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { onShared, peekShared, takeShared } from '@/lib/shell'
 import { containerTransform, useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -149,6 +150,15 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const [choose, setChoose] = useState<{ asSchool: boolean } | null>(null)
   const [compose, setCompose] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
   const [views, setViews] = useState<string | null>(null)
+  /* Photos shared into the app from the phone's gallery (components/ShareInbox.tsx). */
+  useEffect(() => {
+    const take = () => {
+      const f = peekShared()?.target === 'status' ? takeShared()?.files.find((x) => /^(image|video)\//.test(x.type)) : undefined
+      if (f) setCompose({ file: f, asSchool: false })
+    }
+    take()
+    return onShared(take)
+  }, [])
   const [params, setParams] = useSearchParams()
   const inst = session.institution
   const schoolName = inst?.display_name || inst?.short_name || inst?.name || 'School'
