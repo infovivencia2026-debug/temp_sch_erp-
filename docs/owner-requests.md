@@ -49,7 +49,7 @@ Last checked: 2026-10-02.
 | Animations never cut off part-way | Restarted 2026-10-02 (a restart lost the first attempt) |
 | Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Restarted 2026-10-02; builds on the other session's Team screen, ticket queue and recorded support access |
 | User guide for every role, as one HTML book | Restarted 2026-10-02 |
-| Every screen checked for silly UI mistakes | Restarted 2026-10-02 |
+| Every screen checked for silly UI mistakes | 2026-10-03: all routes x 4 accounts crawled (2,122 loads); 16 root causes fixed (4 blockers incl. cut money figures, restore crash, dark brand ink, phone gutters); open: page dots on last card, ISO dates, polish contrast; seller Controls dark not reachable |
 
 ## Done on `cloudflare-workers`, not deployed (session of 2026-10-01/02; needs the Worker and tenant migrations 0024-0026)
 
