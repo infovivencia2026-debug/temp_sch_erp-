@@ -99,9 +99,10 @@ records only through the recorded, time-limited support access.
 
 ## Counts
 
-Declared in the registry: the feature switches (one per catalogue feature) plus
-40 settings. Of the 40, 39 are vendor-editable (25 with a notice to the school)
-and 1 is listed read-only (`session_activity.enabled`).
+Declared in the registry: the feature switches (one per catalogue feature,
+vendor-editable, each with a notice) plus 37 settings. Of the 37, 36 are
+vendor-editable (26 with a notice to the school) and 1 is shown read-only
+(`security.activity_recording`, the school's own decision).
 
 ## Remains
 

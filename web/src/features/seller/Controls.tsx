@@ -245,7 +245,7 @@ function DefaultsTab({ registry, canEdit }: { registry: Registry; canEdit: boole
             return (
               <tr key={s.key}>
                 <Td><div className="font-medium">{s.label}</div><div className="text-[13px] text-muted-foreground">{SETTING_GROUPS.find((g) => g.key === s.group)?.label}</div></Td>
-                <Td>{showValue(s.builtin)}</Td>
+                <Td>{s.options?.find((o) => o.value === s.builtin)?.label ?? showValue(s.builtin)}</Td>
                 <Td className="min-w-[180px]">{canEdit ? <ValueEditor d={s} value={v} onChange={(x) => setDraft({ ...draft, [s.key]: x })} /> : has ? showValue(current.get(s.key)!) : 'Built-in'}</Td>
                 <Td>
                   {canEdit && draft[s.key] !== undefined && <Button size="sm" pending={set.isPending && set.variables?.key === s.key} onClick={() => set.mutate({ key: s.key, value: fromInput(s, draft[s.key]) })}>Save</Button>}
