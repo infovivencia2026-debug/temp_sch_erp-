@@ -23,6 +23,17 @@ import Foundation
    from the other end. */
 enum DeepLink {
     static func accept(_ url: URL) -> URL? {
+        /* xulo://open/<path>: that screen at whichever school this app is on.
+           xulo://share is the Share Extension handing over; the files are
+           read when the app becomes active. */
+        if url.scheme?.lowercased() == "xulo" {
+            guard url.host == "open" else { return nil }
+            let path = url.path.isEmpty ? "/" : url.path
+            guard !path.hasPrefix("//"), var c = URLComponents(url: Portal.start, resolvingAgainstBaseURL: false) else { return nil }
+            c.path = path
+            c.query = url.query
+            return c.url
+        }
         guard url.scheme?.lowercased() == "https", Portal.isPortal(url) else { return nil }
         let path = url.path.isEmpty ? "/" : url.path
         if path == "/" || path.hasPrefix("/account") || path.hasPrefix("/go/") {

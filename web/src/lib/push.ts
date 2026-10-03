@@ -29,7 +29,7 @@ export function registerPushToken(userID?: string) {
     /* fall through and register anyway */
   }
   api
-    .put('/api/v1/me/push-token', { token, platform: 'android' })
+    .put('/api/v1/me/push-token', { token, platform: window.ErpShell?.platform === 'ios' ? 'ios' : 'android' })
     .then(() => {
       try {
         localStorage.setItem(KEY, mark)

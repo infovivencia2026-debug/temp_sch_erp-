@@ -29,11 +29,21 @@ import Foundation
 enum BridgeScript {
     static let handlerName = "erpShell"
 
-    static func source(appLock: Bool, canLock: Bool) -> String {
-        """
+    static func source(appLock: Bool, canLock: Bool, storeKey: String?, school: String?, pushToken: String?) -> String {
+        func js(_ v: String?) -> String {
+            guard let v, let d = try? JSONSerialization.data(withJSONObject: [v]), let a = String(data: d, encoding: .utf8) else { return "null" }
+            return String(a.dropFirst().dropLast())
+        }
+        return """
         (function () {
           if (window.ErpShell) return;
-          var state = { appLock: \(appLock ? "true" : "false"), canLock: \(canLock ? "true" : "false") };
+          var state = { appLock: \(appLock ? "true" : "false"), canLock: \(canLock ? "true" : "false"),
+            storeKey: \(js(storeKey)), school: \(js(school)), pushToken: \(js(pushToken)), downloads: {} };
+          window.addEventListener('erp-shell', function (e) {
+            var d = e.detail || {};
+            if (d.type === 'downloaded' && d.ok) state.downloads[d.url] = d.local;
+            if (d.type === 'push') state.pushToken = d.token;
+          });
           function post(kind, value) {
             try { window.webkit.messageHandlers.\(handlerName).postMessage({ kind: kind, value: value }); } catch (e) {}
           }
@@ -44,7 +54,22 @@ enum BridgeScript {
             appLockEnabled: function () { return state.appLock; },
             biometricsAvailable: function () { return state.canLock; },
             haptic: function (kind) { post('haptic', String(kind)); },
-            print: function () { post('print', true); }
+            print: function () { post('print', true); },
+            platform: 'ios',
+            contract: 2,
+            pushToken: function () { return state.pushToken; },
+            storeKey: function () { return state.storeKey; },
+            wipe: function () { state.storeKey = null; post('wipe', true); },
+            setBadge: function (n) { post('setBadge', Number(n) || 0); },
+            pickFile: function (id, kind, accept) { post('pickFile', { id: String(id), kind: String(kind), accept: String(accept || '') }); },
+            openExternal: function (url) { post('openExternal', String(url)); },
+            download: function (id, url, name) { post('download', { id: String(id), url: String(url) }); },
+            downloaded: function (url) { return state.downloads[url] || null; },
+            removeDownload: function (url) { delete state.downloads[url]; post('removeDownload', String(url)); },
+            outboxChanged: function (json) { post('outboxChanged', String(json)); },
+            school: function () { return state.school; },
+            switchSchool: function () { post('switchSchool', true); },
+            setSchool: function (json) { post('setSchool', String(json)); }
           };
           var style = document.createElement('style');
           /* The second rule is the iOS focus-zoom: WebKit zooms the whole page

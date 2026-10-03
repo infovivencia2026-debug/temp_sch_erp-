@@ -28,6 +28,35 @@
 	<string>$(PORTAL_HOST)</string>
 	<key>PortalAliases</key>
 	<string>$(PORTAL_ALIASES)</string>
+	<!-- YES in a school's own build (build-school.py); NO in the generic app,
+	     which asks for the school on first launch (Portal.swift). -->
+	<key>FixedSchool</key>
+	<string>$(FIXED_SCHOOL)</string>
+
+	<!-- xulo://open/<path> links, and xulo://share from the Share Extension. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>xulo</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>xulo</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- The outbox is sent by a background task when there is a network
+	     (Native.swift); push wakes the app for the badge. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.xulo.outbox</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
 
 	<!-- THE SYSTEM SPLASH, ON THE PAGE'S OWN COLOUR.
 

@@ -11,6 +11,7 @@ import SwiftUI
    way: a shell around the same site, and deliberately nothing more. */
 @main
 struct ParentApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var shell = WebShell()
     @Environment(\.scenePhase) private var phase
 

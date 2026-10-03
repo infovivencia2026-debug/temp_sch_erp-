@@ -290,3 +290,45 @@ python3 scripts/apps/build-school.py https://school-erp-d1.pages.dev/in/<slug> -
 
 `keystore.properties` (not in chat) names the upload key; the owner types its
 password. Push needs the Firebase project's `google-services.json`.
+
+## iOS: the XULO app (generic and per-school), 2026-10
+
+`mobile/apps/parent-ios`, same split as Android: `FIXED_SCHOOL = NO` in
+`Config/Portal.xcconfig` is the generic app (opens `/start` until a school is
+chosen); `build-school.py` writes `FIXED_SCHOOL = YES` and the school's address.
+Bundle id stays `com.schoolerp.parent` for the generic app.
+
+Shell contract v2 (`ParentApp/Shell/Native.swift`): store key in the Keychain
+(this device only), APNs token (AppDelegate) handed to the page, badge through
+`UNUserNotificationCenter`, camera / VisionKit document scan / Files picker,
+files saved for offline served as `xulo-file://` (WKURLSchemeHandler), outbox
+sent by a `BGProcessingTask` (`com.xulo.outbox`) with the web view's cookies,
+`xulo://open/<path>`, connectivity events, wipe.
+
+Verified here: `xcodebuild -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build`
+succeeds with Xcode 26.6. Not run on a device or simulator.
+
+One step in Xcode, once (the project file was not edited by hand for it): add
+the Share Extension target. File > New > Target > Share Extension, name
+`ShareExtension`, then replace its generated files with the three in
+`ShareExtension/` (ShareViewController.swift, Info.plist,
+ShareExtension.entitlements), set its bundle id to `$(PRODUCT_BUNDLE_IDENTIFIER).share`
+and `APP_BUNDLE_IDENTIFIER = $(PRODUCT_BUNDLE_IDENTIFIER)` in its build settings.
+Both targets need the App Group `group.<bundle id>` and the app needs Push
+Notifications, in the owner's Apple developer account.
+
+Needs the owner: Team ID (`DEVELOPMENT_TEAM`, or `--team` to build-school.py),
+the App Group and push capability on the App ID, an APNs key for the server.
+The server's push sender sends through FCM today; tokens registered with
+`platform: 'ios'` need an APNs sender (or FCM with the APNs key uploaded to
+Firebase) before iPhones receive pushes.
+
+Build and archive on a Mac with the owner's account:
+
+```
+cd mobile/apps/parent-ios
+xcodebuild -project ParentApp.xcodeproj -scheme ParentApp -configuration Release \
+  -destination generic/platform=iOS -archivePath build/XULO.xcarchive archive DEVELOPMENT_TEAM=<TEAMID>
+xcodebuild -exportArchive -archivePath build/XULO.xcarchive -exportPath build/out \
+  -exportOptionsPlist Config/ExportOptions.plist
+```
