@@ -45,6 +45,49 @@ export default function ActivityMembers({ activity, onClose, show = 'add' }: {
   })
   const seatsLeft = activity.capacity > 0 ? Math.max(0, activity.capacity - activity.enrolled) : null
 
+  /* THE LIST, AS A FILE.
+
+     The activities export gave one row per ACTIVITY -- dance, Dance, 1 -- which
+     answers how many and never who. The errand behind this screen is a register
+     to work down: ring these four families about the fee, hand this list to the
+     coach. That needs the names, and the office cannot retype them off a panel.
+
+     Written here rather than through the shared table export because this list
+     is not a table on the page: it is a column of cards, and the shared export
+     reads rendered rows. Same rules as everywhere else -- a BOM so Excel reads
+     the names, CRLF line endings, and the fee as a bare number so the column
+     can be summed. */
+  const exportMembers = () => {
+    const rows = members.data?.items ?? []
+    if (!rows.length) return
+    const cell = (v: unknown) => {
+      const t = String(v ?? '').replace(/\s+/g, ' ').trim()
+      return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
+    }
+    const head = ['Student', 'Class', 'Admission no', 'Parent', 'Parent number', 'Fee', 'Paid']
+    const lines = [head.map(cell).join(',')]
+    for (const m of rows) {
+      lines.push([
+        m.name,
+        m.class_label ?? '',
+        m.admission_no,
+        m.guardian_name ?? '',
+        m.guardian_phone ?? '',
+        activity.fee_paise > 0 ? (activity.fee_paise / 100).toFixed(2) : '0',
+        m.payment === 'paid' ? 'Paid' : m.payment === 'unpaid' ? 'Not paid' : 'No fee',
+      ].map(cell).join(','))
+    }
+    const url = URL.createObjectURL(
+      new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activity.name.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase()}-students-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
   const add = async () => {
     setBusy(true)
     const failed: string[] = []
@@ -85,7 +128,12 @@ export default function ActivityMembers({ activity, onClose, show = 'add' }: {
           <div className="rounded-xl border">
             <div className="flex items-center justify-between border-b px-4 py-2 text-[12.5px] font-semibold text-muted-foreground">
               <span>Enrolled · {members.data!.items.length}</span>
-              <span>{members.data!.items.filter((m) => m.payment === 'unpaid').length} not paid yet</span>
+              <span className="flex items-center gap-3">
+                <span>{members.data!.items.filter((m) => m.payment === 'unpaid').length} not paid yet</span>
+                <button type="button" onClick={exportMembers} className="font-semibold text-primary hover:underline">
+                  Export
+                </button>
+              </span>
             </div>
             {/* WHO, WHERE, WHO TO RING, AND WHETHER THEY HAVE PAID.
 

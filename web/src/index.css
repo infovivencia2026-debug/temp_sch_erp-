@@ -4594,3 +4594,42 @@ html[data-reduce-motion] :active { transform: none !important; }
     background-clip: content-box;
   }
 }
+
+/* EVERY SCROLLBAR IN THE PRODUCT, NOT THE ONES WE REMEMBERED.
+
+   The bar was styled on the two dropdown components and then reported again,
+   on a third scroller, and a fourth. There are sixty-odd scrolling boxes in
+   this app and naming them one at a time is a list that will always be one
+   behind the person looking at the screen.
+
+   The fault is the same wherever it appears: a scrolling box with a border
+   and rounded corners gets its scrollbar drawn in the padding box, so the bar
+   rides over the border and out past the curve -- a grey stripe hanging off
+   the edge, squaring off a corner meant to be round.
+
+   So it is set once, for everything that scrolls. Thin, the thumb inset by a
+   transparent border so the track can never reach the edge, in the app's own
+   muted colour rather than the operating system's, and darker under the
+   pointer so it is still findable. A browser that knows neither property
+   keeps its own bar, which is what it had before any of this.
+
+   The page's own bar is left to the platform: a window scrolls, everybody
+   knows a window scrolls, and restyling the one bar that is not inside a
+   rounded box buys nothing. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+@media (hover: hover) {
+  *:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.42); background-clip: content-box; }
+}
+/* Firefox has no pseudo-elements for this; two properties is the whole API. */
+* { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+/* The window keeps the platform's bar: it is not inside a rounded box. */
+html { scrollbar-width: auto; }
+html::-webkit-scrollbar { width: initial; }

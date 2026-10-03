@@ -175,6 +175,26 @@ export default function ActivitiesSetup() {
                     )}
                   </Td>
                   <Td>
+                    <span className="flex flex-wrap gap-2">
+                      {/* A BUTTON, BECAUSE A BUTTON IS WHAT WAS ASKED FOR.
+
+                          The count was made a link and that was not enough:
+                          a red number beside four other red numbers does not
+                          read as a door, and the only button on the row said
+                          "Add students" -- a different errand. Seeing who is
+                          in an activity is the commonest thing anybody does
+                          here, and it is not a writing action, so it shows
+                          whether or not this person may edit. */}
+                      {a.enrolled > 0 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => { setMembersView('members'); setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                        >
+                          View students
+                        </Button>
+                      )}
+                    </span>
                     {mayWrite && (
                       <span className="flex flex-wrap gap-2">
                         {a.is_active && (
