@@ -28,6 +28,10 @@ export default function ActivityMembers({ activity, onClose }: {
     queryFn: () => api.get<List<{ id: string; full_name: string; admission_no: string }>>(`/api/v1/students?section_id=${section}&limit=200`),
     enabled: !!section,
   })
+  const members = useQuery({
+    queryKey: ['activity-members', activity.id],
+    queryFn: () => api.get<List<{ id: string; name: string; admission_no: string; class_label?: string; payment: 'paid' | 'unpaid' | 'no_fee' }>>(`/api/v1/academics/activities/${activity.id}/members`),
+  })
   const seatsLeft = activity.capacity > 0 ? Math.max(0, activity.capacity - activity.enrolled) : null
 
   const add = async () => {
@@ -47,6 +51,7 @@ export default function ActivityMembers({ activity, onClose }: {
     setResult({ ok, failed })
     setPicked(new Set())
     void qc.invalidateQueries({ queryKey: ['activities'] })
+    void qc.invalidateQueries({ queryKey: ['activity-members', activity.id] })
   }
 
   return (
@@ -58,6 +63,25 @@ export default function ActivityMembers({ activity, onClose }: {
           {activity.fee_paise > 0 ? `Each child added is billed ${formatPaise(activity.fee_paise)}.` : 'This activity is free.'}
           {seatsLeft !== null && ` ${seatsLeft} seat${seatsLeft === 1 ? '' : 's'} left.`}
         </p>
+        {(members.data?.items ?? []).length > 0 && (
+          <div className="rounded-xl border">
+            <div className="flex items-center justify-between border-b px-4 py-2 text-[12.5px] font-semibold text-muted-foreground">
+              <span>Enrolled · {members.data!.items.length}</span>
+              <span>{members.data!.items.filter((m) => m.payment === 'unpaid').length} not paid yet</span>
+            </div>
+            <ul className="max-h-60 divide-y overflow-auto">
+              {members.data!.items.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2">
+                  <span className="min-w-0 text-[14px]"><b className="font-semibold">{m.name}</b> <span className="text-[12.5px] text-muted-foreground">{m.class_label ?? ''} · {m.admission_no}</span></span>
+                  <span className={'shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ' + (m.payment === 'unpaid' ? 'bg-[#fef3c7] text-[#b45309]' : m.payment === 'paid' ? 'bg-[#dcfce7] text-[#15803d]' : 'bg-muted text-muted-foreground')}>
+                    {m.payment === 'unpaid' ? 'Enrolled · not paid' : m.payment === 'paid' ? 'Paid' : 'No fee'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="pt-1 text-[13px] font-semibold">Add more</p>
         <div className="max-w-xs">
           <Select value={section} onChange={(v) => { setSection(v); setPicked(new Set()) }} placeholder="Pick a class"
             options={(sections.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.class_name}-${s.name}` }))} />

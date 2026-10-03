@@ -958,7 +958,10 @@ async function listPortalActivities(c: Ctx) {
   const rows = await c.db.prepare(`
     SELECT a.id, a.name, a.category, a.schedule, a.venue, a.fee_paise, a.capacity,
            (SELECT count(*) FROM student_activities sa WHERE sa.activity_id = a.id AND sa.status = 'enrolled') AS taken,
-           EXISTS (SELECT 1 FROM student_activities sa WHERE sa.activity_id = a.id AND sa.student_id = ? AND sa.status = 'enrolled') AS joined
+           EXISTS (SELECT 1 FROM student_activities sa WHERE sa.activity_id = a.id AND sa.student_id = ?1 AND sa.status = 'enrolled') AS joined,
+           (SELECT CASE WHEN inv.id IS NULL THEN 'no_fee' WHEN inv.status = 'paid' OR inv.paid_paise >= inv.net_paise THEN 'paid' ELSE 'unpaid' END
+              FROM student_activities sa LEFT JOIN invoices inv ON inv.id = sa.invoice_id
+             WHERE sa.activity_id = a.id AND sa.student_id = ?1 AND sa.status = 'enrolled' LIMIT 1) AS payment
       FROM activities a WHERE a.is_active = 1 ORDER BY a.name`).bind(studentId).all<Record<string, unknown>>()
   return ok({ items: rows.results.map((x) => ({ ...x, joined: !!Number(x.joined) })) })
 }

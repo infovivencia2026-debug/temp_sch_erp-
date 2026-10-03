@@ -36,6 +36,7 @@ export function registerAcademics(r: Router) {
   r.get('/academics/houses', 'academics.read', listHouses)
   r.get('/academics/activities', 'academics.read', listActivities)
   r.post('/academics/activities', 'academics.write', saveActivity)
+  r.get('/academics/activities/{id}/members', 'academics.read', listActivityMembers)
   r.post('/academics/houses', 'academics.write', saveHouse)
   r.del('/academics/houses/{id}', 'academics.write', deleteHouse)
   // mountSimpleCRUD
@@ -384,6 +385,25 @@ async function listActivities(c: Ctx) {
     if (str(v.coordinator).trim() === '') delete o.coordinator
     return omitNull(o, ['schedule', 'venue', 'notes'])
   }) })
+}
+
+/* WHO IS IN AN ACTIVITY, AND WHETHER THEY HAVE PAID. "Paid" is the bill
+   raised on enrolment being settled; a free activity, or a waived fee, has
+   no bill and reads "No fee". */
+async function listActivityMembers(c: Ctx) {
+  const id = c.params.id
+  if (!isUUID(id)) throw badRequest('invalid activity id')
+  const rows = await c.db.prepare(`
+    SELECT sa.id, st.first_name || COALESCE(' ' || st.last_name, '') AS name, st.admission_no,
+           (SELECT cl.name || '-' || sec.name FROM enrollments e JOIN sections sec ON sec.id = e.section_id JOIN classes cl ON cl.id = sec.class_id
+             WHERE e.student_id = st.id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS class_label,
+           sa.enrolled_on, sa.fee_paise, inv.status AS invoice_status, inv.paid_paise, inv.net_paise
+      FROM student_activities sa JOIN students st ON st.id = sa.student_id
+      LEFT JOIN invoices inv ON inv.id = sa.invoice_id
+     WHERE sa.activity_id = ? AND sa.status = 'enrolled'
+     ORDER BY name`).bind(id).all<Record<string, unknown>>()
+  return ok({ items: rows.results.map((r) => ({ ...r,
+    payment: !r.invoice_status ? 'no_fee' : r.invoice_status === 'paid' || Number(r.paid_paise) >= Number(r.net_paise) ? 'paid' : 'unpaid' })) })
 }
 
 async function saveActivity(c: Ctx) {
