@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { onShared, peekShared, takeShared } from '@/lib/shell'
-import { containerTransform, useStaggerOnce } from '@/lib/motion'
+import { useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Plus } from 'lucide-react'
@@ -235,7 +235,11 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   /* The tapped face morphs into the viewer's avatar (a shared element);
      where the engine cannot, the viewer simply opens. */
   const openFrom = useCallback((face: HTMLElement | null, at: { group: number; id?: string }) => {
-    containerTransform(face, () => setOpen(at), () => document.querySelector('.story__avatar'))
+    /* Straight open, no zoom-from-the-ring transition: that transition drew
+       the sidebar on its own layer above the viewer, so it stayed lit over
+       the black screen. */
+    void face
+    setOpen(at)
   }, [])
   const stripRef = useStaggerOnce<HTMLDivElement>()
 
