@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Camera, Check, ChevronDown, Image as ImageIcon, Type, Upload, Users, Video, X } from 'lucide-react'
+import { Camera, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
-import { Dialog } from '@/components/ui'
+import { Dialog, Select } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { MAX_BYTES, makeThumb, postStatus, preparePhoto, videoSeconds, type AddMode, type Audiences, type TargetPick } from './status-api'
 
@@ -219,7 +219,6 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     setChoice(next[0]); setMore(next.slice(1))
   }
   const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? ''
-  const audLabel = !picked.length ? (aud.isLoading ? 'Loading…' : 'Who is it for') : labelOf(picked[0]) + (picked.length > 1 ? ` +${picked.length - 1}` : '')
   const share = () => { const why = check(); setProblem(why); if (!why) send.mutate() }
 
   useEffect(() => {
@@ -228,101 +227,176 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     return () => window.removeEventListener('keydown', onKey)
   }, [audOpen, onClose])
 
-  const glass = 'bg-black/40 text-white backdrop-blur-md border border-white/15'
-  return createPortal(
-    <div className={cn('fixed inset-0 grid place-items-center bg-[#1f2330]/85 p-3', raised ? 'z-[140]' : 'z-[100]')}
-      role="dialog" aria-label={asSchool ? 'Post as the school' : 'New status'} onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]"
-        style={{ height: 'min(88vh, 760px)' }}>
-        {/* The picture fills the card. */}
-        {text ? (
-          <div className="absolute inset-0 grid place-items-center bg-primary p-8">
-            <textarea ref={captionBox} value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={5}
-              aria-label="Status text" placeholder="Type a status" autoFocus
-              className="w-full resize-none bg-transparent text-center text-[24px] font-semibold leading-snug text-primary-foreground outline-none placeholder:text-primary-foreground/60" />
-          </div>
-        ) : !preview ? (
-          <StatusFileInput onPick={setFile} label="Take or choose a photo or video" className="absolute inset-0 grid place-items-center gap-2 p-6 text-center text-white/80">
-            <Camera className="mx-auto size-9" />
-            <span className="text-sm">Take or choose a photo or video</span>
-          </StatusFileInput>
-        ) : isVideo ? (
-          <video src={preview} className="absolute inset-0 size-full object-cover" autoPlay loop playsInline
-            onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
-        ) : (
-          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
-        )}
+  /* The one still in the select, waiting to be added as a chip. */
+  const addable = options.filter((o) => !picked.includes(o.value))
+  const [next, setNext] = useState('')
+  useEffect(() => { if (next && picked.includes(next)) setNext('') }, [next, picked])
 
-        {/* Top: close, who it is for, change the picture. */}
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/50 to-transparent p-4 pb-10">
-          <button type="button" onClick={onClose} aria-label="Close" className={cn('grid size-11 place-items-center rounded-full transition-transform active:scale-95', glass)}>
-            <X className="size-5" />
+  return createPortal(
+    /* THE COMPOSER IS A SHEET, NOT A STORY CARD (owner's mockup).
+
+       It was a black full-bleed card with the controls floating on the
+       picture, which is how a social app composes a story: one picture, one
+       caption, post. A school's status is not that -- it is addressed, it is
+       kept or not kept, and a teacher has to be able to read back who it is
+       going to before pressing Post. White ground, fields that look like
+       fields, and the two decisions (who, and keep) stated in words.
+
+       The footer never scrolls. The body between the header and it does, so
+       Post is reachable with the keyboard up, which on a phone is the whole
+       difference between a form you can finish and one you cannot. */
+    <div
+      className={cn('fixed inset-0 flex flex-col justify-end bg-[#0f172a]/65 backdrop-blur-[3px] sm:items-center sm:justify-center sm:p-4',
+        raised ? 'z-[140]' : 'z-[100]')}
+      role="dialog" aria-label={asSchool ? 'Post as the school' : 'New status'}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="flex max-h-[92%] w-full flex-col overflow-hidden rounded-t-3xl bg-card text-foreground
+                      shadow-[0_-10px_40px_-10px_rgba(15,23,42,0.4)] sm:max-h-[88vh] sm:max-w-[430px] sm:rounded-3xl">
+        {/* The grab handle: it says which way the sheet moves. */}
+        <span aria-hidden className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30 sm:hidden" />
+
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-[17px] font-extrabold tracking-[-0.01em]">
+              {asSchool ? 'Post as the school' : 'New status'}
+            </h2>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+              Seen for 24 hours, unless kept in the gallery
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground
+                       transition-colors hover:bg-muted/80 hover:text-foreground [@media(pointer:coarse)]:size-10">
+            <X className="size-4" />
           </button>
-          <button type="button" onClick={() => setAudOpen((o) => !o)}
-            className={cn('inline-flex min-w-0 max-w-[60%] items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold transition-transform active:scale-[0.97]', glass)}>
-            <Users className="size-4 shrink-0" /><span className="truncate">{audLabel}</span><ChevronDown className={cn('size-4 shrink-0 transition-transform', audOpen && 'rotate-180')} />
-          </button>
-          {!text ? (
-            <StatusFileInput onPick={setFile} label="Choose another photo or video" className={cn('grid size-11 place-items-center rounded-full', glass)}>
-              <Upload className="size-5" />
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3.5">
+          {text ? (
+            <textarea ref={captionBox} value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={4}
+              aria-label="Status text" placeholder="Type a status" autoFocus
+              className="w-full resize-none rounded-xl bg-primary p-4 text-center text-[20px] font-semibold leading-snug
+                         text-primary-foreground outline-none placeholder:text-primary-foreground/60" />
+          ) : !preview ? (
+            <StatusFileInput onPick={setFile} label="Take or choose a photo or video"
+              className="grid h-40 w-full place-items-center gap-2 rounded-xl border border-dashed bg-surface-sunken/50 p-6 text-center text-[13px] text-muted-foreground">
+              <Camera className="mx-auto size-7" />
+              <span>Take or choose a photo or video</span>
             </StatusFileInput>
-          ) : <span className="size-11" />}
+          ) : (
+            <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-xl bg-foreground/90">
+              {isVideo ? (
+                <video src={preview} className="size-full object-cover" autoPlay loop muted playsInline
+                  onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
+              ) : (
+                <img src={preview} alt="" className="size-full object-cover" />
+              )}
+              <span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-0.5 text-[11px] font-bold text-white">
+                {isVideo ? 'Video' : 'Photo'}
+              </span>
+              <StatusFileInput onPick={setFile} label="Choose another photo or video"
+                className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/65 text-white">
+                <Upload className="size-4" />
+              </StatusFileInput>
+            </div>
+          )}
+
+          {!text && (
+            <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={2}
+              aria-label="Caption" placeholder="Add a caption"
+              className="w-full resize-none rounded-xl border bg-surface-sunken/50 px-3 py-2.5 text-[14px] outline-none
+                         focus:border-primary focus:bg-card [@media(pointer:coarse)]:text-[16px]" />
+          )}
+
+          {/* WHO IT IS FOR: what is chosen, then how to add another.
+
+              The chips are the answer and the select is the question, in that
+              order, because the thing a teacher checks before posting is the
+              list, not the control that built it. */}
+          <div className="flex flex-col gap-2.5 rounded-xl border bg-surface-sunken/50 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[13px] font-extrabold">Who is it for</span>
+              <span className="text-[11px] text-muted-foreground">
+                {picked.length ? `${picked.length} chosen` : 'Choose at least one'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {picked.length === 0 && <span className="text-[12.5px] text-muted-foreground">Nobody yet.</span>}
+              {picked.map((v) => (
+                <span key={v} className="inline-flex items-center gap-1.5 rounded-md border bg-card py-1 pl-2.5 pr-1.5 text-[12.5px] font-bold">
+                  {labelOf(v)}
+                  {/* The last one cannot go: a status with no audience is not
+                      a draft, it is a post that cannot be sent. */}
+                  {picked.length > 1 && (
+                    <button type="button" onClick={() => toggle(v)} aria-label={`Not ${labelOf(v)}`}
+                      className="text-muted-foreground transition-colors hover:text-destructive">
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-1.5">
+              <div className="min-w-0 flex-1">
+                <Select value={next} onChange={setNext}
+                  placeholder={aud.isLoading ? 'Loading' : 'Whole school, a class or a section'}
+                  options={addable.map((o) => ({ value: o.value, label: o.label }))} />
+              </div>
+              <button type="button" disabled={!next} onClick={() => { toggle(next); setNext('') }}
+                className="shrink-0 rounded-lg bg-foreground px-3.5 text-[12.5px] font-bold text-background transition-opacity disabled:opacity-40
+                           [@media(pointer:coarse)]:min-h-[44px]">
+                + Add
+              </button>
+            </div>
+
+            {/* KEEP IT, OR LET IT GO AFTER A DAY. */}
+            <label className="flex cursor-pointer items-center justify-between gap-3 border-t pt-2.5">
+              <span className="min-w-0">
+                <span className="block text-[12.5px] font-bold">Keep in the class gallery</span>
+                <span className="block text-[11px] text-muted-foreground">Pinned, so it does not disappear</span>
+              </span>
+              <input type="checkbox" checked={pin} onChange={(e) => setPin(e.target.checked)} className="peer sr-only" />
+              <span className="relative h-5 w-9 shrink-0 rounded-full bg-muted-foreground/30 transition-colors after:absolute after:left-0.5 after:top-0.5
+                               after:size-4 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-4" />
+            </label>
+          </div>
+
+          {(problem || send.error || aud.error) && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-[12.5px] font-medium text-destructive">
+              {problem || ((send.error || aud.error) as Error).message}
+            </p>
+          )}
+          {aud.data?.needs_approval && (
+            <p className="text-center text-[11.5px] text-muted-foreground">
+              The principal approves statuses before anyone sees them.
+            </p>
+          )}
+          {done && (
+            <p className="rounded-lg bg-success/10 px-3 py-2 text-center text-[13px] font-medium text-success">{done}</p>
+          )}
         </div>
 
-        {audOpen && (
-          <div className="absolute inset-x-6 top-[72px] z-10 max-h-[50%] overflow-y-auto rounded-2xl border border-white/15 bg-[#16181f]/95 p-1.5 text-white shadow-2xl backdrop-blur-md">
-            {options.map((o) => {
-              const on = picked.includes(o.value)
-              return (
-                <button key={o.value} type="button" onClick={() => toggle(o.value)}
-                  className={cn('flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] transition-colors hover:bg-white/10', on && 'font-semibold')}>
-                  <span className="truncate">{o.label}</span>
-                  <span className={cn('grid size-5 shrink-0 place-items-center rounded-full border', on ? 'border-[#dc2626] bg-[#dc2626]' : 'border-white/40')}>
-                    {on && <Check className="size-3.5" strokeWidth={3} />}
-                  </span>
-                </button>
-              )
-            })}
-            {!wholeSchool && <p className="px-3 pb-1.5 pt-1 text-[11.5px] text-white/50">Tick as many classes as you like.</p>}
-          </div>
-        )}
-
-        {/* Bottom: caption, keep, share. */}
-        <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-16">
+        <footer className="flex shrink-0 gap-2.5 border-t bg-card px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-2.5">
           {done ? (
-            <>
-              <p className="rounded-2xl bg-white/15 px-4 py-3 text-center text-[14px] font-medium text-white backdrop-blur-md">{done}</p>
-              <button type="button" onClick={onClose} className="h-14 w-full rounded-full bg-white text-[16px] font-bold text-black">Done</button>
-            </>
+            <button type="button" onClick={onClose}
+              className="h-11 flex-1 rounded-full bg-primary text-[14px] font-bold text-primary-foreground">Done</button>
           ) : (
             <>
-              {!text && (
-                <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={1} aria-label="Caption" placeholder="Add a caption..."
-                  className={cn('block w-full resize-none rounded-2xl px-4 py-3.5 text-[15px] outline-none placeholder:text-white/60 focus:border-white/40', glass)} />
-              )}
-              <div className="flex items-center justify-between gap-3 px-1">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-[14px] font-semibold text-white">
-                  <input type="checkbox" checked={pin} onChange={(e) => setPin(e.target.checked)} className="sr-only" />
-                  <span className={cn('grid size-6 place-items-center rounded-full border-2 transition-colors', pin ? 'border-[#dc2626] bg-[#dc2626]' : 'border-white/60')}>
-                    {pin && <Check className="size-3.5" strokeWidth={3} />}
-                  </span>
-                  Keep in class gallery
-                </label>
-                <span className="text-[12.5px] font-semibold text-white/60">{pin ? 'Kept' : '24h Story'}</span>
-              </div>
-              {(problem || send.error || aud.error) && (
-                <p className="rounded-xl bg-[#dc2626]/25 px-3 py-2 text-[13px] font-medium text-white">
-                  {problem || ((send.error || aud.error) as Error).message}
-                </p>
-              )}
-              {aud.data?.needs_approval && <p className="text-center text-[12px] text-white/60">The principal approves statuses before anyone sees them.</p>}
+              <button type="button" onClick={onClose}
+                className="h-11 flex-1 rounded-full border bg-card text-[13.5px] font-bold text-muted-foreground transition-colors hover:text-foreground">
+                Cancel
+              </button>
               <button type="button" onClick={share} disabled={send.isPending || (text ? !caption.trim() : !file)}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#dc2626] text-[16px] font-bold text-white shadow-[0_10px_30px_-6px_rgba(220,38,38,0.7)] transition-transform active:scale-[0.98] disabled:opacity-60">
-                {send.isPending ? 'Sharing…' : <>Share to Story <ArrowRight className="size-5" /></>}
+                className="h-11 flex-[2] rounded-full bg-primary text-[13.5px] font-bold text-primary-foreground
+                           shadow-[0_4px_12px_rgba(201,42,42,0.3)] transition-transform active:scale-[0.98] disabled:opacity-50">
+                {send.isPending ? 'Posting' : 'Post'}
               </button>
             </>
           )}
-        </div>
+        </footer>
       </div>
     </div>,
     document.body,
