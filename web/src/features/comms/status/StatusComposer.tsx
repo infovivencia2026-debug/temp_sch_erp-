@@ -182,8 +182,15 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       description="Seen for 24 hours, unless you pin it to the class gallery."
       footer={done ? <Button onClick={onClose}>Done</Button> : (
         <>
+          {/* Why it did not post, beside the button where it is seen, not
+              at the foot of a form that has scrolled away. */}
+          {(problem || send.error) && (
+            <span className="mr-auto max-w-[60%] text-[12.5px] font-medium text-destructive">
+              {problem || (send.error as Error).message}
+            </span>
+          )}
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button pending={send.isPending} disabled={text ? !caption.trim() : !file} onClick={() => { setProblem(check()); send.mutate() }}>Post</Button>
+          <Button pending={send.isPending} disabled={text ? !caption.trim() : !file} onClick={() => { const why = check(); setProblem(why); if (!why) send.mutate() }}>Post</Button>
         </>
       )}
     >
@@ -209,7 +216,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
                 <span className="text-sm">Take or choose a photo or video</span>
               </StatusFileInput>
             ) : isVideo ? (
-              <video src={preview} className="size-full object-contain" controls playsInline muted />
+              <video src={preview} className="size-full object-contain" controls playsInline />
             ) : (
               <img src={preview} alt="" className="size-full object-contain" />
             )}
