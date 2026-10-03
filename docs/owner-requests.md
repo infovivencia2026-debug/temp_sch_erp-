@@ -47,7 +47,7 @@ Last checked: 2026-10-02.
 | Asked | Notes |
 |---|---|
 | Animations never cut off part-way | Restarted 2026-10-02 (a restart lost the first attempt) |
-| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Restarted 2026-10-02; builds on the other session's Team screen, ticket queue and recorded support access |
+| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Building (2026-10-03). Done on `main` branch work: requests on the existing ticket model with threads, school Helpdesk first then XULO support (escalation names no child), error Ref codes, Me too, Help Centre (search, topics, articles, tips, report with diagnostics and redacted screenshot, Show me), troubleshooters. Still to do: three-pane seller desk, Quick Assist, known issues and reports |
 | User guide for every role, as one HTML book | Restarted 2026-10-02 |
 | Every screen checked for silly UI mistakes | Restarted 2026-10-02 |
 

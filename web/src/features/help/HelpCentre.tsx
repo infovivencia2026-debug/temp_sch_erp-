@@ -25,6 +25,7 @@ import type {
 import type { List } from '@shared/api/contract'
 import { Redact, type RedactedImage } from './Redact'
 import { showMe } from './Spotlight'
+import { Troubleshooter } from './Troubleshooter'
 import { STAGE_KEY, STAGE_TONE, articleBlocks, shownStage } from './help-lib'
 
 /* THE HELP CENTRE, for every person of a school.
@@ -86,7 +87,7 @@ export default function HelpCentre() {
         )}
         {view === 'topic' && (
           <Topic cat={cats.data?.items.find((c) => c.key === p.topic)} articles={(articles.data?.items ?? []).filter((a) => a.topic === p.topic)}
-            onBack={() => go({}, true)} onReport={() => go({ report: '1', topic: p.topic })} />
+            from={p.from} onBack={() => go({}, true)} onReport={() => go({ report: '1', topic: p.topic })} />
         )}
         {view === 'report' && (
           <Report cats={cats.data?.items ?? []} initialTopic={p.topic} from={p.from} school={school} toVendor={isDesk}
@@ -307,7 +308,7 @@ function Tips() {
 
 // --- topic ---------------------------------------------------------------------
 
-function Topic({ cat, articles, onBack, onReport }: { cat?: HelpCategoryOption; articles: HelpArticleView[]; onBack: () => void; onReport: () => void }) {
+function Topic({ cat, articles, from, onBack, onReport }: { cat?: HelpCategoryOption; articles: HelpArticleView[]; from?: string; onBack: () => void; onReport: () => void }) {
   const { t } = useI18n()
   const [openKey, setOpenKey] = useState<string | null>(articles.length === 1 ? articles[0].key : null)
   return (
@@ -326,6 +327,7 @@ function Topic({ cat, articles, onBack, onReport }: { cat?: HelpCategoryOption; 
           <p className="px-[var(--card-pad)] py-4 text-[14px] text-muted-foreground">{t('help.no_fixes')}</p>
         )}
       </Card>
+      {cat?.troubleshooter && <Troubleshooter kind={cat.troubleshooter} from={from} />}
       <Card className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] py-4">
         <p className="font-medium">{t('help.still_stuck')}</p>
         <Button onClick={onReport}>{t('help.report')}</Button>
@@ -356,7 +358,10 @@ function Report({ cats, initialTopic, from, school, toVendor, onBack, onSent }: 
   const [conversation] = useState<HelpDiagnostics['conversation']>(() => {
     try { const v = sessionStorage.getItem('help.conversation'); return v ? JSON.parse(v) : undefined } catch { return undefined }
   })
-  const diag = useMemo(() => ({ ...collectDiagnostics(route ?? '/help', role?.key, locale), conversation }), [route, role?.key, locale, conversation])
+  const [checks] = useState<HelpDiagnostics['checks']>(() => {
+    try { const v = sessionStorage.getItem('help.checks'); return v ? JSON.parse(v) : undefined } catch { return undefined }
+  })
+  const diag = useMemo(() => ({ ...collectDiagnostics(route ?? '/help', role?.key, locale), conversation, checks }), [route, role?.key, locale, conversation, checks])
   useEffect(() => { try { sessionStorage.setItem('help.draft', body) } catch { /* private mode */ } }, [body])
   useEffect(() => { if (!category && cats.length) setCategory('') }, [cats, category])
 
@@ -388,7 +393,7 @@ function Report({ cats, initialTopic, from, school, toVendor, onBack, onSent }: 
     },
     onSuccess: (r) => {
       buzz('tap')
-      try { sessionStorage.removeItem('help.draft'); sessionStorage.removeItem('help.conversation') } catch { /* private mode */ }
+      try { sessionStorage.removeItem('help.draft'); sessionStorage.removeItem('help.conversation'); sessionStorage.removeItem('help.checks') } catch { /* private mode */ }
       toast.ok(t('help.sent'))
       qc.invalidateQueries({ queryKey: ['help', 'requests'] })
       onSent(r.id)
@@ -404,6 +409,7 @@ function Report({ cats, initialTopic, from, school, toVendor, onBack, onSent }: 
     ['Last failed request', diag.last_failed ? `${diag.last_failed.path} (${diag.last_failed.status})${diag.last_failed.ref ? `, Ref: ${diag.last_failed.ref}` : ''}` : undefined],
     ['Errors on this page', diag.client_errors?.join('; ')],
     ['Assistant conversation', conversation?.length ? `${conversation.length} messages` : undefined],
+    ['Checks run', checks?.length ? checks.map((c) => `${c.ok ? 'OK' : 'Problem'}: ${c.check}`).join('; ') : undefined],
   ]
 
   return (
