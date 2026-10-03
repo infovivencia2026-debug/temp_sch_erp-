@@ -111,6 +111,10 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
   const captionBox = useRef<HTMLTextAreaElement>(null)
   useAutoGrow(captionBox, { minRows: 5, maxRows: 12 }, caption)
   const [choice, setChoice] = useState<Choice>('')
+  /* More classes beside the first (owner: "what if they want to select few classes"). */
+  const [more, setMore] = useState<string[]>([])
+  const wholeSchool = choice === 'school' || choice === 'staff'
+  const targets = () => [choice, ...(wholeSchool ? [] : more.filter((m) => m !== choice))].map((x) => toTarget(x as Choice))
   const [problem, setProblem] = useState('')
   const [done, setDone] = useState('')
 
@@ -180,12 +184,12 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     mutationFn: async () => {
       const why = check()
       if (why) throw new Error(why)
-      if (text) return postStatus({ text: true, caption: caption.trim(), targets: [toTarget(choice)], asSchool })
+      if (text) return postStatus({ text: true, caption: caption.trim(), targets: targets(), asSchool })
       const f = isVideo ? file! : await preparePhoto(file!)
       if (f.size > MAX_BYTES) throw new Error('This photo is over 25 MB.')
       // A cheap picture for the bell; the post goes without it if it cannot be drawn.
       const thumb = await makeThumb(f).catch(() => null)
-      return postStatus({ file: f, thumb, caption: caption.trim(), targets: [toTarget(choice)], asSchool, duration: isVideo ? Math.max(0.1, duration) : undefined })
+      return postStatus({ file: f, thumb, caption: caption.trim(), targets: targets(), asSchool, duration: isVideo ? Math.max(0.1, duration) : undefined })
     },
     onSuccess: async (r) => {
       if (pin && r.id) {
@@ -290,6 +294,22 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
               />
               </span>
             </div>
+            {choice && !wholeSchool && (
+              <div className="space-y-2 px-3.5 py-2.5">
+                {more.filter((m) => m !== choice).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {more.filter((m) => m !== choice).map((m) => (
+                      <button key={m} type="button" onClick={() => setMore(more.filter((x) => x !== m))}
+                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12.5px] font-medium hover:bg-muted/70">
+                        {options.find((o) => o.value === m)?.label ?? m} <span aria-hidden>✕</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <Select value="" onChange={(v) => v && setMore([...more, v])} placeholder="+ Add another class"
+                  options={options.filter((o) => o.value.includes(':') && o.value !== choice && !more.includes(o.value))} />
+              </div>
+            )}
             <label className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3">
               <span className="min-w-0">
                 <span className="block text-[14px]">Keep in the class gallery</span>
