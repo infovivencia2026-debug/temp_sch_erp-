@@ -127,9 +127,11 @@ export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: strin
        watching it. Seen by stays on the My posts page. */
     /* The poster, and the institution admin / principal (status.manage), may pin. */
     footer: (p.mine || canManage) && onPin ? (
-      <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
-        {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
-      </button>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
+          {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
+        </button>
+      </span>
     ) : undefined,
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({

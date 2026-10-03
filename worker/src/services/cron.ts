@@ -51,7 +51,8 @@ export const SCHEDULES: Schedule[] = [
   { name: 'report_digest_daily', spec: '0 7 * * *', kind: 'report:digest_daily', perInstitution: true, payload: env0 },
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
   // AI briefs (services/ai/briefs.ts): the principal's morning brief at 07:00, weekly parent notes on Saturday morning.
-  { name: 'ai_principal_brief', spec: '0 7 * * *', kind: 'ai:principal_brief', perInstitution: true, payload: env0 },
+  // retired 2026-10-03 (owner): no morning brief, no early warnings.
+  // { name: 'ai_principal_brief', spec: '0 7 * * *', kind: 'ai:principal_brief', perInstitution: true, payload: env0 },
   { name: 'ai_parent_weekly', spec: '0 9 * * 6', kind: 'ai:parent_weekly', perInstitution: true, payload: env0 },
   { name: 'transport_trip_timeout', spec: '*/5 * * * *', kind: 'transport:trip_timeout', perInstitution: false, payload: () => ({}) },
   { name: 'transport_position_retention', spec: '20 3 * * *', kind: 'transport:position_retention', perInstitution: false, payload: () => ({}) },
@@ -60,8 +61,8 @@ export const SCHEDULES: Schedule[] = [
   { name: 'security_retention', spec: '40 3 * * *', kind: 'security:retention', perInstitution: false, payload: () => ({}) },
   // Nightly SQL dumps of every school and CONTROL to R2, with retention (services/background/backup.ts).
   // Early warnings (services/ai/warnings.ts): rules nightly, a digest on Monday mornings.
-  { name: 'ai_warnings_nightly', spec: '15 2 * * *', kind: 'ai:warnings_nightly', perInstitution: true, payload: env0 },
-  { name: 'ai_warnings_digest', spec: '30 7 * * 1', kind: 'ai:warnings_digest', perInstitution: true, payload: env0 },
+  // { name: 'ai_warnings_nightly', spec: '15 2 * * *', kind: 'ai:warnings_nightly', perInstitution: true, payload: env0 },
+  // { name: 'ai_warnings_digest', spec: '30 7 * * 1', kind: 'ai:warnings_digest', perInstitution: true, payload: env0 },
   // Admission drip sequences (routes/admissions/campaigns.ts): queue touches that have come due. Idempotent per touch.
   { name: 'admission_campaigns', spec: '*/15 * * * *', kind: 'admissions:campaigns_run', perInstitution: true,
     only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM admission_campaign_sends WHERE status = 'pending'
