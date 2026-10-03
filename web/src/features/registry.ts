@@ -219,6 +219,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      class teacher gets their sections and a read.all holder gets the school.
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
+  /* Same register, wider reach. Which sections it offers is decided by the
+     permission the feature carries, not by the screen: with
+     academics.attendance.write.any it lists every section in the school,
+     without it only the ones this person is class teacher of. */
+  'faculty.attendance.take_attendance_school': screen(() => import('./shared/Attendance')),
   // The register says who is away; this is the call home that follows. Scoped
   // server-side, so a class teacher gets their sections and a read.all holder
   // gets the school, from the one screen.

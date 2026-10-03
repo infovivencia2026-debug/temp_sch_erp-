@@ -267,7 +267,21 @@ const ROLE_PRESETS = [
   { key: 'hod_librarian', name: 'Head of department & librarian', description: 'Heads a department and runs the library. Allocate them a subject and their own teaching screens appear too.', role_keys: ['hod', 'librarian'], recommended: false },
 ]
 const FEATURE_UNLOCKS: Record<string, string[]> = {
-  take_attendance: ['academics.attendance.write', 'academics.attendance.write.any'],
+  /* TWO FEATURES, BECAUSE THEY ARE TWO DIFFERENT POWERS.
+
+     This single entry granted BOTH "mark your own sections" and "mark ANY
+     section". So ticking Take attendance for the class-teacher role -- the
+     obvious thing to do, and what the box says it does -- quietly handed every
+     class teacher in the school the register for every other teacher's class.
+     The role editor even printed it, in grey, under the name: "Also grants:
+     Mark attendance for your own sections, Mark attendance for any section".
+     Nobody reads that as "and everyone else's children too".
+
+     Split. Take attendance is the class teacher's own register and is the one
+     every class teacher should have. Take attendance (whole school) is the
+     office's, and is a deliberate, separate tick. */
+  take_attendance: ['academics.attendance.write'],
+  take_attendance_school: ['academics.attendance.write', 'academics.attendance.write.any'],
   absentee_followup: ['academics.attendance.read', 'academics.attendance.read.all'],
   student_absentees: ['academics.attendance.read', 'academics.attendance.read.all'],
   class_360: ['academics.class360.view', 'students.read', 'students.read.all', 'academics.attendance.read', 'academics.attendance.read.all'],
