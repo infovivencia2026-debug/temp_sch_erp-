@@ -471,10 +471,20 @@
 /* ON A PHONE THE ANSWER SITS ON THE KEYBOARD. The list is pushed to the foot
    of the sheet, against the pill, and the component draws the best group
    last so it is the one nearest the thumb. */
-.lch-list--up { margin-top: auto; }
-/* The pill's own auto margin would share the free space with the list and
-   leave the answer floating mid-sheet; here the list takes all of it. */
-.lch-list--up ~ .lch-searchbar { margin-top: 0; }
+/* THE ANSWER STARTS AT THE TOP.
+
+   This was `margin-top: auto`, which pushed the results down to sit just above
+   the search pill. The intent was to keep the answer near the thumb, and what
+   it produced was two thirds of the sheet empty above a single result hanging
+   over the keyboard -- a web page with its content at the bottom, which is
+   exactly what it was reported as.
+
+   Every search on a phone fills from the top: the first and best answer at the
+   top edge where the eye starts, the list growing downward, the field at the
+   foot under the thumb. The pill keeps the auto margin so it stays at the foot
+   however short the list is. */
+.lch-list--up { margin-top: 0; }
+.lch-list--up ~ .lch-searchbar { margin-top: auto; }
 
 /* Nothing matched: say so, offer words that do, and offer the assistant. */
 .lch-empty { text-align: center; padding-top: 1.6rem; padding-bottom: 1.2rem; }
