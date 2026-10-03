@@ -4633,3 +4633,11 @@ html[data-reduce-motion] :active { transform: none !important; }
 /* The window keeps the platform's bar: it is not inside a rounded box. */
 html { scrollbar-width: auto; }
 html::-webkit-scrollbar { width: initial; }
+
+/* Dropdown lists: a thin, inset scrollbar with no arrow buttons. The default
+   one ran down the rounded edge with its arrows poking out of the corners. */
+[role='listbox'] { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+[role='listbox']::-webkit-scrollbar { width: 6px; }
+[role='listbox']::-webkit-scrollbar-button { display: none; height: 0; }
+[role='listbox']::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
+[role='listbox']::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }

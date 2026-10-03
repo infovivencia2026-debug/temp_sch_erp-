@@ -92,7 +92,7 @@ export default function ClassStatusAdmin() {
             )}
             <Card>
               <CardHeader title="Live and pinned" description="Every status families, children and staff can see right now." />
-              <div className="flex flex-wrap gap-3 px-5 pb-3">
+              <div className="flex flex-wrap gap-3 px-5 pb-3 pt-4">
                 <div className="w-56"><Select value={cls} onChange={setCls} placeholder="All classes" options={[{ value: '', label: 'All classes' }, ...q.data.classes.map((c) => ({ value: c.id, label: c.name }))]} /></div>
                 <div className="w-56"><Select value={poster} onChange={setPoster} placeholder="Everyone" options={[{ value: '', label: 'Everyone' }, ...q.data.posters.map((c) => ({ value: c.id, label: c.name }))]} /></div>
               </div>
