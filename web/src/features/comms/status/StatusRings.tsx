@@ -153,10 +153,19 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const videoIn = useRef<HTMLInputElement>(null)
   const cameraIn = useRef<HTMLInputElement>(null)
   const pickFor = useRef(false)
+  /* ONE POP-UP AFTER THE OTHER. Closing the chooser steps the browser back
+     (that is how a pop-up honours the phone's back button); opening the
+     composer in the same moment let that back close the composer too, so a
+     picked photo led straight back to the home screen. The composer opens
+     once the chooser's back has landed. */
+  const openComposer = (next: { file: File | null; asSchool: boolean; mode?: AddMode }) => {
+    setChoose(null)
+    window.setTimeout(() => setCompose(next), 350)
+  }
   const picked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     e.target.value = ''
-    if (f) { setCompose({ file: f, asSchool: pickFor.current }); setChoose(null) }
+    if (f) openComposer({ file: f, asSchool: pickFor.current })
   }
   const [views, setViews] = useState<string | null>(null)
   /* Photos shared into the app from the phone's gallery (components/ShareInbox.tsx). */
@@ -301,8 +310,8 @@ export default function StatusRings({ className, compact = false, openId, onOpen
       {choose && (
         <AddChooser raised={raised} asSchool={choose.asSchool} allowVideo={data.allow_video} onClose={() => setChoose(null)}
           openPicker={(k) => { pickFor.current = choose.asSchool; (k === 'photo' ? photoIn : k === 'video' ? videoIn : cameraIn).current?.click() }}
-          onPick={(f) => { setCompose({ file: f, asSchool: choose.asSchool }); setChoose(null) }}
-          onText={() => { setCompose({ file: null, asSchool: choose.asSchool, mode: 'text' }); setChoose(null) }} />
+          onPick={(f) => openComposer({ file: f, asSchool: choose.asSchool })}
+          onText={() => openComposer({ file: null, asSchool: choose.asSchool, mode: 'text' })} />
       )}
       {compose && <StatusComposer raised={raised} file={compose.file} mode={compose.mode} asSchool={compose.asSchool} onClose={() => { setCompose(null); void qc.invalidateQueries({ queryKey: FEED_KEY }) }} />}
       {views && <ViewsSheet raised={raised} postId={views} onClose={() => setViews(null)} />}
