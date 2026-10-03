@@ -1563,13 +1563,31 @@ function PermissionOverrides({
           <FormNotice error={features.error} />
         ) : (
           <>
-            <div className="mb-3">
+            {/* THE SEARCH STAYS WHERE IT CAN BE REACHED.
+
+                There are several hundred of these tiles, in two columns, in
+                alphabetical order. The box that narrows them scrolled away
+                with the heading after the first screenful -- so by the time
+                somebody was far enough down to want it, the only way back to
+                it was to scroll all the way up, and the obvious conclusion was
+                that there is no search. It sticks to the top of the list it
+                filters, which is the one place it is any use.
+
+                A count beside it, because "Take attendance" matching two tiles
+                and matching none look identical when the answer is below the
+                fold. */}
+            <div className="sticky top-0 z-10 -mx-1 mb-3 flex flex-wrap items-center gap-2 bg-card px-1 pb-3 pt-1">
               <SearchBox
                 value={featureSearch}
                 onChange={setFeatureSearch}
                 placeholder="Search features by name"
-                className="w-full"
+                className="min-w-[220px] flex-1"
               />
+              <span className="shrink-0 text-[12.5px] text-muted-foreground">
+                {featureSearch.trim()
+                  ? `${shownFeatures.length} of ${features.data?.items.length ?? 0}`
+                  : `${features.data?.items.length ?? 0} features`}
+              </span>
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {shownFeatures.map((f) => {
