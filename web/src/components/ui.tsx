@@ -664,8 +664,24 @@ function cellText(node: ReactNode): string {
 }
 
 /** One CSV field: quoted only when it has to be, which keeps the file readable. */
+/* MONEY LEAVES AS A NUMBER.
+
+   A fee rendered on screen is ₹1,000 -- the symbol is what makes it readable
+   there. In a spreadsheet it is neither readable nor useful: the column cannot
+   be summed, sorted or compared, because every cell is text. And it arrived
+   mangled besides, as "a,1,000", because a BOM is advice and Excel on a
+   Windows machine in this region does not always take it.
+
+   So a cell that is ONLY money becomes the bare figure: 1000. One rule rather
+   than a per-screen opt-in, because the next table to be exported would have
+   to remember. A cell carrying money and words together is left alone --
+   "₹1,200 of ₹5,000 paid" is a sentence, and half-converting a sentence is
+   worse than leaving it whole. */
+const MONEY_ONLY = /^₹\s?[\d,]+(?:\.\d+)?$/
+
 function csvField(v: string): string {
-  const t = v.replace(/\s+/g, ' ').trim()
+  let t = v.replace(/\s+/g, ' ').trim()
+  if (MONEY_ONLY.test(t)) t = t.replace(/[₹,\s]/g, '')
   return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
 }
 

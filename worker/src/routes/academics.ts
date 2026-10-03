@@ -397,6 +397,22 @@ async function listActivityMembers(c: Ctx) {
     SELECT sa.id, st.first_name || COALESCE(' ' || st.last_name, '') AS name, st.admission_no,
            (SELECT cl.name || '-' || sec.name FROM enrollments e JOIN sections sec ON sec.id = e.section_id JOIN classes cl ON cl.id = sec.class_id
              WHERE e.student_id = st.id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS class_label,
+           /* WHO TO RING ABOUT THIS CHILD.
+
+              The list named the child and said whether the activity fee was
+              paid, and the one thing anybody does with an unpaid row is
+              telephone the family -- which meant leaving this screen, opening
+              the child's record and coming back. The primary guardian first,
+              then any guardian with a number, because a list of children with
+              nobody to call is a list you cannot act on. */
+           (SELECT COALESCE(g.phone, '')
+              FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id AND COALESCE(g.phone, '') <> ''
+             ORDER BY sg.is_primary DESC LIMIT 1) AS guardian_phone,
+           (SELECT g.full_name
+              FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id AND COALESCE(g.phone, '') <> ''
+             ORDER BY sg.is_primary DESC LIMIT 1) AS guardian_name,
            sa.enrolled_on, sa.fee_paise, inv.status AS invoice_status, inv.paid_paise, inv.net_paise
       FROM student_activities sa JOIN students st ON st.id = sa.student_id
       LEFT JOIN invoices inv ON inv.id = sa.invoice_id

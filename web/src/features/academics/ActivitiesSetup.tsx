@@ -139,7 +139,27 @@ export default function ActivitiesSetup() {
                     {a.fee_paise > 0 ? formatPaise(a.fee_paise) : 'free'}
                   </Td>
                   <Td className="tabular-nums">
-                    {a.enrolled}
+                    {/* THE COUNT OPENS THE NAMES.
+
+                        "Enrolled 1" is the start of a question, not the end of
+                        one: whoever reads it wants to know WHO, what class they
+                        are in, whether they have paid and what number to ring
+                        if they have not. All of that was behind a button
+                        labelled "Add students", which is a different errand and
+                        reads as one. The number is the door to the list it
+                        counts. */}
+                    {a.enrolled > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => { setMembers(a); setEditing(null); setAdding(false) }}
+                        className="font-semibold text-primary underline-offset-2 hover:underline"
+                        title={`Who is enrolled in ${a.name}`}
+                      >
+                        {a.enrolled}
+                      </button>
+                    ) : (
+                      a.enrolled
+                    )}
                     {/* A capacity of nought means no limit, which is the
                         common case — so it prints nothing rather than "/0". */}
                     {a.capacity > 0 && (

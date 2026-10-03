@@ -30,7 +30,7 @@ export default function ActivityMembers({ activity, onClose }: {
   })
   const members = useQuery({
     queryKey: ['activity-members', activity.id],
-    queryFn: () => api.get<List<{ id: string; name: string; admission_no: string; class_label?: string; payment: 'paid' | 'unpaid' | 'no_fee' }>>(`/api/v1/academics/activities/${activity.id}/members`),
+    queryFn: () => api.get<List<{ id: string; name: string; admission_no: string; class_label?: string; guardian_name?: string; guardian_phone?: string; payment: 'paid' | 'unpaid' | 'no_fee' }>>(`/api/v1/academics/activities/${activity.id}/members`),
   })
   const seatsLeft = activity.capacity > 0 ? Math.max(0, activity.capacity - activity.enrolled) : null
 
@@ -69,12 +69,37 @@ export default function ActivityMembers({ activity, onClose }: {
               <span>Enrolled · {members.data!.items.length}</span>
               <span>{members.data!.items.filter((m) => m.payment === 'unpaid').length} not paid yet</span>
             </div>
-            <ul className="max-h-60 divide-y overflow-auto">
+            {/* WHO, WHERE, WHO TO RING, AND WHETHER THEY HAVE PAID.
+
+                It was a name, a class and a badge. The one thing anybody does
+                with "not paid" is telephone the family, and the number was two
+                screens away -- the child's record and back. It is a table now,
+                with the parent's name and number beside each child and the
+                number a tap-to-call link, because on the phone this screen is
+                most often read on, that is the whole errand. */}
+            <ul className="max-h-72 divide-y overflow-auto">
               {members.data!.items.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2">
-                  <span className="min-w-0 text-[14px]"><b className="font-semibold">{m.name}</b> <span className="text-[12.5px] text-muted-foreground">{m.class_label ?? ''} · {m.admission_no}</span></span>
+                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-semibold">{m.name}</span>
+                    <span className="block truncate text-[12.5px] text-muted-foreground">
+                      {[m.class_label, m.admission_no].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  <span className="min-w-0 shrink-0 text-right">
+                    {m.guardian_phone ? (
+                      <a href={`tel:${m.guardian_phone}`} className="block font-mono text-[13px] text-primary">
+                        {m.guardian_phone}
+                      </a>
+                    ) : (
+                      <span className="block text-[12.5px] text-muted-foreground">no number on record</span>
+                    )}
+                    {m.guardian_name && (
+                      <span className="block truncate text-[11.5px] text-muted-foreground">{m.guardian_name}</span>
+                    )}
+                  </span>
                   <span className={'shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ' + (m.payment === 'unpaid' ? 'bg-[#fef3c7] text-[#b45309]' : m.payment === 'paid' ? 'bg-[#dcfce7] text-[#15803d]' : 'bg-muted text-muted-foreground')}>
-                    {m.payment === 'unpaid' ? 'Enrolled · not paid' : m.payment === 'paid' ? 'Paid' : 'No fee'}
+                    {m.payment === 'unpaid' ? 'Not paid' : m.payment === 'paid' ? 'Paid' : 'No fee'}
                   </span>
                 </li>
               ))}
