@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import SchoolGallery from '@/features/comms/status/SchoolGallery'
+import StatusComposer from '@/features/comms/status/StatusComposer'
+import type { AddMode } from '@/features/comms/status/status-api'
 import { useStatusFeed } from '@/features/comms/status/status-api'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
@@ -176,6 +178,15 @@ export default function Notifications() {
   const [closing, setClosing] = useState(false)
   const [filter, setFilter] = useState('all')
   const [gallery, setGallery] = useState(false)
+  /* A status picked in the drawer is written outside it: the drawer closes,
+     then the composer opens on its own (it survived nothing inside the drawer). */
+  const [composeReq, setComposeReq] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
+  const [composing, setComposing] = useState<typeof composeReq>(null)
+  useEffect(() => {
+    if (!composeReq) return
+    const t = window.setTimeout(() => { setComposing(composeReq); setComposeReq(null) }, 450)
+    return () => window.clearTimeout(t)
+  }, [composeReq])
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
@@ -509,14 +520,14 @@ export default function Notifications() {
 
             {/* Class Status: Add, then the rings, unseen first. Draws nothing
                 when the school has it off or there is nothing to show. */}
-            {shownType === 'activity' && <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />}
+            {shownType === 'activity' && <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card"
+              onCompose={(next) => { setComposeReq(next); dismiss() }} />}
             {shownType === 'activity' && (
-              <button type="button" onClick={() => setGallery(true)}
+              <button type="button" onClick={() => { dismiss(); window.setTimeout(() => setGallery(true), 300) }}
                 className="mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl border bg-card px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-muted/50">
                 <span>📸 School gallery</span><span className="text-muted-foreground">→</span>
               </button>
             )}
-            {gallery && <SchoolGallery onClose={() => setGallery(false)} />}
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
               {false ? (
@@ -681,6 +692,8 @@ export default function Notifications() {
           </Dialog>
         )
       })()}
+      {gallery && <SchoolGallery onClose={() => setGallery(false)} />}
+      {composing && <StatusComposer raised file={composing.file} mode={composing.mode} asSchool={composing.asSchool} onClose={() => setComposing(null)} />}
     </>
   )
 }
