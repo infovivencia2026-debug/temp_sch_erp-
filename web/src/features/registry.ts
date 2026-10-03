@@ -213,6 +213,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Class Status: the teacher's composer and own posts; the principal's school-wide view, approvals and settings. */
   'faculty.communication.class_status': screen(() => import('./comms/ClassStatus')), // feature:communication.class_status
   'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
+  'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.

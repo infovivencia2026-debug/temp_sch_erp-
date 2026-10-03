@@ -9,6 +9,8 @@ import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui'
+import { helpHref } from '@/features/help/help-lib'
 import { PickerMenu } from '@/components/PickerMenu'
 import { useOpenState } from '@/lib/motion'
 import { ToolSteps } from '@/components/assistant/ToolSteps'
@@ -1243,6 +1245,20 @@ export function AssistantTab() {
                           </span>
                         ))
                     : turn.text}
+                  {/* "This didn't help": the request form, with this conversation attached
+                      (features/help/HelpCentre.tsx reads it). Only under the last answer. */}
+                  {turn.role === 'bot' && i === lastIdx && i !== printingIdx && state === 'idle' && (
+                    <div className="mt-2">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        try {
+                          sessionStorage.setItem('help.conversation', JSON.stringify(turns.filter((x) => x.role !== 'error')
+                            .map((x) => ({ role: x.role === 'user' ? 'user' : 'assistant', text: x.text })).slice(-20)))
+                        } catch { /* private mode: the form opens without it */ }
+                        setOpen(false)
+                        navigate(helpHref(location.pathname + location.search, 'report=1'))
+                      }}>This didn't help</Button>
+                    </div>
+                  )}
                   {turn.role === 'error' && i === lastIdx && lastAsked.current && (
                     <button
                       type="button"

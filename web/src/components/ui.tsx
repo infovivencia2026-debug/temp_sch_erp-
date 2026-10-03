@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
+import { CopyRef } from './CopyRef'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -144,7 +145,7 @@ export function PageHead({
           {eyebrow ? (
             <h1 className="sr-only">{title}</h1>
           ) : (
-            <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
+            <h1 data-help-anchor="page-title" className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
           )}
           {/* The description is no longer drawn.
 
@@ -2290,8 +2291,9 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
         : status ? `The server refused this (${status}). Try again, or reload the page.`
         : 'Something went wrong. Try again, or reload the page.')
     return (
-      <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
-        {msg}
+      <p className="flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
+        <span className="min-w-0">{msg}</span>
+        <CopyRef text={msg} />
       </p>
     )
   }
@@ -2309,6 +2311,7 @@ export function ErrorState({ error }: { error: unknown }) {
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
+      <div className="mt-2 flex justify-center"><CopyRef text={msg} /></div>
     </Card>
   )
 }

@@ -84,6 +84,62 @@
         "web/src/features/comms/status/status-api.ts",
         "worker/src/services/class_status.ts"
       ]
+    },
+    "help.helpdesk": {
+      "name": "Helpdesk",
+      "summary": "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.",
+      "section": "help",
+      "sectionName": "Help",
+      "slug": "helpdesk",
+      "roles": [
+        "institution_admin"
+      ],
+      "keys": [
+        "institution_admin.help.helpdesk"
+      ],
+      "module": "help",
+      "webDir": "help",
+      "planModule": "core",
+      "apiBase": "/help/desk",
+      "readPerm": "help.desk.read",
+      "writePerm": "help.desk.write",
+      "table": null,
+      "group": "help_helpdesk",
+      "createdPerms": [
+        {
+          "key": "help.desk.read",
+          "module": "help",
+          "desc": "View Helpdesk"
+        },
+        {
+          "key": "help.desk.write",
+          "module": "help",
+          "desc": "Manage Helpdesk"
+        }
+      ],
+      "grants": {
+        "institution_admin": [
+          "help.desk.read",
+          "help.desk.write"
+        ]
+      },
+      "grantWhere": {
+        "institution_admin help.desk.read": [
+          "static_data"
+        ],
+        "institution_admin help.desk.write": [
+          "static_data"
+        ]
+      },
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0030_feature_helpdesk.sql",
+      "files": [
+        "shared/api/feature_helpdesk.ts",
+        "web/src/features/help/Helpdesk.tsx",
+        "worker/migrations/tenant/0030_feature_helpdesk.sql",
+        "worker/src/routes/help/helpdesk.ts",
+        "worker/test/integration/feature_helpdesk.test.ts"
+      ]
     }
   }
 }

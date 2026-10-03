@@ -47,7 +47,7 @@ Last checked: 2026-10-02.
 | Asked | Notes |
 |---|---|
 | Animations never cut off part-way | Restarted 2026-10-02 (a restart lost the first attempt) |
-| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Restarted 2026-10-02; builds on the other session's Team screen, ticket queue and recorded support access |
+| Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Built on `main` 2026-10-03, not yet on the test site: Help (? key, top bar, Settings > Account > Help), requests answered by the school's Helpdesk first then XULO support (no child's name ever sent), error Ref codes, Me too, troubleshooters, three-pane desk, Quick Assist (read-only), known issues, reports, help content edited once for every school. Telugu: Help Centre chrome only; articles English until read by a Telugu speaker |
 | User guide for every role, as one HTML book | Restarted 2026-10-02 |
 | Every screen checked for silly UI mistakes | Restarted 2026-10-02 |
 
@@ -89,7 +89,7 @@ Last checked: 2026-10-02.
 - `*.xulo.in` DNS record and the school-address proxy deploy; switchover go-ahead.
 - PhonePe keys; WhatsApp, SMS, email and push accounts; Gemini key rotation.
 - Yajur and JSM admin sign-ins, to issue logins there.
-- A Telugu speaker's read of the new Telugu strings.
+- A Telugu speaker's read of the new Telugu strings (now also the Help Centre's: web/src/locales/te.ts, keys help.*).
 - Real-phone check of: keyboard behaviour in the assistant chat and All features search.
 
 ## Known and not fixed

@@ -393,6 +393,7 @@ export default function Notifications() {
       <button
         onClick={() => (open ? dismiss() : setOpen(true))}
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        data-help-anchor="bell"
         aria-expanded={open}
         // data-tip as well as title: the dock draws its own label instantly,
         // and the browser's own tooltip takes about a second to appear, so in

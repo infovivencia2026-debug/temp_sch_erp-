@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 425 features.
+// Roles is the catalog: 24 roles, 426 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -492,6 +492,14 @@ var Roles = []Role{
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
+				},
+			},
+			{
+				Slug:      "help",
+				Name:      "Help",
+				Workspace: "Help",
+				Features: []Feature{
+					{Key: "institution_admin.help.helpdesk", Slug: "helpdesk", Name: "Helpdesk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child."},
 				},
 			},
 		},
