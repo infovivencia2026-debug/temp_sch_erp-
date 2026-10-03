@@ -416,8 +416,18 @@ export default function Notifications() {
                button is 32px in the desk dock and 44 on a phone, and pinned
                to the corner the badge sat squarely on the bell in the first
                and floated clear of it in the second. */
-            className="absolute left-[calc(50%+1px)] top-[calc(50%-16px)] grid h-4 min-w-4 place-items-center rounded-full
-                       bg-destructive px-1 text-[12px] font-medium leading-none text-destructive-foreground"
+            /* TWO CHARACTERS NEED ROOM FOR TWO CHARACTERS.
+
+               16px tall with 12px type is right for a single digit and too
+               tight for "9+": the plus sat half outside the pill, which on a
+               red circle reads as a rendering fault rather than a count. A
+               little taller, type a little smaller, padding that grows with
+               the content, and nowrap so it can never break across two lines
+               inside a 17px circle. */
+            className="absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
+                       place-items-center whitespace-nowrap rounded-full bg-destructive px-[5px]
+                       text-[10.5px] font-semibold leading-none tracking-tight text-destructive-foreground
+                       tabular-nums"
             aria-hidden
           >
             {unread > 9 ? '9+' : unread}
