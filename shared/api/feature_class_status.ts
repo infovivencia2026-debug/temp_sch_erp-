@@ -22,6 +22,8 @@ export interface StatusItem {
   thumb?: string
   /** How wide it went, without naming the list: everyone sees this. */
   scope: 'school' | 'staff' | 'class'
+  /** For a family: which of their children it was for (student ids). */
+  for_kids?: string[]
   /** How many people have hearted it. */
   likes: number
   /** Whether the person this feed was built for is one of them. */
