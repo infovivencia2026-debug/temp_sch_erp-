@@ -1029,6 +1029,9 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
     color: #fff;
   }
   .auth-split .card input::placeholder { color: rgba(255, 255, 255, 0.45); }
+  /* The eye sits on the same glass: the page's grey measured under 3:1 on it. */
+  .auth-split .card .pw > button.pw-eye { color: rgba(255, 255, 255, 0.8); }
+  .auth-split .card .pw > button.pw-eye:hover { color: #fff; }
   .auth-split .card input:focus { border-color: rgba(255, 255, 255, 0.6); }
   .auth-split .card button[type="submit"] {
     background: #ffffff;

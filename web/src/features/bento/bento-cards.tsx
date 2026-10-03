@@ -1,4 +1,4 @@
-import { Fragment, createContext, forwardRef, useCallback, useContext, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
+import { Fragment, createContext, forwardRef, useCallback, useContext, useEffect, useId, useImperativeHandle, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ArrowUpRight, Check, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
@@ -519,8 +519,13 @@ export function CardShell({
                sentence, and the card reads as calm rather than as empty. */
             value === '-' || quiet
               ? 'leading-tight text-[length:min(22px,var(--card-fig,30px))]'
-              : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
+              : 'leading-[0.95] text-[length:min(var(--card-fig,30px),calc(100cqw/var(--fig-ch,1)/0.6))]',
           )}
+          /* A CEILING FROM THE CARD'S WIDTH, in CSS so it holds before any
+             script runs: a digit is about 0.6em, so a figure of n characters
+             is never set larger than the card's width over 0.6n. The fit
+             above still trims what shares the row with it. */
+          style={typeof value === 'string' ? ({ '--fig-ch': Math.max(1, value.trim().length) } as CSSProperties) : undefined}
         >
           {typeof value === 'string' ? <Figure text={value} /> : value}
         </p>
@@ -675,17 +680,53 @@ export function useFitFigure(dep: unknown) {
     if (!el || typeof ResizeObserver === 'undefined') return
     const fit = () => {
       el.style.fontSize = ''
-      const avail = el.clientWidth
-      const need = el.scrollWidth
-      if (avail > 0 && need > avail + 1) {
-        const base = parseFloat(getComputedStyle(el).fontSize)
-        el.style.fontSize = `${Math.max(14, Math.floor(base * (avail / need) * 0.98))}px`
+      /* The room is the ROW's width less whatever shares the row (the
+         "51% of billed" beside it), not the figure's own box: the figure is a
+         flex item, so its box shrinks with its text and was never a fixed
+         measure to fit against. */
+      const row = el.parentElement
+      const room = () => {
+        if (!row || getComputedStyle(row).display !== 'flex') return el.clientWidth
+        const gap = parseFloat(getComputedStyle(row).columnGap) || 0
+        let w = row.clientWidth
+        for (const s of Array.from(row.children)) if (s !== el) w -= (s as HTMLElement).offsetWidth + gap
+        return w
+      }
+      let size = parseFloat(getComputedStyle(el).fontSize)
+      /* Not quite proportional (the currency mark has a pixel floor), so
+         step down until it really fits rather than trusting one ratio. */
+      for (let i = 0; i < 5 && size > 14; i++) {
+        const avail = room()
+        const need = el.scrollWidth
+        if (avail <= 0 || need <= avail + 1) break
+        size = Math.max(14, Math.floor(size * (avail / need) * 0.98))
+        el.style.fontSize = `${size}px`
       }
     }
     fit()
-    const ro = new ResizeObserver(fit)
+    /* The figure's size comes from the CELL's height (`--card-fig` is in
+       cqh), so the cell is watched as well as the row; and it is measured
+       again once the web font has arrived, which is wider than the fallback
+       the first fit ran against ("₹23,58,700" was left as "₹23,58,7…"). */
+    /* Only a change in the room or the cell's height re-fits. The row's own
+       height moves with the figure's size, so re-fitting on any resize of it
+       reset the size, grew the row, re-fitted, and could stop on the reset. */
+    const cell = el.closest('.bento-cell')
+    let seen = ''
+    const ro = new ResizeObserver(() => {
+      const key = `${el.parentElement?.clientWidth}|${cell?.clientWidth}x${cell?.clientHeight}`
+      if (key === seen) return
+      seen = key
+      fit()
+    })
     ro.observe(el.parentElement ?? el)
-    return () => ro.disconnect()
+    if (cell) ro.observe(cell)
+    let live = true
+    document.fonts?.ready.then(() => { if (live) fit() })
+    return () => {
+      live = false
+      ro.disconnect()
+    }
   }, [dep])
   return ref
 }
