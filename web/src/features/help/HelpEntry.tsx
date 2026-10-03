@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useOpenHelp } from './help-lib'
 import { HelpSpotlight } from './Spotlight'
+import { AssistBanner } from './Assist'
 
 /* The ways into Help that every screen carries: the "?" key on a computer
    (not while typing), and the Show me ring. Mounted once in the shell. */
@@ -24,7 +25,7 @@ export function HelpEverywhere() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [openHelp, loc.pathname])
-  return <HelpSpotlight />
+  return <><HelpSpotlight /><AssistBanner /></>
 }
 
 /** The Help button in the top bar and at the foot of the rail. */

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { Badge, Button, Card, Checkbox, ErrorState, FormNotice, Loading, Textarea } from '@/components/ui'
+import { api, setActingInstitution } from '@/lib/api'
+import { Badge, Button, Card, Checkbox, ErrorState, FormNotice, Input, Loading, Textarea } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { ConversationPane } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
@@ -293,5 +293,30 @@ function ContextPanel({ v, c, error }: { v: Detail; c?: Context; error: unknown 
         </>
       )}
     </div>
+  )
+}
+
+/* Quick Assist, the desk's side: the code the person reads out starts a
+   read-only session in their school (worker/src/routes/help/assist.ts). */
+export function JoinWithCode() {
+  const [code, setCode] = useState('')
+  const join = useMutation({
+    mutationFn: () => api.post<{ institution_id: string; school: string; person: string; expires_at: string }>(`${BASE}/assist/redeem`, { code }),
+    onSuccess: () => { buzz('tap'); setCode('') },
+  })
+  return (
+    <Card className="space-y-2 p-[var(--card-pad)]">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-40"><Input value={code} onChange={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} srLabel="Quick Assist code" placeholder="Six-digit code" /></div>
+        <Button variant="secondary" disabled={code.length !== 6} pending={join.isPending} onClick={() => join.mutate()}>Join with a code</Button>
+      </div>
+      {join.data && (
+        <div className="flex flex-wrap items-center gap-2 text-[14px]">
+          <span>{join.data.person} at {join.data.school} agreed. Read-only until {new Date(join.data.expires_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}.</span>
+          <Button size="sm" onClick={() => { setActingInstitution(join.data!.institution_id); window.location.assign('/') }}>Look at the school</Button>
+        </div>
+      )}
+      <FormNotice error={join.error} />
+    </Card>
   )
 }

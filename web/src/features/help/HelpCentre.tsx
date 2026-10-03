@@ -26,6 +26,7 @@ import type { List } from '@shared/api/contract'
 import { Redact, type RedactedImage } from './Redact'
 import { showMe } from './Spotlight'
 import { Troubleshooter } from './Troubleshooter'
+import { AssistCard } from './Assist'
 import { STAGE_KEY, STAGE_TONE, articleBlocks, shownStage } from './help-lib'
 
 /* THE HELP CENTRE, for every person of a school.
@@ -173,6 +174,7 @@ function Home({ cats, articles, requests, onTopic, onRequest, onReport, onAll }:
           )}
 
           <Tips />
+          <AssistCard />
 
           <div className="flex justify-center pb-2">
             <span data-help-anchor="help-report"><Button onClick={onReport}>{t('help.report')}</Button></span>

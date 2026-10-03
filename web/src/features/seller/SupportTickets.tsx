@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, CellGrid, Stat, Button, SkeletonTable, ErrorState, TAB_BAR, tabClass } from '@/components/ui'
 import { type VendorTicket } from '../super_admin/platform-lib'
-import { DeskPanes } from './SupportDesk'
+import { DeskPanes, JoinWithCode } from './SupportDesk'
 import { HelpContent } from './HelpContent'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
@@ -102,6 +102,7 @@ export default function SupportTickets() {
           <button type="button" className={tabClass(view === 'content')} aria-current={view === 'content' ? 'page' : undefined} onClick={() => setView('content')}>Help content</button>
         </nav>
         {view === 'content' ? <HelpContent /> : <>
+        <JoinWithCode />
         <CellGrid cols={4}>
           <Stat
             label="In the queue"
