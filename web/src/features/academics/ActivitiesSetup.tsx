@@ -151,7 +151,11 @@ export default function ActivitiesSetup() {
                     {a.enrolled > 0 ? (
                       <button
                         type="button"
-                        onClick={() => { setMembers(a); setEditing(null); setAdding(false) }}
+                        /* The panel is drawn above this table, so opening it from a row
+                           further down leaves it off-screen -- the same reason the Add
+                           students button scrolls. A list that opens where you cannot
+                           see it has not opened. */
+                        onClick={() => { setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                         className="font-semibold text-primary underline-offset-2 hover:underline"
                         title={`Who is enrolled in ${a.name}`}
                       >

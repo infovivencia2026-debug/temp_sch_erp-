@@ -3,7 +3,7 @@ import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, Image as ImageIcon, Type, Video } from 'lucide-react'
 import { api } from '@/lib/api'
-import { Button, Dialog, Field, FormNotice, Select, Textarea } from '@/components/ui'
+import { Button, Dialog, FormNotice, Select } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { MAX_BYTES, makeThumb, postStatus, preparePhoto, videoSeconds, type AddMode, type Audiences, type TargetPick } from './status-api'
 
@@ -155,6 +155,20 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     return ''
   }
 
+  /* PIN IT AS YOU POST IT.
+
+     A status disappears after 24 hours unless it is pinned to the class
+     gallery, and pinning was only reachable afterwards, from the viewer --
+     so the sports day photograph everybody wanted kept had to be posted,
+     found again and pinned, and mostly was not. The decision is made while
+     choosing the picture, so it is asked while choosing the picture.
+
+     It is a second request after the post, because the create endpoint takes
+     no pin and inventing a field it ignores would be a switch that does
+     nothing. A pin that fails leaves the status posted and says so rather
+     than failing the post itself. */
+  const [pin, setPin] = useState(false)
+
   const send = useMutation({
     mutationFn: async () => {
       const why = check()
@@ -166,7 +180,12 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       const thumb = await makeThumb(f).catch(() => null)
       return postStatus({ file: f, thumb, caption: caption.trim(), targets: [toTarget(choice)], asSchool, duration: isVideo ? Math.max(0.1, duration) : undefined })
     },
-    onSuccess: (r) => {
+    onSuccess: async (r) => {
+      if (pin && r.id) {
+        await api.post(`/api/v1/status/posts/${r.id}/pin`, { pinned: true }).catch(() => {
+          setProblem('Posted, but it could not be pinned. Pin it from the status itself.')
+        })
+      }
       void qc.invalidateQueries({ queryKey: ['notifications'] })
       void qc.invalidateQueries({ queryKey: ['class-status-mine'] })
       void qc.invalidateQueries({ queryKey: ['class-status-admin'] })
@@ -222,20 +241,66 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
               <img src={preview} alt="" className="size-full object-contain" />
             )}
           </div>
-          {preview && (
-            <StatusFileInput onPick={setFile} label="Choose another" className="justify-self-start text-sm underline">
-              Choose another
-            </StatusFileInput>
-          )}
           </>)}
-          <Field label="Who is it for" required>
-            <Select value={choice} onChange={setChoice} options={options} placeholder={aud.isLoading ? 'Loading…' : 'Choose'} />
-          </Field>
+
+          {/* THE CAPTION SITS ON THE PICTURE'S OWN CARD, not in a labelled
+              form field. A caption is part of the thing being posted, and a
+              label reading "Caption · Optional · Shown along the bottom" is
+              three facts about a box that holds one sentence. */}
           {!text && (
-            <Field label="Caption" hint="Optional. Shown along the bottom.">
-              <Textarea value={caption} onChange={setCaption} rows={2} placeholder="What is happening" />
-            </Field>
+            <div className="rounded-2xl border bg-surface-sunken/50 px-3.5 py-2.5">
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value.slice(0, 700))}
+                rows={2}
+                aria-label="Caption"
+                placeholder="Add a caption…"
+                className="w-full resize-none bg-transparent text-[14px] leading-snug outline-none placeholder:text-muted-foreground"
+              />
+            </div>
           )}
+
+          {/* THE SETTINGS, AS ONE INSET GROUP.
+
+              Two decisions -- who sees it, and whether it outlives the day --
+              drawn as rows in a single rounded panel with a hairline between
+              them, the way a phone draws a short form. They were a labelled
+              Select and nothing at all: pinning could only be done afterwards,
+              from the viewer, which is why so little is ever pinned. */}
+          <div className="divide-y overflow-hidden rounded-2xl border">
+            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+              <span className="shrink-0 text-[14px]">Who is it for</span>
+              <span className="min-w-0 max-w-[58%] flex-1">
+              <Select
+                value={choice}
+                onChange={setChoice}
+                options={options}
+                placeholder={aud.isLoading ? 'Loading…' : 'Choose'}
+              />
+              </span>
+            </div>
+            <label className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3">
+              <span className="min-w-0">
+                <span className="block text-[14px]">Keep in the class gallery</span>
+                <span className="block text-[12px] text-muted-foreground">
+                  Pinned, so it does not disappear tomorrow
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={pin}
+                onChange={(e) => setPin(e.target.checked)}
+                className="size-[22px] shrink-0 accent-[var(--primary,theme(colors.primary.DEFAULT))]"
+              />
+            </label>
+          </div>
+
+          <p className="text-center text-[12px] text-muted-foreground">
+            {pin
+              ? 'Kept in the class gallery until somebody removes it.'
+              : 'Seen for 24 hours, then it goes.'}
+          </p>
+
           {aud.data?.needs_approval && <p className="text-[13px] text-muted-foreground">The principal approves statuses at this school before anyone sees them.</p>}
           <FormNotice error={problem || send.error || aud.error} />
         </div>
