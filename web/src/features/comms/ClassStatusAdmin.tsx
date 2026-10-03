@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Eye, Pin, PinOff, Plus, Trash2, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
-import { Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, FormGrid, FormNotice, PageBody, PageHead, Select } from '@/components/ui'
+import { Button, Card, CardHeader, EmptyState, ErrorState, FormNotice, PageBody, PageHead, Select } from '@/components/ui'
 import { ViewsSheet } from './status/StatusRings'
 import StatusComposer, { StatusFileInput } from './status/StatusComposer'
 import { PostThumb } from './ClassStatus'
@@ -41,6 +41,10 @@ export default function ClassStatusAdmin() {
   })
   const save = useMutation({ mutationFn: (s: Partial<StatusSettings>) => api.put('/api/v1/status/settings', s), onSuccess: refresh })
   const s = q.data?.settings
+  /* Changes are held until Save (the owner's design), not sent on every click. */
+  const [draft, setDraft] = useState<StatusSettings | null>(null)
+  const d = draft ?? s
+  const setD = (patch: Partial<StatusSettings>) => d && setDraft({ ...d, ...patch })
   const pending = q.data?.items.filter((p) => p.status === 'pending') ?? []
   const live = q.data?.items.filter((p) => p.status === 'live') ?? []
   const school = session.institution?.display_name || session.institution?.short_name || session.institution?.name || 'the school'
@@ -98,24 +102,49 @@ export default function ClassStatusAdmin() {
               </div>
               {live.length === 0 ? <EmptyState title="No statuses right now" /> : <ul className="divide-y">{live.map(row)}</ul>}
             </Card>
-            {s && (
-              <Card>
-                <CardHeader title="Settings" />
-                <div className="px-5 pb-5">
-                  <FormGrid>
-                    <Field label="Class Status"><Checkbox checked={s.enabled} onChange={(v) => save.mutate({ enabled: v })} label="On for this school" /></Field>
-                    <Field label="Approval"><Checkbox checked={s.needs_approval} onChange={(v) => save.mutate({ needs_approval: v })} label="Teachers' posts wait for approval" /></Field>
-                    <Field label="Who may post">
-                      <Select value={s.who} onChange={(v) => save.mutate({ who: v as StatusSettings['who'] })} options={[
-                        { value: 'teachers', label: 'All teachers' }, { value: 'class_teachers', label: 'Class teachers only' }, { value: 'admins', label: 'Principal and office only' }]} />
-                    </Field>
-                    <Field label="Video"><Checkbox checked={s.allow_video} onChange={(v) => save.mutate({ allow_video: v })} label="Allow short videos" /></Field>
-                    <Field label="Longest video">
-                      <Select value={String(s.max_video_seconds)} onChange={(v) => save.mutate({ max_video_seconds: Number(v) })}
-                        options={[10, 15, 30, 45, 60].map((n) => ({ value: String(n), label: `${n} seconds` }))} />
-                    </Field>
-                  </FormGrid>
-                  <FormNotice error={save.error || act.error} />
+            {d && (
+              /* THE OWNER'S SETTINGS DESIGN: a header with the state, grouped
+                 rows with switches and small dropdowns, Discard and Save. */
+              <Card className="mx-auto w-full max-w-[560px] space-y-5 p-6">
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold tracking-[-0.01em]">Class Status</h2>
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">Manage publishing rules and visibility</p>
+                  </div>
+                  <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (d.enabled ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-muted text-muted-foreground')}>
+                    <span className={'h-1.5 w-1.5 rounded-full ' + (d.enabled ? 'bg-[#10b981]' : 'bg-muted-foreground')} />{d.enabled ? 'Active' : 'Off'}
+                  </span>
+                </div>
+                <SettingsGroup title="Permissions">
+                  <SettingsRow title="Status feature" sub="Turn on class stories school-wide">
+                    <Switch on={d.enabled} onChange={(v) => setD({ enabled: v })} />
+                  </SettingsRow>
+                  <SettingsRow title="Who may post" sub="Eligible publishing roles">
+                    <MiniSelect value={d.who} onChange={(v) => setD({ who: v as StatusSettings['who'] })}
+                      options={[['teachers', 'All teachers'], ['class_teachers', 'Class teachers only'], ['admins', 'Principal and office only']]} />
+                  </SettingsRow>
+                  <SettingsRow title="Require approval" sub="Review teachers' posts before they publish">
+                    <Switch on={d.needs_approval} onChange={(v) => setD({ needs_approval: v })} />
+                  </SettingsRow>
+                </SettingsGroup>
+                <SettingsGroup title="Media constraints">
+                  <SettingsRow title="Allow short videos" sub="Permit uploaded video clips">
+                    <Switch on={d.allow_video} onChange={(v) => setD({ allow_video: v })} />
+                  </SettingsRow>
+                  <SettingsRow title="Duration limit" sub="Maximum length allowed per video" disabled={!d.allow_video}>
+                    <MiniSelect value={String(d.max_video_seconds)} onChange={(v) => setD({ max_video_seconds: Number(v) })}
+                      options={[10, 15, 30, 45, 60].map((n) => [String(n), `${n} seconds`])} />
+                  </SettingsRow>
+                </SettingsGroup>
+                <FormNotice error={save.error || act.error} />
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" disabled={!draft} onClick={() => setDraft(null)}
+                    className="rounded-lg border px-3.5 py-1.5 text-[12px] font-medium hover:bg-muted/50 disabled:opacity-50">Discard</button>
+                  <button type="button" disabled={!draft || save.isPending}
+                    onClick={() => draft && save.mutate(draft, { onSuccess: () => setDraft(null) })}
+                    className="rounded-lg bg-foreground px-4 py-1.5 text-[12px] font-semibold text-background shadow-sm hover:opacity-90 disabled:opacity-50">
+                    {save.isPending ? 'Saving…' : 'Save changes'}
+                  </button>
                 </div>
               </Card>
             )}
@@ -125,5 +154,41 @@ export default function ClassStatusAdmin() {
       {compose && <StatusComposer file={compose} asSchool onClose={() => { setCompose(null); refresh() }} />}
       {views && <ViewsSheet postId={views} onClose={() => setViews(null)} />}
     </>
+  )
+}
+
+function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="pl-0.5 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{title}</span>
+      <div className="divide-y overflow-hidden rounded-[14px] border bg-card">{children}</div>
+    </div>
+  )
+}
+function SettingsRow({ title, sub, children, disabled }: { title: string; sub: string; children: React.ReactNode; disabled?: boolean }) {
+  return (
+    <div className={'flex items-center justify-between gap-3 px-4 py-3 transition-opacity ' + (disabled ? 'pointer-events-none opacity-45' : '')}>
+      <div className="flex max-w-[70%] flex-col gap-0.5">
+        <span className="text-[13px] font-semibold">{title}</span>
+        <span className="text-[11px] text-muted-foreground">{sub}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
+      className={'tap-inline relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200 ' + (on ? 'bg-foreground' : 'bg-muted-foreground/25')}>
+      <span className={'absolute bottom-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-transform duration-200 ease-[cubic-bezier(0.2,0.8,0.25,1)] ' + (on ? 'translate-x-4' : '')} />
+    </button>
+  )
+}
+function MiniSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[][] }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}
+      className="tap-inline cursor-pointer appearance-none rounded-lg border bg-muted/40 bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2210%22%20height=%2210%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%236b7280%22%20stroke-width=%222.5%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_8px_center] bg-no-repeat py-1.5 pl-2.5 pr-7 text-[12px] font-medium outline-none focus:border-foreground focus:bg-card">
+      {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
   )
 }
