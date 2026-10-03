@@ -247,7 +247,11 @@ export default function Notifications() {
   const clearAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
     queryKeys: [['notifications']],
-    apply: (old) => ({ ...(old as Feed), unread: 0, items: [] }),
+    /* The status posts survive the clear, here as on the server. */
+    apply: (old) => {
+      const kept = ((old as Feed).items ?? []).filter((n) => n.kind === 'status')
+      return { ...(old as Feed), unread: 0, items: kept }
+    },
     failure: "Couldn't clear them",
   })
 
@@ -633,8 +637,14 @@ export default function Notifications() {
                 ))
               )}
             </div>
-            {items.length > 0 && (
-              <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
+            {/* THE SWITCHER STAYS WHETHER OR NOT THERE IS ANYTHING IN IT.
+
+                It used to be hidden whenever the list was empty, so clearing
+                the messages took Unread/All and Messages/Activity off the
+                screen with them -- and with the switcher gone there was no way
+                to reach the other side, which was not empty. An empty tab is
+                an answer; a missing tab is a dead end. */}
+            <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["unread","Unread"],["all","All"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
@@ -653,8 +663,7 @@ export default function Notifications() {
                     </button>
                   ))}
                 </div>
-              </footer>
-            )}
+            </footer>
           </aside>
         </div>,
         document.body,

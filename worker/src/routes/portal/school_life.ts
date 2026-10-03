@@ -993,10 +993,18 @@ async function markNotificationRead(c: Ctx): Promise<Response> {
   throw notFound()
 }
 
+/* CLEAR EMPTIES THE MESSAGES. IT DOES NOT EMPTY THE SCHOOL'S WALL.
+
+   One tap used to dismiss every row the user had, status posts included, and
+   there is no way back: a parent who cleared a fortnight of homework alerts
+   also lost every class status, and the drawer then read "Nothing yet" as
+   though the school had never posted anything. A status is not a message
+   waiting to be dealt with -- it is what the class put up -- so it stays. */
 async function clearNotifications(c: Ctx): Promise<Response> {
   const ts = now()
   const res = await c.db.prepare(`UPDATE notifications SET dismissed_at = ?, read_at = COALESCE(read_at, ?)
-                                   WHERE user_id = ? AND dismissed_at IS NULL`).bind(ts, ts, c.id.userId).run()
+                                   WHERE user_id = ? AND dismissed_at IS NULL
+                                     AND kind <> 'status'`).bind(ts, ts, c.id.userId).run()
   return ok({ cleared: res.meta.changes })
 }
 
