@@ -12,6 +12,7 @@ import { formatPaise, cn } from '@/lib/utils'
 interface Act {
   id: string; name: string; category?: string; schedule?: string; venue?: string
   fee_paise: number; capacity: number; taken: number; joined: boolean
+  payment?: 'paid' | 'unpaid' | 'no_fee' | null
 }
 
 export default function JoinActivities({ studentId }: { studentId?: string }) {
@@ -63,7 +64,9 @@ export default function JoinActivities({ studentId }: { studentId?: string }) {
               <span className="flex items-center gap-2">
                 <span className="text-[13px] font-semibold tabular-nums">{a.fee_paise > 0 ? formatPaise(a.fee_paise) : 'Free'}</span>
                 {a.joined ? (
-                  <span className="rounded-full bg-[#dcfce7] px-3 py-1 text-[12.5px] font-semibold text-[#15803d]">✓ Joined</span>
+                  a.payment === 'unpaid'
+                    ? <span className="rounded-full bg-[#fef3c7] px-3 py-1 text-[12.5px] font-semibold text-[#b45309]">Enrolled · not paid yet</span>
+                    : <span className="rounded-full bg-[#dcfce7] px-3 py-1 text-[12.5px] font-semibold text-[#15803d]">✓ Enrolled{a.payment === 'paid' ? ' · paid' : ''}</span>
                 ) : asking === a.id ? (
                   <>
                     <button type="button" disabled={busy} onClick={() => join(a)}
