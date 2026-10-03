@@ -358,14 +358,34 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
 
   if (directFeatures.size > 0) {
     const emitted = new Set<string>()
-    for (const ro of roles) for (const s of ro.sections) for (const f of s.features) emitted.add(f.key)
+    /* ONE SCREEN, ONE ROW, WHATEVER IT IS KEYED AS.
+
+       The same screen is catalogued once per workspace that offers it:
+       "Present & absent" is both institution_admin.academics.student_absentees
+       and faculty.attendance.student_absentees, "Take attendance" is both the
+       faculty and the hod key. That is right for the catalogue -- each
+       workspace needs its own entry -- and normally invisible, because a
+       person holds the key for their own workspace and no other.
+
+       It stops being invisible the moment a feature is granted directly.
+       /admin/features groups the tick boxes by NAME and grants every key with
+       that name, so one tick on "Present & absent" writes both keys, and this
+       list then drew a row for each: the same screen twice in the sidebar,
+       under the same words, going to the same place.
+
+       Deduped by name as well as by key. The name is what somebody reads and
+       what they would be choosing between, and there is nothing to choose:
+       both rows open the same screen with the same reach. */
+    const emittedNames = new Set<string>()
+    for (const ro of roles) for (const s of ro.sections) for (const f of s.features) { emitted.add(f.key); emittedNames.add(f.name) }
     const granted: ReturnType<typeof feat>[] = []
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
-      if (!directFeatures.has(f.key) || emitted.has(f.key)) continue
+      if (!directFeatures.has(f.key) || emitted.has(f.key) || emittedNames.has(f.name)) continue
       if (role.key === 'student' && STUDENT_HIDDEN_SECTIONS.has(sec.slug)) continue
       if (!(await gate(sec.slug, f))) continue
       granted.push(feat(f, true))
       emitted.add(f.key)
+      emittedNames.add(f.name)
     }
     if (granted.length > 0) {
       const primary = roles.findIndex((ro) => mine.has(ro.key))
