@@ -372,9 +372,12 @@ export default function Notifications() {
      posts (the e-learning hub's photo, video and note statuses). */
   const shownType = type ?? 'messages'
   const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
-  const countFor = (v: string) => v === 'messages' ? unread : v === 'activity' ? newStatuses : 0
+  void newStatuses
+  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
   void isMessage
-  const inToggles = (n: Note) => (!onlyUnread || !n.read_at)
+  /* Status updates live in Activity; Messages is everything else (the owner's rule). */
+  const isStatusNote = (n: Note) => /status/.test(n.kind)
+  const inToggles = (n: Note) => (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
@@ -504,10 +507,10 @@ export default function Notifications() {
 
             {/* Class Status: Add, then the rings, unseen first. Draws nothing
                 when the school has it off or there is nothing to show. */}
-            <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />
+            {shownType === 'activity' && <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />}
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
-              {shownType === 'activity' ? (
+              {false ? (
                 statuses.isLoading ? <p className="py-16 text-center text-[13px] text-muted-foreground">Loading status updates…</p>
                 : (statuses.data?.items ?? []).filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length === 0
                   ? <p className="py-16 text-center text-[13px] text-muted-foreground">No status updates this week.</p>

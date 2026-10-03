@@ -3,7 +3,7 @@ import { onShared, peekShared, takeShared } from '@/lib/shell'
 import { useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -110,11 +110,12 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
   )
 }
 
-export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, onViews: (id: string) => void): StoryGroup[] {
+export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, _onViews: (id: string) => void): StoryGroup[] {
   const item = (p: StatusItem): StoryItem => ({
     id: p.id, title: p.caption ?? '', media: p.media_kind === 'video' ? 'video' : p.media_kind === 'text' ? 'text' : 'image', src: p.url || undefined,
-    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.mine ? p.audience : undefined, /* who it went to: the poster only */ poster: p.thumb,
-    footer: p.mine ? <button type="button" onClick={() => onViews(p.id)}><Eye className="size-4" /> Seen by</button> : undefined,
+    postedAt: p.published_at, seen: p.seen || p.mine, poster: p.thumb,
+    /* Seen by lives on the poster's own status sheet, not over the picture. */
+    footer: undefined,
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({
     id: r.key, name: r.as_school ? schoolName : r.mine ? 'My status' : r.name,
