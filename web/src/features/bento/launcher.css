@@ -722,3 +722,47 @@
   .lch-row { border-radius: 0; padding-block: 11px; }
   .lch-row__name { font-size: 15.5px; font-weight: 600; }
 }
+
+/* THE KEYBOARD MUST NOT CARRY THE RESULTS OFF THE TOP.
+
+   The sheet is itself the scroller. When the keyboard opened, iOS scrolled
+   the focused field into view by scrolling THAT -- so the answer to what had
+   just been typed went up past the top edge and the screen showed an empty
+   page with a search pill on it. Reported five times, and each time I moved
+   the pill rather than the thing that moved it.
+
+   Once the visual viewport has told us the height it can see, the sheet stops
+   scrolling altogether: it becomes a column exactly that tall, the result
+   list scrolls INSIDE it, and the bar is the last row of the column. Nothing
+   outside the list can move, so there is nothing for the keyboard to push. */
+.lch[data-vv='on'] {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.lch[data-vv='on'] .lch-body {
+  height: 100%;
+  min-height: 0;
+}
+.lch[data-vv='on'] .lch-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.lch[data-vv='on'] .lch-searchbar {
+  position: static;
+  margin-top: 0;
+  bottom: auto;
+}
+
+/* WITH THE KEYBOARD UP, THE TITLE IS NOT WHAT IS WANTED.
+
+   Measured on a 390x844 phone with the keyboard open: 234px of screen left,
+   of which the sheet's own header -- the role, the words "All features",
+   Home and Close -- took 165. The bar took the other 69, and the results had
+   nothing, so the screen showed a title and a search field and no answer.
+
+   While a query is being typed on a phone, the header goes. It is chrome for
+   browsing; somebody who has typed three letters is not browsing, and the
+   way out is the cancel beside the field. */
+.lch[data-q='on'][data-vv='on'] .lch-head { display: none; }

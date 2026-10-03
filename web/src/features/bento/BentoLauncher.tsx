@@ -502,7 +502,20 @@ export function BentoLauncher({
   useEffect(() => {
     if (!open) return
     const vv = window.visualViewport
-    const sheet = sheetRef.current
+    /* THE ELEMENT IS LOOKED UP WHEN IT IS NEEDED, NOT WHEN THE EFFECT RAN.
+
+       `const sheet = sheetRef.current` read the ref once, at effect time, and
+       it was null -- so every line below it was dead. The sheet was never
+       given data-vv, and every rule written against [data-vv='on'] -- five
+       rounds of them, each reported as not fixed -- never matched anything.
+       Measured on a phone-sized browser: visualViewport said 234px of visible
+       screen while the sheet stayed 664px tall, scrolled 249px down, with the
+       search bar at y=579 and the first result at y=-3.
+
+       Resolving it at call time cannot go stale, and kb() runs again on the
+       next frame, so a mount order that put the effect before the element
+       does not decide whether the launcher works. */
+    const el = () => sheetRef.current ?? document.querySelector<HTMLElement>('.lch')
     /* THE SHEET IS THE VISIBLE AREA, NOT THE WINDOW.
 
        It was `fixed inset-0`, which is the LAYOUT viewport -- and iOS keeps
@@ -523,6 +536,7 @@ export function BentoLauncher({
        the best that can be done. When the API is present it is zero, because
        the sheet no longer extends under anything. */
     const kb = () => {
+      const sheet = el()
       if (!sheet) return
       if (!vv) { sheet.style.setProperty('--lch-kb', '0px'); return }
       const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
@@ -536,6 +550,7 @@ export function BentoLauncher({
       void gap
     }
     kb()
+    const again = requestAnimationFrame(kb)
     vv?.addEventListener('resize', kb)
     vv?.addEventListener('scroll', kb)
     const onKey = (e: KeyboardEvent) => {
@@ -548,6 +563,7 @@ export function BentoLauncher({
     }
     window.addEventListener('keydown', onKey, true)
     return () => {
+      cancelAnimationFrame(again)
       vv?.removeEventListener('resize', kb)
       vv?.removeEventListener('scroll', kb)
       window.removeEventListener('keydown', onKey, true)
@@ -844,6 +860,7 @@ export function BentoLauncher({
       onTouchMove={onSheetTouchMove}
       onTouchEnd={onSheetTouchEnd}
       onTouchCancel={onSheetTouchEnd}
+      data-q={needle && phone ? 'on' : undefined}
       className="lch bento-frost fixed inset-0 z-[60] overflow-y-auto overscroll-contain"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
@@ -882,7 +899,7 @@ export function BentoLauncher({
             nothing, at the top of a sheet that is otherwise all tiles, was the
             page's one piece of chrome with no weight behind it. */}
         <div
-          className="mb-5 flex flex-wrap items-baseline justify-between gap-4 border-b
+          className="lch-head mb-5 flex flex-wrap items-baseline justify-between gap-4 border-b
                      border-[color-mix(in_srgb,var(--ink-here)_10%,transparent)] pb-4"
         >
           <div className="min-w-0">
@@ -904,7 +921,7 @@ export function BentoLauncher({
           </div>
         </div>
 
-        <div ref={listRef} className={cn(needle && phone && 'lch-list--up')}>
+        <div ref={listRef} className={cn('lch-list', needle && phone && 'lch-list--up')}>
           {needle ? (
             results.length ? (
               /* Keyed by the query so every keystroke pops the new answer in
@@ -925,7 +942,12 @@ export function BentoLauncher({
                       : t('bento.launcher.results', { count: hits.length })
                   }
                 />
-                {(phone ? [...resultGroups].reverse() : resultGroups).map((g) => (
+                {/* Best first, from the top. They used to be reversed on a
+                    phone so the strongest match sat nearest the thumb, which
+                    put the heading of the first group at the BOTTOM of the
+                    list and read backwards against every other result list on
+                    the device. */}
+                {resultGroups.map((g) => (
                   <div key={g.name} className="lch-rgroup" data-workspace={g.name}>
                     <p className="lch-rgroup__name" style={{ '--t': `var(--dom-${hueFor(g.name)}, currentColor)` } as CSSProperties}>
                       <span>
