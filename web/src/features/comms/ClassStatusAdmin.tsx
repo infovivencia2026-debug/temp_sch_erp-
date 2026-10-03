@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Eye, Pin, PinOff, Plus, Trash2, X } from 'lucide-react'
+import { Check, Eye, Pin, PinOff, Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { Button, Card, CardHeader, EmptyState, ErrorState, FormNotice, PageBody, PageHead, Select } from '@/components/ui'
@@ -40,6 +40,33 @@ export default function ClassStatusAdmin() {
     onSuccess: refresh,
   })
   const save = useMutation({ mutationFn: (s: Partial<StatusSettings>) => api.put('/api/v1/status/settings', s), onSuccess: refresh })
+
+  /* WHO SEES IT, CHANGED AFTER IT IS UP.
+
+     The poster picks the audience; they are the one who knows what the photo
+     is. But a class photo sent to the whole school, or a notice left on one
+     section, used to be fixable only by deleting the post -- which loses the
+     views and tells everyone who had seen it that it was withdrawn. The
+     school can now retarget a live post in place: people who fall out of the
+     audience lose the notification, people who fall into it get one. */
+  const aud = useQuery({
+    queryKey: ['status-audiences'],
+    queryFn: () => api.get<{ classes: { id: string; name: string }[]; sections: { id: string; name: string }[] }>('/api/v1/status/audiences'),
+  })
+  const audienceOptions = [
+    { value: 'school', label: 'Whole school' },
+    { value: 'staff', label: 'Staff only' },
+    ...(aud.data?.classes ?? []).map((c) => ({ value: `class:${c.id}`, label: `${c.name} (all sections)` })),
+    ...(aud.data?.sections ?? []).map((s) => ({ value: `section:${s.id}`, label: s.name })),
+  ]
+  const [retarget, setRetarget] = useState<string | null>(null)
+  const setAudience = useMutation({
+    mutationFn: ({ id, choice }: { id: string; choice: string }) => {
+      const [kind, target] = choice.includes(':') ? choice.split(':') : [choice, '']
+      return api.post(`/api/v1/status/posts/${id}/audience`, { targets: [{ kind, id: target }] })
+    },
+    onSuccess: () => { setRetarget(null); refresh() },
+  })
   const s = q.data?.settings
   /* Changes are held until Save (the owner's design), not sent on every click. */
   const [draft, setDraft] = useState<StatusSettings | null>(null)
@@ -72,7 +99,24 @@ export default function ClassStatusAdmin() {
           <Button variant="ghost" size="sm" onClick={() => act.mutate({ p, what: 'pin' })} title={p.pinned ? 'Unpin' : 'Pin'}>
             {p.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setRetarget(retarget === p.id ? null : p.id)} title="Change who sees it">
+            <Users className="size-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => act.mutate({ p, what: 'delete' })} title="Delete"><Trash2 className="size-4" /></Button>
+          {retarget === p.id && (
+            <div className="flex w-full items-center gap-2 pt-1">
+              <span className="shrink-0 text-[12px] text-muted-foreground">Who sees it</span>
+              <div className="min-w-0 flex-1">
+                <Select
+                  value=""
+                  placeholder={p.audience || 'Choose'}
+                  options={audienceOptions}
+                  onChange={(choice) => choice && setAudience.mutate({ id: p.id, choice })}
+                />
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setRetarget(null)}>Cancel</Button>
+            </div>
+          )}
         </>
       )}
     </li>

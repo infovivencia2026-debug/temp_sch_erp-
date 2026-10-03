@@ -483,10 +483,12 @@ export function registerClassStatus(r: Router): void {
 
   /* What the composer may offer: the sections and classes this poster may reach. */
   r.get('/status/audiences', 'auth', async (c) => {
-    if (!can(c.id, POST) && !can(c.id, SCHOOL)) throw forbidden()
+    /* Whoever runs Class Status needs this list to retarget somebody else's
+       post, whether or not they post themselves. */
+    if (!can(c.id, POST) && !can(c.id, SCHOOL) && !can(c.id, MANAGE)) throw forbidden()
     const pol = await policyOn(c)
     const v = await viewer(c)
-    const wide = v.admin || can(c.id, SCHOOL)
+    const wide = v.admin || can(c.id, SCHOOL) || can(c.id, MANAGE)
     const secs = (await c.db.prepare(`SELECT sec.id, sec.name, sec.class_id, cl.name AS class_name FROM sections sec JOIN classes cl ON cl.id = sec.class_id
         JOIN academic_years ay ON ay.id = sec.academic_year_id
         WHERE (ay.is_current = 1 OR ? = 0) ${wide ? '' : `AND sec.id IN (${marks()})`} ORDER BY cl.level, cl.name, sec.name`)
@@ -676,6 +678,41 @@ export function registerClassStatus(r: Router): void {
     const pinned = b.pinned === undefined ? !p.pinned : !!b.pinned
     await c.db.prepare(`UPDATE status_posts SET pinned = ? WHERE id = ?`).bind(pinned ? 1 : 0, p.id).run()
     return ok({ id: p.id, pinned })
+  })
+
+  /* WHO CAN SEE IT, CHANGED AFTER THE FACT.
+
+     A poster chooses the audience when they post, and gets it wrong: a class
+     photo goes to the whole school, or a notice meant for everybody sits on
+     one section. Until now the only remedy was to delete the post and ask
+     them to put it up again, which loses the views and tells every parent who
+     had seen it that it was taken down.
+
+     Whoever runs Class Status can retarget a live post. Three things then
+     have to agree: the targets, the notifications of the people who are no
+     longer in the audience (dropped -- they were told about a post they can
+     no longer open), and the notifications of the people newly in it
+     (written, through the same path a new post uses, so one person still gets
+     one row per poster). The post itself, its views and its clock are left
+     exactly as they were. */
+  r.post('/status/posts/{id}/audience', MANAGE, async (c) => {
+    const p = await load(c, c.params.id)
+    const v = await viewer(c)
+    const body = await readJSON<{ targets?: unknown }>(c.req).catch(() => ({} as { targets?: unknown }))
+    const targets = await checkTargets(c, v, true, body.targets)
+    const before = new Set((await audience(c, p.id, p.posted_by)).map(([u]) => u))
+    await c.db.batch([
+      c.db.prepare(`DELETE FROM status_post_targets WHERE post_id = ?`).bind(p.id),
+      ...targets.map((x) => c.db.prepare(`INSERT INTO status_post_targets (post_id, kind, target_id) VALUES (?, ?, ?)`).bind(p.id, x.kind, x.id)),
+    ])
+    const after = new Set((await audience(c, p.id, p.posted_by)).map(([u]) => u))
+    const gone = [...before].filter((u) => !after.has(u))
+    if (gone.length) {
+      await c.db.prepare(`DELETE FROM notifications WHERE kind = 'status' AND source_kind = 'status' AND source_id = ?
+                            AND user_id IN (SELECT value FROM json_each(?))`).bind(sourceOf(p), js(gone)).run()
+    }
+    if (p.status === 'live' && after.size) await notifyAudience(c, p)
+    return ok({ id: p.id, audience: (await audienceLabels(c, [p.id])).get(p.id) ?? '', size: after.size })
   })
 
   r.del('/status/posts/{id}', 'auth', async (c) => {
