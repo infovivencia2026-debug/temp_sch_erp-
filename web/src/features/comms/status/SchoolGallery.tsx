@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Play, Plus, Type } from 'lucide-react'
+import { PickerMenu } from '@/components/PickerMenu'
 import StoryViewer from '@/components/StoryViewer'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
@@ -71,12 +72,23 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
           <ArrowLeft className="size-5" />
         </button>
         <h2 className="mr-auto text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
+        {/* THE LAST NATIVE <select> IN THE PRODUCT.
+
+            Every other list in the app was moved to PickerMenu; this one was
+            missed, and it is the dropdown that kept being reported with "the
+            scroll bar is coming out of the box". It was: a native select's
+            list is drawn by the phone, outside the page, and no stylesheet of
+            ours can reach it -- which is why five rounds of scrollbar CSS
+            changed nothing here. The app's own menu is a div we own. */}
         {audiences.length > 1 && (
-          <select value={who} onChange={(e) => setWho(e.target.value)}
-            className="rounded-full border bg-card px-3 py-1.5 text-[13px] font-medium">
-            <option value="">Everything</option>
-            {audiences.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
+          <PickerMenu
+            value={who}
+            onChange={setWho}
+            ariaLabel="Show which audience"
+            placeholder="Everything"
+            options={[{ value: '', label: 'Everything' }, ...audiences.map((a) => ({ value: a, label: a }))]}
+            className="rounded-full border bg-card px-3 py-1.5 text-[13px] font-medium"
+          />
         )}
         {feed.data?.can_post && (
           <button type="button" onClick={() => setChoose(true)}

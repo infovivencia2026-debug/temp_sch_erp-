@@ -4640,7 +4640,15 @@ html::-webkit-scrollbar { width: initial; }
 [role='listbox']::-webkit-scrollbar { width: 6px; }
 [role='listbox']::-webkit-scrollbar-button { display: none; height: 0; }
 [role='listbox']::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
-[role='listbox']::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+[role='listbox']::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  /* Inset by a transparent border, as every other scroller in the app: a
+     6px bar drawn hard against the edge of a menu with a 26px corner crosses
+     the curve at both ends and reads as a stripe hanging off the box. */
+  border: 1px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
 
 /* Colour pickers: a round swatch of the colour itself, not the browser's grey
    box with a thin bar of colour inside it (the owner found that ugly). */
