@@ -298,8 +298,12 @@ const sourceOf = (p: Pick<PostRow, 'as_school' | 'posted_by'>) => (p.as_school ?
 async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   const people = await audience(c, p.id, p.posted_by)
   if (!people.length) return 0
-  const label = (await audienceLabels(c, [p.id])).get(p.id) ?? ''
-  const title = `${await posterName(c, p)} added a status · ${label}`.slice(0, 200)
+  /* The notification is one row written for everybody at once, so anything
+     in its title is read by families as well as staff. The audience label
+     used to be in it -- "Priya Rao added a status · Whole school" -- which
+     put the school's distribution list in front of parents and children. The
+     label is carried by the feed instead, where only staff are given it. */
+  const title = `${await posterName(c, p)} added a status`.slice(0, 200)
   const body = (p.caption ?? '').slice(0, 240) || (p.media_kind === 'video' ? 'Video' : p.media_kind === 'text' ? 'Text' : 'Photo')
   const link = `/?status=${p.id}`
   const at = now()
@@ -433,7 +437,14 @@ export function registerClassStatus(r: Router): void {
     const item = (x: (typeof rows)[number]) => ({
       id: x.id, media_kind: x.media_kind as 'photo' | 'video' | 'text', content_type: x.content_type, caption: x.caption ?? undefined,
       published_at: x.published_at, expires_at: x.expires_at, pinned: !!x.pinned, seen: !!x.seen, mine: x.posted_by === v.userId,
-      audience: labels.get(x.id) ?? '', duration_seconds: x.duration_seconds ?? undefined,
+      /* WHO IT WENT TO IS THE SCHOOL'S BUSINESS.
+
+         Every viewer was handed the audience label, so a parent opening the
+         bell read "Whole school" under the post -- which tells a family how
+         the school addresses them, and tells a child that the same picture
+         went to everybody. Staff see it, because for them it is the point:
+         it says which list they are reading. Families see the post. */
+      audience: v.staff ? (labels.get(x.id) ?? '') : '', duration_seconds: x.duration_seconds ?? undefined,
       url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`,
       thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined,
       seen_url: `/api/v1/status/posts/${x.id}/view${q.get(x.id)}`,

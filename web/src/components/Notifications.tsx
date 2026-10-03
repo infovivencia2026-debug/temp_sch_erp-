@@ -585,7 +585,9 @@ export default function Notifications() {
                           const post = postById.get(postId)
                           const chip = post?.media_kind === 'video' ? 'Video' : post?.media_kind === 'text' ? 'Text' : post ? 'Photo' : 'Status'
                           /* The title is "<poster> added a status · <audience>". */
-                          const [who, aud] = n.title.split(' added a status · ')
+                          /* Older rows carry the audience in the title; the
+                             label is the school's and is not shown here. */
+                          const [who] = n.title.split(' added a status')
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
                             <button key={n.id} type="button" onClick={() => openNote(n)}
@@ -599,7 +601,7 @@ export default function Notifications() {
                                 </span>
                                 <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px]">
                                   <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px font-semibold text-primary">{chip}</span>
-                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || aud || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
+                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
                                 </span>
                                 {excerpt && post?.media_kind !== 'text' && (
                                   <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-muted-foreground">{excerpt}</span>

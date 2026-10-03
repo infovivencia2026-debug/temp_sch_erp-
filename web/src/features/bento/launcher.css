@@ -691,3 +691,34 @@
   .lch .lch-cancel { background-color: var(--bento-bg); }
 }
 .lch .lch-cancel:active { background-color: color-mix(in srgb, var(--ink-here) 10%, var(--bento-bg)); }
+
+/* SPOTLIGHT, AS THE PHONE DRAWS IT (owner's screenshot, iOS Notes).
+
+   The heading sits outside the card in the system's own weight, and the rows
+   it names are one grouped card with a hairline between them -- which is how
+   a phone says "these belong together" without drawing a box per row. The
+   name reads at the body size; it is the thing being chosen, not a caption. */
+@media (pointer: coarse) {
+  .lch-rgroup__name {
+    margin: 0 0.25rem 0.4rem;
+    font-size: 15px;
+    font-weight: 700;
+    opacity: 1;
+  }
+  .lch-rgroup__count {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.55;
+  }
+  .lch-rows {
+    gap: 0;
+    overflow: hidden;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ink-here) 6%, transparent);
+  }
+  .lch-rows > .lch-row + .lch-row {
+    border-top: 1px solid color-mix(in srgb, var(--ink-here) 9%, transparent);
+  }
+  .lch-row { border-radius: 0; padding-block: 11px; }
+  .lch-row__name { font-size: 15.5px; font-weight: 600; }
+}
