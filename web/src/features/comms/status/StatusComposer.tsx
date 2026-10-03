@@ -44,14 +44,26 @@ export function StatusFileInput({ onPick, className, children, label, accept = '
    filtered to that type, Camera opens the camera, Text writes words on the
    school's colour. Each media choice is itself the file input, so the picker
    opens on the tap that asked for it (iPhone blocks one opened later). */
-export function AddChooser({ onPick, onText, onClose, allowVideo = true, raised = false, asSchool = false }: {
+export function AddChooser({ onPick, onText, onClose, allowVideo = true, raised = false, asSchool = false, openPicker }: {
   onPick: (f: File) => void; onText: () => void; onClose: () => void; allowVideo?: boolean; raised?: boolean; asSchool?: boolean
+  /* PICKERS THAT OUTLIVE THE POP-UP. On a phone the gallery opening could
+     close this dialog, unmounting the file input inside it, so the chosen
+     photo arrived nowhere and the person was left on the home screen. When
+     the page supplies its own always-mounted inputs, the tiles click those. */
+  openPicker?: (kind: 'photo' | 'video' | 'camera') => void
 }) {
   const tile = 'flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border bg-card p-3 text-[13px] font-medium transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring'
   const icon = 'grid size-11 place-items-center rounded-full bg-primary/10 text-primary'
   return (
     <Dialog onClose={onClose} title={asSchool ? 'Post as the school' : 'Add a status'} size="sm" raised={raised}>
       <div className="grid grid-cols-2 gap-3" role="list">
+        {openPicker ? (
+          <>
+            <button type="button" onClick={() => openPicker('photo')} className={tile}><span className={icon}><ImageIcon className="size-5" /></span>Photo</button>
+            {allowVideo && <button type="button" onClick={() => openPicker('video')} className={tile}><span className={icon}><Video className="size-5" /></span>Video</button>}
+            <button type="button" onClick={() => openPicker('camera')} className={tile}><span className={icon}><Camera className="size-5" /></span>Camera</button>
+          </>
+        ) : (<>
         <StatusFileInput onPick={onPick} accept="image/*" capture={false} label="Photo" className={tile}>
           <span className={icon}><ImageIcon className="size-5" /></span>Photo
         </StatusFileInput>
@@ -63,6 +75,7 @@ export function AddChooser({ onPick, onText, onClose, allowVideo = true, raised 
         <StatusFileInput onPick={onPick} accept={allowVideo ? 'image/*,video/*' : 'image/*'} label="Camera" className={tile}>
           <span className={icon}><Camera className="size-5" /></span>Camera
         </StatusFileInput>
+        </>)}
         <button type="button" onClick={onText} className={tile}>
           <span className={icon}><Type className="size-5" /></span>Text
         </button>

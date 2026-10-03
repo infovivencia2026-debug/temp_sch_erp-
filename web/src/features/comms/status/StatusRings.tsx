@@ -113,7 +113,7 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
 export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, onViews: (id: string) => void): StoryGroup[] {
   const item = (p: StatusItem): StoryItem => ({
     id: p.id, title: p.caption ?? '', media: p.media_kind === 'video' ? 'video' : p.media_kind === 'text' ? 'text' : 'image', src: p.url || undefined,
-    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.audience, poster: p.thumb,
+    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.mine ? p.audience : undefined, /* who it went to: the poster only */ poster: p.thumb,
     footer: p.mine ? <button type="button" onClick={() => onViews(p.id)}><Eye className="size-4" /> Seen by</button> : undefined,
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({
@@ -149,6 +149,15 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const [open, setOpen] = useState<{ group: number; id?: string } | null>(null)
   const [choose, setChoose] = useState<{ asSchool: boolean } | null>(null)
   const [compose, setCompose] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
+  const photoIn = useRef<HTMLInputElement>(null)
+  const videoIn = useRef<HTMLInputElement>(null)
+  const cameraIn = useRef<HTMLInputElement>(null)
+  const pickFor = useRef(false)
+  const picked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (f) { setCompose({ file: f, asSchool: pickFor.current }); setChoose(null) }
+  }
   const [views, setViews] = useState<string | null>(null)
   /* Photos shared into the app from the phone's gallery (components/ShareInbox.tsx). */
   useEffect(() => {
@@ -286,8 +295,12 @@ export default function StatusRings({ className, compact = false, openId, onOpen
       )}
       {strip}
       {open && groups.length > 0 && <StoryViewer groups={groups} start={Math.max(0, open.group)} startId={open.id} onClose={close} onSeen={markSeen} startMuted />}
+      <input ref={photoIn} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
+      <input ref={videoIn} type="file" accept="video/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
+      <input ref={cameraIn} type="file" accept={data.allow_video ? 'image/*,video/*' : 'image/*'} capture="environment" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
       {choose && (
         <AddChooser raised={raised} asSchool={choose.asSchool} allowVideo={data.allow_video} onClose={() => setChoose(null)}
+          openPicker={(k) => { pickFor.current = choose.asSchool; (k === 'photo' ? photoIn : k === 'video' ? videoIn : cameraIn).current?.click() }}
           onPick={(f) => { setCompose({ file: f, asSchool: choose.asSchool }); setChoose(null) }}
           onText={() => { setCompose({ file: null, asSchool: choose.asSchool, mode: 'text' }); setChoose(null) }} />
       )}
