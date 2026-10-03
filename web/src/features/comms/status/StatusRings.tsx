@@ -303,7 +303,7 @@ export default function StatusRings({ className, compact = false, openId, onOpen
         </div>
       )}
       {strip}
-      {open && groups.length > 0 && <StoryViewer groups={groups} start={Math.max(0, open.group)} startId={open.id} onClose={close} onSeen={markSeen} startMuted />}
+      {open && groups.length > 0 && <StoryViewer groups={groups} start={Math.max(0, open.group)} startId={open.id} onClose={close} onSeen={markSeen} />}
       <input ref={photoIn} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
       <input ref={videoIn} type="file" accept="video/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
       <input ref={cameraIn} type="file" accept={data.allow_video ? 'image/*,video/*' : 'image/*'} capture="environment" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
