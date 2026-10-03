@@ -4671,3 +4671,32 @@ input[type='color']:hover { transform: scale(1.06); box-shadow: 0 3px 8px rgba(1
 input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 input[type='color']::-webkit-color-swatch { border: none; border-radius: 999px; }
 input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
+
+/* A MENU DRAWS NO NATIVE SCROLLBAR AT ALL.
+
+   Reported six times, and every attempt so far styled the bar rather than
+   removing it, which cannot work: the parts a browser will let a page style
+   differ by browser and by version. Chrome 121+ drops the ::-webkit-scrollbar
+   parts the moment scrollbar-color is set and draws its own; older Chrome and
+   Edge keep the pseudo-elements AND the stepper arrows at each end; Windows
+   draws a classic bar with buttons when neither applies. So on at least one
+   of them a track with little chevrons runs down the right edge of a menu
+   with a 26px corner, crossing the curve at both ends -- the owner's
+   screenshot -- and no amount of thumb styling reaches it.
+
+   A dropdown is a short list that is scrolled with a wheel, a trackpad or a
+   finger, none of which need the bar. It is removed outright, along with the
+   reserved gutter that was squaring the right-hand corners even when there
+   was nothing to scroll. Every other scroller in the app keeps its bar. */
+[role='listbox'],
+.menu-scroll {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+[role='listbox']::-webkit-scrollbar,
+.menu-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+[role='listbox']::-webkit-scrollbar-button,
+.menu-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+/* Belt and braces for the one part that put chevrons outside a rounded box. */
+*::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
