@@ -227,6 +227,26 @@ async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string
   return out
 }
 
+/* HOW WIDE IT WENT, WITHOUT SAYING WHO TO.
+
+   The label names the school's distribution list and is staff-only. A family
+   still needs to tell the whole school's notice from their own child's class
+   -- that is the filter on the gallery -- so everybody is told which of the
+   three a post is, and nobody outside the staff is told the list. */
+async function audienceScopes(c: Ctx, ids: string[]): Promise<Map<string, 'school' | 'staff' | 'class'>> {
+  const out = new Map<string, 'school' | 'staff' | 'class'>()
+  if (!ids.length) return out
+  const rows = (await c.db.prepare(`SELECT post_id, kind FROM status_post_targets WHERE post_id IN (${marks()})`)
+    .bind(js(ids)).all<{ post_id: string; kind: string }>()).results ?? []
+  for (const r of rows) {
+    const was = out.get(r.post_id)
+    const now_ = r.kind === 'school' ? 'school' : r.kind === 'staff' ? 'staff' : 'class'
+    // The widest target a post has is the one that decides it.
+    if (!was || now_ === 'school' || (now_ === 'staff' && was === 'class')) out.set(r.post_id, now_)
+  }
+  return out
+}
+
 /** One row per [post, user] in the audience of any of these posts (the poster included; callers drop them). */
 const AUDIENCE_SQL = `
       WITH tg AS (SELECT t.post_id, t.kind, t.target_id FROM status_post_targets t WHERE t.post_id IN (SELECT value FROM json_each(?1))),
@@ -432,6 +452,14 @@ export function registerClassStatus(r: Router): void {
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
         published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
+    /* The hearts: how many, and whether this person is one of them. Two
+       aggregates in one read, not one read per post. */
+    const likeRows = (await c.db.prepare(`SELECT post_id, COUNT(*) AS n,
+            MAX(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS mine
+          FROM status_likes WHERE post_id IN (${marks()}) GROUP BY post_id`)
+      .bind(v.userId, js(rows.map((x) => x.id))).all<{ post_id: string; n: number; mine: number }>()).results ?? []
+    const likes = new Map(likeRows.map((r) => [r.post_id, r]))
+    const scopes = await audienceScopes(c, rows.map((x) => x.id))
     const exp = sigExpiry()
     const q = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp)] as const)))
     const item = (x: (typeof rows)[number]) => ({
@@ -445,6 +473,8 @@ export function registerClassStatus(r: Router): void {
          went to everybody. Staff see it, because for them it is the point:
          it says which list they are reading. Families see the post. */
       audience: v.staff ? (labels.get(x.id) ?? '') : '', duration_seconds: x.duration_seconds ?? undefined,
+      likes: likes.get(x.id)?.n ?? 0, liked: !!likes.get(x.id)?.mine,
+      scope: scopes.get(x.id) ?? 'class',
       url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`,
       thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined,
       seen_url: `/api/v1/status/posts/${x.id}/view${q.get(x.id)}`,
@@ -713,6 +743,27 @@ export function registerClassStatus(r: Router): void {
     }
     if (p.status === 'live' && after.size) await notifyAudience(c, p)
     return ok({ id: p.id, audience: (await audienceLabels(c, [p.id])).get(p.id) ?? '', size: after.size })
+  })
+
+  /* THE HEART.
+
+     One row per person per post, so the count is a COUNT and taking it back
+     is a DELETE: nothing to keep in step, and no way for one person to count
+     twice however many times the button is pressed. Anyone who may see the
+     post may like it -- load() is the same audience check the media route
+     makes -- and nobody is notified: a heart is applause, not a message. */
+  r.post('/status/posts/{id}/like', 'auth', async (c) => {
+    const p = await load(c, c.params.id)
+    const b = await readJSON<{ liked?: boolean }>(c.req).catch(() => ({} as { liked?: boolean }))
+    const want = b.liked !== false
+    if (want) {
+      await c.db.prepare(`INSERT OR IGNORE INTO status_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`)
+        .bind(p.id, c.id.userId, now()).run()
+    } else {
+      await c.db.prepare(`DELETE FROM status_likes WHERE post_id = ? AND user_id = ?`).bind(p.id, c.id.userId).run()
+    }
+    const n = await c.db.prepare(`SELECT COUNT(*) AS n FROM status_likes WHERE post_id = ?`).bind(p.id).first<{ n: number }>()
+    return ok({ id: p.id, liked: want, likes: n?.n ?? 0 })
   })
 
   r.del('/status/posts/{id}', 'auth', async (c) => {

@@ -29,4 +29,9 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 26, name: 'enquiry_links', checksum: '591d5815bc29a928742f2ea966380214aa73ad9e2d5dd364c7beaf5dee00bcf9' },
   { version: 30, name: 'feature_helpdesk', checksum: 'd21267a94241151261f7b54739add5a65e427fba81daf8bd2e240a9f8c633e79' },
   { version: 31, name: 'help_requests', checksum: '14967d6cb15591e9cc569a1a2d86058fc06a597f1a4138d85d653d46eef327cb' },
+  { version: 32, name: 'retire_my_classes_my_students', checksum: '997b766378a5a0d1adfaaa101688a8019b5226816dbf1a0cdfebba42f63eaa18' },
+  { version: 33, name: 'retire_my_classes_my_classes', checksum: '738a390159f8440f8df5650c3254988156b935c5d126e65065c307eb0d44cbee' },
+  { version: 34, name: 'retire_attendance_apply_for_leave', checksum: 'b5faa5c7acd031e5d274795c2eb8438ae6878c795817e6eaeb4b8b3a4453f08e' },
+  { version: 35, name: 'retire_academics_child_remarks', checksum: '5cebd3e55c945536d523b915bf8363ef5b38c2d95ab4e9a4bea86eea4095267a' },
+  { version: 36, name: 'status_likes', checksum: 'ed242fa313db2f94ea85728bc770b82be3fab7813d92ffb39c9d6ebbff554a5c' },
 ]

@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Play, Plus, Type } from 'lucide-react'
-import { PickerMenu } from '@/components/PickerMenu'
+import { ArrowLeft, Play, Plus, Star, Type } from 'lucide-react'
+import HeartButton from './HeartButton'
 import StoryViewer from '@/components/StoryViewer'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
@@ -36,7 +36,17 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
     }
     return out
   }, [feed.data])
-  const [who, setWho] = useState('')
+  /* WHAT A FAMILY FILTERS BY, AND WHAT STAFF DO NOT.
+
+     A parent has exactly two questions of a school gallery: what went to the
+     whole school, and what went to my child's class. Those are the two pills.
+     Staff get no filter at all here (the owner's instruction): they have the
+     Class Status screen, which filters by class, by poster and by state.
+
+     The media filter is everybody's: a gallery that is mostly photos is hard
+     to find one video in. */
+  const [scope, setScope] = useState<'' | 'school' | 'class'>('')
+  const [kind, setKind] = useState<'' | 'photo' | 'video'>('')
   const [open, setOpen] = useState<string | null>(null)
   const [choose, setChoose] = useState(false)
   const [compose, setCompose] = useState<{ file: File | null; mode?: AddMode } | null>(null)
@@ -44,8 +54,10 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
   const videoIn = useRef<HTMLInputElement>(null)
   const cameraIn = useRef<HTMLInputElement>(null)
 
-  const audiences = useMemo(() => [...new Set(items.map((p) => p.audience).filter(Boolean))].sort(), [items])
-  const shown = items.filter((p) => !who || p.audience === who)
+  const staff = !(session.user?.roles ?? []).every((r) => r === 'parent' || r === 'student')
+  const shown = items
+    .filter((p) => !scope || (scope === 'school' ? p.scope === 'school' : p.scope === 'class'))
+    .filter((p) => !kind || p.media_kind === kind)
     .sort((a, b) => b.published_at.localeCompare(a.published_at))
   const months = new Map<string, StatusItem[]>()
   for (const p of shown) {
@@ -72,24 +84,32 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
           <ArrowLeft className="size-5" />
         </button>
         <h2 className="mr-auto text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
-        {/* THE LAST NATIVE <select> IN THE PRODUCT.
-
-            Every other list in the app was moved to PickerMenu; this one was
-            missed, and it is the dropdown that kept being reported with "the
-            scroll bar is coming out of the box". It was: a native select's
-            list is drawn by the phone, outside the page, and no stylesheet of
-            ours can reach it -- which is why five rounds of scrollbar CSS
-            changed nothing here. The app's own menu is a div we own. */}
-        {audiences.length > 1 && (
-          <PickerMenu
-            value={who}
-            onChange={setWho}
-            ariaLabel="Show which audience"
-            placeholder="Everything"
-            options={[{ value: '', label: 'Everything' }, ...audiences.map((a) => ({ value: a, label: a }))]}
-            className="rounded-full border bg-card px-3 py-1.5 text-[13px] font-medium"
-          />
+        {/* Nothing here for staff: the owner asked for no filters on their
+            side, and Class Status already filters by class and by poster. */}
+        {!staff && (
+          <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+            {([['', 'Whole school'], ['class', "My child's class"]] as const).map(([v, label]) => (
+              <button key={v || 'all'} type="button" onClick={() => setScope(v === '' ? 'school' : 'class')}
+                className={cn('inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors',
+                  (v === '' ? scope !== 'class' : scope === 'class')
+                    ? 'bg-card text-primary shadow-[0_2px_6px_-1px_rgba(15,23,42,0.12)]'
+                    : 'text-muted-foreground hover:text-foreground')}>
+                {v === 'class' && <Star className="size-3.5 fill-current" aria-hidden="true" />}
+                {label}
+              </button>
+            ))}
+          </div>
         )}
+        {/* Photos, videos, or everything. */}
+        <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+          {([['', 'All'], ['photo', 'Photos'], ['video', 'Videos']] as const).map(([v, label]) => (
+            <button key={v || 'all'} type="button" onClick={() => setKind(v)}
+              className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors',
+                kind === v ? 'bg-card text-foreground shadow-[0_2px_6px_-1px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+              {label}
+            </button>
+          ))}
+        </div>
         {feed.data?.can_post && (
           <button type="button" onClick={() => setChoose(true)}
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-transform active:scale-[0.97]">
@@ -112,28 +132,69 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
           [...months.entries()].map(([month, list]) => (
             <section key={month} className="mb-7">
               <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{month}</h3>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              {/* A CARD, NOT A CONTACT SHEET (owner's mockup).
+
+                  Square thumbnails in a six-wide grid are how a phone shows
+                  a camera roll, where every picture is the viewer's own and
+                  needs no caption. This is somebody else's: a parent wants to
+                  know what it is, when it was, and to say they liked it --
+                  so each one is a card with its own title, date and heart,
+                  and the picture keeps the shape it was taken in. */}
+              <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]">
                 {list.map((p) => (
-                  <button key={p.id} type="button" onClick={() => setOpen(p.id)}
-                    className="group relative aspect-square overflow-hidden rounded-xl bg-muted transition-transform active:scale-[0.98]">
-                    {p.media_kind === 'text' ? (
-                      <span className="grid size-full place-items-center bg-primary p-2 text-center text-[12px] font-semibold text-primary-foreground">
-                        <Type className="mb-1 size-4 opacity-80" />{(p.caption ?? '').slice(0, 60)}
-                      </span>
-                    ) : p.thumb || p.media_kind === 'photo' ? (
-                      <img src={p.thumb ?? p.url} alt={p.caption ?? ''} loading="lazy" className="size-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                    ) : (
-                      <span className="grid size-full place-items-center bg-black/80 text-white"><Play className="size-6" /></span>
-                    )}
-                    {p.media_kind === 'video' && (
-                      <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                        <Play className="size-3" />{p.duration_seconds ? `0:${String(Math.round(p.duration_seconds)).padStart(2, '0')}` : ''}
-                      </span>
-                    )}
-                    <span className={cn('absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-5 text-left text-[11px] font-medium text-white', p.media_kind === 'video' && 'pl-14')}>
-                      {p.audience}
-                    </span>
-                  </button>
+                  <article key={p.id}
+                    className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_4px_18px_-2px_rgba(15,23,42,0.05)]
+                               transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_32px_-4px_rgba(15,23,42,0.12)]">
+                    <button type="button" onClick={() => setOpen(p.id)}
+                      className="relative block aspect-[16/10] w-full overflow-hidden bg-foreground/90 text-left">
+                      {p.media_kind === 'text' ? (
+                        <span className="grid size-full place-items-center bg-primary p-4 text-center text-[13px] font-semibold text-primary-foreground">
+                          <Type className="mb-1 size-5 opacity-80" />{(p.caption ?? '').slice(0, 90)}
+                        </span>
+                      ) : p.thumb || p.media_kind === 'photo' ? (
+                        <img src={p.thumb ?? p.url} alt={p.caption ?? ''} loading="lazy"
+                             className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                      ) : (
+                        <span className="grid size-full place-items-center bg-black/80 text-white"><Play className="size-7" /></span>
+                      )}
+                      {/* Staff are told which list it went to; a family is not. */}
+                      {staff && p.audience && (
+                        <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11.5px] font-bold text-white backdrop-blur">
+                          {p.audience}
+                        </span>
+                      )}
+                      {p.media_kind === 'video' && (
+                        <>
+                          {/* The play mark arrives on hover, as in the mockup: a
+                              still frame with a button already on it reads as a
+                              video that failed to start. */}
+                          <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                            <span className="grid size-[52px] place-items-center rounded-full bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.3)] transition-transform duration-200 group-hover:scale-100 scale-90">
+                              <Play className="size-5 fill-primary text-primary" />
+                            </span>
+                          </span>
+                          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/85 px-2 py-0.5 text-[11.5px] font-semibold text-white">
+                            <Play className="size-2.5 fill-current" />
+                            {p.duration_seconds ? `0:${String(Math.round(p.duration_seconds)).padStart(2, '0')}` : ''}
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="flex flex-1 flex-col gap-3 px-4 py-3.5">
+                      <div className="min-w-0">
+                        <h4 className="truncate text-[15px] font-bold">
+                          {p.caption || (p.media_kind === 'video' ? 'Video' : 'Photo')}
+                        </h4>
+                        <p className="mt-0.5 text-[12.5px] font-medium text-muted-foreground">
+                          {new Date(p.published_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="mt-auto flex items-center justify-between border-t pt-2.5">
+                        <HeartButton post={p} />
+                      </div>
+                    </div>
+                  </article>
                 ))}
               </div>
             </section>

@@ -34,7 +34,20 @@
          screen, with its own icon and no browser chrome, on Android and iOS
          alike, and a school that never installs it loses nothing. -->
     <link rel="manifest" href="/app/manifest.webmanifest" />
-    <meta name="theme-color" content="#0b0c0e" />
+    <!-- THE PHONE'S OWN BARS, PAINTED THE COLOUR OF THE PAGE.
+
+         One dark theme-color on a light page is why iOS Safari drew a grey
+         slab above the app and Android a grey status bar: the browser tints
+         its chrome from this tag, and a colour that matches neither theme
+         makes it fall back to grey. Declared per colour scheme, Safari's top
+         bar and Android's status bar take the page's own ground and the page
+         reads as one surface to the edge of the screen.
+
+         Installed from Add to Home Screen there are no bars at all: the app
+         already declares standalone and a translucent status bar below. -->
+    <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0c0e" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f7fb" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- iOS reads none of the manifest's icons and needs its own tag. -->
     <link rel="apple-touch-icon" href="/app/icon-192.png" />

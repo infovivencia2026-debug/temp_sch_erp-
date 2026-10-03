@@ -11,6 +11,7 @@ import { Dialog } from '@/components/ui'
 import { StatParts } from '@/components/stat-extras'
 import StoryViewer, { initials, type StoryGroup, type StoryItem } from '@/components/StoryViewer'
 import type { StatusFeed, StatusItem, StatusRing } from '@shared/api/feature_class_status'
+import HeartButton from './HeartButton'
 import StatusComposer, { AddChooser } from './StatusComposer'
 import { FEED_KEY, fileUrl, useStatusFeed, type AddMode, type Viewed } from './status-api'
 
@@ -126,13 +127,22 @@ export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: strin
     /* On your own status: keep it in the gallery (pin) or take it out, while
        watching it. Seen by stays on the My posts page. */
     /* The poster, and the institution admin / principal (status.manage), may pin. */
-    footer: (p.mine || canManage) && onPin ? (
-      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
-          {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
-        </button>
+    /* THE HEART TRAVELS WITH THE POST.
+
+       It is under every status, the poster's own included, so a parent can
+       answer a photo where they are watching it rather than having to find
+       the same picture again in the gallery. The pin stays beside it for
+       whoever may pin. */
+    footer: (
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <HeartButton post={p} dark />
+        {(p.mine || canManage) && onPin && (
+          <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
+            {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
+          </button>
+        )}
       </span>
-    ) : undefined,
+    ),
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({
     id: r.key, name: r.as_school ? schoolName : r.mine ? 'My status' : r.name,
