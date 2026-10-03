@@ -3,7 +3,7 @@ import { onShared, peekShared, takeShared } from '@/lib/shell'
 import { useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Eye, Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -127,9 +127,13 @@ export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: strin
        watching it. Seen by stays on the My posts page. */
     /* The poster, and the institution admin / principal (status.manage), may pin. */
     footer: (p.mine || canManage) && onPin ? (
-      <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
-        {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
-      </button>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Who has seen it: on your own status only. */}
+        {p.mine && <button type="button" onClick={() => _onViews(p.id)}><Eye className="size-4" /> Seen by</button>}
+        <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
+          {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
+        </button>
+      </span>
     ) : undefined,
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({

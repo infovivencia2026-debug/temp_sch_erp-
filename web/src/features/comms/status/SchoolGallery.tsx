@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Play, Plus, Type } from 'lucide-react'
 import StoryViewer from '@/components/StoryViewer'
+import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import type { StatusItem } from '@shared/api/feature_class_status'
@@ -23,7 +24,17 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const session = useSession()
   const feed = useStatusFeed(true)
-  const items = feed.data?.gallery ?? []
+  /* Every pinned post: the feed's gallery holds those past their 24 hours;
+     one pinned while still live sits in its poster's ring, so it is taken
+     from there too (it showed nowhere in the gallery before). */
+  const items = useMemo(() => {
+    const seen = new Set<string>(); const out: StatusItem[] = []
+    for (const p of [...(feed.data?.gallery ?? []), ...(feed.data?.rings ?? []).flatMap((r) => r.posts)]) {
+      if (!p.pinned || seen.has(p.id)) continue
+      seen.add(p.id); out.push(p)
+    }
+    return out
+  }, [feed.data])
   const [who, setWho] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [choose, setChoose] = useState(false)
@@ -132,7 +143,11 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
           onClose={() => { setCompose(null); void qc.invalidateQueries({ queryKey: FEED_KEY }) }} />
       )}
       {open && gIndex >= 0 && (
-        <StoryViewer groups={groups} start={gIndex} startId={open} onClose={() => setOpen(null)} onSeen={() => {}} />
+        <StoryViewer groups={groups} start={gIndex} startId={open} onClose={() => setOpen(null)} onSeen={(it) => {
+          /* Opening a pinned post counts as seeing it, as it does from the ring. */
+          const p = items.find((x) => x.id === it.id)
+          if (p && !p.mine && !p.seen) void api.post(p.seen_url ?? `/api/v1/status/posts/${p.id}/view`).catch(() => undefined)
+        }} />
       )}
     </div>,
     document.body,
