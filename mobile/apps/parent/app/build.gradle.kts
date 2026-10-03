@@ -59,8 +59,13 @@ android {
            field he can only get wrong, and app data survives a reinstall, so
            a typed address outlives the build that asked for it. */
         val portal = (project.findProperty("portalUrl") as String?)
-            ?: "https://school-erp-cqj.pages.dev"
+            ?: "https://school-erp-d1.pages.dev"
         buildConfigField("String", "PORTAL_URL", "\"$portal\"")
+        /* Generic XULO app (default): opens <portal>/start until a school is
+           chosen there. A school's own app (build-school.py) passes
+           -PfixedSchool=true and always opens its address. */
+        val fixedSchool = (project.findProperty("fixedSchool") as String?) == "true"
+        buildConfigField("boolean", "FIXED_SCHOOL", fixedSchool.toString())
 
         /* EVERY OTHER NAME THE SAME SCHOOL ANSWERS ON.
 
@@ -77,7 +82,7 @@ android {
            compiled into every handset already in the field and will go on
            redirecting for as long as that box is up. */
         val portalAliases = (project.findProperty("portalAliases") as String?)
-            ?: "temperp.187-127-178-100.sslip.io"
+            ?: "temperp.187-127-178-100.sslip.io,school-erp-cqj.pages.dev"
         buildConfigField("String", "PORTAL_ALIASES", "\"$portalAliases\"")
 
         /* THE SAME HOST, FOR THE DEEP LINK FILTER.

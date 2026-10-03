@@ -15,5 +15,14 @@
 	<array>
 		<string>applinks:$(PORTAL_HOST)</string>
 	</array>
+	<!-- Push (APNs). Production builds from the archive are switched to
+	     "production" by Xcode's export; the owner's APNs key goes on the server. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- The Share Extension drops shared files here (Native.takeShared). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	</array>
 </dict>
 </plist>

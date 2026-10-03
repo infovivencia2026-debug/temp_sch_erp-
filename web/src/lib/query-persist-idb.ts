@@ -37,7 +37,7 @@
  */
 
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
-import { get, set, del, keys, clear, createStore, type UseStore } from 'idb-keyval'
+import { localStore } from './local-store'
 
 /** Seven days: a returning user's screens survive a relaunch, a weekend, or
  *  a sign-out and back in, while anything genuinely old is refetched the
@@ -55,49 +55,28 @@ export function indexedDbAvailable(): boolean {
   }
 }
 
-/* A single IndexedDB database/store shared by every namespace; the per-user
-   isolation is in the KEY, not in separate databases. Created lazily and
-   guarded so that a throwing `createStore` cannot take the app down. */
-let store: UseStore | undefined
-function getStore(): UseStore | undefined {
-  if (store) return store
-  try {
-    store = createStore('erp-rq-cache', 'keyval')
-    return store
-  } catch {
-    return undefined
-  }
-}
-
-/* The AsyncStorage adapter react-query's persister expects. Every method
-   tolerates a missing or throwing IndexedDB: a failed read looks like "no
-   cache" (null), a failed write is dropped silently, and the app carries on
-   exactly as it would with persistence switched off. */
+/* The values go through the encrypted, size-capped local store
+   (lib/local-store.ts). Every method tolerates a missing or throwing store:
+   a failed read looks like "no cache" (null), a failed write is dropped, and
+   the app carries on as it would with persistence switched off. */
 const asyncStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      const s = getStore()
-      if (!s) return null
-      const value = await get<string>(key, s)
-      return value ?? null
+      return (await localStore()?.get<string>(key)) ?? null
     } catch {
       return null
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      const s = getStore()
-      if (!s) return
-      await set(key, value, s)
+      await localStore()?.set(key, value)
     } catch {
       /* Quota, private mode, storage disabled -- the app still works. */
     }
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      const s = getStore()
-      if (!s) return
-      await del(key, s)
+      await localStore()?.del(key)
     } catch {
       /* Nothing was ever written. */
     }
@@ -136,25 +115,20 @@ export function perUserPersister(userId: string, institutionId: string | undefin
    person's store. Best effort: a failure leaves the keyed isolation in place. */
 export function forgetAllPersisted() {
   try {
-    const s = getStore()
-    if (s) void clear(s).catch(() => {})
+    void localStore()?.wipe().catch(() => {})
+    /* The store before encryption, left by older builds. */
+    if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase('erp-rq-cache')
   } catch {
     /* no IndexedDB: nothing stored */
   }
 }
 
 export function forgetOtherPersisted(namespace: string) {
-  try {
-    const s = getStore()
-    if (!s) return
-    void keys(s)
-      .then((all) => {
-        // rq-cache:v2:<user>:<school> -- another school of the same person stays.
-        const user = namespace.split(':')[2]
-        return Promise.all(all.filter((k) => String(k).split(':')[2] !== user).map((k) => del(k, s)))
-      })
-      .catch(() => {})
-  } catch {
-    /* no IndexedDB */
-  }
+  const s = localStore()
+  if (!s) return
+  // rq-cache:v2:<user>:<school> -- another school of the same person stays.
+  const user = namespace.split(':')[2]
+  void s.keys()
+    .then((all) => Promise.all(all.filter((k) => k.startsWith('rq-cache:') && k.split(':')[2] !== user).map((k) => s.del(k))))
+    .catch(() => {})
 }

@@ -17,16 +17,30 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('ErpShell', {
   platform: 'desktop',
-  // The page reports its scroller for the phone's pull-to-refresh. A window
-  // has a scrollbar and a mouse wheel, so this is nothing here.
+  contract: 2,
   setAtTop: () => {},
   setGestureLock: () => {},
-  // No motor, and no fingerprint reader worth trusting a fee ledger to.
   haptic: () => {},
   appLockEnabled: () => false,
   biometricsAvailable: () => false,
   setAppLock: () => {},
   pushToken: () => null,
+  print: () => window.print(),
+  /* Version 2 (docs/native-shell.md). The main process checks every call
+     came from the school's own page (src/bridge.js). */
+  storeKey: () => ipcRenderer.sendSync('shell:storeKey'),
+  wipe: () => ipcRenderer.send('shell:wipe'),
+  setBadge: (n) => ipcRenderer.send('shell:setBadge', Number(n) || 0),
+  notify: (title, body, href) => ipcRenderer.send('shell:notify', String(title), String(body), String(href || '')),
+  pickFile: (id, kind, accept) => ipcRenderer.send('shell:pickFile', String(id), String(kind), String(accept || '')),
+  openExternal: (url) => ipcRenderer.send('shell:openExternal', String(url)),
+  download: (id, url, name) => ipcRenderer.send('shell:download', String(id), String(url), String(name || '')),
+  downloaded: (url) => ipcRenderer.sendSync('shell:downloaded', String(url)),
+  removeDownload: (url) => ipcRenderer.send('shell:removeDownload', String(url)),
+  outboxChanged: (json) => ipcRenderer.send('shell:outboxChanged', String(json)),
+  school: () => ipcRenderer.sendSync('shell:school'),
+  switchSchool: () => ipcRenderer.send('shell:switchSchool'),
+  setSchool: (json) => ipcRenderer.send('shell:setSchool', String(json)),
 })
 
 /* The local loading/error page's own small API. Kept on a separate name so

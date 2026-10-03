@@ -45,3 +45,17 @@ without push.
 ## Database changes (CONTROL D1)
 
 `worker/db/changes/control_white_label.sql`, then `control_app_id.sql`.
+
+## Generic app and per-school apps (2026-10)
+
+- The generic XULO app (Android, iOS, desktop) has no school built in. With no
+  school saved it opens `<default host>/start` (`web/src/features/public/ChooseSchool.tsx`):
+  the person types the school code (`in/riverside`), scans the school's QR code
+  (any QR whose text ends in `/<cc>/<slug>`, such as the school's sign-in link),
+  or opens a school link. The page reads `/<cc>/<slug>/app.json` and calls
+  `ErpShell.setSchool(json)`; the shell keeps it, shows the school's name, logo
+  and colour on its splash, and opens `portal_url`. Settings > Switch school
+  (`ErpShell.switchSchool()`) goes back to `/start`.
+- A per-school app is the same code built by `scripts/apps/build-school.py`
+  with the school fixed: the shell never shows `/start`.
+- Contract: `docs/native-shell.md`.

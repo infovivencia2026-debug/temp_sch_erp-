@@ -139,10 +139,14 @@ final class WebShell: NSObject, ObservableObject {
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.userContentController.addUserScript(WKUserScript(
-            source: BridgeScript.source(appLock: AppLock.enabled, canLock: AppLock.available),
+            source: BridgeScript.source(
+                appLock: AppLock.enabled, canLock: AppLock.available,
+                storeKey: Native.storeKey(), school: School.summary,
+                pushToken: UserDefaults.standard.string(forKey: "push_token")),
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
+        config.setURLSchemeHandler(OfflineFiles(), forURLScheme: "xulo-file")
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
 
@@ -219,8 +223,12 @@ final class WebShell: NSObject, ObservableObject {
         downloads.onToast = { [weak self] text, file in self?.showToast(text, file: file) }
         downloads.isForeground = { [weak self] in self?.foreground ?? false }
 
-        network.onReturn = { [weak self] in self?.networkReturned() }
+        network.onReturn = { [weak self] in
+            self?.networkReturned()
+            self?.emit(["type": "connectivity", "online": true])
+        }
         network.onLost = { [weak self] in
+            self?.emit(["type": "connectivity", "online": false])
             /* A tile or an avatar failing is not a reason to replace a working
                screen with an error, but it is worth a word: a parent looking
                at a map with no tiles should be told the phone is offline
@@ -233,7 +241,8 @@ final class WebShell: NSObject, ObservableObject {
         summaries.onChange = { [weak self] saved in self?.savedSummary = saved }
 
         restoreLastScreen()
-        load(Portal.url)
+        load(Portal.start)
+        AppDelegate.onToken = { [weak self] token in self?.emit(["type": "push", "token": token]) }
     }
 
     deinit {
@@ -266,7 +275,7 @@ final class WebShell: NSObject, ObservableObject {
         if let url = lastGoodUrl ?? webView.url {
             webView.load(URLRequest(url: url))
         } else {
-            load(Portal.url)
+            load(Portal.start)
         }
     }
 
@@ -426,6 +435,10 @@ final class WebShell: NSObject, ObservableObject {
 
     func becameActive() {
         foreground = true
+        /* Files shared in through the Share Extension while the app was away. */
+        if let shared = Native.takeShared() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.emit(shared) }
+        }
         pendingSnapshot = nil
         /* The Face ID sheet is system UI: raising it takes the scene to
            inactive and dismissing it brings it back to active, without ever
@@ -515,7 +528,7 @@ extension WebShell {
        and two locks on it cost nothing. */
     fileprivate func receive(_ message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame,
-              message.frameInfo.securityOrigin.host.lowercased() == Portal.host,
+              Portal.isPortalHost(message.frameInfo.securityOrigin.host.lowercased()),
               let body = message.body as? [String: Any],
               let kind = body["kind"] as? String else { return }
         switch kind {
@@ -530,7 +543,7 @@ extension WebShell {
         case "print":
             printPage()
         default:
-            break
+            receiveV2(kind, body["value"], path: message.frameInfo.request.url?.path ?? "")
         }
     }
 }
@@ -656,7 +669,7 @@ extension WebShell: WKNavigationDelegate {
         if let url = webView.url ?? lastGoodUrl {
             webView.load(URLRequest(url: url))
         } else {
-            load(Portal.url)
+            load(Portal.start)
         }
     }
 }
@@ -737,5 +750,65 @@ extension WebShell {
         controller.printInfo = info
         controller.printFormatter = webView.viewPrintFormatter()
         controller.present(animated: true, completionHandler: nil)
+    }
+}
+
+// MARK: - Contract version 2 (Native.swift, docs/native-shell.md)
+
+extension WebShell {
+    /// An answer to the page, as its `erp-shell` event.
+    func emit(_ detail: [String: Any]) {
+        guard let d = try? JSONSerialization.data(withJSONObject: detail),
+              let json = String(data: d, encoding: .utf8) else { return }
+        webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('erp-shell',{detail:\(json)}))")
+    }
+
+    private var origin: URL {
+        var c = URLComponents()
+        c.scheme = "https"
+        c.host = Portal.start.host
+        return c.url ?? Portal.url
+    }
+
+    fileprivate func receiveV2(_ kind: String, _ value: Any?, path: String) {
+        let v = value as? [String: Any]
+        switch kind {
+        case "wipe":
+            Native.wipe()
+        case "setBadge":
+            Native.setBadge((value as? Int) ?? 0)
+        case "openExternal":
+            if let s = value as? String, let u = URL(string: s), ["https", "http", "mailto", "tel"].contains(u.scheme ?? "") {
+                Presenter.openExternal(u)
+            }
+        case "pickFile":
+            guard let id = v?["id"] as? String else { return }
+            Picker.shared.pick(id: id, kind: v?["kind"] as? String ?? "file", accept: v?["accept"] as? String ?? "") { [weak self] id, files in
+                self?.emit(["type": "picked", "id": id, "files": files])
+            }
+        case "download":
+            guard let id = v?["id"] as? String, let s = v?["url"] as? String, let u = URL(string: s), Portal.isPortal(u) else { return }
+            OfflineFiles.download(u, cookies: webView.configuration.websiteDataStore.httpCookieStore) { [weak self] ok in
+                var d: [String: Any] = ["type": "downloaded", "id": id, "url": s, "ok": ok]
+                if ok, let local = OfflineFiles.local(s) { d["local"] = local }
+                self?.emit(d)
+            }
+        case "removeDownload":
+            if let s = value as? String { OfflineFiles.remove(s) }
+        case "outboxChanged":
+            if let s = value as? String {
+                Native.outboxChanged(s, origin: origin, cookies: webView.configuration.websiteDataStore.httpCookieStore)
+            }
+        case "switchSchool":
+            guard !Portal.fixed else { return }
+            School.forget()
+            webView.load(URLRequest(url: Portal.start))
+        case "setSchool":
+            // Only the picker page may choose the school.
+            guard !Portal.fixed, path == "/start", let s = value as? String, let u = School.save(s) else { return }
+            webView.load(URLRequest(url: u))
+        default:
+            break
+        }
     }
 }

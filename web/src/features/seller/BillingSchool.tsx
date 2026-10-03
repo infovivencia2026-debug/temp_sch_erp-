@@ -93,7 +93,7 @@ function Row({ i, payOnline }: { i: BillingInvoice; payOnline: boolean }) {
       <Td>{open ? formatPaise(i.balance_paise) : '-'}</Td>
       <Td><Badge tone={INV_TONE[i.status] ?? 'neutral'}>{i.status}</Badge></Td>
       <Td>
-        {open && payOnline && <Button size="sm" pending={pay.isPending} onClick={() => pay.mutate()}>Pay online (test)</Button>}
+        {open && payOnline && <Button needsNetwork size="sm" pending={pay.isPending} onClick={() => pay.mutate()}>Pay online (test)</Button>}
         <FormNotice error={pay.error} />
       </Td>
     </tr>

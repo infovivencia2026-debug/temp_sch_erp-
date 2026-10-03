@@ -10,14 +10,17 @@
 // as the start of a comment even inside a value, and an empty variable
 // reference is the documented way to break the pair without changing the
 // string that comes out.
-PORTAL_HOST = school-erp-cqj.pages.dev
+PORTAL_HOST = school-erp-d1.pages.dev
 PORTAL_URL = https:/$()/$(PORTAL_HOST)
 
 // Every other name the same school answers on (comma-separated). The sslip
 // name is the VPS the site lived on before Cloud Run + Pages; it still
 // redirects, and a redirect must not be mistaken for a foreign site.
 // Read by Portal.swift through the PortalAliases key in Info.plist.
-PORTAL_ALIASES = temperp.187-127-178-100.sslip.io
+PORTAL_ALIASES = temperp.187-127-178-100.sslip.io,school-erp-cqj.pages.dev
+
+// NO: the generic XULO app asks for the school. build-school.py writes YES.
+FIXED_SCHOOL = NO
 
 PRODUCT_BUNDLE_IDENTIFIER = com.schoolerp.parent
 MARKETING_VERSION = 1.0.0

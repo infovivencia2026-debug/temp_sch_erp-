@@ -196,7 +196,7 @@ export default defineConfig({
     proxy: (() => {
       const target = process.env.DEV_API || 'https://school-erp-d1.pages.dev'
       const to = { target, changeOrigin: true, secure: false }
-      return { '/api': to, '/login': to, '/logout': to, '/healthz': to }
+      return { '/api': to, '/login': to, '/logout': to, '/healthz': to, '^/[a-z]{2}/[a-z0-9-]+/(app\.json|logo)': to }
     })(),
   },
   build: {

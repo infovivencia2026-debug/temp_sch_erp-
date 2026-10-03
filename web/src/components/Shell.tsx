@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import Outbox from '@/components/Outbox'
+import ShareInbox from '@/components/ShareInbox'
 import { LiveToasts } from '@/components/LiveToasts'
 import { AnnouncementsBanner } from '@/features/seller/AnnouncementsBanner'
 import { useOfflineWarm } from '@/lib/offline-warm'
@@ -1292,6 +1293,7 @@ export function Shell({
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
           <Outbox />
+          <ShareInbox />
           {/* The corner card for a message that landed in a conversation not
               on screen — tap opens it. Mounted once, here, so a split work
               area does not draw it twice. */}

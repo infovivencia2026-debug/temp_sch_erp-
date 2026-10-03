@@ -1,7 +1,7 @@
 import type { Env } from '../env'
 import { json } from '../env'
 import type { SessionResponse } from '@shared/api'
-import { currentSession } from '../auth/session'
+import { currentSession, readCookie, tokenHash } from '../auth/session'
 import { institutionById, tenantDb, tenantSession } from '../tenant'
 import type { Identity } from '../identity'
 import { entitlementFor } from './misc/shell'
@@ -21,7 +21,7 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
  *  the school, the roles and the permissions come from it rather than being read again. */
 export async function sessionBody(env: Env, req: Request, id?: Identity | null): Promise<SessionResponse> {
   const s = id ? { user_id: id.userId, institution_id: id.homeInstitutionId } : await currentSession(env, req)
-  if (!s) return { authenticated: false, permissions: [] }
+  if (!s) return { authenticated: false, permissions: [], ...(!id && await wipeRequested(env, req) ? { wipe: true } : {}) }
 
   if (s.institution_id === null) {
     const u = await env.CONTROL.prepare('SELECT full_name FROM platform_users WHERE id = ?').bind(s.user_id).first<{ full_name: string }>()
@@ -109,3 +109,20 @@ export async function sessionBody(env: Env, req: Request, id?: Identity | null):
   }
 }
 
+
+/* A REMOTE WIPE IS A SIGN-OUT SOMEBODY ELSE DID.
+
+   The apps keep a person's screens and unsent changes on the device so they
+   work with no signal. When the session behind this device was ended from
+   elsewhere -- "sign out everywhere", a password change or reset, an admin,
+   the school archived -- whatever the device saved is no longer theirs to
+   keep, so the answer says so and the app deletes it. An idle expiry is not
+   that: the person simply was away, and their offline copy stays. */
+async function wipeRequested(env: Env, req: Request): Promise<boolean> {
+  const token = readCookie(req)
+  if (!token) return false
+  const row = await env.CONTROL.prepare(
+    `SELECT ended_reason FROM sessions WHERE token_hash = ? AND revoked_at IS NOT NULL`,
+  ).bind(await tokenHash(token)).first<{ ended_reason: string | null }>()
+  return !!row && row.ended_reason !== 'idle'
+}

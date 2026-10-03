@@ -11,6 +11,7 @@ import { SessionProvider, useSession } from '@/lib/session'
    security cards, growth, concerns) is opened from a menu — neither belongs in
    the chunk every signed-in screen waits for. */
 const ApplyForm = lazy(() => import('@/features/public/ApplyForm'))
+const ChooseSchool = lazy(() => import('@/features/public/ChooseSchool'))
 const EnquireForm = lazy(() => import('@/features/public/EnquireForm'))
 const AccountPage = lazy(() => import('@/features/shared/Profile'))
 /* Lazy like every feature screen: Settings pulls the whole settings window
@@ -38,6 +39,9 @@ import { ToastHost } from './components/Toast'
 import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
 import { I18nProvider } from '@/lib/i18n'
+import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
+import { onSent } from '@/lib/outbox'
+import { shell } from '@/lib/shell'
 
 /* A hairline at the top of the window while anything is being fetched in the
    background, so kept-on-screen data never looks final while it is changing.
@@ -117,6 +121,24 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+/* The offline layer's two hooks into the cache (lib/offline-boot.ts,
+   lib/outbox.ts): the boot snapshot follows every fresh session/menu answer,
+   and a queued write reaching the server refetches what is on screen, so the
+   server's copy replaces the guess and any conflict shows as it really is. */
+rememberBootQueries(queryClient)
+onSent(() => void queryClient.invalidateQueries())
+/* The app-icon badge follows the bell's unread count (lib/shell.ts). */
+queryClient.getQueryCache().subscribe((ev) => {
+  if (ev.type !== 'updated' || ev.action.type !== 'success' || ev.query.queryKey[0] !== 'notifications') return
+  const n = (ev.query.state.data as { unread?: number } | undefined)?.unread
+  if (typeof n === 'number') shell()?.setBadge?.(n)
+})
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    if (bootedOffline()) void queryClient.invalidateQueries({ queryKey: ['session'] })
+  })
+}
 
 /** Sends the user to the first feature of their first role. */
 function RoleIndex() {
@@ -517,7 +539,7 @@ export function AppRoutes({ location }: { location?: string }) {
    session; neither has anything to say to a parent filling in one form.
 */
 function isPublicPath(pathname: string) {
-  return pathname.startsWith('/admissions/apply/') || pathname.startsWith('/admissions/enquire/')
+  return pathname.startsWith('/admissions/apply/') || pathname.startsWith('/admissions/enquire/') || pathname === '/start'
 }
 
 /* Nothing to draw: it exists so the poll lives inside the providers and dies
@@ -620,6 +642,7 @@ export default function App() {
           <Routes>
             <Route path="/admissions/apply/:slug" element={<Suspense fallback={null}><ApplyForm /></Suspense>} />
             <Route path="/admissions/enquire/:slug" element={<Suspense fallback={null}><EnquireForm /></Suspense>} />
+            <Route path="/start" element={<Suspense fallback={null}><ChooseSchool /></Suspense>} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>

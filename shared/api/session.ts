@@ -2,6 +2,10 @@
 
 export interface SessionResponse {
   authenticated: boolean
+  /** Signed out from somewhere else (all devices, a password change, an
+   *  admin, the school archived): this device should delete what it has
+   *  saved for offline use. Absent after an ordinary sign-out or idle expiry. */
+  wipe?: boolean
   user?: {
     id: string
     full_name: string

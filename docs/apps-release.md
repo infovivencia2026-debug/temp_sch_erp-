@@ -214,3 +214,121 @@ In priority order. Each is small and each removes a class of support call.
 10. **A `make release-apps` target** that runs the bump, the builds that
     can run here, checksums, and writes this folder layout, so the next
     release is reproducible from one line.
+
+## Desktop (Windows, Linux, macOS): XULO generic and per-school, 2026-10
+
+One codebase in `desktop/`. The generic app (`fixedSchool: false`, `portal`
+= the default host, now `https://school-erp-d1.pages.dev`) opens `/start` until a
+school is chosen; a per-school build from `scripts/apps/build-school.py` sets
+`fixedSchool: true` and the school's address. `PORTAL_URL=...` overrides the
+address for a run from source.
+
+Build (Node 22, from `desktop/`, after `npm ci`):
+
+```
+# Linux AppImage + tar.gz (on Linux or macOS)
+npx electron-builder --linux --publish never
+# macOS dmg + zip (on a Mac; signing/notarising needs the owner's Developer ID)
+npx electron-builder --mac --publish never
+# Windows NSIS installer, Store package (appx/MSIX) and zip (on Windows, or Linux with Wine)
+npx electron-builder --win nsis appx zip --x64 --publish never
+```
+
+Auto-update (electron-updater): give the build a feed and host its output.
+
+```
+npx electron-builder --linux --win \
+  -c.publish.provider=generic -c.publish.url=https://downloads.example.com/desktop/com.schoolerp.desktop/
+```
+
+Upload everything in `dist/` (installers plus `latest.yml`, `latest-linux.yml`,
+`latest-mac.yml` and the `.blockmap` files) to that folder over HTTPS. Installed
+copies check at start and every 6 hours and install on quit. Per-school:
+`build-school.py <address> --only desktop --update-url https://downloads.example.com/desktop`
+(the app id is appended). Store (appx) installs update through the Store.
+The appx `publisher` stays a placeholder until the owner's Partner Center
+identity is known. The Windows app id is still `com.schoolerp.desktop` so that
+existing installs upgrade in place rather than installing beside it.
+
+What the desktop shell does (contract: `docs/native-shell.md`): offline store key
+in `safeStorage`, OS notifications, dock/taskbar badge and a tray icon, file
+picker, files saved for offline (`xulo-file://`), the outbox sent while the
+window is hidden, `xulo://open/<path>` deep links, print, one instance, window
+size and zoom remembered.
+
+## Android: the XULO app (generic and per-school), 2026-10
+
+`mobile/apps/parent` is now the one Android app. Package id strategy: the
+generic app keeps `com.schoolerp.parent`, so phones that have the old app
+update in place (a store listing's package id can never change). Its default
+address is the test site `https://school-erp-d1.pages.dev`; with no school
+saved it opens `/start` and the person chooses a school once. A school's own
+app is built by `build-school.py` with its own `appId`, `-PfixedSchool=true`
+and its address. To ship the generic package fixed to one school instead, pass
+`-PfixedSchool=true -PportalUrl=<address>`.
+
+Shell contract v2 on Android (`Native.kt`, `docs/native-shell.md`): store key
+sealed by an Android Keystore AES key; picker (camera, files; "scan" uses the
+camera: there is no platform document scanner and ML Kit would add Google Play
+services); share sheet receiver for images, videos and PDFs; files saved for
+offline served from `https://offline.xulo.invalid/<hash>`; the outbox sent by a
+JobScheduler job with a network constraint; `xulo://open/<path>`; connectivity
+events; badge cleared with the notifications (launcher counts come from push).
+
+Build on a machine with JDK 17 and the Android SDK (not this Mac):
+
+```
+cd mobile/apps/parent
+export JAVA_HOME=/path/to/jdk-17 ANDROID_HOME=$HOME/Android/Sdk
+# debug, to try on a phone
+./gradlew --no-daemon :app:assembleDebug
+# release (Play bundle + APK), signed with the upload key named in keystore.properties
+./gradlew --no-daemon :app:bundleRelease :app:assembleRelease -PversionCode=$(date +%y%m%d%H) -PversionName=$(date +%Y.%-m.%-d)
+# one school's app
+python3 scripts/apps/build-school.py https://school-erp-d1.pages.dev/in/<slug> --only android --google-services <file>
+```
+
+`keystore.properties` (not in chat) names the upload key; the owner types its
+password. Push needs the Firebase project's `google-services.json`.
+
+## iOS: the XULO app (generic and per-school), 2026-10
+
+`mobile/apps/parent-ios`, same split as Android: `FIXED_SCHOOL = NO` in
+`Config/Portal.xcconfig` is the generic app (opens `/start` until a school is
+chosen); `build-school.py` writes `FIXED_SCHOOL = YES` and the school's address.
+Bundle id stays `com.schoolerp.parent` for the generic app.
+
+Shell contract v2 (`ParentApp/Shell/Native.swift`): store key in the Keychain
+(this device only), APNs token (AppDelegate) handed to the page, badge through
+`UNUserNotificationCenter`, camera / VisionKit document scan / Files picker,
+files saved for offline served as `xulo-file://` (WKURLSchemeHandler), outbox
+sent by a `BGProcessingTask` (`com.xulo.outbox`) with the web view's cookies,
+`xulo://open/<path>`, connectivity events, wipe.
+
+Verified here: `xcodebuild -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build`
+succeeds with Xcode 26.6. Not run on a device or simulator.
+
+One step in Xcode, once (the project file was not edited by hand for it): add
+the Share Extension target. File > New > Target > Share Extension, name
+`ShareExtension`, then replace its generated files with the three in
+`ShareExtension/` (ShareViewController.swift, Info.plist,
+ShareExtension.entitlements), set its bundle id to `$(PRODUCT_BUNDLE_IDENTIFIER).share`
+and `APP_BUNDLE_IDENTIFIER = $(PRODUCT_BUNDLE_IDENTIFIER)` in its build settings.
+Both targets need the App Group `group.<bundle id>` and the app needs Push
+Notifications, in the owner's Apple developer account.
+
+Needs the owner: Team ID (`DEVELOPMENT_TEAM`, or `--team` to build-school.py),
+the App Group and push capability on the App ID, an APNs key for the server.
+The server's push sender sends through FCM today; tokens registered with
+`platform: 'ios'` need an APNs sender (or FCM with the APNs key uploaded to
+Firebase) before iPhones receive pushes.
+
+Build and archive on a Mac with the owner's account:
+
+```
+cd mobile/apps/parent-ios
+xcodebuild -project ParentApp.xcodeproj -scheme ParentApp -configuration Release \
+  -destination generic/platform=iOS -archivePath build/XULO.xcarchive archive DEVELOPMENT_TEAM=<TEAMID>
+xcodebuild -exportArchive -archivePath build/XULO.xcarchive -exportPath build/out \
+  -exportOptionsPlist Config/ExportOptions.plist
+```
