@@ -597,3 +597,53 @@
 
 /* The browser's own clear would be a second x beside ours. */
 .lch .lch-searchbar__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* RESULTS AS A LIST, ON A PHONE.
+
+   The launcher draws features as tiles, which is right for browsing: a wall
+   of icons is how somebody finds the thing they half-remember the look of.
+   It is wrong for searching. Having typed four letters a person knows what
+   they want and is reading names, and a 96px tile holds about eleven
+   characters of one -- so "Take attendance (whole school)" and "Take
+   attendance" arrive as two identical squares. One match filled a third of
+   the screen and still did not say which match it was.
+
+   So on a phone the results become rows: the name at full width with nothing
+   truncated, and under it where the screen lives. Tiles stay everywhere else
+   and for the unsearched launcher, which is browsing. */
+.lch-rows { display: flex; flex-direction: column; gap: 2px; }
+.lch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border-radius: 14px;
+  text-align: left;
+  background: transparent;
+  transition: background-color .12s ease;
+}
+.lch-row[data-cursor='on'],
+.lch-row:active { background: color-mix(in srgb, var(--ink-here) 10%, transparent); }
+.lch-row__body { min-width: 0; flex: 1; }
+.lch-row__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.lch-row__where {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The heading carries its own count, on the right, the way a search result
+   list states what it found rather than making you count the rows. */
+.lch-rgroup__name { justify-content: space-between; }
+.lch-rgroup__name > span:first-child { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.lch-rgroup__count { flex: none; font-weight: 500; opacity: 0.75; }

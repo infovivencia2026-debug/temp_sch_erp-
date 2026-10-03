@@ -754,6 +754,42 @@ export function BentoLauncher({
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
 
   const indexOf = new Map(slots.map((s, i) => [s.id, i]))
+  /* SEARCH RESULTS ON A PHONE ARE A LIST, NOT A WALL OF TILES.
+
+     Tiles are right for browsing -- a wall of icons is how somebody finds the
+     thing they half-remember the look of. They are wrong for searching: four
+     letters in, a person knows what they want and is reading NAMES, and a 96px
+     tile holds about eleven characters of one. "Take attendance" and "Take
+     attendance (whole school)" arrived as two identical squares, and a single
+     match filled a third of the screen while still not saying which match it
+     was.
+
+     The row gives the name the full width and says underneath where the screen
+     lives. Everything else -- pinned, recent, the unsearched launcher -- keeps
+     its tiles, because all of that is browsing. */
+  const drawRows = (list: Slot[]) => (
+    <div className="lch-rows">
+      {list.map((s) => {
+        const i = indexOf.get(s.id) ?? -1
+        return (
+          <button
+            key={s.id}
+            type="button"
+            className="lch-row"
+            data-cursor={i === cursor ? 'on' : undefined}
+            onClick={() => go(s.r)}
+          >
+            <FeatureGlyph slug={s.r.slug} section={s.r.sectionSlug} tint={hueFor(s.r.workspace)} size={34} />
+            <span className="lch-row__body">
+              <span className="lch-row__name">{s.r.name}</span>
+              <span className="lch-row__where">{s.r.workspace} · {s.r.section}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
   const draw = (list: Slot[], band = false) => (
     <div className={band ? 'lch-band' : 'lch-grid'}>
       {list.map((s) => (
@@ -865,10 +901,15 @@ export function BentoLauncher({
                 {(phone ? [...resultGroups].reverse() : resultGroups).map((g) => (
                   <div key={g.name} className="lch-rgroup" data-workspace={g.name}>
                     <p className="lch-rgroup__name" style={{ '--t': `var(--dom-${hueFor(g.name)}, currentColor)` } as CSSProperties}>
-                      <span className="lch-dot" aria-hidden="true" />
-                      {g.name}
+                      <span>
+                        <span className="lch-dot" aria-hidden="true" />
+                        {g.name}
+                      </span>
+                      <span className="lch-rgroup__count">
+                        {g.slots.length} found
+                      </span>
                     </p>
-                    {draw(g.slots)}
+                    {phone ? drawRows(g.slots) : draw(g.slots)}
                   </div>
                 ))}
                 {!phone && (
