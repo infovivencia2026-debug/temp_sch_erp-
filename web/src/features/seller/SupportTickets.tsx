@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Select, FormNotice, SkeletonTable, ErrorState,
-} from '@/components/ui'
+import { PageHead, PageBody, CellGrid, Stat, Button, SkeletonTable, ErrorState, TAB_BAR, tabClass } from '@/components/ui'
 import { type VendorTicket } from '../super_admin/platform-lib'
-import { useOptimisticMutation } from '@/lib/optimistic'
+import { DeskPanes } from './SupportDesk'
+import { HelpContent } from './HelpContent'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
 
@@ -26,27 +24,12 @@ const STATUS_TONE: Record<string, 'info' | 'warning' | 'success' | 'neutral'> = 
  * a ticket vendor-visible while it names a child.
  */
 export default function SupportTickets() {
-  const [status, setStatus] = useState('')
+  const [view, setView] = useState<'tickets' | 'content'>('tickets')
+  const status = ''
   const [focus, setFocus] = useState<{ by: string; key: string } | null>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ['platform', 'tickets', status],
     queryFn: () => api.get<List<VendorTicket>>(status ? `${BASE}?status=${status}` : BASE),
-  })
-  /* Take and Resolve answer at once (lib/optimistic). The ticket changes in
-     every open filter of this queue the moment it is pressed; the server's
-     answer then replaces the guess, or puts it back with the reason. */
-  const update = useOptimisticMutation<{ path: string; body: { status: string } }>({
-    mutationFn: ({ path, body }) => api.post(`/api/v1/admin/platform${path}`, body),
-    queryKeys: [['platform', 'tickets']],
-    apply: (old, v, key) => {
-      const l = old as List<VendorTicket>
-      const id = v.path.split('/').pop()
-      const filter = String((key as unknown[])[2] ?? '')
-      const next = l.items.map((t) => (t.id === id ? { ...t, status: v.body.status, breached: v.body.status === 'resolved' ? false : t.breached } : t))
-      // In a filtered view a ticket that no longer matches leaves it.
-      return { ...l, items: filter ? next.filter((t) => t.status === filter) : next }
-    },
-    failure: "Couldn't update the ticket",
   })
 
   if (isLoading && !data) return <SkeletonTable columns={8} />
@@ -114,6 +97,11 @@ export default function SupportTickets() {
         description="Faults schools have reported to the vendor, with the tenant, severity, owner and time open."
       />
       <PageBody>
+        <nav className={TAB_BAR} aria-label="Support">
+          <button type="button" className={tabClass(view === 'tickets')} aria-current={view === 'tickets' ? 'page' : undefined} onClick={() => setView('tickets')}>Tickets</button>
+          <button type="button" className={tabClass(view === 'content')} aria-current={view === 'content' ? 'page' : undefined} onClick={() => setView('content')}>Help content</button>
+        </nav>
+        {view === 'content' ? <HelpContent /> : <>
         <CellGrid cols={4}>
           <Stat
             label="In the queue"
@@ -174,102 +162,9 @@ export default function SupportTickets() {
           </p>
         )}
 
-        <Card>
-          <CardHeader
-            title="Queue"
-            description="Grievances a parent raised with their school are not in this table and cannot be put in it"
-            action={
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={[
-                  { value: '', label: 'Everything not closed' },
-                  { value: 'open', label: 'Open' },
-                  { value: 'in_progress', label: 'In progress' },
-                  { value: 'waiting', label: 'Waiting' },
-                  { value: 'resolved', label: 'Resolved' },
-                  { value: 'closed', label: 'Closed' },
-                ]}
-              />
-            }
-          />
-          <Table
-            head={['School', 'Subject', 'Category', 'Priority', 'Open', 'Owner', 'Status', '']}
-            empty={!items.length}
-            emptyLabel={focus ? 'No ticket matches that. Press Clear to see the whole queue.' : "Nothing in the queue. A school reports a fault from its own support screen, which is the only way a ticket reaches here."}
-          >
-            {items.map((t) => (
-              <tr key={t.id}>
-                <Td className="font-medium">{t.school ?? '-'}</Td>
-                <Td>
-                  {t.subject}
-                  {t.body && (
-                    <span className="block max-w-[42ch] truncate text-[12px] text-muted-foreground">
-                      {t.body}
-                    </span>
-                  )}
-                </Td>
-                <Td className="capitalize">{t.category.replace(/_/g, ' ')}</Td>
-                <Td>
-                  <Badge tone={tone(t.priority)}><span className="capitalize">{t.priority}</span></Badge>
-                </Td>
-                {/* The clock against the promise, in one cell. Two numbers
-                    side by side say more than either alone: 30h against a
-                    promise of 8h is a different conversation from 30h against
-                    72h, and the queue could not tell them apart. */}
-                <Td className="num">
-                  <span className={t.breached ? 'font-medium text-destructive' : undefined}>
-                    {t.open_hours < 48 ? `${t.open_hours}h` : `${t.open_days}d`}
-                  </span>
-                  {t.promised_hours > 0 && (
-                    <span className="block text-[12px] text-muted-foreground">
-                      {t.breached ? 'past ' : 'of '}
-                      {t.promised_hours}h
-                      {t.plan_name ? ` · ${t.plan_name}` : ' · no plan'}
-                    </span>
-                  )}
-                </Td>
-                <Td className="whitespace-nowrap">{t.assigned_to ?? <span className="text-muted-foreground">Unassigned</span>}</Td>
-                <Td>
-                  <Badge tone={STATUS_TONE[t.status] ?? 'neutral'}>{STATUS_NAME[t.status] ?? t.status}</Badge>
-                </Td>
-                <Td>
-                  <div className="flex items-center gap-2">
-                    {t.status === 'open' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={update.isPending}
-                        onClick={() =>
-                          update.mutate({ path: `/seller/tickets/${t.id}`, body: { status: 'in_progress' } })
-                        }
-                      >
-                        Take
-                      </Button>
-                    )}
-                    {t.status !== 'resolved' && t.status !== 'closed' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={update.isPending}
-                        onClick={() =>
-                          update.mutate({ path: `/seller/tickets/${t.id}`, body: { status: 'resolved' } })
-                        }
-                      >
-                        Resolve
-                      </Button>
-                    )}
-                  </div>
-                </Td>
-              </tr>
-            ))}
-          </Table>
-          {update.isError && (
-            <div className="border-t p-5">
-              <FormNotice error={update.error} />
-            </div>
-          )}
-        </Card>
+        {/* The queue as a desk: queues, tickets, the conversation and what is known (SupportDesk.tsx). */}
+        <DeskPanes items={items} />
+        </>}
       </PageBody>
     </>
   )
