@@ -38,6 +38,8 @@ import { ToastHost } from './components/Toast'
 import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
 import { I18nProvider } from '@/lib/i18n'
+import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
+import { onSent } from '@/lib/outbox'
 
 /* A hairline at the top of the window while anything is being fetched in the
    background, so kept-on-screen data never looks final while it is changing.
@@ -117,6 +119,18 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+/* The offline layer's two hooks into the cache (lib/offline-boot.ts,
+   lib/outbox.ts): the boot snapshot follows every fresh session/menu answer,
+   and a queued write reaching the server refetches what is on screen, so the
+   server's copy replaces the guess and any conflict shows as it really is. */
+rememberBootQueries(queryClient)
+onSent(() => void queryClient.invalidateQueries())
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    if (bootedOffline()) void queryClient.invalidateQueries({ queryKey: ['session'] })
+  })
+}
 
 /** Sends the user to the first feature of their first role. */
 function RoleIndex() {

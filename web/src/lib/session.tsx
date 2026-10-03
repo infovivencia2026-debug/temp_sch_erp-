@@ -1,6 +1,7 @@
 import { Suspense, createContext, lazy, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type SessionResponse } from './api'
+import { api, ApiError, type SessionResponse } from './api'
+import { savedSession, wipeDevice } from './offline-boot'
 import { setOutboxUser } from './outbox'
 import { forgetCachedDataOnUserChange } from './sw-data'
 import { adoptPersistedQueries, forgetEverythingOnSignOut } from './query-persist'
@@ -20,7 +21,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.call('GET /session'),
+    /* With no network at all, the last session this device saw stands in
+       (lib/offline-boot.ts) so the saved screens open; online, never. */
+    queryFn: async () => {
+      try {
+        const s = await api.call('GET /session')
+        if (s.wipe) await wipeDevice()
+        return s
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 0) {
+          const saved = await savedSession<SessionResponse>(queryClient)
+          if (saved) return saved
+        }
+        throw e
+      }
+    },
     // The server answers 200 with {authenticated:false} rather than 401, so a
     // signed-out visitor is a normal result, not a retryable failure.
     retry: false,

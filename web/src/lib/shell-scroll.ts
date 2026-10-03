@@ -39,6 +39,12 @@ interface ErpShell {
      older builds of the app and in every browser, where window.print is
      the answer. */
   print?(): void
+  /* A 32-byte key, base64, held in the platform keystore; seals the
+     offline store (lib/local-store.ts). */
+  storeKey?(): string | null
+  /* Delete what the app itself keeps (files saved for offline, the queued
+     background uploads) after a remote sign-out. */
+  wipe?(): void
 }
 
 declare global {

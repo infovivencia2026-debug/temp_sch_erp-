@@ -92,6 +92,11 @@ interface ToastLike {
   error: (m: string, retry?: () => void) => void
 }
 
+/** A write the API layer kept for later rather than one that failed. */
+export function isQueued(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { code?: string }).code === 'queued_offline'
+}
+
 /** The mutation options, built without React so they can be tested. */
 export function optimisticOptions<TVars, TData>(
   qc: QueryClient,
@@ -108,13 +113,17 @@ export function optimisticOptions<TVars, TData>(
       return snap
     },
     onError: (err, vars, snap) => {
+      /* Kept on the device for the outbox to send (lib/outbox.ts): the change
+         stays on screen, with the outbox list showing it as waiting. */
+      if (isQueued(err)) return
       rollback(qc, snap)
       cfg.onError?.(err, vars)
       toast.error(`${cfg.failure ?? "Couldn't save that"}, so it was put back. ${reason(err)}`, () => retry(vars))
     },
     onSuccess: (data, vars) => cfg.onSuccess?.(data, vars),
-    onSettled: (_d, _e, vars) => {
+    onSettled: (_d, err, vars) => {
       optimisticEnd()
+      if (isQueued(err)) return
       const keys = keysOf(cfg.invalidate ?? cfg.queryKeys, vars)
       return Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey }))).then(() => undefined)
     },
@@ -173,6 +182,7 @@ export function undoableDelete<TVars, TData>(
         const data = await cfg.mutationFn(vars)
         cfg.onSuccess?.(data, vars)
       } catch (err) {
+        if (isQueued(err)) return
         rollback(qc, snap)
         cfg.onError?.(err, vars)
         toast.error(`${cfg.failure ?? "Couldn't delete that"}, so it was put back. ${reason(err)}`, () => void remove(vars))

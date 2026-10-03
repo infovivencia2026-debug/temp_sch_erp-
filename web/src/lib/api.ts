@@ -8,6 +8,7 @@
 import type { Api } from '@shared/api'
 import type { PathParams, QueryValue } from '@shared/api/contract'
 import { takeOffline } from './outbox'
+import { mayQueue } from './offline-policy'
 import { noteWrite } from './save-feedback'
 import { bootstrapped } from './bootstrap'
 import type { BootstrapResponse } from '@shared/api'
@@ -129,12 +130,15 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
      * A write is kept and sent later. A read is not: nobody typed it, there is
      * nothing to preserve, and replaying it after the fact would repaint a
      * screen with the answer to a question the person has stopped asking. */
-    if (idem && takeOffline(method, path, init?.body as string | undefined, idem)) {
+    if (idem && takeOffline(method, path, init?.body, idem, undefined, mayQueue)) {
       throw new ApiError(
         0,
         'queued_offline',
         'Saved on this device. It will be sent as soon as there is a connection.',
       )
+    }
+    if (idem) {
+      throw new ApiError(0, 'offline', 'Needs internet. Nothing was saved; try again when you are connected.')
     }
     throw new ApiError(0, 'offline', 'No connection. This screen needs the network to load.')
   }

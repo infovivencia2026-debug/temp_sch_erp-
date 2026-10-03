@@ -23,40 +23,34 @@
    — which is what makes a cold start with no signal land on a real screen
    rather than the browser's dinosaur.
 
-   An API read is network first, WITH A CLOCK. Fresh beats fast for a fee
-   balance, so the wire is asked first; but a school connection that hangs
-   rather than refuses used to hold the screen forever with a perfectly good
-   copy sitting in the cache. Now the network gets a few seconds, and then the
-   cached answer is shown, marked as cached so the screen can say so. Writes
-   are never touched: they belong to the outbox, which knows how to make them
-   safe to repeat, and a service worker replaying a POST would be the
-   double-write this product has just spent a migration preventing.
-
-   TWO CACHES WITH TWO LIFETIMES.
+   An API read is NOT cached here any more. The saved screens live in the
+   app's own encrypted store (lib/local-store.ts), which is per person, per
+   school, capped and wiped on sign-out; a second plaintext copy of the same
+   answers in this worker's cache would be the leak that store exists to
+   prevent. Writes are never touched: they belong to the outbox.
 
    The shell cache is named for the build, because its contents are the
-   build: a new deploy retires the old shell wholesale. The DATA cache is NOT
-   — it used to be, and that meant every deploy threw away every cached
-   answer on every phone, so "update the app, then lose signal" left a parent
-   with nothing. Data outlives the build and is versioned on its own; it is
-   emptied only by sign-out, by a different person signing in, or by age. */
+   build: a new deploy retires the old shell wholesale. The old data cache
+   (erp-data-v1) from earlier builds is deleted on activate. */
 
 const SHELL = 'erp-shell-__BUILD__'
-const DATA = 'erp-data-v1'
+const DATA = 'erp-data-v1' // retired; deleted on activate
 const PRECACHE = __PRECACHE__
+
+/* Shown only when a navigation fails before the app was ever saved on this
+   device. Plain words, the system font, both themes; no script. */
+const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>No connection</title>
+<style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;
+font:16px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText;padding:16px;box-sizing:border-box}
+p{max-width:28em;text-align:center}a{color:inherit}</style></head><body><p>
+No connection. Open the app once while connected and it will work offline after that.
+<br><a href="">Try again</a></p></body></html>`
 
 /* How long the wire gets before the cached copy is shown instead. Long
    enough for a slow-but-working connection to answer a real read; short
    enough that a dead one does not hold a fee balance hostage. */
-const API_TIMEOUT_MS = 3500
 const NAV_TIMEOUT_MS = 8000 // was 4000: a slow link fell back to the cached shell, an old build, on every load
-
-/* Caps, so the caches cannot grow without bound on a phone. DATA is trimmed
-   oldest-first by insertion order when it passes the limit; entries older
-   than the age limit are dropped on read. */
-const DATA_MAX_ENTRIES = 800
-const DATA_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000
-const STAMP = 'X-Cached-At'
 
 self.addEventListener('install', (e) => {
   /* Not skipWaiting. A tab that is open and mid-task is running the previous
@@ -70,8 +64,8 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     (async () => {
-      // Old shells go; the data cache stays across builds by design.
-      const keep = new Set([SHELL, DATA])
+      // Old shells go, and the retired API cache with them.
+      const keep = new Set([SHELL])
       for (const k of await caches.keys()) if (!keep.has(k)) await caches.delete(k)
       /* Navigation preload: the browser starts the navigation request the
          moment the tab asks, in parallel with waking this worker, rather than
@@ -107,6 +101,21 @@ self.addEventListener('message', (e) => {
   if (e.data?.type === 'erp-warm-shell' && Array.isArray(e.data.urls)) {
     e.waitUntil(warmShell(e.data.urls))
   }
+})
+
+/* THE NETWORK CAME BACK WHILE THE APP WAS IN THE BACKGROUND.
+
+   lib/outbox.ts asks for a Background Sync when it queues a write. The
+   browser wakes this worker when there is a connection; the queue itself is
+   the page's (it is per person and in the page's storage), so the worker
+   tells every open page to send it. */
+self.addEventListener('sync', (e) => {
+  if (e.tag !== 'erp-outbox') return
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) c.postMessage({ type: 'erp-outbox-flush' })
+    }),
+  )
 })
 
 /* A TAP ON THE BANNER OPENS THE CONVERSATION.
@@ -150,45 +159,6 @@ function withTimeout(promise, ms) {
   })
 }
 
-function markCached(hit) {
-  /* Marked, so the app can say "this is what we last saw" rather than
-     presenting yesterday's balance as today's. */
-  const h = new Headers(hit.headers)
-  h.set('X-From-Cache', '1')
-  return new Response(hit.body, { status: hit.status, headers: h })
-}
-
-async function stamped(res) {
-  // The stored copy carries when it was fetched, for the age limit on read.
-  const h = new Headers(res.headers)
-  h.set(STAMP, String(Date.now()))
-  const body = await res.clone().arrayBuffer()
-  return new Response(body, { status: res.status, statusText: res.statusText, headers: h })
-}
-
-function tooOld(hit) {
-  const at = Number(hit.headers.get(STAMP) || 0)
-  return at > 0 && Date.now() - at > DATA_MAX_AGE_MS
-}
-
-let trimming = false
-async function trimData(c) {
-  if (trimming) return
-  trimming = true
-  try {
-    const keys = await c.keys()
-    // Cache.keys() is insertion-ordered; the front is the oldest.
-    const excess = keys.length - DATA_MAX_ENTRIES
-    for (let i = 0; i < excess; i++) await c.delete(keys[i])
-  } finally { trimming = false }
-}
-
-async function putData(req, res) {
-  const c = await caches.open(DATA)
-  await c.put(req, await stamped(res))
-  trimData(c)
-}
-
 self.addEventListener('fetch', (e) => {
   const req = e.request
   if (req.method !== 'GET') return
@@ -229,7 +199,7 @@ self.addEventListener('fetch', (e) => {
           const shell = await caches.match('/index.html', { cacheName: SHELL })
           return (
             shell ??
-            new Response('<h1>No connection</h1>', {
+            new Response(OFFLINE_PAGE, {
               status: 503,
               headers: { 'Content-Type': 'text/html' },
             })
@@ -257,37 +227,8 @@ self.addEventListener('fetch', (e) => {
      never let an event through. Straight to the network, untouched. */
   if (url.pathname.startsWith('/api/v1/live/')) return
 
-  if (url.pathname.startsWith('/api/')) {
-    /* The session call is cached like any other read, which is what makes a
-       cold start with no signal land on the product rather than on "could not
-       reach the server". It is the gate every screen waits behind.
-
-       That is only safe because signing out clears this cache above, before
-       the request is even sent, and a change of person clears it too. */
-    e.respondWith(
-      (async () => {
-        const cached = caches.match(req, { cacheName: DATA })
-        try {
-          const res = await withTimeout(fetch(req), API_TIMEOUT_MS)
-          if (res.ok) e.waitUntil(putData(req, res.clone()))
-          return res
-        } catch (err) {
-          const hit = await cached
-          if (hit && !tooOld(hit)) return markCached(hit)
-          if (hit) (await caches.open(DATA)).delete(req)
-          /* The wire timed out but may still answer: give it one more, longer
-             chance before giving up, since there is nothing cached to show. */
-          if (err && err.message === 'timeout') {
-            const res = await fetch(req)
-            if (res.ok) e.waitUntil(putData(req, res.clone()))
-            return res
-          }
-          throw err
-        }
-      })(),
-    )
-    return
-  }
+  // Every API read goes to the network; the app's local store owns data.
+  if (url.pathname.startsWith('/api/')) return
 
   // Everything else is a build artefact: hashed, immutable, cache first.
   e.respondWith(
