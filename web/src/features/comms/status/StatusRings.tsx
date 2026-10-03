@@ -54,6 +54,7 @@ function Ring({ label, unseen, onClick, children, badge, compact }: { label: str
 }
 
 function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClose: () => void; raised?: boolean }) {
+  const [seenFind, setSeenFind] = useState('')
   const q = useQuery({ queryKey: ['class-status-views', postId], queryFn: () => api.get<{ items: Viewed[]; views: number; audience: number }>(`/api/v1/status/posts/${postId}/views`) })
   /* WHO HAS SEEN IT, SAID IN FULL. This was "3 of 20" and a list. The poster
      wants to know how far it got, among whom, and who is left: the share, a
@@ -95,14 +96,22 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
           {list.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">{d.views === 0 ? 'It will show here as people open it.' : 'Nobody of that kind yet.'}</p>
           ) : (
-            <ul className="mt-4 grid gap-2.5 text-sm">
-              {list.map((v) => (
-                <li key={v.user_id} className="flex items-baseline justify-between gap-3">
+            /* A hundred names do not stretch the sheet: a search and a list
+               that scrolls inside it. */
+            <>
+            {list.length > 8 && (
+              <input value={seenFind} onChange={(e) => setSeenFind(e.target.value)} placeholder="Find a name"
+                className="mt-4 w-full rounded-lg border bg-card px-3 py-2 text-[13px]" />
+            )}
+            <ul className="mt-3 max-h-[45vh] divide-y overflow-y-auto rounded-lg border text-sm">
+              {list.filter((v) => !seenFind.trim() || `${v.full_name} ${v.student_name ?? ''}`.toLowerCase().includes(seenFind.trim().toLowerCase())).map((v) => (
+                <li key={v.user_id} className="flex items-baseline justify-between gap-3 px-3 py-2">
                   <span>{v.full_name}{v.kind === 'parent' && v.student_name ? <span className="text-muted-foreground"> · parent of {v.student_name}</span> : null}</span>
                   <span className="shrink-0 text-[12px] text-muted-foreground">{new Date(v.viewed_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
                 </li>
               ))}
             </ul>
+            </>
           )}
         </>
       )}
