@@ -142,7 +142,36 @@
                 <data android:pathPrefix="/account" />
                 <data android:pathPrefix="/go/" />
             </intent-filter>
+
+            <!-- xulo://open/<path>: a link that names a screen without naming
+                 a host, for QR codes and messages that must work for the
+                 generic app at any school (docs/native-shell.md). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="xulo" />
+            </intent-filter>
+
+            <!-- Photos and PDFs shared into the app from the gallery or a
+                 files app; the page asks where they go (ShareInbox). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
         </activity>
+
+        <!-- Sends the page's waiting writes when there is a network, with the
+             app closed (Native.kt, OutboxJob). Platform JobScheduler: no
+             AndroidX WorkManager in this app. -->
+        <service
+            android:name=".OutboxJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- The camera writes the parent's photograph through this. Not
              exported: the only access anything ever gets is the per Uri grant

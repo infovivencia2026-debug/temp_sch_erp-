@@ -288,8 +288,10 @@ class MainActivity : Activity() {
            which it is after the process was killed for long enough. Treating
            that as restored left a blank rectangle with no way out. */
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) {
-            load(deepLink(intent) ?: BuildConfig.PORTAL_URL)
+            load(deepLink(intent) ?: startUrl())
         }
+        Shell.host = this
+        takeShare(intent)
     }
 
     /* THE NOTCH, WHICH OTHERWISE COSTS A BLACK BAR.
@@ -469,6 +471,54 @@ class MainActivity : Activity() {
             onPageColor?.invoke(css)
         }
 
+        /* VERSION 2 OF THE CONTRACT (docs/native-shell.md, Native.kt). The
+           activity is handed in while it lives; every call is a no-op without
+           it. Still nothing the page can use to read the phone: a key for its
+           own store, files the person picked, files from the school's host. */
+        @Volatile var host: MainActivity? = null
+
+        @android.webkit.JavascriptInterface
+        fun contract(): Int = 2
+
+        @android.webkit.JavascriptInterface
+        fun storeKey(): String? = host?.let { Native.storeKey(it) }
+
+        @android.webkit.JavascriptInterface
+        fun wipe() { host?.let { Native.wipe(it) } }
+
+        @android.webkit.JavascriptInterface
+        fun setBadge(n: Int) { host?.let { Native.setBadge(it, n) } }
+
+        @android.webkit.JavascriptInterface
+        fun pickFile(id: String, kind: String, accept: String) { host?.let { Native.pickFile(it, id, kind, accept) } }
+
+        @android.webkit.JavascriptInterface
+        fun openExternal(url: String) { host?.openExternalUrl(url) }
+
+        @android.webkit.JavascriptInterface
+        fun download(id: String, url: String, name: String) {
+            val a = host ?: return
+            if (isPortal(Uri.parse(url).host)) Native.download(a, id, url, a.webOrNull())
+        }
+
+        @android.webkit.JavascriptInterface
+        fun downloaded(url: String): String? = host?.let { Native.downloaded(it, url) }
+
+        @android.webkit.JavascriptInterface
+        fun removeDownload(url: String) { host?.let { Native.removeDownload(it, url) } }
+
+        @android.webkit.JavascriptInterface
+        fun outboxChanged(json: String) { host?.let { Native.outboxChanged(it, json, it.portalOrigin()) } }
+
+        @android.webkit.JavascriptInterface
+        fun school(): String? = host?.let { Native.schoolSummary(it) }
+
+        @android.webkit.JavascriptInterface
+        fun switchSchool() { host?.let { a -> a.runOnUiThread { a.switchSchool() } } }
+
+        @android.webkit.JavascriptInterface
+        fun setSchool(json: String) { host?.let { a -> a.runOnUiThread { a.setSchool(json) } } }
+
         /* THE PHONE ANSWERS A PRESS, FROM THE PHONE.
 
            The site asks for a tick under the thumb through navigator.vibrate,
@@ -633,6 +683,10 @@ class MainActivity : Activity() {
         view.addJavascriptInterface(shell, "ErpShell")
 
         view.webViewClient = object : WebViewClient() {
+            /* Lesson files saved for offline (Native.download), from disk. */
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? =
+                Native.serve(this@MainActivity, request.url)
+
             /* ANYTHING NOT THE SCHOOL OPENS IN A REAL BROWSER.
 
                A parent tapping the OpenStreetMap attribution, or a payment
@@ -703,6 +757,7 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 painted = true
+                pendingShare?.let { s -> pendingShare = null; view.postDelayed({ Native.emit(view, s) }, 1500) }
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL
                 PageGestures.watch(view)
@@ -737,7 +792,7 @@ class MainActivity : Activity() {
                 backNav.sync(false) // SHELL-FEEL: the dead view's history went with it
                 web = buildWebView()
                 pull.addView(web, 0, FrameLayout.LayoutParams(-1, -1))
-                if (url != null) web.loadUrl(url) else load(BuildConfig.PORTAL_URL)
+                if (url != null) web.loadUrl(url) else load(startUrl())
                 return true
             }
         }
@@ -1306,6 +1361,10 @@ class MainActivity : Activity() {
     @Deprecated("Platform Activity has no ActivityResultLauncher; see the note below.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == Native.REQUEST_PICK) {
+            Native.picked(this, resultCode == RESULT_OK, data, web)
+            return
+        }
         if (requestCode == REQUEST_UNLOCK) {
             prompting = false
             if (resultCode == RESULT_OK) unlocked()
@@ -1379,6 +1438,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        takeShare(intent)
         val url = deepLink(intent) ?: return
         hideBanner()
         load(url)
@@ -1393,8 +1453,58 @@ class MainActivity : Activity() {
     private fun deepLink(intent: Intent?): String? {
         if (intent?.action != Intent.ACTION_VIEW) return null
         val data = intent.data ?: return null
+        /* xulo://open/<path>: the screen <path> at whichever school this app is on. */
+        if (data.scheme == "xulo") {
+            val path = "/" + (data.host?.takeIf { it != "open" }?.let { "$it/" } ?: "") + (data.encodedPath ?: "").trimStart('/')
+            return if (path.startsWith("//")) null else portalOrigin() + path + (data.encodedQuery?.let { "?$it" } ?: "")
+        }
         if (data.scheme != "https" || !isPortal(data.host)) return null
         return data.toString()
+    }
+
+    /* GENERIC OR ONE SCHOOL'S (docs/white-label.md). A per-school build
+       (-PfixedSchool=true from build-school.py) always opens its school. The
+       generic app opens <portal>/start until a school is chosen there, then
+       that school's address from then on. */
+    private fun startUrl(): String {
+        if (BuildConfig.FIXED_SCHOOL) return BuildConfig.PORTAL_URL
+        return Native.savedSchool(this)?.optString("portal_url")
+            ?: Uri.parse(BuildConfig.PORTAL_URL).buildUpon().path("/start").build().toString()
+    }
+
+    fun portalOrigin(): String = Uri.parse(startUrl()).let { "${it.scheme}://${it.authority}" }
+
+    fun webOrNull(): WebView? = if (::web.isInitialized) web else null
+
+    fun switchSchool() {
+        if (BuildConfig.FIXED_SCHOOL) return
+        Native.forgetSchool(this)
+        load(startUrl())
+    }
+
+    fun setSchool(json: String) {
+        if (BuildConfig.FIXED_SCHOOL) return
+        // Only the picker page may choose the school.
+        if (Uri.parse(web.url ?: "").path != "/start") return
+        Native.saveSchool(this, json)?.let { load(it) }
+    }
+
+    fun openExternalUrl(url: String) {
+        val u = Uri.parse(url)
+        if (u.scheme !in setOf("https", "http", "mailto", "tel")) return
+        runOnUiThread { runCatching { startActivity(Intent(Intent.ACTION_VIEW, u)) } }
+    }
+
+    /* Files shared in from another app wait here until the page has loaded. */
+    private var pendingShare: org.json.JSONObject? = null
+
+    private fun takeShare(intent: Intent?) {
+        Thread {
+            val s = Native.sharedFiles(this, intent) ?: return@Thread
+            runOnUiThread {
+                if (painted) Native.emit(web, s) else pendingShare = s
+            }
+        }.start()
     }
 
     private fun load(url: String) {
@@ -1418,7 +1528,7 @@ class MainActivity : Activity() {
         showingCached = false
         web.settings.cacheMode = WebSettings.LOAD_DEFAULT
         val url = lastGoodUrl ?: web.url
-        if (url != null) web.loadUrl(url) else load(BuildConfig.PORTAL_URL)
+        if (url != null) web.loadUrl(url) else load(startUrl())
     }
 
     /* A load that painted. Worth recording where it was, and worth clearing
@@ -1631,6 +1741,11 @@ class MainActivity : Activity() {
                 // Callbacks arrive on a binder thread; every view below is the
                 // UI thread's.
                 runOnUiThread { networkReturned() }
+                Native.emit(webOrNull(), org.json.JSONObject().put("type", "connectivity").put("online", true))
+            }
+
+            override fun onLost(network: Network) {
+                Native.emit(webOrNull(), org.json.JSONObject().put("type", "connectivity").put("online", false))
             }
         }
         runCatching { cm.registerDefaultNetworkCallback(callback) }
@@ -2036,6 +2151,7 @@ class MainActivity : Activity() {
            unanswered, the callback is about to be leaked along with the page
            that is waiting on it. */
         deliverFiles(null)
+        Shell.host = null
         Shell.onPageColor = null // SHELL-FEEL: Shell is static; do not keep this activity through it
         pull.removeView(web)
         web.destroy()
@@ -2057,7 +2173,12 @@ class MainActivity : Activity() {
 
         /** True for the school's own pages, on any of the names it answers on. */
         fun isPortal(host: String?): Boolean =
-            host != null && PORTAL_HOSTS.contains(host.lowercase())
+            host != null && (PORTAL_HOSTS.contains(host.lowercase()) || host.equals(savedSchoolHost(), ignoreCase = true))
+
+        /* The generic app's chosen school (Native.saveSchool). */
+        fun savedSchoolHost(): String? = runCatching {
+            Shell.prefs.getString("school", null)?.let { Uri.parse(org.json.JSONObject(it).optString("portal_url")).host }
+        }.getOrNull()
         const val REQUEST_FILES = 1001
         const val REQUEST_UNLOCK = 1002
         const val REQUEST_STORAGE = 1003

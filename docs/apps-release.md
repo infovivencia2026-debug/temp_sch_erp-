@@ -255,3 +255,38 @@ in `safeStorage`, OS notifications, dock/taskbar badge and a tray icon, file
 picker, files saved for offline (`xulo-file://`), the outbox sent while the
 window is hidden, `xulo://open/<path>` deep links, print, one instance, window
 size and zoom remembered.
+
+## Android: the XULO app (generic and per-school), 2026-10
+
+`mobile/apps/parent` is now the one Android app. Package id strategy: the
+generic app keeps `com.schoolerp.parent`, so phones that have the old app
+update in place (a store listing's package id can never change). Its default
+address is the test site `https://school-erp-d1.pages.dev`; with no school
+saved it opens `/start` and the person chooses a school once. A school's own
+app is built by `build-school.py` with its own `appId`, `-PfixedSchool=true`
+and its address. To ship the generic package fixed to one school instead, pass
+`-PfixedSchool=true -PportalUrl=<address>`.
+
+Shell contract v2 on Android (`Native.kt`, `docs/native-shell.md`): store key
+sealed by an Android Keystore AES key; picker (camera, files; "scan" uses the
+camera: there is no platform document scanner and ML Kit would add Google Play
+services); share sheet receiver for images, videos and PDFs; files saved for
+offline served from `https://offline.xulo.invalid/<hash>`; the outbox sent by a
+JobScheduler job with a network constraint; `xulo://open/<path>`; connectivity
+events; badge cleared with the notifications (launcher counts come from push).
+
+Build on a machine with JDK 17 and the Android SDK (not this Mac):
+
+```
+cd mobile/apps/parent
+export JAVA_HOME=/path/to/jdk-17 ANDROID_HOME=$HOME/Android/Sdk
+# debug, to try on a phone
+./gradlew --no-daemon :app:assembleDebug
+# release (Play bundle + APK), signed with the upload key named in keystore.properties
+./gradlew --no-daemon :app:bundleRelease :app:assembleRelease -PversionCode=$(date +%y%m%d%H) -PversionName=$(date +%Y.%-m.%-d)
+# one school's app
+python3 scripts/apps/build-school.py https://school-erp-d1.pages.dev/in/<slug> --only android --google-services <file>
+```
+
+`keystore.properties` (not in chat) names the upload key; the owner types its
+password. Push needs the Firebase project's `google-services.json`.

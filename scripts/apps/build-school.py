@@ -121,7 +121,7 @@ def android(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args
         adaptive.write_text('\n'.join(l for l in adaptive.read_text().splitlines() if '<monochrome' not in l) + '\n')
     if args.google_services:
         shutil.copy(args.google_services, app / 'app/google-services.json')
-    props = [f'-PappId={cfg["app_id"]}', f'-PportalUrl={cfg["portal_url"]}', f'-PversionCode={ver[0]}', f'-PversionName={ver[1]}']
+    props = [f'-PappId={cfg["app_id"]}', f'-PportalUrl={cfg["portal_url"]}', '-PfixedSchool=true', f'-PversionCode={ver[0]}', f'-PversionName={ver[1]}']
     if cfg.get('portal_aliases'):
         props.append('-PportalAliases=' + ','.join(cfg['portal_aliases']))
     run(['./gradlew', '--no-daemon', ':app:bundleRelease', ':app:assembleRelease', *props], app, android_env())
@@ -142,6 +142,7 @@ PORTAL_HOST = {host[0]}
 PORTAL_URL = https:/$()/$(PORTAL_HOST){path}
 PORTAL_ALIASES = {",".join(cfg.get("portal_aliases") or [])}
 PRODUCT_BUNDLE_IDENTIFIER = {cfg["app_id"]}
+FIXED_SCHOOL = YES
 MARKETING_VERSION = {ver[1]}
 CURRENT_PROJECT_VERSION = {ver[0]}
 DEVELOPMENT_TEAM = {args.team or ""}
