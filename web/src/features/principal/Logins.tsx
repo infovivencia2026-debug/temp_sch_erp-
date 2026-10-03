@@ -1549,13 +1549,31 @@ function PermissionOverrides({
       </div>
 
       <div className="order-first mb-5 border-b pb-5">
-        <p className="eyebrow mb-1">Individual features (exception, prefer roles)</p>
-        <p className="mb-3 text-[13px] text-muted-foreground">
-          Normal access should come from a role, which carries a whole workspace. Use this only for a
-          one-off: switch on a single menu tile · Take attendance, Class 360, Student 360, for this
-          one account. Enabling a tile also grants the capabilities the screen needs, noted under
-          each.
-        </p>
+        {/* THE EXCEPTION SAYS IT IS ONE.
+
+            This was an eyebrow and a grey paragraph, set exactly like the body
+            text around it, immediately under the roles it is the exception to.
+            Two things followed. Somebody scrolling for the feature list could
+            not see where it began -- it was reported as missing from the page
+            it is on. And the warning it carries, that this is a one-off and
+            normal access should come from a role, read as ordinary prose and
+            was skipped, which is how a school ends up granting screens one at
+            a time to forty people and no longer knowing who may do what.
+
+            Drawn as what it is: a bordered, tinted panel with a title that
+            looks like a title. */}
+        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.07] p-4">
+          <h3 className="mb-1 flex items-center gap-2 text-[14px] font-bold">
+            <ShieldAlert className="h-4 w-4 text-warning" />
+            Individual features — an exception, prefer roles
+          </h3>
+          <p className="text-[13px] text-muted-foreground">
+            Normal access should come from a role, which carries a whole workspace. Use this only
+            for a one-off: switch on a single menu tile &middot; Take attendance, Class 360,
+            Student 360, for this one account. Enabling a tile also grants the capabilities the
+            screen needs, noted under each.
+          </p>
+        </div>
 
         {features.isLoading ? (
           <p className="text-[13px] text-muted-foreground">Loading the feature list…</p>
