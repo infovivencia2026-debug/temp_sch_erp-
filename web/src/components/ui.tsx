@@ -1950,7 +1950,7 @@ export function Select({
              content is a sub-pixel wider than the box, which it routinely is once
              a border and padding are counted. The list only ever scrolls
              vertically. */
-          className="fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
+          className="menu-scroll fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (

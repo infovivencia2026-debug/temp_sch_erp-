@@ -199,7 +199,7 @@ export function PickerMenu<T extends string>({
           style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH }}
           onMouseDown={(e) => e.stopPropagation()}
           className={cn(
-            'fixed z-[200] max-h-[min(20rem,60vh)] overflow-y-auto overflow-x-hidden',
+            'menu-scroll fixed z-[200] max-h-[min(20rem,60vh)] overflow-y-auto overflow-x-hidden',
             'rounded-xl border bg-popover p-1.5 text-popover-foreground',
             'shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
             menuClassName,

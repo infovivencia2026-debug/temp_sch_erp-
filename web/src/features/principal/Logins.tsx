@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/Skeleton'
-import { Fragment, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
@@ -1164,7 +1164,33 @@ function AccountForm({
     )
   }
 
+  /* THE PANEL COMES TO THE READER.
+
+     This card is drawn above the table, and the table is four hundred rows
+     long. Pressing Roles on somebody near the bottom opened the editor
+     somewhere far above the fold: the screen did not visibly change, and the
+     only way to find out that anything had happened was to scroll up. It read
+     as a button that does nothing.
+
+     So it scrolls itself into view when it opens, and announces itself to a
+     screen reader at the same time, which has exactly the same problem for
+     exactly the same reason. Smooth unless the reader has asked for less
+     motion, because a page that jumps is its own complaint. */
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = panel.current
+    if (!el) return
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    try {
+      el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+    } catch {
+      el.scrollIntoView()
+    }
+    el.focus({ preventScroll: true })
+  }, [user?.id])
+
   return (
+    <div ref={panel} tabIndex={-1} className="scroll-mt-4 outline-none">
     <Card>
       <CardHeader
         title={editing ? `${user!.full_name}’s access` : 'Issue a login'}
@@ -1304,6 +1330,7 @@ function AccountForm({
         </div>
       </div>
     </Card>
+    </div>
   )
 }
 

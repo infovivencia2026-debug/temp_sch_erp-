@@ -4561,3 +4561,36 @@ html[data-reduce-motion] :active { transform: none !important; }
   [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }
+
+/* THE SCROLLBAR INSIDE THE MENU, NOT ON TOP OF ITS EDGE.
+
+   A dropdown is a rounded box with a border and its own overflow. The
+   platform draws the scrollbar in the padding box, which on a rounded corner
+   means the bar rides over the border and out past the curve -- a grey stripe
+   hanging off the right edge of every long menu in the product, squaring off
+   a corner that is meant to be round.
+
+   Thin, inset by the gutter so the track cannot reach the border, and the
+   same muted colour as everything else rather than the operating system's.
+   scrollbar-gutter keeps the width reserved so the list does not shift by a
+   few pixels the moment it grows long enough to scroll. An older browser
+   that knows neither property keeps its own bar, which is what it had. */
+.menu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-gutter: stable;
+}
+.menu-scroll::-webkit-scrollbar { width: 10px; }
+.menu-scroll::-webkit-scrollbar-track { background: transparent; }
+.menu-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+@media (hover: hover) {
+  .menu-scroll:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.45);
+    background-clip: content-box;
+  }
+}
