@@ -74,6 +74,9 @@ export interface ErpShell {
       { code, name, host }, and a way back to the school picker. */
   school?(): string | null
   switchSchool?(): void
+  /** Generic app, from the /start screen: keep this school's app.json and
+      open it. */
+  setSchool?(json: string): void
 }
 
 declare global {
