@@ -858,8 +858,8 @@ export function BentoLauncher({
                   icon={Search}
                   label={
                     hits.length > results.length
-                      ? `${results.length} of ${hits.length} ${t('bento.launcher.results', { count: '' }).trim()}`
-                      : t('bento.launcher.results', { count: String(hits.length) })
+                      ? t('bento.launcher.results_some', { shown: results.length, count: hits.length })
+                      : t('bento.launcher.results', { count: hits.length })
                   }
                 />
                 {(phone ? [...resultGroups].reverse() : resultGroups).map((g) => (
@@ -882,7 +882,7 @@ export function BentoLauncher({
               <section key={needle} className={cn('lch-section lch-empty', !still && 'lch-pop')} data-band="empty">
                 <p className="lch-empty__title">{t('bento.launcher.empty', { q: q.trim() })}</p>
                 <p className="lch-empty__try">
-                  <span>Try:</span>
+                  <span>{t('bento.launcher.try')}</span>
                   {SUGGESTIONS.map((w) => (
                     <button key={w} type="button" className="lch-chip" onClick={() => { setQ(w); inputRef.current?.focus() }}>
                       {w}
@@ -893,7 +893,7 @@ export function BentoLauncher({
                     answer; the assistant can. Enter does the same. */}
                 <button type="button" className="lch-ask" data-cursor="true" onClick={ask}>
                   <Sparkles aria-hidden="true" />
-                  <span className="min-w-0 truncate">Ask the assistant: “{q.trim()}”</span>
+                  <span className="min-w-0 truncate">{t('bento.launcher.ask', { q: q.trim() })}</span>
                   <CornerDownLeft className="lch-ask__key" aria-hidden="true" />
                 </button>
               </section>
@@ -935,7 +935,7 @@ export function BentoLauncher({
               chips just above the pill, newest first. mousedown is swallowed
               so the chip's click lands before the field loses focus. */}
           {focused && !q && recentSearches.length > 0 && (
-            <div className={cn('lch-recentq', !still && 'lch-pop')} onMouseDown={(e) => e.preventDefault()}>
+            <div className={cn('lch-recentq', !still && 'lch-pop')} role="group" aria-label={t('bento.launcher.recent_searches')} onMouseDown={(e) => e.preventDefault()}>
               {recentSearches.map((sq, i) => (
                 <button
                   key={sq}
@@ -1225,7 +1225,7 @@ function Tile({
               onClick={() => onDashboard(r)}
             >
               <LayoutGrid aria-hidden="true" />
-              {dashKeys.includes(r.key) ? 'Remove from home' : 'Add to home'}
+              {t(dashKeys.includes(r.key) ? 'bento.launcher.home_remove' : 'bento.launcher.home_add')}
             </button>
           </div>
         )

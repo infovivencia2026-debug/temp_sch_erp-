@@ -243,3 +243,20 @@ describe('the stored setting is migrated on read', () => {
     expect(await load({ 'erp.phoneIcons': '3', 'erp.phoneIconSize': 'normal' })).toBe('normal')
   })
 })
+
+describe('centreLoneSmalls', () => {
+  it('moves a small card with an empty half row beside it to the middle', async () => {
+    const { centreLoneSmalls } = await import('./widgets')
+    const spots = packPhone([card('a', 'small'), card('b', 'small'), ...icons(4), card('c', 'small')], 1, false)
+    const out = byId(centreLoneSmalls(spots))
+    expect(out.a.col).toBe(0)
+    expect(out.b.col).toBe(2)
+    expect(out.c.col).toBe(1)
+    check(centreLoneSmalls(spots))
+  })
+  it('leaves a small card alone when an icon sits beside it', async () => {
+    const { centreLoneSmalls } = await import('./widgets')
+    const spots = packPhone([card('a', 'small'), ...icons(1)], 1, false)
+    expect(byId(centreLoneSmalls(spots)).a.col).toBe(0)
+  })
+})
