@@ -52,6 +52,10 @@ function hasPrefix(path: string, prefix: string): boolean {
 export function groupGate(id: Identity, pathname: string): void {
   const path = pathname.startsWith(API) ? pathname.slice(API.length) : pathname
   for (const [prefix, perm] of GROUP_PERMS) {
+    /* Seller Controls carries its own keys per route (institution.read to
+       read, so a support login sees it read-only; platform.tenants.write to
+       change) and requires a platform account in every handler. */
+    if (prefix === '/seller' && hasPrefix(path, '/seller/controls')) continue
     if (hasPrefix(path, prefix) && !can(id, perm)) throw forbidden('missing permission: ' + perm)
   }
 }
