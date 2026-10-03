@@ -145,7 +145,13 @@ export interface EscalateInput {
   confirmed: boolean
 }
 
+export interface HelpArticleView { key: string; title: string; topic: string; body: string; route?: string; anchor?: string; keywords?: string }
+export interface HelpTipView { key: string; title: string; body: string; device?: 'desktop' | 'phone'; since: string }
+
 export interface HelpdeskApi {
+  'GET /help/articles': { res: List<HelpArticleView> }
+  'GET /help/tips': { query: { lang?: string }; res: List<HelpTipView> }
+  'POST /help/tips/{key}/dismiss': { res: { dismissed: true } }
   // The Help Centre: any signed-in person of a school.
   'GET /help/categories': { query: { lang?: string }; res: List<HelpCategoryOption> }
   'GET /help/requests': { res: { items: HelpTicket[]; following: HelpFollowed[] } }

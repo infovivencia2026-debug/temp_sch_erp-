@@ -212,7 +212,8 @@ export function entitlementAllows(st: Entitlement, sectionSlug: string): boolean
 
 // --- the catalog ------------------------------------------------------------------
 
-const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile'])
+// Help stays reachable while a school is still being set up: that is when it is needed most.
+const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile', 'help'])
 const EVIDENCE_KEYS = new Set([
   'parent.my_childs_bus.live_bus_tracking', 'parent.alerts_preferences.parent_bus_proximity_radius_customizer',
   'institution_admin.hostel.hostel_rooms', 'institution_admin.hostel.outpasses_mess', 'institution_admin.hostel.night_study_attendance',

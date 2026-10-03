@@ -24,6 +24,7 @@
 export const FEATURE_ICONS: Record<string, string> = {
   // Screens added in Sept 2026 without an icon; the test that every feature has one caught them.
   support_team: 'support_agent', // Support Team
+  helpdesk: 'contact_support', // Helpdesk (the school's own help requests)
   board_members: 'groups', // Board members
   class_360: 'hub', // Class 360
   student_absentees: 'person_off', // Student absentees
@@ -377,6 +378,7 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  help: 'help',
   lms: 'cast_for_education', // LMS
   store: 'inventory_2', // Store
   academics: 'school', // Academics

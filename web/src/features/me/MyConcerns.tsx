@@ -185,7 +185,7 @@ export function ConcernsCard() {
     <Card>
       <CardHeader
         title="Concerns"
-        action={<Link to="/concerns" className="text-[13px] font-medium text-primary hover:underline">Open my concerns</Link>}
+        action={<Link to="/concerns" data-help-anchor="concerns-link" className="text-[13px] font-medium text-primary hover:underline">Open my concerns</Link>}
       />
       <p className="px-[var(--card-pad)] py-4 text-[14px] text-muted-foreground">
         {family

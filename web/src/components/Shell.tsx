@@ -57,6 +57,7 @@ import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
 import { BentoSettings } from '@/features/bento/BentoSettings'
+import { HelpButton, HelpEverywhere } from '@/features/help/HelpEntry'
 import { hueFor, uniqueMarks } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
 import ScrollBox from '@/components/ScrollBox'
@@ -764,9 +765,14 @@ export function Shell({
               >
                 <Rows3 className="h-4 w-4" />
               </button>
+              <HelpButton
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                iconClassName="h-4 w-4"
+              />
               <Link
                 to="/account"
                 aria-label="Your account"
+                data-help-anchor="account"
                 title="Your account and password"
                 className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               >
@@ -1183,9 +1189,14 @@ export function Shell({
             {/* Your own account, beside the way out of it. Reachable from
                 every role rather than from a catalogue entry only faculty
                 had. */}
+            <HelpButton
+              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              iconClassName="h-[22px] w-[22px] md:h-4 md:w-4"
+            />
             <Link
               to="/account"
               aria-label="Your account"
+              data-help-anchor="account"
               title="Your account and password"
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
@@ -1292,6 +1303,8 @@ export function Shell({
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
           <Outbox />
+          {/* The ? key and the Show me ring (features/help). */}
+          <HelpEverywhere />
           {/* The corner card for a message that landed in a conversation not
               on screen — tap opens it. Mounted once, here, so a split work
               area does not draw it twice. */}

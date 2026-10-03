@@ -17,6 +17,8 @@ import { REOPEN_DAYS, dueAt, ownAttachment, policyFor, ticketStage } from '../co
 import { entitlementFor } from '../misc/shell'
 import { cleanErrorRef } from '../../services/error_refs'
 import { categoriesFor, contentOf, localise, slaPolicy, vendorHours, type HelpCategory } from './content'
+import type { HelpArticle, HelpTip } from './content_articles'
+import './content_articles'
 import { incidentFor, openIncidents } from './incidents_match'
 import {
   DESK_WRITE, HELP, TICKET_COLS, bell, cleanDiagnostics, deskLink, helpdeskStaff, messageBody, namedStudent, refuseNamedStudent,
@@ -52,7 +54,34 @@ async function tellHelpdesk(c: Ctx, t: { id: string; audience: string; assigned_
   return to.filter((u) => u !== userId).map((u) => bell(c.db, inst, u, title, body, deskLink(t.id), t.id))
 }
 
+const forRoles = (roles: string[], mine: string[]) => !roles?.length || roles.some((r) => mine.includes(r))
+
 export function registerHelpRequests(r: Router): void {
+  r.typed('GET /help/articles', 'auth', async (c) => {
+    schoolUser(c)
+    const items = (await contentOf<HelpArticle>(c.env, 'article')).filter((a) => forRoles(a.roles, c.id.roles))
+    return { items: items.map((a) => ({ key: a.key, title: a.title, topic: a.topic, body: a.body, route: a.route, anchor: a.anchor, keywords: a.keywords })) }
+  })
+
+  /* "What's new": short tips for the role, newest release first, less the ones this person put away. */
+  r.typed('GET /help/tips', 'auth', async (c) => {
+    const { userId } = schoolUser(c)
+    const gone = await c.db.prepare(`SELECT tip_key FROM help_tip_dismissals WHERE user_id = ?`).bind(userId).all<{ tip_key: string }>()
+    const away = new Set(gone.results.map((g) => g.tip_key))
+    const tips = (await contentOf<HelpTip>(c.env, 'tip')).filter((t) => forRoles(t.roles, c.id.roles) && !away.has(t.key))
+      .sort((a, b) => b.since.localeCompare(a.since) || a.sort - b.sort)
+      .map((t) => localise(t as unknown as Record<string, unknown>, lang(c)) as unknown as HelpTip)
+    return { items: tips.map((t) => ({ key: t.key, title: t.title, body: t.body, device: t.device, since: t.since })) }
+  })
+
+  r.typed('POST /help/tips/{key}/dismiss', 'auth', async (c) => {
+    const { inst, userId } = schoolUser(c)
+    const key = String(c.params.key ?? '')
+    if (!/^[a-z0-9_]{1,60}$/.test(key)) throw badRequest('unknown tip')
+    await c.db.prepare(`INSERT OR IGNORE INTO help_tip_dismissals (user_id, tip_key, institution_id, dismissed_at) VALUES (?, ?, ?, ?)`).bind(userId, key, inst, now()).run()
+    return { dismissed: true as const }
+  })
+
   r.typed('GET /help/categories', 'auth', async (c) => {
     schoolUser(c)
     const items = (await categoriesFor(c.env, c.id.roles)).map((x) => localise(x as unknown as Record<string, unknown>, lang(c)) as unknown as HelpCategory)

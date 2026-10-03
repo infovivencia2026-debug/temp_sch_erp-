@@ -21,6 +21,8 @@ const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
 const BillingSchool = lazy(() => import('@/features/seller/BillingSchool'))
 const NeedsAttentionPage = lazy(() => import('@/components/ai/EarlyWarnings'))
 const ConcernsPage = lazy(() => import('@/features/me/MyConcerns'))
+// The Help Centre: every signed-in person of a school, outside the catalogue like /account.
+const HelpCentre = lazy(() => import('@/features/help/HelpCentre'))
 // The design reference sheet: platform admins, or ?elements=1. In no navigation.
 const ElementsGallery = lazy(() => import('@/features/design/ElementsGallery'))
 import {
@@ -482,6 +484,7 @@ export function AppRoutes({ location }: { location?: string }) {
       <Route path="/needs-attention" element={<Suspense fallback={<SkeletonPage />}><NeedsAttentionPage /></Suspense>} />
       {/* Raising and following a concern: families to the office, staff to HR. Outside the catalogue like /account. */}
       <Route path="/concerns" element={<Suspense fallback={<SkeletonPage />}><ConcernsPage /></Suspense>} />
+      <Route path="/help" element={<Suspense fallback={<SkeletonPage />}><HelpCentre /></Suspense>} />
       <Route path="/billing" element={<Suspense fallback={<SkeletonPage />}><BillingSchool /></Suspense>} />
       <Route path="/group-report" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/group-report/:groupId" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />

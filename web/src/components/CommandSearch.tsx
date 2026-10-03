@@ -276,6 +276,8 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
           wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
         )}
         aria-label="Search features"
+        data-help-anchor="search"
+        data-help-label="Search: type part of a screen's name."
       >
         <Search className={cn('h-5 w-5 sm:h-3.5 sm:w-3.5', wide && 'md:h-4 md:w-4')} />
         <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>

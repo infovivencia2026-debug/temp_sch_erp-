@@ -168,7 +168,7 @@ export function MyDevicesCard() {
         description="Every device holding a live sign-in for your account. If one is not yours, sign the others out and change your password."
         action={
           rows.length > 1 ? (
-            <ConfirmButton
+            <span data-help-anchor="sign-out-others"><ConfirmButton
               tone="danger"
               disabled={others.isPending}
               question="Sign out every device except this one?"
@@ -176,7 +176,7 @@ export function MyDevicesCard() {
               onConfirm={() => others.mutate()}
             >
               Sign out other devices
-            </ConfirmButton>
+            </ConfirmButton></span>
           ) : undefined
         }
       />
