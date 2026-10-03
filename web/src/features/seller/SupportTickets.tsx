@@ -5,6 +5,7 @@ import { PageHead, PageBody, CellGrid, Stat, Button, SkeletonTable, ErrorState, 
 import { type VendorTicket } from '../super_admin/platform-lib'
 import { DeskPanes, JoinWithCode } from './SupportDesk'
 import { HelpContent } from './HelpContent'
+import { HelpReports, KnownIssues } from './HelpIssues'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
 
@@ -24,7 +25,7 @@ const STATUS_TONE: Record<string, 'info' | 'warning' | 'success' | 'neutral'> = 
  * a ticket vendor-visible while it names a child.
  */
 export default function SupportTickets() {
-  const [view, setView] = useState<'tickets' | 'content'>('tickets')
+  const [view, setView] = useState<'tickets' | 'issues' | 'reports' | 'content'>('tickets')
   const status = ''
   const [focus, setFocus] = useState<{ by: string; key: string } | null>(null)
   const { data, isLoading, error } = useQuery({
@@ -99,9 +100,11 @@ export default function SupportTickets() {
       <PageBody>
         <nav className={TAB_BAR} aria-label="Support">
           <button type="button" className={tabClass(view === 'tickets')} aria-current={view === 'tickets' ? 'page' : undefined} onClick={() => setView('tickets')}>Tickets</button>
+          <button type="button" className={tabClass(view === 'issues')} aria-current={view === 'issues' ? 'page' : undefined} onClick={() => setView('issues')}>Known issues</button>
+          <button type="button" className={tabClass(view === 'reports')} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => setView('reports')}>Reports</button>
           <button type="button" className={tabClass(view === 'content')} aria-current={view === 'content' ? 'page' : undefined} onClick={() => setView('content')}>Help content</button>
         </nav>
-        {view === 'content' ? <HelpContent /> : <>
+        {view === 'content' ? <HelpContent /> : view === 'issues' ? <KnownIssues /> : view === 'reports' ? <HelpReports /> : <>
         <JoinWithCode />
         <CellGrid cols={4}>
           <Stat
