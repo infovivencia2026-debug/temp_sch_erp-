@@ -419,6 +419,14 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     }
   }
 
+  /* ABSENTEE FOLLOW-UP IS THE OFFICE'S, NOT A TEACHER'S (the owner's rule):
+     a teacher takes attendance and sees present and absent for their class;
+     the calling-round is for whoever reads the whole school's attendance.
+     Done here, in code, so regenerating the catalogue cannot bring it back. */
+  if (!can(c.id, 'academics.attendance.read.all')) {
+    for (const ro of roles) for (const s of ro.sections) s.features = s.features.filter((f) => f.key !== 'faculty.attendance.absentee_followup')
+  }
+
   if (can(c.id, 'academics.attendance.read.all')) {
     const fk = 'faculty.attendance.absentee_followup'
     const has = roles.some((ro) => ro.sections.some((s) => s.features.some((f) => f.key === fk)))

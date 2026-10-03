@@ -209,7 +209,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      get follows from whether you can write exams. */
   'institution_admin.examinations.exams_papers': screen(() => import('./exams/Exams')),
   'institution_admin.examinations.hall_ticket_issue': screen(() => import('./exams/HallTicket')),
-  'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
   /* Class Status: the teacher's composer and own posts; the principal's school-wide view, approvals and settings. */
   'faculty.communication.class_status': screen(() => import('./comms/ClassStatus')), // feature:communication.class_status
   'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
@@ -391,7 +390,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      because they are what a teacher does with the flag. */
   'faculty.my_classes.student_progress': screen(() => import('./faculty/MyClasses')),
   'faculty.my_classes.behaviour': screen(() => import('./faculty/Behaviour')),
-  'faculty.my_classes.my_students': screen(() => import('./shared/Students')),
   'faculty.my_classes.student_details': screen(() => import('./shared/StudentProfile')),
   'faculty.marks_report_cards.report_cards': screen(() => import('./exams/ReportCards')),
   'faculty.my_profile.profile': screen(() => import('./shared/Profile')),

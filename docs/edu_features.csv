@@ -119,11 +119,9 @@ Librarian,Library,Library,Fines,"Overdue fines accrued, collected and waived, at
 Faculty / Teacher,Home,Home,Today's classes,"Next/current classes with one-click Take Attendance, Open Class and Add Homework actions.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My work,"Assignments to review, marks pending, substitutions, leave status and announcements.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,Home,Home,My calendar,"The month you are actually in: exams, the duties you are rostered on, the homework you set falling due, and your own leave. Not your timetable, which you already know.",Self + assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,My classes,"Class roster, subject resources and relevant student academic information.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Student progress,View attendance and academic progress for students taught/mentored by the faculty member.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,My Classes,Behaviour,"Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,My students,"Every child in the class with attendance, marks and guardian contact in one place.",Assigned classes/subjects,Must-Have,core
-Faculty / Teacher,My Classes,My Classes,Student details,"One child's full record: profile, guardians, attendance, marks and remarks.",Assigned classes/subjects,Must-Have,core
+Faculty / Teacher,My Classes,My Classes,My students,"One child's full record: profile, guardians, attendance, marks and remarks.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Take attendance,Fast daily or period/subject-wise attendance for assigned students.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Attendance correction,Request or process correction within permitted window/workflow.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Absentee followup,"Every child marked away today, section by section, with admission number and the father's and mother's numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section.",Self + assigned classes/subjects,Must-Have,core
@@ -153,11 +151,10 @@ Faculty / Teacher,Communication,Communication,Messages,"One colleague at a time.
 Faculty / Teacher,My Work,My Profile,Leave & self service,"Apply for leave, view approval status, attendance and personal documents.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Profile,"Own profile, password and leave.",Assigned classes/subjects,Must-Have,core
 Student,Home,Home,My day,"Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.",Self only,Must-Have,core
-Student,Home,Home,Digital Diary & Schedule,"Track personal study schedules, project deadlines, and school calendar events.",Specific student,Must-Have,core
+Student,Home,Home,My planner,"Track personal study schedules, project deadlines, and school calendar events.",Specific student,Must-Have,core
 Student,Home,Home,Custom Theme Selection,"Customize student portal appearance with dark mode, high-contrast mode, or color themes.",Specific student,Must-Have,optional
 Student,Academics,Timetable,Timetable,Daily/weekly class timetable and exam timetable.,Self only,Must-Have,core
 Student,Academics,Attendance,Attendance,"Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",Self only,Must-Have,core
-Student,Attendance,Attendance,Apply for leave,"Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.",Self only,Must-Have,core
 Student,Academics,Homework,Homework & assignments,View due/overdue/submitted work; submit files/text where enabled.,Self only,Must-Have,core
 Student,Academics,Learning,Courses / subjects,"Current enrolled courses/subjects, teacher and learning resources.",Self only,Must-Have,core
 Student,Academics,Learning,LMS,"Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",Specific student,Must-Have,core
@@ -271,7 +268,6 @@ HOD / Department Head,Department Workspace,Marks & Report Cards,Marks entry,Ente
 HOD / Department Head,Department Workspace,Marks & Report Cards,Report cards,Generate and publish report cards for a section they are class teacher of.,Self + assigned classes/subjects,Must-Have,core
 HOD / Department Head,Department Workspace,Communication,Communication,"Notices home to the classes they teach, and the thread with a parent about one child.",Self + assigned classes/subjects,Must-Have,core
 HOD / Department Head,Department Workspace,Communication,Messages,One colleague at a time. The staff address book and the thread with each of them.,Self + assigned classes/subjects,Must-Have,core
-Parent / Guardian,My Child,Academics,Child remarks,"Everything your child's teachers have written about them, commendations and concerns alike, newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening.",Linked child/children only,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Student leave requests,"Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Work,My Profile,Remarks about me,"What your head of department, the principal or a parent has written about you. You are told when one is added.",Self only,Should-Have,core
 Parent / Guardian,My Child,Messages,Teacher remarks,Write a remark about one of your child's teachers. It reaches the head of department and the teacher.,Linked child/children only,Should-Have,core
