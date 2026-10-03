@@ -105,7 +105,7 @@ export default function ClassStatusAdmin() {
             {d && (
               /* THE OWNER'S SETTINGS DESIGN: a header with the state, grouped
                  rows with switches and small dropdowns, Discard and Save. */
-              <Card className="mx-auto w-full max-w-[560px] space-y-5 p-6">
+              <Card className="w-full space-y-5 p-6">
                 <div className="flex items-center justify-between border-b pb-4">
                   <div>
                     <h2 className="text-[16px] font-bold tracking-[-0.01em]">Class Status</h2>
@@ -115,6 +115,8 @@ export default function ClassStatusAdmin() {
                     <span className={'h-1.5 w-1.5 rounded-full ' + (d.enabled ? 'bg-[#10b981]' : 'bg-muted-foreground')} />{d.enabled ? 'Active' : 'Off'}
                   </span>
                 </div>
+                {/* Side by side on a computer, one column on a phone. */}
+                <div className="grid items-start gap-5 lg:grid-cols-2">
                 <SettingsGroup title="Permissions">
                   <SettingsRow title="Status feature" sub="Turn on class stories school-wide">
                     <Switch on={d.enabled} onChange={(v) => setD({ enabled: v })} />
@@ -136,6 +138,7 @@ export default function ClassStatusAdmin() {
                       options={[10, 15, 30, 45, 60].map((n) => [String(n), `${n} seconds`])} />
                   </SettingsRow>
                 </SettingsGroup>
+                </div>
                 <FormNotice error={save.error || act.error} />
                 <div className="flex justify-end gap-2 pt-1">
                   <button type="button" disabled={!draft} onClick={() => setDraft(null)}
