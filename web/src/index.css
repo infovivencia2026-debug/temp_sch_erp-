@@ -4641,3 +4641,25 @@ html::-webkit-scrollbar { width: initial; }
 [role='listbox']::-webkit-scrollbar-button { display: none; height: 0; }
 [role='listbox']::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
 [role='listbox']::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+
+/* Colour pickers: a round swatch of the colour itself, not the browser's grey
+   box with a thin bar of colour inside it (the owner found that ugly). */
+input[type='color'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px !important;
+  min-width: 44px;
+  height: 44px !important;
+  min-height: 44px;
+  padding: 3px !important;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type='color']:hover { transform: scale(1.06); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); }
+input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
+input[type='color']::-webkit-color-swatch { border: none; border-radius: 999px; }
+input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
