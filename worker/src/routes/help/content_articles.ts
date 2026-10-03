@@ -114,5 +114,17 @@ export const DEFAULT_TIPS: HelpTip[] = [
     body: 'Parents and staff now ask for help in the app. Their requests wait for you under Help, Helpdesk; pass one to XULO support only when the school cannot solve it.' },
 ]
 
+/* Canned replies for the desk. {{name}} is the person who raised the ticket,
+   {{school}} the school, {{agent}} whoever is answering; the desk fills them
+   in before sending and the text can still be edited. */
+export interface CannedReply { key: string; title: string; body: string }
+export const DEFAULT_CANNED: CannedReply[] = [
+  { key: 'ask_ref', title: 'Ask for the error reference', body: 'Thank you, {{name}}. If the screen showed a message ending in "Ref:" and six letters, please send us that code. It shows us exactly what failed.' },
+  { key: 'ask_steps', title: 'Ask for the steps', body: 'Thank you, {{name}}. Please tell us which screen you were on, what you pressed, and what you expected to happen. A screenshot helps too.' },
+  { key: 'fixed_release', title: 'Fixed in a release', body: 'This is fixed in today\'s update for {{school}}. Close the app and open it again, then try once more. If it still happens, reply here and we will look again.\n{{agent}}, XULO support' },
+  { key: 'school_setting', title: 'It is a school setting', body: 'This is controlled by a setting at {{school}} rather than a fault. Your school\'s administrator can change it; we have told them where.\n{{agent}}, XULO support' },
+]
+
+registerDefaults('canned', DEFAULT_CANNED)
 registerDefaults('article', DEFAULT_ARTICLES)
 registerDefaults('tip', DEFAULT_TIPS)

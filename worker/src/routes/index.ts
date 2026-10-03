@@ -27,7 +27,7 @@ import { registerAi } from './ai'
 import { registerClassStatus } from './comms/class_status' // feature:communication.class_status
 import { registerHelpdesk } from './help/helpdesk' // feature:help.helpdesk
 import { registerHelpRequests } from './help/requests'
-import { registerSupportDesk } from './help/desk'
+import { registerSupportDesk, registerSupportDeskMore } from './help/desk'
 import { registerTroubleshooters } from './help/troubleshoot'
 
 /* Every ported domain registers here, one module per Go handler group.
@@ -64,6 +64,7 @@ export function buildRouter(): Router {
   registerHelpRequests(r)
   registerHelpdesk(r) // feature:help.helpdesk
   registerSupportDesk(r)
+  registerSupportDeskMore(r)
   registerTroubleshooters(r)
   return r
 }

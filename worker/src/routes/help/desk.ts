@@ -16,6 +16,8 @@ import { platformOnly } from '../admin/common'
 import { auditDetail } from '../../services/seller_audit'
 import { errorRef } from '../../services/error_refs'
 import { openIncidents } from './incidents_match'
+import { subscriptionsByInstitution } from '../seller/tenants'
+import { contentEntries, forgetContent, type ContentKind } from './content'
 import { TICKET_COLS, bell, deskLink, messageBody, parseDiagnostics, requestLink, thread, ticketSummary, updateStmt, type TicketRow } from './shared'
 
 export interface DeskSchool { inst: Institution; db: D1Database }
@@ -115,5 +117,121 @@ export function registerSupportDesk(r: Router): void {
     ])
     auditDetail(c, { action: 'desk.resolve', institution_id: s.inst.id, institution_name: s.inst.name, target: t.id })
     return ok({ status: 'resolved' })
+  })
+}
+
+/* --- the context panel, bulk actions, and the content kept once for every school --- */
+
+const KINDS = new Set<ContentKind>(['article', 'tip', 'canned', 'category', 'sla'])
+
+export function registerSupportDeskMore(r: Router): void {
+  /* What the desk reads beside a ticket: the school (plan, health, switches),
+     the person who raised it (role, last sign-in), what changed in the school
+     lately, and the troubleshooter results that came with it. Changes are
+     listed by action and kind of record only, never their contents. */
+  r.get('/admin/platform/desk/{school}/tickets/{id}/context', SUPPORT_DESK, async (c) => {
+    const s = await deskSchool(c)
+    const t = await vendorTicket(s, c.params.id)
+    const [subs, health, switches, person, audit] = await Promise.all([
+      subscriptionsByInstitution(c.env),
+      c.env.CONTROL.prepare(`SELECT data, computed_at FROM school_health WHERE institution_id = ?`).bind(s.inst.id).first<{ data: string; computed_at: string }>().catch(() => null),
+      c.env.CONTROL.prepare(`SELECT feature_id, enabled, ends_at FROM school_feature_overrides WHERE institution_id = ? ORDER BY feature_id`).bind(s.inst.id).all<{ feature_id: string; enabled: number; ends_at: string | null }>().catch(() => ({ results: [] })),
+      s.db.prepare(`SELECT u.last_login_at, (SELECT group_concat(r.name, ', ') FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id) AS roles
+          FROM users u WHERE u.id = ?`).bind(t.raised_by).first<{ last_login_at: string | null; roles: string | null }>(),
+      s.db.prepare(`SELECT created_at AS at, action, entity_type FROM audit_log ORDER BY id DESC LIMIT 8`).all<{ at: string; action: string; entity_type: string }>().catch(() => ({ results: [] })),
+    ])
+    const sub = subs.get(s.inst.id)
+    let h: Record<string, unknown> | null = null
+    try { h = health ? JSON.parse(health.data) : null } catch { h = null }
+    return ok({
+      school: { id: s.inst.id, name: s.inst.name, status: s.inst.status, plan: sub?.plan_name ?? sub?.plan_code ?? undefined, subscription: sub?.status ?? undefined },
+      health: h ? { computed_at: health!.computed_at, errors_24h: h.errors_24h, jobs_failed_24h: h.jobs_failed_24h, last_activity_at: h.last_activity_at,
+        problems: Array.isArray(h.problems) ? (h.problems as { label: string; count: number }[]).filter((p) => p.count > 0).map((p) => ({ label: p.label, count: p.count })) : [] } : undefined,
+      switches: switches.results.map((x) => ({ feature: x.feature_id, on: !!x.enabled, ends_at: x.ends_at ?? undefined })),
+      raised_by: { roles: person?.roles ?? undefined, last_sign_in: person?.last_login_at ?? undefined },
+      recent_changes: audit.results,
+    })
+  })
+
+  /* Bulk: take (yourself), close, or merge into one ticket of the same school. */
+  r.post('/admin/platform/desk/bulk', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const req = await readJSON<{ action?: string; items?: { school: string; id: string }[]; into?: { school: string; id: string }; note?: string }>(c.req)
+    const items = Array.isArray(req.items) ? req.items.slice(0, 100) : []
+    if (!items.length) throw badRequest('choose at least one ticket')
+    if (!['take', 'close', 'merge'].includes(String(req.action))) throw badRequest('unknown action')
+    if (req.action === 'merge' && (!req.into || items.some((i) => i.school !== req.into!.school))) throw badRequest('tickets can be merged only within one school')
+    let done = 0
+    const n = now()
+    for (const it of items) {
+      c.params.school = it.school
+      const s = await deskSchool(c)
+      const t = await vendorTicket(s, it.id)
+      if (req.action === 'take') {
+        await s.db.prepare(`UPDATE support_tickets SET vendor_agent_id = ?, vendor_agent_name = ?, status = CASE WHEN status = 'open' THEN 'in_progress' ELSE status END, updated_at = ? WHERE id = ?`)
+          .bind(c.id.userId, c.id.fullName, n, t.id).run()
+      } else if (req.action === 'close') {
+        if (t.status === 'closed') continue
+        await s.db.batch([
+          s.db.prepare(`UPDATE support_tickets SET status = 'closed', resolved_at = COALESCE(resolved_at, ?), solved_by = COALESCE(solved_by, 'vendor'), updated_at = ? WHERE id = ?`).bind(n, n, t.id),
+          updateStmt(s.db, s.inst.id, t.id, { kind: 'closed', body: String(req.note ?? '').trim() || 'Closed by XULO support.', side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: 'closed' }),
+        ])
+      } else {
+        if (it.id === req.into!.id) continue
+        const into = await vendorTicket(s, req.into!.id)
+        await s.db.batch([
+          s.db.prepare(`UPDATE support_tickets SET status = 'closed', merged_into = ?, updated_at = ? WHERE id = ?`).bind(into.id, n, t.id),
+          s.db.prepare(`UPDATE support_tickets SET me_too = me_too + 1, updated_at = ? WHERE id = ?`).bind(n, into.id),
+          updateStmt(s.db, s.inst.id, t.id, { kind: 'merged', body: `The same fault as "${into.subject}". Follow that one for the answer.`, side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: 'closed' }),
+          bell(s.db, s.inst.id, t.raised_by, 'Your ticket was joined to another', into.subject, schoolLink(into), into.id),
+        ])
+      }
+      done++
+    }
+    auditDetail(c, { action: `desk.bulk.${req.action}`, after: { count: done } })
+    return ok({ done })
+  })
+
+  // --- help content: articles, tips, canned replies, categories, the SLA policy ---
+  r.get('/admin/platform/help-content/{kind}', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const kind = c.params.kind as ContentKind
+    if (!KINDS.has(kind)) throw notFound()
+    return ok({ items: await contentEntries(c.env, kind) })
+  })
+  r.put('/admin/platform/help-content/{kind}/{key}', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const kind = c.params.kind as ContentKind
+    const key = c.params.key
+    if (!KINDS.has(kind)) throw notFound()
+    if (!/^[a-z0-9_]{2,60}$/.test(key)) throw badRequest('a key is 2 to 60 lowercase letters, digits or underscores')
+    const req = await readJSON<{ data?: Record<string, unknown>; hidden?: boolean }>(c.req)
+    const data = req.data && typeof req.data === 'object' ? req.data : null
+    if (!data) throw badRequest('nothing to save')
+    const text = (k: string) => typeof data[k] === 'string' && (data[k] as string).trim() !== ''
+    if (kind === 'article' && !(text('title') && text('body') && text('topic'))) throw badRequest('an article needs a title, a topic and a body')
+    if (kind === 'tip' && !(text('title') && text('body') && text('since'))) throw badRequest('a tip needs a title, a body and the release it starts from')
+    if (kind === 'canned' && !(text('title') && text('body'))) throw badRequest('a canned reply needs a title and a body')
+    if (kind === 'category' && !(text('label') && text('hint'))) throw badRequest('a category needs a label and a hint')
+    if (kind === 'sla') {
+      const ok1 = Number(data.respond_hours) > 0 && Number(data.resolve_hours) >= Number(data.respond_hours)
+      if (!ok1) throw badRequest('the hours must be positive, and the answer no sooner than the first reply')
+    }
+    const body = JSON.stringify({ ...data, key: undefined })
+    await c.env.CONTROL.prepare(`INSERT INTO help_content (kind, key, data, status, updated_at, updated_by, updated_by_name) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (kind, key) DO UPDATE SET data = excluded.data, status = excluded.status, updated_at = excluded.updated_at, updated_by = excluded.updated_by, updated_by_name = excluded.updated_by_name`)
+      .bind(kind, key, body, req.hidden ? 'hidden' : 'published', now(), c.id.userId, c.id.fullName).run()
+    forgetContent()
+    auditDetail(c, { action: `help_content.${kind}.save`, target: key })
+    return ok({ saved: true })
+  })
+  /* Back to the shipped text (or gone, for one the desk added). */
+  r.del('/admin/platform/help-content/{kind}/{key}', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const res = await c.env.CONTROL.prepare(`DELETE FROM help_content WHERE kind = ? AND key = ?`).bind(c.params.kind, c.params.key).run()
+    forgetContent()
+    if (!(res.meta.changes ?? 0)) throw notFound()
+    auditDetail(c, { action: `help_content.${c.params.kind}.reset`, target: c.params.key })
+    return ok({ reset: true })
   })
 }
