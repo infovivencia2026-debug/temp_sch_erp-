@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Play, Plus, Star, Type } from 'lucide-react'
 import HeartButton from './HeartButton'
+import { useChildren } from '@/features/portal/use-children'
 import StoryViewer from '@/components/StoryViewer'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
-import { useChildren } from '@/features/portal/use-children'
 import { cn } from '@/lib/utils'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import StatusComposer, { AddChooser } from './StatusComposer'
@@ -59,6 +59,16 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
   const cameraIn = useRef<HTMLInputElement>(null)
 
   const staff = !(session.user?.roles ?? []).every((r) => r === 'parent' || r === 'student')
+  /* WHOSE GALLERY THIS IS (owner's mockup).
+
+     A parent of two opening the gallery sees pictures from two classes and
+     a filter called "My child's class", and nothing on the screen says which
+     child that means. The pill answers it before the question is asked, and
+     for a family with one child it is simply the child's name, which is the
+     thing they came to look for. Staff see nothing here: it is not about one
+     child for them. */
+  const kids = useChildren()
+  const kid = staff ? null : kids.child
   const shown = items
     .filter((p) => !scope || (scope === 'school' ? p.scope === 'school' : scope === 'class' ? p.scope === 'class' : p.scope === 'class' && (p.for_kids ?? []).includes(scope)))
     .filter((p) => !kind || p.media_kind === kind)
@@ -87,7 +97,22 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={onClose} aria-label="Back" className="grid size-9 place-items-center rounded-full hover:bg-muted">
           <ArrowLeft className="size-5" />
         </button>
-        <h2 className="mr-auto text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
+        <h2 className="text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
+        {kid && (
+          <span className="mr-auto inline-flex min-w-0 items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+            <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[11px] font-extrabold text-primary">
+              {(kid.full_name || '?').trim().charAt(0).toUpperCase()}
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[10px] text-muted-foreground">Parent of</span>
+              <span className="block truncate text-[12.5px] font-bold">
+                {kid.full_name}
+                {kid.class_name ? ` (${kid.class_name}${kid.section_name ? '-' + kid.section_name : ''})` : ''}
+              </span>
+            </span>
+          </span>
+        )}
+        {!kid && <span className="mr-auto" />}
         {/* Nothing here for staff: the owner asked for no filters on their
             side, and Class Status already filters by class and by poster. */}
         {!staff && <FamilyScope value={scope} onChange={setScope} />}
