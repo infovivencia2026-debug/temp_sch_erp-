@@ -231,11 +231,11 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
     </button>
   )
 }
+/* The app's own dropdown (owner: "apply our dropdown style"), not the browser's. */
 function MiniSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[][] }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="tap-inline cursor-pointer appearance-none rounded-lg border bg-muted/40 bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2210%22%20height=%2210%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%236b7280%22%20stroke-width=%222.5%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_8px_center] bg-no-repeat py-1.5 pl-2.5 pr-7 text-[12px] font-medium outline-none focus:border-foreground focus:bg-card">
-      {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </select>
+    <div className="w-52 shrink-0">
+      <Select value={value} onChange={onChange} options={options.map(([v, l]) => ({ value: v, label: l }))} />
+    </div>
   )
 }
