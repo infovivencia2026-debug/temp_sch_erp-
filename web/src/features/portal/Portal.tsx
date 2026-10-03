@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import JoinActivities from './JoinActivities'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -645,6 +646,7 @@ export default function Portal() {
                     </ul>
                   )}
                 </Card>
+                <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
                 {/* The next school day, as the student's My day shows it. */}
                 {s.next_day && s.next_day.periods.some((x) => x.subject !== 'Free') && (
                   <Card className="mt-6">

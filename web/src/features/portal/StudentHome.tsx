@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import JoinActivities from './JoinActivities'
 import { useCollapsingTitle } from '@/lib/motion'
 import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -245,6 +246,8 @@ export default function StudentHome() {
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
+
+        <JoinActivities />
 
         {/* Only when there is something in them. */}
         {quizzes.length > 0 && toCourses && (

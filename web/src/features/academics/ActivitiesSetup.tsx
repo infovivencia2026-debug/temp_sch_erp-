@@ -6,6 +6,7 @@ import {
   Select, FormNotice, Table, Td, Badge, Button, ConfirmButton, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import ActivityMembers from './ActivityMembers'
 import { formatPaise } from '@/lib/utils'
 
 /* The clubs a school actually runs.
@@ -46,6 +47,7 @@ export default function ActivitiesSetup() {
   const mayWrite = can('academics.write')
 
   const [editing, setEditing] = useState<Activity | null>(null)
+  const [members, setMembers] = useState<Activity | null>(null)
   const [adding, setAdding] = useState(false)
 
   const list = useQuery({
@@ -100,6 +102,8 @@ export default function ActivitiesSetup() {
           </Card>
         )}
 
+        {members && <ActivityMembers activity={members} onClose={() => setMembers(null)} />}
+
         {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
           <Card>
             <CardHeader
@@ -146,10 +150,17 @@ export default function ActivitiesSetup() {
                   </Td>
                   <Td>
                     {mayWrite && (
-                      <Button size="sm" variant="secondary"
-                        onClick={() => { setEditing(a); setAdding(false) }}>
-                        Edit
-                      </Button>
+                      <span className="flex flex-wrap gap-2">
+                        {a.is_active && (
+                          <Button size="sm" onClick={() => { setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                            Add students
+                          </Button>
+                        )}
+                        <Button size="sm" variant="secondary"
+                          onClick={() => { setEditing(a); setAdding(false) }}>
+                          Edit
+                        </Button>
+                      </span>
                     )}
                   </Td>
                 </tr>
