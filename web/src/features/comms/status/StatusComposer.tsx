@@ -92,8 +92,10 @@ const toTarget = (c: Choice): TargetPick => {
   return id ? { kind, id } : { kind }
 }
 
-export default function StatusComposer({ file: initial, asSchool = false, onClose, mode, raised = false }: {
+export default function StatusComposer({ file: initial, asSchool = false, onClose, mode, raised = false, pinByDefault = false }: {
   file: File | null; asSchool?: boolean; onClose: () => void
+  /** From the School gallery: the post is pinned, so it stays there. */
+  pinByDefault?: boolean
   /** 'text': words on the school's colour, no media. */
   mode?: AddMode
   raised?: boolean
@@ -172,7 +174,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
      no pin and inventing a field it ignores would be a switch that does
      nothing. A pin that fails leaves the status posted and says so rather
      than failing the post itself. */
-  const [pin, setPin] = useState(false)
+  const [pin, setPin] = useState(pinByDefault)
 
   const send = useMutation({
     mutationFn: async () => {

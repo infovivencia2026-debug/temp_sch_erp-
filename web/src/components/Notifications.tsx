@@ -8,6 +8,7 @@ import {
   ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
+import SchoolGallery from '@/features/comms/status/SchoolGallery'
 import { useStatusFeed } from '@/features/comms/status/status-api'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
@@ -174,6 +175,7 @@ export default function Notifications() {
      back out the way it came. */
   const [closing, setClosing] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [gallery, setGallery] = useState(false)
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
@@ -508,6 +510,13 @@ export default function Notifications() {
             {/* Class Status: Add, then the rings, unseen first. Draws nothing
                 when the school has it off or there is nothing to show. */}
             {shownType === 'activity' && <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />}
+            {shownType === 'activity' && (
+              <button type="button" onClick={() => setGallery(true)}
+                className="mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl border bg-card px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-muted/50">
+                <span>📸 School gallery</span><span className="text-muted-foreground">→</span>
+              </button>
+            )}
+            {gallery && <SchoolGallery onClose={() => setGallery(false)} />}
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
               {false ? (
