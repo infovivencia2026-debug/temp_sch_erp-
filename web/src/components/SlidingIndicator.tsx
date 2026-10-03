@@ -12,9 +12,12 @@ import { cn } from '@/lib/utils'
 
    Measured, not computed: a ResizeObserver on the row and the active child
    re-places it when labels translate, fonts land or the row wraps. Browsers
-   without ResizeObserver fall back to window resize. The very first
-   placement is instant (no slide in from the corner), and so is every move
-   under reduced motion (index.css).
+   without ResizeObserver fall back to window resize. Only a change of
+   selection slides: the very first placement is instant (no slide in from
+   the corner), so is a re-measure after a resize, and so is every move under
+   reduced motion (index.css). Width and height are animated on a box that is
+   out of flow, so nothing else reflows (data-motion-layout-ok tells the dev
+   audit so).
 
    The row carries `data-slide`; index.css then paints the active child's own
    background transparent so the pill is not drawn twice, and lifts the
@@ -35,6 +38,10 @@ export function SlidingIndicator({
 }) {
   const ref = useRef<HTMLSpanElement>(null)
   const placed = useRef(false)
+  /** The last size and place written, so an unchanged measurement is a no-op. */
+  const at = useRef('')
+  /** The row's width at the last placement: only a change in it is a resize. */
+  const rowW = useRef(-1)
 
   useLayoutEffect(() => {
     const list = listRef.current
@@ -52,8 +59,22 @@ export function SlidingIndicator({
                 c.getAttribute('aria-current') === 'page'),
           ) as HTMLElement | undefined) ?? null
     let target = find()
-    const place = () => {
+    /* `slide` is true only for a change of selection. A resize, a font
+       landing or a label translating re-places the thumb in one step: sliding
+       there made the pill drift across the row while the window was dragged.
+       Unchanged measurements are left alone, so an observer firing in the
+       middle of a slide does not cut it short. */
+    const place = (slide: boolean) => {
+      const was = target
       target = find()
+      // A resize that lands with a new selection (a tab opened and chosen in
+      // one update) is a change of selection: it slides.
+      if (target !== was) slide = true
+      // The row kept its width (a tab added or closed beside the chosen one):
+      // the chosen one moved within the row, and the thumb follows it.
+      const lw = list.clientWidth
+      if (lw === rowW.current) slide = true
+      rowW.current = lw
       if (!target) {
         ind.style.opacity = '0'
         return
@@ -70,31 +91,41 @@ export function SlidingIndicator({
          shrinks its rect but not its centre or its layout size. */
       const w = target.offsetWidth
       const h = target.offsetHeight
-      const x = r.left + r.width / 2 - w / 2 - l.left - list.clientLeft + list.scrollLeft
-      const y = r.top + r.height / 2 - h / 2 - l.top - list.clientTop + list.scrollTop
+      const x = Math.round((r.left + r.width / 2 - w / 2 - l.left - list.clientLeft + list.scrollLeft) * 100) / 100
+      const y = Math.round((r.top + r.height / 2 - h / 2 - l.top - list.clientTop + list.scrollTop) * 100) / 100
+      const next = `${w}|${h}|${x}|${y}`
+      if (next === at.current) return
+      at.current = next
+      const still = !slide && placed.current
+      if (still) ind.style.transition = 'none'
       ind.style.width = `${w}px`
       ind.style.height = `${h}px`
       ind.style.transform = `translate(${x}px, ${y}px)`
+      if (still) {
+        void ind.offsetWidth   // the new place is taken before the transition comes back
+        ind.style.transition = ''
+      }
       if (!placed.current) {
         placed.current = true
-        // Next frame: from now on, moves animate.
+        // Next frame: from now on, a change of selection slides.
         requestAnimationFrame(() => ind.setAttribute('data-ready', ''))
       }
     }
-    place()
+    const resized = () => place(false)
+    place(true)
     let ro: ResizeObserver | undefined
     if (typeof ResizeObserver === 'function') {
-      ro = new ResizeObserver(() => place())
+      ro = new ResizeObserver(resized)
       ro.observe(list)
       if (target) ro.observe(target)
     } else {
-      window.addEventListener('resize', place)
+      window.addEventListener('resize', resized)
     }
     return () => {
       ro?.disconnect()
-      window.removeEventListener('resize', place)
+      window.removeEventListener('resize', resized)
     }
   }, [listRef, active, pick])
 
-  return <span ref={ref} aria-hidden className={cn('slide-thumb', className)} />
+  return <span ref={ref} aria-hidden data-motion-layout-ok="" className={cn('slide-thumb', className)} />
 }

@@ -48,6 +48,51 @@ const HEX = /^#[0-9a-fA-F]{6}$/
 let written = false
 let accentWritten = false
 
+/* THE SAME COLOUR, READABLE IN THE DARK.
+
+   The school's colour is written inline on the root, so it applies in both
+   themes, and a deep brand blue (#1e40af) used as link and label ink on a dark
+   card measured 2:1. In dark the colour is lifted toward white just until it
+   reads on the dark card (4.5:1), its soft tint is mixed into the dark ground
+   rather than into white (a pale chip on a dark page), and the ink on it is
+   chosen again. Light is untouched. Re-painted whenever the theme flips. */
+const DARK_CARD = '#171717'
+let lastPrimary: string | null = null
+let watching = false
+
+function paintPrimary(root: HTMLElement, hex: string) {
+  const dark = root.classList.contains('dark')
+  let base = hex
+  if (dark) {
+    for (let t = 0.1; contrast(base, DARK_CARD) < 4.5 && t <= 0.9; t += 0.1) base = mix(hex, '#ffffff', t)
+  }
+  // Derived, not assumed: a hover a shade darker, a soft tint for the pressed
+  // and selected grounds, and a foreground chosen for contrast on the colour
+  // itself so text on a primary button is never the unreadable half.
+  const hover = dark ? mix(base, '#ffffff', 0.12) : mix(base, '#000000', 0.18)
+  const soft = dark ? mix(base, '#141418', 0.8) : mix(base, '#ffffff', 0.86)
+  const fg = contrast(base, '#ffffff') >= contrast(base, '#111111') ? '#ffffff' : '#111111'
+  root.style.setProperty('--primary', hslTriplet(base))
+  /* NOT --ring. A school whose colour is red had every focused box
+     outlined in red, which is what an error looks like. The focus ring
+     stays the product's neutral blue whatever the brand is. */
+  root.style.setProperty('--primary-hover', hslTriplet(hover))
+  root.style.setProperty('--primary-soft', hslTriplet(soft))
+  root.style.setProperty('--primary-foreground', hslTriplet(fg))
+}
+
+function watchTheme(root: HTMLElement) {
+  if (watching || typeof MutationObserver === 'undefined') return
+  watching = true
+  let wasDark = root.classList.contains('dark')
+  new MutationObserver(() => {
+    const isDark = root.classList.contains('dark')
+    if (isDark === wasDark) return
+    wasDark = isDark
+    if (lastPrimary) paintPrimary(root, lastPrimary)
+  }).observe(root, { attributes: true, attributeFilter: ['class'] })
+}
+
 /** Paint the school's colours, or clear them back to the theme's. */
 export function applyBrand(primary?: string | null, accent?: string | null) {
   if (typeof document === 'undefined') return
@@ -57,26 +102,16 @@ export function applyBrand(primary?: string | null, accent?: string | null) {
   // Anything that is not a six-digit hex is refused rather than rendered as
   // black — the same contract the Branding field states to the user.
   if (!HEX.test(hex)) {
+    lastPrimary = null
     if (written) {
       for (const k of KEYS) root.style.removeProperty(k)
       written = false
     }
   } else {
-    // Derived, not assumed: a hover a shade darker, a soft tint for the pressed
-    // and selected grounds, and a foreground chosen for contrast on the colour
-    // itself so text on a primary button is never the unreadable half.
-    const hover = mix(hex, '#000000', 0.18)
-    const soft = mix(hex, '#ffffff', 0.86)
-    const fg = contrast(hex, '#ffffff') >= contrast(hex, '#111111') ? '#ffffff' : '#111111'
-
-    root.style.setProperty('--primary', hslTriplet(hex))
-    /* NOT --ring. A school whose colour is red had every focused box
-       outlined in red, which is what an error looks like. The focus ring
-       stays the product's neutral blue whatever the brand is. */
-    root.style.setProperty('--primary-hover', hslTriplet(hover))
-    root.style.setProperty('--primary-soft', hslTriplet(soft))
-    root.style.setProperty('--primary-foreground', hslTriplet(fg))
+    paintPrimary(root, hex)
     written = true
+    lastPrimary = hex
+    watchTheme(root)
   }
 
   const acc = (accent ?? '').trim()

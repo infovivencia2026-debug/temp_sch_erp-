@@ -1,4 +1,4 @@
-# EDU CLOUD — the desktop application
+# XULO — the desktop application
 
 The office's copy of the same portal the browser shows, in a window of its
 own. Windows and Linux. It is a shell and deliberately nothing more: no login

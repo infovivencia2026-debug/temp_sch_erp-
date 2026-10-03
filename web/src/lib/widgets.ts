@@ -1120,6 +1120,31 @@ export function packPhone(
   return spots
 }
 
+/* A LONE SMALL CARD SITS IN THE MIDDLE OF ITS ROW.
+
+   A Small card (two by two) with nothing at all beside it -- no card, no
+   icon back-filled -- left a two-by-two hole on one side, which reads as a
+   card gone missing. It is not widened (the owner, 2026-10-01: nothing is
+   stretched; a card is the size its menu says), it is moved to the middle
+   two columns, which is the calmer of the two answers. Only for drawing: a
+   board being arranged keeps the real cells so there is somewhere to drop. */
+export function centreLoneSmalls(spots: Spot[]): Spot[] {
+  const cols = PHONE_GRID_COLS
+  const taken = (s: Spot, page: number, row: number, col: number) =>
+    s.page === page && row >= s.row && row < s.row + s.h && col >= s.col && col < s.col + s.w
+  return spots.map((s) => {
+    if (s.w !== 2 || s.h !== 2 || cols !== 4) return s
+    const other = s.col === 0 ? 2 : s.col === 2 ? 0 : -1
+    if (other < 0) return s
+    for (let y = s.row; y < s.row + 2; y++) {
+      for (let x = other; x < other + 2; x++) {
+        if (spots.some((o) => o !== s && taken(o, s.page, y, x))) return s
+      }
+    }
+    return { ...s, col: 1 }
+  })
+}
+
 /** How many pages that pack came to. Zero widgets is zero pages, so a caller
     can ask this before deciding whether a pager is worth drawing at all. */
 export function pageCount(spots: Spot[]): number {

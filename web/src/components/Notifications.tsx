@@ -439,7 +439,10 @@ export default function Notifications() {
             aria-label="Notifications"
             data-side="right"
             data-closing={closing && !open ? '' : undefined}
-            onAnimationEnd={() => { if (!open) setClosing(false) }}
+            /* The drawer's own slide, not a row's entrance inside it: animationend
+               bubbles, and a row finishing its rise used to unmount the drawer
+               part-way through leaving. */
+            onAnimationEnd={(e) => { if (e.target === e.currentTarget && !open) setClosing(false) }}
             onClick={(e) => e.stopPropagation()}
             /* THE OWNER'S MOCK: a quiet header with a count pill, a segmented
                filter, day groups with the date on the right, and each

@@ -1,11 +1,11 @@
 {
   "name": "edu-cloud-desktop",
-  "productName": "EDU CLOUD",
+  "productName": "XULO",
   "version": "1.0.0",
   "description": "The school's own portal as a desktop application.",
   "license": "UNLICENSED",
   "private": true,
-  "author": "EDU CLOUD",
+  "author": "XULO",
   "main": "src/main.js",
   "portal": "https://school-erp-cqj.pages.dev",
   "scripts": {
@@ -21,8 +21,8 @@
   },
   "build": {
     "appId": "com.schoolerp.desktop",
-    "productName": "EDU CLOUD",
-    "copyright": "EDU CLOUD",
+    "productName": "XULO",
+    "copyright": "XULO",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -40,7 +40,7 @@
       "synopsis": "The school's portal as a desktop application",
       "desktop": {
         "entry": {
-          "StartupWMClass": "EDU CLOUD"
+          "StartupWMClass": "XULO"
         }
       }
     },
@@ -72,13 +72,13 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
-      "shortcutName": "EDU CLOUD"
+      "shortcutName": "XULO"
     },
     "appx": {
       "identityName": "WISEN.EDUCLOUD",
       "publisher": "CN=00000000-0000-0000-0000-000000000000",
       "publisherDisplayName": "WISEN",
-      "displayName": "EDU CLOUD",
+      "displayName": "XULO",
       "applicationId": "EDUCLOUD",
       "backgroundColor": "#0b0c0e",
       "languages": [

@@ -2123,7 +2123,13 @@ export const en = {
   'bento.launcher.close': 'Close',
   'bento.launcher.recent': 'Recently opened',
   'bento.launcher.show_all': 'Show all',
-  'bento.launcher.results': '{count} matches',
+  'bento.launcher.results': '{count} {count#match|matches}',
+  'bento.launcher.results_some': '{shown} of {count} {count#match|matches}',
+  'bento.launcher.try': 'Try:',
+  'bento.launcher.ask': 'Ask the assistant: “{q}”',
+  'bento.launcher.recent_searches': 'Recent searches',
+  'bento.launcher.home_add': 'Add to home',
+  'bento.launcher.home_remove': 'Remove from home',
   'bento.launcher.empty': 'Nothing matches “{q}”',
   'bento.launcher.hint': 'Up and down to move, Enter to open, Esc to close',
   'bento.launcher.filter': 'Filter {count} features…',
@@ -2711,7 +2717,7 @@ export const en = {
   'tabs.menu.close': 'Close tab',
   // Customize mode, from Settings and from the coach mark (CustomizeCoach.tsx).
   'bento.widgets.customize_board': 'Customize board',
-  'bento.coach.hold': 'Hold a card to customize',
+  'bento.coach.hold': 'Hold a card to open its menu',
   'bento.coach.desk': 'Customize your board',
   // --- shared / SetYourPassword.tsx --------------------------------------
   /* The forced change on first sign-in. Rendered above the app's own
