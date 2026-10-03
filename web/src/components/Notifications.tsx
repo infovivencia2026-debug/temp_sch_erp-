@@ -77,12 +77,14 @@ const FAMILIES: [RegExp, { icon: typeof Bell; label: string }][] = [
   [/^attendance|^absen|^leave/, { icon: CalendarCheck, label: 'Attendance' }],
   [/^report_card|^result|^exam/, { icon: Award, label: 'Results' }],
   [/^transport|bus/, { icon: Bus, label: 'Bus' }],
+  [/digest/, { icon: Bell, label: 'Daily report' }],
+  [/^lms|^lesson/, { icon: BookOpen, label: 'Lessons' }],
   [/message|^chat/, { icon: MessageSquare, label: 'Messages' }],
 ]
 
 function kindOf(kind: string) {
   const k = kind.toLowerCase()
-  return KINDS[k] ?? FAMILIES.find(([re]) => re.test(k))?.[1] ?? { icon: Bell, label: k.replace(/[-_]/g, ' ') }
+  return KINDS[k] ?? FAMILIES.find(([re]) => re.test(k))?.[1] ?? { icon: Bell, label: k.replace(/[-_.]+/g, ' ') }
 }
 
 /* Days, not timestamps.

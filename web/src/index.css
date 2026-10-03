@@ -71,6 +71,14 @@
    with no elevation at all, where a black page with white cards would just
    glare. */
 @layer base {
+  /* A GRID WITH NO COLUMNS SET HAS ONE COLUMN THAT CANNOT BE WIDENED.
+
+     Left alone, the implicit track is `auto`, which grows to the widest
+     child's minimum: a table inside a card on "grid lg:grid-cols-2" pushed
+     the card to 470px on a 390px phone (fee dashboard, fee collection,
+     performance analytics, vehicle tracking, My classes). In the base layer,
+     so every grid-cols-* utility and every stylesheet rule still wins. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
   :root {
     color-scheme: light;
 
