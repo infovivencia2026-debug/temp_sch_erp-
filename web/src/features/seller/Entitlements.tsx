@@ -1,5 +1,8 @@
+import { useState } from 'react'
+import { Controls } from './Controls'
+import { Features } from './Features'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
+  TAB_BAR, tabClass, PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import {
@@ -19,7 +22,32 @@ import {
  * module is added, and it is why "beyond plan" is empty for those schools
  * rather than being every module at once.
  */
+/* The Controls area: the plan matrix, every school setting (Controls) and
+   the per-school feature switches, under one heading. */
+const VIEWS = [{ key: 'controls', label: 'Controls' }, { key: 'matrix', label: 'Plan matrix' }, { key: 'features', label: 'Feature switches' }] as const
+
 export default function Entitlements() {
+  const [view, setView] = useState<(typeof VIEWS)[number]['key']>('controls')
+  const tabs = (
+    <div className={TAB_BAR} role="tablist">
+      {VIEWS.map((v) => <button key={v.key} role="tab" aria-selected={view === v.key} className={tabClass(view === v.key)} onClick={() => setView(v.key)}>{v.label}</button>)}
+    </div>
+  )
+  if (view !== 'matrix') {
+    return (
+      <>
+        <PageHead eyebrow="Entitlements" title="Controls" description="Every school's configuration, the defaults new schools start with, and role templates. Settings only; school records are not reachable here." />
+        <PageBody>
+          {tabs}
+          {view === 'controls' ? <Controls /> : <Features onClose={() => setView('controls')} />}
+        </PageBody>
+      </>
+    )
+  }
+  return <Matrix tabs={tabs} />
+}
+
+function Matrix({ tabs }: { tabs: React.ReactNode }) {
   const { data, isLoading, error } = usePlatform<EntitlementResponse>('entitlements', '/entitlements')
   const set = usePlatformSave('entitlements', '/entitlements')
 
@@ -38,6 +66,7 @@ export default function Entitlements() {
         description="What each plan includes, what each school has switched on, and where the two disagree."
       />
       <PageBody>
+        {tabs}
         <CellGrid cols={4}>
           <Stat label="Plans" value={data.plans.length} />
           <Stat label="Schools" value={data.schools.length} />
