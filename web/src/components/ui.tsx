@@ -981,7 +981,7 @@ export function Table({
       >
         <thead>
           <tr>
-            {head.map((h) => {
+            {head.map((h, i) => {
               const label = typeof h === 'string' ? h : h.label
               const key = typeof h === 'string' ? undefined : h.key
               const active = !!key && sort?.sortKey === key
@@ -993,7 +993,7 @@ export function Table({
               // shout across a table that is trying to be read quietly.
               return (
                 <th
-                  key={label}
+                  key={`${i}:${label}`}
                   aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                   className={cn(
                     'whitespace-nowrap px-[var(--card-pad)] py-2.5 text-[12px] font-medium text-muted-foreground',

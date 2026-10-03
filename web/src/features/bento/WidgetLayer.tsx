@@ -10,7 +10,7 @@ import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
-  packPhone, pageCount, phoneKindOf, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
+  packPhone, centreLoneSmalls, pageCount, phoneKindOf, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
@@ -747,7 +747,7 @@ export function WidgetLayer({
      down to the dots, so a card was never the size its menu said and a page
      could not be composed. A card is the size somebody chose -- Small, Tall,
      Medium or Large -- and room left on a page is room to put something. */
-  const drawn = spots
+  const drawn = spots && !arranging ? centreLoneSmalls(spots) : spots
   /* Every page is the whole grid, always. Sizing the tracks to the rows in
      use made a page with two small cards draw them the full height of the
      screen: the same stretching by another road. */

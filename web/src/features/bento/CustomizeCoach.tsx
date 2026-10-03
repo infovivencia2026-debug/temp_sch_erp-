@@ -90,6 +90,18 @@ function rectOf(el: HTMLElement): Anchor {
   return { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width }
 }
 
+/* The phone's bottom reserve (dock, its lift and margin) in pixels, read
+   from the one token that defines it, so the mark is never drawn behind
+   the dock when the first card runs down to it. */
+function pageFootPx(): number {
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:absolute;visibility:hidden;height:var(--page-foot,0px)'
+  document.body.appendChild(probe)
+  const h = probe.getBoundingClientRect().height
+  probe.remove()
+  return h
+}
+
 export default function CustomizeCoach({ hold = false }: {
   /** Something else is teaching right now (the first-run tour): wait. */
   hold?: boolean
@@ -169,7 +181,7 @@ export default function CustomizeCoach({ hold = false }: {
      normally is (desk) or a third of the way down the screen (phone). */
   const style: CSSProperties | undefined = at
     ? phone
-      ? { top: at.bottom - 14, left: at.left + at.width / 2 }
+      ? { top: Math.min(at.bottom - 14, window.innerHeight - pageFootPx() - 52), left: at.left + at.width / 2 }
       : { right: Math.max(0, window.innerWidth - at.right), bottom: Math.max(0, window.innerHeight - at.top) + 10 }
     : undefined
 

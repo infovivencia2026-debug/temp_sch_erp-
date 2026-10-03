@@ -4242,6 +4242,14 @@ main, [data-paint='workarea'] {
 }
 .tint-grid > * > span:last-child, .cell-grid > .cell > div:first-child > svg { color: rgb(var(--tint)); }
 .tint-grid > * > span:last-child { background: rgb(var(--tint) / 0.14) !important; }
+/* In dark the hue at full strength is a mid-tone on a dark wash (indigo
+   measured 3:1) and the grey label sank into the tint: lift the icon toward
+   white and the label to the foreground at 80%, both well past 4.5:1. */
+.dark .tint-grid > * > span:last-child,
+.dark .tint-grid > * svg,
+.dark .cell-grid > .cell > div:first-child > svg { color: color-mix(in srgb, rgb(var(--tint)) 55%, #ffffff); }
+.dark .tint-grid > * .text-muted-foreground,
+.dark .cell-grid > .cell .text-muted-foreground { color: hsl(var(--foreground) / 0.8); }
 
 /* The glow back under the figure grids: the grid is one card, so it takes
    a soft blend of the first two hues beneath it. */
