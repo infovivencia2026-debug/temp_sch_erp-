@@ -24,7 +24,6 @@ import {
   TransportCrew, Activities, CoScholastic,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
-import { StudentWarningStrip } from '@/components/ai/EarlyWarnings'
 import StudentEditDialog from './StudentEditDialog'
 import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
@@ -1923,7 +1922,6 @@ export default function StudentProfile() {
         }}
       />
     )}
-    <StudentWarningStrip studentId={selected} />
     <RecordShell
       title={p.full_name}
       /* The face and the class at the top, where the eye lands first; the

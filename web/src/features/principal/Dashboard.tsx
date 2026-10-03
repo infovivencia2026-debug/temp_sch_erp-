@@ -11,8 +11,6 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import SetupProgress from './SetupProgress'
-import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
-import PrincipalBriefCard from '@/components/ai/PrincipalBriefCard'
 import { useCan } from '@/lib/session'
 
 interface TrendPoint { date: string; present: number; absent: number; total: number; pct: number }
@@ -157,8 +155,7 @@ export default function PrincipalDashboard() {
             />
           )}
         </CellGrid>
-        <NeedsAttentionPanel limit={5} />
-        <PrincipalBriefCard />
+        {/* Early warnings and the morning brief are retired (owner, 2026-10-03). */}
 
         <Card>
           <CardHeader title="Needs attention" description="Items waiting on a decision" />
