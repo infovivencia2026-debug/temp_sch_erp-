@@ -1357,7 +1357,11 @@ export function Button({
   className,
   ariaHasPopup,
   ariaExpanded,
+  needsNetwork,
 }: {
+  /** Money, logins, publishing, admissions: never kept for later. Offline,
+      the button is off and says "Needs internet" (lib/offline-policy.ts). */
+  needsNetwork?: boolean
   pending?: boolean
   children: ReactNode
   onClick?: () => void
@@ -1384,14 +1388,17 @@ export function Button({
   // call site degrades to the right level instead of to an unstyled button.
   const level =
     variant === 'ink' ? 'primary' : variant === 'outline' ? 'secondary' : variant
+  const online = useOnline()
+  const cut = needsNetwork && !online
 
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled || pending}
+      disabled={disabled || pending || cut}
       aria-busy={pending || undefined}
       title={title}
+      data-needs-network={cut || undefined}
       aria-label={title}
       aria-haspopup={ariaHasPopup}
       aria-expanded={ariaExpanded}
@@ -1480,7 +1487,7 @@ export function Button({
       )}
     >
       {pending && <TriLoader size={14} className="-ml-0.5 mr-1.5" />}
-      {children}
+      {cut ? 'Needs internet' : children}
     </button>
   )
 }
@@ -2388,6 +2395,7 @@ export {
 } from './Skeleton'
 import { useOpenState, usePresence } from '@/lib/motion'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { useOnline } from '@/lib/online'
 
 /**
  * Print this page.

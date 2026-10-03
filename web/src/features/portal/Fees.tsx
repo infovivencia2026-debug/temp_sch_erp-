@@ -302,7 +302,7 @@ export default function PortalFees() {
                   The receipt is issued exactly as it would be at the office.
                 </p>
               </div>
-              <Button disabled={pay.isPending} onClick={() => pay.mutate({})}>
+              <Button needsNetwork disabled={pay.isPending} onClick={() => pay.mutate({})}>
                 {pay.isPending ? 'Paying…' : `Pay ${formatPaise(d.outstanding_paise)}`}
               </Button>
             </div>
@@ -428,7 +428,7 @@ export default function PortalFees() {
                       </Button>
                     )}
                     {i.due_paise > 0 && simulated && (
-                      <Button
+                      <Button needsNetwork
                         size="sm"
                         disabled={pay.isPending}
                         onClick={() => pay.mutate({ invoice_no: i.invoice_no })}

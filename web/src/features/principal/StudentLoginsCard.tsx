@@ -185,7 +185,7 @@ export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean
         </p>
         {p.enabled && p.with_login < p.eligible && (
           <div className="flex flex-wrap items-center gap-3">
-            <Button pending={fill.busy} onClick={fill.run}>Give every student a login</Button>
+            <Button needsNetwork pending={fill.busy} onClick={fill.run}>Give every student a login</Button>
             {fill.done && <span className="text-success">Issued {fill.done.issued}{fill.done.skipped ? `; ${fill.done.skipped} skipped` : ''}.</span>}
             {fill.err ? <FormNotice error={fill.err} /> : null}
           </div>
@@ -221,8 +221,8 @@ export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean
                   <Select value={target} onChange={setTarget} options={targets} placeholder="Choose…" />
                 </Field>
               </div>
-              <Button disabled={!target} pending={issue.isPending && !issue.variables} onClick={() => issue.mutate(false)}>Issue logins</Button>
-              <Button variant="secondary" disabled={!target} pending={issue.isPending && !!issue.variables}
+              <Button needsNetwork disabled={!target} pending={issue.isPending && !issue.variables} onClick={() => issue.mutate(false)}>Issue logins</Button>
+              <Button needsNetwork variant="secondary" disabled={!target} pending={issue.isPending && !!issue.variables}
                 onClick={() => { if (window.confirm('Give every child in this class or section a new code? The codes they hold now stop working.')) issue.mutate(true) }}>
                 Reset every code
               </Button>
@@ -332,7 +332,7 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
               </Field>
             </div>
           )}
-          <Button disabled={!ready} pending={issue.isPending && !issue.variables} onClick={() => issue.mutate(false)}>
+          <Button needsNetwork disabled={!ready} pending={issue.isPending && !issue.variables} onClick={() => issue.mutate(false)}>
             Issue logins
           </Button>
           <Button
@@ -462,10 +462,10 @@ export function IssueOneCard({ kind }: { kind: 'students' | 'guardians' }) {
         {picked && kind === 'students' && !done && (
           <div className="flex flex-wrap items-center gap-3">
             <p className="font-medium">{picked.name}</p>
-            <Button pending={issue.isPending} onClick={() => issue.mutate({ id: picked.id, name: picked.name, reset: false })}>
+            <Button needsNetwork pending={issue.isPending} onClick={() => issue.mutate({ id: picked.id, name: picked.name, reset: false })}>
               Issue the login
             </Button>
-            <Button variant="secondary" pending={issue.isPending}
+            <Button needsNetwork variant="secondary" pending={issue.isPending}
               onClick={() => { if (window.confirm(`Give ${picked.name} a new password? The one they hold now stops working.`)) issue.mutate({ id: picked.id, name: picked.name, reset: true }) }}>
               Reset the password
             </Button>
@@ -483,10 +483,10 @@ export function IssueOneCard({ kind }: { kind: 'students' | 'guardians' }) {
                   <Td className="text-muted-foreground">{g.relation}</Td>
                   <Td>{g.phone ?? '—'}</Td>
                   <Td className="whitespace-nowrap">
-                    <Button size="sm" pending={issue.isPending} onClick={() => issue.mutate({ id: g.id, name: g.full_name, reset: false })}>
+                    <Button needsNetwork size="sm" pending={issue.isPending} onClick={() => issue.mutate({ id: g.id, name: g.full_name, reset: false })}>
                       Issue
                     </Button>
-                    <Button size="sm" variant="secondary" pending={issue.isPending}
+                    <Button needsNetwork size="sm" variant="secondary" pending={issue.isPending}
                       onClick={() => { if (window.confirm(`Give ${g.full_name} a new password? The one they hold now stops working.`)) issue.mutate({ id: g.id, name: g.full_name, reset: true }) }}>
                       Reset
                     </Button>
@@ -575,11 +575,11 @@ export function IssueOneStaffCard() {
                 <Td>{e.phone ?? '—'}</Td>
                 <Td className="text-muted-foreground">{e.email ?? '—'}</Td>
                 <Td className="whitespace-nowrap">
-                  <Button size="sm" pending={issue.isPending}
+                  <Button needsNetwork size="sm" pending={issue.isPending}
                     onClick={() => issue.mutate({ id: e.id, name: e.label, reset: false })}>
                     Issue
                   </Button>
-                  <Button size="sm" variant="secondary" pending={issue.isPending}
+                  <Button needsNetwork size="sm" variant="secondary" pending={issue.isPending}
                     onClick={() => { if (window.confirm(`Give ${e.label} a new password? The one they hold now stops working.`)) issue.mutate({ id: e.id, name: e.label, reset: true }) }}>
                     Reset
                   </Button>
