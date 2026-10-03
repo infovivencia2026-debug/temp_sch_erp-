@@ -460,6 +460,17 @@ export function registerClassStatus(r: Router): void {
       .bind(v.userId, js(rows.map((x) => x.id))).all<{ post_id: string; n: number; mine: number }>()).results ?? []
     const likes = new Map(likeRows.map((r) => [r.post_id, r]))
     const scopes = await audienceScopes(c, rows.map((x) => x.id))
+    /* WHICH OF MY CHILDREN IT IS FOR, for a family: the gallery switches
+       between children (owner, 2026-10-03). Ids only, never the list. */
+    const forKids = new Map<string, string[]>()
+    if (!v.staff && v.kids.length && rows.length) {
+      const tg = (await c.db.prepare(`SELECT post_id, kind, target_id FROM status_post_targets WHERE post_id IN (${marks()})`)
+        .bind(js(rows.map((x) => x.id))).all<{ post_id: string; kind: string; target_id: string }>()).results ?? []
+      for (const t of tg) {
+        const hit = v.kids.filter((k) => t.kind === 'school' || (t.kind === 'class' && t.target_id === k.class_id) || (t.kind === 'section' && t.target_id === k.section_id))
+        if (hit.length) forKids.set(t.post_id, [...new Set([...(forKids.get(t.post_id) ?? []), ...hit.map((k) => k.student_id)])])
+      }
+    }
     const exp = sigExpiry()
     const q = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp)] as const)))
     const item = (x: (typeof rows)[number]) => ({
@@ -475,6 +486,7 @@ export function registerClassStatus(r: Router): void {
       audience: v.staff ? (labels.get(x.id) ?? '') : '', duration_seconds: x.duration_seconds ?? undefined,
       likes: likes.get(x.id)?.n ?? 0, liked: !!likes.get(x.id)?.mine,
       scope: scopes.get(x.id) ?? 'class',
+      for_kids: forKids.get(x.id),
       url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`,
       thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined,
       seen_url: `/api/v1/status/posts/${x.id}/view${q.get(x.id)}`,

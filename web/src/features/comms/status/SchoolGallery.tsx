@@ -6,6 +6,7 @@ import HeartButton from './HeartButton'
 import StoryViewer from '@/components/StoryViewer'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
+import { useChildren } from '@/features/portal/use-children'
 import { cn } from '@/lib/utils'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import StatusComposer, { AddChooser } from './StatusComposer'
@@ -45,7 +46,10 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
 
      The media filter is everybody's: a gallery that is mostly photos is hard
      to find one video in. */
-  const [scope, setScope] = useState<'' | 'school' | 'class'>('')
+  /* '' = everything, 'school' = whole school, 'class' = any child's class,
+     or a child's id = that child's class. Tapping the chosen pill again goes
+     back to everything (it used to stick on Whole school, hiding class videos). */
+  const [scope, setScope] = useState<string>('')
   const [kind, setKind] = useState<'' | 'photo' | 'video'>('')
   const [open, setOpen] = useState<string | null>(null)
   const [choose, setChoose] = useState(false)
@@ -56,7 +60,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
 
   const staff = !(session.user?.roles ?? []).every((r) => r === 'parent' || r === 'student')
   const shown = items
-    .filter((p) => !scope || (scope === 'school' ? p.scope === 'school' : p.scope === 'class'))
+    .filter((p) => !scope || (scope === 'school' ? p.scope === 'school' : scope === 'class' ? p.scope === 'class' : p.scope === 'class' && (p.for_kids ?? []).includes(scope)))
     .filter((p) => !kind || p.media_kind === kind)
     .sort((a, b) => b.published_at.localeCompare(a.published_at))
   const months = new Map<string, StatusItem[]>()
@@ -86,20 +90,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
         <h2 className="mr-auto text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
         {/* Nothing here for staff: the owner asked for no filters on their
             side, and Class Status already filters by class and by poster. */}
-        {!staff && (
-          <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-            {([['', 'Whole school'], ['class', "My child's class"]] as const).map(([v, label]) => (
-              <button key={v || 'all'} type="button" onClick={() => setScope(v === '' ? 'school' : 'class')}
-                className={cn('inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors',
-                  (v === '' ? scope !== 'class' : scope === 'class')
-                    ? 'bg-card text-primary shadow-[0_2px_6px_-1px_rgba(15,23,42,0.12)]'
-                    : 'text-muted-foreground hover:text-foreground')}>
-                {v === 'class' && <Star className="size-3.5 fill-current" aria-hidden="true" />}
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+        {!staff && <FamilyScope value={scope} onChange={setScope} />}
         {/* Photos, videos, or everything. */}
         <div className="flex items-center gap-1 rounded-full bg-muted p-1">
           {([['', 'All'], ['photo', 'Photos'], ['video', 'Videos']] as const).map(([v, label]) => (
@@ -224,5 +215,26 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
       )}
     </div>,
     document.body,
+  )
+}
+
+/* All, Whole school, then each child's class by name (one child: "My child's
+   class"). Owner: "no my child switching". */
+function FamilyScope({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { children } = useChildren()
+  const opts: [string, string][] = [['', 'All'], ['school', 'Whole school']]
+  if (children.length > 1) for (const ch of children) opts.push([ch.student_id, `${ch.full_name.split(' ')[0]}'s class`])
+  else opts.push(['class', "My child's class"])
+  return (
+    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1">
+      {opts.map(([v, label]) => (
+        <button key={v || 'all'} type="button" onClick={() => onChange(value === v ? '' : v)}
+          className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors',
+            value === v ? 'bg-card text-primary shadow-[0_2px_6px_-1px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
+          {v !== '' && v !== 'school' && <Star className="size-3.5 fill-current" aria-hidden="true" />}
+          {label}
+        </button>
+      ))}
+    </div>
   )
 }
