@@ -378,22 +378,43 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
        both rows open the same screen with the same reach. */
     const emittedNames = new Set<string>()
     for (const ro of roles) for (const s of ro.sections) for (const f of s.features) { emitted.add(f.key); emittedNames.add(f.name) }
-    const granted: ReturnType<typeof feat>[] = []
+    /* GRANTED FEATURES KEEP THE SECTION THEY BELONG TO.
+
+       Everything granted directly used to land in one bucket called "Granted
+       to you", at the end of the sidebar. An attendance clerk given Take
+       attendance, Present & absent, Absentee followup and Attendance
+       correction found none of them under Attendance, where she looked, and
+       all four under a heading naming the manner of the grant rather than the
+       work -- which is an implementation detail of how she got them, not a
+       thing she needs to know. She told us she could not find Take attendance
+       anywhere until she searched for it.
+
+       Each one keeps its own section instead: Attendance goes under
+       Attendance, and merges into that section if her workspace already has
+       one. Only a feature whose section she has no other claim on starts a
+       new heading, and it is named after the work. */
+    const bySection = new Map<string, { name: string; features: ReturnType<typeof feat>[] }>()
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
       if (!directFeatures.has(f.key) || emitted.has(f.key) || emittedNames.has(f.name)) continue
       if (role.key === 'student' && STUDENT_HIDDEN_SECTIONS.has(sec.slug)) continue
       if (!(await gate(sec.slug, f))) continue
-      granted.push(feat(f, true))
+      let g = bySection.get(sec.slug)
+      if (!g) { g = { name: sec.name, features: [] }; bySection.set(sec.slug, g) }
+      g.features.push(feat(f, true))
       emitted.add(f.key)
       emittedNames.add(f.name)
     }
-    if (granted.length > 0) {
+    const granted: ReturnType<typeof feat>[] = []
+    if (bySection.size > 0) {
       const primary = roles.findIndex((ro) => mine.has(ro.key))
-      if (primary >= 0) {
-        roles[primary].sections.push({ slug: 'granted', name: 'Granted to you', workspace: roles[primary].name, features: granted })
-      } else {
-        roles.push({ key: roles.length > 0 ? roles[0].key : 'granted', name: 'Granted to you',
-          sections: [{ slug: 'granted', name: 'Granted to you', workspace: 'Granted to you', features: granted }] })
+      if (primary < 0) {
+        roles.push({ key: roles.length > 0 ? roles[0].key : 'granted', name: 'Granted to you', sections: [] })
+      }
+      const host = roles[primary >= 0 ? primary : roles.length - 1]
+      for (const [slug, g] of bySection) {
+        const existing = host.sections.find((s) => s.slug === slug)
+        if (existing) existing.features.push(...g.features)
+        else host.sections.push({ slug, name: g.name, workspace: host.name, features: g.features })
       }
     }
   }
