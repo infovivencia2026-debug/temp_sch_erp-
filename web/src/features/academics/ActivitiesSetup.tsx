@@ -48,6 +48,8 @@ export default function ActivitiesSetup() {
 
   const [editing, setEditing] = useState<Activity | null>(null)
   const [members, setMembers] = useState<Activity | null>(null)
+  /** Which half of that panel to lead with: the names, or the picker. */
+  const [membersView, setMembersView] = useState<'add' | 'members'>('add')
   const [adding, setAdding] = useState(false)
 
   const list = useQuery({
@@ -102,7 +104,7 @@ export default function ActivitiesSetup() {
           </Card>
         )}
 
-        {members && <ActivityMembers activity={members} onClose={() => setMembers(null)} />}
+        {members && <ActivityMembers activity={members} show={membersView} onClose={() => setMembers(null)} />}
 
         {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
           <Card>
@@ -155,7 +157,7 @@ export default function ActivitiesSetup() {
                            further down leaves it off-screen -- the same reason the Add
                            students button scrolls. A list that opens where you cannot
                            see it has not opened. */
-                        onClick={() => { setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                        onClick={() => { setMembersView('members'); setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                         className="font-semibold text-primary underline-offset-2 hover:underline"
                         title={`Who is enrolled in ${a.name}`}
                       >
@@ -176,7 +178,7 @@ export default function ActivitiesSetup() {
                     {mayWrite && (
                       <span className="flex flex-wrap gap-2">
                         {a.is_active && (
-                          <Button size="sm" onClick={() => { setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                          <Button size="sm" onClick={() => { setMembersView('add'); setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                             Add students
                           </Button>
                         )}

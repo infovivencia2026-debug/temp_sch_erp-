@@ -10,9 +10,20 @@ import { formatPaise } from '@/lib/utils'
    which is where nobody looks when they are standing up the dance club. Pick
    a class, tick the children, Add: each is enrolled exactly as Student 360
    would (the seat is taken and the fee is billed to the family). */
-export default function ActivityMembers({ activity, onClose }: {
+export default function ActivityMembers({ activity, onClose, show = 'add' }: {
   activity: { id: string; name: string; fee_paise: number; capacity: number; enrolled: number }
   onClose: () => void
+  /* WHICH QUESTION THIS PANEL WAS OPENED TO ANSWER.
+
+     One panel does two things: it lists who is enrolled, and it adds more.
+     Opened from the enrolment count it was still headed "Add students to
+     dance", with the list of names below a class picker and a Add button --
+     so pressing "1" to see who that one person is produced a form for
+     enrolling a second. The answer was on screen and did not look like one.
+
+     Same panel, two orders: asked who is in it, the names come first and the
+     adding is underneath; asked to add somebody, the picker comes first. */
+  show?: 'add' | 'members'
 }) {
   const qc = useQueryClient()
   const [section, setSection] = useState('')
@@ -56,9 +67,16 @@ export default function ActivityMembers({ activity, onClose }: {
 
   return (
     <Card>
-      <CardHeader title={`Add students to ${activity.name}`}
+      <CardHeader
+        title={show === 'members' ? `Who is enrolled in ${activity.name}` : `Add students to ${activity.name}`}
+        description={show === 'members'
+          ? 'Every child in this activity, their class, the parent to ring and whether the fee is paid.'
+          : undefined}
         action={<Button size="sm" variant="secondary" onClick={onClose}>Close</Button>} />
-      <div className="space-y-3 p-5">
+      <div className={show === 'members' ? 'flex flex-col-reverse gap-3 p-5' : 'space-y-3 p-5'}>
+        {/* The billing note belongs to adding somebody, so it sits with the
+            adding. Reversing the column keeps both orders in one tree rather
+            than writing the panel twice and letting the two drift. */}
         <p className="text-[13px] text-muted-foreground">
           {activity.fee_paise > 0 ? `Each child added is billed ${formatPaise(activity.fee_paise)}.` : 'This activity is free.'}
           {seatsLeft !== null && ` ${seatsLeft} seat${seatsLeft === 1 ? '' : 's'} left.`}

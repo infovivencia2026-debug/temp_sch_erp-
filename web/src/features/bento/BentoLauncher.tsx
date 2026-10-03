@@ -503,10 +503,37 @@ export function BentoLauncher({
     if (!open) return
     const vv = window.visualViewport
     const sheet = sheetRef.current
+    /* THE SHEET IS THE VISIBLE AREA, NOT THE WINDOW.
+
+       It was `fixed inset-0`, which is the LAYOUT viewport -- and iOS keeps
+       that at full height when the keyboard opens, simply drawing the keyboard
+       over the bottom of it. So the scrolling results ran on underneath the
+       keys: a result could be scrolled to a position where it could not be
+       seen, and the field had to be pushed back up by the keyboard's height to
+       stay reachable.
+
+       Sized to visualViewport instead -- its top where the visible area
+       starts, its height what is actually visible -- the sheet ends exactly
+       where the keyboard begins. The results scroll inside the part of the
+       screen that exists, and the field sits at the foot of it with no offset
+       to compute, which is how a native search behaves.
+
+       --lch-kb stays for the browsers with no visualViewport: there the sheet
+       is still the window, and lifting the pill by the keyboard's height is
+       the best that can be done. When the API is present it is zero, because
+       the sheet no longer extends under anything. */
     const kb = () => {
-      if (!vv || !sheet) return
+      if (!sheet) return
+      if (!vv) { sheet.style.setProperty('--lch-kb', '0px'); return }
       const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      sheet.style.setProperty('--lch-kb', `${Math.round(gap)}px`)
+      sheet.style.setProperty('--lch-top', `${Math.round(vv.offsetTop)}px`)
+      sheet.style.setProperty('--lch-vh', `${Math.round(vv.height)}px`)
+      /* The sheet already ends above the keyboard, so the pill needs no lift.
+         Kept as a variable rather than removed so the fallback path below and
+         the stylesheet stay one rule. */
+      sheet.style.setProperty('--lch-kb', '0px')
+      sheet.dataset.vv = 'on'
+      void gap
     }
     kb()
     vv?.addEventListener('resize', kb)
