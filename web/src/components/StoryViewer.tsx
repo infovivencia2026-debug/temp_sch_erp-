@@ -104,10 +104,15 @@ export default function StoryViewer({
   })
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
+  /* Loading: a spinner over the frame until the photo or video can show, so
+     a slow connection reads as loading rather than as a blank status. */
+  const [loading, setLoading] = useState(true)
   const [muted, setMuted] = useState(startMuted)
   const video = useRef<HTMLVideoElement | null>(null)
   const group = groups[g]
   const item = group?.items[i]
+  // A new item starts loading again; text and cards have nothing to wait for.
+  useEffect(() => { setLoading(item?.media === 'image' || item?.media === 'video') }, [item?.id, item?.media])
 
   const goNext = useCallback(() => {
     if (!group) return onClose()
@@ -278,6 +283,8 @@ export default function StoryViewer({
               is never black while the full photo arrives. */}
           {item.media === 'image' && (
             <img key={item.id} src={item.src} alt={item.title} draggable={false} decoding="async"
+              ref={(el) => { if (el?.complete) setLoading(false) }}
+              onLoadStart={() => setLoading(true)} onLoad={() => setLoading(false)} onError={() => setLoading(false)}
               style={item.poster ? { backgroundImage: `url("${item.poster}")`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined} />
           )}
           {item.media === 'video' && (
@@ -295,6 +302,11 @@ export default function StoryViewer({
                 if (v.duration > 0) setProgress(v.currentTime / v.duration)
               }}
               onEnded={goNext}
+              onLoadStart={() => setLoading(true)}
+              onWaiting={() => setLoading(true)}
+              onCanPlay={() => setLoading(false)}
+              onPlaying={() => setLoading(false)}
+              onError={() => setLoading(false)}
             />
           )}
           {item.media === 'text' && (
@@ -347,6 +359,14 @@ export default function StoryViewer({
         />
 
         {paused && <div className="story__hint">Paused</div>}
+        {loading && (item.media === 'image' || item.media === 'video') && (
+          <div className="pointer-events-none absolute inset-0 z-[2] grid place-items-center" aria-live="polite">
+            <span className="flex flex-col items-center gap-2 text-[13px] font-medium text-white/90">
+              <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-white/25 border-t-white" />
+              Loading…
+            </span>
+          </div>
+        )}
 
         {(item.media === 'image' || item.media === 'video' || item.media === 'text') && (
           <div className="story__caption">
