@@ -657,3 +657,14 @@
 .lch-rgroup__name { justify-content: space-between; }
 .lch-rgroup__name > span:first-child { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
 .lch-rgroup__count { flex: none; font-weight: 500; opacity: 0.75; }
+
+/* The sheet occupies the VISIBLE area once visualViewport has told us what
+   that is. `fixed inset-0` is the layout viewport, which iOS keeps at full
+   height with the keyboard drawn over it -- so without this the list scrolls
+   on under the keys. The attribute is set by the launcher only when the API
+   answered, so a browser without it keeps inset-0 and the pill's own lift. */
+.lch[data-vv='on'] {
+  top: var(--lch-top, 0px);
+  bottom: auto;
+  height: var(--lch-vh, 100dvh);
+}
