@@ -47,6 +47,12 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   const catalog = useCatalog()
   const navigate = useNavigate()
   const [open, setOpen] = useOpenState(false)
+  /* An open dropdown closes when the search opens: it was left floating over
+     the search box (the dropdowns close on any press outside themselves, so
+     one synthetic press does it). */
+  useEffect(() => {
+    if (open) document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+  }, [open])
 
   /* The shared Dialog owns Back, Escape and the dim (overlay-history.ts);
      this is what the rows call when they have sent somebody somewhere. */
