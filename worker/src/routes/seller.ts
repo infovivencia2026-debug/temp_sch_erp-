@@ -9,6 +9,7 @@ import { registerSellerAnnouncements } from './seller/announcements'
 import { registerSchoolHealth } from './seller/health'
 import { registerSellerBilling } from './seller/billing'
 import { registerSellerOnboarding } from './seller/onboarding'
+import { registerSellerControls } from './seller/controls'
 
 /* Port of the /seller group in internal/api/api.go (lines 1387-1445): the
    vendor's own back office. The Go group guarded everything with
@@ -29,4 +30,6 @@ export function registerSeller(r: Router): void {
   // Billing (invoices, payments, renewal reminders, past_due/suspended) and the onboarding tracker.
   registerSellerBilling(r)
   registerSellerOnboarding(r)
+  // Controls: every school setting, platform and plan defaults, role templates (docs/seller-controls.md).
+  registerSellerControls(r)
 }

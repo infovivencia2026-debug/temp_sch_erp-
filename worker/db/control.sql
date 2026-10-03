@@ -601,6 +601,22 @@ CREATE TRIGGER IF NOT EXISTS features_bump_i AFTER INSERT ON school_feature_over
 CREATE TRIGGER IF NOT EXISTS features_bump_u AFTER UPDATE ON school_feature_overrides BEGIN UPDATE institutions SET features_version = features_version + 1 WHERE id IN (OLD.institution_id, NEW.institution_id); END;
 CREATE TRIGGER IF NOT EXISTS features_bump_d AFTER DELETE ON school_feature_overrides BEGIN UPDATE institutions SET features_version = features_version + 1 WHERE id = OLD.institution_id; END;
 
+CREATE TABLE IF NOT EXISTS platform_setting_defaults (
+  scope TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (scope, key)
+);
+
+CREATE TABLE IF NOT EXISTS platform_role_templates (
+  role_key TEXT PRIMARY KEY,
+  permissions TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS error_refs (
   code TEXT PRIMARY KEY,
   at TEXT NOT NULL,
@@ -678,6 +694,7 @@ INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('cont
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('control', 11, 'dead_letters', '2329c5b54cd7adda34edc0eb72dea6d9b222cde2adb5776e2706de58fcb83504');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('control', 12, 'housekeeping_indexes', '48fd6ee1f12b198fdaf3f9358c252cc3d7bd9af34d97b3e64ddc11aa23a6a60c');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('control', 13, 'features_version', 'ef060e2deddeb6927bdeb5e060b63a7e597f610852bc52f3fddfd2acc853fab2');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('control', 14, 'settings_defaults', '0648f146ddd72e1cee2bb109728583a47e045d45127e45b3ff86914cf41e71ac');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('control', 20, 'help_centre', 'd1743e3298887b7202b4c63dd860383d440119c7f4be3abadc19cdcaecbe58b8');
 INSERT OR IGNORE INTO "platform_costs" ("id", "infra_paise", "storage_paise_per_gb", "sms_paise", "email_paise", "whatsapp_paise", "notes", "updated_by", "updated_at") VALUES (1, 0, 0, 0, 0, 0, '', NULL, strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 INSERT OR IGNORE INTO "billing_settings" ("id", "seller_name", "seller_address", "seller_gstin", "seller_email", "bank_details", "upi_vpa", "invoice_prefix", "gst_rate_bp", "due_days", "grace_days", "suspend_after_days", "updated_by", "updated_at") VALUES (1, '', '', '', '', '', '', 'INV', 1800, 15, 15, 30, NULL, strftime('%Y-%m-%dT%H:%M:%fZ','now'));
