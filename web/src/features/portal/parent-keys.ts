@@ -29,7 +29,6 @@ export const parentKeys = {
   // Report absence + apply leave, as two tabs of one row (AbsenceHub).
   'parent.leave_absence.apply_student_leave': screen(() => import('./AbsenceHub')),
   'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
-  'parent.academics.child_remarks': screen(() => import('./ChildRemarks')),
   /* A student applying for their own leave.
    *
    * This existed only on the parent's menu, so a sixteen-year-old had to ask a
@@ -40,6 +39,5 @@ export const parentKeys = {
    * Same screen as the parent's. The endpoint already allowed it: a student's
    * own record is in their own scope, so there was nothing to permit, only a
    * door to open. */
-  'student.attendance.apply_for_leave': screen(() => import('./LeaveRequests')),
   'student.requests.requests': screen(() => import('./StudentRequests')),
 }

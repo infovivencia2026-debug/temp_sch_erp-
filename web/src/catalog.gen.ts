@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 426 features. */
+/** 24 roles, 422 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -655,11 +655,9 @@ export const ROLES: Role[] = [
         name: 'My Classes',
         workspace: 'My Classes',
         features: [
-          { key: 'faculty.my_classes.my_classes', slug: 'my_classes', name: 'My classes', scope: 'assigned_classes', tier: 'core', summary: 'Class roster, subject resources and relevant student academic information.' },
           { key: 'faculty.my_classes.student_progress', slug: 'student_progress', name: 'Student progress', scope: 'assigned_classes', tier: 'core', summary: 'View attendance and academic progress for students taught/mentored by the faculty member.' },
           { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told.' },
-          { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
-          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
+          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
           { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section.' },
         ],
       },
@@ -669,7 +667,6 @@ export const ROLES: Role[] = [
         workspace: 'My Classes',
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
-          { key: 'faculty.attendance.take_attendance_school', slug: 'take_attendance_school', name: 'Take attendance (whole school)', scope: 'institution', tier: 'core', summary: 'Mark the register for ANY section in the school, not only your own classes. For the office, the attendance clerk or whoever rings round the absentees. Give this to one or two people; a class teacher does not need it.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
           { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with admission number and the father\'s and mother\'s numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section.' },
           { key: 'faculty.attendance.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'assigned_classes', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as calls are recorded, so a colleague\'s follow-up appears live without editing anything, the calling itself stays on Absentee followup.' },
@@ -1525,7 +1522,7 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'student.home.my_day', slug: 'my_day', name: 'My day', scope: 'self', tier: 'core', summary: 'Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.' },
-          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'Digital Diary & Schedule', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
+          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'My planner', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
           { key: 'student.home.custom_theme_selection', slug: 'custom_theme_selection', name: 'Custom Theme Selection', scope: 'self', tier: 'optional', summary: 'Customize student portal appearance with dark mode, high-contrast mode, or color themes.' },
         ],
       },
@@ -1543,7 +1540,6 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.attendance.attendance', slug: 'attendance', name: 'Attendance', scope: 'self', tier: 'core', summary: 'Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.' },
-          { key: 'student.attendance.apply_for_leave', slug: 'apply_for_leave', name: 'Apply for leave', scope: 'self', tier: 'core', summary: 'Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.' },
         ],
       },
       {
@@ -1664,7 +1660,6 @@ export const ROLES: Role[] = [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them, commendations and concerns alike, newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
       },
       {

@@ -151,6 +151,9 @@ BY_ROLE_SCOPE = {"student": "self", "parent": "children"}
 #   "Student absentees" -> "Present & absent": the screen grew a Present tab and
 #   was renamed, but grants (migration 00317) still key on student_absentees.
 FEATURE_SLUG_OVERRIDE = {
+    # Owner renames (2026-10-03), keys kept: grants and links key on the old slugs.
+    "My students": "student_details",
+    "My planner": "digital_diary_schedule",
     "LMS": "e_learning_resource_hub",  # feature:learning.e_learning_resource_hub (renamed by feature:rename, key kept)
     "Present & absent": "student_absentees",
     # Renamed from "Staff records"; the key hr.records.staff_records is a

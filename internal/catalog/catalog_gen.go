@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 426 features.
+// Roles is the catalog: 24 roles, 422 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -702,11 +702,9 @@ var Roles = []Role{
 				Name:      "My Classes",
 				Workspace: "My Classes",
 				Features: []Feature{
-					{Key: "faculty.my_classes.my_classes", Slug: "my_classes", Name: "My classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Class roster, subject resources and relevant student academic information."},
 					{Key: "faculty.my_classes.student_progress", Slug: "student_progress", Name: "Student progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "View attendance and academic progress for students taught/mentored by the faculty member."},
 					{Key: "faculty.my_classes.behaviour", Slug: "behaviour", Name: "Behaviour", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told."},
-					{Key: "faculty.my_classes.my_students", Slug: "my_students", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child in the class with attendance, marks and guardian contact in one place."},
-					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "Student details", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
+					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
 					{Key: "faculty.my_classes.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section."},
 				},
 			},
@@ -1571,7 +1569,7 @@ var Roles = []Role{
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "student.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("self"), Tier: Tier("core"), Summary: "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement."},
-					{Key: "student.home.digital_diary_schedule", Slug: "digital_diary_schedule", Name: "Digital Diary & Schedule", Scope: Scope("self"), Tier: Tier("core"), Summary: "Track personal study schedules, project deadlines, and school calendar events."},
+					{Key: "student.home.digital_diary_schedule", Slug: "digital_diary_schedule", Name: "My planner", Scope: Scope("self"), Tier: Tier("core"), Summary: "Track personal study schedules, project deadlines, and school calendar events."},
 					{Key: "student.home.custom_theme_selection", Slug: "custom_theme_selection", Name: "Custom Theme Selection", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Customize student portal appearance with dark mode, high-contrast mode, or color themes."},
 				},
 			},
@@ -1589,7 +1587,6 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
-					{Key: "student.attendance.apply_for_leave", Slug: "apply_for_leave", Name: "Apply for leave", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet."},
 				},
 			},
 			{
@@ -1710,7 +1707,6 @@ var Roles = []Role{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow's PT kit or lab day is never a surprise."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
-					{Key: "parent.academics.child_remarks", Slug: "child_remarks", Name: "Child remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Everything your child's teachers have written about them, commendations and concerns alike, newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening."},
 				},
 			},
 			{
