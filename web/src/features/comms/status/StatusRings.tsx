@@ -134,8 +134,12 @@ function PlusBadge({ onClick, label }: { onClick: () => void; label: string }) {
   )
 }
 
-export default function StatusRings({ className, compact = false, openId, onOpenHandled, raised = false }: {
+export default function StatusRings({ className, compact = false, openId, onOpenHandled, raised = false, onCompose }: {
   className?: string
+  /** Hand the picked file to a composer that lives outside this strip: inside
+      the notifications drawer, closing the chooser closed the drawer and took
+      the composer with it. */
+  onCompose?: (next: { file: File | null; asSchool: boolean; mode?: AddMode }) => void
   /** The strip at the top of the notification panel: no card, smaller rings, no heading. */
   compact?: boolean
   /** Open the viewer at this post (a status notification was tapped). */
@@ -161,6 +165,7 @@ export default function StatusRings({ className, compact = false, openId, onOpen
      once the chooser's back has landed. */
   const openComposer = (next: { file: File | null; asSchool: boolean; mode?: AddMode }) => {
     setChoose(null)
+    if (onCompose) { onCompose(next); return }
     window.setTimeout(() => setCompose(next), 350)
   }
   const picked = (e: React.ChangeEvent<HTMLInputElement>) => {
