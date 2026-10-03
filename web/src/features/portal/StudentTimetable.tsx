@@ -41,7 +41,7 @@ export default function StudentTimetable() {
         )}
         <h2 className="pt-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">The whole week</h2>
       </div>
-      <Suspense fallback={<div className="px-4"><Bone className="h-64 w-full rounded-2xl" /></div>}><Timetable /></Suspense>
+      <Suspense fallback={<div className="px-4"><Bone className="h-64 w-full rounded-2xl" /></div>}><Timetable embedded /></Suspense>
     </>
   )
 }
