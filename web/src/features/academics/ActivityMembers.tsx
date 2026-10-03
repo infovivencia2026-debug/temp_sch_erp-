@@ -45,6 +45,10 @@ export default function ActivityMembers({ activity, onClose, show = 'add' }: {
   })
   const seatsLeft = activity.capacity > 0 ? Math.max(0, activity.capacity - activity.enrolled) : null
 
+  /* The class, less the children already in this activity. */
+  const enrolledNames = new Set((members.data?.items ?? []).map((m) => m.admission_no))
+  const addable = (students.data?.items ?? []).filter((s) => !enrolledNames.has(s.admission_no))
+
   /* THE LIST, AS A FILE.
 
      The activities export gave one row per ACTIVITY -- dance, Dance, 1 -- which
@@ -179,7 +183,15 @@ export default function ActivityMembers({ activity, onClose, show = 'add' }: {
         </div>
         {section && (
           <div className="max-h-80 divide-y overflow-auto rounded-xl border">
-            {(students.data?.items ?? []).map((s) => (
+            {/* ALREADY IN IT IS NOT A CHOICE.
+
+                The picker listed the whole class including the children
+                already enrolled, with an empty tick box beside each -- so the
+                obvious reading was that they were not in yet. Ticking one
+                either enrolled them twice or failed, and either way the list
+                above said otherwise. A name that is already on the roll is not
+                an option to choose; it is an answer. */}
+            {addable.map((s) => (
               <label key={s.id} className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-muted/40">
                 <input type="checkbox" className="h-4 w-4" checked={picked.has(s.id)}
                   onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(s.id); else n.delete(s.id); return n })} />

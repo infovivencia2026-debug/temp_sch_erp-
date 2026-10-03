@@ -758,6 +758,7 @@ export function Table({
   loadingMore,
   onLoadMore,
   total,
+  onExport,
 }: {
   head: Column[]
   children: ReactNode
@@ -772,6 +773,14 @@ export function Table({
      rows (`isFetching` with data) must keep those rows on screen. */
   loading?: boolean
   loadingRows?: number
+  /* EXPORT SOMETHING OTHER THAN WHAT IS DRAWN.
+
+     By default Export writes the rows on screen, which is right when the row
+     IS the record. It is wrong where a row stands for a group: the activities
+     table draws one line per club, so its export carried five clubs where the
+     reader wanted the children in them. Pass a handler and Export calls it
+     instead; the table still draws what it drew. */
+  onExport?: () => void
   /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
 
      A table pages ten at a time through whatever array it was given, which
@@ -1114,7 +1123,7 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="secondary" className="no-print" onClick={takeAway}
+              <Button size="sm" variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export

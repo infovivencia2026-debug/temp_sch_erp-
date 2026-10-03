@@ -1021,6 +1021,15 @@ export function BentoLauncher({
           {/* The glyph sits ON the field, not on the page, so it takes the
               card's ink rather than the page's. It is a real button that
               drops the cursor in the field. */}
+          {/* THE PILL AND, BESIDE IT, THE WAY OUT.
+
+              On a phone the launcher's Close sits in the header, which the
+              results scroll away: once the keyboard is up the only thing on
+              screen is a list and a search field, and nothing says how to
+              leave. iOS puts the cancel beside the field, within reach of the
+              thumb already resting on the keyboard, and so do we. */}
+          <div className="lch-bar">
+          <div className="lch-field">
           <button
             type="button"
             tabIndex={-1}
@@ -1065,6 +1074,19 @@ export function BentoLauncher({
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
             className="lch-searchbar__input bg-transparent"
           />
+          </div>
+          {phone && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => close()}
+              aria-label={t('bento.launcher.close')}
+              className="lch-cancel"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+          )}
+          </div>
         </div>
 
       </div>

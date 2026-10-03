@@ -668,3 +668,26 @@
   bottom: auto;
   height: var(--lch-vh, 100dvh);
 }
+
+/* The field and its cancel on one line. The glyph and the clear are placed
+   against the field, not against the bar, or the bar's own width would move
+   them whenever the cancel appeared. */
+.lch-bar { display: flex; align-items: flex-end; gap: 8px; }
+.lch-field { position: relative; flex: 1; min-width: 0; }
+.lch .lch-cancel {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  color: var(--ink-here);
+  background-color: color-mix(in srgb, var(--bento-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: var(--bento-edge, none), var(--elev-2);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .lch .lch-cancel { background-color: var(--bento-bg); }
+}
+.lch .lch-cancel:active { background-color: color-mix(in srgb, var(--ink-here) 10%, var(--bento-bg)); }

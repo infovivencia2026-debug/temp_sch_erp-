@@ -41,6 +41,16 @@ const CATEGORIES = [
   'Coaching', 'Language', 'Community Service', 'Club',
 ]
 
+interface Member {
+  id: string
+  name: string
+  admission_no: string
+  class_label?: string
+  guardian_name?: string
+  guardian_phone?: string
+  payment: 'paid' | 'unpaid' | 'no_fee'
+}
+
 export default function ActivitiesSetup() {
   const qc = useQueryClient()
   const can = useCan()
@@ -69,6 +79,48 @@ export default function ActivitiesSetup() {
 
   const rows = list.data?.items ?? []
   const running = rows.filter((a) => a.is_active)
+
+  /* One line per enrolled child, across every activity on the list. */
+  const exportEveryone = async () => {
+    const cell = (v: unknown) => {
+      const t = String(v ?? '').replace(/\s+/g, ' ').trim()
+      return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
+    }
+    const head = [
+      'Activity', 'Student', 'Class', 'Admission no',
+      'Parent', 'Parent number', 'Fee', 'Paid',
+    ]
+    const lines = [head.map(cell).join(',')]
+    for (const a of rows) {
+      if (!a.enrolled) continue
+      const roll = await qc.fetchQuery({
+        queryKey: ['activity-members', a.id],
+        queryFn: () => api.get<List<Member>>(`/api/v1/academics/activities/${a.id}/members`),
+      })
+      for (const m of roll.items ?? []) {
+        lines.push([
+          a.name,
+          m.name,
+          m.class_label ?? '',
+          m.admission_no,
+          m.guardian_name ?? '',
+          m.guardian_phone ?? '',
+          a.fee_paise > 0 ? (a.fee_paise / 100).toFixed(2) : '0',
+          m.payment === 'paid' ? 'Paid' : m.payment === 'unpaid' ? 'Not paid' : 'No fee',
+        ].map(cell).join(','))
+      }
+    }
+    const url = URL.createObjectURL(
+      new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+    const el = document.createElement('a')
+    el.setAttribute('href', url)
+    el.setAttribute('download', `activity-students-${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(el)
+    el.click()
+    el.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
 
   return (
     <>
@@ -106,6 +158,14 @@ export default function ActivitiesSetup() {
 
         {members && <ActivityMembers activity={members} show={membersView} onClose={() => setMembers(null)} />}
 
+        {/* EXPORT THE CHILDREN, NOT THE CLUBS.
+
+            The table draws one row per activity, so the shared export wrote
+            five rows -- Activity, Category, When, Fee, Enrolled -- which is
+            the screen, not the answer anybody opens a spreadsheet for. This
+            asks each activity for its roll and writes one line per enrolled
+            child, with the parent's number and whether the fee is paid, which
+            is what the panel's own export carries for a single club. */}
         {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
           <Card>
             <CardHeader
@@ -115,6 +175,7 @@ export default function ActivitiesSetup() {
               description="Wound-up activities stay on the list so their enrolments and the fees raised against them keep reading."
             />
             <Table
+              onExport={exportEveryone}
               head={['Activity', 'Category', 'When', 'Fee', 'Enrolled', '']}
               empty={!rows.length}
               emptyLabel="No activities yet. Add the clubs and coaching this school runs."
@@ -175,7 +236,7 @@ export default function ActivitiesSetup() {
                     )}
                   </Td>
                   <Td>
-                    <span className="flex flex-wrap gap-2">
+                    <span className="flex flex-nowrap items-center justify-end gap-2">
                       {/* A BUTTON, BECAUSE A BUTTON IS WHAT WAS ASKED FOR.
 
                           The count was made a link and that was not enough:
@@ -194,20 +255,26 @@ export default function ActivitiesSetup() {
                           View students
                         </Button>
                       )}
-                    </span>
-                    {mayWrite && (
-                      <span className="flex flex-wrap gap-2">
-                        {a.is_active && (
-                          <Button size="sm" onClick={() => { setMembersView('add'); setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                            Add students
-                          </Button>
-                        )}
+                      {/* ONE ROW, NOT TWO.
+
+                          View students was added in a span of its own beside
+                          the span the other two already lived in, so the
+                          actions stacked: View on one line, Add and Edit
+                          beneath it, ragged and twice as tall as every other
+                          row in the table. Three buttons that act on one
+                          activity belong on one line in one flex row. */}
+                      {mayWrite && a.is_active && (
+                        <Button size="sm" onClick={() => { setMembersView('add'); setMembers(a); setEditing(null); setAdding(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                          Add students
+                        </Button>
+                      )}
+                      {mayWrite && (
                         <Button size="sm" variant="secondary"
                           onClick={() => { setEditing(a); setAdding(false) }}>
                           Edit
                         </Button>
-                      </span>
-                    )}
+                      )}
+                    </span>
                   </Td>
                 </tr>
               ))}
