@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Image as ImageIcon, Type, Video } from 'lucide-react'
+import { ArrowRight, Camera, Check, ChevronDown, Image as ImageIcon, Type, Upload, Users, Video, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
-import { Button, Dialog, FormNotice, Select } from '@/components/ui'
+import { Dialog } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { MAX_BYTES, makeThumb, postStatus, preparePhoto, videoSeconds, type AddMode, type Audiences, type TargetPick } from './status-api'
 
@@ -205,137 +206,125 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     },
   })
 
-  return (
-    <Dialog
-      onClose={onClose}
-      raised={raised}
-      title={asSchool ? 'Post as the school' : text ? 'New text status' : 'New status'}
-      description="Seen for 24 hours, unless you pin it to the class gallery."
-      footer={done ? <Button onClick={onClose}>Done</Button> : (
-        <>
-          {/* Why it did not post, beside the button where it is seen, not
-              at the foot of a form that has scrolled away. */}
-          {(problem || send.error) && (
-            <span className="mr-auto max-w-[60%] text-[12.5px] font-medium text-destructive">
-              {problem || (send.error as Error).message}
-            </span>
-          )}
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button className="transition-transform duration-100 active:scale-[0.98]" pending={send.isPending} disabled={text ? !caption.trim() : !file} onClick={() => { const why = check(); setProblem(why); if (!why) send.mutate() }}>Post</Button>
-        </>
-      )}
-    >
-      {done ? <FormNotice ok={done} /> : (
-        <div className="grid gap-4">
-          {text ? (
-            <div className="grid place-items-center overflow-hidden rounded-md bg-primary p-5 text-primary-foreground" style={{ aspectRatio: '9 / 16', maxHeight: '46vh' }}>
-              <textarea
-                ref={captionBox}
-                value={caption}
-                onChange={(e) => setCaption(e.target.value.slice(0, 700))}
-                rows={5}
-                aria-label="Status text"
-                placeholder="Type a status"
-                className="w-full resize-none bg-transparent text-center text-[22px] font-semibold leading-snug text-primary-foreground outline-none placeholder:text-primary-foreground/60"
-              />
-            </div>
-          ) : (<>
-          <div className="grid place-items-center overflow-hidden rounded-md bg-black" style={{ aspectRatio: '9 / 16', maxHeight: '46vh' }}>
-            {!preview ? (
-              <StatusFileInput onPick={setFile} label="Take or choose a photo or video" className="grid place-items-center gap-2 p-6 text-center text-white/80">
-                <Camera className="size-8" />
-                <span className="text-sm">Take or choose a photo or video</span>
-              </StatusFileInput>
-            ) : isVideo ? (
-              <video src={preview} className="size-full object-contain" controls playsInline
-                /* A clip this browser cannot decode (often HEVC/H.265 from a phone,
-                   or some AI-made clips) fails as a "pipeline" error. Said here,
-                   with what to do, the moment it is chosen. */
-                onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
-            ) : (
-              <img src={preview} alt="" className="size-full object-contain" />
-            )}
+  /* WHO IT IS FOR, as one pill on the picture (owner's story design). Tap it
+     for a list: Whole school (or Staff) on its own, or any number of classes
+     and sections ticked together. */
+  const [audOpen, setAudOpen] = useState(false)
+  const picked = choice ? (wholeSchool ? [choice] : [choice, ...more.filter((m) => m !== choice)]) : []
+  const toggle = (v: string) => {
+    if (v === 'school' || v === 'staff') { setChoice(v); setMore([]); setAudOpen(false); return }
+    const cur = wholeSchool ? [] : picked
+    const next = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]
+    if (!next.length) return
+    setChoice(next[0]); setMore(next.slice(1))
+  }
+  const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? ''
+  const audLabel = !picked.length ? (aud.isLoading ? 'Loading…' : 'Who is it for') : labelOf(picked[0]) + (picked.length > 1 ? ` +${picked.length - 1}` : '')
+  const share = () => { const why = check(); setProblem(why); if (!why) send.mutate() }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (audOpen) setAudOpen(false); else onClose() } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [audOpen, onClose])
+
+  const glass = 'bg-black/40 text-white backdrop-blur-md border border-white/15'
+  return createPortal(
+    <div className={cn('fixed inset-0 grid place-items-center bg-[#1f2330]/85 p-3', raised ? 'z-[140]' : 'z-[100]')}
+      role="dialog" aria-label={asSchool ? 'Post as the school' : 'New status'} onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]"
+        style={{ height: 'min(88vh, 760px)' }}>
+        {/* The picture fills the card. */}
+        {text ? (
+          <div className="absolute inset-0 grid place-items-center bg-primary p-8">
+            <textarea ref={captionBox} value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={5}
+              aria-label="Status text" placeholder="Type a status" autoFocus
+              className="w-full resize-none bg-transparent text-center text-[24px] font-semibold leading-snug text-primary-foreground outline-none placeholder:text-primary-foreground/60" />
           </div>
-          </>)}
+        ) : !preview ? (
+          <StatusFileInput onPick={setFile} label="Take or choose a photo or video" className="absolute inset-0 grid place-items-center gap-2 p-6 text-center text-white/80">
+            <Camera className="mx-auto size-9" />
+            <span className="text-sm">Take or choose a photo or video</span>
+          </StatusFileInput>
+        ) : isVideo ? (
+          <video src={preview} className="absolute inset-0 size-full object-cover" autoPlay loop playsInline
+            onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
+        ) : (
+          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
+        )}
 
-          {/* THE CAPTION SITS ON THE PICTURE'S OWN CARD, not in a labelled
-              form field. A caption is part of the thing being posted, and a
-              label reading "Caption · Optional · Shown along the bottom" is
-              three facts about a box that holds one sentence. */}
-          {!text && (
-            <div className="rounded-2xl border bg-surface-sunken/50 px-3.5 py-2.5">
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value.slice(0, 700))}
-                rows={2}
-                aria-label="Caption"
-                placeholder="Add a caption…"
-                className="w-full resize-none bg-transparent text-[14px] leading-snug outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-          )}
-
-          {/* THE SETTINGS, AS ONE INSET GROUP.
-
-              Two decisions -- who sees it, and whether it outlives the day --
-              drawn as rows in a single rounded panel with a hairline between
-              them, the way a phone draws a short form. They were a labelled
-              Select and nothing at all: pinning could only be done afterwards,
-              from the viewer, which is why so little is ever pinned. */}
-          <div className="divide-y overflow-hidden rounded-2xl border">
-            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-              <span className="shrink-0 text-[14px]">Who is it for</span>
-              <span className="min-w-0 max-w-[58%] flex-1">
-              <Select
-                value={choice}
-                onChange={setChoice}
-                options={options}
-                placeholder={aud.isLoading ? 'Loading…' : 'Choose'}
-              />
-              </span>
-            </div>
-            {choice && !wholeSchool && (
-              <div className="space-y-2 px-3.5 py-2.5">
-                {more.filter((m) => m !== choice).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {more.filter((m) => m !== choice).map((m) => (
-                      <button key={m} type="button" onClick={() => setMore(more.filter((x) => x !== m))}
-                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12.5px] font-medium hover:bg-muted/70">
-                        {options.find((o) => o.value === m)?.label ?? m} <span aria-hidden>✕</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <Select value="" onChange={(v) => v && setMore([...more, v])} placeholder="+ Add another class"
-                  options={options.filter((o) => o.value.includes(':') && o.value !== choice && !more.includes(o.value))} />
-              </div>
-            )}
-            <label className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3">
-              <span className="min-w-0">
-                <span className="block text-[14px]">Keep in the class gallery</span>
-                <span className="block text-[12px] text-muted-foreground">
-                  Pinned, so it does not disappear tomorrow
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={pin}
-                onChange={(e) => setPin(e.target.checked)}
-                className="size-[22px] shrink-0 accent-[var(--primary,theme(colors.primary.DEFAULT))]"
-              />
-            </label>
-          </div>
-
-          <p className="text-center text-[12px] text-muted-foreground">
-            {pin
-              ? 'Kept in the class gallery until somebody removes it.'
-              : 'Seen for 24 hours, then it goes.'}
-          </p>
-
-          {aud.data?.needs_approval && <p className="text-[13px] text-muted-foreground">The principal approves statuses at this school before anyone sees them.</p>}
-          <FormNotice error={problem || send.error || aud.error} />
+        {/* Top: close, who it is for, change the picture. */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/50 to-transparent p-4 pb-10">
+          <button type="button" onClick={onClose} aria-label="Close" className={cn('grid size-11 place-items-center rounded-full transition-transform active:scale-95', glass)}>
+            <X className="size-5" />
+          </button>
+          <button type="button" onClick={() => setAudOpen((o) => !o)}
+            className={cn('inline-flex min-w-0 max-w-[60%] items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold transition-transform active:scale-[0.97]', glass)}>
+            <Users className="size-4 shrink-0" /><span className="truncate">{audLabel}</span><ChevronDown className={cn('size-4 shrink-0 transition-transform', audOpen && 'rotate-180')} />
+          </button>
+          {!text ? (
+            <StatusFileInput onPick={setFile} label="Choose another photo or video" className={cn('grid size-11 place-items-center rounded-full', glass)}>
+              <Upload className="size-5" />
+            </StatusFileInput>
+          ) : <span className="size-11" />}
         </div>
-      )}
-    </Dialog>
+
+        {audOpen && (
+          <div className="absolute inset-x-6 top-[72px] z-10 max-h-[50%] overflow-y-auto rounded-2xl border border-white/15 bg-[#16181f]/95 p-1.5 text-white shadow-2xl backdrop-blur-md">
+            {options.map((o) => {
+              const on = picked.includes(o.value)
+              return (
+                <button key={o.value} type="button" onClick={() => toggle(o.value)}
+                  className={cn('flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] transition-colors hover:bg-white/10', on && 'font-semibold')}>
+                  <span className="truncate">{o.label}</span>
+                  <span className={cn('grid size-5 shrink-0 place-items-center rounded-full border', on ? 'border-[#dc2626] bg-[#dc2626]' : 'border-white/40')}>
+                    {on && <Check className="size-3.5" strokeWidth={3} />}
+                  </span>
+                </button>
+              )
+            })}
+            {!wholeSchool && <p className="px-3 pb-1.5 pt-1 text-[11.5px] text-white/50">Tick as many classes as you like.</p>}
+          </div>
+        )}
+
+        {/* Bottom: caption, keep, share. */}
+        <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-16">
+          {done ? (
+            <>
+              <p className="rounded-2xl bg-white/15 px-4 py-3 text-center text-[14px] font-medium text-white backdrop-blur-md">{done}</p>
+              <button type="button" onClick={onClose} className="h-14 w-full rounded-full bg-white text-[16px] font-bold text-black">Done</button>
+            </>
+          ) : (
+            <>
+              {!text && (
+                <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 700))} rows={1} aria-label="Caption" placeholder="Add a caption..."
+                  className={cn('block w-full resize-none rounded-2xl px-4 py-3.5 text-[15px] outline-none placeholder:text-white/60 focus:border-white/40', glass)} />
+              )}
+              <div className="flex items-center justify-between gap-3 px-1">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-[14px] font-semibold text-white">
+                  <input type="checkbox" checked={pin} onChange={(e) => setPin(e.target.checked)} className="sr-only" />
+                  <span className={cn('grid size-6 place-items-center rounded-full border-2 transition-colors', pin ? 'border-[#dc2626] bg-[#dc2626]' : 'border-white/60')}>
+                    {pin && <Check className="size-3.5" strokeWidth={3} />}
+                  </span>
+                  Keep in class gallery
+                </label>
+                <span className="text-[12.5px] font-semibold text-white/60">{pin ? 'Kept' : '24h Story'}</span>
+              </div>
+              {(problem || send.error || aud.error) && (
+                <p className="rounded-xl bg-[#dc2626]/25 px-3 py-2 text-[13px] font-medium text-white">
+                  {problem || ((send.error || aud.error) as Error).message}
+                </p>
+              )}
+              {aud.data?.needs_approval && <p className="text-center text-[12px] text-white/60">The principal approves statuses before anyone sees them.</p>}
+              <button type="button" onClick={share} disabled={send.isPending || (text ? !caption.trim() : !file)}
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#dc2626] text-[16px] font-bold text-white shadow-[0_10px_30px_-6px_rgba(220,38,38,0.7)] transition-transform active:scale-[0.98] disabled:opacity-60">
+                {send.isPending ? 'Sharing…' : <>Share to Story <ArrowRight className="size-5" /></>}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
