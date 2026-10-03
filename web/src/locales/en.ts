@@ -1718,7 +1718,7 @@ export const en = {
   'bento.hod.waiting': 'Waiting on you',
   'bento.hod.waiting_sub': 'Four queues',
   'bento.hod.waiting_sr': 'Approvals waiting, by queue',
-  'bento.hod.across_queues': 'across {n} queues',
+  'bento.hod.across_queues': 'across {n} {n#queue|queues}',
   'bento.hod.nothing_waiting': 'Every queue is clear.',
   'bento.hod.q_leave': 'Leave requests',
   'bento.hod.q_subs': 'Substitutions',
