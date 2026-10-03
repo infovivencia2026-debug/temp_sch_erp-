@@ -53,8 +53,8 @@ export function AddChooser({ onPick, onText, onClose, allowVideo = true, raised 
   openPicker?: (kind: 'photo' | 'video' | 'camera') => void
 }) {
   /* The owner's design: tall rounded tiles, a soft round mark, bold label. */
-  const tile = 'flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted/40 focus-within:ring-2 focus-within:ring-ring'
-  const icon = 'grid size-14 place-items-center rounded-full bg-primary/10 text-primary'
+  const tile = 'flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-[15px] font-semibold text-foreground transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-[0_8px_20px_-8px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.97] focus-within:ring-2 focus-within:ring-ring [&:hover>span:first-child]:scale-110'
+  const icon = 'grid size-14 place-items-center rounded-full bg-primary/10 text-primary transition-transform duration-200 ease-[cubic-bezier(0.2,0.85,0.32,1.2)]'
   return (
     <Dialog onClose={onClose} title={asSchool ? 'Post as the school' : 'Add a status'} size="sm" raised={raised}>
       <div className="grid grid-cols-2 gap-4" role="list">
@@ -117,7 +117,12 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     const url = URL.createObjectURL(file)
     setPreview(url)
     setProblem('')
-    if (file.type.startsWith('video/')) void videoSeconds(file).then(setDuration)
+    if (file.type.startsWith('video/')) void videoSeconds(file).then((d) => {
+      setDuration(d)
+      // Too long is said at once, not after Post.
+      const max = aud.data?.max_video_seconds
+      if (max && d > max + 0.5) setProblem(`A video can be at most ${max} seconds; this one is ${Math.round(d)}. Trim it and choose it again.`)
+    })
     else setDuration(0)
     return () => URL.revokeObjectURL(url)
   }, [file])
@@ -191,7 +196,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
             </span>
           )}
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button pending={send.isPending} disabled={text ? !caption.trim() : !file} onClick={() => { const why = check(); setProblem(why); if (!why) send.mutate() }}>Post</Button>
+          <Button className="transition-transform duration-100 active:scale-[0.98]" pending={send.isPending} disabled={text ? !caption.trim() : !file} onClick={() => { const why = check(); setProblem(why); if (!why) send.mutate() }}>Post</Button>
         </>
       )}
     >
@@ -217,7 +222,11 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
                 <span className="text-sm">Take or choose a photo or video</span>
               </StatusFileInput>
             ) : isVideo ? (
-              <video src={preview} className="size-full object-contain" controls playsInline />
+              <video src={preview} className="size-full object-contain" controls playsInline
+                /* A clip this browser cannot decode (often HEVC/H.265 from a phone,
+                   or some AI-made clips) fails as a "pipeline" error. Said here,
+                   with what to do, the moment it is chosen. */
+                onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
             ) : (
               <img src={preview} alt="" className="size-full object-contain" />
             )}
