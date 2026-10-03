@@ -28,7 +28,21 @@
    the window and the zoom; and print. Each is here because leaving it out is
    a complaint somebody makes. */
 
-const { app, BrowserWindow, Menu, shell, session, dialog, ipcMain, nativeTheme } = require('electron')
+const { app, BrowserWindow, Menu, Tray, shell, session, dialog, ipcMain, nativeTheme, protocol, nativeImage } = require('electron')
+const bridge = require('./bridge')
+const PKG = require('../package.json')
+
+/* GENERIC OR ONE SCHOOL'S (docs/white-label.md).
+
+   The generic XULO app has no school built in: it opens <portal>/start until
+   one is chosen there, keeps it (bridge.js, school.json) and opens that school
+   from then on. A per-school build (scripts/apps/build-school.py) sets
+   fixedSchool and its own portal address, and never shows /start. */
+const FIXED = !!PKG.fixedSchool
+
+/* Saved files are shown to the page through this scheme (bridge.js); it has
+   to be declared before the app is ready, and streams so a video can seek. */
+protocol.registerSchemesAsPrivileged([{ scheme: 'xulo-file', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }])
 const path = require('node:path')
 const fs = require('node:fs')
 
@@ -37,7 +51,7 @@ const fs = require('node:fs')
    clerk for a server address is a field they can only get wrong, and app data
    outlives the build that asked for it. PORTAL_URL exists so a developer can
    point a build at a laptop without editing the source. */
-const PORTAL = process.env.PORTAL_URL || require('../package.json').portal
+const PORTAL = process.env.PORTAL_URL || PKG.portal
 
 /* EVERY ADDRESS THE SCHOOL ANSWERS ON, NOT JUST THE ONE WE ASK FOR.
 
@@ -95,7 +109,9 @@ let win = null
 /** True for the school's own pages, and only those. */
 const isPortal = (url) => {
   try {
-    return PORTAL_HOSTS.has(new URL(url).host)
+    const host = new URL(url).host
+    const school = FIXED ? null : bridge.savedSchool()
+    return PORTAL_HOSTS.has(host) || (!!school && new URL(school.portal_url).host === host)
   } catch {
     return false
   }
@@ -112,9 +128,67 @@ function show(state, detail) {
   win.webContents.loadURL(shellPage({ state, detail: detail || '', ground: ground() }))
 }
 
+/* Where the window opens: the school, or the school picker. */
+function portalURL() {
+  if (FIXED) return PORTAL
+  const s = bridge.savedSchool()
+  return s ? s.portal_url : new URL('/start', PORTAL).href
+}
+const portalOrigin = () => new URL(portalURL()).origin
+
+/* xulo://open/<path> and https links to the school: the screen they name. */
+function openLink(link) {
+  if (!win || win.isDestroyed() || !link) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+  if (link.startsWith('xulo://')) {
+    const p = '/' + link.replace(/^xulo:\/\/(open\/?)?/, '')
+    win.webContents.loadURL(portalOrigin() + (p.startsWith('//') ? '/' : p))
+  } else if (isPortal(link)) {
+    win.webContents.loadURL(link)
+  }
+}
+
+/* The dock or taskbar badge and the tray: unread notifications. */
+let tray = null
+function updateBadge(n) {
+  app.setBadgeCount(n)
+  if (tray) tray.setToolTip(n ? `${app.getName()}: ${n} unread` : app.getName())
+  if (process.platform === 'win32' && win && !win.isDestroyed()) win.flashFrame(n > 0 && !win.isFocused())
+}
+function makeTray() {
+  try {
+    const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'build', 'icon.png')).resize({ width: 16, height: 16 })
+    tray = new Tray(icon)
+    tray.setToolTip(app.getName())
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: `Open ${app.getName()}`, click: () => { if (win) { win.show(); win.focus() } } },
+      { type: 'separator' },
+      { label: 'Quit', role: 'quit' },
+    ]))
+    tray.on('click', () => { if (win) { win.show(); win.focus() } })
+  } catch { /* no tray on this desktop: the dock badge still works */ }
+}
+
+/* UPDATES. electron-updater checks the feed named in package.json
+   build.publish (a generic HTTPS folder of latest.yml / latest-linux.yml /
+   latest-mac.yml and the installers; docs/apps-release.md). electron-builder
+   writes resources/app-update.yml only when the build was given a feed; no
+   feed, or a run from source, checks nothing. */
+function checkForUpdates() {
+  if (!app.isPackaged || !require('node:fs').existsSync(path.join(process.resourcesPath, 'app-update.yml'))) return
+  try {
+    const { autoUpdater } = require('electron-updater')
+    autoUpdater.autoDownload = true
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 6 * 60 * 60 * 1000)
+  } catch { /* updater not bundled in this build */ }
+}
+
 function load() {
   if (!win || win.isDestroyed()) return
-  win.webContents.loadURL(PORTAL).catch((error) => {
+  win.webContents.loadURL(portalURL()).catch((error) => {
     /* loadURL rejects on the same failures did-fail-load reports, and an
        unhandled rejection here would be the only trace of a window that
        never filled. */
@@ -286,11 +360,29 @@ if (!app.requestSingleInstanceLock()) {
     if (!win) return
     if (win.isMinimized()) win.restore()
     win.focus()
-    const link = argv.find((a) => isPortal(a))
-    if (link) win.webContents.loadURL(link)
+    openLink(argv.find((a) => a.startsWith('xulo://') || isPortal(a)))
+  })
+
+  /* xulo:// opens this app; macOS hands it over as open-url, Windows and
+     Linux as an argument to a second launch (above) or to this one. */
+  app.setAsDefaultProtocolClient('xulo')
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    if (win) openLink(url)
+    else app.whenReady().then(() => setTimeout(() => openLink(url), 1500))
   })
 
   app.whenReady().then(() => {
+    bridge.install({
+      getWin: () => win,
+      isPortal,
+      origin: portalOrigin,
+      openSchool: (s) => win && win.webContents.loadURL(s.portal_url),
+      startPage: () => win && win.webContents.loadURL(new URL('/start', PORTAL).href),
+      updateBadge,
+    })
+    makeTray()
+    checkForUpdates()
     /* Notifications are the one permission this application has a use for:
        the site raises them for a circular or a fee reminder. Everything else
        -- the camera, the microphone, the machine's location -- is refused,
@@ -387,6 +479,13 @@ function buildMenu() {
               modifiers: [process.platform === 'darwin' ? 'meta' : 'control'],
             }),
         },
+        ...(FIXED ? [] : [
+          { type: 'separator' },
+          {
+            label: 'Switch school…',
+            click: () => portal() && win.webContents.loadURL(new URL('/start', PORTAL).href),
+          },
+        ]),
         { type: 'separator' },
         { role: process.platform === 'darwin' ? 'close' : 'quit' },
       ],
@@ -421,7 +520,7 @@ function buildMenu() {
               type: 'none',
               message: `${app.getName()} ${app.getVersion()}`,
               detail:
-                `This window shows ${new URL(PORTAL).host}, the school's own site, so ` +
+                `This window shows ${new URL(portalURL()).host}, the school's own site, so ` +
                 `everything in it is as current as the site is.\n\n` +
                 `Electron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
               buttons: ['Close'],

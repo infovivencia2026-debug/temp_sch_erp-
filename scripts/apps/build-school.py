@@ -172,7 +172,7 @@ def desktop(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args
     (app / 'node_modules').symlink_to(DESKTOP / 'node_modules')
     shutil.copytree(DESKTOP / 'build', app / 'build')  # buildResources: the icon, not an output
     pkg = json.loads((app / 'package.json').read_text())
-    pkg.update(productName=cfg['name'], author=cfg['name'], version=ver[1],
+    pkg.update(productName=cfg['name'], author=cfg['name'], version=ver[1], fixedSchool=True,
                portal=cfg['portal_url'], portalHosts=cfg.get('portal_aliases') or [])
     b = pkg['build']
     b.update(appId=cfg['app_id'], productName=cfg['name'], copyright=cfg['name'])
@@ -180,8 +180,12 @@ def desktop(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args
     if 'linux' in b:
         b['linux'].setdefault('desktop', {}).setdefault('entry', {})['StartupWMClass'] = cfg['name']
     (app / 'package.json').write_text(json.dumps(pkg, indent=2) + '\n')
+    if args.update_url:
+        b['publish'] = [{'provider': 'generic', 'url': args.update_url.rstrip('/') + f'/{cfg["app_id"]}/'}]
+    (app / 'package.json').write_text(json.dumps(pkg, indent=2) + '\n')
     icon(logo, app / 'build/icon.png', 512, cfg['primary_color'], 0.75)
-    run(['npx', 'electron-builder', '--linux', '--win'], app)
+    targets = ['--linux', '--win'] + (['--mac'] if sys.platform == 'darwin' else [])
+    run(['npx', 'electron-builder', *targets, '--publish', 'never'], app)
 
 
 def main() -> None:
@@ -190,6 +194,7 @@ def main() -> None:
     p.add_argument('--only', default='android,ios,desktop', help='comma-separated: android, ios, desktop')
     p.add_argument('--version-name', help='shown in the store; default is today, like 2026.9.27')
     p.add_argument('--team', help='Apple team id, for the iPhone archive')
+    p.add_argument('--update-url', help='desktop auto-update feed base, e.g. https://downloads.example.com/desktop')
     p.add_argument('--google-services', help="the school's google-services.json, for push on Android")
     p.add_argument('--prepare-only', action='store_true', help='write the per-school sources and icons, build nothing')
     args = p.parse_args()

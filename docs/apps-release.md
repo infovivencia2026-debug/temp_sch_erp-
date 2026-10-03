@@ -214,3 +214,44 @@ In priority order. Each is small and each removes a class of support call.
 10. **A `make release-apps` target** that runs the bump, the builds that
     can run here, checksums, and writes this folder layout, so the next
     release is reproducible from one line.
+
+## Desktop (Windows, Linux, macOS): XULO generic and per-school, 2026-10
+
+One codebase in `desktop/`. The generic app (`fixedSchool: false`, `portal`
+= the default host, now `https://school-erp-d1.pages.dev`) opens `/start` until a
+school is chosen; a per-school build from `scripts/apps/build-school.py` sets
+`fixedSchool: true` and the school's address. `PORTAL_URL=...` overrides the
+address for a run from source.
+
+Build (Node 22, from `desktop/`, after `npm ci`):
+
+```
+# Linux AppImage + tar.gz (on Linux or macOS)
+npx electron-builder --linux --publish never
+# macOS dmg + zip (on a Mac; signing/notarising needs the owner's Developer ID)
+npx electron-builder --mac --publish never
+# Windows NSIS installer, Store package (appx/MSIX) and zip (on Windows, or Linux with Wine)
+npx electron-builder --win nsis appx zip --x64 --publish never
+```
+
+Auto-update (electron-updater): give the build a feed and host its output.
+
+```
+npx electron-builder --linux --win \
+  -c.publish.provider=generic -c.publish.url=https://downloads.example.com/desktop/com.schoolerp.desktop/
+```
+
+Upload everything in `dist/` (installers plus `latest.yml`, `latest-linux.yml`,
+`latest-mac.yml` and the `.blockmap` files) to that folder over HTTPS. Installed
+copies check at start and every 6 hours and install on quit. Per-school:
+`build-school.py <address> --only desktop --update-url https://downloads.example.com/desktop`
+(the app id is appended). Store (appx) installs update through the Store.
+The appx `publisher` stays a placeholder until the owner's Partner Center
+identity is known. The Windows app id is still `com.schoolerp.desktop` so that
+existing installs upgrade in place rather than installing beside it.
+
+What the desktop shell does (contract: `docs/native-shell.md`): offline store key
+in `safeStorage`, OS notifications, dock/taskbar badge and a tray icon, file
+picker, files saved for offline (`xulo-file://`), the outbox sent while the
+window is hidden, `xulo://open/<path>` deep links, print, one instance, window
+size and zoom remembered.
