@@ -71,7 +71,7 @@ Last checked: 2026-10-02.
 | Asked | Notes |
 |---|---|
 | Native apps: ONE generic XULO app, plus a per-school app on demand; both ready | Decided 2026-10-02. Offline first like WhatsApp: local data, an outbox that sends when the network returns, push, biometrics, camera, background sync. Android, iOS, Windows |
-| Offline core (web, every shell) | Built 2026-10-03: encrypted capped local store, saved session opens offline, outbox with clock/tick/red + Retry/Discard, allow-list (never money, logins, results, admissions; their buttons say Needs internet), remote wipe, SW no longer caches API. Clash: the store used to be kept across sign-out and the SW used to cache API reads; both replaced as asked |
+| Offline core (web, every shell) | Built 2026-10-03: encrypted capped local store, saved session opens offline, outbox with clock/tick/red + Retry/Discard, allow-list (never money, logins, results, admissions; their buttons say Needs internet), remote wipe, SW no longer caches API. Clash: the store used to be kept across sign-out and the SW used to cache API reads; both replaced as asked. Shell contract v2 (docs/native-shell.md), generic app /start picker, desktop/Android/iOS shells built 2026-10-03; Android not compiled here (no JDK), iOS simulator build passes, desktop smoke-started; needs Team ID, APNs/FCM keys, signing, update hosting, Share Extension target added in Xcode |
 | Apple-like extras: drag-to-close sheets everywhere, slide between screens, shrinking large titles | Partly in the motion kit |
 
 ## Clash (asked differently in two sessions; the later ask is live)
