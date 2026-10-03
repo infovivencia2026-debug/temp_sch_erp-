@@ -110,13 +110,14 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
   )
 }
 
-export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, _onViews: (id: string) => void, onPin?: (id: string, pinned: boolean) => void): StoryGroup[] {
+export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, _onViews: (id: string) => void, onPin?: (id: string, pinned: boolean) => void, canManage = false): StoryGroup[] {
   const item = (p: StatusItem): StoryItem => ({
     id: p.id, title: p.caption ?? '', media: p.media_kind === 'video' ? 'video' : p.media_kind === 'text' ? 'text' : 'image', src: p.url || undefined,
     postedAt: p.published_at, seen: p.seen || p.mine, poster: p.thumb,
     /* On your own status: keep it in the gallery (pin) or take it out, while
        watching it. Seen by stays on the My posts page. */
-    footer: p.mine && onPin ? (
+    /* The poster, and the institution admin / principal (status.manage), may pin. */
+    footer: (p.mine || canManage) && onPin ? (
       <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
         {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
       </button>
@@ -193,10 +194,11 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const schoolName = inst?.display_name || inst?.short_name || inst?.name || 'School'
   const schoolLogo = fileUrl(inst?.logo_key)
   const data = feed.data
+  const canManagePosts = useSession().permissions.includes('status.manage')
   const pinPost = useCallback((id: string, pinned: boolean) => {
     void api.post(`/api/v1/status/posts/${id}/pin`, { pinned }).then(() => qc.invalidateQueries({ queryKey: FEED_KEY }))
   }, [qc])
-  const groups = useMemo(() => (data ? toGroups(data, schoolName, schoolLogo, setViews, pinPost) : []), [data, schoolName, schoolLogo, pinPost])
+  const groups = useMemo(() => (data ? toGroups(data, schoolName, schoolLogo, setViews, pinPost, canManagePosts) : []), [data, schoolName, schoolLogo, pinPost, canManagePosts])
 
   // Opened from a notification: /?status=<post id> (the home), or openId (the panel).
   const wanted = compact ? null : params.get('status')
