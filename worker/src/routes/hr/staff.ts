@@ -539,15 +539,25 @@ export function registerStaff(r: Router) {
     const classID = nz(q.get('class_id'))
     const leavers = status === 'inactive'
     const byStatus = status === 'all' || leavers ? null : status
+    /* A CLASS TEACHER WITH NO SUBJECT IS STILL A TEACHER.
+
+       The list was built from subject assignments alone, so the person who
+       holds Nursery A and teaches no named subject was on the directory and
+       missing from its printout -- filter to Nursery, see one person, print,
+       get nothing. Whoever is class teacher of a section counts too. */
     const refs = await c.db.prepare(`
       SELECT DISTINCT e.id, e.user_id, ${fullName('e.first_name', 'e.last_name')} AS name, COALESCE(dg.name, '') AS desig
-        FROM section_subject_teachers sst
-        JOIN employees e ON e.user_id = sst.teacher_user_id
+        FROM employees e
         LEFT JOIN designations dg ON dg.id = e.designation_id
-        JOIN sections sec ON sec.id = sst.section_id
        WHERE (?1 IS NULL OR e.status = ?1)
          AND (?2 = 0 OR e.status <> 'active')
-         AND (?3 IS NULL OR sec.class_id = ?3)
+         AND e.user_id IS NOT NULL
+         AND (
+           EXISTS (SELECT 1 FROM section_subject_teachers sst JOIN sections s2 ON s2.id = sst.section_id
+                    WHERE sst.teacher_user_id = e.user_id AND (?3 IS NULL OR s2.class_id = ?3))
+           OR EXISTS (SELECT 1 FROM sections s3
+                       WHERE s3.class_teacher_id = e.user_id AND (?3 IS NULL OR s3.class_id = ?3))
+         )
        ORDER BY 3`)
       .bind(byStatus, leavers ? 1 : 0, classID)
       .all<{ id: string; user_id: string; name: string; desig: string }>()
