@@ -293,7 +293,10 @@ export default function Employees() {
         eyebrow="Employees"
         title="Staff records"
         description="Manage active staff, track which of their documents are running out, and print ID cards."
-        actions={
+        /* Import and Export are about the staff list, so they show on the
+           Staff directory tab only (owner: why are they on the document
+           tracker and ID cards?). */
+        actions={tab !== 'staff' ? undefined :
           <>
             {can('hr.employees.write') && (
               <ImportButton
