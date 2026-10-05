@@ -191,7 +191,8 @@ export default function StaffAttendance() {
             <Button variant="secondary" onClick={exportRange} disabled={rangeBusy}>
               <Download className="h-4 w-4" /> Export these dates
             </Button>
-            <span className="text-[12.5px] text-muted-foreground">Print: up to one month. Export: any range.</span>
+            {/* Level with the buttons and readable (owner: "make it big and in middle"). */}
+            <span className="inline-flex h-[var(--control-h)] items-center rounded-lg bg-muted/60 px-3.5 text-[14px] font-medium text-foreground/80">Print: up to one month · Export: any range</span>
             {rangeErr && <span className="text-[13px] text-destructive">{rangeErr}</span>}
           </div>
         </Card>
