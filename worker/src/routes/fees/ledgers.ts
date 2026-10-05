@@ -4,6 +4,7 @@ import {
   addDays, daysBetween, fin, inList, isDate, isForeignKeyViolation, isUniqueViolation, items, p, paise, requireOpenPeriod, str, today,
 } from './common'
 import { school } from '../school'
+import { ensureChart } from '../../services/chart_of_accounts'
 
 /* Port of internal/api/ledgers.go and petty_cash_float.go (mountLedgers).
 
@@ -93,6 +94,7 @@ interface Controls {
   depreciation: string; accumulated: string; surplus: string
 }
 async function loadControls(c: Ctx): Promise<Controls> {
+  await ensureChart(c.db, inst(c))
   const r = await c.db.prepare(`SELECT cash_account_id, bank_account_id, petty_cash_account_id,
       fee_receivable_account_id, fee_income_account_id, payable_account_id,
       depreciation_expense_account_id, accumulated_depreciation_account_id, surplus_account_id
@@ -265,6 +267,7 @@ export function registerLedgers(r: Router): void {
   // --- chart of accounts -------------------------------------------------
 
   r.get(`${F}/ledgers/accounts`, READ, fin(async (c) => {
+    await ensureChart(c.db, inst(c))
     const rows = await c.db.prepare(`
       WITH RECURSIVE tree AS (
           SELECT a.id, 0 AS depth, a.code AS path FROM ledger_accounts a WHERE a.parent_id IS NULL
