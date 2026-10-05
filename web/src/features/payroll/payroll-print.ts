@@ -4,8 +4,7 @@
    one row per payslip with earnings and deductions grouped under their own
    headings (a component is a deduction when its breakup value is negative,
    as the screen draws it in red); totals once at the end; net pay in words;
-   four signatures. No watermarks (owner): the run status is in the header.
-   faintly across the page so nobody pays from it. */
+   four signatures. No watermarks (owner): the run status is in the header. */
 
 export interface RegisterSlip {
   employee_code: string; full_name: string; left_service?: boolean
