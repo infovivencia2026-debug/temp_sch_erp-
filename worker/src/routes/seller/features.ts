@@ -77,7 +77,6 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'admissions.rte_quota': ['/admissions/rte'],
   'payroll.monthly_payroll': ['/payroll/run', '/payroll/payslips', '/payroll/bank-file'],
   'campus_money.cafeteria_store_sales': ['/portal/cafeteria', '/store/catalogue'],
-  'alumni.alumni_network_registration': ['/portal/alumni'],
   'communication.class_status': ['/status'], // feature:communication.class_status
 }
 

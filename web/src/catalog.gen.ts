@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 422 features. */
+/** 24 roles, 407 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1523,7 +1523,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.home.my_day', slug: 'my_day', name: 'My day', scope: 'self', tier: 'core', summary: 'Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.' },
           { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'My planner', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
-          { key: 'student.home.custom_theme_selection', slug: 'custom_theme_selection', name: 'Custom Theme Selection', scope: 'self', tier: 'optional', summary: 'Customize student portal appearance with dark mode, high-contrast mode, or color themes.' },
         ],
       },
       {
@@ -1558,12 +1557,6 @@ export const ROLES: Role[] = [
           { key: 'student.learning.courses_subjects', slug: 'courses_subjects', name: 'Courses / subjects', scope: 'self', tier: 'core', summary: 'Current enrolled courses/subjects, teacher and learning resources.' },
           { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'LMS', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
           { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: 'Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
-          { key: 'student.learning.peer_tutoring_study_groups', slug: 'peer_tutoring_study_groups', name: 'Peer Tutoring & Study Groups', scope: 'self', tier: 'optional', summary: 'Sign up as student tutors or request peer study group assistance in specific subjects.' },
-          { key: 'student.learning.gamified_learning_streak_counter', slug: 'gamified_learning_streak_counter', name: 'Gamified Learning Streak Counter', scope: 'self', tier: 'optional', summary: 'Visual daily login and homework completion streak counter rewarding students with digital badges.' },
-          { key: 'student.learning.gamified_learning_badge_showcase', slug: 'gamified_learning_badge_showcase', name: 'Gamified Learning Badge Showcase', scope: 'self', tier: 'optional', summary: 'Display earned academic, behavioral, and extracurricular digital badges on public student profile.' },
-          { key: 'student.learning.virtual_classroom_hand_raise_telemetry', slug: 'virtual_classroom_hand_raise_telemetry', name: 'Virtual Classroom Hand-Raise Telemetry', scope: 'self', tier: 'optional', summary: 'Log student digital hand-raises during live virtual classes to measure real-time engagement.' },
-          { key: 'student.learning.global_university_guidance_counselor', slug: 'global_university_guidance_counselor', name: 'Global University Guidance Counselor', scope: 'self', tier: 'optional', summary: 'Track college application deadlines, essay drafts, and request teacher Letters of Recommendation (LOR).' },
-          { key: 'student.learning.student_portfolio_management', slug: 'student_portfolio_management', name: 'Student Portfolio Management', scope: 'self', tier: 'advanced', summary: 'Maintain personal showcase portfolio containing certificates, creative projects, and sports records.' },
         ],
       },
       {
@@ -1590,28 +1583,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.notices_calendar.calendar', slug: 'calendar', name: 'Calendar', scope: 'self', tier: 'core', summary: 'Academic calendar, holidays, events and deadlines.' },
           { key: 'student.notices_calendar.library_book_hold_request', slug: 'library_book_hold_request', name: 'Library Book Hold Request', scope: 'self', tier: 'core', summary: 'Reserve available library books online for pickup at the start of the next school day.' },
-        ],
-      },
-      {
-        slug: 'campus_life',
-        name: 'Campus Life',
-        workspace: 'School',
-        features: [
-          { key: 'student.campus_life.student_wall_peer_recognition', slug: 'student_wall_peer_recognition', name: 'Student Wall & Peer Recognition', scope: 'self', tier: 'optional', summary: 'View school news, student council announcements, badge achievements, and art features.' },
-          { key: 'student.campus_life.digital_hall_of_fame', slug: 'digital_hall_of_fame', name: 'Digital Hall of Fame', scope: 'self', tier: 'optional', summary: 'Showcase historic trophies, school record holders, and national rankers across academic/sports.' },
-          { key: 'student.campus_life.student_club_event_ticketing_qr_check_in', slug: 'student_club_event_ticketing_qr_check_in', name: 'Student Club Event Ticketing & QR Check-In', scope: 'self', tier: 'optional', summary: 'Register for campus drama, music, or science events and generate QR-coded admission tickets.' },
-          { key: 'student.campus_life.lost_found_item_board', slug: 'lost_found_item_board', name: 'Lost & Found Item Board', scope: 'self', tier: 'optional', summary: 'Post missing items or report found items with photos on the digital lost-and-found board.' },
-          { key: 'student.campus_life.lost_found_photo_board_with_claim_verification', slug: 'lost_found_photo_board_with_claim_verification', name: 'Lost & Found Photo Board with Claim Verification', scope: 'self', tier: 'optional', summary: 'View photos of lost items found on campus and submit digital claim proof to reclaim items.' },
-          { key: 'student.campus_life.digital_locker_combination_access_log', slug: 'digital_locker_combination_access_log', name: 'Digital Locker Combination & Access Log', scope: 'self', tier: 'optional', summary: 'Manage assigned physical hallway locker numbers and view digital access keycode history.' },
-        ],
-      },
-      {
-        slug: 'alumni',
-        name: 'Alumni',
-        workspace: 'School',
-        features: [
-          { key: 'student.alumni.alumni_network_registration', slug: 'alumni_network_registration', name: 'Alumni Network Registration', scope: 'self', tier: 'optional', summary: 'Register for the official school alumni network upon passing out to stay connected with batchmates.' },
-          { key: 'student.alumni.alumni_job_internship_board', slug: 'alumni_job_internship_board', name: 'Alumni Job & Internship Board', scope: 'self', tier: 'optional', summary: 'Senior students access exclusive internship and entry-level job posts shared by alumni network.' },
         ],
       },
       {

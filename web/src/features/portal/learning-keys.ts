@@ -20,23 +20,9 @@ export const learningKeys = {
      flat "Shared with you" list (learning/Resources.tsx) now shows inside
      its subject, or on the subjects page when it names none. */
   'student.learning.e_learning_resource_hub': screen(() => import('../learning/StudentCourses')),
-  'student.learning.peer_tutoring_study_groups': screen(() => import('../learning/StudyGroups')),
-  'student.learning.student_portfolio_management': screen(() => import('../learning/Portfolio')),
-  'student.learning.global_university_guidance_counselor': lazy(
-    () => import('../learning/Universities'),
-  ),
-  'student.campus_life.lost_found_item_board': screen(() => import('../learning/LostFound')),
-  'student.campus_life.digital_locker_combination_access_log': lazy(
-    () => import('../learning/Locker'),
-  ),
-  'student.campus_life.student_club_event_ticketing_qr_check_in': lazy(
-    () => import('../learning/ClubEvents'),
-  ),
   'student.notices_calendar.calendar': screen(() => import('./StudentCalendar')),
   'student.notices_calendar.library_book_hold_request': lazy(
     () => import('../learning/LibraryHolds'),
   ),
   'student.exams_results.academic_record': screen(() => import('./StudentRecord')),
-  'student.alumni.alumni_network_registration': screen(() => import('../learning/AlumniNetwork')),
-  'student.alumni.alumni_job_internship_board': screen(() => import('../learning/AlumniJobs')),
 }

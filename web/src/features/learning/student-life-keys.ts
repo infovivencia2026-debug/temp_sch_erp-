@@ -1,5 +1,4 @@
 import { screen } from '@/lib/screen'
-import { lazy } from 'react'
 
 /* The six student-life screens, keyed by catalogue entry.
 
@@ -34,17 +33,8 @@ export const studentLifeKeys = {
      useChildren returns a student their own record. */
   'student.profile.my_id_card': screen(() => import('../portal/StudentMyCard')),
 
-  'student.campus_life.lost_found_photo_board_with_claim_verification': lazy(
-    () => import('./LostFoundClaims'),
-  ),
-  'student.campus_life.student_wall_peer_recognition': screen(() => import('./StudentWall')),
   'student.home.digital_diary_schedule': screen(() => import('./Diary')),
-  'student.home.custom_theme_selection': screen(() => import('./ThemeSelection')),
-  'student.learning.virtual_classroom_hand_raise_telemetry': screen(() => import('./HandRaise')),
 
   /* Days in a row, badges, and the board in the foyer. All three read records
      that already exist (student_growth.go); none mints anything of its own. */
-  'student.learning.gamified_learning_streak_counter': screen(() => import('./Streak')),
-  'student.learning.gamified_learning_badge_showcase': screen(() => import('./Badges')),
-  'student.campus_life.digital_hall_of_fame': screen(() => import('./HallOfFame')),
 }
