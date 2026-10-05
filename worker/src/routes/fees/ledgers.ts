@@ -377,6 +377,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/trial-balance`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const fy = fyFrom(c)
     const { start, end: fyEnd } = fyRange(fy)
     let end = fyEnd
@@ -422,6 +423,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/account-ledger`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const accID = c.url.searchParams.get('account_id')
     if (!isUUID(accID)) throw badRequest('account_id must be a uuid')
     const fy = fyFrom(c)
@@ -456,6 +458,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/statements`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const fy = fyFrom(c)
     const { start, end } = fyRange(fy)
     type SRow = { code: string; name: string; group: string; paise: number; is_group: boolean }
@@ -1276,7 +1279,19 @@ export function registerLedgers(r: Router): void {
 
   // --- reports -----------------------------------------------------------
 
+  /* FEES REACH THE BOOKS ON THEIR OWN (owner, 2026-10-05: a fee collected
+     at the counter never showed in the daybook or cashbook, because the
+     fee posting sweep only ran when someone pressed it). The sweep is safe to
+     run any number of times -- one journal entry per source, by unique index
+     -- so every book runs it before it reads. A school whose control
+     accounts are not set up yet simply gets no posting, as before. */
+  const autoPostFees = async (c: Ctx) => {
+    try { await feePosting(c, false) } catch (e) { console.log('fee auto-post skipped', (e as Error).message) }
+  }
+
+
   r.get(`${F}/ledgers/daybook`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const on = dateOr(c.url.searchParams.get('on'), today(), 'on must be YYYY-MM-DD')
     const rows = await c.db.prepare(`${VOUCHER_SELECT},
              COALESCE((SELECT group_concat(x, ' / ') FROM (SELECT a.code || ' ' || a.name AS x FROM journal_lines l JOIN ledger_accounts a ON a.id = l.account_id
@@ -1292,6 +1307,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/cashbook`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const q = c.url.searchParams
     const t = today()
     const from = dateOr(q.get('from'), t.slice(0, 8) + '01', 'from must be YYYY-MM-DD')
