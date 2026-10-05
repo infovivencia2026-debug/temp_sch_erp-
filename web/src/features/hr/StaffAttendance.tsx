@@ -7,7 +7,7 @@ import {
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
-import { Printer } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
 import { useSession } from '@/lib/session'
 import { printHtml } from '@/features/finance/receipt-print'
 import { staffRangeHtml, staffRegisterHtml } from './staff-register-print'
@@ -93,25 +93,55 @@ export default function StaffAttendance() {
   const [rangeTo, setRangeTo] = useState(onDate)
   const [rangeBusy, setRangeBusy] = useState(false)
   const [rangeErr, setRangeErr] = useState('')
-  const printRange = async () => {
+  /* Print: one month at most, so the day columns fit an A4 sheet. Export:
+     any range (owner, 2026-10-05). The register is kept per day, so a range
+     is read day by day, ten at a time. */
+  const rangeDays = (): string[] | null => {
     setRangeErr('')
-    if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { setRangeErr('Choose a From date on or before the To date.'); return }
+    if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { setRangeErr('Choose a From date on or before the To date.'); return null }
     const days: string[] = []
     for (let d = new Date(rangeFrom + 'T00:00:00Z'); d.toISOString().slice(0, 10) <= rangeTo; d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10))
-    if (days.length > 62) { setRangeErr('Choose at most 62 days (two months) at a time.'); return }
+    return days
+  }
+  const loadRange = async (days: string[]) => {
+    const lists: List<StaffRow>[] = []
+    for (let i = 0; i < days.length; i += 10) lists.push(...await Promise.all(days.slice(i, i + 10).map((d) => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${d}`))))
+    const staff = new Map<string, { user_id: string; employee_code: string; full_name: string }>()
+    const marks: Record<string, Record<string, string>> = {}
+    lists.forEach((l, i) => { marks[days[i]] = {}; for (const r of l.items) { staff.set(r.user_id, r); if (r.status) marks[days[i]][r.user_id] = r.status } })
+    return { staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)), marks }
+  }
+  const exportRange = async () => {
+    const days = rangeDays(); if (!days) return
+    if (days.length > 366) { setRangeErr('Export at most one year at a time.'); return }
     setRangeBusy(true)
     try {
-      const lists = await Promise.all(days.map((d) => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${d}`)))
-      const staff = new Map<string, { user_id: string; employee_code: string; full_name: string }>()
-      const marks: Record<string, Record<string, string>> = {}
-      lists.forEach((l, i) => { marks[days[i]] = {}; for (const r of l.items) { staff.set(r.user_id, r); if (r.status) marks[days[i]][r.user_id] = r.status } })
+      const { staff, marks } = await loadRange(days)
+      const SHORT: Record<string, string> = { present: 'P', absent: 'A', late: 'L', half_day: 'HD', leave: 'Lv', week_off: 'W', on_duty: 'OD' }
+      const cell = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+      const lines = [['Code', 'Employee', ...days, 'Present', 'Absent', 'Leave', 'Late', 'Half day'].map(cell).join(',')]
+      for (const st of staff) {
+        const ms = days.map((d) => marks[d][st.user_id] ?? '')
+        const n = (k: string) => String(ms.filter((m) => m === k).length)
+        lines.push([st.employee_code, st.full_name, ...ms.map((m) => SHORT[m] ?? m), n('present'), n('absent'), n('leave'), n('late'), n('half_day')].map(cell).join(','))
+      }
+      const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a'); a.href = url; a.download = `staff-register-${rangeFrom}-to-${rangeTo}.csv`
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch (e) { setRangeErr((e as Error).message) } finally { setRangeBusy(false) }
+  }
+  const printRange = async () => {
+    const days = rangeDays(); if (!days) return
+    if (days.length > 31) { setRangeErr('Print one month at a time (31 days at most) so it fits on A4. Use Export for longer ranges.'); return }
+    setRangeBusy(true)
+    try {
+      const { staff, marks } = await loadRange(days)
       printHtml(staffRangeHtml({
         school: {
           name: session.institution?.display_name ?? 'School',
           logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
         },
-        from: rangeFrom, to: rangeTo, days, marks, printedBy: session.user?.full_name ?? '',
-        staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)),
+        from: rangeFrom, to: rangeTo, days, marks, printedBy: session.user?.full_name ?? '', staff,
       }))
     } catch (e) { setRangeErr((e as Error).message) } finally { setRangeBusy(false) }
   }
@@ -158,6 +188,10 @@ export default function StaffAttendance() {
             <Button variant="secondary" onClick={printRange} disabled={rangeBusy}>
               <Printer className="h-4 w-4" /> {rangeBusy ? 'Preparing…' : 'Print these dates'}
             </Button>
+            <Button variant="secondary" onClick={exportRange} disabled={rangeBusy}>
+              <Download className="h-4 w-4" /> Export these dates
+            </Button>
+            <span className="text-[12.5px] text-muted-foreground">Print: up to one month. Export: any range.</span>
             {rangeErr && <span className="text-[13px] text-destructive">{rangeErr}</span>}
           </div>
         </Card>
