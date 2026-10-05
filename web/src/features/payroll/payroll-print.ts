@@ -47,7 +47,14 @@ export function registerHtml(o: {
   const ORDER = ['Basic', 'HRA', 'DA', 'PF', 'ESI', 'PT', 'TDS']
   const rank = (c: string) => { const i = ORDER.findIndex((x) => c.toUpperCase().startsWith(x.toUpperCase())); return i < 0 ? 99 : i }
   const sort = (a: string, b: string) => rank(a) - rank(b) || a.localeCompare(b)
-  const earn = all.filter((c) => !isDed(c)).sort(sort)
+  /* The school's own contributions (employer PF, EPS, EDLI) are in the
+     breakup but not in the pay: under Earnings they made the row add up to
+     more than Gross. They get their own group after Net Pay. */
+  const isEmployer = (c: string) => /employer|^eps|edli|admin.?charge/i.test(c)
+  const emp = all.filter((c) => !isDed(c) && isEmployer(c)).sort(sort)
+  const earn = all.filter((c) => !isDed(c) && !isEmployer(c)).sort(sort)
+  const label = (c: string) => esc(c.replace(/_/g, ' ').replace(/\b(pf|esi|pt|tds|hra|da|eps|edli)\b/gi, (m) => m.toUpperCase()).replace(/\bemployer\b/i, '(Employer)').replace(/\b([a-z])/g, (m) => m.toUpperCase()))
+  const days = (d: string) => { const n = Number(d); return Number.isFinite(n) ? String(Math.round(n * 10) / 10) : esc(d) }
   const ded = all.filter(isDed).sort(sort)
   const gross = o.rows.reduce((n, r) => n + r.gross_paise, 0)
   const dedT = o.rows.reduce((n, r) => n + r.deduction_paise, 0)
@@ -63,13 +70,14 @@ export function registerHtml(o: {
     <td class="text-left">${i + 1}</td>
     <td class="col-code text-left">${esc(r.employee_code)}</td>
     <td class="col-emp text-left">${esc(r.full_name)}${r.left_service ? ' <span class="emp-left">(Left)</span>' : ''}</td>
-    <td class="text-center">${esc(r.paid_days)}</td>
-    <td class="text-center">${Number(r.lop_days) > 0 ? esc(r.lop_days) : ''}</td>
+    <td class="text-center">${days(r.paid_days)}</td>
+    <td class="text-center">${Number(r.lop_days) > 0 ? days(r.lop_days) : ''}</td>
     ${earn.map((c) => `<td class="text-right amt-cell">${cell(r.breakup?.[c])}</td>`).join('')}
     <td class="text-right amt-cell col-highlight">${amt(r.gross_paise)}</td>
     ${ded.map((c) => `<td class="text-right amt-cell">${cell(r.breakup?.[c])}</td>`).join('')}
     <td class="text-right amt-cell col-highlight">${amt(r.deduction_paise)}</td>
     <td class="text-right amt-cell col-highlight">${amt(r.net_paise)}</td>
+    ${emp.map((c) => `<td class="text-right amt-cell emp-col">${cell(r.breakup?.[c])}</td>`).join('')}
   </tr>`).join('')
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Payroll Register · ${MONTHS[o.month - 1]} ${o.year}</title><style>
@@ -118,6 +126,7 @@ tfoot .col-highlight { background-color: #f1f5f9; }
 .sig-line { border-top: 1px solid var(--border-dark); margin-bottom: 10px; }
 .sig-block span { display: block; font-size: 12px; font-weight: 600; color: var(--text-main); }
 .print-footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-light); padding-top: 12px; }
+.emp-col { color: var(--text-muted); }
 .none { font-size: 13px; color: var(--text-muted); font-style: italic; padding: 20px 0 40px; }
 </style></head><body><div class="document">
   ${o.school.logoUrl ? `<div class="logo-watermark"><img src="${esc(o.school.logoUrl)}" alt=""></div>` : ''}
@@ -135,13 +144,14 @@ tfoot .col-highlight { background-color: #f1f5f9; }
     </div>
     ${o.rows.length ? `<table>
       <thead>
-        <tr class="group-headers"><th colspan="5"></th><th colspan="${earn.length + 1}"><span class="group-title">EARNINGS</span></th><th colspan="${ded.length + 1}"><span class="group-title">DEDUCTIONS</span></th><th></th></tr>
+        <tr class="group-headers"><th colspan="5"></th><th colspan="${earn.length + 1}"><span class="group-title">EARNINGS</span></th><th colspan="${ded.length + 1}"><span class="group-title">DEDUCTIONS</span></th><th></th>${emp.length ? `<th colspan="${emp.length}"><span class="group-title">EMPLOYER SHARE</span></th>` : ''}</tr>
         <tr class="col-headers">
           <th class="col-sno text-left">S.No</th><th class="col-code text-left">Code</th><th class="col-emp text-left">Employee</th>
           <th class="col-days text-center">Paid<br>Days</th><th class="col-days text-center">LOP<br>Days</th>
-          ${earn.map((c) => `<th class="text-right">${esc(c)}</th>`).join('')}<th class="text-right col-highlight">Gross</th>
-          ${ded.map((c) => `<th class="text-right">${esc(c)}</th>`).join('')}<th class="text-right col-highlight">Total<br>Ded.</th>
+          ${earn.map((c) => `<th class="text-right">${label(c)}</th>`).join('')}<th class="text-right col-highlight">Gross</th>
+          ${ded.map((c) => `<th class="text-right">${label(c)}</th>`).join('')}<th class="text-right col-highlight">Total<br>Ded.</th>
           <th class="text-right col-highlight" style="color:var(--text-main);">Net Pay</th>
+          ${emp.map((c) => `<th class="text-right emp-col">${label(c)}</th>`).join('')}
         </tr>
       </thead>
       <tbody>${body}</tbody>
@@ -150,6 +160,7 @@ tfoot .col-highlight { background-color: #f1f5f9; }
         ${earn.map((c) => `<td class="text-right amt-cell">${whole(sum(c))}</td>`).join('')}<td class="text-right amt-cell col-highlight">${amt(gross)}</td>
         ${ded.map((c) => `<td class="text-right amt-cell">${whole(sum(c))}</td>`).join('')}<td class="text-right amt-cell col-highlight">${amt(dedT)}</td>
         <td class="text-right amt-cell col-highlight">${amt(net)}</td>
+        ${emp.map((c) => `<td class="text-right amt-cell emp-col">${whole(sum(c))}</td>`).join('')}
       </tr></tfoot>
     </table>
     <div class="net-words">Net pay in words: <strong>${inWords(net)}</strong></div>` : `<p class="none">No payroll run for ${MONTHS[o.month - 1]} ${o.year} yet.</p>`}
