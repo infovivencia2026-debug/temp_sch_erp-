@@ -5,6 +5,7 @@ import { badRequest, bool, clampInt, isUUID, notFound, now, ok, readJSON, uuid }
 import { can } from '../../identity'
 import { addDays, fullName, isHHMM, isUUIDish, istClock, istMinute, nextNumber, nz, parseJSON, round1, str, todayIST } from '../admissions/util'
 import { employeeFilter, growthReach } from './reach'
+import { overviewExtras, staffOverviewDoc } from './staff_overview_doc'
 import { school } from '../school'
 
 /* Port of the /hr group's own handlers: the dashboard, the employee directory
@@ -622,7 +623,17 @@ export function registerStaff(r: Router) {
     const ov = await resolveStaffOverview(c.db, c.params.id)
     if (!ov) throw notFound()
     const facts = await schoolFacts(c.db, c.id.institution!)
-    return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: staffReportTitle(ov) }, `<div class="report">${staffOverviewSection(ov)}</div>`), css: staffOverviewCSS + DOC_PRINT_CSS, filename: `staff-overview-${c.params.id}.pdf` })
+    /* The owner's design, with the extra figures (staff_overview_doc.ts). */
+    const person = await c.db.prepare(`SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, e.employment_type, e.status, e.joined_on,
+        e.date_of_birth, e.gender, e.address, e.photo_file_id, e.experience_years, e.emergency_contact_name, e.emergency_contact_phone, e.user_id,
+        d.name AS department, dg.name AS designation
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`)
+      .bind(c.params.id).first<Record<string, unknown>>()
+    if (!person) throw notFound()
+    const me = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(c.id.userId).first<{ full_name: string }>()
+    const extras = await overviewExtras(c.db, c.params.id, (person.user_id as string | null) ?? null)
+    const doc = staffOverviewDoc({ facts, printedBy: me?.full_name ?? '', person, load: ov.load, marks: ov.marks }, extras)
+    return ok({ html: doc.html, css: doc.css, filename: `staff-overview-${c.params.id}.pdf` })
   })
 
   r.get('/hr/documents', READ, async (c) => {
