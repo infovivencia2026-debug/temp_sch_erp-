@@ -4,7 +4,7 @@
    one row per payslip with earnings and deductions grouped under their own
    headings (a component is a deduction when its breakup value is negative,
    as the screen draws it in red); totals once at the end; net pay in words;
-   four signatures. A run that is not locked prints "DRAFT, Not Approved"
+   four signatures. No watermarks (owner): the run status is in the header.
    faintly across the page so nobody pays from it. */
 
 export interface RegisterSlip {
@@ -61,7 +61,6 @@ export function registerHtml(o: {
   const net = o.rows.reduce((n, r) => n + r.net_paise, 0)
   const sum = (c: string) => o.rows.reduce((n, r) => n + Math.abs(r.breakup?.[c] ?? 0), 0)
   const cell = (v: number | undefined) => (v ? whole(Math.abs(v)) : '')
-  const locked = ['locked', 'paid'].includes(o.status)
   const statusText = !o.status ? 'Not run' : (o.status === 'paid' ? 'Paid' : o.status === 'locked' ? 'Locked' : 'Draft') + (o.published ? ' · Published' : '')
   const now = new Date()
   const printedAt = `${String(now.getDate()).padStart(2, '0')} ${MON[now.getMonth()]} ${now.getFullYear()}, ${now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`
@@ -87,9 +86,6 @@ export function registerHtml(o: {
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #fff; color: var(--text-main); -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .document { background: #ffffff; max-width: 100%; margin: 0 auto; padding: 0; position: relative; z-index: 1; }
 thead { display: table-header-group; } tfoot { display: table-footer-group; } tr { page-break-inside: avoid; }
-.logo-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 350px; opacity: 0.04; z-index: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
-.logo-watermark img { max-width: 100%; max-height: 100%; filter: grayscale(100%); }
-.draft-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 110px; color: rgba(220, 38, 38, 0.07); font-weight: 900; white-space: nowrap; z-index: 0; pointer-events: none; text-transform: uppercase; letter-spacing: 2px; }
 .content-wrapper { position: relative; z-index: 2; }
 .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--brand-red); padding-bottom: 20px; margin-bottom: 24px; }
 .header-left { display: flex; align-items: center; gap: 16px; }
@@ -129,8 +125,7 @@ tfoot .col-highlight { background-color: #f1f5f9; }
 .emp-col { color: var(--text-muted); }
 .none { font-size: 13px; color: var(--text-muted); font-style: italic; padding: 20px 0 40px; }
 </style></head><body><div class="document">
-  ${o.school.logoUrl ? `<div class="logo-watermark"><img src="${esc(o.school.logoUrl)}" alt=""></div>` : ''}
-  ${locked ? '' : '<div class="draft-watermark">DRAFT, Not Approved</div>'}
+  <!-- No watermarks (owner, 2026-10-05); the run status is in the header. -->
   <div class="content-wrapper">
     <header class="header">
       <div class="header-left">${o.school.logoUrl ? `<img class="logo" src="${esc(o.school.logoUrl)}" alt="">` : ''}<div class="school-info"><h1>${esc(o.school.name)}</h1><p>Financial Operations Department</p></div></div>
