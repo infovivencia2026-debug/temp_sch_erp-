@@ -11,7 +11,7 @@ import type { CashbookAccount, Voucher } from './ledger-lib'
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 const amt = (p: number) => (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const parts = (iso: string) => { const m = /^(d{4})-(d{2})-(d{2})/.exec(iso); return m ? { y: m[1], mo: MON[Number(m[2]) - 1], d: m[3] } : null }
+const parts = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? { y: m[1], mo: MON[Number(m[2]) - 1], d: m[3] } : null }
 const day = (iso: string) => { const p = parts(iso); return p ? `${p.d} ${p.mo} ${p.y}` : esc(iso) }
 const short = (iso: string) => { const p = parts(iso); return p ? `${p.d} ${p.mo}` : esc(iso) }
 const TYPE: Record<string, string> = { receipt: 'Receipt', payment: 'Payment', journal: 'Journal', contra: 'Contra', purchase: 'Purchase', sales: 'Sales' }

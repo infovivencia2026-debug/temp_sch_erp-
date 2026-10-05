@@ -11,7 +11,7 @@ import type { FeeReceipt } from '@shared/api/fees'
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const day = (iso: string) => { const m = /^(d{4})-(d{2})-(d{2})/.exec(iso); return m ? `${m[3]} ${MON[Number(m[2]) - 1]} ${m[1]}` : esc(iso) }
+const day = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${m[3]} ${MON[Number(m[2]) - 1]} ${m[1]}` : esc(iso) }
 
 export function receiptHtml(r: FeeReceipt, school: { name: string; sub?: string; logoUrl?: string }): string {
   const klass = [r.class_name, r.section_name].filter(Boolean).join('-')
