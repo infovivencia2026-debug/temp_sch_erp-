@@ -17,6 +17,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
+import { useActiveRole } from '@/lib/catalog'
 import { Button, Dialog } from '@/components/ui'
 
 /* The bell in the header, and the panel it opens.
@@ -189,6 +190,7 @@ export default function Notifications() {
   }, [composeReq])
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
+  const activeRole = useActiveRole()
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
   const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
   const hubParent = useFeatureHref('parent.academics.homework_academics')
@@ -394,7 +396,10 @@ export default function Notifications() {
   void isMessage
   /* Status updates live in Activity; Messages is everything else (the owner's rule). */
   const isStatusNote = (n: Note) => /status/.test(n.kind)
-  const inToggles = (n: Note) => (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
+  /* The parents' daily digest belongs to the parent login only (owner,
+     2026-10-05): a teacher who is also a parent never sees it at work. */
+  const asParent = activeRole.key === 'parent'
+  const inToggles = (n: Note) => (asParent || !/digest/.test(n.kind)) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
