@@ -10,8 +10,10 @@ import type { CashbookAccount, Voucher } from './ledger-lib'
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 const amt = (p: number) => (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const day = (iso: string) => { const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')); return isNaN(+d) ? esc(iso) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
-const short = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return isNaN(+d) ? esc(iso) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const parts = (iso: string) => { const m = /^(d{4})-(d{2})-(d{2})/.exec(iso); return m ? { y: m[1], mo: MON[Number(m[2]) - 1], d: m[3] } : null }
+const day = (iso: string) => { const p = parts(iso); return p ? `${p.d} ${p.mo} ${p.y}` : esc(iso) }
+const short = (iso: string) => { const p = parts(iso); return p ? `${p.d} ${p.mo}` : esc(iso) }
 const TYPE: Record<string, string> = { receipt: 'Receipt', payment: 'Payment', journal: 'Journal', contra: 'Contra', purchase: 'Purchase', sales: 'Sales' }
 
 export interface BooksPrint {
@@ -49,7 +51,7 @@ export function booksHtml(b: BooksPrint): string {
       </tbody>
     </table>` : `<p class="none">No entries on ${day(b.on)}.</p>`
   const now = new Date()
-  const printedAt = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+  const printedAt = `${String(now.getDate()).padStart(2, '0')} ${MON[now.getMonth()]} ${now.getFullYear()}, ` + now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Daybook &amp; Cashbook · ${day(b.from)} – ${day(b.to)}</title><style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
