@@ -182,7 +182,7 @@ export default function StaffAttendance() {
       />
       <PageBody>
         <Card>
-          <div className="flex flex-wrap items-end gap-3 p-4">
+          <div className="flex flex-wrap items-end gap-2.5 p-4">
             <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Print register from</label><Input type="date" value={rangeFrom} onChange={setRangeFrom} /></div>
             <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">To</label><Input type="date" value={rangeTo} onChange={setRangeTo} /></div>
             <Button variant="secondary" onClick={printRange} disabled={rangeBusy}>
@@ -192,7 +192,7 @@ export default function StaffAttendance() {
               <Download className="h-4 w-4" /> Export these dates
             </Button>
             {/* Level with the buttons and readable (owner: "make it big and in middle"). */}
-            <span className="inline-flex h-[var(--control-h)] items-center rounded-lg bg-muted/60 px-3.5 text-[14px] font-medium text-foreground/80">Print: up to one month · Export: any range</span>
+            <span className="inline-flex h-[var(--control-h)] items-center rounded-lg bg-muted/60 px-3 text-[14px] font-medium text-foreground/80">Print: 1 month · Export: any range</span>
             {rangeErr && <span className="text-[13px] text-destructive">{rangeErr}</span>}
           </div>
         </Card>
