@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react'
+import { useEffect, Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote, Check } from 'lucide-react'
@@ -68,6 +68,9 @@ export default function FeeCounter() {
   const [payerRel, setPayerRel] = useState('')
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  /* The Receipt button prints at once (owner: "this print not working"):
+     it only opened the receipt card at the top of the page, out of sight. */
+  const [printNow, setPrintNow] = useState(0)
   /* The last collection, kept on the card after the receipt is closed. The
      toast is gone in two seconds and the receipt is a modal the clerk shuts;
      what remained was an empty form that looked exactly like before the
@@ -189,7 +192,7 @@ export default function FeeCounter() {
         }
       />
       <PageBody>
-        {receipt && <ReceiptView receipt={receipt} onClose={() => setReceipt(null)} />}
+        {receipt && <ReceiptView receipt={receipt} printNow={printNow} onClose={() => setReceipt(null)} />}
 
         <Card>
           <CardHeader
@@ -388,7 +391,7 @@ export default function FeeCounter() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => setReceipt(done.receipt)}>
+                      <Button size="sm" variant="secondary" onClick={() => { setReceipt(done.receipt); setPrintNow((n) => n + 1) }}>
                         <Printer className="h-4 w-4" />
                         Receipt
                       </Button>
@@ -553,7 +556,7 @@ export default function FeeCounter() {
 
 /** The printable receipt. `print:` utilities strip the app chrome so the
     browser's own print dialog produces something a parent can keep. */
-function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
+function ReceiptView({ receipt, onClose, printNow = 0 }: { receipt: Receipt; onClose: () => void; printNow?: number }) {
   /* The school's logo on the receipt the parent keeps.
 
      The receipt already carried the school's name; the logo is the other half
@@ -563,6 +566,17 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
   /* Print puts the receipt alone on a sheet under the school's letterhead
      (lib/print.ts), so the ref marks where the receipt starts and ends. */
   const sheet = useRef<HTMLDivElement>(null)
+  const doPrint = () => printDocument({
+    source: sheet.current,
+    title: 'Fee receipt',
+    subtitle: `${receipt.student_name} · ${receipt.financial_year}`,
+    docNo: receipt.receipt_no,
+  })
+  useEffect(() => {
+    if (!printNow) return
+    const t = window.setTimeout(() => { sheet.current?.scrollIntoView({ block: 'start' }); doPrint() }, 50)
+    return () => window.clearTimeout(t)
+  }, [printNow])
   return (
     <div>
     <Card className="border-success/40 print:border-0">
