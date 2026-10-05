@@ -33,8 +33,8 @@ export async function overviewExtras(db: D1Database, employeeId: string, userId:
   const from = year?.starts_on ?? `${new Date().getUTCMonth() < 3 ? new Date().getUTCFullYear() - 1 : new Date().getUTCFullYear()}-04-01`
   const yearName = year?.name ?? ''
   const att = userId ? await db.prepare(`SELECT COUNT(*) AS marked, SUM(CASE WHEN status IN ('present','late','half_day','on_duty') THEN 1 ELSE 0 END) AS present,
-      SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS late FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`).bind(userId, from, today)
-    .first<{ marked: number; present: number | null; late: number | null }>() : null
+      SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS late, SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) AS on_leave FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`).bind(userId, from, today)
+    .first<{ marked: number; present: number | null; late: number | null; on_leave: number | null }>() : null
   const leave = await db.prepare(`SELECT COALESCE(SUM(CAST(days AS REAL)), 0) AS days, COUNT(*) AS n FROM leave_requests
       WHERE employee_id = ? AND status = 'approved' AND from_date >= ?`).bind(employeeId, from).first<{ days: number; n: number }>()
   const bal = await db.prepare(`SELECT COALESCE(SUM(CAST(lb.entitled AS REAL) - CAST(lb.taken AS REAL)), 0) AS left_days, COUNT(*) AS n FROM leave_balances lb
@@ -47,7 +47,7 @@ export async function overviewExtras(db: D1Database, employeeId: string, userId:
   const duties = userId ? await db.prepare(`SELECT COUNT(*) AS n FROM duty_assignments WHERE user_id = ? AND on_date BETWEEN ? AND ?`).bind(userId, from, today).first<{ n: number }>() : null
   return {
     yearName,
-    attendance: { marked: att?.marked ?? 0, present: att?.present ?? 0, late: att?.late ?? 0 },
+    attendance: { marked: att?.marked ?? 0, present: att?.present ?? 0, late: att?.late ?? 0, onLeave: att?.on_leave ?? 0 },
     leave: { days: leave?.days ?? 0, requests: leave?.n ?? 0, balance: bal?.n ? bal.left_days : null },
     homework: hw?.n ?? 0,
     lessonPlans: { n: lp?.n ?? 0, ok: lp?.ok ?? 0 },
@@ -75,13 +75,16 @@ export function staffOverviewDoc(o: OverviewInput, x: Awaited<ReturnType<typeof 
   const stat = (label: string, num: string, unit: string, note: string, tone: 'up' | 'down' | 'neutral' = 'neutral') =>
     `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-number">${num}<span class="stat-unit">${unit}</span></div><div class="stat-trend"><span class="trend-${tone}">${note}</span></div></div>`
   const L = o.load, M = o.marks
-  const attPct = x.attendance.marked ? (x.attendance.present / x.attendance.marked) * 100 : null
+  /* Approved leave is not absence: it is left out of the working days, so a
+     teacher whose only marked days were leave is not shown at 0%. */
+  const working = x.attendance.marked - x.attendance.onLeave
+  const attPct = working > 0 ? (x.attendance.present / working) * 100 : null
   const cards = [
     stat('Teaching Load', String(L.periods_per_week), '/wk', `${L.subjects_count} subject${L.subjects_count === 1 ? '' : 's'}`),
     stat('Student Reach', String(L.students_count), 'students', `Across ${L.sections_count} section${L.sections_count === 1 ? '' : 's'}`),
     M.has_marks ? stat('Results (Avg)', M.overall_avg_pct.toFixed(1), '%', 'Published exams only', M.overall_avg_pct >= 60 ? 'up' : 'down') : stat('Results (Avg)', '—', '', 'No published marks yet'),
     M.has_marks ? stat('Pass Rate', M.pass_rate_pct.toFixed(1), '%', `${M.distinction_rate_pct.toFixed(1)}% distinction`, M.pass_rate_pct >= 80 ? 'up' : 'down') : stat('Pass Rate', '—', '', 'No published marks yet'),
-    attPct === null ? stat('Staff Attendance', '—', '', 'Not marked this year') : stat('Staff Attendance', attPct.toFixed(1), '%', `${x.attendance.marked} days marked · ${x.attendance.late} late`, attPct >= 90 ? 'up' : 'down'),
+    attPct === null ? stat('Staff Attendance', '—', '', x.attendance.onLeave ? `${x.attendance.onLeave} day${x.attendance.onLeave === 1 ? '' : 's'} on leave, none worked yet` : 'Not marked this year') : stat('Staff Attendance', attPct.toFixed(1), '%', `${working} working days · ${x.attendance.late} late`, attPct >= 90 ? 'up' : 'down'),
     stat('Leave Taken', String(+x.leave.days.toFixed(1)), 'days', x.leave.balance === null ? `${x.leave.requests} approved request${x.leave.requests === 1 ? '' : 's'}` : `${+x.leave.balance.toFixed(1)} days left`),
     stat('Homework Set', String(x.homework), 'tasks', x.yearName ? `This year (${esc(x.yearName)})` : 'This year'),
     stat('Lesson Plans', String(x.lessonPlans.n), 'weeks', `${x.lessonPlans.ok} approved`, x.lessonPlans.n && x.lessonPlans.ok === x.lessonPlans.n ? 'up' : 'neutral'),
