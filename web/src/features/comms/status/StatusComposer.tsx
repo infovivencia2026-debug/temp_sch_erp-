@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Check, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
+import { Check, Camera, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
 import { Dialog, Select } from '@/components/ui'
@@ -201,17 +201,9 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       void qc.invalidateQueries({ queryKey: ['notifications'] })
       void qc.invalidateQueries({ queryKey: ['class-status-mine'] })
       void qc.invalidateQueries({ queryKey: ['class-status-admin'] })
-      /* IT SAYS SO WHEN IT IS DONE (owner).
-
-         The sheet used to vanish the moment the server answered, which asks
-         the person to infer from an absence that their photo went out. On a
-         school connection the gap between pressing Post and the sheet closing
-         is long enough to wonder whether the press registered at all, and the
-         answer -- gone -- looks exactly like a sheet that was dismissed. So
-         it says Posted, and the person closes it. */
-      setDone(r.status === 'pending'
-        ? 'Sent to the principal. It goes live once approved.'
-        : 'Posted.')
+      /* Always the success card (owner design), not a silent close. */
+      setDone(r.status === 'pending' ? 'Sent to the principal. It goes live once approved.'
+        : pin ? 'Visible for 24 hours and saved to your gallery.' : 'Visible for 24 hours.')
     },
   })
 
@@ -392,6 +384,26 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
     )
   )
 
+  if (done) return createPortal(
+    <div className={cn('posted-overlay fixed inset-0 grid place-items-center bg-[rgba(17,24,39,0.4)] p-5 backdrop-blur-[6px]', raised ? 'z-[140]' : 'z-[100]')}
+      role="dialog" aria-label="Status posted" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="posted-card relative w-full max-w-[320px] rounded-[24px] bg-white px-6 pb-6 pt-8 text-center shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)]">
+        <button type="button" onClick={onClose} aria-label="Close"
+          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-[#F3F4F6] text-[14px] text-[#6B7280] transition-colors hover:bg-[#E5E7EB] hover:text-[#111827]">✕</button>
+        <div className="mx-auto mb-5 grid size-16 place-items-center rounded-full bg-[#ECFDF5] shadow-[0_0_0_8px_#F4FBF7]">
+          <Check className="size-8 text-[#10B981]" strokeWidth={2.5} />
+        </div>
+        <h2 className="mb-2 text-[22px] font-bold tracking-[-0.02em] text-[#111827]">{done.startsWith('Sent') ? 'Sent for approval' : 'Status Posted'}</h2>
+        <p className="mb-7 text-[15px] leading-normal text-[#6B7280]">{done}</p>
+        {problem && <p className="-mt-4 mb-5 text-[13px] text-[#E11D48]">{problem}</p>}
+        <button type="button" onClick={onClose} autoFocus
+          className="w-full rounded-[14px] bg-[#E11D48] p-3.5 text-[16px] font-semibold text-white shadow-[0_4px_14px_rgba(225,29,72,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#BE123C] hover:shadow-[0_6px_20px_rgba(225,29,72,0.35)] active:translate-y-px">
+          Done
+        </button>
+      </div>
+    </div>,
+    document.body,
+  )
   return createPortal(
     /* THE COMPOSER IS A SHEET ON A PHONE AND A TWO-COLUMN DIALOG AT A DESK.
 
@@ -433,24 +445,6 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
           </button>
         </header>
 
-        {done ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-            <span className="grid size-14 place-items-center rounded-full bg-success/10 text-success">
-              <Check className="size-7" strokeWidth={3} />
-            </span>
-            <p className="text-[17px] font-extrabold">
-              {done === 'Posted.' ? 'Posted' : 'Sent for approval'}
-            </p>
-            <p className="max-w-[26rem] text-[13px] text-muted-foreground">
-              {done === 'Posted.'
-                ? (pin
-                    ? 'It is on the status ring now, and kept in the gallery.'
-                    : 'It is on the status ring now, for the next 24 hours.')
-                : done}
-            </p>
-          </div>
-        ) : (
-        <>
         {/* PHONE: one column that scrolls. */}
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3.5 sm:hidden">
           {media(false)}
@@ -481,8 +475,6 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
             {notes}
           </div>
         </div>
-        </>
-        )}
 
         <footer className="flex shrink-0 gap-2.5 border-t bg-card px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-2.5 sm:justify-end sm:px-6 sm:py-4">
           {buttons}
