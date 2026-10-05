@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
+import { Camera, Check, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
 import { Dialog, Select } from '@/components/ui'
@@ -201,8 +201,17 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       void qc.invalidateQueries({ queryKey: ['notifications'] })
       void qc.invalidateQueries({ queryKey: ['class-status-mine'] })
       void qc.invalidateQueries({ queryKey: ['class-status-admin'] })
-      if (r.status === 'pending') setDone('Sent to the principal. It goes live once approved.')
-      else onClose()
+      /* IT SAYS SO WHEN IT IS DONE (owner).
+
+         The sheet used to vanish the moment the server answered, which asks
+         the person to infer from an absence that their photo went out. On a
+         school connection the gap between pressing Post and the sheet closing
+         is long enough to wonder whether the press registered at all, and the
+         answer -- gone -- looks exactly like a sheet that was dismissed. So
+         it says Posted, and the person closes it. */
+      setDone(r.status === 'pending'
+        ? 'Sent to the principal. It goes live once approved.'
+        : 'Posted.')
     },
   })
 
@@ -424,6 +433,24 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
           </button>
         </header>
 
+        {done ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-success/10 text-success">
+              <Check className="size-7" strokeWidth={3} />
+            </span>
+            <p className="text-[17px] font-extrabold">
+              {done === 'Posted.' ? 'Posted' : 'Sent for approval'}
+            </p>
+            <p className="max-w-[26rem] text-[13px] text-muted-foreground">
+              {done === 'Posted.'
+                ? (pin
+                    ? 'It is on the status ring now, and kept in the gallery.'
+                    : 'It is on the status ring now, for the next 24 hours.')
+                : done}
+            </p>
+          </div>
+        ) : (
+        <>
         {/* PHONE: one column that scrolls. */}
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3.5 sm:hidden">
           {media(false)}
@@ -454,6 +481,8 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
             {notes}
           </div>
         </div>
+        </>
+        )}
 
         <footer className="flex shrink-0 gap-2.5 border-t bg-card px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-2.5 sm:justify-end sm:px-6 sm:py-4">
           {buttons}
