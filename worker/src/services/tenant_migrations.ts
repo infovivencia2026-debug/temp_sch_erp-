@@ -49,4 +49,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 49, name: 'retire_learning_virtual_classroom_hand_raise_telemetry', checksum: '7dd29c43c9fec793ac5f82e40eb4d30c9a6fed1376f360612ccba2169d19555b' },
   { version: 50, name: 'retire_learning_student_portfolio_management', checksum: '1de78bcb759d7b220eb29e1f18d80df1a45fcf3d69e5f0e6b2fd343336556073' },
   { version: 51, name: 'retire_home_custom_theme_selection', checksum: 'dc2f5c26958cead0aca2c1ed7324c29e5bb3eea43fdd32692bee5c1c9047fba4' },
+  { version: 52, name: 'school_tax_registration', checksum: '7275f949ac6b594a9d1fce9151e0414c7fea1af45ae09663234690fe90b12d97' },
 ]

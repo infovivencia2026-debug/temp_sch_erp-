@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, ShieldAlert, Receipt, Landmark } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useSession } from '@/lib/session'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Select, PrintButton, SkeletonTable, ErrorState, EmptyState,
@@ -27,6 +28,7 @@ import {
    round the schema rather than through it. */
 
 export default function TaxAudit() {
+  const session = useSession()
   const [fy, setFy] = useState(String(currentFY()))
   const tax = useQuery({
     queryKey: ['ledgers', 'tax', fy],
@@ -46,6 +48,11 @@ export default function TaxAudit() {
   const dues = (t?.statutory_dues ?? []).filter((d) => d.paise !== 0)
   const owedOver = dues.reduce((s, d) => s + d.paise, 0)
   const missingGstin = (t?.vendors ?? []).filter((v) => v.tax_paise > 0 && !v.gstin)
+  /* The signature block names the person who ran it; the other two sign by
+     hand. The footer already prints the same name, which is where it belonged
+     when nobody signed at all. */
+  const printedBy = session.user?.full_name ?? ''
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
   return (
     <>
@@ -62,6 +69,27 @@ export default function TaxAudit() {
         }
       />
       <PageBody width="wide">
+        {/* WHAT THE PAPER HAS TO SAY FOR ITSELF.
+
+            On screen the year is in the picker and the school is in the shell.
+            On paper neither is there: the sheet carried the date it was printed
+            and nothing about the period it covers, and no registration number
+            at all -- which is a taxation document that cannot be filed,
+            checked, or matched against a return. Printed only; the screen
+            already knows. */}
+        <div className="print-only hidden text-[12px] text-muted-foreground">
+          <p className="font-semibold text-foreground">
+            Financial year {t?.fy_label ?? fy}
+            {t?.from && t?.to ? ` · ${t.from} to ${t.to}` : ''}
+          </p>
+          <p className="mt-0.5 tabular-nums">
+            {[t?.gstin && `GSTIN ${t.gstin}`, t?.pan && `PAN ${t.pan}`, t?.tan && `TAN ${t.tan}`]
+              .filter(Boolean)
+              .join('  ·  ')
+              || 'No GSTIN, PAN or TAN on record — set them on Books & settings before filing.'}
+          </p>
+        </div>
+
         <CellGrid cols={4}>
           <Stat label="Audit checks"
             value={a ? `${a.checks.length - a.failing} of ${a.checks.length}` : '-'}
@@ -91,22 +119,29 @@ export default function TaxAudit() {
               </Badge>
             }
           />
-          <Table head={['Check', 'Why it matters', 'Findings', { label: 'Value', align: 'right' }, '']}
+          {/* ONE RESULT, NOT THREE COLUMNS SAYING IT.
+
+              Findings, Value and the badge were three columns for one fact: on
+              a clean sheet they read "none", "-", "pass" across every row,
+              which is the same answer written three ways. A check that fails
+              still has to say how much and how many, so the count and the
+              amount appear where they mean something -- under the badge, on
+              the rows that are not clean. */}
+          <Table head={['Check', 'Why it matters', { label: 'Result', align: 'right' }]}
             empty={(a?.checks ?? []).length === 0}>
             {(a?.checks ?? []).map((c) => (
               <tr key={c.check}>
                 <Td className="font-medium">{c.check}</Td>
                 <Td className="text-[13px] text-muted-foreground">{c.detail}</Td>
-                <Td className={`tabular-nums ${c.passing ? 'text-muted-foreground' : 'text-destructive'}`}>
-                  {c.count === 0 ? 'none' : c.count}
-                </Td>
-                <Td className="text-right tabular-nums text-muted-foreground">
-                  {c.paise ? rupees(c.paise) : '-'}
-                </Td>
-                <Td>
+                <Td className="text-right">
                   <Badge tone={c.passing ? 'success' : 'danger'}>
                     {c.passing ? 'pass' : 'look'}
                   </Badge>
+                  {!c.passing && (
+                    <span className="mt-0.5 block text-[12px] tabular-nums text-destructive">
+                      {c.count}{c.paise ? ` · ${rupees(c.paise)}` : ''}
+                    </span>
+                  )}
                 </Td>
               </tr>
             ))}
@@ -179,7 +214,7 @@ export default function TaxAudit() {
         </Card>
 
         <Card>
-          <CardHeader title="The years"
+          <CardHeader title="Financial years"
             description="A closed year's figures are frozen at the moment of signing. They do not move when somebody corrects a later year, which is what makes them worth reporting to a board." />
           <Table head={['Year', 'Status', 'Vouchers', 'Closed on', 'Closed by',
             'Closing voucher', { label: 'Surplus', align: 'right' }]}
@@ -198,7 +233,49 @@ export default function TaxAudit() {
               </tr>
             ))}
           </Table>
+          {/* A voucher count beside "no purchase bills" reads like something is
+              missing. It is not: fee receipts and journals are vouchers too. */}
+          <p className="border-t p-5 text-[12.5px] text-muted-foreground">
+            Vouchers counts every entry in the books for the year — fee receipts,
+            journals, payments and the rest — not purchase bills alone.
+          </p>
         </Card>
+
+        {/* THE SHEET STATES ITS OWN VERDICT.
+
+            Ten checks and a page of figures, and the document never said what
+            it concluded -- the reader had to total the badges. That sentence is
+            the one a signature is given against, so it is written out. */}
+        <div className={`print-only hidden rounded-lg border p-4 text-[13px] ${
+          a?.clean ? 'border-success/30 bg-success/5 text-success' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
+          <strong className="uppercase tracking-wide">Audit conclusion: </strong>
+          {a?.clean
+            ? `No exceptions found for ${t?.fy_label ?? fy}.`
+            : `${a?.failing} check${a?.failing === 1 ? '' : 's'} need attention for ${t?.fy_label ?? fy}. See the results above.`}
+        </div>
+
+        {/* WHO RAN IT, WHO CHECKED IT, WHO IS ANSWERABLE FOR IT.
+
+            One "Accountant" rule at the foot, with the person who ran the
+            report in grey at the very bottom of the page. An audit sheet is
+            signed by three people and the first of them is already known. */}
+        <div className="print-only hidden">
+          <div className="flex justify-between gap-8 pt-14">
+            {[
+              { role: 'Prepared by', who: printedBy },
+              { role: 'Checked by', who: '' },
+              { role: 'Principal', who: '' },
+            ].map((s) => (
+              <div key={s.role} className="w-[30%] text-center">
+                <div className="border-t border-foreground" />
+                <p className="mt-1.5 text-[12px] font-semibold">{s.role}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {s.who ? `${s.who} · ${today}` : 'Date: ____________'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </PageBody>
     </>
   )
