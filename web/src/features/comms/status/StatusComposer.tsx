@@ -319,6 +319,9 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
           {problem || ((send.error || aud.error) as Error).message}
         </p>
       )}
+      {aud.data?.storage_warning && (
+        <p role="status" className="rounded-lg bg-[#fef3c7] px-3 py-2 text-[13px] font-medium text-[#92400e]">{aud.data?.storage_warning}</p>
+      )}
       {aud.data?.needs_approval && (
         <p className="text-[11.5px] text-muted-foreground">
           The principal approves statuses before anyone sees them.

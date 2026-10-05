@@ -32,7 +32,7 @@ import { institutionId, js, marks, resolveScope } from '../teaching/common'
 import { serveRange } from '../teaching/videos'
 import { publish } from '../../services/live'
 import { afterQuietHours, loadSettings } from '../../services/delivery'
-import { LIFETIME_MS, MAX_BYTES, MODULE, cleanPolicy, statusPolicy, statusSummary, type StatusPolicy } from '../../services/class_status'
+import { LIFETIME_MS, MAX_BYTES, MEDIA_QUOTA, MODULE, mediaUsed, storageWarning, cleanPolicy, statusPolicy, statusSummary, type StatusPolicy } from '../../services/class_status'
 import { videoDurationSeconds } from '../../services/video_meta'
 import type { StatusFeed } from '@shared/api/feature_class_status'
 
@@ -508,7 +508,9 @@ export function registerClassStatus(r: Router): void {
     }
     const list = [...rings.values()].sort((a, b) => (a.as_school !== b.as_school ? (a.as_school ? -1 : 1)
       : (a.unseen > 0) !== (b.unseen > 0) ? (a.unseen > 0 ? -1 : 1) : b.latest_at.localeCompare(a.latest_at)))
-    return { ...empty, unseen: list.reduce((n, x) => n + x.unseen, 0), rings: list, gallery: gallery.reverse() }
+    // Said only to those who can post, and only once nearly full.
+    const storage_warning = canPost ? storageWarning(await mediaUsed(c.db)) : undefined
+    return { ...empty, unseen: list.reduce((n, x) => n + x.unseen, 0), rings: list, gallery: gallery.reverse(), storage_warning }
   })
 
   /* Just the badge number, for a header that does not draw the rings. */
@@ -542,6 +544,7 @@ export function registerClassStatus(r: Router): void {
       classes: [...classes].map(([id, name]) => ({ id, name })),
       can_post_school: can(c.id, SCHOOL), wide, allow_video: pol.allow_video, max_video_seconds: pol.max_video_seconds,
       needs_approval: pol.needs_approval && !v.admin, max_bytes: MAX_BYTES,
+      storage_warning: storageWarning(await mediaUsed(c.db)),
     })
   })
 
@@ -564,6 +567,7 @@ export function registerClassStatus(r: Router): void {
     if (!type) throw badRequest('a status is a JPEG, PNG or WebP photo, or an MP4, WebM or MOV video')
     const size = file && typeof file !== 'string' ? file.size : 0
     if (!isText && (!size || size > MAX_BYTES)) throw badRequest('a status must be under 25 MB', { code: 'too_large' })
+    if (!isText && (await mediaUsed(c.db)) + size > MEDIA_QUOTA) throw new HttpError(413, 'Gallery storage is full (5 GB). Remove old gallery photos or videos to post new ones.', { code: 'storage_full' })
     let thumb: File | null = null
     const rawThumb = isText ? null : form.get('thumb') as unknown as File | string | null
     if (rawThumb && typeof rawThumb !== 'string' && rawThumb.size) {

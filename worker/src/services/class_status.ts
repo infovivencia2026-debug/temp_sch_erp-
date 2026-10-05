@@ -69,6 +69,24 @@ export async function statusSummary(db: D1Database): Promise<StatusSummary> {
   return { enabled: true, live: r?.live ?? 0, pending: r?.pending ?? 0 }
 }
 
+/* THE SCHOOL'S MEDIA ALLOWANCE (owner, 2026-10-05): 5 GB of status and
+   gallery photos and videos. Nothing is said until it is nearly full (90%);
+   at 100% a new post is refused. Counted from the rows: a row is deleted
+   with its bytes, so what is listed is what is stored. */
+export const MEDIA_QUOTA = 5 * 1024 ** 3
+export async function mediaUsed(db: D1Database): Promise<number> {
+  const r = await db.prepare(`SELECT COALESCE(SUM(size_bytes), 0) AS n FROM status_posts WHERE status <> 'rejected'`).first<{ n: number }>()
+  return r?.n ?? 0
+}
+/** The warning, only once it is nearly full; undefined before that. */
+export function storageWarning(used: number): string | undefined {
+  if (used < MEDIA_QUOTA * 0.9) return undefined
+  const gb = (used / 1024 ** 3).toFixed(1)
+  return used >= MEDIA_QUOTA
+    ? `Gallery storage is full (5 GB). Remove old gallery photos or videos to post new ones.`
+    : `Gallery storage is almost full: ${gb} of 5 GB used.`
+}
+
 /** Deletes expired, unpinned posts and their R2 objects. Returns how many went. */
 export async function expireStatuses(env: Pick<Env, 'FILES_WRITE'>, db: D1Database, at = new Date()): Promise<number> {
   const nowIso = at.toISOString()

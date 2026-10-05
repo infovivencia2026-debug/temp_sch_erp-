@@ -56,6 +56,8 @@ export interface StatusFeed {
   gallery: StatusItem[]
   allow_video: boolean
   max_video_seconds: number
+  /** Only when the school's 5 GB of media is nearly full (90%+); otherwise absent. */
+  storage_warning?: string
 }
 
 export interface ClassStatusApi {

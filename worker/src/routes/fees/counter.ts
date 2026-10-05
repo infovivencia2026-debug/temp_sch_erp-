@@ -292,7 +292,8 @@ export function registerCounter(r: Router): void {
 
   // ---------------------------------------------------------------- collect
   r.typed('POST /fees/payments', 'finance.payments.write', async (c) => {
-    await requireFresh(c)
+    /* No password re-check to collect a fee (owner, 2026-10-05): money coming
+       IN at the counter; wallet changes and payroll still ask. */
     const req = await readJSON<{ student_id?: string; amount_paise?: unknown; mode?: string; paid_on?: string; reference_no?: string; bank_name?: string;
       cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[] }>(c.req)
     if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
