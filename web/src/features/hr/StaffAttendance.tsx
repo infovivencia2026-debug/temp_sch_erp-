@@ -3,10 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton, PrintButton,
+  Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton,
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import { printHtml } from '@/features/finance/receipt-print'
+import { staffRegisterHtml } from './staff-register-print'
 import { cn } from '@/lib/utils'
 
 /* The staff register.
@@ -39,6 +43,7 @@ const MARKS: { value: string; short: string; label: string; tone: string }[] = [
 
 export default function StaffAttendance() {
   const qc = useQueryClient()
+  const session = useSession()
   const can = useCan()
   const mayMark = can('hr.attendance.write')
 
@@ -72,6 +77,16 @@ export default function StaffAttendance() {
   const present = rows.filter((r) => ['present', 'late', 'half_day'].includes(value(r))).length
   const absent = rows.filter((r) => ['absent', 'leave'].includes(value(r))).length
 
+  /* Every employee, as marked on screen (owner's design, staff-register-print.ts). */
+  const printRegister = () => printHtml(staffRegisterHtml({
+    school: {
+      name: session.institution?.display_name ?? 'School',
+      logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    },
+    onDate, printedBy: session.user?.full_name ?? '',
+    rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, mark: value(r) })),
+  }))
+
   function markAll(status: string) {
     setDraft(Object.fromEntries(rows.map((r) => [r.user_id, status])))
     setNote('')
@@ -94,7 +109,9 @@ export default function StaffAttendance() {
             />
           )}
           <ExportButton report="staff-attendance" />
-          <PrintButton />
+          <Button variant="secondary" size="sm" onClick={printRegister} disabled={!rows.length}>
+            <Printer className="h-4 w-4" /> Print
+          </Button>
           <Button
             disabled={!Object.keys(draft).length || save.isPending || !mayMark}
             onClick={() => save.mutate()}
