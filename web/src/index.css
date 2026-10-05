@@ -4700,3 +4700,10 @@ input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
 .menu-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 /* Belt and braces for the one part that put chevrons outside a rounded box. */
 *::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+
+/* Status posted card (owner design): fade the backdrop, pop the card. */
+.posted-overlay { animation: posted-fade 0.3s ease-out; }
+.posted-card { animation: posted-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes posted-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes posted-pop { from { opacity: 0; transform: scale(0.9) translateY(15px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .posted-overlay, .posted-card { animation: none } }
