@@ -221,8 +221,15 @@ export default function Employees() {
     },
   })
 
+  /* Print takes the same two filters as the list and the file: one button
+     that prints something other than what the screen shows is a button that
+     has to be explained. */
   const exportOverview = useMutation({
-    mutationFn: () => api.get<{ html: string; css?: string }>('/api/v1/hr/staff/overview/report'),
+    mutationFn: () => {
+      const q = new URLSearchParams({ status: expStatus })
+      if (expClass) q.set('class_id', expClass)
+      return api.get<{ html: string; css?: string }>(`/api/v1/hr/staff/overview/report?${q}`)
+    },
     onSuccess: (v) => setStaffReport({ ...v, name: 'Staff overview' }),
   })
 
@@ -526,17 +533,6 @@ export default function Employees() {
                 <SearchBox value={search} onChange={setSearch} placeholder="Name, code or role" />
                 {/* One printout of every teacher's load and results — the term's
                     staff review, off the same overview each record shows. */}
-                {/* It opens a print sheet; it was called Export, which is the
-                    other button now standing beside it. */}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={exportOverview.isPending}
-                  onClick={() => exportOverview.mutate()}
-                >
-                  <Printer className="h-3.5 w-3.5" aria-hidden />
-                  {exportOverview.isPending ? 'Preparing…' : 'Print all staff'}
-                </Button>
                 <div className="w-[8.5rem]">
                   <Select value={expStatus} onChange={setExpStatus} options={[
                     { value: 'active', label: 'Active' },
@@ -549,6 +545,17 @@ export default function Employees() {
                     options={[{ value: '', label: 'Any class' },
                       ...(classes.data?.items ?? []).map((k) => ({ value: k.id, label: k.name }))]} />
                 </div>
+                {/* It prints what the directory is showing, so it cannot say
+                    "all staff" -- the filters beside it narrow it too. */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={exportOverview.isPending}
+                  onClick={() => exportOverview.mutate()}
+                >
+                  <Printer className="h-3.5 w-3.5" aria-hidden />
+                  {exportOverview.isPending ? 'Preparing…' : 'Print list'}
+                </Button>
                 <Button
                   size="sm"
                   variant="secondary"

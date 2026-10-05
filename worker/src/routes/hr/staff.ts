@@ -521,17 +521,44 @@ export function registerStaff(r: Router) {
     return ok({ items, total: items.length })
   })
 
+  /* THE PRINTOUT IS WHAT THE DIRECTORY IS SHOWING.
+
+     It printed every teacher in the school whatever the screen had been
+     narrowed to, so the two filters beside the button meant nothing to it --
+     choose one class, press Print, get a hundred pages. It takes the same two
+     now. There is no tick-box selection and deliberately so: what people
+     actually want is a class or the leavers, which the filters already say,
+     and a selection model would be a second way to answer the same question.
+
+     Still teaching staff only. The page is a teaching load and its results; a
+     driver has neither, and a blank sheet per driver is not a report. The
+     subtitle says which of the two numbers it is printing. */
   r.get('/hr/staff/overview/report', READ, async (c) => {
+    const q = c.url.searchParams
+    const status = (q.get('status') ?? 'all').toLowerCase()
+    const classID = nz(q.get('class_id'))
+    const leavers = status === 'inactive'
+    const byStatus = status === 'all' || leavers ? null : status
     const refs = await c.db.prepare(`
       SELECT DISTINCT e.id, e.user_id, ${fullName('e.first_name', 'e.last_name')} AS name, COALESCE(dg.name, '') AS desig
-        FROM section_subject_teachers sst JOIN employees e ON e.user_id = sst.teacher_user_id LEFT JOIN designations dg ON dg.id = e.designation_id ORDER BY 3`)
+        FROM section_subject_teachers sst
+        JOIN employees e ON e.user_id = sst.teacher_user_id
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+        JOIN sections sec ON sec.id = sst.section_id
+       WHERE (?1 IS NULL OR e.status = ?1)
+         AND (?2 = 0 OR e.status <> 'active')
+         AND (?3 IS NULL OR sec.class_id = ?3)
+       ORDER BY 3`)
+      .bind(byStatus, leavers ? 1 : 0, classID)
       .all<{ id: string; user_id: string; name: string; desig: string }>()
     let page = ''
     for (const ref of refs.results) {
       const ov = await computeStaffOverview(c.db, ref.id, ref.user_id, ref.name, ref.desig)
       page += `<div class="report page-break"><h1>${esc(staffReportTitle(ov))}</h1>${staffOverviewSection(ov)}</div>`
     }
-    if (page === '') page = `<div class="report"><p class="empty">No teaching staff to report on yet.</p></div>`
+    if (page === '') {
+      page = `<div class="report"><p class="empty">No teaching staff match what the directory is showing.</p></div>`
+    }
     const facts = await schoolFacts(c.db, c.id.institution!)
     return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: `${refs.results.length} teaching staff` }, page), css: staffOverviewCSS + DOC_PRINT_CSS, filename: 'staff-overview-all.pdf' })
   })
