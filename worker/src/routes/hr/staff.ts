@@ -390,6 +390,111 @@ export function registerStaff(r: Router) {
     return ok({ items: rows.results.map((v) => omitNull({ ...v, roles: parseJSON<string[]>(v.roles, []) })) })
   })
 
+  /* EVERY MEMBER OF STAFF ON ONE SHEET, WITH WHAT THEY ACTUALLY TEACH.
+
+     The directory exports what the directory shows -- a name, a code, a
+     department -- which answers none of the questions a timetable meeting
+     opens with: who is class teacher of 6B, who takes Physics anywhere, who
+     is carrying four classes and who is carrying one. Those live on
+     section_subject_teachers and sections.class_teacher_id and were readable
+     one employee at a time, through Staff 360, and nowhere in bulk.
+
+     Three filters, because an export nobody can narrow is a file somebody
+     then narrows by hand in a spreadsheet:
+       status=active|inactive|all   (default active: the leavers are the
+                                     minority case and including them silently
+                                     is how a payroll count goes wrong)
+       class_id=<id>                only staff who teach that class or are
+                                     class teacher of one of its sections
+       teaching=1                   only staff with a teaching load at all
+
+     One query per list rather than one per employee: a school of 120 staff
+     would otherwise be 240 round trips. */
+  r.get('/hr/staff/export', READ, async (c) => {
+    const q = c.url.searchParams
+    const status = (q.get('status') ?? 'active').toLowerCase()
+    const classID = nz(q.get('class_id'))
+    const teachingOnly = q.get('teaching') === '1'
+    const byStatus = status === 'all' ? null : status
+
+    const rows = (await c.db.prepare(`
+      SELECT e.id, e.user_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name,
+             COALESCE(dg.name, '') AS designation, COALESCE(d.name, '') AS department,
+             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email,
+             COALESCE(e.employment_type, '') AS employment_type, e.status,
+             COALESCE(e.joined_on, '') AS joined_on, COALESCE(e.qualification, '') AS qualification,
+             COALESCE(e.experience_years, '') AS experience_years
+        FROM employees e
+        LEFT JOIN departments d ON d.id = e.department_id
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+       WHERE (?1 IS NULL OR e.status = ?1)
+       ORDER BY COALESCE(e.employee_code, ''), e.id`).bind(byStatus).all<Record<string, unknown>>()).results
+
+    /* The teaching load for everyone at once: class, section and subject per
+       assignment, so the export can say both which classes and which
+       subjects without asking twice. */
+    const load = (await c.db.prepare(`
+      SELECT sst.teacher_user_id AS uid, c.id AS class_id, c.name AS class, sec.name AS section, sub.name AS subject
+        FROM section_subject_teachers sst
+        JOIN sections sec ON sec.id = sst.section_id
+        JOIN classes c ON c.id = sec.class_id
+        JOIN class_subjects cs ON cs.id = sst.class_subject_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+       ORDER BY c.level, sec.name, sub.name`).all<Record<string, string>>()).results
+
+    const ct = (await c.db.prepare(`
+      SELECT sec.class_teacher_id AS uid, c.id AS class_id, c.name AS class, sec.name AS section
+        FROM sections sec JOIN classes c ON c.id = sec.class_id
+       WHERE sec.class_teacher_id IS NOT NULL
+       ORDER BY c.level, sec.name`).all<Record<string, string>>()).results
+
+    const teaches = new Map<string, { classes: Set<string>; subjects: Set<string>; classIDs: Set<string> }>()
+    for (const r of load) {
+      let t = teaches.get(r.uid)
+      if (!t) { t = { classes: new Set(), subjects: new Set(), classIDs: new Set() }; teaches.set(r.uid, t) }
+      t.classes.add(`${r.class} ${r.section}`.trim())
+      t.subjects.add(r.subject)
+      t.classIDs.add(r.class_id)
+    }
+    const classOf = new Map<string, { sections: Set<string>; classIDs: Set<string> }>()
+    for (const r of ct) {
+      let t = classOf.get(r.uid)
+      if (!t) { t = { sections: new Set(), classIDs: new Set() }; classOf.set(r.uid, t) }
+      t.sections.add(`${r.class} ${r.section}`.trim())
+      t.classIDs.add(r.class_id)
+    }
+
+    const items = []
+    for (const e of rows) {
+      const uid = str(e.user_id)
+      const t = uid ? teaches.get(uid) : undefined
+      const ctOf = uid ? classOf.get(uid) : undefined
+      if (teachingOnly && !t && !ctOf) continue
+      if (classID) {
+        const hit = (t?.classIDs.has(classID) ?? false) || (ctOf?.classIDs.has(classID) ?? false)
+        if (!hit) continue
+      }
+      items.push({
+        employee_code: str(e.employee_code),
+        full_name: str(e.full_name),
+        designation: str(e.designation),
+        department: str(e.department),
+        status: str(e.status),
+        employment_type: str(e.employment_type),
+        phone: str(e.phone),
+        email: str(e.email),
+        joined_on: str(e.joined_on),
+        qualification: str(e.qualification),
+        experience_years: e.experience_years === '' ? '' : String(e.experience_years),
+        class_teacher_of: [...(ctOf?.sections ?? [])].join('; '),
+        classes_taught: [...(t?.classes ?? [])].join('; '),
+        subjects_taught: [...(t?.subjects ?? [])].join('; '),
+        periods_count: String(t?.classes.size ?? 0),
+      })
+    }
+    return ok({ items, total: items.length })
+  })
+
   r.get('/hr/staff/overview/report', READ, async (c) => {
     const refs = await c.db.prepare(`
       SELECT DISTINCT e.id, e.user_id, ${fullName('e.first_name', 'e.last_name')} AS name, COALESCE(dg.name, '') AS desig

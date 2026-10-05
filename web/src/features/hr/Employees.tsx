@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Phone, Mail, Printer, Camera, MoreHorizontal } from 'lucide-react'
+import { Phone, Mail, Printer, Camera, MoreHorizontal, Download } from 'lucide-react'
 import StudentAvatar from '@/components/StudentAvatar'
 import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice, tabClass, Badge } from '@/components/ui'
+  Button, SkeletonTable, ErrorState, FormNotice, tabClass, Badge, Select } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import CardViewer from '@/components/CardViewer'
 import IDCards from './IDCards'
@@ -152,6 +152,55 @@ export default function Employees() {
      same {html, css} print path a report card uses, so there is one way the
      product turns server-rendered pages into paper. */
   const [staffReport, setStaffReport] = useState<{ html: string; css?: string; name?: string } | null>(null)
+  /* THE STAFF SHEET A TIMETABLE MEETING ASKS FOR.
+
+     Separate from the printout beside it: that one prints a page per teacher
+     for a review, this one is a file somebody sorts. It carries what Staff 360
+     shows one record at a time -- who is class teacher of which section, which
+     classes they take and which subjects -- because those were the three
+     questions the directory's own export could not answer.
+
+     Default active: a leaver in a head count is how a payroll number goes
+     wrong, so including them is a choice somebody makes rather than the
+     silent default. */
+  const [expStatus, setExpStatus] = useState('active')
+  const [expClass, setExpClass] = useState('')
+  const classes = useQuery({
+    queryKey: ['academics', 'classes'],
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
+  })
+  const exportStaff = useMutation({
+    mutationFn: async () => {
+      const q = new URLSearchParams({ status: expStatus })
+      if (expClass) q.set('class_id', expClass)
+      const r = await api.get<{ items: Record<string, string>[] }>(`/api/v1/hr/staff/export?${q}`)
+      const head = [
+        ['employee_code', 'Staff code'], ['full_name', 'Name'], ['designation', 'Designation'],
+        ['department', 'Department'], ['status', 'Status'], ['employment_type', 'Employment'],
+        ['phone', 'Phone'], ['email', 'Email'], ['joined_on', 'Joined'],
+        ['qualification', 'Qualification'], ['experience_years', 'Years of experience'],
+        ['class_teacher_of', 'Class teacher of'], ['classes_taught', 'Classes taught'],
+        ['subjects_taught', 'Subjects taught'], ['periods_count', 'Sections taught'],
+      ] as const
+      const cell = (v: unknown) => {
+        const t = String(v ?? '').replace(/\s+/g, ' ').trim()
+        return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
+      }
+      const lines = [head.map(([, l]) => cell(l)).join(',')]
+      for (const row of r.items ?? []) lines.push(head.map(([k]) => cell(row[k])).join(','))
+      const url = URL.createObjectURL(
+        new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+      const el = document.createElement('a')
+      el.href = url
+      el.download = `staff-${expStatus}${expClass ? '-one-class' : ''}-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(el)
+      el.click()
+      el.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      return r.items?.length ?? 0
+    },
+  })
+
   const exportOverview = useMutation({
     mutationFn: () => api.get<{ html: string; css?: string }>('/api/v1/hr/staff/overview/report'),
     onSuccess: (v) => setStaffReport({ ...v, name: 'Staff overview' }),
@@ -440,6 +489,8 @@ export default function Employees() {
                 <SearchBox value={search} onChange={setSearch} placeholder="Name, code or role" />
                 {/* One printout of every teacher's load and results — the term's
                     staff review, off the same overview each record shows. */}
+                {/* It opens a print sheet; it was called Export, which is the
+                    other button now standing beside it. */}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -447,14 +498,35 @@ export default function Employees() {
                   onClick={() => exportOverview.mutate()}
                 >
                   <Printer className="h-3.5 w-3.5" aria-hidden />
-                  {exportOverview.isPending ? 'Preparing…' : 'Export all staff'}
+                  {exportOverview.isPending ? 'Preparing…' : 'Print all staff'}
+                </Button>
+                <div className="w-[8.5rem]">
+                  <Select value={expStatus} onChange={setExpStatus} options={[
+                    { value: 'active', label: 'In service' },
+                    { value: 'inactive', label: 'Left' },
+                    { value: 'all', label: 'Everyone' },
+                  ]} />
+                </div>
+                <div className="w-[9.5rem]">
+                  <Select value={expClass} onChange={setExpClass} placeholder="Any class"
+                    options={[{ value: '', label: 'Any class' },
+                      ...(classes.data?.items ?? []).map((k) => ({ value: k.id, label: k.name }))]} />
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={exportStaff.isPending}
+                  onClick={() => exportStaff.mutate()}
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden />
+                  {exportStaff.isPending ? 'Preparing…' : 'Export'}
                 </Button>
               </div>
             }
           />
-          {exportOverview.error && (
+          {(exportOverview.error || exportStaff.error) && (
             <div className="px-5 pt-4">
-              <FormNotice error={exportOverview.error} />
+              <FormNotice error={exportOverview.error || exportStaff.error} />
             </div>
           )}
           {staff.isLoading ? (
