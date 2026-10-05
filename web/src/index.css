@@ -1217,6 +1217,21 @@
   .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
     margin-inline: var(--card-pad);
   }
+  /* A BUTTON'S OWN px- IS INSIDE PADDING, NOT A MARGIN.
+
+     The rule above skips any child whose class list carries a padding
+     utility, on the reasoning that something which pads itself does not want
+     the card's indent as well. Every Button in the product sets px-3 or px-4
+     to shape the control itself, so every bare button sitting straight inside
+     a card was skipped and sat hard against its left edge -- Issue the letter
+     on Lifecycle is one of them, and it is not the only one.
+
+     Only a MARGIN utility means "I place myself"; padding describes the inside
+     of the box and says nothing about where the box goes. So buttons are
+     excused from the padding tests and kept out of the margin ones. */
+  .card > :is(button, a.btn):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']) {
+    margin-inline: var(--card-pad);
+  }
   .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
   /* A body padded by hand with p-4 or p-5 sat 14 or 17.5px in from the edge
      while the header above it sat at --card-pad (16 / 20px), so the text of
