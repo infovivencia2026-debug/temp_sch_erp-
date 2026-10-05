@@ -83,7 +83,8 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
 
   const blank = {
     employee_code: '', first_name: '', last_name: '',
-    email: '', phone: '', role_key: 'faculty', role_keys: [] as string[], create_login: true,
+    email: '', phone: '', qualification: '',
+    role_key: 'faculty', role_keys: [] as string[], create_login: true,
   }
   const [f, setF] = useState(blank)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
@@ -196,6 +197,21 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           </Field>
           <Field label="Phone">
             <Input value={f.phone} onChange={set('phone')} />
+          </Field>
+          {/* ASKED AT HIRING, BECAUSE THAT IS WHEN IT IS KNOWN.
+
+              The column has been on the employee record all along and the
+              update route always accepted it, but no form offered the box, so
+              it was empty on every record in every school -- and printed empty
+              on the staff list. One line, as a school writes it.
+
+              The degree-by-degree record, with the board, the year and the
+              verification, stays on Service book and qualifications: that is a
+              file the office keeps, not a question to ask while typing
+              somebody's phone number. */}
+          <Field label="Qualification"
+            hint="As the school lists it, e.g. M.A. English, B.Ed. The full degree record lives on Service book &amp; qualifications.">
+            <Input value={f.qualification} onChange={set('qualification')} placeholder="M.A. English, B.Ed" />
           </Field>
         </FormGrid>
 
