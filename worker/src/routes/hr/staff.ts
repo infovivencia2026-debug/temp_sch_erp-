@@ -415,7 +415,14 @@ export function registerStaff(r: Router) {
     const status = (q.get('status') ?? 'active').toLowerCase()
     const classID = nz(q.get('class_id'))
     const teachingOnly = q.get('teaching') === '1'
-    const byStatus = status === 'all' ? null : status
+    /* LEFT IS NOT A STATUS, IT IS EVERY STATUS BUT ONE.
+
+       A school's leavers are 'resigned' and 'terminated' here, and nothing is
+       ever stored as 'inactive' -- so matching the word would have returned an
+       empty file and said nothing was wrong with it. Measured on JSM: 20
+       active, 1 resigned, 1 terminated. */
+    const leavers = status === 'inactive'
+    const byStatus = status === 'all' || leavers ? null : status
 
     const rows = (await c.db.prepare(`
       SELECT e.id, e.user_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name,
@@ -427,8 +434,8 @@ export function registerStaff(r: Router) {
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
         LEFT JOIN designations dg ON dg.id = e.designation_id
-       WHERE (?1 IS NULL OR e.status = ?1)
-       ORDER BY COALESCE(e.employee_code, ''), e.id`).bind(byStatus).all<Record<string, unknown>>()).results
+       WHERE (?1 IS NULL OR e.status = ?1) AND (?2 = 0 OR e.status <> 'active')
+       ORDER BY COALESCE(e.employee_code, ''), e.id`).bind(byStatus, leavers ? 1 : 0).all<Record<string, unknown>>()).results
 
     /* The teaching load for everyone at once: class, section and subject per
        assignment, so the export can say both which classes and which

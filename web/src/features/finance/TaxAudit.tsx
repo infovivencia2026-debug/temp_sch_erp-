@@ -27,6 +27,10 @@ import {
    refuses such a voucher at commit, a non-zero count there means something got
    round the schema rather than through it. */
 
+/* 2026-04-01 is a database value; paper says 1 Apr 2026. */
+const onPaper = (iso: string) =>
+  new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+
 export default function TaxAudit() {
   const session = useSession()
   const [fy, setFy] = useState(String(currentFY()))
@@ -77,15 +81,17 @@ export default function TaxAudit() {
             at all -- which is a taxation document that cannot be filed,
             checked, or matched against a return. Printed only; the screen
             already knows. */}
-        <div className="print-only hidden text-[12px] text-muted-foreground">
-          <p className="font-semibold text-foreground">
+        <div className="print-only hidden border-b pb-4 pt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="text-[14px] font-semibold leading-snug text-foreground">
             Financial year {t?.fy_label ?? fy}
-            {t?.from && t?.to ? ` · ${t.from} to ${t.to}` : ''}
           </p>
-          <p className="mt-0.5 tabular-nums">
+          {t?.from && t?.to && (
+            <p className="mt-1 tabular-nums">{onPaper(t.from)} to {onPaper(t.to)}</p>
+          )}
+          <p className="mt-2 tabular-nums">
             {[t?.gstin && `GSTIN ${t.gstin}`, t?.pan && `PAN ${t.pan}`, t?.tan && `TAN ${t.tan}`]
               .filter(Boolean)
-              .join('  ·  ')
+              .join('   ·   ')
               || 'No GSTIN, PAN or TAN on record — set them on Books & settings before filing.'}
           </p>
         </div>
