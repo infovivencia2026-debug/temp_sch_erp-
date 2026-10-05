@@ -12,7 +12,7 @@ import { api, type List } from '@/lib/api'
 
 /** Paise to rupees, grouped the Indian way: 1,80,000 rather than 180,000. */
 export const rupees = (paise: number) =>
-  (paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+  (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** With the symbol, for a figure standing on its own. */
 export const inr = (paise: number) => `₹${rupees(paise)}`

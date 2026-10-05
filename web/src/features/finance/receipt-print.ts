@@ -67,12 +67,17 @@ td .inv { font-size: 12px; color: #888; margin-top: 2px; }
 
 /** Prints the receipt from a hidden frame; waits for the logo before opening the dialog. */
 export function printReceipt(r: FeeReceipt, school: { name: string; sub?: string; logoUrl?: string }): void {
+  printHtml(receiptHtml(r, school))
+}
+
+/** Prints a whole HTML document from a hidden frame; waits for its images first. */
+export function printHtml(html: string): void {
   const frame = document.createElement('iframe')
   frame.setAttribute('aria-hidden', 'true')
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
   document.body.appendChild(frame)
   const doc = frame.contentDocument!
-  doc.open(); doc.write(receiptHtml(r, school)); doc.close()
+  doc.open(); doc.write(html); doc.close()
   let done = false
   const go = () => {
     if (done) return
@@ -83,6 +88,8 @@ export function printReceipt(r: FeeReceipt, school: { name: string; sub?: string
     window.setTimeout(() => frame.remove(), 1000)
   }
   const img = doc.querySelector('img')
+  // Web fonts too, so the first print is not in the fallback face.
+  void doc.fonts?.ready
   if (img && !img.complete) { img.onload = go; img.onerror = go; window.setTimeout(() => { if (frame.isConnected && !img.complete) go() }, 3000) }
   else window.setTimeout(go, 50)
 }
