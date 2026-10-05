@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 407 features.
+// Roles is the catalog: 24 roles, 408 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -714,6 +714,7 @@ var Roles = []Role{
 				Workspace: "My Classes",
 				Features: []Feature{
 					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
+					{Key: "faculty.attendance.take_attendance_school", Slug: "take_attendance_school", Name: "Take attendance (whole school)", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Mark the register for any class in the school rather than only the ones you teach."},
 					{Key: "faculty.attendance.attendance_correction", Slug: "attendance_correction", Name: "Attendance correction", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Request or process correction within permitted window/workflow."},
 					{Key: "faculty.attendance.absentee_followup", Slug: "absentee_followup", Name: "Absentee followup", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child marked away today, section by section, with admission number and the father's and mother's numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section."},
 					{Key: "faculty.attendance.student_absentees", Slug: "student_absentees", Name: "Present & absent", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent's response. Refreshes on its own as calls are recorded, so a colleague's follow-up appears live without editing anything, the calling itself stays on Absentee followup."},

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 407 features. */
+/** 24 roles, 408 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -667,6 +667,7 @@ export const ROLES: Role[] = [
         workspace: 'My Classes',
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
+          { key: 'faculty.attendance.take_attendance_school', slug: 'take_attendance_school', name: 'Take attendance (whole school)', scope: 'institution', tier: 'core', summary: 'Mark the register for any class in the school rather than only the ones you teach.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
           { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with admission number and the father\'s and mother\'s numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section.' },
           { key: 'faculty.attendance.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'assigned_classes', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as calls are recorded, so a colleague\'s follow-up appears live without editing anything, the calling itself stays on Absentee followup.' },
