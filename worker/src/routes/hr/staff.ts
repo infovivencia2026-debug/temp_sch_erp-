@@ -455,13 +455,26 @@ export function registerStaff(r: Router) {
        WHERE sec.class_teacher_id IS NOT NULL
        ORDER BY c.level, sec.name`).all<Record<string, string>>()).results
 
-    const teaches = new Map<string, { classes: Set<string>; subjects: Set<string>; classIDs: Set<string> }>()
+    /* WHICH SUBJECT IN WHICH CLASS, not two lists side by side.
+
+       "Grade 6 B; Grade 7 A" beside "English; Mathematics" does not say who
+       takes Mathematics where -- it could be either class, or both, and the
+       reader has to open Staff 360 to find out, which is the trip this export
+       exists to save. The pairing is kept as well as the two lists, because a
+       spreadsheet still wants to filter on a subject alone. */
+    const teaches = new Map<string, {
+      classes: Set<string>; subjects: Set<string>; classIDs: Set<string>; pairs: Map<string, Set<string>>
+    }>()
     for (const r of load) {
       let t = teaches.get(r.uid)
-      if (!t) { t = { classes: new Set(), subjects: new Set(), classIDs: new Set() }; teaches.set(r.uid, t) }
-      t.classes.add(`${r.class} ${r.section}`.trim())
+      if (!t) { t = { classes: new Set(), subjects: new Set(), classIDs: new Set(), pairs: new Map() }; teaches.set(r.uid, t) }
+      const where = `${r.class} ${r.section}`.trim()
+      t.classes.add(where)
       t.subjects.add(r.subject)
       t.classIDs.add(r.class_id)
+      let subs = t.pairs.get(where)
+      if (!subs) { subs = new Set(); t.pairs.set(where, subs) }
+      subs.add(r.subject)
     }
     const classOf = new Map<string, { sections: Set<string>; classIDs: Set<string> }>()
     for (const r of ct) {
@@ -496,6 +509,9 @@ export function registerStaff(r: Router) {
         class_teacher_of: [...(ctOf?.sections ?? [])].join('; '),
         classes_taught: [...(t?.classes ?? [])].join('; '),
         subjects_taught: [...(t?.subjects ?? [])].join('; '),
+        teaching_load: [...(t?.pairs ?? new Map<string, Set<string>>())]
+          .map(([where, subs]) => `${where}: ${[...subs].join(', ')}`)
+          .join('; '),
         periods_count: String(t?.classes.size ?? 0),
       })
     }

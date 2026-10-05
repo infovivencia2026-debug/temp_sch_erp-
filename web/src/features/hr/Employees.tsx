@@ -179,7 +179,12 @@ export default function Employees() {
         ['department', 'Department'], ['status', 'Status'], ['employment_type', 'Employment'],
         ['phone', 'Phone'], ['email', 'Email'], ['joined_on', 'Joined'],
         ['qualification', 'Qualification'], ['experience_years', 'Years of experience'],
-        ['class_teacher_of', 'Class teacher of'], ['classes_taught', 'Classes taught'],
+        ['class_teacher_of', 'Class teacher of'],
+        /* The pairing first: it is the column somebody reads. The two flat
+           lists follow, for sorting and filtering on one class or one
+           subject. */
+        ['teaching_load', 'What they teach'],
+        ['classes_taught', 'Classes taught'],
         ['subjects_taught', 'Subjects taught'], ['periods_count', 'Sections taught'],
       ] as const
       const cell = (v: unknown) => {
@@ -275,7 +280,14 @@ export default function Employees() {
                 hint="One row per employee. Nothing is written until the dry run passes; logins can be issued afterwards."
               />
             )}
-            <ExportButton name="staff" />
+            {/* THREE BUTTONS SAID "EXPORT" ON ONE SCREEN.
+
+                This one writes the importer's own columns, so a school can edit
+                the file and upload it back; the one on the directory writes a
+                report with the teaching load and cannot be re-imported. The
+                owner pressed this one and reported the other as broken, which
+                is the only honest reading of two identical labels. */}
+            <ExportButton name="staff" label="Export for re-import" />
           </>
         }
       />
@@ -502,8 +514,8 @@ export default function Employees() {
                 </Button>
                 <div className="w-[8.5rem]">
                   <Select value={expStatus} onChange={setExpStatus} options={[
-                    { value: 'active', label: 'In service' },
-                    { value: 'inactive', label: 'Left' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
                     { value: 'all', label: 'Everyone' },
                   ]} />
                 </div>
@@ -519,7 +531,7 @@ export default function Employees() {
                   onClick={() => exportStaff.mutate()}
                 >
                   <Download className="h-3.5 w-3.5" aria-hidden />
-                  {exportStaff.isPending ? 'Preparing…' : 'Export'}
+                  {exportStaff.isPending ? 'Preparing…' : 'Export list'}
                 </Button>
               </div>
             }
