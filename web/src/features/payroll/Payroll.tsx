@@ -10,6 +10,7 @@ import { useCan, useSession } from '@/lib/session'
 import { Printer } from 'lucide-react'
 import { printHtml } from '@/features/finance/receipt-print'
 import { registerHtml } from './payroll-print'
+import { useToast } from '@/components/Toast'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -137,13 +138,16 @@ export default function Payroll() {
   const ded = rows.reduce((a, r) => a + r.deduction_paise, 0)
   const net = rows.reduce((a, r) => a + r.net_paise, 0)
   /* The owner's payroll register (payroll-print.ts), not a copy of this screen. */
-  const printRegister = () => printHtml(registerHtml({
+  /* Never a greyed-out button that says nothing (owner: "print is not
+     working"): with no run for the month, it says so and names the fix. */
+  const toast = useToast()
+  const printRegister = () => rows.length ? printHtml(registerHtml({
     school: {
       name: session.institution?.display_name ?? 'School',
       logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     },
     month: Number(month), year: Number(year), status, published, rows, printedBy: session.user?.full_name ?? '',
-  }))
+  })) : toast.error(`No payroll has been run for ${MONTHS[Number(month) - 1]} ${year} yet, so there is nothing to print. Choose a month that has been run, or run this one first.`)
   const components = [...new Set(rows.flatMap((r) => Object.keys(r.breakup ?? {})))].sort()
 
   if (!canRead) {
@@ -166,7 +170,7 @@ export default function Payroll() {
         actions={
           <>
             <ExportButton report="payroll" />
-            <Button variant="secondary" size="sm" onClick={printRegister} disabled={!rows.length}>
+            <Button variant="secondary" size="sm" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
             <Select value={month} onChange={setMonth}
