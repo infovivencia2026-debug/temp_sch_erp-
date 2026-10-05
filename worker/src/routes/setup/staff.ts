@@ -209,7 +209,8 @@ export function registerStaff(r: Router): void {
     const body = {
       employee_code: str(req.employee_code), first_name: str(req.first_name), last_name: str(req.last_name), email: str(req.email),
       phone: str(req.phone), department_id: str(req.department_id), designation_id: str(req.designation_id), joined_on: str(req.joined_on),
-      employment_type: str(req.employment_type), create_login: req.create_login === true, role_key: str(req.role_key),
+      employment_type: str(req.employment_type), qualification: str(req.qualification),
+      create_login: req.create_login === true, role_key: str(req.role_key),
       role_keys: Array.isArray(req.role_keys) ? (req.role_keys as unknown[]).map(str) : [],
     }
     if (body.first_name === '') throw badRequest('first_name is required')
