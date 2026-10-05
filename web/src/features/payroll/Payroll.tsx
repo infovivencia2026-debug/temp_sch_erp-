@@ -3,10 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton, PrintButton,
+  Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton,
   UnavailableState,
 } from '@/components/ui'
-import { useCan } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
+import { Printer } from 'lucide-react'
+import { printHtml } from '@/features/finance/receipt-print'
+import { registerHtml } from './payroll-print'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -34,6 +37,7 @@ export default function Payroll() {
      page asked three times, got 403 three times, and showed a zero month with
      a Run payroll button that could only fail. */
   const can = useCan()
+  const session = useSession()
   const canRead = can('hr.payroll.read')
   const canRun = can('hr.payroll.write')
 
@@ -132,6 +136,14 @@ export default function Payroll() {
   const gross = rows.reduce((a, r) => a + r.gross_paise, 0)
   const ded = rows.reduce((a, r) => a + r.deduction_paise, 0)
   const net = rows.reduce((a, r) => a + r.net_paise, 0)
+  /* The owner's payroll register (payroll-print.ts), not a copy of this screen. */
+  const printRegister = () => printHtml(registerHtml({
+    school: {
+      name: session.institution?.display_name ?? 'School',
+      logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    },
+    month: Number(month), year: Number(year), status, published, rows, printedBy: session.user?.full_name ?? '',
+  }))
   const components = [...new Set(rows.flatMap((r) => Object.keys(r.breakup ?? {})))].sort()
 
   if (!canRead) {
@@ -153,7 +165,10 @@ export default function Payroll() {
         description="Run monthly salaries. Loss of pay comes from staff attendance, not manual entry."
         actions={
           <>
-            <ExportButton report="payroll" /><PrintButton />
+            <ExportButton report="payroll" />
+            <Button variant="secondary" size="sm" onClick={printRegister} disabled={!rows.length}>
+              <Printer className="h-4 w-4" /> Print
+            </Button>
             <Select value={month} onChange={setMonth}
               options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
             <Select value={year} onChange={setYear}
