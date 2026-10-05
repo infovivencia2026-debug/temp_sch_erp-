@@ -110,7 +110,7 @@ export function staffOverviewDoc(o: OverviewInput, x: Awaited<ReturnType<typeof 
     ? (() => {
         const w = 300, h = 70, step = tr.length > 1 ? (w - 40) / (tr.length - 1) : 0
         const pts = tr.map((t, i) => ({ x: 20 + i * step, y: h - 8 - (pct(t.avg_pct) / 100) * (h - 20), t }))
-        return `<svg viewBox="0 0 ${w} ${h + 22}" width="100%" font-family="JetBrains Mono, monospace">
+        return `<svg viewBox="0 0 ${w} ${h + 22}" width="100%" font-family="Inter, sans-serif">
           <line x1="0" y1="${h}" x2="${w}" y2="${h}" stroke="#eaeaea"/>
           ${pts.length > 1 ? `<polyline points="${pts.map((q) => `${q.x},${q.y}`).join(' ')}" fill="none" stroke="#0070f3" stroke-width="2"/>` : ''}
           ${pts.map((q) => `<circle cx="${q.x}" cy="${q.y}" r="4" fill="#fff" stroke="#0070f3" stroke-width="2"/><text x="${q.x}" y="${q.y - 8}" text-anchor="middle" font-size="10">${q.t.avg_pct.toFixed(0)}</text><text x="${q.x}" y="${h + 16}" text-anchor="middle" font-size="9" fill="#666" font-family="Inter, sans-serif">${esc(q.t.exam.slice(0, 12))}</text>`).join('')}
@@ -121,7 +121,7 @@ export function staffOverviewDoc(o: OverviewInput, x: Awaited<ReturnType<typeof 
     ? M.by_section.map((b, i) => `<div class="hbar-row"><div class="hbar-label"><span>${esc(b.class)} ${esc(b.section)}</span><span class="val">${b.avg_pct.toFixed(0)}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:${pct(b.avg_pct)}%;${i % 3 === 1 ? 'background:var(--text-primary);' : i % 3 === 2 ? 'background:var(--accent-blue);' : ''}"></div></div></div>`).join('')
     : '<p class="muted">Shown once marks are published.</p>'
 
-  const html = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap"><div class="so-doc"><div class="dashboard-container">
+  const html = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"><div class="so-doc"><div class="dashboard-container">
   <div class="dash-header">
     <div class="school-brand"><div class="logo-box">${logo}</div><div><h1>${esc(o.facts.name)}</h1><p>Faculty Performance &amp; Load${x.yearName ? ` · ${esc(x.yearName)}` : ''}</p></div></div>
     <div class="meta-info"><div class="title">Staff Overview</div><div class="timestamp">Generated: ${stamp}${o.printedBy ? ` by ${esc(o.printedBy)}` : ''}</div></div>
@@ -164,7 +164,7 @@ export function staffOverviewDoc(o: OverviewInput, x: Awaited<ReturnType<typeof 
 }
 
 const CSS = `
-:root { --bg-page: #f6f8fa; --bg-card: #ffffff; --text-primary: #000000; --text-secondary: #666666; --text-tertiary: #888888; --border-subtle: #eaeaea; --accent-neon: #00e599; --accent-blue: #0070f3; --accent-red: #e00; --font-sans: 'Inter', -apple-system, sans-serif; --font-mono: 'JetBrains Mono', monospace; }
+:root { --bg-page: #f6f8fa; --bg-card: #ffffff; --text-primary: #000000; --text-secondary: #666666; --text-tertiary: #888888; --border-subtle: #eaeaea; --accent-neon: #00e599; --accent-blue: #0070f3; --accent-red: #e00; --font-sans: 'Inter', -apple-system, sans-serif; --font-mono: 'Inter', -apple-system, sans-serif; }
 @page { size: A4; margin: 10mm; }
 * { box-sizing: border-box; }
 body { font-family: var(--font-sans); background: #fff; color: var(--text-primary); margin: 0; padding: 0; line-height: 1.5; -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
