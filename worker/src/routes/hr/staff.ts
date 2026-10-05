@@ -495,6 +495,9 @@ export function registerStaff(r: Router) {
         if (!hit) continue
       }
       items.push({
+        /* The directory filters its own rows against this list, so the row
+           has to be identifiable: a staff code can be blank or repeated. */
+        id: str(e.id),
         employee_code: str(e.employee_code),
         full_name: str(e.full_name),
         designation: str(e.designation),

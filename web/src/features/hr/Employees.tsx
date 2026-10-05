@@ -169,6 +169,21 @@ export default function Employees() {
     queryKey: ['academics', 'classes'],
     queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
   })
+  /* A FILTER BESIDE A LIST FILTERS THE LIST.
+
+     These two were built for the export alone, and sat in the directory's own
+     header next to the search box -- so setting Inactive left twenty active
+     staff on screen and looked broken, which is exactly what it was. Status is
+     on the row already. Which class somebody teaches is not: that lives on
+     section_subject_teachers, so the same endpoint the export calls answers
+     it, and the ids it returns are the allow-list for the rows. */
+  const classFiltered = useQuery({
+    enabled: expClass !== '',
+    queryKey: ['staff-by-class', expClass, expStatus],
+    queryFn: () => api.get<{ items: { id: string }[] }>(
+      `/api/v1/hr/staff/export?status=${expStatus}&class_id=${expClass}`),
+  })
+
   const exportStaff = useMutation({
     mutationFn: async () => {
       const q = new URLSearchParams({ status: expStatus })
@@ -246,13 +261,20 @@ export default function Employees() {
       unlinked: true,
     })),
   ]
-  const rows = search.trim()
-    ? all.filter((e) =>
-        `${e.full_name} ${e.employee_code} ${e.designation ?? ''}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      )
-    : all
+  const inClass = expClass ? new Set((classFiltered.data?.items ?? []).map((v) => v.id)) : null
+  const rows = all
+    .filter((e) =>
+      expStatus === 'all' ? true
+        : expStatus === 'active' ? e.status === 'active'
+          : e.status !== 'active')
+    /* A person the roster knows but the server's list does not is not in the
+       class. While that answer is still coming, nothing is hidden. */
+    .filter((e) => (inClass && !classFiltered.isLoading ? inClass.has(e.id) : true))
+    .filter((e) =>
+      !search.trim() ||
+      `${e.full_name} ${e.employee_code} ${e.designation ?? ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase()))
 
   const ds = docs.data?.items ?? []
   const expired = ds.filter((d) => d.days_left != null && d.days_left < 0)
