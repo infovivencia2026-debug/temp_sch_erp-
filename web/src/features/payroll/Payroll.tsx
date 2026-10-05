@@ -170,7 +170,7 @@ export default function Payroll() {
         actions={
           <>
             <ExportButton report="payroll" />
-            <Button variant="secondary" size="sm" onClick={printRegister}>
+            <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
             <Select value={month} onChange={setMonth}

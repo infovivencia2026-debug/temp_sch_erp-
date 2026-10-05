@@ -10,7 +10,7 @@ import { useCan } from '@/lib/session'
 import { Printer } from 'lucide-react'
 import { useSession } from '@/lib/session'
 import { printHtml } from '@/features/finance/receipt-print'
-import { staffRegisterHtml } from './staff-register-print'
+import { staffRangeHtml, staffRegisterHtml } from './staff-register-print'
 import { cn } from '@/lib/utils'
 
 /* The staff register.
@@ -87,6 +87,35 @@ export default function StaffAttendance() {
     rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, mark: value(r) })),
   }))
 
+  /* FROM – TO (owner: "let them choose date from to and print those dates").
+     One request per day (the register is kept per day), at most 62 days. */
+  const [rangeFrom, setRangeFrom] = useState(() => onDate.slice(0, 8) + '01')
+  const [rangeTo, setRangeTo] = useState(onDate)
+  const [rangeBusy, setRangeBusy] = useState(false)
+  const [rangeErr, setRangeErr] = useState('')
+  const printRange = async () => {
+    setRangeErr('')
+    if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { setRangeErr('Choose a From date on or before the To date.'); return }
+    const days: string[] = []
+    for (let d = new Date(rangeFrom + 'T00:00:00Z'); d.toISOString().slice(0, 10) <= rangeTo; d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10))
+    if (days.length > 62) { setRangeErr('Choose at most 62 days (two months) at a time.'); return }
+    setRangeBusy(true)
+    try {
+      const lists = await Promise.all(days.map((d) => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${d}`)))
+      const staff = new Map<string, { user_id: string; employee_code: string; full_name: string }>()
+      const marks: Record<string, Record<string, string>> = {}
+      lists.forEach((l, i) => { marks[days[i]] = {}; for (const r of l.items) { staff.set(r.user_id, r); if (r.status) marks[days[i]][r.user_id] = r.status } })
+      printHtml(staffRangeHtml({
+        school: {
+          name: session.institution?.display_name ?? 'School',
+          logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+        },
+        from: rangeFrom, to: rangeTo, days, marks, printedBy: session.user?.full_name ?? '',
+        staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)),
+      }))
+    } catch (e) { setRangeErr((e as Error).message) } finally { setRangeBusy(false) }
+  }
+
   function markAll(status: string) {
     setDraft(Object.fromEntries(rows.map((r) => [r.user_id, status])))
     setNote('')
@@ -109,7 +138,7 @@ export default function StaffAttendance() {
             />
           )}
           <ExportButton report="staff-attendance" />
-          <Button variant="secondary" size="sm" onClick={printRegister} disabled={!rows.length}>
+          <Button variant="secondary" onClick={printRegister} disabled={!rows.length}>
             <Printer className="h-4 w-4" /> Print
           </Button>
           <Button
@@ -122,6 +151,16 @@ export default function StaffAttendance() {
         }
       />
       <PageBody>
+        <Card>
+          <div className="flex flex-wrap items-end gap-3 p-4">
+            <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Print register from</label><Input type="date" value={rangeFrom} onChange={setRangeFrom} /></div>
+            <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">To</label><Input type="date" value={rangeTo} onChange={setRangeTo} /></div>
+            <Button variant="secondary" onClick={printRange} disabled={rangeBusy}>
+              <Printer className="h-4 w-4" /> {rangeBusy ? 'Preparing…' : 'Print these dates'}
+            </Button>
+            {rangeErr && <span className="text-[13px] text-destructive">{rangeErr}</span>}
+          </div>
+        </Card>
         <CellGrid cols={4}>
           <Stat label="Staff" value={rows.length} />
           <Stat label="Marked" value={`${marked} / ${rows.length}`} />

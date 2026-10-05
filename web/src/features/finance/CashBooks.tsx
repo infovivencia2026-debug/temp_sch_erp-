@@ -88,7 +88,7 @@ export default function CashBooks() {
         description="Every voucher for a day, and the movement through each cash and bank account with its closing balance."
         width="wide"
         actions={
-          <Button variant="secondary" size="sm" onClick={printBooks} disabled={!c}>
+          <Button variant="secondary" onClick={printBooks} disabled={!c}>
             <Printer className="h-4 w-4" /> Print
           </Button>
         }

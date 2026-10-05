@@ -159,7 +159,7 @@ export function PageHead({
               text is still there to move somewhere it earns its place: a hint
               on an empty state, or beside the control it is about. */}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2"><InPageActions.Provider value={true}>{actions}</InPageActions.Provider></div>}
       </div>
     </div>
   )
@@ -2545,7 +2545,12 @@ const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string
   { key: 'tsv', name: 'TSV', about: 'Tab-separated, for other tools' },
 ]
 
+/* In a page header every control is one height (owner: "uneven"): Export
+   was the small size beside full-size Import, Print and Save. */
+const InPageActions = createContext(false)
+
 export function ExportButton({ report, label }: { report: string; label?: string }) {
+  const inHeader = useContext(InPageActions)
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLDivElement | null>(null)
@@ -2598,7 +2603,7 @@ export function ExportButton({ report, label }: { report: string; label?: string
       <div ref={trigger} className="inline-block">
         <Button
           variant="outline"
-          size="sm"
+          size={inHeader ? undefined : 'sm'}
           onClick={() => setOpen((o) => !o)}
           ariaHasPopup="menu"
           ariaExpanded={open}
