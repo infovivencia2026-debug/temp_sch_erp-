@@ -137,8 +137,9 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
           />
           {saved && <FormNotice ok={saved} />}
           {saveTpl.error && <FormNotice error={saveTpl.error} />}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+          {/* Padded, each picker in its own tile (owner: margins and boxes). */}
+          <div className="grid gap-4 p-5 sm:grid-cols-2">
+            <div className="rounded-xl border bg-muted/20 p-4">
               <FilePicker
                 value={front}
                 onChange={setFront}
@@ -154,7 +155,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
                 />
               )}
             </div>
-            <div>
+            <div className="rounded-xl border bg-muted/20 p-4">
               <FilePicker
                 value={back}
                 onChange={setBack}
@@ -199,9 +200,9 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
             </div>
           }
         />
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 p-5 sm:grid-cols-2 lg:grid-cols-3">
           {staff.map((e) => (
-            <div key={e.id} className="rounded-md px-2 py-1.5 hover:bg-muted/50">
+            <div key={e.id} className={'rounded-xl border px-3.5 py-2.5 transition-colors hover:bg-muted/40 ' + (picked.has(e.id) ? 'border-primary/50 bg-primary/5' : 'bg-card')}>
               <Checkbox
                 checked={picked.has(e.id)}
                 onChange={() => toggle(e.id)}
