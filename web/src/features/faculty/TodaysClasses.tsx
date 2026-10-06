@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import StatusRings from '@/features/comms/status/StatusRings'
 import { NavLink } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { featurePath } from '@/lib/catalog'
-import { Card, Loading, ErrorState, EmptyState } from '@/components/ui'
+import { Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { useSession } from '@/lib/session'
 import type { List, Section } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -107,8 +106,7 @@ export default function TodaysClasses() {
        with the figures and the two ways onward as buttons. Drawn in the
        ERP's own cards and the school's colour, so it sits with every other
        screen. One column on a phone. */
-    <div className="flex flex-col gap-5 pt-4">
-      <StatusRings />
+    <PageBody top><div className="flex flex-col gap-5">
       <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
@@ -124,7 +122,7 @@ export default function TodaysClasses() {
         </div>
       </Card>
 
-      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-stretch gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
         <Card className="flex flex-col justify-between border-primary/25 bg-gradient-to-b from-card to-primary/[0.06] px-6 py-6">
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.05em] text-primary">
@@ -223,6 +221,6 @@ export default function TodaysClasses() {
           ))}
         </Card>
       </div>
-    </div>
+    </div></PageBody>
   )
 }

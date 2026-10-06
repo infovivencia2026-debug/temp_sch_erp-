@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 415 of the catalog's features are implemented.
+// 413 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -68,6 +68,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.attendance.offline_attendance_diary_capture":                 true,
 	"faculty.attendance.student_absentees":                                true,
 	"faculty.attendance.take_attendance":                                  true,
+	"faculty.attendance.take_attendance_school":                           true,
 	"faculty.communication.anecdotal_records":                             true,
 	"faculty.communication.class_status":                                  true,
 	"faculty.communication.class_teacher_remarks":                         true,
@@ -84,8 +85,6 @@ var implementedFeatures = map[string]bool{
 	"faculty.marks_report_cards.report_cards":                             true,
 	"faculty.my_classes.behaviour":                                        true,
 	"faculty.my_classes.class_360":                                        true,
-	"faculty.my_classes.my_classes":                                       true,
-	"faculty.my_classes.my_students":                                      true,
 	"faculty.my_classes.student_details":                                  true,
 	"faculty.my_classes.student_progress":                                 true,
 	"faculty.my_profile.leave_self_service":                               true,
@@ -217,6 +216,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.fees.period_close":                                 true,
 	"institution_admin.fees.student_wallets":                              true,
 	"institution_admin.getting_started.school_setup":                      true,
+	"institution_admin.help.helpdesk":                                     true,
 	"institution_admin.home.dashboard":                                    true,
 	"institution_admin.hostel.boarder_laundry":                            true,
 	"institution_admin.hostel.hostel_rooms":                               true,
@@ -288,7 +288,6 @@ var implementedFeatures = map[string]bool{
 	"operations.stores.stock_movements":                                   true,
 	"operations.transport.transport_office":                               true,
 	"operations.transport.vehicles_routes":                                true,
-	"parent.academics.child_remarks":                                      true,
 	"parent.academics.homework_academics":                                 true,
 	"parent.academics.results_report_cards":                               true,
 	"parent.academics.timetable":                                          true,
@@ -330,7 +329,6 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.usage_health.usage_cost":                                true,
 	"student.alumni.alumni_job_internship_board":                          true,
 	"student.alumni.alumni_network_registration":                          true,
-	"student.attendance.apply_for_leave":                                  true,
 	"student.attendance.attendance":                                       true,
 	"student.campus_life.digital_hall_of_fame":                            true,
 	"student.campus_life.digital_locker_combination_access_log":           true,

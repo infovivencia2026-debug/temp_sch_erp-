@@ -208,12 +208,29 @@ function ControlAccounts() {
         ...values,
         petty_cash_limit_paise: limit,
         default_depreciation_method: method,
+        gstin: reg.gstin, pan: reg.pan, tan: reg.tan,
       }),
     onSuccess: () => {
       setDraft(null)
+      setRegDraft(null)
       qc.invalidateQueries({ queryKey: ['ledgers'] })
     },
   })
+
+  /* THE SCHOOL'S OWN REGISTRATIONS.
+
+     Vendors have carried a GSTIN and a PAN since the purchase ledger was
+     written; the school had nowhere to record its own, so the taxation and
+     audit sheet printed with no registration on it -- a document that cannot
+     be filed, checked or matched to a return. They sit here because this is
+     the one screen that already describes how this school keeps its books. */
+  const [regDraft, setRegDraft] = useState<Record<string, string> | null>(null)
+  const reg = regDraft ?? {
+    gstin: settings.data?.gstin ?? '',
+    pan: settings.data?.pan ?? '',
+    tan: settings.data?.tan ?? '',
+  }
+  const setReg = (k: string, v: string) => setRegDraft({ ...reg, [k]: v.toUpperCase() })
 
   const [limitDraft, setLimitDraft] = useState<string | null>(null)
   const [methodDraft, setMethodDraft] = useState<string | null>(null)
@@ -251,6 +268,24 @@ function ControlAccounts() {
             ]} />
           </Field>
         </FormGrid>
+        <div className="border-t pt-5">
+          <p className="text-[13px] font-semibold">The school's tax registration</p>
+          <p className="mb-3 mt-0.5 text-[12.5px] text-muted-foreground">
+            Printed on the taxation and audit sheet. Without them the sheet cannot be
+            filed, checked against a return, or matched to the school by an auditor.
+          </p>
+          <FormGrid>
+            <Field label="GSTIN" hint="15 characters. Leave blank if the school is not registered.">
+              <Input value={reg.gstin} onChange={(v) => setReg('gstin', v)} placeholder="36AAAAA0000A1Z5" />
+            </Field>
+            <Field label="PAN" hint="The trust's or society's own permanent account number.">
+              <Input value={reg.pan} onChange={(v) => setReg('pan', v)} placeholder="AAAAA0000A" />
+            </Field>
+            <Field label="TAN" hint="Needed to deposit the tax withheld from vendors and staff.">
+              <Input value={reg.tan} onChange={(v) => setReg('tan', v)} placeholder="HYDA00000A" />
+            </Field>
+          </FormGrid>
+        </div>
         <FormNotice error={save.error} ok={save.isSuccess ? 'Saved.' : undefined} />
         <Button onClick={() => save.mutate()} disabled={save.isPending}>Save the settings</Button>
       </div>

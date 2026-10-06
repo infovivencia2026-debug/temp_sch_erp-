@@ -1,6 +1,8 @@
 import { LoaderBlock } from '@/components/Loader'
 import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useIsRestoring } from '@tanstack/react-query'
+import { SkeletonPage } from '@/components/Skeleton'
 import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import '../portal/parent.css'
@@ -154,7 +156,16 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
      must not scroll; a classic screen is as tall as its table and must. */
   const Screen = layout === 'bento' && key ? bentoComponentFor(key) : undefined
 
+  /* NO SCREEN WHILE THE SAVED ANSWERS ARE BEING READ BACK.
+
+     While the persisted cache is restored a query neither has data nor is
+     fetching, so `isLoading` is false and a screen that tests it and then
+     reads `q.data!` threw ("reading 'payslips'", "reading 'items'"). One
+     wait here, for the few milliseconds of the restore, instead of a guard in
+     every screen. */
+  const restoring = useIsRestoring()
   const inner = (() => {
+    if (restoring) return <SkeletonPage />
     if (!Screen) return <>{children}</>
     return (
       <BentoBoundary resetKey={key ?? ''} fallback={<>{children}</>}>

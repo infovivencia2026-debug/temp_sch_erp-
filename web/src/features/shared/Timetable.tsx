@@ -20,7 +20,9 @@ import { usePhone } from '@/lib/viewport'
 
    The endpoint now returns only the caller's own sections, so the difference
    here is entirely about what to offer, not what to hide. */
-export default function Timetable() {
+/** `embedded`: drawn under a page that already says "Timetable" (the
+    student's), so the card does not say it a second time. */
+export default function Timetable({ embedded = false }: { embedded?: boolean } = {}) {
   const [tabId, setTab] = useState('grid')
   const session = useQuery({
     queryKey: ['session'],
@@ -57,7 +59,7 @@ export default function Timetable() {
        bare Card never did. */
     <PageBody top>
     <Card>
-      <CardHeader title="Timetable" />
+      {!embedded && <CardHeader title="Timetable" />}
       <div className={cn('flex gap-1 border-b px-3 pt-2', tabs.length === 1 && 'hidden')}>
         {tabs.map((t: { id: string; label: string }) => (
           <button

@@ -510,13 +510,55 @@ export function BentoLauncher({
   useEffect(() => {
     if (!open) return
     const vv = window.visualViewport
-    const sheet = sheetRef.current
+    /* THE ELEMENT IS LOOKED UP WHEN IT IS NEEDED, NOT WHEN THE EFFECT RAN.
+
+       `const sheet = sheetRef.current` read the ref once, at effect time, and
+       it was null -- so every line below it was dead. The sheet was never
+       given data-vv, and every rule written against [data-vv='on'] -- five
+       rounds of them, each reported as not fixed -- never matched anything.
+       Measured on a phone-sized browser: visualViewport said 234px of visible
+       screen while the sheet stayed 664px tall, scrolled 249px down, with the
+       search bar at y=579 and the first result at y=-3.
+
+       Resolving it at call time cannot go stale, and kb() runs again on the
+       next frame, so a mount order that put the effect before the element
+       does not decide whether the launcher works. */
+    const el = () => sheetRef.current ?? document.querySelector<HTMLElement>('.lch')
+    /* THE SHEET IS THE VISIBLE AREA, NOT THE WINDOW.
+
+       It was `fixed inset-0`, which is the LAYOUT viewport -- and iOS keeps
+       that at full height when the keyboard opens, simply drawing the keyboard
+       over the bottom of it. So the scrolling results ran on underneath the
+       keys: a result could be scrolled to a position where it could not be
+       seen, and the field had to be pushed back up by the keyboard's height to
+       stay reachable.
+
+       Sized to visualViewport instead -- its top where the visible area
+       starts, its height what is actually visible -- the sheet ends exactly
+       where the keyboard begins. The results scroll inside the part of the
+       screen that exists, and the field sits at the foot of it with no offset
+       to compute, which is how a native search behaves.
+
+       --lch-kb stays for the browsers with no visualViewport: there the sheet
+       is still the window, and lifting the pill by the keyboard's height is
+       the best that can be done. When the API is present it is zero, because
+       the sheet no longer extends under anything. */
     const kb = () => {
-      if (!vv || !sheet) return
+      const sheet = el()
+      if (!sheet) return
+      if (!vv) { sheet.style.setProperty('--lch-kb', '0px'); return }
       const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      sheet.style.setProperty('--lch-kb', `${Math.round(gap)}px`)
+      sheet.style.setProperty('--lch-top', `${Math.round(vv.offsetTop)}px`)
+      sheet.style.setProperty('--lch-vh', `${Math.round(vv.height)}px`)
+      /* The sheet already ends above the keyboard, so the pill needs no lift.
+         Kept as a variable rather than removed so the fallback path below and
+         the stylesheet stay one rule. */
+      sheet.style.setProperty('--lch-kb', '0px')
+      sheet.dataset.vv = 'on'
+      void gap
     }
     kb()
+    const again = requestAnimationFrame(kb)
     vv?.addEventListener('resize', kb)
     vv?.addEventListener('scroll', kb)
     const onKey = (e: KeyboardEvent) => {
@@ -529,6 +571,7 @@ export function BentoLauncher({
     }
     window.addEventListener('keydown', onKey, true)
     return () => {
+      cancelAnimationFrame(again)
       vv?.removeEventListener('resize', kb)
       vv?.removeEventListener('scroll', kb)
       window.removeEventListener('keydown', onKey, true)
@@ -762,6 +805,42 @@ export function BentoLauncher({
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
 
   const indexOf = new Map(slots.map((s, i) => [s.id, i]))
+  /* SEARCH RESULTS ON A PHONE ARE A LIST, NOT A WALL OF TILES.
+
+     Tiles are right for browsing -- a wall of icons is how somebody finds the
+     thing they half-remember the look of. They are wrong for searching: four
+     letters in, a person knows what they want and is reading NAMES, and a 96px
+     tile holds about eleven characters of one. "Take attendance" and "Take
+     attendance (whole school)" arrived as two identical squares, and a single
+     match filled a third of the screen while still not saying which match it
+     was.
+
+     The row gives the name the full width and says underneath where the screen
+     lives. Everything else -- pinned, recent, the unsearched launcher -- keeps
+     its tiles, because all of that is browsing. */
+  const drawRows = (list: Slot[]) => (
+    <div className="lch-rows">
+      {list.map((s) => {
+        const i = indexOf.get(s.id) ?? -1
+        return (
+          <button
+            key={s.id}
+            type="button"
+            className="lch-row"
+            data-cursor={i === cursor ? 'on' : undefined}
+            onClick={() => go(s.r)}
+          >
+            <FeatureGlyph slug={s.r.slug} section={s.r.sectionSlug} tint={hueFor(s.r.workspace)} size={34} />
+            <span className="lch-row__body">
+              <span className="lch-row__name">{s.r.name}</span>
+              <span className="lch-row__where">{s.r.workspace} · {s.r.section}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
   const draw = (list: Slot[], band = false) => (
     <div className={band ? 'lch-band' : 'lch-grid'}>
       {list.map((s) => (
@@ -789,6 +868,7 @@ export function BentoLauncher({
       onTouchMove={onSheetTouchMove}
       onTouchEnd={onSheetTouchEnd}
       onTouchCancel={onSheetTouchEnd}
+      data-q={needle && phone ? 'on' : undefined}
       className="lch bento-frost fixed inset-0 z-[60] overflow-y-auto overscroll-contain"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
@@ -827,7 +907,7 @@ export function BentoLauncher({
             nothing, at the top of a sheet that is otherwise all tiles, was the
             page's one piece of chrome with no weight behind it. */}
         <div
-          className="mb-5 flex flex-wrap items-baseline justify-between gap-4 border-b
+          className="lch-head mb-5 flex flex-wrap items-baseline justify-between gap-4 border-b
                      border-[color-mix(in_srgb,var(--ink-here)_10%,transparent)] pb-4"
         >
           <div className="min-w-0">
@@ -849,7 +929,7 @@ export function BentoLauncher({
           </div>
         </div>
 
-        <div ref={listRef} className={cn(needle && phone && 'lch-list--up')}>
+        <div ref={listRef} className={cn('lch-list', needle && phone && 'lch-list--up')}>
           {needle ? (
             results.length ? (
               /* Keyed by the query so every keystroke pops the new answer in
@@ -870,13 +950,23 @@ export function BentoLauncher({
                       : t('bento.launcher.results', { count: hits.length })
                   }
                 />
-                {(phone ? [...resultGroups].reverse() : resultGroups).map((g) => (
+                {/* Best first, from the top. They used to be reversed on a
+                    phone so the strongest match sat nearest the thumb, which
+                    put the heading of the first group at the BOTTOM of the
+                    list and read backwards against every other result list on
+                    the device. */}
+                {resultGroups.map((g) => (
                   <div key={g.name} className="lch-rgroup" data-workspace={g.name}>
                     <p className="lch-rgroup__name" style={{ '--t': `var(--dom-${hueFor(g.name)}, currentColor)` } as CSSProperties}>
-                      <span className="lch-dot" aria-hidden="true" />
-                      {g.name}
+                      <span>
+                        <span className="lch-dot" aria-hidden="true" />
+                        {g.name}
+                      </span>
+                      <span className="lch-rgroup__count">
+                        {g.slots.length} found
+                      </span>
                     </p>
-                    {draw(g.slots)}
+                    {phone ? drawRows(g.slots) : draw(g.slots)}
                   </div>
                 ))}
                 {!phone && (
@@ -961,6 +1051,15 @@ export function BentoLauncher({
           {/* The glyph sits ON the field, not on the page, so it takes the
               card's ink rather than the page's. It is a real button that
               drops the cursor in the field. */}
+          {/* THE PILL AND, BESIDE IT, THE WAY OUT.
+
+              On a phone the launcher's Close sits in the header, which the
+              results scroll away: once the keyboard is up the only thing on
+              screen is a list and a search field, and nothing says how to
+              leave. iOS puts the cancel beside the field, within reach of the
+              thumb already resting on the keyboard, and so do we. */}
+          <div className="lch-bar">
+          <div className="lch-field">
           <button
             type="button"
             tabIndex={-1}
@@ -1005,6 +1104,19 @@ export function BentoLauncher({
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
             className="lch-searchbar__input bg-transparent"
           />
+          </div>
+          {phone && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => close()}
+              aria-label={t('bento.launcher.close')}
+              className="lch-cancel"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+          )}
+          </div>
         </div>
 
       </div>

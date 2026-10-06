@@ -12,7 +12,7 @@ import { api, type List } from '@/lib/api'
 
 /** Paise to rupees, grouped the Indian way: 1,80,000 rather than 180,000. */
 export const rupees = (paise: number) =>
-  (paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+  (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** With the symbol, for a figure standing on its own. */
 export const inr = (paise: number) => `₹${rupees(paise)}`
@@ -74,6 +74,10 @@ export interface LedgerSettings {
   surplus_account_id?: string
   petty_cash_limit_paise: number
   default_depreciation_method: string
+  /* The school's own registrations, printed on the taxation sheet. */
+  gstin?: string
+  pan?: string
+  tan?: string
 }
 
 export interface Voucher {
@@ -348,6 +352,12 @@ export interface TaxReport {
   fy_label: string
   from: string
   to: string
+  /* The SCHOOL's own registrations, not a vendor's: the taxation sheet prints
+     them on its letterhead, and a sheet without them cannot be filed. Absent
+     until somebody enters them on the books settings. */
+  gstin?: string
+  pan?: string
+  tan?: string
   vendors: {
     vendor_name: string
     gstin?: string

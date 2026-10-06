@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, type QueueStat, type JobStatus, type EnqueueResponse, type List, type Section } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, SkeletonTable, ErrorState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, SkeletonTable, ErrorState, PageBody } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { useTabVisible } from '@/lib/visible'
 
@@ -41,7 +41,7 @@ export default function Jobs() {
     .sort((a, b) => b[1].priority - a[1].priority)
 
   return (
-    <div className="space-y-4">
+    <PageBody top><div className="space-y-4">
       <Card>
         <CardHeader
           title="Queues"
@@ -81,7 +81,7 @@ export default function Jobs() {
           </Table>
         </Card>
       )}
-    </div>
+    </div></PageBody>
   )
 }
 

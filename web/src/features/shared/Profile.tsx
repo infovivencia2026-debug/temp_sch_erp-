@@ -378,12 +378,12 @@ export default function ProfileView() {
               <p className="text-xs text-success">Password changed. Other sessions signed out.</p>
             )}
             <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-              <Button
+              <span data-help-anchor="change-password"><Button
                 type="submit"
                 disabled={change.isPending || next.length < 12 || !current || confirm !== next}
               >
                 {change.isPending ? 'Saving…' : 'Change password'}
-              </Button>
+              </Button></span>
               <span className="text-[12px] text-muted-foreground">
                 Everywhere else you are signed in will be signed out.
               </span>

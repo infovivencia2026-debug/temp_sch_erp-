@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { api, type List } from '@/lib/api'
@@ -313,7 +312,15 @@ export default function ParentWeek() {
       }
       actions={switcher}
       dashboard={arrange ? 'parent_week' : undefined}
-      lead={<StatusRings />}
+      /* STATUS LIVES IN NOTIFICATIONS, NOT ON THE DASHBOARD.
+
+         A ring of faces headed "Status" sat above the greeting, so the
+         first thing on a teacher's morning screen -- above the lesson
+         starting in ten minutes -- was a social feature nobody opened
+         from here. It is already in the notifications panel, which is
+         where somebody goes when they want to know what other people
+         have been doing. One home for it, and this screen gets its
+         first screenful back. */
     >
       {body}
     </PersonaPage>

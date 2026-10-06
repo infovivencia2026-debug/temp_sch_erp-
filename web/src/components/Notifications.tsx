@@ -8,12 +8,16 @@ import {
   ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
 } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
+import SchoolGallery from '@/features/comms/status/SchoolGallery'
+import StatusComposer from '@/features/comms/status/StatusComposer'
+import type { AddMode } from '@/features/comms/status/status-api'
 import { useStatusFeed } from '@/features/comms/status/status-api'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
+import { useActiveRole } from '@/lib/catalog'
 import { Button, Dialog } from '@/components/ui'
 
 /* The bell in the header, and the panel it opens.
@@ -77,12 +81,14 @@ const FAMILIES: [RegExp, { icon: typeof Bell; label: string }][] = [
   [/^attendance|^absen|^leave/, { icon: CalendarCheck, label: 'Attendance' }],
   [/^report_card|^result|^exam/, { icon: Award, label: 'Results' }],
   [/^transport|bus/, { icon: Bus, label: 'Bus' }],
+  [/digest/, { icon: Bell, label: 'Daily report' }],
+  [/^lms|^lesson/, { icon: BookOpen, label: 'Lessons' }],
   [/message|^chat/, { icon: MessageSquare, label: 'Messages' }],
 ]
 
 function kindOf(kind: string) {
   const k = kind.toLowerCase()
-  return KINDS[k] ?? FAMILIES.find(([re]) => re.test(k))?.[1] ?? { icon: Bell, label: k.replace(/[-_]/g, ' ') }
+  return KINDS[k] ?? FAMILIES.find(([re]) => re.test(k))?.[1] ?? { icon: Bell, label: k.replace(/[-_.]+/g, ' ') }
 }
 
 /* Days, not timestamps.
@@ -172,8 +178,19 @@ export default function Notifications() {
      back out the way it came. */
   const [closing, setClosing] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [gallery, setGallery] = useState(false)
+  /* A status picked in the drawer is written outside it: the drawer closes,
+     then the composer opens on its own (it survived nothing inside the drawer). */
+  const [composeReq, setComposeReq] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
+  const [composing, setComposing] = useState<typeof composeReq>(null)
+  useEffect(() => {
+    if (!composeReq) return
+    const t = window.setTimeout(() => { setComposing(composeReq); setComposeReq(null) }, 450)
+    return () => window.clearTimeout(t)
+  }, [composeReq])
   /* The owner's design: two toggles at the foot of the drawer. */
   const [onlyUnread, setOnlyUnread] = useState(false)
+  const activeRole = useActiveRole()
   const [type, setType] = useState<'messages' | 'activity' | null>(null)
   const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
   const hubParent = useFeatureHref('parent.academics.homework_academics')
@@ -232,7 +249,11 @@ export default function Notifications() {
   const clearAll = useOptimisticMutation<void>({
     mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
     queryKeys: [['notifications']],
-    apply: (old) => ({ ...(old as Feed), unread: 0, items: [] }),
+    /* The status posts survive the clear, here as on the server. */
+    apply: (old) => {
+      const kept = ((old as Feed).items ?? []).filter((n) => n.kind === 'status')
+      return { ...(old as Feed), unread: 0, items: kept }
+    },
     failure: "Couldn't clear them",
   })
 
@@ -370,9 +391,15 @@ export default function Notifications() {
      posts (the e-learning hub's photo, video and note statuses). */
   const shownType = type ?? 'messages'
   const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
-  const countFor = (v: string) => v === 'messages' ? unread : v === 'activity' ? newStatuses : 0
+  void newStatuses
+  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
   void isMessage
-  const inToggles = (n: Note) => (!onlyUnread || !n.read_at)
+  /* Status updates live in Activity; Messages is everything else (the owner's rule). */
+  const isStatusNote = (n: Note) => /status/.test(n.kind)
+  /* The parents' daily digest belongs to the parent login only (owner,
+     2026-10-05): a teacher who is also a parent never sees it at work. */
+  const asParent = activeRole.key === 'parent'
+  const inToggles = (n: Note) => (asParent || !/digest/.test(n.kind)) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
@@ -393,6 +420,7 @@ export default function Notifications() {
       <button
         onClick={() => (open ? dismiss() : setOpen(true))}
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        data-help-anchor="bell"
         aria-expanded={open}
         // data-tip as well as title: the dock draws its own label instantly,
         // and the browser's own tooltip takes about a second to appear, so in
@@ -413,8 +441,18 @@ export default function Notifications() {
                button is 32px in the desk dock and 44 on a phone, and pinned
                to the corner the badge sat squarely on the bell in the first
                and floated clear of it in the second. */
-            className="absolute left-[calc(50%+1px)] top-[calc(50%-16px)] grid h-4 min-w-4 place-items-center rounded-full
-                       bg-destructive px-1 text-[12px] font-medium leading-none text-destructive-foreground"
+            /* TWO CHARACTERS NEED ROOM FOR TWO CHARACTERS.
+
+               16px tall with 12px type is right for a single digit and too
+               tight for "9+": the plus sat half outside the pill, which on a
+               red circle reads as a rendering fault rather than a count. A
+               little taller, type a little smaller, padding that grows with
+               the content, and nowrap so it can never break across two lines
+               inside a 17px circle. */
+            className="absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
+                       place-items-center whitespace-nowrap rounded-full bg-destructive px-[5px]
+                       text-[10.5px] font-semibold leading-none tracking-tight text-destructive-foreground
+                       tabular-nums"
             aria-hidden
           >
             {unread > 9 ? '9+' : unread}
@@ -491,10 +529,17 @@ export default function Notifications() {
 
             {/* Class Status: Add, then the rings, unseen first. Draws nothing
                 when the school has it off or there is nothing to show. */}
-            <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card" />
+            {shownType === 'activity' && <StatusRings compact raised openId={statusOpen} onOpenHandled={statusHandled} className="shrink-0 border-b bg-card"
+              onCompose={(next) => { setComposeReq(next); dismiss() }} />}
+            {shownType === 'activity' && (
+              <button type="button" onClick={() => { dismiss(); window.setTimeout(() => setGallery(true), 300) }}
+                className="mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl border bg-card px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-muted/50">
+                <span>📸 School gallery</span><span className="text-muted-foreground">→</span>
+              </button>
+            )}
 
             <div className="scroll-y min-h-0 flex-1 space-y-4 overscroll-contain p-4">
-              {shownType === 'activity' ? (
+              {false ? (
                 statuses.isLoading ? <p className="py-16 text-center text-[13px] text-muted-foreground">Loading status updates…</p>
                 : (statuses.data?.items ?? []).filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length === 0
                   ? <p className="py-16 text-center text-[13px] text-muted-foreground">No status updates this week.</p>
@@ -545,7 +590,9 @@ export default function Notifications() {
                           const post = postById.get(postId)
                           const chip = post?.media_kind === 'video' ? 'Video' : post?.media_kind === 'text' ? 'Text' : post ? 'Photo' : 'Status'
                           /* The title is "<poster> added a status · <audience>". */
-                          const [who, aud] = n.title.split(' added a status · ')
+                          /* Older rows carry the audience in the title; the
+                             label is the school's and is not shown here. */
+                          const [who] = n.title.split(' added a status')
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
                             <button key={n.id} type="button" onClick={() => openNote(n)}
@@ -559,7 +606,7 @@ export default function Notifications() {
                                 </span>
                                 <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px]">
                                   <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px font-semibold text-primary">{chip}</span>
-                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || aud || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
+                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
                                 </span>
                                 {excerpt && post?.media_kind !== 'text' && (
                                   <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-muted-foreground">{excerpt}</span>
@@ -597,8 +644,14 @@ export default function Notifications() {
                 ))
               )}
             </div>
-            {items.length > 0 && (
-              <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
+            {/* THE SWITCHER STAYS WHETHER OR NOT THERE IS ANYTHING IN IT.
+
+                It used to be hidden whenever the list was empty, so clearing
+                the messages took Unread/All and Messages/Activity off the
+                screen with them -- and with the switcher gone there was no way
+                to reach the other side, which was not empty. An empty tab is
+                an answer; a missing tab is a dead end. */}
+            <footer className="flex shrink-0 items-center gap-3.5 border-t bg-card px-5 py-4">
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["unread","Unread"],["all","All"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
@@ -617,8 +670,7 @@ export default function Notifications() {
                     </button>
                   ))}
                 </div>
-              </footer>
-            )}
+            </footer>
           </aside>
         </div>,
         document.body,
@@ -656,6 +708,8 @@ export default function Notifications() {
           </Dialog>
         )
       })()}
+      {gallery && <SchoolGallery onClose={() => setGallery(false)} />}
+      {composing && <StatusComposer raised file={composing.file} mode={composing.mode} asSchool={composing.asSchool} onClose={() => setComposing(null)} />}
     </>
   )
 }

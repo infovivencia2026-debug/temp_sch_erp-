@@ -1,5 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { listenForClientErrors } from './lib/diagnostics'
+listenForClientErrors()
 import App from './App'
 import { ensureCatalogue, readStoredLocale } from '@/lib/i18n'
 import './index.css'

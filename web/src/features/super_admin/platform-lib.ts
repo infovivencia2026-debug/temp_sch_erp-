@@ -447,6 +447,16 @@ export interface BackupFleetRow {
 
 export interface VendorTicket {
   id: string
+  /** The school's id: the desk opens the ticket through it (worker/src/routes/help/desk.ts). */
+  institution_id?: string
+  agent_id?: string
+  last_reply_side?: 'raiser' | 'school' | 'vendor'
+  last_reply_at?: string
+  /** Passed on by a school's helpdesk: the text is the administrator's summary. */
+  escalated?: boolean
+  route?: string
+  error_ref?: string
+  created_at_full?: string
   school?: string
   subject: string
   category: string

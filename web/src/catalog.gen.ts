@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 425 features. */
+/** 24 roles, 408 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -447,6 +447,14 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.statutory_returns.instruction_hours', slug: 'instruction_hours', name: 'Instruction Hours', scope: 'institution', tier: 'advanced', summary: 'Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up.' },
         ],
       },
+      {
+        slug: 'help',
+        name: 'Help',
+        workspace: 'Help',
+        features: [
+          { key: 'institution_admin.help.helpdesk', slug: 'helpdesk', name: 'Helpdesk', scope: 'institution', tier: 'core', summary: 'Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.' },
+        ],
+      },
     ],
   },
   {
@@ -647,11 +655,9 @@ export const ROLES: Role[] = [
         name: 'My Classes',
         workspace: 'My Classes',
         features: [
-          { key: 'faculty.my_classes.my_classes', slug: 'my_classes', name: 'My classes', scope: 'assigned_classes', tier: 'core', summary: 'Class roster, subject resources and relevant student academic information.' },
           { key: 'faculty.my_classes.student_progress', slug: 'student_progress', name: 'Student progress', scope: 'assigned_classes', tier: 'core', summary: 'View attendance and academic progress for students taught/mentored by the faculty member.' },
           { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told.' },
-          { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
-          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
+          { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
           { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section.' },
         ],
       },
@@ -661,6 +667,7 @@ export const ROLES: Role[] = [
         workspace: 'My Classes',
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
+          { key: 'faculty.attendance.take_attendance_school', slug: 'take_attendance_school', name: 'Take attendance (whole school)', scope: 'institution', tier: 'core', summary: 'Mark the register for any class in the school rather than only the ones you teach.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
           { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with admission number and the father\'s and mother\'s numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section.' },
           { key: 'faculty.attendance.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'assigned_classes', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as calls are recorded, so a colleague\'s follow-up appears live without editing anything, the calling itself stays on Absentee followup.' },
@@ -1516,8 +1523,7 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'student.home.my_day', slug: 'my_day', name: 'My day', scope: 'self', tier: 'core', summary: 'Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement.' },
-          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'Digital Diary & Schedule', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
-          { key: 'student.home.custom_theme_selection', slug: 'custom_theme_selection', name: 'Custom Theme Selection', scope: 'self', tier: 'optional', summary: 'Customize student portal appearance with dark mode, high-contrast mode, or color themes.' },
+          { key: 'student.home.digital_diary_schedule', slug: 'digital_diary_schedule', name: 'My planner', scope: 'self', tier: 'core', summary: 'Track personal study schedules, project deadlines, and school calendar events.' },
         ],
       },
       {
@@ -1534,7 +1540,6 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.attendance.attendance', slug: 'attendance', name: 'Attendance', scope: 'self', tier: 'core', summary: 'Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.' },
-          { key: 'student.attendance.apply_for_leave', slug: 'apply_for_leave', name: 'Apply for leave', scope: 'self', tier: 'core', summary: 'Ask the school for time off: the days, the reason, and a medical certificate if there is one. Shows every application you have made and what the class teacher decided, and lets you withdraw one they have not answered yet.' },
         ],
       },
       {
@@ -1553,12 +1558,6 @@ export const ROLES: Role[] = [
           { key: 'student.learning.courses_subjects', slug: 'courses_subjects', name: 'Courses / subjects', scope: 'self', tier: 'core', summary: 'Current enrolled courses/subjects, teacher and learning resources.' },
           { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'LMS', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
           { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: 'Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
-          { key: 'student.learning.peer_tutoring_study_groups', slug: 'peer_tutoring_study_groups', name: 'Peer Tutoring & Study Groups', scope: 'self', tier: 'optional', summary: 'Sign up as student tutors or request peer study group assistance in specific subjects.' },
-          { key: 'student.learning.gamified_learning_streak_counter', slug: 'gamified_learning_streak_counter', name: 'Gamified Learning Streak Counter', scope: 'self', tier: 'optional', summary: 'Visual daily login and homework completion streak counter rewarding students with digital badges.' },
-          { key: 'student.learning.gamified_learning_badge_showcase', slug: 'gamified_learning_badge_showcase', name: 'Gamified Learning Badge Showcase', scope: 'self', tier: 'optional', summary: 'Display earned academic, behavioral, and extracurricular digital badges on public student profile.' },
-          { key: 'student.learning.virtual_classroom_hand_raise_telemetry', slug: 'virtual_classroom_hand_raise_telemetry', name: 'Virtual Classroom Hand-Raise Telemetry', scope: 'self', tier: 'optional', summary: 'Log student digital hand-raises during live virtual classes to measure real-time engagement.' },
-          { key: 'student.learning.global_university_guidance_counselor', slug: 'global_university_guidance_counselor', name: 'Global University Guidance Counselor', scope: 'self', tier: 'optional', summary: 'Track college application deadlines, essay drafts, and request teacher Letters of Recommendation (LOR).' },
-          { key: 'student.learning.student_portfolio_management', slug: 'student_portfolio_management', name: 'Student Portfolio Management', scope: 'self', tier: 'advanced', summary: 'Maintain personal showcase portfolio containing certificates, creative projects, and sports records.' },
         ],
       },
       {
@@ -1585,28 +1584,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.notices_calendar.calendar', slug: 'calendar', name: 'Calendar', scope: 'self', tier: 'core', summary: 'Academic calendar, holidays, events and deadlines.' },
           { key: 'student.notices_calendar.library_book_hold_request', slug: 'library_book_hold_request', name: 'Library Book Hold Request', scope: 'self', tier: 'core', summary: 'Reserve available library books online for pickup at the start of the next school day.' },
-        ],
-      },
-      {
-        slug: 'campus_life',
-        name: 'Campus Life',
-        workspace: 'School',
-        features: [
-          { key: 'student.campus_life.student_wall_peer_recognition', slug: 'student_wall_peer_recognition', name: 'Student Wall & Peer Recognition', scope: 'self', tier: 'optional', summary: 'View school news, student council announcements, badge achievements, and art features.' },
-          { key: 'student.campus_life.digital_hall_of_fame', slug: 'digital_hall_of_fame', name: 'Digital Hall of Fame', scope: 'self', tier: 'optional', summary: 'Showcase historic trophies, school record holders, and national rankers across academic/sports.' },
-          { key: 'student.campus_life.student_club_event_ticketing_qr_check_in', slug: 'student_club_event_ticketing_qr_check_in', name: 'Student Club Event Ticketing & QR Check-In', scope: 'self', tier: 'optional', summary: 'Register for campus drama, music, or science events and generate QR-coded admission tickets.' },
-          { key: 'student.campus_life.lost_found_item_board', slug: 'lost_found_item_board', name: 'Lost & Found Item Board', scope: 'self', tier: 'optional', summary: 'Post missing items or report found items with photos on the digital lost-and-found board.' },
-          { key: 'student.campus_life.lost_found_photo_board_with_claim_verification', slug: 'lost_found_photo_board_with_claim_verification', name: 'Lost & Found Photo Board with Claim Verification', scope: 'self', tier: 'optional', summary: 'View photos of lost items found on campus and submit digital claim proof to reclaim items.' },
-          { key: 'student.campus_life.digital_locker_combination_access_log', slug: 'digital_locker_combination_access_log', name: 'Digital Locker Combination & Access Log', scope: 'self', tier: 'optional', summary: 'Manage assigned physical hallway locker numbers and view digital access keycode history.' },
-        ],
-      },
-      {
-        slug: 'alumni',
-        name: 'Alumni',
-        workspace: 'School',
-        features: [
-          { key: 'student.alumni.alumni_network_registration', slug: 'alumni_network_registration', name: 'Alumni Network Registration', scope: 'self', tier: 'optional', summary: 'Register for the official school alumni network upon passing out to stay connected with batchmates.' },
-          { key: 'student.alumni.alumni_job_internship_board', slug: 'alumni_job_internship_board', name: 'Alumni Job & Internship Board', scope: 'self', tier: 'optional', summary: 'Senior students access exclusive internship and entry-level job posts shared by alumni network.' },
         ],
       },
       {
@@ -1655,7 +1632,6 @@ export const ROLES: Role[] = [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them, commendations and concerns alike, newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
       },
       {

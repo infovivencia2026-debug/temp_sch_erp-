@@ -5,6 +5,7 @@ import { badRequest, bool, clampInt, isUUID, notFound, now, ok, readJSON, uuid }
 import { can } from '../../identity'
 import { addDays, fullName, isHHMM, isUUIDish, istClock, istMinute, nextNumber, nz, parseJSON, round1, str, todayIST } from '../admissions/util'
 import { employeeFilter, growthReach } from './reach'
+import { overviewExtras, staffOverviewDoc } from './staff_overview_doc'
 import { school } from '../school'
 
 /* Port of the /hr group's own handlers: the dashboard, the employee directory
@@ -222,7 +223,17 @@ function staffCertificateName(code: string): string {
 }
 
 /** Writes one relieving, experience or service certificate against issued_certificates; returns the serial and the statements to batch. */
-export async function issueStaffCertificate(db: D1Database, inst: string, actor: string, emp: string, code: string, remarks: string | null): Promise<{ serial: string; stmts: D1PreparedStatement[] }> {
+type PayLine = { name: string; kind: string; amount_paise: number; component_id: string }
+/** The pay lines in force on a date: earnings first, in payroll order. */
+async function payOn(db: D1Database, emp: string, on: string): Promise<{ structureId: string | null; lines: PayLine[] }> {
+  const ss = await db.prepare(`SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?) ORDER BY effective_from DESC LIMIT 1`).bind(emp, on, on).first<{ id: string }>()
+  if (!ss) return { structureId: null, lines: [] }
+  const it = await db.prepare(`SELECT sc.id AS component_id, sc.name, sc.kind, ssi.amount_paise FROM salary_structure_items ssi JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ? ORDER BY sc.kind = 'deduction', sc.sequence, sc.name`).bind(ss.id).all<PayLine>()
+  return { structureId: ss.id, lines: (it.results ?? []).map((l) => ({ ...l, amount_paise: Number(l.amount_paise) || 0 })) }
+}
+
+export async function issueStaffCertificate(db: D1Database, inst: string, actor: string, emp: string, code: string, remarks: string | null,
+  opts: { salary?: { new_gross_paise: number; effective_from: string } } = {}): Promise<{ serial: string; stmts: D1PreparedStatement[] }> {
   const stmts: D1PreparedStatement[] = []
   let typeID = (await db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(code).first<{ id: string }>())?.id
   if (!typeID) {
@@ -230,16 +241,47 @@ export async function issueStaffCertificate(db: D1Database, inst: string, actor:
     stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, requires_approval, updated_at) VALUES (?,?,?,?,0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
   }
   const serial = await nextNumber(db, inst, 'certificate')
-  const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on
+  const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on,
+      e.employment_type, e.address, e.qualification, e.gender, e.user_id
       FROM employees e LEFT JOIN designations d ON d.id = e.designation_id LEFT JOIN departments dep ON dep.id = e.department_id WHERE e.id = ?`).bind(emp)
-    .first<{ name: string; employee_code: string; designation: string | null; department: string | null; joined_on: string; relieved_on: string | null }>()
+    .first<{ name: string; employee_code: string; designation: string | null; department: string | null; joined_on: string; relieved_on: string | null
+      employment_type: string | null; address: string | null; qualification: string | null; gender: string | null; user_id: string | null }>()
   if (!e) throw badRequest('That member of staff is not on this school\'s roll.')
   const quals = await db.prepare(`SELECT qualification FROM staff_qualifications WHERE employee_id = ? ORDER BY year_of_passing`).bind(emp).all<{ qualification: string }>()
   const today = todayIST()
   const relieved = e.relieved_on ?? today
   const years = Math.max(0, Math.floor((Date.parse(relieved) - Date.parse(e.joined_on)) / (365.25 * 86_400_000)))
+  /* What the letter prints, frozen today (owner's letter designs, 2026-10-06):
+     the pay lines in force, and for a salary revision the old and new lines. */
+  const pay = await payOn(db, emp, code === 'APPOINTMENT' ? (e.joined_on ?? today) : today)
+  const subjects = e.user_id ? ((await db.prepare(`SELECT DISTINCT sub.name FROM section_subject_teachers sst JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id WHERE sst.teacher_user_id = ? ORDER BY sub.name`).bind(e.user_id).all<{ name: string }>()).results ?? []).map((x) => x.name) : []
+  let revision: { effective_from: string; old: PayLine[]; new: PayLine[] } | undefined
+  if (code === 'SALARY_REVISION' && opts.salary) {
+    const { new_gross_paise, effective_from } = opts.salary
+    const earn = pay.lines.filter((l) => l.kind !== 'deduction')
+    const oldGross = earn.reduce((n, l) => n + l.amount_paise, 0)
+    if (oldGross <= 0) throw badRequest('This person has no salary set up in payroll yet. Set their pay first (Payroll → salary), then revise it.')
+    const factor = new_gross_paise / oldGross
+    const scaled = earn.map((l) => ({ ...l, amount_paise: Math.round((l.amount_paise * factor) / 100) * 100 }))
+    // Rounding to whole rupees can leave a few rupees over or under; it goes on the first line (Basic).
+    const drift = new_gross_paise - scaled.reduce((n, l) => n + l.amount_paise, 0)
+    if (scaled[0]) scaled[0].amount_paise += drift
+    const ded = pay.lines.filter((l) => l.kind === 'deduction')
+    revision = { effective_from, old: pay.lines, new: [...scaled, ...ded] }
+    // The letter and payroll can never disagree: the new pay is written as payroll's structure from that date.
+    const dayBefore = new Date(effective_from + 'T00:00:00Z'); dayBefore.setUTCDate(dayBefore.getUTCDate() - 1)
+    const sid = uuid()
+    stmts.push(
+      db.prepare(`UPDATE salary_structures SET effective_to = ? WHERE employee_id = ? AND effective_to IS NULL AND effective_from < ?`).bind(dayBefore.toISOString().slice(0, 10), emp, effective_from),
+      db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from = ?)`).bind(emp, effective_from),
+      db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND effective_from = ?`).bind(emp, effective_from),
+      db.prepare(`INSERT INTO salary_structures (id, institution_id, employee_id, effective_from, ctc_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(sid, inst, emp, effective_from, new_gross_paise * 12, now()),
+      ...revision.new.map((l) => db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, NULL)`).bind(uuid(), inst, sid, l.component_id, l.amount_paise)),
+    )
+  }
   const snapshot = { name: e.name, employee_code: e.employee_code, designation: e.designation, department: e.department, joined_on: e.joined_on, relieved_on: relieved,
-    years_of_service: years, qualifications: quals.results.map((q) => q.qualification), conduct: 'satisfactory', remarks, issued_at: now() }
+    years_of_service: years, qualifications: quals.results.map((q) => q.qualification), qualification: e.qualification, employment_type: e.employment_type,
+    address: e.address, gender: e.gender, subjects, pay: pay.lines, revision, conduct: 'good', remarks, issued_at: now() }
   stmts.push(db.prepare(`INSERT INTO issued_certificates (id, institution_id, certificate_type_id, employee_id, serial_no, issued_on, snapshot, status, requested_by, created_at) VALUES (?,?,?,?,?,?,?,'issued',?,?)`)
     .bind(uuid(), inst, typeID, emp, serial, today, JSON.stringify(snapshot), actor, now()))
   return { serial, stmts }
@@ -390,17 +432,185 @@ export function registerStaff(r: Router) {
     return ok({ items: rows.results.map((v) => omitNull({ ...v, roles: parseJSON<string[]>(v.roles, []) })) })
   })
 
+  /* EVERY MEMBER OF STAFF ON ONE SHEET, WITH WHAT THEY ACTUALLY TEACH.
+
+     The directory exports what the directory shows -- a name, a code, a
+     department -- which answers none of the questions a timetable meeting
+     opens with: who is class teacher of 6B, who takes Physics anywhere, who
+     is carrying four classes and who is carrying one. Those live on
+     section_subject_teachers and sections.class_teacher_id and were readable
+     one employee at a time, through Staff 360, and nowhere in bulk.
+
+     Three filters, because an export nobody can narrow is a file somebody
+     then narrows by hand in a spreadsheet:
+       status=active|inactive|all   (default active: the leavers are the
+                                     minority case and including them silently
+                                     is how a payroll count goes wrong)
+       class_id=<id>                only staff who teach that class or are
+                                     class teacher of one of its sections
+       teaching=1                   only staff with a teaching load at all
+
+     One query per list rather than one per employee: a school of 120 staff
+     would otherwise be 240 round trips. */
+  r.get('/hr/staff/export', READ, async (c) => {
+    const q = c.url.searchParams
+    const status = (q.get('status') ?? 'active').toLowerCase()
+    const classID = nz(q.get('class_id'))
+    const teachingOnly = q.get('teaching') === '1'
+    /* LEFT IS NOT A STATUS, IT IS EVERY STATUS BUT ONE.
+
+       A school's leavers are 'resigned' and 'terminated' here, and nothing is
+       ever stored as 'inactive' -- so matching the word would have returned an
+       empty file and said nothing was wrong with it. Measured on JSM: 20
+       active, 1 resigned, 1 terminated. */
+    const leavers = status === 'inactive'
+    const byStatus = status === 'all' || leavers ? null : status
+
+    const rows = (await c.db.prepare(`
+      SELECT e.id, e.user_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name,
+             COALESCE(dg.name, '') AS designation, COALESCE(d.name, '') AS department,
+             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email,
+             COALESCE(e.employment_type, '') AS employment_type, e.status,
+             COALESCE(e.joined_on, '') AS joined_on, COALESCE(e.qualification, '') AS qualification,
+             COALESCE(e.experience_years, '') AS experience_years
+        FROM employees e
+        LEFT JOIN departments d ON d.id = e.department_id
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+       WHERE (?1 IS NULL OR e.status = ?1) AND (?2 = 0 OR e.status <> 'active')
+       ORDER BY COALESCE(e.employee_code, ''), e.id`).bind(byStatus, leavers ? 1 : 0).all<Record<string, unknown>>()).results
+
+    /* The teaching load for everyone at once: class, section and subject per
+       assignment, so the export can say both which classes and which
+       subjects without asking twice. */
+    const load = (await c.db.prepare(`
+      SELECT sst.teacher_user_id AS uid, c.id AS class_id, c.name AS class, sec.name AS section, sub.name AS subject
+        FROM section_subject_teachers sst
+        JOIN sections sec ON sec.id = sst.section_id
+        JOIN classes c ON c.id = sec.class_id
+        JOIN class_subjects cs ON cs.id = sst.class_subject_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+       ORDER BY c.level, sec.name, sub.name`).all<Record<string, string>>()).results
+
+    const ct = (await c.db.prepare(`
+      SELECT sec.class_teacher_id AS uid, c.id AS class_id, c.name AS class, sec.name AS section
+        FROM sections sec JOIN classes c ON c.id = sec.class_id
+       WHERE sec.class_teacher_id IS NOT NULL
+       ORDER BY c.level, sec.name`).all<Record<string, string>>()).results
+
+    /* WHICH SUBJECT IN WHICH CLASS, not two lists side by side.
+
+       "Grade 6 B; Grade 7 A" beside "English; Mathematics" does not say who
+       takes Mathematics where -- it could be either class, or both, and the
+       reader has to open Staff 360 to find out, which is the trip this export
+       exists to save. The pairing is kept as well as the two lists, because a
+       spreadsheet still wants to filter on a subject alone. */
+    const teaches = new Map<string, {
+      classes: Set<string>; subjects: Set<string>; classIDs: Set<string>; pairs: Map<string, Set<string>>
+    }>()
+    for (const r of load) {
+      let t = teaches.get(r.uid)
+      if (!t) { t = { classes: new Set(), subjects: new Set(), classIDs: new Set(), pairs: new Map() }; teaches.set(r.uid, t) }
+      const where = `${r.class} ${r.section}`.trim()
+      t.classes.add(where)
+      t.subjects.add(r.subject)
+      t.classIDs.add(r.class_id)
+      let subs = t.pairs.get(where)
+      if (!subs) { subs = new Set(); t.pairs.set(where, subs) }
+      subs.add(r.subject)
+    }
+    const classOf = new Map<string, { sections: Set<string>; classIDs: Set<string> }>()
+    for (const r of ct) {
+      let t = classOf.get(r.uid)
+      if (!t) { t = { sections: new Set(), classIDs: new Set() }; classOf.set(r.uid, t) }
+      t.sections.add(`${r.class} ${r.section}`.trim())
+      t.classIDs.add(r.class_id)
+    }
+
+    const items = []
+    for (const e of rows) {
+      const uid = str(e.user_id)
+      const t = uid ? teaches.get(uid) : undefined
+      const ctOf = uid ? classOf.get(uid) : undefined
+      if (teachingOnly && !t && !ctOf) continue
+      if (classID) {
+        const hit = (t?.classIDs.has(classID) ?? false) || (ctOf?.classIDs.has(classID) ?? false)
+        if (!hit) continue
+      }
+      items.push({
+        /* The directory filters its own rows against this list, so the row
+           has to be identifiable: a staff code can be blank or repeated. */
+        id: str(e.id),
+        employee_code: str(e.employee_code),
+        full_name: str(e.full_name),
+        designation: str(e.designation),
+        department: str(e.department),
+        status: str(e.status),
+        employment_type: str(e.employment_type),
+        phone: str(e.phone),
+        email: str(e.email),
+        joined_on: str(e.joined_on),
+        qualification: str(e.qualification),
+        experience_years: e.experience_years === '' ? '' : String(e.experience_years),
+        class_teacher_of: [...(ctOf?.sections ?? [])].join('; '),
+        classes_taught: [...(t?.classes ?? [])].join('; '),
+        subjects_taught: [...(t?.subjects ?? [])].join('; '),
+        teaching_load: [...(t?.pairs ?? new Map<string, Set<string>>())]
+          .map(([where, subs]) => `${where}: ${[...subs].join(', ')}`)
+          .join('; '),
+        periods_count: String(t?.classes.size ?? 0),
+      })
+    }
+    return ok({ items, total: items.length })
+  })
+
+  /* THE PRINTOUT IS WHAT THE DIRECTORY IS SHOWING.
+
+     It printed every teacher in the school whatever the screen had been
+     narrowed to, so the two filters beside the button meant nothing to it --
+     choose one class, press Print, get a hundred pages. It takes the same two
+     now. There is no tick-box selection and deliberately so: what people
+     actually want is a class or the leavers, which the filters already say,
+     and a selection model would be a second way to answer the same question.
+
+     Still teaching staff only. The page is a teaching load and its results; a
+     driver has neither, and a blank sheet per driver is not a report. The
+     subtitle says which of the two numbers it is printing. */
   r.get('/hr/staff/overview/report', READ, async (c) => {
+    const q = c.url.searchParams
+    const status = (q.get('status') ?? 'all').toLowerCase()
+    const classID = nz(q.get('class_id'))
+    const leavers = status === 'inactive'
+    const byStatus = status === 'all' || leavers ? null : status
+    /* A CLASS TEACHER WITH NO SUBJECT IS STILL A TEACHER.
+
+       The list was built from subject assignments alone, so the person who
+       holds Nursery A and teaches no named subject was on the directory and
+       missing from its printout -- filter to Nursery, see one person, print,
+       get nothing. Whoever is class teacher of a section counts too. */
     const refs = await c.db.prepare(`
       SELECT DISTINCT e.id, e.user_id, ${fullName('e.first_name', 'e.last_name')} AS name, COALESCE(dg.name, '') AS desig
-        FROM section_subject_teachers sst JOIN employees e ON e.user_id = sst.teacher_user_id LEFT JOIN designations dg ON dg.id = e.designation_id ORDER BY 3`)
+        FROM employees e
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+       WHERE (?1 IS NULL OR e.status = ?1)
+         AND (?2 = 0 OR e.status <> 'active')
+         AND e.user_id IS NOT NULL
+         AND (
+           EXISTS (SELECT 1 FROM section_subject_teachers sst JOIN sections s2 ON s2.id = sst.section_id
+                    WHERE sst.teacher_user_id = e.user_id AND (?3 IS NULL OR s2.class_id = ?3))
+           OR EXISTS (SELECT 1 FROM sections s3
+                       WHERE s3.class_teacher_id = e.user_id AND (?3 IS NULL OR s3.class_id = ?3))
+         )
+       ORDER BY 3`)
+      .bind(byStatus, leavers ? 1 : 0, classID)
       .all<{ id: string; user_id: string; name: string; desig: string }>()
     let page = ''
     for (const ref of refs.results) {
       const ov = await computeStaffOverview(c.db, ref.id, ref.user_id, ref.name, ref.desig)
       page += `<div class="report page-break"><h1>${esc(staffReportTitle(ov))}</h1>${staffOverviewSection(ov)}</div>`
     }
-    if (page === '') page = `<div class="report"><p class="empty">No teaching staff to report on yet.</p></div>`
+    if (page === '') {
+      page = `<div class="report"><p class="empty">No teaching staff match what the directory is showing.</p></div>`
+    }
     const facts = await schoolFacts(c.db, c.id.institution!)
     return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: `${refs.results.length} teaching staff` }, page), css: staffOverviewCSS + DOC_PRINT_CSS, filename: 'staff-overview-all.pdf' })
   })
@@ -454,7 +664,17 @@ export function registerStaff(r: Router) {
     const ov = await resolveStaffOverview(c.db, c.params.id)
     if (!ov) throw notFound()
     const facts = await schoolFacts(c.db, c.id.institution!)
-    return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: staffReportTitle(ov) }, `<div class="report">${staffOverviewSection(ov)}</div>`), css: staffOverviewCSS + DOC_PRINT_CSS, filename: `staff-overview-${c.params.id}.pdf` })
+    /* The owner's design, with the extra figures (staff_overview_doc.ts). */
+    const person = await c.db.prepare(`SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, e.employment_type, e.status, e.joined_on,
+        e.date_of_birth, e.gender, e.address, e.photo_file_id, e.experience_years, e.emergency_contact_name, e.emergency_contact_phone, e.user_id,
+        d.name AS department, dg.name AS designation
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`)
+      .bind(c.params.id).first<Record<string, unknown>>()
+    if (!person) throw notFound()
+    const me = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(c.id.userId).first<{ full_name: string }>()
+    const extras = await overviewExtras(c.db, c.params.id, (person.user_id as string | null) ?? null)
+    const doc = staffOverviewDoc({ facts, printedBy: me?.full_name ?? '', person, load: ov.load, marks: ov.marks }, extras)
+    return ok({ html: doc.html, css: doc.css, filename: `staff-overview-${c.params.id}.pdf` })
   })
 
   r.get('/hr/documents', READ, async (c) => {
@@ -483,7 +703,15 @@ export function registerStaff(r: Router) {
     const exists = await c.db.prepare(`SELECT 1 FROM employees WHERE id = ?`).bind(empID).first()
     if (!exists) throw badRequest("That member of staff is not on this school's roll.")
     const inst = school(c).id
-    const { serial, stmts } = await issueStaffCertificate(c.db, inst, c.id.userId, empID, kind, body !== '' ? body : null)
+    let salary: { new_gross_paise: number; effective_from: string } | undefined
+    if (kind === 'SALARY_REVISION') {
+      const gross = Math.round(Number(req.new_gross) * 100)
+      const from = str(req.effective_from).trim()
+      if (!(gross > 0)) throw badRequest('Enter the new monthly gross salary.')
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw badRequest('Enter the date the new salary starts.')
+      salary = { new_gross_paise: gross, effective_from: from }
+    }
+    const { serial, stmts } = await issueStaffCertificate(c.db, inst, c.id.userId, empID, kind, body !== '' ? body : null, { salary })
     const entry = kind === 'APPOINTMENT' ? 'appointment' : kind === 'SALARY_REVISION' ? 'increment' : kind === 'WARNING' ? 'punishment' : 'other'
     stmts.push(c.db.prepare(`INSERT INTO service_book_entries (id, institution_id, employee_id, entry_kind, event_date, title, particulars, source, created_by, created_at) VALUES (?,?,?,?,?,?,?,'manual',?,?)`)
       .bind(uuid(), inst, empID, entry, todayIST(), `${name} issued (${serial})`, nz(body), c.id.userId, now()))

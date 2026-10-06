@@ -4,6 +4,7 @@ import {
   addDays, daysBetween, fin, inList, isDate, isForeignKeyViolation, isUniqueViolation, items, p, paise, requireOpenPeriod, str, today,
 } from './common'
 import { school } from '../school'
+import { ensureChart } from '../../services/chart_of_accounts'
 
 /* Port of internal/api/ledgers.go and petty_cash_float.go (mountLedgers).
 
@@ -93,6 +94,7 @@ interface Controls {
   depreciation: string; accumulated: string; surplus: string
 }
 async function loadControls(c: Ctx): Promise<Controls> {
+  await ensureChart(c.db, inst(c))
   const r = await c.db.prepare(`SELECT cash_account_id, bank_account_id, petty_cash_account_id,
       fee_receivable_account_id, fee_income_account_id, payable_account_id,
       depreciation_expense_account_id, accumulated_depreciation_account_id, surplus_account_id
@@ -265,6 +267,7 @@ export function registerLedgers(r: Router): void {
   // --- chart of accounts -------------------------------------------------
 
   r.get(`${F}/ledgers/accounts`, READ, fin(async (c) => {
+    await ensureChart(c.db, inst(c))
     const rows = await c.db.prepare(`
       WITH RECURSIVE tree AS (
           SELECT a.id, 0 AS depth, a.code AS path FROM ledger_accounts a WHERE a.parent_id IS NULL
@@ -317,7 +320,7 @@ export function registerLedgers(r: Router): void {
   r.get(`${F}/ledgers/settings`, READ, fin(async (c) => {
     const s = await c.db.prepare(`SELECT cash_account_id, bank_account_id, petty_cash_account_id, fee_receivable_account_id, fee_income_account_id,
         payable_account_id, depreciation_expense_account_id, accumulated_depreciation_account_id, surplus_account_id,
-        petty_cash_limit_paise, default_depreciation_method FROM ledger_settings WHERE institution_id = ?`).bind(inst(c)).first<Record<string, unknown>>()
+        petty_cash_limit_paise, default_depreciation_method, gstin, pan, tan FROM ledger_settings WHERE institution_id = ?`).bind(inst(c)).first<Record<string, unknown>>()
     // A school provisioned before the migration has no row: an empty shape, not a 404.
     if (!s) return ok({ petty_cash_limit_paise: 0, default_depreciation_method: 'straight_line' })
     return ok({
@@ -326,6 +329,8 @@ export function registerLedgers(r: Router): void {
       payable_account_id: opt(s.payable_account_id), depreciation_expense_account_id: opt(s.depreciation_expense_account_id),
       accumulated_depreciation_account_id: opt(s.accumulated_depreciation_account_id), surplus_account_id: opt(s.surplus_account_id),
       petty_cash_limit_paise: p(s.petty_cash_limit_paise), default_depreciation_method: str(s.default_depreciation_method),
+      /* The school's own registrations, for the taxation sheet's letterhead. */
+      gstin: opt(s.gstin), pan: opt(s.pan), tan: opt(s.tan),
     })
   }))
 
@@ -338,8 +343,9 @@ export function registerLedgers(r: Router): void {
     const limit = int64(req.petty_cash_limit_paise, 'petty_cash_limit_paise')
     await runBatch(c, [c.db.prepare(`INSERT INTO ledger_settings (institution_id, cash_account_id, bank_account_id, petty_cash_account_id,
         fee_receivable_account_id, fee_income_account_id, payable_account_id, depreciation_expense_account_id,
-        accumulated_depreciation_account_id, surplus_account_id, petty_cash_limit_paise, default_depreciation_method, updated_at)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+        accumulated_depreciation_account_id, surplus_account_id, petty_cash_limit_paise, default_depreciation_method, updated_at,
+        gstin, pan, tan)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
       ON CONFLICT (institution_id) DO UPDATE SET
         cash_account_id = excluded.cash_account_id, bank_account_id = excluded.bank_account_id,
         petty_cash_account_id = excluded.petty_cash_account_id, fee_receivable_account_id = excluded.fee_receivable_account_id,
@@ -347,10 +353,15 @@ export function registerLedgers(r: Router): void {
         depreciation_expense_account_id = excluded.depreciation_expense_account_id,
         accumulated_depreciation_account_id = excluded.accumulated_depreciation_account_id,
         surplus_account_id = excluded.surplus_account_id, petty_cash_limit_paise = excluded.petty_cash_limit_paise,
-        default_depreciation_method = excluded.default_depreciation_method, updated_at = excluded.updated_at`)
+        default_depreciation_method = excluded.default_depreciation_method, updated_at = excluded.updated_at,
+        gstin = excluded.gstin, pan = excluded.pan, tan = excluded.tan`)
       .bind(inst(c), acc(req.cash_account_id), acc(req.bank_account_id), acc(req.petty_cash_account_id), acc(req.fee_receivable_account_id),
         acc(req.fee_income_account_id), acc(req.payable_account_id), acc(req.depreciation_expense_account_id),
-        acc(req.accumulated_depreciation_account_id), acc(req.surplus_account_id), limit, method, now())])
+        acc(req.accumulated_depreciation_account_id), acc(req.surplus_account_id), limit, method, now(),
+        /* Upper case and trimmed: a registration is a code, and a school that
+           types one with a stray space should not have it print that way. */
+        nullIf(str(req.gstin).trim().toUpperCase()), nullIf(str(req.pan).trim().toUpperCase()),
+        nullIf(str(req.tan).trim().toUpperCase()))])
     return ok({ saved: true })
   }))
 
@@ -377,6 +388,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/trial-balance`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const fy = fyFrom(c)
     const { start, end: fyEnd } = fyRange(fy)
     let end = fyEnd
@@ -422,6 +434,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/account-ledger`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const accID = c.url.searchParams.get('account_id')
     if (!isUUID(accID)) throw badRequest('account_id must be a uuid')
     const fy = fyFrom(c)
@@ -456,6 +469,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/statements`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const fy = fyFrom(c)
     const { start, end } = fyRange(fy)
     type SRow = { code: string; name: string; group: string; paise: number; is_group: boolean }
@@ -1276,7 +1290,19 @@ export function registerLedgers(r: Router): void {
 
   // --- reports -----------------------------------------------------------
 
+  /* FEES REACH THE BOOKS ON THEIR OWN (owner, 2026-10-05: a fee collected
+     at the counter never showed in the daybook or cashbook, because the
+     fee posting sweep only ran when someone pressed it). The sweep is safe to
+     run any number of times -- one journal entry per source, by unique index
+     -- so every book runs it before it reads. A school whose control
+     accounts are not set up yet simply gets no posting, as before. */
+  const autoPostFees = async (c: Ctx) => {
+    try { await feePosting(c, false) } catch (e) { console.log('fee auto-post skipped', (e as Error).message) }
+  }
+
+
   r.get(`${F}/ledgers/daybook`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const on = dateOr(c.url.searchParams.get('on'), today(), 'on must be YYYY-MM-DD')
     const rows = await c.db.prepare(`${VOUCHER_SELECT},
              COALESCE((SELECT group_concat(x, ' / ') FROM (SELECT a.code || ' ' || a.name AS x FROM journal_lines l JOIN ledger_accounts a ON a.id = l.account_id
@@ -1292,6 +1318,7 @@ export function registerLedgers(r: Router): void {
   }))
 
   r.get(`${F}/ledgers/cashbook`, READ, fin(async (c) => {
+    await autoPostFees(c)
     const q = c.url.searchParams
     const t = today()
     const from = dateOr(q.get('from'), t.slice(0, 8) + '01', 'from must be YYYY-MM-DD')
@@ -1334,6 +1361,11 @@ export function registerLedgers(r: Router): void {
   r.get(`${F}/ledgers/tax-report`, READ, fin(async (c) => {
     const fy = fyFrom(c)
     const { start, end } = fyRange(fy)
+    /* The school's own registrations. A taxation sheet with none on it cannot
+       be filed, checked or matched to a return, so the sheet prints whichever
+       of the three the school has entered and says plainly when it has none. */
+    const reg = await c.db.prepare(`SELECT gstin, pan, tan FROM ledger_settings WHERE institution_id = ?`)
+      .bind(inst(c)).first<Record<string, string | null>>()
     const vrows = await c.db.prepare(`
       SELECT v.name, v.gstin, v.pan, count(b.id) AS bills, COALESCE(sum(b.taxable_paise), 0) AS taxable, COALESCE(sum(b.tax_paise), 0) AS tax,
              COALESCE(sum((SELECT COALESCE(sum(vp.tds_paise), 0) FROM vendor_payments vp WHERE vp.bill_id = b.id)), 0) AS tds
@@ -1357,7 +1389,8 @@ export function registerLedgers(r: Router): void {
        GROUP BY a.id, a.code, a.name, p.name
        ORDER BY a.code`).bind(end).all<Record<string, unknown>>()
     const dues = drows.results.map((d) => ({ code: str(d.code), name: str(d.name), group: str(d.grp), paise: p(d.paise), is_group: false }))
-    return ok({ fy_start_year: fy, fy_label: fyLabel(fy), from: start, to: end, vendors, statutory_dues: dues, taxable_paise: taxable, tax_paise: tax, tds_withheld_paise: tds })
+    return ok({ fy_start_year: fy, fy_label: fyLabel(fy), from: start, to: end, vendors, statutory_dues: dues, taxable_paise: taxable, tax_paise: tax, tds_withheld_paise: tds,
+      gstin: opt(reg?.gstin ?? null), pan: opt(reg?.pan ?? null), tan: opt(reg?.tan ?? null) })
   }))
 
   r.get(`${F}/ledgers/audit-report`, READ, fin(async (c) => {

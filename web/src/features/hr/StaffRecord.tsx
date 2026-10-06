@@ -418,7 +418,9 @@ export default function StaffRecord({ employeeID, onClose }: {
           <Button variant="secondary" size="sm" disabled={exportReport.isPending}
             onClick={() => exportReport.mutate()}>
             <Printer className="h-3.5 w-3.5" aria-hidden />
-            {exportReport.isPending ? 'Preparing…' : 'Export PDF'}
+            {/* It opens the print sheet, where Save as PDF is the browser's
+                own choice. Calling it Export PDF promised a file. */}
+            {exportReport.isPending ? 'Preparing…' : 'Print'}
           </Button>
           <button type="button" onClick={close} aria-label="Close"
             className="rounded p-1 text-muted-foreground hover:bg-accent">

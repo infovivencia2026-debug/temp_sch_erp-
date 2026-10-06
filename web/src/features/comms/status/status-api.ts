@@ -30,6 +30,7 @@ export interface Audiences {
   max_video_seconds: number
   needs_approval: boolean
   max_bytes: number
+  storage_warning?: string
 }
 
 export interface MyPost {

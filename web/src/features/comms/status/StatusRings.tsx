@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { onShared, peekShared, takeShared } from '@/lib/shell'
-import { containerTransform, useStaggerOnce } from '@/lib/motion'
+import { useStaggerOnce } from '@/lib/motion'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ import { Dialog } from '@/components/ui'
 import { StatParts } from '@/components/stat-extras'
 import StoryViewer, { initials, type StoryGroup, type StoryItem } from '@/components/StoryViewer'
 import type { StatusFeed, StatusItem, StatusRing } from '@shared/api/feature_class_status'
+import HeartButton from './HeartButton'
 import StatusComposer, { AddChooser } from './StatusComposer'
 import { FEED_KEY, fileUrl, useStatusFeed, type AddMode, type Viewed } from './status-api'
 
@@ -54,6 +55,7 @@ function Ring({ label, unseen, onClick, children, badge, compact }: { label: str
 }
 
 function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClose: () => void; raised?: boolean }) {
+  const [seenFind, setSeenFind] = useState('')
   const q = useQuery({ queryKey: ['class-status-views', postId], queryFn: () => api.get<{ items: Viewed[]; views: number; audience: number }>(`/api/v1/status/posts/${postId}/views`) })
   /* WHO HAS SEEN IT, SAID IN FULL. This was "3 of 20" and a list. The poster
      wants to know how far it got, among whom, and who is left: the share, a
@@ -95,14 +97,22 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
           {list.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">{d.views === 0 ? 'It will show here as people open it.' : 'Nobody of that kind yet.'}</p>
           ) : (
-            <ul className="mt-4 grid gap-2.5 text-sm">
-              {list.map((v) => (
-                <li key={v.user_id} className="flex items-baseline justify-between gap-3">
+            /* A hundred names do not stretch the sheet: a search and a list
+               that scrolls inside it. */
+            <>
+            {list.length > 8 && (
+              <input value={seenFind} onChange={(e) => setSeenFind(e.target.value)} placeholder="Find a name"
+                className="mt-4 w-full rounded-lg border bg-card px-3 py-2 text-[13px]" />
+            )}
+            <ul className="mt-3 max-h-[45vh] divide-y overflow-y-auto rounded-lg border text-sm">
+              {list.filter((v) => !seenFind.trim() || `${v.full_name} ${v.student_name ?? ''}`.toLowerCase().includes(seenFind.trim().toLowerCase())).map((v) => (
+                <li key={v.user_id} className="flex items-baseline justify-between gap-3 px-3 py-2">
                   <span>{v.full_name}{v.kind === 'parent' && v.student_name ? <span className="text-muted-foreground"> · parent of {v.student_name}</span> : null}</span>
                   <span className="shrink-0 text-[12px] text-muted-foreground">{new Date(v.viewed_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
                 </li>
               ))}
             </ul>
+            </>
           )}
         </>
       )}
@@ -110,11 +120,29 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
   )
 }
 
-export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, onViews: (id: string) => void): StoryGroup[] {
+export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: string | undefined, _onViews: (id: string) => void, onPin?: (id: string, pinned: boolean) => void, canManage = false): StoryGroup[] {
   const item = (p: StatusItem): StoryItem => ({
     id: p.id, title: p.caption ?? '', media: p.media_kind === 'video' ? 'video' : p.media_kind === 'text' ? 'text' : 'image', src: p.url || undefined,
-    postedAt: p.published_at, seen: p.seen || p.mine, tag: p.audience, poster: p.thumb,
-    footer: p.mine ? <button type="button" onClick={() => onViews(p.id)}><Eye className="size-4" /> Seen by</button> : undefined,
+    postedAt: p.published_at, seen: p.seen || p.mine, poster: p.thumb,
+    /* On your own status: keep it in the gallery (pin) or take it out, while
+       watching it. Seen by stays on the My posts page. */
+    /* The poster, and the institution admin / principal (status.manage), may pin. */
+    /* THE HEART TRAVELS WITH THE POST.
+
+       It is under every status, the poster's own included, so a parent can
+       answer a photo where they are watching it rather than having to find
+       the same picture again in the gallery. The pin stays beside it for
+       whoever may pin. */
+    footer: (
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <HeartButton post={p} dark />
+        {(p.mine || canManage) && onPin && (
+          <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
+            {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
+          </button>
+        )}
+      </span>
+    ),
   })
   const groups: StoryGroup[] = feed.rings.map((r: StatusRing) => ({
     id: r.key, name: r.as_school ? schoolName : r.mine ? 'My status' : r.name,
@@ -133,8 +161,12 @@ function PlusBadge({ onClick, label }: { onClick: () => void; label: string }) {
   )
 }
 
-export default function StatusRings({ className, compact = false, openId, onOpenHandled, raised = false }: {
+export default function StatusRings({ className, compact = false, openId, onOpenHandled, raised = false, onCompose }: {
   className?: string
+  /** Hand the picked file to a composer that lives outside this strip: inside
+      the notifications drawer, closing the chooser closed the drawer and took
+      the composer with it. */
+  onCompose?: (next: { file: File | null; asSchool: boolean; mode?: AddMode }) => void
   /** The strip at the top of the notification panel: no card, smaller rings, no heading. */
   compact?: boolean
   /** Open the viewer at this post (a status notification was tapped). */
@@ -149,6 +181,25 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const [open, setOpen] = useState<{ group: number; id?: string } | null>(null)
   const [choose, setChoose] = useState<{ asSchool: boolean } | null>(null)
   const [compose, setCompose] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
+  const photoIn = useRef<HTMLInputElement>(null)
+  const videoIn = useRef<HTMLInputElement>(null)
+  const cameraIn = useRef<HTMLInputElement>(null)
+  const pickFor = useRef(false)
+  /* ONE POP-UP AFTER THE OTHER. Closing the chooser steps the browser back
+     (that is how a pop-up honours the phone's back button); opening the
+     composer in the same moment let that back close the composer too, so a
+     picked photo led straight back to the home screen. The composer opens
+     once the chooser's back has landed. */
+  const openComposer = (next: { file: File | null; asSchool: boolean; mode?: AddMode }) => {
+    setChoose(null)
+    if (onCompose) { onCompose(next); return }
+    window.setTimeout(() => setCompose(next), 350)
+  }
+  const picked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (f) openComposer({ file: f, asSchool: pickFor.current })
+  }
   const [views, setViews] = useState<string | null>(null)
   /* Photos shared into the app from the phone's gallery (components/ShareInbox.tsx). */
   useEffect(() => {
@@ -164,7 +215,11 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   const schoolName = inst?.display_name || inst?.short_name || inst?.name || 'School'
   const schoolLogo = fileUrl(inst?.logo_key)
   const data = feed.data
-  const groups = useMemo(() => (data ? toGroups(data, schoolName, schoolLogo, setViews) : []), [data, schoolName, schoolLogo])
+  const canManagePosts = useSession().permissions.includes('status.manage')
+  const pinPost = useCallback((id: string, pinned: boolean) => {
+    void api.post(`/api/v1/status/posts/${id}/pin`, { pinned }).then(() => qc.invalidateQueries({ queryKey: FEED_KEY }))
+  }, [qc])
+  const groups = useMemo(() => (data ? toGroups(data, schoolName, schoolLogo, setViews, pinPost, canManagePosts) : []), [data, schoolName, schoolLogo, pinPost, canManagePosts])
 
   // Opened from a notification: /?status=<post id> (the home), or openId (the panel).
   const wanted = compact ? null : params.get('status')
@@ -217,7 +272,11 @@ export default function StatusRings({ className, compact = false, openId, onOpen
   /* The tapped face morphs into the viewer's avatar (a shared element);
      where the engine cannot, the viewer simply opens. */
   const openFrom = useCallback((face: HTMLElement | null, at: { group: number; id?: string }) => {
-    containerTransform(face, () => setOpen(at), () => document.querySelector('.story__avatar'))
+    /* Straight open, no zoom-from-the-ring transition: that transition drew
+       the sidebar on its own layer above the viewer, so it stayed lit over
+       the black screen. */
+    void face
+    setOpen(at)
   }, [])
   const stripRef = useStaggerOnce<HTMLDivElement>()
 
@@ -285,11 +344,15 @@ export default function StatusRings({ className, compact = false, openId, onOpen
         </div>
       )}
       {strip}
-      {open && groups.length > 0 && <StoryViewer groups={groups} start={Math.max(0, open.group)} startId={open.id} onClose={close} onSeen={markSeen} startMuted />}
+      {open && groups.length > 0 && <StoryViewer groups={groups} start={Math.max(0, open.group)} startId={open.id} onClose={close} onSeen={markSeen} />}
+      <input ref={photoIn} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
+      <input ref={videoIn} type="file" accept="video/*" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
+      <input ref={cameraIn} type="file" accept={data.allow_video ? 'image/*,video/*' : 'image/*'} capture="environment" className="sr-only" tabIndex={-1} aria-hidden onChange={picked} />
       {choose && (
         <AddChooser raised={raised} asSchool={choose.asSchool} allowVideo={data.allow_video} onClose={() => setChoose(null)}
-          onPick={(f) => { setCompose({ file: f, asSchool: choose.asSchool }); setChoose(null) }}
-          onText={() => { setCompose({ file: null, asSchool: choose.asSchool, mode: 'text' }); setChoose(null) }} />
+          openPicker={(k) => { pickFor.current = choose.asSchool; (k === 'photo' ? photoIn : k === 'video' ? videoIn : cameraIn).current?.click() }}
+          onPick={(f) => openComposer({ file: f, asSchool: choose.asSchool })}
+          onText={() => openComposer({ file: null, asSchool: choose.asSchool, mode: 'text' })} />
       )}
       {compose && <StatusComposer raised={raised} file={compose.file} mode={compose.mode} asSchool={compose.asSchool} onClose={() => { setCompose(null); void qc.invalidateQueries({ queryKey: FEED_KEY }) }} />}
       {views && <ViewsSheet raised={raised} postId={views} onClose={() => setViews(null)} />}

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, Check, Undo2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CopyRef } from './CopyRef'
 
 /* Did that save?
 
@@ -156,6 +157,8 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
         )}
       </span>
       <p className="min-w-0 flex-1">{t.message}</p>
+      {/* An unexpected error's reference: copied for a help request (Help > Report a problem). */}
+      {t.kind === 'error' && <CopyRef text={t.message} />}
       {t.undo && (
         <button
           type="button"

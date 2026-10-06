@@ -11,6 +11,7 @@ import { takeOffline } from './outbox'
 import { mayQueue } from './offline-policy'
 import { noteWrite } from './save-feedback'
 import { bootstrapped } from './bootstrap'
+import { noteFailedRequest } from './diagnostics'
 import type { BootstrapResponse } from '@shared/api'
 
 export class ApiError extends Error {
@@ -27,6 +28,8 @@ export class ApiError extends Error {
      * something the server had already said, so they mostly did not ask and
      * showed a sentence where a list belonged. */
     readonly body?: unknown,
+    /** The six-character reference of an unexpected server error (worker/src/services/error_refs.ts). */
+    readonly ref?: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -217,8 +220,14 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
         /* an old browser without CustomEvent: the message below still shows */
       }
     }
-    throw new ApiError(res.status, e?.code ?? 'unknown', e?.message ?? res.statusText,
-      e?.request_id, body)
+    const ref = typeof body?.ref === 'string' ? body.ref : res.headers.get('X-Error-Ref') ?? undefined
+    noteFailedRequest(path, res.status, ref)
+    /* An unexpected error says so in words and carries its reference, so
+       every toast and error line that prints the message shows it too. */
+    const message = ref && (e?.message === 'internal' || !e?.message)
+      ? `Something went wrong on our side. Ref: ${ref}`
+      : e?.message ?? res.statusText
+    throw new ApiError(res.status, e?.code ?? 'unknown', message, e?.request_id, body, ref)
   }
   /* The worker's mark, carried through to whoever reads the answer.
 

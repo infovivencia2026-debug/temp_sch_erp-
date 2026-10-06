@@ -350,11 +350,21 @@ export class SchoolPDF {
     for (const l of this.wrap(this.opts.title, 15, titleW, true)) { this.text(l, this.M + 9, yy, 15, { bold: true }); yy += 18 }
     if (this.opts.subtitle) for (const l of this.wrap(this.opts.subtitle, 9.5, titleW)) { this.text(l, this.M + 9, yy + 1, 9.5, { color: MUTED }); yy += 12.5 }
     this.page.drawRectangle({ x: this.M, y: this.H - yy, width: 3, height: yy - titleTop, color: this.accent })
+    /* TWO COLUMNS, NOT TWO INDEPENDENT ROWS.
+
+       Each row used to place its label against its OWN value's width, so No.
+       and Date landed at different x positions -- the longer the receipt
+       number, the further left its label sat -- and the block read as ragged
+       against a letterhead that is otherwise squared off. The values stay
+       right-aligned to the margin; the labels now share one right edge,
+       computed from the widest value in the block. */
     let my = titleTop + 2
+    const valueW = Math.max(...meta.map(([, v]) => this.width(v, 9, true)))
+    const labelRight = this.W - this.M - valueW - 8
     for (const [k, v] of meta) {
       const vw = this.width(v, 9, true)
       this.text(v, this.W - this.M - vw, my, 9, { bold: true })
-      this.text(k, this.W - this.M - vw - 8 - this.width(k, 8.5), my + 0.5, 8.5, { color: FAINT })
+      this.text(k, labelRight - this.width(k, 8.5), my + 0.5, 8.5, { color: FAINT })
       my += 12.5
     }
     this.y = Math.max(yy, my) + 14

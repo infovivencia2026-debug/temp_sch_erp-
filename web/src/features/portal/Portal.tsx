@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import StatusRings from '@/features/comms/status/StatusRings'
+import JoinActivities from './JoinActivities'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -523,7 +523,6 @@ export default function Portal() {
       />
       <Freshness query={summary} />
       <PageBody>
-        <StatusRings />
         {/* The weekly AI note about this child, once one has been written. */}
         {activeId && <WeeklyNoteCard studentId={activeId} />}
         {/* One dashboard rather than three tabs of it. What needs attention
@@ -645,6 +644,7 @@ export default function Portal() {
                     </ul>
                   )}
                 </Card>
+                <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
                 {/* The next school day, as the student's My day shows it. */}
                 {s.next_day && s.next_day.periods.some((x) => x.subject !== 'Free') && (
                   <Card className="mt-6">

@@ -212,7 +212,8 @@ export function entitlementAllows(st: Entitlement, sectionSlug: string): boolean
 
 // --- the catalog ------------------------------------------------------------------
 
-const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile'])
+// Help stays reachable while a school is still being set up: that is when it is needed most.
+const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile', 'help'])
 const EVIDENCE_KEYS = new Set([
   'parent.my_childs_bus.live_bus_tracking', 'parent.alerts_preferences.parent_bus_proximity_radius_customizer',
   'institution_admin.hostel.hostel_rooms', 'institution_admin.hostel.outpasses_mess', 'institution_admin.hostel.night_study_attendance',
@@ -357,24 +358,73 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
 
   if (directFeatures.size > 0) {
     const emitted = new Set<string>()
-    for (const ro of roles) for (const s of ro.sections) for (const f of s.features) emitted.add(f.key)
-    const granted: ReturnType<typeof feat>[] = []
+    /* ONE SCREEN, ONE ROW, WHATEVER IT IS KEYED AS.
+
+       The same screen is catalogued once per workspace that offers it:
+       "Present & absent" is both institution_admin.academics.student_absentees
+       and faculty.attendance.student_absentees, "Take attendance" is both the
+       faculty and the hod key. That is right for the catalogue -- each
+       workspace needs its own entry -- and normally invisible, because a
+       person holds the key for their own workspace and no other.
+
+       It stops being invisible the moment a feature is granted directly.
+       /admin/features groups the tick boxes by NAME and grants every key with
+       that name, so one tick on "Present & absent" writes both keys, and this
+       list then drew a row for each: the same screen twice in the sidebar,
+       under the same words, going to the same place.
+
+       Deduped by name as well as by key. The name is what somebody reads and
+       what they would be choosing between, and there is nothing to choose:
+       both rows open the same screen with the same reach. */
+    const emittedNames = new Set<string>()
+    for (const ro of roles) for (const s of ro.sections) for (const f of s.features) { emitted.add(f.key); emittedNames.add(f.name) }
+    /* GRANTED FEATURES KEEP THE SECTION THEY BELONG TO.
+
+       Everything granted directly used to land in one bucket called "Granted
+       to you", at the end of the sidebar. An attendance clerk given Take
+       attendance, Present & absent, Absentee followup and Attendance
+       correction found none of them under Attendance, where she looked, and
+       all four under a heading naming the manner of the grant rather than the
+       work -- which is an implementation detail of how she got them, not a
+       thing she needs to know. She told us she could not find Take attendance
+       anywhere until she searched for it.
+
+       Each one keeps its own section instead: Attendance goes under
+       Attendance, and merges into that section if her workspace already has
+       one. Only a feature whose section she has no other claim on starts a
+       new heading, and it is named after the work. */
+    const bySection = new Map<string, { name: string; features: ReturnType<typeof feat>[] }>()
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
-      if (!directFeatures.has(f.key) || emitted.has(f.key)) continue
+      if (!directFeatures.has(f.key) || emitted.has(f.key) || emittedNames.has(f.name)) continue
       if (role.key === 'student' && STUDENT_HIDDEN_SECTIONS.has(sec.slug)) continue
       if (!(await gate(sec.slug, f))) continue
-      granted.push(feat(f, true))
+      let g = bySection.get(sec.slug)
+      if (!g) { g = { name: sec.name, features: [] }; bySection.set(sec.slug, g) }
+      g.features.push(feat(f, true))
       emitted.add(f.key)
+      emittedNames.add(f.name)
     }
-    if (granted.length > 0) {
+    const granted: ReturnType<typeof feat>[] = []
+    if (bySection.size > 0) {
       const primary = roles.findIndex((ro) => mine.has(ro.key))
-      if (primary >= 0) {
-        roles[primary].sections.push({ slug: 'granted', name: 'Granted to you', workspace: roles[primary].name, features: granted })
-      } else {
-        roles.push({ key: roles.length > 0 ? roles[0].key : 'granted', name: 'Granted to you',
-          sections: [{ slug: 'granted', name: 'Granted to you', workspace: 'Granted to you', features: granted }] })
+      if (primary < 0) {
+        roles.push({ key: roles.length > 0 ? roles[0].key : 'granted', name: 'Granted to you', sections: [] })
+      }
+      const host = roles[primary >= 0 ? primary : roles.length - 1]
+      for (const [slug, g] of bySection) {
+        const existing = host.sections.find((s) => s.slug === slug)
+        if (existing) existing.features.push(...g.features)
+        else host.sections.push({ slug, name: g.name, workspace: host.name, features: g.features })
       }
     }
+  }
+
+  /* ABSENTEE FOLLOW-UP IS THE OFFICE'S, NOT A TEACHER'S (the owner's rule):
+     a teacher takes attendance and sees present and absent for their class;
+     the calling-round is for whoever reads the whole school's attendance.
+     Done here, in code, so regenerating the catalogue cannot bring it back. */
+  if (!can(c.id, 'academics.attendance.read.all')) {
+    for (const ro of roles) for (const s of ro.sections) s.features = s.features.filter((f) => f.key !== 'faculty.attendance.absentee_followup')
   }
 
   if (can(c.id, 'academics.attendance.read.all')) {

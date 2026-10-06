@@ -28,12 +28,18 @@ function constraintRefusal(err: unknown): { status: number; message: string } | 
   return null
 }
 
-export function errorResponse(err: unknown): Response {
+/** Neither a refusal we threw nor a constraint the caller broke: a fault of ours. */
+export const unexpectedError = (err: unknown): boolean => !(err instanceof HttpError) && constraintRefusal(err) === null
+
+/* `ref` is the error reference (services/error_refs.ts) for an unexpected
+   error: it goes back in the body and in X-Error-Ref so the screen can show
+   "Ref: K7Q2X9" and a help request can carry it. */
+export function errorResponse(err: unknown, ref?: string): Response {
   if (err instanceof HttpError) return json({ error: err.message, ...err.extra }, err.status)
   const refused = constraintRefusal(err)
   if (refused) return json({ error: refused.message }, refused.status)
-  console.error(err)
-  return json({ error: 'internal' }, 500)
+  console.error(ref ? `[${ref}]` : '', err)
+  return json(ref ? { error: 'internal', code: 'internal', ref } : { error: 'internal' }, 500, ref ? { 'x-error-ref': ref } : {})
 }
 
 export const ok = (body: unknown = { ok: true }) => json(body)

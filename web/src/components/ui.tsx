@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
+import { CopyRef } from './CopyRef'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -144,7 +145,7 @@ export function PageHead({
           {eyebrow ? (
             <h1 className="sr-only">{title}</h1>
           ) : (
-            <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
+            <h1 data-help-anchor="page-title" className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
           )}
           {/* The description is no longer drawn.
 
@@ -158,7 +159,7 @@ export function PageHead({
               text is still there to move somewhere it earns its place: a hint
               on an empty state, or beside the control it is about. */}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2"><InPageActions.Provider value={true}>{actions}</InPageActions.Provider></div>}
       </div>
     </div>
   )
@@ -663,8 +664,24 @@ function cellText(node: ReactNode): string {
 }
 
 /** One CSV field: quoted only when it has to be, which keeps the file readable. */
+/* MONEY LEAVES AS A NUMBER.
+
+   A fee rendered on screen is ₹1,000 -- the symbol is what makes it readable
+   there. In a spreadsheet it is neither readable nor useful: the column cannot
+   be summed, sorted or compared, because every cell is text. And it arrived
+   mangled besides, as "a,1,000", because a BOM is advice and Excel on a
+   Windows machine in this region does not always take it.
+
+   So a cell that is ONLY money becomes the bare figure: 1000. One rule rather
+   than a per-screen opt-in, because the next table to be exported would have
+   to remember. A cell carrying money and words together is left alone --
+   "₹1,200 of ₹5,000 paid" is a sentence, and half-converting a sentence is
+   worse than leaving it whole. */
+const MONEY_ONLY = /^₹\s?[\d,]+(?:\.\d+)?$/
+
 function csvField(v: string): string {
-  const t = v.replace(/\s+/g, ' ').trim()
+  let t = v.replace(/\s+/g, ' ').trim()
+  if (MONEY_ONLY.test(t)) t = t.replace(/[₹,\s]/g, '')
   return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
 }
 
@@ -741,6 +758,7 @@ export function Table({
   loadingMore,
   onLoadMore,
   total,
+  onExport,
 }: {
   head: Column[]
   children: ReactNode
@@ -755,6 +773,14 @@ export function Table({
      rows (`isFetching` with data) must keep those rows on screen. */
   loading?: boolean
   loadingRows?: number
+  /* EXPORT SOMETHING OTHER THAN WHAT IS DRAWN.
+
+     By default Export writes the rows on screen, which is right when the row
+     IS the record. It is wrong where a row stands for a group: the activities
+     table draws one line per club, so its export carried five clubs where the
+     reader wanted the children in them. Pass a handler and Export calls it
+     instead; the table still draws what it drew. */
+  onExport?: () => void
   /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
 
      A table pages ten at a time through whatever array it was given, which
@@ -1097,7 +1123,7 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="secondary" className="no-print" onClick={takeAway}
+              <Button size="sm" variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -1949,7 +1975,7 @@ export function Select({
              content is a sub-pixel wider than the box, which it routinely is once
              a border and padding are counted. The list only ever scrolls
              vertically. */
-          className="fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
+          className="menu-scroll fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (
@@ -2290,8 +2316,9 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
         : status ? `The server refused this (${status}). Try again, or reload the page.`
         : 'Something went wrong. Try again, or reload the page.')
     return (
-      <p className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
-        {msg}
+      <p className="flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
+        <span className="min-w-0">{msg}</span>
+        <CopyRef text={msg} />
       </p>
     )
   }
@@ -2309,6 +2336,7 @@ export function ErrorState({ error }: { error: unknown }) {
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
+      <div className="mt-2 flex justify-center"><CopyRef text={msg} /></div>
     </Card>
   )
 }
@@ -2424,7 +2452,6 @@ export function PrintButton({
     <span ref={anchor} hidden />
     <Button
       variant="secondary"
-      size="sm"
       onClick={() => {
         const at = anchor.current
         const picked = sourceSelector ? document.querySelector<HTMLElement>(sourceSelector) : null
@@ -2517,6 +2544,10 @@ const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string
   { key: 'tsv', name: 'TSV', about: 'Tab-separated, for other tools' },
 ]
 
+/* In a page header every control is one height (owner: "uneven"): Export
+   was the small size beside full-size Import, Print and Save. */
+const InPageActions = createContext(false)
+
 export function ExportButton({ report, label }: { report: string; label?: string }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
@@ -2570,7 +2601,7 @@ export function ExportButton({ report, label }: { report: string; label?: string
       <div ref={trigger} className="inline-block">
         <Button
           variant="outline"
-          size="sm"
+          size={undefined}
           onClick={() => setOpen((o) => !o)}
           ariaHasPopup="menu"
           ariaExpanded={open}

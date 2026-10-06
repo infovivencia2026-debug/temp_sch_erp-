@@ -1,6 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
-import StatusRings from '@/features/comms/status/StatusRings'
 
 const AttendanceTrendChart = lazy(() => import('./AttendanceTrendChart'))
 import { useQuery } from '@tanstack/react-query'
@@ -12,8 +11,6 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import SetupProgress from './SetupProgress'
-import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
-import PrincipalBriefCard from '@/components/ai/PrincipalBriefCard'
 import { useCan } from '@/lib/session'
 
 interface TrendPoint { date: string; present: number; absent: number; total: number; pct: number }
@@ -66,7 +63,6 @@ export default function PrincipalDashboard() {
         }
       />
       <PageBody>
-        <StatusRings />
         {/* Before the numbers, not after them. A school that has not finished
             setting up is looking at zeroes, and the explanation has to arrive
             first or the dashboard reads as broken. */}
@@ -159,8 +155,7 @@ export default function PrincipalDashboard() {
             />
           )}
         </CellGrid>
-        <NeedsAttentionPanel limit={5} />
-        <PrincipalBriefCard />
+        {/* Early warnings and the morning brief are retired (owner, 2026-10-03). */}
 
         <Card>
           <CardHeader title="Needs attention" description="Items waiting on a decision" />

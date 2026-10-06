@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Receipt as ReceiptIcon } from 'lucide-react'
+import { Download, Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Button,
@@ -154,23 +154,33 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
         description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
         action={
           <span className="no-print flex flex-wrap items-center gap-2">
-            {/* One button. Two that open the same dialog read as two things
-                the product does, and the second one promised a file rather
-                than a dialog — which is what it was asked to stop doing. */}
+            {/* A SECOND BUTTON, NOW THAT THERE IS A SECOND THING.
+
+                There used to be one button and a line of advice under it,
+                because Download would have opened a print dialogue and
+                promised a file nobody produced. The Worker draws the receipt
+                as a real PDF now, on the school's letterhead, so Download
+                downloads and Print prints -- two buttons for two acts.
+
+                A plain link rather than fetch-and-blob: the session is a
+                cookie, the server sends it as an attachment, and letting the
+                browser do the saving is the one path that works on an iPhone
+                without a share sheet to fight. */}
+            <a
+              href={`/api/v1/portal/receipts/${paymentId}/pdf`}
+              download
+              className="btn inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-sm
+                         border px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-[44px]"
+              data-variant="secondary"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              {t('portal.receipts.download')}
+            </a>
             <PrintButton label="Print" scope="card" title="Fee receipt" docNo={d.receipt_no} subtitle={`${d.student_name} · ${d.financial_year}`} />
           </span>
         }
       />
-      {/* Said once, next to the button.
 
-          A parent tapping "Download" and getting a print sheet concludes the
-          download is broken and rings the office. The sheet does produce a
-          real PDF — "Save as PDF" is the first option on both Android and iOS
-          — so the fix is to say which option to pick, not to pretend the
-          button does something else. */}
-      <p className="no-print px-5 pt-3 text-[12.5px] text-muted-foreground">
-        {t('portal.receipts.download_hint')}
-      </p>
       <div className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Detail label={t('portal.receipts.detail_received_from')} value={d.student_name} />

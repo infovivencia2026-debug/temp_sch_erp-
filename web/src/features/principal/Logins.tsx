@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/Skeleton'
-import { Fragment, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
@@ -1164,7 +1164,33 @@ function AccountForm({
     )
   }
 
+  /* THE PANEL COMES TO THE READER.
+
+     This card is drawn above the table, and the table is four hundred rows
+     long. Pressing Roles on somebody near the bottom opened the editor
+     somewhere far above the fold: the screen did not visibly change, and the
+     only way to find out that anything had happened was to scroll up. It read
+     as a button that does nothing.
+
+     So it scrolls itself into view when it opens, and announces itself to a
+     screen reader at the same time, which has exactly the same problem for
+     exactly the same reason. Smooth unless the reader has asked for less
+     motion, because a page that jumps is its own complaint. */
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = panel.current
+    if (!el) return
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    try {
+      el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+    } catch {
+      el.scrollIntoView()
+    }
+    el.focus({ preventScroll: true })
+  }, [user?.id])
+
   return (
+    <div ref={panel} tabIndex={-1} className="scroll-mt-4 outline-none">
     <Card>
       <CardHeader
         title={editing ? `${user!.full_name}’s access` : 'Issue a login'}
@@ -1304,6 +1330,7 @@ function AccountForm({
         </div>
       </div>
     </Card>
+    </div>
   )
 }
 
@@ -1549,13 +1576,31 @@ function PermissionOverrides({
       </div>
 
       <div className="order-first mb-5 border-b pb-5">
-        <p className="eyebrow mb-1">Individual features (exception, prefer roles)</p>
-        <p className="mb-3 text-[13px] text-muted-foreground">
-          Normal access should come from a role, which carries a whole workspace. Use this only for a
-          one-off: switch on a single menu tile · Take attendance, Class 360, Student 360, for this
-          one account. Enabling a tile also grants the capabilities the screen needs, noted under
-          each.
-        </p>
+        {/* THE EXCEPTION SAYS IT IS ONE.
+
+            This was an eyebrow and a grey paragraph, set exactly like the body
+            text around it, immediately under the roles it is the exception to.
+            Two things followed. Somebody scrolling for the feature list could
+            not see where it began -- it was reported as missing from the page
+            it is on. And the warning it carries, that this is a one-off and
+            normal access should come from a role, read as ordinary prose and
+            was skipped, which is how a school ends up granting screens one at
+            a time to forty people and no longer knowing who may do what.
+
+            Drawn as what it is: a bordered, tinted panel with a title that
+            looks like a title. */}
+        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.07] p-4">
+          <h3 className="mb-1 flex items-center gap-2 text-[14px] font-bold">
+            <ShieldAlert className="h-4 w-4 text-warning" />
+            Individual features — an exception, prefer roles
+          </h3>
+          <p className="text-[13px] text-muted-foreground">
+            Normal access should come from a role, which carries a whole workspace. Use this only
+            for a one-off: switch on a single menu tile &middot; Take attendance, Class 360,
+            Student 360, for this one account. Enabling a tile also grants the capabilities the
+            screen needs, noted under each.
+          </p>
+        </div>
 
         {features.isLoading ? (
           <p className="text-[13px] text-muted-foreground">Loading the feature list…</p>
@@ -1563,13 +1608,31 @@ function PermissionOverrides({
           <FormNotice error={features.error} />
         ) : (
           <>
-            <div className="mb-3">
+            {/* THE SEARCH STAYS WHERE IT CAN BE REACHED.
+
+                There are several hundred of these tiles, in two columns, in
+                alphabetical order. The box that narrows them scrolled away
+                with the heading after the first screenful -- so by the time
+                somebody was far enough down to want it, the only way back to
+                it was to scroll all the way up, and the obvious conclusion was
+                that there is no search. It sticks to the top of the list it
+                filters, which is the one place it is any use.
+
+                A count beside it, because "Take attendance" matching two tiles
+                and matching none look identical when the answer is below the
+                fold. */}
+            <div className="sticky top-0 z-10 -mx-1 mb-3 flex flex-wrap items-center gap-2 bg-card px-1 pb-3 pt-1">
               <SearchBox
                 value={featureSearch}
                 onChange={setFeatureSearch}
                 placeholder="Search features by name"
-                className="w-full"
+                className="min-w-[220px] flex-1"
               />
+              <span className="shrink-0 text-[12.5px] text-muted-foreground">
+                {featureSearch.trim()
+                  ? `${shownFeatures.length} of ${features.data?.items.length ?? 0}`
+                  : `${features.data?.items.length ?? 0} features`}
+              </span>
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {shownFeatures.map((f) => {

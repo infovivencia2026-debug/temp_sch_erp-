@@ -4,7 +4,7 @@ import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
 import { hashPassword } from '../../auth/password'
 import { inList, institutionId } from './common'
-import { CATALOG_ROLES, GROUPS, PERMISSIONS, PERMISSION_KEYS, SYSTEM_ROLES, allCatalogFeatureKeys, catalogRoleByKey, isDefaultRole, isPlatformRole, systemRoleByKey } from './static_data'
+import { CATALOG_ROLES, GROUPS, IMPLEMENTED_FEATURES, PERMISSIONS, PERMISSION_KEYS, SYSTEM_ROLES, allCatalogFeatureKeys, catalogRoleByKey, isDefaultRole, isPlatformRole, systemRoleByKey } from './static_data'
 import { applyGrid, groupByKey, groupLevels, levelName, parseLevel, readGrid, type GroupState } from './rbac_grid'
 import { resolveRange } from '../misc/shell'
 
@@ -267,7 +267,21 @@ const ROLE_PRESETS = [
   { key: 'hod_librarian', name: 'Head of department & librarian', description: 'Heads a department and runs the library. Allocate them a subject and their own teaching screens appear too.', role_keys: ['hod', 'librarian'], recommended: false },
 ]
 const FEATURE_UNLOCKS: Record<string, string[]> = {
-  take_attendance: ['academics.attendance.write', 'academics.attendance.write.any'],
+  /* TWO FEATURES, BECAUSE THEY ARE TWO DIFFERENT POWERS.
+
+     This single entry granted BOTH "mark your own sections" and "mark ANY
+     section". So ticking Take attendance for the class-teacher role -- the
+     obvious thing to do, and what the box says it does -- quietly handed every
+     class teacher in the school the register for every other teacher's class.
+     The role editor even printed it, in grey, under the name: "Also grants:
+     Mark attendance for your own sections, Mark attendance for any section".
+     Nobody reads that as "and everyone else's children too".
+
+     Split. Take attendance is the class teacher's own register and is the one
+     every class teacher should have. Take attendance (whole school) is the
+     office's, and is a deliberate, separate tick. */
+  take_attendance: ['academics.attendance.write'],
+  take_attendance_school: ['academics.attendance.write', 'academics.attendance.write.any'],
   absentee_followup: ['academics.attendance.read', 'academics.attendance.read.all'],
   student_absentees: ['academics.attendance.read', 'academics.attendance.read.all'],
   class_360: ['academics.class360.view', 'students.read', 'students.read.all', 'academics.attendance.read', 'academics.attendance.read.all'],
@@ -873,7 +887,21 @@ export function registerAdminUsers(r: Router): void {
     type Item = { name: string; summary: string; unlocks: string[]; key: string; keys: string[] }
     const items: Item[] = []
     const idx = new Map<string, Item>()
+    /* ONLY SCREENS THAT EXIST.
+
+       This offered every entry in the catalogue -- about 590 tiles -- and only
+       some 380 of them are built. So "24/7 Admission Chatbot" sat there with a
+       tick box and its own description explaining it cannot be built here, and
+       whoever is handing out access had to read each one to find that out. A
+       box you can tick that switches on nothing is worse than an absent
+       feature: it is a promise the product cannot keep, made at the moment
+       somebody is deciding what a colleague may do.
+
+       It also made the list twice as long as it needed to be, in alphabetical
+       order, which is why "Take attendance" could not be found without
+       searching for it. */
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
+      if (!IMPLEMENTED_FEATURES.has(f.key)) continue
       if (skip.has(featureSlug(f.key)) || f.name === '') continue
       let it = idx.get(f.name)
       if (!it) { it = { name: f.name, summary: f.summary, unlocks: [], key: f.key, keys: [] }; idx.set(f.name, it); items.push(it) }

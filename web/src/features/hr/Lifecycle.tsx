@@ -3,7 +3,6 @@ import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, DoorOpen, FileSignature, Route, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import { printDocument } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
@@ -11,6 +10,9 @@ import {
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
 import { invalidateKeys } from '@/lib/invalidate'
+import { letterHtml, type LetterSnapshot } from './letters-print'
+import { printHtml } from '@/features/finance/receipt-print'
+import { useSession } from '@/lib/session'
 import { useEmployeeRoster } from '@/lib/rosters'
 
 /* Joining and leaving.
@@ -116,62 +118,7 @@ interface Certificate {
   full_name: string
   issued_on: string
   status: string
-  snapshot?: {
-    name?: string; employee_code?: string; designation?: string | null; department?: string | null
-    joined_on?: string; relieved_on?: string; years_of_service?: number; qualifications?: string[]
-    conduct?: string; remarks?: string | null
-  }
-}
-
-/* THE LETTER ITSELF, for the print sheet.
-
-   "Print" on a row of "Letters issued" used to print the screen -- the table
-   of letters -- under the letter's title, so what came out was a list, not
-   the relieving letter anybody asked for. The letter is now written from the
-   snapshot taken when it was issued (issued_certificates.snapshot): the facts
-   as they stood that day, whatever the record says now. Plain DOM, since it
-   only exists to be copied onto the sheet. */
-function fmtDate(d?: string | null): string {
-  if (!d) return ''
-  const t = Date.parse(d.slice(0, 10))
-  return Number.isNaN(t) ? d : new Date(t).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' })
-}
-
-function staffLetterElement(c: Certificate): HTMLElement {
-  const s = c.snapshot ?? {}
-  const name = s.name || c.full_name
-  const role = [s.designation, s.department].filter(Boolean).join(', ')
-  const el = document.createElement('div')
-  el.className = 'staff-letter'
-  const para = (text: string) => { const p = document.createElement('p'); p.textContent = text; p.style.margin = '0 0 10pt'; el.appendChild(p); return p }
-  para(`Issued on ${fmtDate(c.issued_on)}`).style.color = '#4b5563'
-  const code = c.code.toUpperCase()
-  if (code === 'APPOINTMENT') {
-    para(`Dear ${name},`)
-    para(`We are pleased to confirm your appointment${role ? ` as ${role}` : ''}${s.joined_on ? ` with effect from ${fmtDate(s.joined_on)}` : ''}. Your employee code is ${s.employee_code ?? '-'}.`)
-  } else if (code === 'SALARY_REVISION') {
-    para(`Dear ${name},`)
-    para(`This is to inform you that your salary has been revised${role ? ` in your post of ${role}` : ''}.`)
-  } else if (code === 'WARNING') {
-    para(`Dear ${name},`)
-    para(`This letter is a formal warning${role ? ` issued to you in your capacity as ${role}` : ''}, for the reason set out below.`)
-  } else {
-    para('TO WHOM IT MAY CONCERN')
-    const served = s.joined_on ? ` from ${fmtDate(s.joined_on)}${code === 'RELIEVING' || s.relieved_on ? ` to ${fmtDate(s.relieved_on)}` : ''}` : ''
-    para(`This is to certify that ${name}${s.employee_code ? ` (employee code ${s.employee_code})` : ''} served this institution${role ? ` as ${role}` : ''}${served}${typeof s.years_of_service === 'number' && s.years_of_service > 0 ? `, a period of ${s.years_of_service} year${s.years_of_service === 1 ? '' : 's'}` : ''}.`)
-    if (code === 'RELIEVING') para(`${name} has been relieved of all duties${s.relieved_on ? ` with effect from ${fmtDate(s.relieved_on)}` : ''}, and has no dues outstanding to the institution.`)
-    if (s.qualifications?.length) para(`Qualifications on record: ${s.qualifications.join(', ')}.`)
-    para(`Conduct during the period of service was ${s.conduct || 'satisfactory'}. We wish ${name} every success.`)
-  }
-  if (s.remarks) para(s.remarks).style.whiteSpace = 'pre-wrap'
-  const sign = document.createElement('div')
-  sign.style.cssText = 'margin-top:48pt;display:flex;justify-content:flex-end'
-  const box = document.createElement('div')
-  box.style.cssText = 'text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt;font-size:9.5pt;color:#374151'
-  box.textContent = 'Principal / Authorised signatory'
-  sign.appendChild(box)
-  el.appendChild(sign)
-  return el
+  snapshot?: LetterSnapshot
 }
 
 const TABS = [
@@ -643,6 +590,13 @@ function ClearanceLine({
  * the facts as they stood, so a letter issued in 2026 cannot change its own
  * contents in 2031. Printing one is logged with the name of whoever printed it.
  */
+const WARNING_REASONS = [
+  'Absence without leave: absent without approved leave on the dates recorded in the staff register, with no leave application received.',
+  'Late arrival: repeatedly arriving after the start of the school day, as recorded in the staff register.',
+  'Conduct: behaviour not in keeping with the school’s code of conduct.',
+  'Duties not done: assigned duties (classes, invigilation, records) not carried out.',
+]
+
 const LETTER_KINDS = [
   { value: 'APPOINTMENT', label: 'Appointment letter' },
   { value: 'SALARY_REVISION', label: 'Salary revision letter' },
@@ -657,6 +611,11 @@ function LettersTab() {
   const [kind, setKind] = useState('APPOINTMENT')
   const [body, setBody] = useState('')
   const [done, setDone] = useState('')
+  // Salary revision: the new monthly gross and the day it starts; the letter and payroll fill in the rest.
+  const [newGross, setNewGross] = useState('')
+  const [startsOn, setStartsOn] = useState('')
+  const session = useSession()
+  const school = { school: session.institution?.display_name ?? 'School', logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined, issuedBy: session.user?.full_name }
 
   const letters = useQuery({
     queryKey: ['hr', 'certificates'],
@@ -675,11 +634,13 @@ function LettersTab() {
     mutationFn: () =>
       api.post<{ serial_no: string; name: string }>('/api/v1/hr/letters', {
         employee_id: employeeId, kind, body,
+        ...(kind === 'SALARY_REVISION' ? { new_gross: Number(newGross), effective_from: startsOn } : {}),
       }),
     onSuccess: (r) => {
       setDone(r.name + ' issued - serial ' + r.serial_no + '. It is on the service book too.')
-      setBody('')
+      setBody(''); setNewGross(''); setStartsOn('')
       qc.invalidateQueries({ queryKey: ['hr', 'certificates'] })
+      qc.invalidateQueries({ queryKey: ['payroll'] })
     },
   })
 
@@ -709,13 +670,28 @@ function LettersTab() {
         <Field label="Which letter" required>
           <Select value={kind} onChange={setKind} options={LETTER_KINDS} />
         </Field>
+        {kind === 'SALARY_REVISION' && (
+          <>
+            <Field label="New monthly gross (₹)" required hint="Basic, HRA and the rest are raised in the same proportion, and payroll pays it from the start date.">
+              <Input type="number" value={newGross} onChange={setNewGross} placeholder="e.g. 43010" />
+            </Field>
+            <Field label="Starts from" required>
+              <Input type="date" value={startsOn} onChange={setStartsOn} />
+            </Field>
+          </>
+        )}
+        {kind === 'WARNING' && (
+          <Field label="Common reason" hint="Fills the box below; change it to say exactly what happened.">
+            <Select value="" placeholder="Choose a reason" onChange={(v) => setBody(v)} options={WARNING_REASONS.map((w) => ({ value: w, label: w.split(':')[0] }))} />
+          </Field>
+        )}
         <Field
-          label={kind === 'WARNING' ? 'What the warning is about' : 'What this letter says'}
+          label={kind === 'WARNING' ? 'What the warning is about' : kind === 'SALARY_REVISION' ? 'Anything else the letter should say' : 'What this letter says'}
           hint={
             kind === 'WARNING'
               ? 'Required. A warning with no reason on it is worth nothing at a hearing.'
               : kind === 'SALARY_REVISION'
-                ? 'The new salary and when it starts.'
+                ? 'Optional. The figures are filled in from payroll.'
                 : 'Optional - the terms, or anything the letter should carry.'
           }
           wide
@@ -725,7 +701,7 @@ function LettersTab() {
       </FormGrid>
       <Button
         onClick={() => issue.mutate()}
-        disabled={!employeeId || issue.isPending || (kind === 'WARNING' && !body.trim())}
+        disabled={!employeeId || issue.isPending || (kind === 'WARNING' && !body.trim()) || (kind === 'SALARY_REVISION' && (!(Number(newGross) > 0) || !startsOn))}
       >
         Issue the letter
       </Button>
@@ -745,7 +721,7 @@ function LettersTab() {
             <Td><Badge tone="success">{c.status}</Badge></Td>
             <Td>
               <Button size="sm" variant="ghost"
-                onClick={() => { printed.mutate(c.serial_no); printDocument({ source: staffLetterElement(c), title: c.type, subtitle: c.full_name, docNo: c.serial_no }) }}>
+                onClick={() => { printed.mutate(c.serial_no); printHtml(letterHtml(c, school)) }}>
                 Print
               </Button>
             </Td>

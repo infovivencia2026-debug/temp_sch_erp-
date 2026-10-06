@@ -46,6 +46,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const [onDate, setOnDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [draft, setDraft] = useState<Record<string, Status>>({})
 
+  /* Whether this account keeps the register for the whole school, which is
+     the same permission the server checks when it accepts one. */
+  const marksAnySection = can('academics.attendance.write.any')
+
   /* The sections whose register this person actually keeps.
 
      mine=true is every section they teach anything in, and the server now
@@ -54,8 +58,26 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
      Offering a choice that cannot be taken is worse than offering none: the
      work is done by the time they find out. */
   const sections = useQuery({
-    queryKey: ['sections', 'class_teacher'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    queryKey: ['sections', marksAnySection ? 'all' : 'class_teacher'],
+    /* WHOLE-SCHOOL REACH ASKS A DIFFERENT QUESTION.
+
+       This always asked for the sections the signed-in person is CLASS
+       TEACHER of, which is right for a class teacher and empty for everybody
+       else -- including an attendance officer whose whole job is the register
+       for every section in the school. Granting them the permission changed
+       nothing, because the screen never asked the server a question whose
+       answer that permission could widen: 0 sections came back, and the
+       picker read as "nothing in your scope" on an account that had just
+       been given all of it. Measured on the live server: 16 sections
+       unfiltered, 0 with mine=class_teacher, same account, same moment.
+
+       academics.attendance.write.any is the permission that means "any
+       section's register", and it is what the server checks when it decides
+       whether to accept one. The screen asks for what that person may
+       actually mark. */
+    queryFn: () => api.get<List<Section>>(
+      '/api/v1/academics/sections' + (marksAnySection ? '' : '?mine=class_teacher'),
+    ),
     /* Which sections this person may mark is authority, not convenience: after a
        just-granted whole-school reach, opening this screen must fetch the live
        list, never a cached empty one that reads as "nothing in your scope". So

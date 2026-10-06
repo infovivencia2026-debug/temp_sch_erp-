@@ -2,6 +2,7 @@ import type { Ctx, Router } from '../router'
 import { autoIssueFamilyLogins, autoIssueGuardianLogin } from './setup/staff'
 import { indexLogin } from './setup/common'
 import { reply } from '../router'
+import { portalChild } from './teaching/common'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
 import {
@@ -60,6 +61,9 @@ export function registerStudents(r: Router) {
   r.post('/students/{id}/co-scholastic', 'academics.marks.write', saveCoScholasticGrade)
   r.post('/students/{id}/activities', 'students.write', enrolInActivity)
   r.post('/students/{id}/activities/{enrolID}/leave', 'students.write', leaveActivity)
+  // A family (or the student) joining a club themselves: straight through, billed as the office would.
+  r.get('/portal/activities', 'auth', listPortalActivities)
+  r.post('/portal/activities/{aid}/join', 'auth', joinPortalActivity)
   r.post('/students/{id}/custom-fields', 'students.write', saveStudentCustomFields)
   r.patch('/students/{id}/fields', 'students.write', patchStudentFields)
   r.post('/students/{id}/documents', 'students.write', addStudentDocument)
@@ -944,6 +948,36 @@ async function enrolInActivity(c: Ctx) {
   const pred = studentPredicate(await resolveScope(c), 'st')
   const allowed = await c.db.prepare(`SELECT 1 AS ok FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first()
   if (!allowed) throw forbiddenMsg('missing permission: this child is not one you can edit')
+  return created(await enrolCore(c, id, aid, !!req.waive_fee, str(req.notes)))
+}
+
+/* CLUBS A FAMILY CAN JOIN: every running activity with its fee, seats left,
+   and whether this child is already in it. */
+async function listPortalActivities(c: Ctx) {
+  const { studentId } = await portalChild(c, c.url.searchParams.get('student_id'))
+  const rows = await c.db.prepare(`
+    SELECT a.id, a.name, a.category, a.schedule, a.venue, a.fee_paise, a.capacity,
+           (SELECT count(*) FROM student_activities sa WHERE sa.activity_id = a.id AND sa.status = 'enrolled') AS taken,
+           EXISTS (SELECT 1 FROM student_activities sa WHERE sa.activity_id = a.id AND sa.student_id = ?1 AND sa.status = 'enrolled') AS joined,
+           (SELECT CASE WHEN inv.id IS NULL THEN 'no_fee' WHEN inv.status = 'paid' OR inv.paid_paise >= inv.net_paise THEN 'paid' ELSE 'unpaid' END
+              FROM student_activities sa LEFT JOIN invoices inv ON inv.id = sa.invoice_id
+             WHERE sa.activity_id = a.id AND sa.student_id = ?1 AND sa.status = 'enrolled' LIMIT 1) AS payment
+      FROM activities a WHERE a.is_active = 1 ORDER BY a.name`).bind(studentId).all<Record<string, unknown>>()
+  return ok({ items: rows.results.map((x) => ({ ...x, joined: !!Number(x.joined) })) })
+}
+
+/* JOINING, STRAIGHT THROUGH (the owner's rule: no approval). The same
+   enrolment the office makes: the seat is taken and the fee is billed. */
+async function joinPortalActivity(c: Ctx) {
+  const aid = c.params.aid
+  if (!isUUID(aid)) throw badRequest('choose an activity')
+  const req = await readJSON<{ student_id?: string }>(c.req)
+  const { studentId } = await portalChild(c, req.student_id ?? null)
+  return created(await enrolCore(c, studentId, aid, false, 'Joined by the family'))
+}
+
+async function enrolCore(c: Ctx, id: string, aid: string, waive: boolean, notes: string) {
+  const req = { waive_fee: waive, notes }
   const a = await c.db.prepare(`SELECT a.name, a.fee_paise, a.capacity, a.is_active,
       (SELECT count(*) FROM student_activities sa WHERE sa.activity_id = a.id AND sa.status = 'enrolled') AS taken FROM activities a WHERE a.id = ?`).bind(aid)
     .first<{ name: string; fee_paise: number; capacity: number; is_active: number; taken: number }>()
@@ -982,7 +1016,7 @@ async function enrolInActivity(c: Ctx) {
     for (const p of people.results) stmts.push(notifyStmt(c, p.uid, id, 'fee_due', 'Enrolled in ' + a.name, body, '/portal/fees', 'invoice', invoiceId))
   }
   await batch(c, stmts)
-  return created({ id: enrolId, charged_paise: charged, invoice_no: invoiceNo })
+  return { id: enrolId, charged_paise: charged, invoice_no: invoiceNo }
 }
 
 async function leaveActivity(c: Ctx) {

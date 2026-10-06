@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
+import { BookOpen, Wallet, ArrowDownLeft, ArrowUpRight, Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import { booksHtml } from './books-print'
+import { printHtml } from './receipt-print'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Field, FormGrid, Input, PrintButton, SkeletonTable, ErrorState, EmptyState,
+  Button, Field, FormGrid, Input, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { inr, rupees, side, ledgerBase, type Voucher, type CashbookAccount } from './ledger-lib'
 
@@ -45,6 +48,7 @@ const monthStart = () => {
 }
 
 export default function CashBooks() {
+  const session = useSession()
   const [on, setOn] = useState(today())
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
@@ -63,6 +67,18 @@ export default function CashBooks() {
 
   const c = cashbook.data
   const d = daybook.data
+  /* The owner's printout (books-print.ts), not a copy of this screen. */
+  const printBooks = () => {
+    if (!c) return
+    printHtml(booksHtml({
+      school: {
+        name: session.institution?.display_name ?? 'School',
+        logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+      },
+      from, to, totals: c.totals, accounts: c.accounts, on, vouchers: d?.items ?? [],
+      printedBy: session.user?.full_name ?? '',
+    }))
+  }
 
   return (
     <>
@@ -71,7 +87,11 @@ export default function CashBooks() {
         title="Daybook and cashbook"
         description="Every voucher for a day, and the movement through each cash and bank account with its closing balance."
         width="wide"
-        actions={<PrintButton label="Print" />}
+        actions={
+          <Button variant="secondary" onClick={printBooks} disabled={!c}>
+            <Printer className="h-4 w-4" /> Print
+          </Button>
+        }
       />
       <PageBody width="wide">
         <CellGrid cols={4}>

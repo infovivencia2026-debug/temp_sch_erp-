@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   Card, CardHeader, Table, Td, Badge, Button, Input, Select, ErrorState,
+  PageBody,
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { ExportButton } from '@/components/DataPortActions'
@@ -84,7 +85,7 @@ export default function Students() {
   const total = data ? (data.total ?? rows.length) : undefined
 
   return (
-    <Card>
+    <PageBody top><Card>
       <CardHeader
         title="Students"
         description={total != null ? `${total} record${total === 1 ? '' : 's'}` : undefined}
@@ -179,6 +180,6 @@ export default function Students() {
           </div>
         </div>
       )}
-    </Card>
+    </Card></PageBody>
   )
 }

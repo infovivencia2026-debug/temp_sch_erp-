@@ -58,6 +58,7 @@ import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
 import { BentoSettings } from '@/features/bento/BentoSettings'
+import { HelpButton, HelpEverywhere } from '@/features/help/HelpEntry'
 import { hueFor, uniqueMarks } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
 import ScrollBox from '@/components/ScrollBox'
@@ -229,6 +230,26 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
+  /* Touch: show a rail icon's name when it is tapped (no hover on a phone). */
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return
+      const el = (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
+      if (!el) return
+      /* A floating label on top of everything: the panel a tap opens covered
+         the rail's own tooltip. */
+      document.getElementById('rail-tap-tip')?.remove()
+      const r = el.getBoundingClientRect()
+      const tip = document.createElement('div')
+      tip.id = 'rail-tap-tip'
+      tip.textContent = el.getAttribute('data-tip') ?? ''
+      tip.style.cssText = `position:fixed;left:${r.right + 8}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
+      document.body.appendChild(tip)
+      window.setTimeout(() => tip.remove(), 1500)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [])
   const catalog = useCatalog()
   const session = useSession()
   const later = useAfterFirstScreen()
@@ -765,9 +786,14 @@ export function Shell({
               >
                 <Rows3 className="h-4 w-4" />
               </button>
+              <HelpButton
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                iconClassName="h-4 w-4"
+              />
               <Link
                 to="/account"
                 aria-label="Your account"
+                data-help-anchor="account"
                 title="Your account and password"
                 className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               >
@@ -1184,9 +1210,14 @@ export function Shell({
             {/* Your own account, beside the way out of it. Reachable from
                 every role rather than from a catalogue entry only faculty
                 had. */}
+            <HelpButton
+              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              iconClassName="h-[22px] w-[22px] md:h-4 md:w-4"
+            />
             <Link
               to="/account"
               aria-label="Your account"
+              data-help-anchor="account"
               title="Your account and password"
               className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
@@ -1294,6 +1325,8 @@ export function Shell({
               cannot live on that screen. */}
           <Outbox />
           <ShareInbox />
+          {/* The ? key and the Show me ring (features/help). */}
+          <HelpEverywhere />
           {/* The corner card for a message that landed in a conversation not
               on screen — tap opens it. Mounted once, here, so a split work
               area does not draw it twice. */}

@@ -374,6 +374,11 @@ const LINK_GROUPS: LinkGroup[] = [
         note: 'Read the app in English or Telugu. Yours alone; it changes nothing anybody else sees.',
       },
       {
+        href: '/help',
+        name: 'Help',
+        note: 'Search help, report a problem with the app, and follow the answers to what you sent.',
+      },
+      {
         href: '/logout',
         name: 'Sign out',
         note: 'End this session on this device. Nothing you have set up is lost.',

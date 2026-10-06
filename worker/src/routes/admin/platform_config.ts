@@ -4,7 +4,8 @@ import { tenantDb, type Institution } from '../../tenant'
 import { institutionId, notImplemented, parseJSON, platformOnly, requireAny, today } from './common'
 import { school } from '../school'
 import { SUPPORT_DESK } from '../../identity'
-import { promisedHours, subscriptionsByInstitution } from '../seller/tenants'
+import { subscriptionsByInstitution } from '../seller/tenants'
+import { slaPolicy, vendorHours } from '../help/content'
 
 /* Port of internal/api/platform_config.go: statutory masters, board
    affiliation and disclosure, board rules, SQAA, campus classification, the
@@ -176,12 +177,14 @@ async function getBackupPosture(c: Ctx): Promise<Response> {
   return ok(out)
 }
 
-const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_name AS operator, g.reason, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
+const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_name AS operator, g.reason, g.read_only, g.consent_user_name, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
     (g.ended_at IS NULL AND g.expires_at > ?1) AS live,
     (SELECT count(*) FROM audit_log a WHERE a.actor_user_id = g.operator_user_id AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at)) AS changes
     FROM impersonation_grants g`
 const grantView = (g: Record<string, unknown>, school: string | undefined) => ({ id: g.id, institution_id: g.institution_id, school, operator: g.operator, reason: g.reason, ticket_id: und(g.ticket_id as string | null),
-  started_at: g.started_at, expires_at: g.expires_at, ended_at: und(g.ended_at as string | null), ended_by: und(g.ended_by as string | null), ended_reason: und(g.ended_reason as string | null), live: !!g.live, changes: g.changes })
+  started_at: g.started_at, expires_at: g.expires_at, ended_at: und(g.ended_at as string | null), ended_by: und(g.ended_by as string | null), ended_reason: und(g.ended_reason as string | null), live: !!g.live, changes: g.changes,
+  // Quick Assist (help/assist.ts): read-only, and who in the school agreed to it.
+  read_only: !!g.read_only, consented_by: und(g.consent_user_name as string | null) })
 
 /** The register is read across the fleet by a platform operator with no school, otherwise in the acting school. */
 async function grantScopes(c: Ctx): Promise<{ db: D1Database; school: string }[]> {
@@ -577,7 +580,7 @@ export function registerPlatformConfig(r: Router): void {
   // support tickets
   const ticketView = (t: Record<string, unknown>, school?: string) => ({ id: t.id, school, subject: t.subject, category: t.category, priority: t.priority, status: t.status, raised_by: und(t.raised_by as string | null), assigned_to: und(t.assigned_to as string | null),
     created_at: String(t.created_at).slice(0, 10), open_days: Math.floor((Date.now() - Date.parse(String(t.created_at))) / 86_400_000), body: und(t.body as string | null) })
-  const TICKET_SQL = `SELECT t.id, t.subject, t.category, t.priority, t.status, u.full_name AS raised_by, COALESCE(t.vendor_agent_name, a.full_name) AS assigned_to, t.created_at, t.body FROM support_tickets t LEFT JOIN users u ON u.id = t.raised_by LEFT JOIN users a ON a.id = t.assigned_to WHERE t.audience = 'vendor'`
+  const TICKET_SQL = `SELECT t.id, t.subject, t.category, t.priority, t.status, u.full_name AS raised_by, COALESCE(t.vendor_agent_name, a.full_name) AS assigned_to, t.created_at, t.body, t.vendor_agent_id, t.last_reply_side, t.last_reply_at, t.parent_ticket_id, t.route, t.error_ref, t.updated_at FROM support_tickets t LEFT JOIN users u ON u.id = t.raised_by LEFT JOIN users a ON a.id = t.assigned_to WHERE t.audience = 'vendor'`
   /* The queue is the support desk's own screen, so it is gated on that
      screen's key rather than on the right to edit tenants: a support login
      holds the first and not the second, and could not open its own queue.
@@ -589,16 +592,22 @@ export function registerPlatformConfig(r: Router): void {
     const status = (c.url.searchParams.get('status') ?? '').trim() || null
     const items: Record<string, unknown>[] = []
     const subs = await subscriptionsByInstitution(c.env, `WHERE sub.status IN ('active','trial')`)
+    const sla = await slaPolicy(c.env)
     for (const f of await fleet(c)) {
       try {
         const rows = await f.db.prepare(`${TICKET_SQL} AND (? IS NULL OR t.status = ?) AND (? IS NOT NULL OR t.status <> 'closed')`).bind(status, status, status).all<Record<string, unknown>>()
         const sub = subs.get(f.inst.id)
         for (const t of rows.results) {
           const hours = Math.max(0, Math.trunc((Date.now() - Date.parse(String(t.created_at))) / 3_600_000))
-          const promised = promisedHours(sub?.plan_code ?? '', String(t.priority))
+          // One SLA mechanism: the vendor's promise by plan and urgency, from the policy the desk keeps (help/content.ts).
+          const promised = vendorHours(sla, sub?.plan_code ?? '', String(t.priority))
           const settled = t.status === 'resolved' || t.status === 'closed'
           items.push({ ...ticketView(t, f.inst.name), open_hours: hours, promised_hours: promised, breached: !settled && hours > promised,
-            plan_code: sub?.plan_code ?? undefined, plan_name: sub?.plan_name ?? undefined })
+            plan_code: sub?.plan_code ?? undefined, plan_name: sub?.plan_name ?? undefined,
+            // What the three-pane desk needs (help/desk.ts): the school's id to open the ticket, who holds it, whose turn it is.
+            institution_id: f.inst.id, agent_id: und(t.vendor_agent_id as string | null), last_reply_side: und(t.last_reply_side as string | null),
+            last_reply_at: und(t.last_reply_at as string | null), escalated: !!t.parent_ticket_id, route: und(t.route as string | null),
+            error_ref: und(t.error_ref as string | null), created_at_full: t.created_at })
         }
       } catch { /* skip */ }
     }
@@ -639,7 +648,8 @@ export function registerPlatformConfig(r: Router): void {
     const category = req.category || 'other'
     if (!VENDOR_CATEGORIES.has(category)) throw badRequest('unknown category for a vendor ticket')
     const id = uuid()
-    await c.db.prepare(`INSERT INTO support_tickets (id, institution_id, raised_by, category, subject, body, priority, audience, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'vendor', ?, ?)`)
+    // origin 'help': the same model as a request raised from the Help Centre (tenant migration 0031), so its raiser can follow the replies there.
+    await c.db.prepare(`INSERT INTO support_tickets (id, institution_id, raised_by, category, subject, body, priority, audience, origin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'vendor', 'help', ?, ?)`)
       .bind(id, inst, c.id.userId, category, subject, body, req.priority || 'normal', now(), now()).run()
     return created({ id })
   })

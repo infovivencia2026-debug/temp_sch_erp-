@@ -8,8 +8,9 @@ import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } fr
 import { getSession } from './routes/session'
 import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
-import { identityFrom, can } from './identity'
-import { errorResponse, forbidden, unauthorized } from './http'
+import { identityFrom, can, type Identity } from './identity'
+import { HttpError, errorResponse, forbidden, unauthorized, unexpectedError } from './http'
+import { newErrorRef, recordErrorRef } from './services/error_refs'
 import { tenantSession, type TenantSession } from './tenant'
 import { handleSMSGatewayDevice } from './routes/comms/sms_gateway'
 import { handleBusTrackerDevice } from './routes/scheduling/bus_tracker'
@@ -39,6 +40,7 @@ export default {
     const { pathname } = url
     const m = req.method
     let schoolId: string | undefined
+    let who: Identity | null = null
 
     try {
       if (pathname === '/healthz') return new Response('ok')
@@ -80,6 +82,11 @@ export default {
         const id = await identityFrom(env, req, ectx)
         if (!id) throw unauthorized()
         schoolId = id.institution?.id
+        who = id
+        // A Quick Assist session reads and does nothing else; ending it is the one write it may make.
+        if (id.readOnly && m !== 'GET' && m !== 'HEAD' && !/\/impersonation\/[^/]+\/end$/.test(pathname)) {
+          throw new HttpError(403, 'this support session can only look. Nothing can be changed during it.', { code: 'read_only_session' })
+        }
         if (hit.route.perm !== 'auth' && !can(id, hit.route.perm)) throw forbidden()
         // Go's group-level RequirePermission, password gate and paywall; see gates.ts.
         groupGate(id, pathname)
@@ -105,7 +112,11 @@ export default {
       if (pathname.startsWith('/api/')) return json({ error: 'not ported to Workers yet', path: pathname }, 501)
       return new Response('Not Found', { status: 404 })
     } catch (err) {
-      const res = errorResponse(err)
+      /* An unexpected error gets a reference the person can read out; what
+         happened is kept under it for the desk (services/error_refs.ts). */
+      const ref = unexpectedError(err) ? newErrorRef() : undefined
+      const res = errorResponse(err, ref)
+      if (ref) await recordErrorRef(env, ref, req, pathname, who, err)
       if (res.status >= 500 && res.status !== 501) await recordServerError(env, schoolId, pathname)
       return res
     }

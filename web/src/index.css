@@ -71,6 +71,14 @@
    with no elevation at all, where a black page with white cards would just
    glare. */
 @layer base {
+  /* A GRID WITH NO COLUMNS SET HAS ONE COLUMN THAT CANNOT BE WIDENED.
+
+     Left alone, the implicit track is `auto`, which grows to the widest
+     child's minimum: a table inside a card on "grid lg:grid-cols-2" pushed
+     the card to 470px on a 390px phone (fee dashboard, fee collection,
+     performance analytics, vehicle tracking, My classes). In the base layer,
+     so every grid-cols-* utility and every stylesheet rule still wins. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
   :root {
     color-scheme: light;
 
@@ -1207,6 +1215,21 @@
      no extra bottom margin either, which had pushed its text above centre. */
   .card > :is(.form-grid, form, fieldset) + :is(.form-grid, form, fieldset) { padding-top: 0; }
   .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
+    margin-inline: var(--card-pad);
+  }
+  /* A BUTTON'S OWN px- IS INSIDE PADDING, NOT A MARGIN.
+
+     The rule above skips any child whose class list carries a padding
+     utility, on the reasoning that something which pads itself does not want
+     the card's indent as well. Every Button in the product sets px-3 or px-4
+     to shape the control itself, so every bare button sitting straight inside
+     a card was skipped and sat hard against its left edge -- Issue the letter
+     on Lifecycle is one of them, and it is not the only one.
+
+     Only a MARGIN utility means "I place myself"; padding describes the inside
+     of the box and says nothing about where the box goes. So buttons are
+     excused from the padding tests and kept out of the margin ones. */
+  .card > :is(button, a.btn):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']) {
     margin-inline: var(--card-pad);
   }
   .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
@@ -4553,3 +4576,157 @@ html[data-reduce-motion] :active { transform: none !important; }
   [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }
+
+/* THE SCROLLBAR INSIDE THE MENU, NOT ON TOP OF ITS EDGE.
+
+   A dropdown is a rounded box with a border and its own overflow. The
+   platform draws the scrollbar in the padding box, which on a rounded corner
+   means the bar rides over the border and out past the curve -- a grey stripe
+   hanging off the right edge of every long menu in the product, squaring off
+   a corner that is meant to be round.
+
+   Thin, inset by the gutter so the track cannot reach the border, and the
+   same muted colour as everything else rather than the operating system's.
+   scrollbar-gutter keeps the width reserved so the list does not shift by a
+   few pixels the moment it grows long enough to scroll. An older browser
+   that knows neither property keeps its own bar, which is what it had. */
+.menu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-gutter: stable;
+}
+.menu-scroll::-webkit-scrollbar { width: 10px; }
+.menu-scroll::-webkit-scrollbar-track { background: transparent; }
+.menu-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+@media (hover: hover) {
+  .menu-scroll:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.45);
+    background-clip: content-box;
+  }
+}
+
+/* EVERY SCROLLBAR IN THE PRODUCT, NOT THE ONES WE REMEMBERED.
+
+   The bar was styled on the two dropdown components and then reported again,
+   on a third scroller, and a fourth. There are sixty-odd scrolling boxes in
+   this app and naming them one at a time is a list that will always be one
+   behind the person looking at the screen.
+
+   The fault is the same wherever it appears: a scrolling box with a border
+   and rounded corners gets its scrollbar drawn in the padding box, so the bar
+   rides over the border and out past the curve -- a grey stripe hanging off
+   the edge, squaring off a corner meant to be round.
+
+   So it is set once, for everything that scrolls. Thin, the thumb inset by a
+   transparent border so the track can never reach the edge, in the app's own
+   muted colour rather than the operating system's, and darker under the
+   pointer so it is still findable. A browser that knows neither property
+   keeps its own bar, which is what it had before any of this.
+
+   The page's own bar is left to the platform: a window scrolls, everybody
+   knows a window scrolls, and restyling the one bar that is not inside a
+   rounded box buys nothing. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+@media (hover: hover) {
+  *:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.42); background-clip: content-box; }
+}
+/* Firefox has no pseudo-elements for this; two properties is the whole API. */
+* { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+/* The window keeps the platform's bar: it is not inside a rounded box. */
+html { scrollbar-width: auto; }
+html::-webkit-scrollbar { width: initial; }
+
+/* Dropdown lists: a thin, inset scrollbar with no arrow buttons. The default
+   one ran down the rounded edge with its arrows poking out of the corners. */
+[role='listbox'] { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+[role='listbox']::-webkit-scrollbar { width: 6px; }
+[role='listbox']::-webkit-scrollbar-button { display: none; height: 0; }
+[role='listbox']::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
+[role='listbox']::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  /* Inset by a transparent border, as every other scroller in the app: a
+     6px bar drawn hard against the edge of a menu with a 26px corner crosses
+     the curve at both ends and reads as a stripe hanging off the box. */
+  border: 1px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+/* Colour pickers: a round swatch of the colour itself, not the browser's grey
+   box with a thin bar of colour inside it (the owner found that ugly). */
+input[type='color'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px !important;
+  min-width: 44px;
+  height: 44px !important;
+  min-height: 44px;
+  padding: 3px !important;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type='color']:hover { transform: scale(1.06); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); }
+input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
+input[type='color']::-webkit-color-swatch { border: none; border-radius: 999px; }
+input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
+
+/* A MENU DRAWS NO NATIVE SCROLLBAR AT ALL.
+
+   Reported six times, and every attempt so far styled the bar rather than
+   removing it, which cannot work: the parts a browser will let a page style
+   differ by browser and by version. Chrome 121+ drops the ::-webkit-scrollbar
+   parts the moment scrollbar-color is set and draws its own; older Chrome and
+   Edge keep the pseudo-elements AND the stepper arrows at each end; Windows
+   draws a classic bar with buttons when neither applies. So on at least one
+   of them a track with little chevrons runs down the right edge of a menu
+   with a 26px corner, crossing the curve at both ends -- the owner's
+   screenshot -- and no amount of thumb styling reaches it.
+
+   A dropdown is a short list that is scrolled with a wheel, a trackpad or a
+   finger, none of which need the bar. It is removed outright, along with the
+   reserved gutter that was squaring the right-hand corners even when there
+   was nothing to scroll. Every other scroller in the app keeps its bar. */
+[role='listbox'],
+.menu-scroll {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+[role='listbox']::-webkit-scrollbar,
+.menu-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+[role='listbox']::-webkit-scrollbar-button,
+.menu-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+/* Belt and braces for the one part that put chevrons outside a rounded box. */
+*::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+
+/* Status posted card (owner design): fade the backdrop, pop the card. */
+.posted-overlay { animation: posted-fade 0.3s ease-out; }
+.posted-card { animation: posted-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes posted-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes posted-pop { from { opacity: 0; transform: scale(0.9) translateY(15px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .posted-overlay, .posted-card { animation: none } }
+
+/* On a phone there is no hover, so the name never showed (owner). A tap
+   stamps data-tapped for a moment (Shell.tsx) and the label shows then. */
+.rail-item[data-tapped]::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 0ms;
+}

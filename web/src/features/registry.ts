@@ -209,15 +209,20 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      get follows from whether you can write exams. */
   'institution_admin.examinations.exams_papers': screen(() => import('./exams/Exams')),
   'institution_admin.examinations.hall_ticket_issue': screen(() => import('./exams/HallTicket')),
-  'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
   /* Class Status: the teacher's composer and own posts; the principal's school-wide view, approvals and settings. */
   'faculty.communication.class_status': screen(() => import('./comms/ClassStatus')), // feature:communication.class_status
   'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
+  'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
+  /* Same register, wider reach. Which sections it offers is decided by the
+     permission the feature carries, not by the screen: with
+     academics.attendance.write.any it lists every section in the school,
+     without it only the ones this person is class teacher of. */
+  'faculty.attendance.take_attendance_school': screen(() => import('./shared/Attendance')),
   // The register says who is away; this is the call home that follows. Scoped
   // server-side, so a class teacher gets their sections and a read.all holder
   // gets the school, from the one screen.
@@ -385,7 +390,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      because they are what a teacher does with the flag. */
   'faculty.my_classes.student_progress': screen(() => import('./faculty/MyClasses')),
   'faculty.my_classes.behaviour': screen(() => import('./faculty/Behaviour')),
-  'faculty.my_classes.my_students': screen(() => import('./shared/Students')),
   'faculty.my_classes.student_details': screen(() => import('./shared/StudentProfile')),
   'faculty.marks_report_cards.report_cards': screen(() => import('./exams/ReportCards')),
   'faculty.my_profile.profile': screen(() => import('./shared/Profile')),

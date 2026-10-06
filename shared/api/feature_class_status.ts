@@ -20,6 +20,14 @@ export interface StatusItem {
   url: string
   /** The auth-checked ~320px thumbnail, when the poster's browser drew one. */
   thumb?: string
+  /** How wide it went, without naming the list: everyone sees this. */
+  scope: 'school' | 'staff' | 'class'
+  /** For a family: which of their children it was for (student ids). */
+  for_kids?: string[]
+  /** How many people have hearted it. */
+  likes: number
+  /** Whether the person this feed was built for is one of them. */
+  liked: boolean
   /** Where to report this post seen: signed for the person the feed was built for. Add `&last=1` on the last unseen post of a ring. */
   seen_url?: string
 }
@@ -48,6 +56,8 @@ export interface StatusFeed {
   gallery: StatusItem[]
   allow_video: boolean
   max_video_seconds: number
+  /** Only when the school's 5 GB of media is nearly full (90%+); otherwise absent. */
+  storage_warning?: string
 }
 
 export interface ClassStatusApi {

@@ -32,7 +32,7 @@ import { institutionId, js, marks, resolveScope } from '../teaching/common'
 import { serveRange } from '../teaching/videos'
 import { publish } from '../../services/live'
 import { afterQuietHours, loadSettings } from '../../services/delivery'
-import { LIFETIME_MS, MAX_BYTES, MODULE, cleanPolicy, statusPolicy, statusSummary, type StatusPolicy } from '../../services/class_status'
+import { LIFETIME_MS, MAX_BYTES, MEDIA_QUOTA, MODULE, mediaUsed, storageWarning, cleanPolicy, statusPolicy, statusSummary, type StatusPolicy } from '../../services/class_status'
 import { videoDurationSeconds } from '../../services/video_meta'
 import type { StatusFeed } from '@shared/api/feature_class_status'
 
@@ -227,6 +227,26 @@ async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string
   return out
 }
 
+/* HOW WIDE IT WENT, WITHOUT SAYING WHO TO.
+
+   The label names the school's distribution list and is staff-only. A family
+   still needs to tell the whole school's notice from their own child's class
+   -- that is the filter on the gallery -- so everybody is told which of the
+   three a post is, and nobody outside the staff is told the list. */
+async function audienceScopes(c: Ctx, ids: string[]): Promise<Map<string, 'school' | 'staff' | 'class'>> {
+  const out = new Map<string, 'school' | 'staff' | 'class'>()
+  if (!ids.length) return out
+  const rows = (await c.db.prepare(`SELECT post_id, kind FROM status_post_targets WHERE post_id IN (${marks()})`)
+    .bind(js(ids)).all<{ post_id: string; kind: string }>()).results ?? []
+  for (const r of rows) {
+    const was = out.get(r.post_id)
+    const now_ = r.kind === 'school' ? 'school' : r.kind === 'staff' ? 'staff' : 'class'
+    // The widest target a post has is the one that decides it.
+    if (!was || now_ === 'school' || (now_ === 'staff' && was === 'class')) out.set(r.post_id, now_)
+  }
+  return out
+}
+
 /** One row per [post, user] in the audience of any of these posts (the poster included; callers drop them). */
 const AUDIENCE_SQL = `
       WITH tg AS (SELECT t.post_id, t.kind, t.target_id FROM status_post_targets t WHERE t.post_id IN (SELECT value FROM json_each(?1))),
@@ -298,8 +318,12 @@ const sourceOf = (p: Pick<PostRow, 'as_school' | 'posted_by'>) => (p.as_school ?
 async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   const people = await audience(c, p.id, p.posted_by)
   if (!people.length) return 0
-  const label = (await audienceLabels(c, [p.id])).get(p.id) ?? ''
-  const title = `${await posterName(c, p)} added a status · ${label}`.slice(0, 200)
+  /* The notification is one row written for everybody at once, so anything
+     in its title is read by families as well as staff. The audience label
+     used to be in it -- "Priya Rao added a status · Whole school" -- which
+     put the school's distribution list in front of parents and children. The
+     label is carried by the feed instead, where only staff are given it. */
+  const title = `${await posterName(c, p)} added a status`.slice(0, 200)
   const body = (p.caption ?? '').slice(0, 240) || (p.media_kind === 'video' ? 'Video' : p.media_kind === 'text' ? 'Text' : 'Photo')
   const link = `/?status=${p.id}`
   const at = now()
@@ -428,12 +452,41 @@ export function registerClassStatus(r: Router): void {
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
         published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
     const labels = await audienceLabels(c, rows.map((x) => x.id))
+    /* The hearts: how many, and whether this person is one of them. Two
+       aggregates in one read, not one read per post. */
+    const likeRows = (await c.db.prepare(`SELECT post_id, COUNT(*) AS n,
+            MAX(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS mine
+          FROM status_likes WHERE post_id IN (${marks()}) GROUP BY post_id`)
+      .bind(v.userId, js(rows.map((x) => x.id))).all<{ post_id: string; n: number; mine: number }>()).results ?? []
+    const likes = new Map(likeRows.map((r) => [r.post_id, r]))
+    const scopes = await audienceScopes(c, rows.map((x) => x.id))
+    /* WHICH OF MY CHILDREN IT IS FOR, for a family: the gallery switches
+       between children (owner, 2026-10-03). Ids only, never the list. */
+    const forKids = new Map<string, string[]>()
+    if (!v.staff && v.kids.length && rows.length) {
+      const tg = (await c.db.prepare(`SELECT post_id, kind, target_id FROM status_post_targets WHERE post_id IN (${marks()})`)
+        .bind(js(rows.map((x) => x.id))).all<{ post_id: string; kind: string; target_id: string }>()).results ?? []
+      for (const t of tg) {
+        const hit = v.kids.filter((k) => t.kind === 'school' || (t.kind === 'class' && t.target_id === k.class_id) || (t.kind === 'section' && t.target_id === k.section_id))
+        if (hit.length) forKids.set(t.post_id, [...new Set([...(forKids.get(t.post_id) ?? []), ...hit.map((k) => k.student_id)])])
+      }
+    }
     const exp = sigExpiry()
     const q = new Map(await Promise.all(rows.map(async (x) => [x.id, await signedQuery(c, x.id, exp)] as const)))
     const item = (x: (typeof rows)[number]) => ({
       id: x.id, media_kind: x.media_kind as 'photo' | 'video' | 'text', content_type: x.content_type, caption: x.caption ?? undefined,
       published_at: x.published_at, expires_at: x.expires_at, pinned: !!x.pinned, seen: !!x.seen, mine: x.posted_by === v.userId,
-      audience: labels.get(x.id) ?? '', duration_seconds: x.duration_seconds ?? undefined,
+      /* WHO IT WENT TO IS THE SCHOOL'S BUSINESS.
+
+         Every viewer was handed the audience label, so a parent opening the
+         bell read "Whole school" under the post -- which tells a family how
+         the school addresses them, and tells a child that the same picture
+         went to everybody. Staff see it, because for them it is the point:
+         it says which list they are reading. Families see the post. */
+      audience: v.staff ? (labels.get(x.id) ?? '') : '', duration_seconds: x.duration_seconds ?? undefined,
+      likes: likes.get(x.id)?.n ?? 0, liked: !!likes.get(x.id)?.mine,
+      scope: scopes.get(x.id) ?? 'class',
+      for_kids: forKids.get(x.id),
       url: x.media_kind === 'text' ? '' : `/api/v1/status/posts/${x.id}/media${q.get(x.id)}`,
       thumb: x.thumb_key ? `/api/v1/status/posts/${x.id}/thumb${q.get(x.id)}` : undefined,
       seen_url: `/api/v1/status/posts/${x.id}/view${q.get(x.id)}`,
@@ -455,7 +508,9 @@ export function registerClassStatus(r: Router): void {
     }
     const list = [...rings.values()].sort((a, b) => (a.as_school !== b.as_school ? (a.as_school ? -1 : 1)
       : (a.unseen > 0) !== (b.unseen > 0) ? (a.unseen > 0 ? -1 : 1) : b.latest_at.localeCompare(a.latest_at)))
-    return { ...empty, unseen: list.reduce((n, x) => n + x.unseen, 0), rings: list, gallery: gallery.reverse() }
+    // Said only to those who can post, and only once nearly full.
+    const storage_warning = canPost ? storageWarning(await mediaUsed(c.db)) : undefined
+    return { ...empty, unseen: list.reduce((n, x) => n + x.unseen, 0), rings: list, gallery: gallery.reverse(), storage_warning }
   })
 
   /* Just the badge number, for a header that does not draw the rings. */
@@ -472,10 +527,12 @@ export function registerClassStatus(r: Router): void {
 
   /* What the composer may offer: the sections and classes this poster may reach. */
   r.get('/status/audiences', 'auth', async (c) => {
-    if (!can(c.id, POST) && !can(c.id, SCHOOL)) throw forbidden()
+    /* Whoever runs Class Status needs this list to retarget somebody else's
+       post, whether or not they post themselves. */
+    if (!can(c.id, POST) && !can(c.id, SCHOOL) && !can(c.id, MANAGE)) throw forbidden()
     const pol = await policyOn(c)
     const v = await viewer(c)
-    const wide = v.admin || can(c.id, SCHOOL)
+    const wide = v.admin || can(c.id, SCHOOL) || can(c.id, MANAGE)
     const secs = (await c.db.prepare(`SELECT sec.id, sec.name, sec.class_id, cl.name AS class_name FROM sections sec JOIN classes cl ON cl.id = sec.class_id
         JOIN academic_years ay ON ay.id = sec.academic_year_id
         WHERE (ay.is_current = 1 OR ? = 0) ${wide ? '' : `AND sec.id IN (${marks()})`} ORDER BY cl.level, cl.name, sec.name`)
@@ -487,6 +544,7 @@ export function registerClassStatus(r: Router): void {
       classes: [...classes].map(([id, name]) => ({ id, name })),
       can_post_school: can(c.id, SCHOOL), wide, allow_video: pol.allow_video, max_video_seconds: pol.max_video_seconds,
       needs_approval: pol.needs_approval && !v.admin, max_bytes: MAX_BYTES,
+      storage_warning: storageWarning(await mediaUsed(c.db)),
     })
   })
 
@@ -509,6 +567,7 @@ export function registerClassStatus(r: Router): void {
     if (!type) throw badRequest('a status is a JPEG, PNG or WebP photo, or an MP4, WebM or MOV video')
     const size = file && typeof file !== 'string' ? file.size : 0
     if (!isText && (!size || size > MAX_BYTES)) throw badRequest('a status must be under 25 MB', { code: 'too_large' })
+    if (!isText && (await mediaUsed(c.db)) + size > MEDIA_QUOTA) throw new HttpError(413, 'Gallery storage is full (5 GB). Remove old gallery photos or videos to post new ones.', { code: 'storage_full' })
     let thumb: File | null = null
     const rawThumb = isText ? null : form.get('thumb') as unknown as File | string | null
     if (rawThumb && typeof rawThumb !== 'string' && rawThumb.size) {
@@ -665,6 +724,62 @@ export function registerClassStatus(r: Router): void {
     const pinned = b.pinned === undefined ? !p.pinned : !!b.pinned
     await c.db.prepare(`UPDATE status_posts SET pinned = ? WHERE id = ?`).bind(pinned ? 1 : 0, p.id).run()
     return ok({ id: p.id, pinned })
+  })
+
+  /* WHO CAN SEE IT, CHANGED AFTER THE FACT.
+
+     A poster chooses the audience when they post, and gets it wrong: a class
+     photo goes to the whole school, or a notice meant for everybody sits on
+     one section. Until now the only remedy was to delete the post and ask
+     them to put it up again, which loses the views and tells every parent who
+     had seen it that it was taken down.
+
+     Whoever runs Class Status can retarget a live post. Three things then
+     have to agree: the targets, the notifications of the people who are no
+     longer in the audience (dropped -- they were told about a post they can
+     no longer open), and the notifications of the people newly in it
+     (written, through the same path a new post uses, so one person still gets
+     one row per poster). The post itself, its views and its clock are left
+     exactly as they were. */
+  r.post('/status/posts/{id}/audience', MANAGE, async (c) => {
+    const p = await load(c, c.params.id)
+    const v = await viewer(c)
+    const body = await readJSON<{ targets?: unknown }>(c.req).catch(() => ({} as { targets?: unknown }))
+    const targets = await checkTargets(c, v, true, body.targets)
+    const before = new Set((await audience(c, p.id, p.posted_by)).map(([u]) => u))
+    await c.db.batch([
+      c.db.prepare(`DELETE FROM status_post_targets WHERE post_id = ?`).bind(p.id),
+      ...targets.map((x) => c.db.prepare(`INSERT INTO status_post_targets (post_id, kind, target_id) VALUES (?, ?, ?)`).bind(p.id, x.kind, x.id)),
+    ])
+    const after = new Set((await audience(c, p.id, p.posted_by)).map(([u]) => u))
+    const gone = [...before].filter((u) => !after.has(u))
+    if (gone.length) {
+      await c.db.prepare(`DELETE FROM notifications WHERE kind = 'status' AND source_kind = 'status' AND source_id = ?
+                            AND user_id IN (SELECT value FROM json_each(?))`).bind(sourceOf(p), js(gone)).run()
+    }
+    if (p.status === 'live' && after.size) await notifyAudience(c, p)
+    return ok({ id: p.id, audience: (await audienceLabels(c, [p.id])).get(p.id) ?? '', size: after.size })
+  })
+
+  /* THE HEART.
+
+     One row per person per post, so the count is a COUNT and taking it back
+     is a DELETE: nothing to keep in step, and no way for one person to count
+     twice however many times the button is pressed. Anyone who may see the
+     post may like it -- load() is the same audience check the media route
+     makes -- and nobody is notified: a heart is applause, not a message. */
+  r.post('/status/posts/{id}/like', 'auth', async (c) => {
+    const p = await load(c, c.params.id)
+    const b = await readJSON<{ liked?: boolean }>(c.req).catch(() => ({} as { liked?: boolean }))
+    const want = b.liked !== false
+    if (want) {
+      await c.db.prepare(`INSERT OR IGNORE INTO status_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`)
+        .bind(p.id, c.id.userId, now()).run()
+    } else {
+      await c.db.prepare(`DELETE FROM status_likes WHERE post_id = ? AND user_id = ?`).bind(p.id, c.id.userId).run()
+    }
+    const n = await c.db.prepare(`SELECT COUNT(*) AS n FROM status_likes WHERE post_id = ?`).bind(p.id).first<{ n: number }>()
+    return ok({ id: p.id, liked: want, likes: n?.n ?? 0 })
   })
 
   r.del('/status/posts/{id}', 'auth', async (c) => {

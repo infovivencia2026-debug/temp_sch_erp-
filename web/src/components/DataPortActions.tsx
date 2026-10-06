@@ -73,11 +73,10 @@ export function ImportButton({
     <>
       <Button
         variant="secondary"
-        size="sm"
         onClick={() => setOpen(true)}
         title={title ?? `Import ${nice} from a spreadsheet`}
       >
-        <Upload className="h-3.5 w-3.5" />
+        <Upload className="h-4 w-4" />
         {label}
       </Button>
       {open && (

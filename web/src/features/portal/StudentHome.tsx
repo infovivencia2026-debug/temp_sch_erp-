@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
+import JoinActivities from './JoinActivities'
 import { useCollapsingTitle } from '@/lib/motion'
-import StatusRings from '@/features/comms/status/StatusRings'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
@@ -119,7 +119,6 @@ export default function StudentHome() {
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="w-full min-w-0 space-y-4 pt-2 md:space-y-6 md:px-8 md:pb-6 md:pt-6">
-        <StatusRings />
         {/* THE OWNER'S MY DAY. On a computer the greeting is a banner in the
             school's colour with the date as a pill; on a phone it is a plain
             header with the streak and badge chips beside it. */}
@@ -245,6 +244,8 @@ export default function StudentHome() {
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
+
+        <JoinActivities />
 
         {/* Only when there is something in them. */}
         {quizzes.length > 0 && toCourses && (
