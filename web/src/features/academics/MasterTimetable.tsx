@@ -393,9 +393,16 @@ export default function MasterTimetable() {
             exist, because a school revisits them when a subject changes and
             not otherwise -- and eighteen classes of boxes above a draft is a
             page nobody can find the timetable on. */}
-        {at === 1 && (
-          <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
-        )}
+        {/* THE SCHOOL THAT ALREADY HAS ONE SHOULD NOT SCROLL PAST THE WORK
+            OF MAKING ONE (owner).
+
+            Upload sat under eighteen classes of period boxes, which is the
+            exact page a school with a timetable on the wall does not need to
+            read. It is the first thing on this step now: take the one you
+            have, or build one below.
+
+            Closed by default either way -- it is the smaller case, and a
+            school starting fresh still meets the periods editor first. */}
         {/* THE TIMETABLE THE SCHOOL ALREADY HAS.
 
             Every school running today has one, settled over a term of
@@ -430,6 +437,9 @@ export default function MasterTimetable() {
               />
             </div>
           </details>
+        )}
+        {at === 1 && (
+          <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
         )}
 
         {/* THE LATEST DRAFT, AS A CARD. THE REST BEHIND A LINK.
