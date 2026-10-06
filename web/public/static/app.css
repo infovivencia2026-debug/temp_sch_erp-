@@ -160,6 +160,40 @@ input {
   font: inherit;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+/* THE BROWSER'S AUTOFILL YELLOW IS NOT THIS PRODUCT'S COLOUR.
+
+   Chrome and Safari paint a filled field in their own yellow -- and in dark
+   mode a pale blue -- straight over the field's background. On the sign-in
+   page that turned the password box yellow the moment a saved password was
+   put in, and the reveal eye sitting on top of it, drawn in the muted grey,
+   became almost impossible to pick out against it.
+
+   There is no property for the autofill background: the long-standing way to
+   beat it is an inset shadow large enough to cover the field, which paints
+   above it. The text colour needs its own -webkit-text-fill-color for the
+   same reason, and the long transition stops the yellow flashing through for
+   a frame before the shadow lands. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: currentColor;
+  transition: background-color 100000s ease-in-out 0s;
+}
+/* The focus ring is a box-shadow too, and the one above would have replaced
+   it -- a filled field would have lost its ring the moment it was focused. */
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+/* The eye must sit above whatever the browser painted, and be readable: the
+   muted grey was the one colour that disappeared into the autofill wash. */
+.pw > button.pw-eye { z-index: 1; color: var(--muted); }
+.pw > input:-webkit-autofill ~ button.pw-eye { color: inherit; }
+
 input:hover { border-color: color-mix(in srgb, var(--muted) 40%, transparent); }
 input:focus {
   outline: none;
