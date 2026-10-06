@@ -72,12 +72,11 @@ export function ExportRows<T>({
   return (
     <Button
       variant="secondary"
-      size="sm"
       disabled={!rows.length}
       title={rows.length ? `Download these ${rows.length} rows as CSV` : 'Nothing to export'}
       onClick={() => downloadCSV(toCSV(rows, columns), `${name}-${stamp}`)}
     >
-      <Download className="h-3.5 w-3.5" />
+      <Download className="h-4 w-4" />
       {label}
     </Button>
   )

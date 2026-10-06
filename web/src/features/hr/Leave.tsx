@@ -4,12 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, SkeletonTable, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton, PrintButton,
+  Button, Select, SkeletonTable, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan, useSession } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
+import { Printer } from 'lucide-react'
+import { printHtml } from '@/features/finance/receipt-print'
+import { leaveHtml } from './leave-print'
 import DecisionNote from '@/components/ai/DecisionNote'
 
 /* Leave, as the queue it is.
@@ -40,6 +43,7 @@ interface LeaveRow {
 export default function Leave() {
   const qc = useQueryClient()
   const can = useCan()
+  const session = useSession()
   /* Which door somebody came through.
    *
    * One screen serves two jobs — deciding other people's leave, and taking
@@ -246,6 +250,14 @@ export default function Leave() {
   const { q: term, setQ: setTerm, shown } = useSearch(items,
     (l) => [l.who, l.leave_type, l.reason, l.status])
 
+  /* The owner's print: four count boxes, then the requests as listed. */
+  const printLeave = () => printHtml(leaveHtml({
+    school: session.institution?.display_name ?? 'School',
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    title: mine ? 'My leave' : forWhom === 'staff' ? 'Staff leave approvals' : 'Staff & student leave approvals',
+    all, rows: shown, printedBy: session.user?.full_name ?? '',
+  }))
+
   return (
     <>
       <PageHead
@@ -264,7 +276,7 @@ export default function Leave() {
               ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
               : 'Staff and student leave awaiting a decision, and the history behind it.'
         }
-      actions={<><ExportButton report="leave" /><PrintButton /></>}
+      actions={<><ExportButton report="leave" /><Button variant="secondary" onClick={printLeave}><Printer className="h-4 w-4" /> Print</Button></>}
         />
       <PageBody>
         <CellGrid cols={4}>
