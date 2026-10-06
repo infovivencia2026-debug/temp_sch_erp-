@@ -1,3 +1,4 @@
+import { SchoolPDF, schoolFacts, logoBytes, inr as docINR } from '../../services/document'
 import type { Router } from '../../router'
 import type { Ctx } from '../../router'
 import { reply } from '../../router'
@@ -374,6 +375,79 @@ export function registerCounter(r: Router): void {
       financial_year: financialYear(String(row.paid_on)),
       lines: lines.results.map((l) => ({ invoice_no: s(l.invoice_no), amount_paise: p(l.amount_paise), particulars: s(l.particulars) })),
     }
+  })
+
+  /* THE COUNTER'S RECEIPT AS A FILE TOO.
+
+     The counter has printed receipts since the fee module shipped and could
+     never save one: an office asked for a copy to email a parent, or to file
+     against a scholarship form, had to print to paper or fight the browser's
+     Save as PDF. The family's side now downloads a real PDF, and there is no
+     reason the people who took the money should have less.
+
+     The same builder and the same look as the family's copy, with the one
+     thing the counter's version carries and theirs does not: who collected
+     it. A receipt that cannot say which hand took the cash is no use in a
+     reconciliation. */
+  r.get('/fees/receipts/{id}/pdf', 'finance.payments.read', async (c) => {
+    const paymentId = uuidParam(c.params.id)
+    const row = await c.db.prepare(`
+      SELECT COALESCE(p.receipt_no, '-') AS receipt_no, p.amount_paise, p.mode, p.status, p.paid_on, p.reference_no,
+             ${nameSQL('st')} AS student_name, st.admission_no, ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name,
+             u.full_name AS collected_by
+        FROM payments p JOIN students st ON st.id = p.student_id
+        LEFT JOIN users u ON u.id = p.collected_by WHERE p.id = ?`).bind(paymentId).first<Record<string, unknown>>()
+    if (!row) throw notFound()
+    const lines = (await c.db.prepare(`
+      SELECT i.invoice_no, pa.amount_paise,
+             COALESCE((SELECT REPLACE(group_concat(DISTINCT fh.name), ',', ', ') FROM invoice_lines il JOIN fee_heads fh ON fh.id = il.fee_head_id WHERE il.invoice_id = i.id), 'Fee') AS particulars
+        FROM payment_allocations pa JOIN invoices i ON i.id = pa.invoice_id WHERE pa.payment_id = ?`)
+      .bind(paymentId).all<Record<string, unknown>>()).results
+
+    const s = (v: unknown) => String(v ?? '')
+    const amount = p(row.amount_paise)
+    const paidOn = s(row.paid_on).slice(0, 10)
+    const facts = await schoolFacts(c.db, c.id.institution!)
+    const logo = await logoBytes(c.env, c.db, facts.logoKey)
+    const pending = s(row.status) !== 'success'
+    const pdf = await SchoolPDF.create(facts, {
+      title: 'Fee receipt',
+      subtitle: `${s(row.student_name)} · ${financialYear(paidOn)}`,
+      docNo: s(row.receipt_no),
+      date: paidOn,
+      logo: logo ?? undefined,
+      /* A cheque that has not cleared is not a receipt. The counter may still
+         need the paper, so it is drawn and stamped rather than refused. */
+      watermark: pending ? s(row.status).toUpperCase() : undefined,
+    })
+
+    const where = [row.class_name, row.section_name].filter(Boolean).map(s).join(' ')
+    const about: [string, string][] = [['Received from', s(row.student_name)], ['Admission no', s(row.admission_no)]]
+    if (where) about.push(['Class', where])
+    about.push(['Paid on', paidOn], ['Mode', s(row.mode) || '-'])
+    if (row.reference_no) about.push(['Reference', s(row.reference_no)])
+    if (row.collected_by) about.push(['Collected by', s(row.collected_by)])
+    pdf.facts(about)
+
+    pdf.table(
+      [{ label: 'Particulars', width: 4 }, { label: 'Invoice', width: 2 }, { label: 'Amount', width: 2, align: 'right' }],
+      lines.length
+        ? lines.map((l) => [s(l.particulars), s(l.invoice_no), docINR(p(l.amount_paise), true)])
+        : [['Fee', '-', docINR(amount, true)]],
+    )
+    pdf.total('Total received', docINR(amount, true), true)
+    pdf.paragraph(`Rupees ${rupeesInWords(amount)}.`)
+    pdf.paragraph('This is a computer-generated receipt and needs no signature.')
+
+    const bytes = await pdf.save()
+    const name = `receipt-${s(row.receipt_no).replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`
+    return new Response(bytes as unknown as BodyInit, {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${name}"`,
+        'cache-control': 'private, no-store',
+      },
+    })
   })
 
   // ---------------------------------------------------------------- cheques

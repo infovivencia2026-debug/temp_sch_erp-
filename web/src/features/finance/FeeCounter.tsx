@@ -1,7 +1,7 @@
 import { useEffect, Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Printer, Banknote, Check } from 'lucide-react'
+import { Printer, Banknote, Check, Download } from 'lucide-react'
 import type { FeeReceipt } from '@shared/api'
 import { api } from '@/lib/api'
 import { printReceipt, receiptHtml } from './receipt-print'
@@ -69,6 +69,10 @@ export default function FeeCounter() {
   const [payerRel, setPayerRel] = useState('')
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  /* The download needs the payment, and the receipt payload is keyed by its
+     number rather than its id. Kept beside it rather than widening the typed
+     response, which four other screens read. */
+  const [receiptPayment, setReceiptPayment] = useState('')
   /* The Receipt button prints at once (owner: "this print not working"):
      it only opened the receipt card at the top of the page, out of sight. */
   const [printNow, setPrintNow] = useState(0)
@@ -77,7 +81,7 @@ export default function FeeCounter() {
      what remained was an empty form that looked exactly like before the
      money was taken. This stays until the next student or the next payment,
      and the row it made in the history below is lit to match. */
-  const [done, setDone] = useState<{ receipt_no: string; amount_paise: number; receipt: Receipt } | null>(null)
+  const [done, setDone] = useState<{ receipt_no: string; amount_paise: number; receipt: Receipt; payment_id?: string } | null>(null)
 
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
@@ -128,7 +132,8 @@ export default function FeeCounter() {
     onSuccess: async (res) => {
       const r = await api.call('GET /fees/receipts/{id}', { params: { id: res.payment_id } })
       setReceipt(r)
-      setDone({ receipt_no: res.receipt_no, amount_paise: r.amount_paise, receipt: r })
+      setReceiptPayment(res.payment_id)
+      setDone({ receipt_no: res.receipt_no, amount_paise: r.amount_paise, receipt: r, payment_id: res.payment_id })
       // Named, not "Saved": the cashier reads this number back across the
       // counter, and an unconfirmed payment is the one that gets taken twice.
       toast.ok(`Receipt ${res.receipt_no} issued`)
@@ -193,7 +198,7 @@ export default function FeeCounter() {
         }
       />
       <PageBody>
-        {receipt && <ReceiptView receipt={receipt} printNow={printNow} onClose={() => setReceipt(null)} />}
+        {receipt && <ReceiptView receipt={receipt} paymentId={receiptPayment} printNow={printNow} onClose={() => setReceipt(null)} />}
 
         <Card>
           <CardHeader
@@ -392,7 +397,7 @@ export default function FeeCounter() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => { setReceipt(done.receipt); setPrintNow((n) => n + 1) }}>
+                      <Button size="sm" variant="secondary" onClick={() => { setReceipt(done.receipt); setReceiptPayment(done.payment_id ?? ''); setPrintNow((n) => n + 1) }}>
                         <Printer className="h-4 w-4" />
                         Receipt
                       </Button>
@@ -557,7 +562,9 @@ export default function FeeCounter() {
 
 /** The printable receipt. `print:` utilities strip the app chrome so the
     browser's own print dialog produces something a parent can keep. */
-function ReceiptView({ receipt, onClose, printNow = 0 }: { receipt: Receipt; onClose: () => void; printNow?: number }) {
+function ReceiptView({ receipt, onClose, printNow = 0, paymentId = '' }: {
+  receipt: Receipt; onClose: () => void; printNow?: number; paymentId?: string
+}) {
   /* The school's logo on the receipt the parent keeps.
 
      The receipt already carried the school's name; the logo is the other half
@@ -588,6 +595,27 @@ function ReceiptView({ receipt, onClose, printNow = 0 }: { receipt: Receipt; onC
         description={`Receipt ${receipt.receipt_no}`}
         action={
           <div className="flex gap-2 no-print">
+            {/* THE OFFICE CAN KEEP A COPY, NOT ONLY HAND ONE OVER.
+
+                The counter has printed receipts since the fee module shipped
+                and could never save one, so an office emailing a parent a copy
+                or filing one against a scholarship form had to print to paper.
+                Same PDF as the family downloads, with who collected it added.
+
+                A plain link: the session is a cookie and the server sends it
+                as an attachment, so the browser saves it without any of this
+                screen's state being involved. */}
+            {paymentId && (
+              <a
+                href={`/api/v1/fees/receipts/${paymentId}/pdf`}
+                download
+                className="btn inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-sm
+                           border px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-[44px]"
+                data-variant="secondary"
+              >
+                <Download className="h-4 w-4" aria-hidden /> Download
+              </a>
+            )}
             <Button
               variant="secondary"
               onClick={doPrint}
