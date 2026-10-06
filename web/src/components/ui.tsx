@@ -2452,7 +2452,6 @@ export function PrintButton({
     <span ref={anchor} hidden />
     <Button
       variant="secondary"
-      size="sm"
       onClick={() => {
         const at = anchor.current
         const picked = sourceSelector ? document.querySelector<HTMLElement>(sourceSelector) : null
@@ -2550,7 +2549,6 @@ const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string
 const InPageActions = createContext(false)
 
 export function ExportButton({ report, label }: { report: string; label?: string }) {
-  const inHeader = useContext(InPageActions)
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLDivElement | null>(null)
@@ -2603,7 +2601,7 @@ export function ExportButton({ report, label }: { report: string; label?: string
       <div ref={trigger} className="inline-block">
         <Button
           variant="outline"
-          size={inHeader ? undefined : 'sm'}
+          size={undefined}
           onClick={() => setOpen((o) => !o)}
           ariaHasPopup="menu"
           ariaExpanded={open}
