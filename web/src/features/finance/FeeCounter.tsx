@@ -5,6 +5,7 @@ import { Printer, Banknote, Check } from 'lucide-react'
 import type { FeeReceipt } from '@shared/api'
 import { api } from '@/lib/api'
 import { printReceipt, receiptHtml } from './receipt-print'
+import A4Frame from '@/components/A4Frame'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
@@ -599,9 +600,7 @@ function ReceiptView({ receipt, onClose, printNow = 0 }: { receipt: Receipt; onC
       />
       {/* On screen, the very receipt that prints (owner: "this also should look like that"). */}
       <div ref={sheet} className="bg-muted/30 p-3 sm:p-5">
-        <iframe title={`Receipt ${receipt.receipt_no}`} srcDoc={receiptHtml(receipt, school)}
-          className="block w-full rounded-md border-0 bg-white shadow-sm" style={{ height: 760 }}
-          onLoad={(e) => { const d = e.currentTarget.contentDocument; if (d) e.currentTarget.style.height = d.documentElement.scrollHeight + 'px' }} />
+        <A4Frame title={`Receipt ${receipt.receipt_no}`} html={receiptHtml(receipt, school)} />
       </div>
     </Card>
     </div>
