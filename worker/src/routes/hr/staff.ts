@@ -223,7 +223,17 @@ function staffCertificateName(code: string): string {
 }
 
 /** Writes one relieving, experience or service certificate against issued_certificates; returns the serial and the statements to batch. */
-export async function issueStaffCertificate(db: D1Database, inst: string, actor: string, emp: string, code: string, remarks: string | null): Promise<{ serial: string; stmts: D1PreparedStatement[] }> {
+type PayLine = { name: string; kind: string; amount_paise: number; component_id: string }
+/** The pay lines in force on a date: earnings first, in payroll order. */
+async function payOn(db: D1Database, emp: string, on: string): Promise<{ structureId: string | null; lines: PayLine[] }> {
+  const ss = await db.prepare(`SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?) ORDER BY effective_from DESC LIMIT 1`).bind(emp, on, on).first<{ id: string }>()
+  if (!ss) return { structureId: null, lines: [] }
+  const it = await db.prepare(`SELECT sc.id AS component_id, sc.name, sc.kind, ssi.amount_paise FROM salary_structure_items ssi JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ? ORDER BY sc.kind = 'deduction', sc.sequence, sc.name`).bind(ss.id).all<PayLine>()
+  return { structureId: ss.id, lines: (it.results ?? []).map((l) => ({ ...l, amount_paise: Number(l.amount_paise) || 0 })) }
+}
+
+export async function issueStaffCertificate(db: D1Database, inst: string, actor: string, emp: string, code: string, remarks: string | null,
+  opts: { salary?: { new_gross_paise: number; effective_from: string } } = {}): Promise<{ serial: string; stmts: D1PreparedStatement[] }> {
   const stmts: D1PreparedStatement[] = []
   let typeID = (await db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(code).first<{ id: string }>())?.id
   if (!typeID) {
@@ -231,16 +241,47 @@ export async function issueStaffCertificate(db: D1Database, inst: string, actor:
     stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, requires_approval, updated_at) VALUES (?,?,?,?,0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
   }
   const serial = await nextNumber(db, inst, 'certificate')
-  const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on
+  const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on,
+      e.employment_type, e.address, e.qualification, e.gender, e.user_id
       FROM employees e LEFT JOIN designations d ON d.id = e.designation_id LEFT JOIN departments dep ON dep.id = e.department_id WHERE e.id = ?`).bind(emp)
-    .first<{ name: string; employee_code: string; designation: string | null; department: string | null; joined_on: string; relieved_on: string | null }>()
+    .first<{ name: string; employee_code: string; designation: string | null; department: string | null; joined_on: string; relieved_on: string | null
+      employment_type: string | null; address: string | null; qualification: string | null; gender: string | null; user_id: string | null }>()
   if (!e) throw badRequest('That member of staff is not on this school\'s roll.')
   const quals = await db.prepare(`SELECT qualification FROM staff_qualifications WHERE employee_id = ? ORDER BY year_of_passing`).bind(emp).all<{ qualification: string }>()
   const today = todayIST()
   const relieved = e.relieved_on ?? today
   const years = Math.max(0, Math.floor((Date.parse(relieved) - Date.parse(e.joined_on)) / (365.25 * 86_400_000)))
+  /* What the letter prints, frozen today (owner's letter designs, 2026-10-06):
+     the pay lines in force, and for a salary revision the old and new lines. */
+  const pay = await payOn(db, emp, code === 'APPOINTMENT' ? (e.joined_on ?? today) : today)
+  const subjects = e.user_id ? ((await db.prepare(`SELECT DISTINCT sub.name FROM section_subject_teachers sst JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id WHERE sst.teacher_user_id = ? ORDER BY sub.name`).bind(e.user_id).all<{ name: string }>()).results ?? []).map((x) => x.name) : []
+  let revision: { effective_from: string; old: PayLine[]; new: PayLine[] } | undefined
+  if (code === 'SALARY_REVISION' && opts.salary) {
+    const { new_gross_paise, effective_from } = opts.salary
+    const earn = pay.lines.filter((l) => l.kind !== 'deduction')
+    const oldGross = earn.reduce((n, l) => n + l.amount_paise, 0)
+    if (oldGross <= 0) throw badRequest('This person has no salary set up in payroll yet. Set their pay first (Payroll → salary), then revise it.')
+    const factor = new_gross_paise / oldGross
+    const scaled = earn.map((l) => ({ ...l, amount_paise: Math.round((l.amount_paise * factor) / 100) * 100 }))
+    // Rounding to whole rupees can leave a few rupees over or under; it goes on the first line (Basic).
+    const drift = new_gross_paise - scaled.reduce((n, l) => n + l.amount_paise, 0)
+    if (scaled[0]) scaled[0].amount_paise += drift
+    const ded = pay.lines.filter((l) => l.kind === 'deduction')
+    revision = { effective_from, old: pay.lines, new: [...scaled, ...ded] }
+    // The letter and payroll can never disagree: the new pay is written as payroll's structure from that date.
+    const dayBefore = new Date(effective_from + 'T00:00:00Z'); dayBefore.setUTCDate(dayBefore.getUTCDate() - 1)
+    const sid = uuid()
+    stmts.push(
+      db.prepare(`UPDATE salary_structures SET effective_to = ? WHERE employee_id = ? AND effective_to IS NULL AND effective_from < ?`).bind(dayBefore.toISOString().slice(0, 10), emp, effective_from),
+      db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from = ?)`).bind(emp, effective_from),
+      db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND effective_from = ?`).bind(emp, effective_from),
+      db.prepare(`INSERT INTO salary_structures (id, institution_id, employee_id, effective_from, ctc_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(sid, inst, emp, effective_from, new_gross_paise * 12, now()),
+      ...revision.new.map((l) => db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, NULL)`).bind(uuid(), inst, sid, l.component_id, l.amount_paise)),
+    )
+  }
   const snapshot = { name: e.name, employee_code: e.employee_code, designation: e.designation, department: e.department, joined_on: e.joined_on, relieved_on: relieved,
-    years_of_service: years, qualifications: quals.results.map((q) => q.qualification), conduct: 'satisfactory', remarks, issued_at: now() }
+    years_of_service: years, qualifications: quals.results.map((q) => q.qualification), qualification: e.qualification, employment_type: e.employment_type,
+    address: e.address, gender: e.gender, subjects, pay: pay.lines, revision, conduct: 'good', remarks, issued_at: now() }
   stmts.push(db.prepare(`INSERT INTO issued_certificates (id, institution_id, certificate_type_id, employee_id, serial_no, issued_on, snapshot, status, requested_by, created_at) VALUES (?,?,?,?,?,?,?,'issued',?,?)`)
     .bind(uuid(), inst, typeID, emp, serial, today, JSON.stringify(snapshot), actor, now()))
   return { serial, stmts }
@@ -662,7 +703,15 @@ export function registerStaff(r: Router) {
     const exists = await c.db.prepare(`SELECT 1 FROM employees WHERE id = ?`).bind(empID).first()
     if (!exists) throw badRequest("That member of staff is not on this school's roll.")
     const inst = school(c).id
-    const { serial, stmts } = await issueStaffCertificate(c.db, inst, c.id.userId, empID, kind, body !== '' ? body : null)
+    let salary: { new_gross_paise: number; effective_from: string } | undefined
+    if (kind === 'SALARY_REVISION') {
+      const gross = Math.round(Number(req.new_gross) * 100)
+      const from = str(req.effective_from).trim()
+      if (!(gross > 0)) throw badRequest('Enter the new monthly gross salary.')
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw badRequest('Enter the date the new salary starts.')
+      salary = { new_gross_paise: gross, effective_from: from }
+    }
+    const { serial, stmts } = await issueStaffCertificate(c.db, inst, c.id.userId, empID, kind, body !== '' ? body : null, { salary })
     const entry = kind === 'APPOINTMENT' ? 'appointment' : kind === 'SALARY_REVISION' ? 'increment' : kind === 'WARNING' ? 'punishment' : 'other'
     stmts.push(c.db.prepare(`INSERT INTO service_book_entries (id, institution_id, employee_id, entry_kind, event_date, title, particulars, source, created_by, created_at) VALUES (?,?,?,?,?,?,?,'manual',?,?)`)
       .bind(uuid(), inst, empID, entry, todayIST(), `${name} issued (${serial})`, nz(body), c.id.userId, now()))
