@@ -1,3 +1,4 @@
+import { saveFile } from '@/lib/save-file'
 import { useEffect, Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -574,6 +575,7 @@ export default function FeeCounter() {
 function ReceiptView({ receipt, onClose, printNow = 0, paymentId = '' }: {
   receipt: Receipt; onClose: () => void; printNow?: number; paymentId?: string
 }) {
+  const [saving, setSaving] = useState(false)
   /* The school's logo on the receipt the parent keeps.
 
      The receipt already carried the school's name; the logo is the other half
@@ -615,15 +617,17 @@ function ReceiptView({ receipt, onClose, printNow = 0, paymentId = '' }: {
                 as an attachment, so the browser saves it without any of this
                 screen's state being involved. */}
             {paymentId && (
-              <a
-                href={`/api/v1/fees/receipts/${paymentId}/pdf`}
-                download
-                className="btn inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-sm
-                           border px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-[44px]"
-                data-variant="secondary"
+              <Button
+                variant="secondary"
+                disabled={saving}
+                onClick={() => {
+                  setSaving(true)
+                  void saveFile(`/api/v1/fees/receipts/${paymentId}/pdf`, `receipt-${receipt.receipt_no}.pdf`)
+                    .finally(() => setSaving(false))
+                }}
               >
-                <Download className="h-4 w-4" aria-hidden /> Download
-              </a>
+                <Download className="h-4 w-4" aria-hidden /> {saving ? 'Saving…' : 'Download'}
+              </Button>
             )}
             <Button
               variant="secondary"
