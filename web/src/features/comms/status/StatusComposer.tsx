@@ -54,7 +54,7 @@ export function AddChooser({ onPick, onText, onClose, allowVideo = true, raised 
   openPicker?: (kind: 'photo' | 'video' | 'camera') => void
 }) {
   /* The owner's design: tall rounded tiles, a soft round mark, bold label. */
-  const tile = 'flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-[15px] font-semibold text-foreground transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-[0_8px_20px_-8px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.97] focus-within:ring-2 focus-within:ring-ring [&:hover>span:first-child]:scale-110'
+  const tile = 'flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-[15px] font-semibold text-foreground transition-[transform,background-color,box-shadow,color] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-[0_8px_20px_-8px_rgba(15,23,42,0.18)] active:translate-y-0 active:scale-[0.97] focus-within:ring-2 focus-within:ring-ring [&:hover>span:first-child]:scale-110'
   const icon = 'grid size-14 place-items-center rounded-full bg-primary/10 text-primary transition-transform duration-200 ease-[cubic-bezier(0.2,0.85,0.32,1.2)]'
   return (
     <Dialog onClose={onClose} title={asSchool ? 'Post as the school' : 'Add a status'} size="sm" raised={raised}>
@@ -400,7 +400,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
         <p className="mb-7 text-[15px] leading-normal text-[#6B7280]">{done}</p>
         {problem && <p className="-mt-4 mb-5 text-[13px] text-[#E11D48]">{problem}</p>}
         <button type="button" onClick={onClose} autoFocus
-          className="w-full rounded-[14px] bg-[#E11D48] p-3.5 text-[16px] font-semibold text-white shadow-[0_4px_14px_rgba(225,29,72,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#BE123C] hover:shadow-[0_6px_20px_rgba(225,29,72,0.35)] active:translate-y-px">
+          className="w-full rounded-[14px] bg-[#E11D48] p-3.5 text-[16px] font-semibold text-white shadow-[0_4px_14px_rgba(225,29,72,0.25)] transition-[transform,background-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:bg-[#BE123C] hover:shadow-[0_6px_20px_rgba(225,29,72,0.35)] active:translate-y-px">
           Done
         </button>
       </div>
