@@ -221,6 +221,11 @@ export default function MasterTimetable() {
   const [note, setNote] = useState('')
   // Old attempts are history, not work. Collapsed by default.
   const [showHistory, setShowHistory] = useState(false)
+  /* Which step somebody has chosen by hand, if any. Up here with the other
+     hooks: it was below `if (isLoading) return`, so the first render after the
+     year loaded ran one more hook than the render before it (React #310) and
+     the screen refused to draw at all. */
+  const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
   const [showClasses, setShowClasses] = useState(false)
 
   const overview = useQuery({
@@ -274,7 +279,6 @@ export default function MasterTimetable() {
      Worked out from its own state, not remembered, so closing the page and
      coming back lands where the work is. A step somebody has opened by hand
      wins until they move: `jump` holds that, and nothing else writes it. */
-  const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
   const natural: 1 | 2 | 3 = openDraft ? 3 : needsRequirements ? 1 : 2
   const at: 1 | 2 | 3 = jump ?? natural
   const stepDone = { 1: !needsRequirements, 2: hasDraft, 3: (s?.live_periods ?? 0) > 0 }
