@@ -2,9 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, ErrorState, PrintButton,
+  Table, Td, Badge, SkeletonTable, ErrorState, Button,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import { printHtml } from '@/features/finance/receipt-print'
+import { feeOverviewHtml } from './fee-overview-print'
 import { CsvButton, pct, goodPct } from './shared'
 
 /**
@@ -59,6 +63,15 @@ export default function FeeOverview() {
     queryKey: ['rollup-fee-concessions'],
     queryFn: () => api.get<List<ConcessionRow>>(CONCESSIONS),
   })
+  const session = useSession()
+  /* The owner's print (fee-overview-print.ts), not a copy of the screen. */
+  const printOverview = () => overview.data && printHtml(feeOverviewHtml({
+    school: session.institution?.display_name ?? 'School',
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    printedBy: session.user?.full_name ?? '',
+    academic_year: overview.data.academic_year, totals: overview.data.totals, by_class: overview.data.by_class,
+    ageing: ageing.data?.items ?? [], concessions: concessions.data?.items ?? [],
+  }))
 
   if (overview.isLoading && !overview.data) return <SkeletonTable columns={8} />
   if (overview.error) return <ErrorState error={overview.error} />
@@ -76,7 +89,7 @@ export default function FeeOverview() {
         actions={
           <div className="flex gap-2">
             <CsvButton href={OVERVIEW} label="Export by class" />
-            <PrintButton />
+            <Button variant="secondary" onClick={printOverview} disabled={!overview.data}><Printer className="h-4 w-4" /> Print</Button>
           </div>
         }
       />
