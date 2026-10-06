@@ -63,8 +63,9 @@ describe('class status: what a look costs', () => {
     const f = await count('parent', '/api/v1/status/feed')
     expect(f.status).toBe(200)
     console.log('feed reads', f.reads)
-    // Was 15 and still is: the feed is the one place the whole question is asked.
-    expect(f.reads).toBeLessThanOrEqual(SIGN_IN + 11)
+    // Was 15; 16 since the hearts (one aggregate read over status_likes). The
+    // targets are read once for the label, the scope and the child filter.
+    expect(f.reads).toBeLessThanOrEqual(SIGN_IN + 12)
   })
 
   it('a thumbnail and the media are one read each, and the browser may keep them', async () => {
