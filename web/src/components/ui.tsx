@@ -738,7 +738,7 @@ export function ExportTable({ tableId, name }: { tableId: string; name: string }
     setTimeout(() => URL.revokeObjectURL(url), 0)
   }
   return (
-    <Button variant="secondary" size="sm" className="no-print" onClick={take} title="Download this table as CSV">
+    <Button variant="secondary" className="no-print" onClick={take} title="Download this table as CSV">
       <Download className="h-3.5 w-3.5" />
       Export
     </Button>
