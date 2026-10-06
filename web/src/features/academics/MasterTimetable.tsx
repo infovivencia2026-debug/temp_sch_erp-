@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Select,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
   Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
@@ -138,6 +138,76 @@ interface PublishPreview {
   }[]
 }
 
+/* THREE STEPS, ONE AT A TIME (owner: the page "looks ugly, confusion").
+
+   This screen put seven cards on one page at once -- the stage note, import
+   from a sheet, class-by-class periods, the draft, earlier attempts, what the
+   draft could not do, and the week itself -- and only ever two of them
+   mattered at a time. Somebody opening it could not tell what to do first,
+   and the week grid they came to look at was below eighteen classes of input
+   boxes.
+
+   Making a timetable is three decisions in order: say how many periods each
+   subject wants, make a draft from that, then read the draft and put it in
+   use. The step you are on is worked out from the school's own state rather
+   than remembered, so leaving and coming back lands in the right place; the
+   header is clickable so a finished step can be reopened to change it.
+
+   Nothing was deleted. Every card still exists, each under the step it
+   belongs to. */
+function Steps({ at, go, done }: {
+  at: 1 | 2 | 3
+  go: (n: 1 | 2 | 3) => void
+  done: { 1: boolean; 2: boolean; 3: boolean }
+}) {
+  const steps: { n: 1 | 2 | 3; label: string; hint: string }[] = [
+    { n: 1, label: 'Periods a week', hint: 'What each subject needs' },
+    { n: 2, label: 'Make a draft', hint: 'The computer works out the week' },
+    { n: 3, label: 'Check and use', hint: 'Read it, then put it in use' },
+  ]
+  return (
+    <Card>
+      <ol className="flex flex-col divide-y sm:flex-row sm:divide-x sm:divide-y-0">
+        {steps.map((s) => {
+          const on = s.n === at
+          const finished = done[s.n] && !on
+          return (
+            <li key={s.n} className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => go(s.n)}
+                aria-current={on ? 'step' : undefined}
+                className={cn(
+                  'flex w-full items-center gap-3 px-5 py-4 text-left transition-colors',
+                  on ? 'bg-primary/5' : 'hover:bg-muted/50',
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    'grid size-7 shrink-0 place-items-center rounded-full text-[12.5px] font-bold',
+                    on ? 'bg-primary text-primary-foreground'
+                      : finished ? 'bg-success/15 text-success'
+                        : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {finished ? '✓' : s.n}
+                </span>
+                <span className="min-w-0">
+                  <span className={cn('block truncate text-[14px]', on ? 'font-bold' : 'font-medium')}>
+                    {s.label}
+                  </span>
+                  <span className="block truncate text-[12px] text-muted-foreground">{s.hint}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </Card>
+  )
+}
+
 export default function MasterTimetable() {
   const qc = useQueryClient()
   const can = useCan()
@@ -198,6 +268,23 @@ export default function MasterTimetable() {
    */
   const needsRequirements = (s?.required_periods ?? 0) === 0
   const hasDraft = drafts.length > 0
+
+  /* WHICH STEP THE SCHOOL IS ACTUALLY ON.
+
+     Worked out from its own state, not remembered, so closing the page and
+     coming back lands where the work is. A step somebody has opened by hand
+     wins until they move: `jump` holds that, and nothing else writes it. */
+  const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
+  const natural: 1 | 2 | 3 = openDraft ? 3 : needsRequirements ? 1 : 2
+  const at: 1 | 2 | 3 = jump ?? natural
+  const stepDone = { 1: !needsRequirements, 2: hasDraft, 3: (s?.live_periods ?? 0) > 0 }
+  const goStep = (n: 1 | 2 | 3) => {
+    /* Step 3 is a draft being read. Choosing it with none open opens the
+       newest, because a step that leads to an empty page is not a step. */
+    if (n === 3 && !openDraft && hasDraft) setOpenDraft(drafts[0].id)
+    if (n !== 3) setOpenDraft('')
+    setJump(n)
+  }
   const allLive = !needsRequirements && (s?.sections_without_timetable ?? 0) === 0
 
   const stage = needsRequirements
@@ -244,11 +331,13 @@ export default function MasterTimetable() {
         description="The whole school's week. Making one only suggests it, nothing changes for teachers until you put it in use."
       />
       <PageBody>
+        <Steps at={at} go={goStep} done={stepDone} />
+        {/* The school's shape, on every step: it is the thing being timetabled. */}
         <SectionGrid />
-        {/* The single instruction, and the single button that acts on it. */}
-        {/* No coloured edge. The stripe said warn/go/done in a colour the
-            sentence beside it already says in words, and on a wide screen it
-            was the only saturated thing on the page. */}
+        {/* The single instruction, and the single button that acts on it.
+            Step 2 is where a draft gets made, so the instruction lives there;
+            on step 1 the periods editor is the instruction. */}
+        {at === 2 && (
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4 p-5">
             <div className="min-w-0 max-w-2xl">
@@ -289,6 +378,7 @@ export default function MasterTimetable() {
             )}
           </div>
         </Card>
+        )}
 
         <FormNotice error={generate.error} ok={note} />
 
@@ -299,19 +389,9 @@ export default function MasterTimetable() {
             exist, because a school revisits them when a subject changes and
             not otherwise -- and eighteen classes of boxes above a draft is a
             page nobody can find the timetable on. */}
-        {needsRequirements ? (
+        {at === 1 && (
           <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
-        ) : (
-          <details className="rounded-[10px] border bg-card">
-            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-              Set periods and build one section at a time
-            </summary>
-            <div className="border-t">
-              <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
-            </div>
-          </details>
         )}
-
         {/* THE TIMETABLE THE SCHOOL ALREADY HAS.
 
             Every school running today has one, settled over a term of
@@ -323,7 +403,7 @@ export default function MasterTimetable() {
             Behind a line, not in front of it: a school that needs this needs
             it once, and it must not stand between anybody and the timetable
             on every visit afterwards. */}
-        {mayWrite && (
+        {mayWrite && at === 1 && (
           <details className="rounded-[10px] border bg-card">
             <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
               Already have a timetable? Upload it instead
@@ -356,7 +436,7 @@ export default function MasterTimetable() {
             from the current one at a glance. Only the newest is a real
             decision; the others are history, and history belongs behind a
             word rather than in front of the work. */}
-        {hasDraft && (
+        {hasDraft && at === 2 && (
           <>
             <DraftCard
               draft={drafts[0]}
@@ -409,7 +489,15 @@ export default function MasterTimetable() {
           </>
         )}
 
-        {openDraft && (
+        {at === 3 && !openDraft && (
+          <Card>
+            <EmptyState
+              title="No draft to read yet"
+              body="Make one on the step before this, then it opens here."
+            />
+          </Card>
+        )}
+        {at === 3 && openDraft && (
           <DraftReview
             key={openDraft}
             draftID={openDraft}
@@ -425,6 +513,7 @@ export default function MasterTimetable() {
         {/* Three columns, not seven, and the draft column only while a draft
             exists — a column of dashes is a column you have to read to
             discover it says nothing. */}
+        {at !== 1 && (
         <Card>
           <CardHeader
             title="Class by class"
@@ -479,6 +568,7 @@ export default function MasterTimetable() {
           </Table>
           )}
         </Card>
+        )}
       </PageBody>
     </>
   )
