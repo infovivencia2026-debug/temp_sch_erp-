@@ -198,7 +198,7 @@ export default function TabStrip() {
       {/* The open tab's pill slides to the tab you pick instead of
           repainting there. */}
       <SlidingIndicator listRef={stripRef} active={here + tabs.length} pick={pickOn}
-        className="rounded-[10px] bg-accent shadow-[0_1px_2px_rgba(0,0,0,.06)]" />
+        className="rounded-lg bg-accent shadow-[0_1px_2px_rgba(0,0,0,.06)]" />
       {tabs.map((t) => {
         const active = t.path === here
         // A tab showing in some other pane is open in front of somebody even
@@ -282,7 +282,7 @@ export default function TabStrip() {
                  bottom side"): the open tab is a soft filled pill, not a hard
                  2px bar along its foot. */
               `group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
-               rounded-[10px] px-3 py-1.5 my-1 text-[12.5px] transition-colors`,
+               rounded-lg px-3 py-1.5 my-1 text-[12.5px] transition-colors`,
               shown
                 ? 'bg-accent text-foreground shadow-[0_1px_2px_rgba(0,0,0,.06)]'
                 : 'text-muted-foreground hover:bg-accent/60',

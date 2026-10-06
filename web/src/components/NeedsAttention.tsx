@@ -392,8 +392,8 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {/* Clear of the top bar: on a phone the greeting sat flush under it. */}
       {!attentionFirst && <div className="pt-[var(--page-top)]">
         <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
-          {greeting}
-          {name ? `, ${name}` : ''}
+          {/* Never a bare ", Meera": with no greeting, the name alone. */}
+          {greeting && name ? `${greeting}, ${name}` : greeting || name}
         </h2>
         {items.length === 0 && (
           <p className="mt-1 text-[14px] text-muted-foreground">

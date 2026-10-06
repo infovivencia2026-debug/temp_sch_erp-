@@ -428,7 +428,7 @@ export default function Notifications() {
         // eleven that were not.
         data-tip="Notifications"
         title="Notifications"
-        className="relative grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground
+        className="relative grid h-9 w-9 place-items-center rounded-sm text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"
       >
         {/* Bigger on a phone: the owner asked for larger top-bar buttons there. */}

@@ -4184,7 +4184,10 @@ main, [data-paint='workarea'] {
 
 :root:not(.dark) .card {
   border-color: rgb(10 10 10 / 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
+  /* The card's own colour, from Settings > Colour (--card), with the same faint
+     fall toward the foot it always had. Was literal white, which is why a
+     school's chosen card colour never reached a card. */
+  background: linear-gradient(180deg, hsl(var(--card)) 0%, color-mix(in srgb, hsl(var(--card)) 97%, #4a4ad8) 100%);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.9),
     0 1px 2px -1px rgb(15 15 30 / 0.12),
@@ -4192,7 +4195,7 @@ main, [data-paint='workarea'] {
     0 18px 40px -24px hsl(var(--primary) / calc(0.35 * var(--glow-k)));
 }
 .dark .card {
-  background: linear-gradient(180deg, #17171c 0%, #101014 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, hsl(var(--card)) 97%, #ffffff) 0%, hsl(var(--card)) 100%);
   border-color: rgb(229 229 229 / 0.12);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.06),
@@ -4200,8 +4203,8 @@ main, [data-paint='workarea'] {
     0 10px 24px -10px rgb(0 0 0 / 0.7),
     0 20px 44px -26px hsl(var(--primary) / calc(0.45 * var(--glow-k)));
 }
-:root:not(.dark) .card .cell { background: #ffffff; }
-.dark .card .cell { background: #141418; }
+:root:not(.dark) .card .cell { background: hsl(var(--card)); }
+.dark .card .cell { background: hsl(var(--card)); }
 /* The Focus board stands on the same tinted ground as the rest. */
 :root:not(.dark) .bento-ground {
   background:
@@ -4245,7 +4248,7 @@ main, [data-paint='workarea'] {
 .tint-grid > :nth-child(5n+4), .cell-grid > .cell:nth-child(5n+4) { --tint: 14 165 233; }
 .tint-grid > :nth-child(5n+5), .cell-grid > .cell:nth-child(5n+5) { --tint: 244 63 94; }
 :root:not(.dark) .tint-grid > * {
-  background: linear-gradient(180deg, rgb(var(--tint) / 0.08) 0%, rgb(var(--tint) / 0.025) 55%, transparent 100%), #ffffff !important;
+  background: linear-gradient(180deg, rgb(var(--tint) / 0.08) 0%, rgb(var(--tint) / 0.025) 55%, transparent 100%), hsl(var(--card)) !important;
   border-color: rgb(var(--tint) / 0.16) !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .9),
@@ -4254,14 +4257,14 @@ main, [data-paint='workarea'] {
     0 16px 36px -14px rgb(var(--tint) / calc(0.55 * var(--glow-k))) !important;
 }
 :root:not(.dark) .cell-grid > .cell {
-  background: linear-gradient(180deg, rgb(var(--tint) / 0.07) 0%, rgb(var(--tint) / 0.02) 55%, transparent 100%), #ffffff !important;
+  background: linear-gradient(180deg, rgb(var(--tint) / 0.07) 0%, rgb(var(--tint) / 0.02) 55%, transparent 100%), hsl(var(--card)) !important;
 }
 .dark .tint-grid > * {
-  background: linear-gradient(180deg, rgb(var(--tint) / 0.20) 0%, rgb(var(--tint) / 0.06) 60%, #141418 100%) !important;
+  background: linear-gradient(180deg, rgb(var(--tint) / 0.20) 0%, rgb(var(--tint) / 0.06) 60%, hsl(var(--card)) 100%) !important;
   border-color: rgb(var(--tint) / 0.30) !important;
 }
 .dark .cell-grid > .cell {
-  background: linear-gradient(180deg, rgb(var(--tint) / 0.16) 0%, rgb(var(--tint) / 0.05) 60%, #141418 100%) !important;
+  background: linear-gradient(180deg, rgb(var(--tint) / 0.16) 0%, rgb(var(--tint) / 0.05) 60%, hsl(var(--card)) 100%) !important;
 }
 .tint-grid > * > span:last-child, .cell-grid > .cell > div:first-child > svg { color: rgb(var(--tint)); }
 .tint-grid > * > span:last-child { background: rgb(var(--tint) / 0.14) !important; }
@@ -4383,6 +4386,26 @@ input[type='time']::-webkit-date-and-time-value {
    which the owner asked to have gone everywhere. */
 .card > .border-b:last-child,
 .card > :last-child > .border-b:only-child { border-bottom-width: 0; }
+
+/* THE CORNERS BELONG TO THE CARD, WHATEVER SITS IN THEM.
+
+   A card is rounded, but a child that paints its own fill -- a table's foot,
+   an empty-state band, a tinted header -- is a rectangle, and where it meets
+   the card's edge it draws a square corner over a round one. Every such card
+   read as "sharp at the bottom". The card does not clip (menus and tooltips
+   inside it must escape), so instead the first and last children, and the
+   children of those, take the card's own corner radii. Nothing changes for
+   a child that paints no fill. */
+.card > :first-child,
+.card > :first-child > :first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+.card > :last-child,
+.card > :last-child > :last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
 
 /* ─────────────────────────────────────────────────────────────────────────
    SMOOTH INTERACTION (owner, 2026-10-01: "button press, tab transitions,

@@ -256,7 +256,7 @@ export default function SettingsPage() {
              band above the tab bar. It fills what the work area has, and the
              ground below it is painted the same colour (data-page-ground). */
           'flex-1 border-b-0 sm:flex-none sm:border-b',
-          'sm:rounded-[16px] sm:border-x sm:border-t',
+          'sm:rounded-xl sm:border-x sm:border-t',
           'bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
           EDGE,
@@ -285,7 +285,7 @@ export default function SettingsPage() {
               type="button"
               onClick={backToList}
               className={cn(
-                '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-[8px] pl-[6px] pr-[10px]',
+                '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-md pl-[6px] pr-[10px]',
                 'text-[15px] transition-colors', INK, WASH, RING,
               )}
             >
@@ -402,7 +402,7 @@ function FullScreenOffer() {
   /* Two rows, not a card with a paragraph: the offer and the way to decline
      it, each a 44px target, each saying what it does in its own words. */
   return (
-    <Rows className={cn('mb-[24px] overflow-hidden rounded-[14px] border', SEAM)}>
+    <Rows className={cn('mb-[24px] overflow-hidden rounded-xl border', SEAM)}>
       <NavRow
         label="Use the whole screen"
         helper="The browser keeps about an eighth of the screen for its bar."

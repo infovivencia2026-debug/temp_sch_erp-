@@ -150,7 +150,7 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
     // The row grows with its type, or larger text is set in a 36px box and
     // clipped by it. min-height rather than height for the same reason: a
     // two-line label at 116% has to be allowed to be two lines.
-    'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-[7px] pr-2',
+    'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-sm pr-2',
     /* THE SAME SIZE AS THE PAGE IT NAVIGATES.
 
        13.5 against a 14px body is not a hierarchy, it is a half-pixel nobody
@@ -753,7 +753,7 @@ export function Shell({
                 className={cn(
                   /* A bold tile in the workspace's own colour, which the theme
                      sets; the one you are in is ringed in the same colour. */
-                  'rail-item rail-tile grid size-11 shrink-0 place-items-center rounded-[13px]',
+                  'rail-item rail-tile grid size-11 shrink-0 place-items-center rounded-lg',
                   'transition-[filter,box-shadow,transform] duration-150 focus-visible:outline-none',
                   on && 'rail-tile-on',
                 )}
@@ -782,12 +782,12 @@ export function Shell({
                 onClick={cycleDensity}
                 title={`Row height: ${density}`}
                 aria-label={`Row height: ${density}. Click to change.`}
-                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               >
                 <Rows3 className="h-4 w-4" />
               </button>
               <HelpButton
-                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
                 iconClassName="h-4 w-4"
               />
               <Link
@@ -795,7 +795,7 @@ export function Shell({
                 aria-label="Your account"
                 data-help-anchor="account"
                 title="Your account and password"
-                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               >
                 <UserRound className="h-4 w-4" />
               </Link>
@@ -804,7 +804,7 @@ export function Shell({
                 onClick={() => buzz('warn')}
                 aria-label="Sign out"
                 title="Sign out"
-                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               >
                 <LogOut className="h-4 w-4" />
               </a>
@@ -860,7 +860,7 @@ export function Shell({
               /* Stacked: the mark on its own row, the role and the school under
                  it. Side by side, a 48px logo left the names a truncated
                  stub ("Instit…"). */
-              'flex w-full flex-col items-start gap-2 rounded-[7px] py-2 pl-2 pr-2 text-left',
+              'flex w-full flex-col items-start gap-2 rounded-sm py-2 pl-2 pr-2 text-left',
               'transition-colors duration-100',
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
@@ -878,11 +878,11 @@ export function Shell({
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
                 alt=""
-                className="aspect-square h-12 w-12 shrink-0 rounded-[10px] bg-white object-cover"
+                className="aspect-square h-12 w-12 shrink-0 rounded-lg bg-white object-cover"
               />
             ) : (
               <span
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground"
                 style={
                   session.institution?.primary_color
                     ? { backgroundColor: session.institution.primary_color }
@@ -921,7 +921,7 @@ export function Shell({
               />
               <div
                 role="menu"
-                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-[10px] border bg-popover py-1 shadow-[var(--lift-float)]"
+                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
               >
                 {/* Bounded, because "View every role" turns thirteen rows
                     into twenty-odd and the menu then runs off the bottom of
@@ -966,7 +966,7 @@ export function Shell({
               A 44px touch target with a focus ring, matching the app's other
               icon buttons — the bare 16px X had neither. */}
           <button
-            className="absolute right-4 top-5 grid h-10 w-10 place-items-center rounded-[7px]
+            className="absolute right-4 top-5 grid h-10 w-10 place-items-center rounded-sm
                        text-muted-foreground transition-colors duration-100
                        hover:bg-surface-hover hover:text-foreground
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
@@ -1124,7 +1124,7 @@ export function Shell({
             aria-label="Open navigation"
             aria-expanded={navOpen}
             aria-controls="shell-nav"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
             onClick={() => setNavOpen(true)}
           >
             <Menu className="h-6 w-6 md:h-5 md:w-5" />
@@ -1139,7 +1139,7 @@ export function Shell({
               type="button"
               aria-label="Show navigation"
               title="Show navigation"
-              className="hidden h-9 w-9 shrink-0 place-items-center rounded-[7px] text-muted-foreground
+              className="hidden h-9 w-9 shrink-0 place-items-center rounded-sm text-muted-foreground
                          transition-colors duration-100 hover:bg-surface-hover hover:text-foreground
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                          lg:grid"
@@ -1195,7 +1195,7 @@ export function Shell({
                  and both live in Settings too; here they cost 190px of a
                  358px header, which pushed Sign out off the right edge and
                  left the school's name no room at all. */
-              className="hidden h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground sm:grid"
+              className="hidden h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground sm:grid"
             >
               <Rows3 className="h-4 w-4" />
             </button>
@@ -1211,7 +1211,7 @@ export function Shell({
                 every role rather than from a catalogue entry only faculty
                 had. */}
             <HelpButton
-              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              className="grid h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
               iconClassName="h-[22px] w-[22px] md:h-4 md:w-4"
             />
             <Link
@@ -1219,7 +1219,7 @@ export function Shell({
               aria-label="Your account"
               data-help-anchor="account"
               title="Your account and password"
-              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              className="grid h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
               <UserRound className="h-[22px] w-[22px] md:h-4 md:w-4" />
             </Link>
@@ -1227,7 +1227,7 @@ export function Shell({
               href="/logout"
               onClick={() => buzz('warn')}
               aria-label="Sign out"
-              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              className="grid h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
               <LogOut className="h-[22px] w-[22px] md:h-4 md:w-4" />
             </a>

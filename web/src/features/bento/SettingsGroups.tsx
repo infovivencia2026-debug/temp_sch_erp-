@@ -105,7 +105,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
       {/* One card, one hairline, rules only BETWEEN rows. A border on every
           row draws a line under the last one as well, which is what makes a
           list look like a table rather than a card. */}
-      <div className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))]">
+      <div className="overflow-hidden rounded-xl border bg-[var(--bento-card,hsl(var(--card)))]">
         {/* Rules inset past the icon, as a phone list draws them. */}
         <div className="[&>*+*]:border-t [&>*+*]:[border-image:linear-gradient(to_right,transparent_52px,color-mix(in_srgb,currentColor_14%,transparent)_52px)_1]">{children}</div>
       </div>
@@ -229,7 +229,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))] p-4">
+    <section className="overflow-hidden rounded-xl border bg-[var(--bento-card,hsl(var(--card)))] p-4">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <button
