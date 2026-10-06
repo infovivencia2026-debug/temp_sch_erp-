@@ -3,6 +3,7 @@ import { enqueueMessageSends, longDateIST } from '../../services/messaging'
 import { HttpError, badRequest, bool, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { familyChildren, institutionId, marks, js, notYourChild, notifyStmt, ownsStudent, portalChild, requirePerm, resolveScope, str, todayIST } from '../teaching/common'
+import { SchoolPDF, schoolFacts, logoBytes, inr as docINR } from '../../services/document'
 import { publish } from '../../services/live'
 import { feedbackUpdateStmt } from '../comms/grievances'
 import { canReopen, dueAt, notify, ownAttachment, policyFor, ticketStage } from '../comms/concern_shared'
@@ -87,6 +88,7 @@ export function registerPortalRequests(r: Router): void {
   // Fee receipts.
   r.get('/portal/receipts', PORTAL, listPortalReceipts)
   r.get('/portal/receipts/{id}', PORTAL, getPortalReceipt)
+  r.get('/portal/receipts/{id}/pdf', PORTAL, portalReceiptPDF)
 
   // Certificates and documents.
   r.get('/portal/requests/types', PORTAL, listPortalRequestTypes)
@@ -940,6 +942,98 @@ async function listPortalReceipts(c: Ctx): Promise<Response> {
 }
 
 /** One receipt for the family that paid it; another family's is a 404. */
+/* THE RECEIPT AS A FILE, NOT AS A PRINT DIALOGUE.
+
+   The family's receipt has always been a print sheet with "choose Save as PDF
+   to keep a copy" written under it. That works at a desk and barely works on a
+   phone -- iOS Safari's share sheet hides it, and a parent asked to produce a
+   receipt for a scholarship form does not want a screenshot. The Worker
+   already draws real PDFs with pdf-lib for the seller's tax invoices and the
+   report digests (services/document.ts), on the school's own letterhead, so
+   there is nothing to invent: the same builder, the same data this screen
+   already reads, and a Content-Disposition that makes the browser save it.
+
+   Scoped exactly as the screen is -- resolveScope and the student_ids it
+   returns -- so a family downloads its own receipts and nobody else's, and
+   only cleared money: a bounced cheque must never leave the building as a
+   receipt. */
+async function portalReceiptPDF(c: Ctx): Promise<Response> {
+  const s = await resolveScope(c)
+  const paymentID = c.params.id
+  if (!isUUID(paymentID)) throw badRequest('invalid payment id')
+  if (s.studentIds.length === 0) throw notFound()
+
+  const p = await c.db.prepare(`
+    SELECT COALESCE(p.receipt_no, '-') AS receipt_no, p.amount_paise, p.mode, p.paid_on, p.reference_no,
+           trim(st.first_name || COALESCE(' ' || st.middle_name, '') || COALESCE(' ' || st.last_name, '')) AS student_name,
+           st.admission_no,
+           (SELECT c2.name FROM enrollments e JOIN classes c2 ON c2.id = e.class_id
+             WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1) AS class_name,
+           (SELECT sec.name FROM enrollments e JOIN sections sec ON sec.id = e.section_id
+             WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1) AS section_name
+      FROM payments p
+      JOIN students st ON st.id = p.student_id
+     WHERE p.id = ? AND p.student_id IN (${marks(s.studentIds)}) AND p.status = 'success'`)
+    .bind(paymentID, js(s.studentIds)).first<Record<string, unknown>>()
+  if (!p) throw notFound()
+
+  const lines = (await c.db.prepare(`
+    SELECT i.invoice_no, pa.amount_paise,
+           COALESCE((SELECT group_concat(n, ', ') FROM (
+               SELECT DISTINCT fh.name AS n FROM invoice_lines il
+                 JOIN fee_heads fh ON fh.id = il.fee_head_id
+                WHERE il.invoice_id = i.id)), 'Fee') AS particulars
+      FROM payment_allocations pa
+      JOIN invoices i ON i.id = pa.invoice_id
+     WHERE pa.payment_id = ?`).bind(paymentID).all<{ invoice_no: string; amount_paise: number; particulars: string }>()).results
+
+  const amount = Number(p.amount_paise ?? 0)
+  const paidOn = String(p.paid_on).slice(0, 10)
+  const facts = await schoolFacts(c.db, c.id.institution!)
+  const logo = await logoBytes(c.env, c.db, facts.logoKey)
+  const pdf = await SchoolPDF.create(facts, {
+    title: 'Fee receipt',
+    subtitle: `${str(p.student_name)} · ${financialYear(paidOn)}`,
+    docNo: str(p.receipt_no),
+    date: paidOn,
+    logo: logo ?? undefined,
+  })
+
+  const where = [p.class_name, p.section_name].filter(Boolean).join(' ')
+  const about: [string, string][] = [
+    ['Received from', str(p.student_name)],
+    ['Admission no', str(p.admission_no)],
+  ]
+  if (where) about.push(['Class', where])
+  about.push(['Paid on', paidOn], ['Mode', str(p.mode) || '-'])
+  if (p.reference_no) about.push(['Reference', str(p.reference_no)])
+  pdf.facts(about)
+
+  pdf.table(
+    [{ label: 'Particulars', width: 4 }, { label: 'Invoice', width: 2 }, { label: 'Amount', width: 2, align: 'right' }],
+    lines.length
+      ? lines.map((l) => [l.particulars, l.invoice_no, docINR(Number(l.amount_paise ?? 0), true)])
+      : [['Fee', '-', docINR(amount, true)]],
+  )
+  pdf.total('Total received', docINR(amount, true), true)
+  pdf.paragraph(`Rupees ${rupeesInWords(amount)}.`)
+  /* A receipt that does not say it needs no signature invites somebody to ask
+     for one that this document will never carry. */
+  pdf.paragraph('This is a computer-generated receipt and needs no signature.')
+
+  const bytes = await pdf.save()
+  const name = `receipt-${str(p.receipt_no).replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`
+  return new Response(bytes as unknown as BodyInit, {
+    headers: {
+      'content-type': 'application/pdf',
+      /* attachment, so the phone saves it rather than opening a viewer the
+         parent then has to work out how to save from. */
+      'content-disposition': `attachment; filename="${name}"`,
+      'cache-control': 'private, no-store',
+    },
+  })
+}
+
 async function getPortalReceipt(c: Ctx): Promise<Response> {
   const s = await resolveScope(c)
   const paymentID = c.params.id

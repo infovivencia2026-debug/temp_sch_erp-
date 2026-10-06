@@ -957,6 +957,7 @@ export const te: Partial<Messages> = {
   'portal.fresh.minutes': '{n} నిమి. క్రితం',
   'portal.fresh.hours': '{n} గం. క్రితం',
   'portal.fresh.days': '{n} రోజుల క్రితం',
+  'portal.receipts.download': 'డౌన్‌లోడ్',
   'portal.receipts.download_hint': 'మీ పరికరం ప్రింట్ షీట్‌ను తెరుస్తుంది. కాపీ ఉంచుకోవడానికి “Save as PDF” ఎంచుకోండి.',
   'portal.consent.field_going_to_placeholder': 'Karimnagar',
   'portal.consent.field_escort_placeholder': 'Suresh Menon',
