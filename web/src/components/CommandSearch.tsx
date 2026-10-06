@@ -51,6 +51,17 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   /* The shared Dialog owns Back, Escape and the dim (overlay-history.ts);
      this is what the rows call when they have sent somebody somewhere. */
   const close = useCallback(() => setOpen(false), [])
+  /* The button is swapped for the palette while it is open, so the Dialog
+     has no opener to hand focus back to; the new button takes it, unless the
+     palette closed by going somewhere (focus then belongs to that screen). */
+  const trigger = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
+  useEffect(() => {
+    if (open) { wasOpen.current = true; return }
+    if (!wasOpen.current) return
+    wasOpen.current = false
+    if (!document.activeElement || document.activeElement === document.body) trigger.current?.focus({ preventScroll: true })
+  }, [open])
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -256,6 +267,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   if (!open) {
     return (
       <button
+        ref={trigger}
         onClick={() => setOpen(true)}
         /* Fully round, to sit inside the Bento dock without arguing with it.
 

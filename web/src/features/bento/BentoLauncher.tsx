@@ -24,6 +24,7 @@ import { FeatureGlyph } from '@/components/FeatureGlyph'
 import { usePins, togglePin } from '@/lib/pins'
 import { useShortcuts, toggleDashboard } from '@/lib/shortcuts'
 import { createPortal } from 'react-dom'
+import { restoreFocus } from '@/lib/motion'
 import { usePhone } from '@/lib/viewport'
 import { cn } from '@/lib/utils'
 import { buzz } from '@/lib/haptics'
@@ -491,6 +492,13 @@ export function BentoLauncher({
       const id = requestAnimationFrame(() => inputRef.current?.focus())
       return () => cancelAnimationFrame(id)
     }
+  }, [open])
+
+  /* Closed, focus goes back to the button that opened it, not to the page. */
+  useEffect(() => {
+    if (!open) return
+    const opener = document.activeElement
+    return () => restoreFocus(opener)
   }, [open])
 
   useEffect(() => setCursor(0), [needle])
