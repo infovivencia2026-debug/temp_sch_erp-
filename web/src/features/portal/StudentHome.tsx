@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import JoinActivities from './JoinActivities'
 import { useCollapsingTitle } from '@/lib/motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Award, CalendarCheck, ChevronRight, Flame, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
+import { ArrowRight, CalendarCheck, ChevronRight, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { ErrorState } from '@/components/ui'
@@ -15,8 +15,7 @@ import {
 
    Above the fold on a phone, in this order: the class on now (or next) with a
    live countdown, the Continue-learning button, the homework due today and
-   tomorrow, and whether today is marked present. Streak and badges sit as two
-   small chips beside the greeting. Everything else (a quiz that is open,
+   tomorrow, and whether today is marked present. Everything else (a quiz that is open,
    marks just published, notices) appears below only when there is something
    in it. Every card is one tap to the screen it summarises.
 
@@ -42,7 +41,6 @@ interface Todo {
   lessons: { id: string; title: string; subject: string; class_subject_id: string; unit: string }[]
 }
 interface Home { marks: { exam: string; subject: string; obtained: number | null; max_marks: number; grade?: string | null; is_absent: number }[]; notices: { id: string; title: string; publish_at: string }[] }
-interface Streak { open_streak: number; opened_today: boolean; badges: { key: string; title: string; earned: boolean }[] }
 
 export const homeworkQuery = { queryKey: ['portal-student-homework'], queryFn: () => api.get<List<StudentHomework>>('/api/v1/homework') }
 
@@ -62,8 +60,6 @@ export default function StudentHome() {
   const toHomework = useFeatureHref('student.homework.homework_assignments')
   const toCourses = useFeatureHref('student.learning.courses_subjects')
   const toAttendance = useFeatureHref('student.attendance.attendance')
-  const toStreak = useFeatureHref('student.learning.gamified_learning_streak_counter')
-  const toBadges = useFeatureHref('student.learning.gamified_learning_badge_showcase')
   const toResults = useFeatureHref('student.exams_results.exams_grades')
 
   const summary = useQuery({ queryKey: ['portal-summary', 'self'], queryFn: () => api.get<Summary>('/api/v1/portal/summary') })
@@ -72,9 +68,8 @@ export default function StudentHome() {
   const courses = useQuery({ queryKey: ['portal-lms-courses'], queryFn: () => api.get<Courses>('/api/v1/portal/lms/courses') })
   const todo = useQuery({ queryKey: ['portal-lms-todo'], queryFn: () => api.get<Todo>('/api/v1/portal/lms/todo') })
   const home = useQuery({ queryKey: ['portal-lms-home', 'self'], queryFn: () => api.get<Home>('/api/v1/portal/lms/home') })
-  const streak = useQuery({ queryKey: ['portal-streak', 'self'], queryFn: () => api.get<Streak>('/api/v1/portal/learning/streak'), retry: false })
 
-  const refresh = () => Promise.all(['portal-summary', 'portal-attendance', 'portal-student-homework', 'portal-lms-courses', 'portal-lms-todo', 'portal-lms-home', 'portal-streak']
+  const refresh = () => Promise.all(['portal-summary', 'portal-attendance', 'portal-student-homework', 'portal-lms-courses', 'portal-lms-todo', 'portal-lms-home']
     .map((k) => qc.invalidateQueries({ queryKey: [k] })))
 
   /* Before the early return below, not after it: a hook that runs while the
@@ -113,7 +108,6 @@ export default function StudentHome() {
   const quizzes = todo.data?.quizzes ?? []
   const marks = home.data?.marks ?? []
   const notices = home.data?.notices ?? []
-  const earned = streak.data?.badges.filter((b) => b.earned).length ?? 0
 
 
   return (
@@ -128,16 +122,6 @@ export default function StudentHome() {
             <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>
           </div>
           <span className="flex items-center gap-2">
-          {streak.data && (
-            <>
-              <Link to={toStreak ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
-                <Flame className="h-4 w-4" /> {streak.data.open_streak}
-              </Link>
-              <Link to={toBadges ?? '#'} className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3.5 py-2 text-[13.5px] font-bold backdrop-blur">
-                <Award className="h-4 w-4" /> {earned}
-              </Link>
-            </>
-          )}
           <span className="rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[13.5px] font-semibold backdrop-blur">
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
           </span>
@@ -153,19 +137,6 @@ export default function StudentHome() {
             <h1 className="m-large-title text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
             <p className="m-large-title-sub text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
-          {streak.isLoading && <div className="flex gap-2" aria-hidden><Bone className="h-11 w-[64px] rounded-full" /><Bone className="h-11 w-[64px] rounded-full" /></div>}
-          {streak.data && (
-            <div className="flex gap-2">
-              <Chip to={toStreak} label={`${streak.data.open_streak} day streak`}>
-                <Flame className={cn('h-4 w-4', streak.data.open_streak ? 'text-[hsl(var(--sys-orange))]' : 'text-muted-foreground')} strokeWidth={1.8} />
-                <span className="tabular-nums">{streak.data.open_streak}</span>
-              </Chip>
-              <Chip to={toBadges} label={`${earned} badge${earned === 1 ? '' : 's'}`}>
-                <Award className="h-4 w-4 text-[hsl(var(--sys-indigo))]" strokeWidth={1.8} />
-                <span className="tabular-nums">{earned}</span>
-              </Chip>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -330,11 +301,6 @@ function addDays(iso: string, n: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 export { addDays }
-
-function Chip({ to, label, children }: { to?: string; label: string; children: React.ReactNode }) {
-  const cls = 'card inline-flex h-[44px] min-w-[56px] items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold'
-  return to ? <Link to={to} aria-label={label} title={label} className={cls}>{children}</Link> : <span aria-label={label} className={cls}>{children}</span>
-}
 
 export function MiniRing({ done, total, size = 36 }: { done: number; total: number; size?: number }) {
   const r = (size - 5) / 2, c = 2 * Math.PI * r, p = total ? done / total : 0
