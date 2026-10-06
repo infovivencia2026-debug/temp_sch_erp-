@@ -94,7 +94,8 @@ Last checked: 2026-10-02.
 
 ## Known and not fixed
 
-- Web tests: 5 failures that predate this work (1 palette contrast, 4 bento size tiers).
+- Remote school databases are behind (2026-10-06): demo has 21 and demo-school 20 tenant migrations pending (0032-0052), and 0036_status_likes reads as a checksum mismatch where it was recorded without a checksum. The deploy guard now refuses until `migrate.mjs up --remote` is run (or ALLOW_PENDING_MIGRATIONS=1).
+- deploy-cloudrun no longer runs on push (Cloud Run being retired, its DATABASE_URL secret is gone); start it by hand if ever needed.
 - Four Work-layout pages scroll slightly sideways on phones (My students, My classes, My pay, Background jobs).
 - "Hold a card to customize" hint sits half behind the dock.
 - Tinted stat tiles: label and icon too faint in dark.
