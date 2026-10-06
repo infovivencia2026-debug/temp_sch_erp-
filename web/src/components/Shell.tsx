@@ -236,9 +236,16 @@ export function Shell({
       if (e.pointerType === 'mouse') return
       const el = (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
       if (!el) return
-      document.querySelectorAll('.rail-item[data-tapped]').forEach((x) => x.removeAttribute('data-tapped'))
-      el.setAttribute('data-tapped', '')
-      window.setTimeout(() => el.removeAttribute('data-tapped'), 1500)
+      /* A floating label on top of everything: the panel a tap opens covered
+         the rail's own tooltip. */
+      document.getElementById('rail-tap-tip')?.remove()
+      const r = el.getBoundingClientRect()
+      const tip = document.createElement('div')
+      tip.id = 'rail-tap-tip'
+      tip.textContent = el.getAttribute('data-tip') ?? ''
+      tip.style.cssText = `position:fixed;left:${r.right + 8}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
+      document.body.appendChild(tip)
+      window.setTimeout(() => tip.remove(), 1500)
     }
     document.addEventListener('pointerdown', onDown, true)
     return () => document.removeEventListener('pointerdown', onDown, true)
