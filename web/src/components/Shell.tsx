@@ -230,6 +230,19 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
+  /* Touch: show a rail icon's name when it is tapped (no hover on a phone). */
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return
+      const el = (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
+      if (!el) return
+      document.querySelectorAll('.rail-item[data-tapped]').forEach((x) => x.removeAttribute('data-tapped'))
+      el.setAttribute('data-tapped', '')
+      window.setTimeout(() => el.removeAttribute('data-tapped'), 1500)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [])
   const catalog = useCatalog()
   const session = useSession()
   const later = useAfterFirstScreen()

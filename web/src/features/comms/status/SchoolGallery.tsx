@@ -159,13 +159,14 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
                   know what it is, when it was, and to say they liked it --
                   so each one is a card with its own title, date and heart,
                   and the picture keeps the shape it was taken in. */}
-              <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]">
+              {/* Smaller tiles (owner: "big and ugly"): ~180px, square, compact caption. */}
+              <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(46%,170px),1fr))]">
                 {list.map((p) => (
                   <article key={p.id}
-                    className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_4px_18px_-2px_rgba(15,23,42,0.05)]
-                               transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_32px_-4px_rgba(15,23,42,0.12)]">
+                    className="group flex flex-col overflow-hidden rounded-xl border bg-card shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]
+                               transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(15,23,42,0.12)]">
                     <button type="button" onClick={() => setOpen(p.id)}
-                      className="relative block aspect-[16/10] w-full overflow-hidden bg-foreground/90 text-left">
+                      className="relative block aspect-square w-full overflow-hidden bg-foreground/90 text-left">
                       {p.media_kind === 'text' ? (
                         <span className="grid size-full place-items-center bg-primary p-4 text-center text-[13px] font-semibold text-primary-foreground">
                           <Type className="mb-1 size-5 opacity-80" />{(p.caption ?? '').slice(0, 90)}
@@ -178,7 +179,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
                       )}
                       {/* Staff are told which list it went to; a family is not. */}
                       {staff && p.audience && (
-                        <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11.5px] font-bold text-white backdrop-blur">
+                        <span className="absolute left-2 top-2 max-w-[85%] truncate rounded-full bg-black/70 px-2 py-0.5 text-[10.5px] font-bold text-white backdrop-blur">
                           {p.audience}
                         </span>
                       )}
@@ -188,11 +189,11 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
                               still frame with a button already on it reads as a
                               video that failed to start. */}
                           <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                            <span className="grid size-[52px] place-items-center rounded-full bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.3)] transition-transform duration-200 group-hover:scale-100 scale-90">
-                              <Play className="size-5 fill-primary text-primary" />
+                            <span className="grid size-[38px] place-items-center rounded-full bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.3)] transition-transform duration-200 group-hover:scale-100 scale-90">
+                              <Play className="size-4 fill-primary text-primary" />
                             </span>
                           </span>
-                          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/85 px-2 py-0.5 text-[11.5px] font-semibold text-white">
+                          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/80 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">
                             <Play className="size-2.5 fill-current" />
                             {p.duration_seconds ? `0:${String(Math.round(p.duration_seconds)).padStart(2, '0')}` : ''}
                           </span>
@@ -200,16 +201,16 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
                       )}
                     </button>
 
-                    <div className="flex flex-1 flex-col gap-3 px-4 py-3.5">
-                      <div className="min-w-0">
-                        <h4 className="truncate text-[15px] font-bold">
+                    <div className="flex items-center gap-2 px-2.5 py-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate text-[12.5px] font-semibold">
                           {p.caption || (p.media_kind === 'video' ? 'Video' : 'Photo')}
                         </h4>
-                        <p className="mt-0.5 text-[12.5px] font-medium text-muted-foreground">
+                        <p className="text-[11px] text-muted-foreground">
                           {new Date(p.published_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
-                      <div className="mt-auto flex items-center justify-between border-t pt-2.5">
+                      <div className="shrink-0">
                         <HeartButton post={p} />
                       </div>
                     </div>
