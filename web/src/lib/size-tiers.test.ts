@@ -19,7 +19,8 @@ import { useLayout, dimsOf, tintOf } from './widgets'
 /** The eight shapes the old picker offered, and what each reads as now. */
 const LEGACY: { w: number; h: number; desktop: SizeTier; phone: SizeTier }[] = [
   { w: 1, h: 1, desktop: 'small', phone: 'small' },
-  { w: 1, h: 2, desktop: 'large', phone: 'large' },
+  // Tall is the desk's one-column, two-row shape; a phone has no Tall.
+  { w: 1, h: 2, desktop: 'tall', phone: 'large' },
   { w: 2, h: 1, desktop: 'medium', phone: 'medium' },
   { w: 2, h: 2, desktop: 'large', phone: 'large' },
   { w: 3, h: 1, desktop: 'wide', phone: 'medium' },
@@ -38,10 +39,10 @@ describe('tierOf classifies every legacy shape', () => {
     })
   }
 
-  it('height decides first: anything two rows tall is large, whatever its width', () => {
+  it('height decides first: two rows is tall at one column on the desk, large otherwise', () => {
     for (const w of [1, 2, 3, 4, 5]) {
       for (const h of [2, 3, 4, 5]) {
-        expect(tierOf(w, h, false)).toBe('large')
+        expect(tierOf(w, h, false)).toBe(w < 2 ? 'tall' : 'large')
         expect(tierOf(w, h, true)).toBe('large')
       }
     }
@@ -88,6 +89,7 @@ describe('dimsForTier and tierOf agree', () => {
   it('the desktop table is the one the header promises', () => {
     expect(TIER_DIMS).toEqual({
       small: { w: 1, h: 1 },
+      tall: { w: 1, h: 2 },
       medium: { w: 2, h: 1 },
       large: { w: 2, h: 2 },
       wide: { w: 3, h: 1 },
@@ -225,7 +227,7 @@ describe('every preset produces shapes tierOf can name', () => {
 
   it('compact, even, columns and panels are one tier each', () => {
     const expected: Record<string, SizeTier> = {
-      compact: 'small', even: 'medium', columns: 'large', panels: 'large',
+      compact: 'small', even: 'medium', columns: 'tall', panels: 'large',
     }
     for (const [preset, tier] of Object.entries(expected)) {
       const d = freshDashboard()
