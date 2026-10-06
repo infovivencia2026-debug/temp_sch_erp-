@@ -311,11 +311,20 @@ export default function FeeCounter() {
                       </Td>
                       <Td><Badge tone={d.status === 'overdue' ? 'danger' : 'warning'}>{d.status}</Badge></Td>
                       <Td>
-                        {/* A penalty somebody decided on, rather than one a
-                            rule worked out. The alternative was raising a
-                            second invoice, which puts one term's money in two
-                            places and makes the family's ledger read as two
-                            debts. */}
+                        {/* A LATE FEE SOMEBODY DECIDED ON, not one a rule
+                            worked out. The automatic kind comes from the late
+                            fee rules (fee_engine): grace days, then a flat
+                            charge, a daily rate or a percentage. This is the
+                            office overriding that for one family -- which is
+                            why it asks for a reason the family will read.
+
+                            It was labelled "penalty", a word no Indian school
+                            fee notice uses and no parent wants to see on their
+                            child's bill; the charge itself has always been a
+                            late fee, on the Late fee / penalty head. The
+                            alternative was raising a second invoice, which
+                            puts one term's money in two places and makes the
+                            family's ledger read as two debts. */}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -325,7 +334,7 @@ export default function FeeCounter() {
                             setPenaltyReason('')
                           }}
                         >
-                          {penaltyOn === d.invoice_id ? 'Cancel' : 'Add penalty'}
+                          {penaltyOn === d.invoice_id ? 'Cancel' : 'Add late fee'}
                         </Button>
                       </Td>
                     </tr>
@@ -344,7 +353,7 @@ export default function FeeCounter() {
                             </label>
                             <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[12.5px]">
                               <span className="text-muted-foreground">
-                                Why, the family sees this
+                                Why this late fee, the family sees this
                               </span>
                               <Input
                                 value={penaltyReason}

@@ -169,6 +169,15 @@ export default function PeriodsNeeded({
     const own = v !== undefined && Number.isFinite(Number(v)) ? Number(v) : rq.periods_per_week
     return n + (own || 0)
   }, 0)
+  /* The rows whose box no longer matches what is stored, and whose box holds
+     a number this screen would accept. A word, a minus, or the same number
+     typed again is not a change waiting to be saved. */
+  const pending = subjects.filter((rq) => {
+    const raw = edits[rq.class_subject_id]
+    if (raw === undefined) return false
+    const n = Number(raw)
+    return Number.isFinite(n) && n >= 0 && n <= 60 && n !== rq.periods_per_week
+  })
   const over = slots > 0 && total > slots
   const ready = total > 0 && !over
 
@@ -283,7 +292,14 @@ export default function PeriodsNeeded({
                             return next
                           })
                         }}
-                        onBlur={() => commit(rq)}
+                        /* NOTHING IS WRITTEN BY LOOKING AWAY (owner).
+
+                           This committed on blur, so typing a number and then
+                           clicking anywhere at all -- another row, the page,
+                           a menu -- saved it. A person filling in twelve
+                           subjects was making twelve writes they never asked
+                           for, and a number typed while thinking was kept as
+                           a decision. The button below saves, and only it. */
                       />
                     ) : (
                       <span className="tabular-nums text-[13.5px]">{rq.periods_per_week || '-'}</span>
@@ -306,7 +322,23 @@ export default function PeriodsNeeded({
 
             {mayWrite && subjects.length > 0 && (
               <div className="flex flex-wrap items-center gap-3">
+                {/* SAVING IS A DECISION SOMEBODY MAKES.
+
+                    It says how many are waiting, because the one thing worse
+                    than a screen that saves without asking is a screen that
+                    does not save and does not say so. */}
                 <Button
+                  disabled={pending.length === 0 || save.isPending}
+                  onClick={() => { for (const rq of pending) commit(rq) }}
+                >
+                  {save.isPending
+                    ? 'Saving…'
+                    : pending.length === 0
+                      ? 'Saved'
+                      : `Save ${pending.length} change${pending.length === 1 ? '' : 's'}`}
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={!ready || generate.isPending}
                   onClick={() => generate.mutate(chosen.id)}
                 >

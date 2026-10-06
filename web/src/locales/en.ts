@@ -282,6 +282,7 @@ export const en = {
      is the first option on both Android and iOS — but a button has to name the
      thing that happens when you press it, not the thing two taps later. */
   'portal.receipts.action_download': 'Save as PDF',
+  'portal.receipts.download_failed': 'Could not save it. Try again, or use Print.',
   'portal.receipts.download': 'Download',
   'portal.receipts.download_hint':
     'Opens your device’s print sheet. Choose “Save as PDF” to keep a copy.',

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -8,7 +9,8 @@ import {
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise } from '@/lib/utils'
-import { useT } from '@/lib/i18n'
+import { useT } from '@/lib/i18n'
+import { saveFile } from '@/lib/save-file'
 import { useOpenState } from '@/lib/motion'
 
 /* The family's own copy of a receipt.
@@ -131,6 +133,10 @@ export default function Receipts() {
 }
 
 function PrintableReceipt({ paymentId }: { paymentId: string }) {
+  /* Saving is a round trip on a school connection: the button has to say it
+     is working, or it is pressed three times and three copies land. */
+  const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
   const t = useT()
   const detail = useQuery({
     queryKey: ['portal-receipt', paymentId],
@@ -166,16 +172,24 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
                 cookie, the server sends it as an attachment, and letting the
                 browser do the saving is the one path that works on an iPhone
                 without a share sheet to fight. */}
-            <a
-              href={`/api/v1/portal/receipts/${paymentId}/pdf`}
-              download
-              className="btn inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-sm
-                         border px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-[44px]"
-              data-variant="secondary"
+            <Button
+              variant="secondary"
+              disabled={saving}
+              onClick={() => {
+                setSaving(true)
+                void saveFile(`/api/v1/portal/receipts/${paymentId}/pdf`, `receipt-${d.receipt_no}.pdf`)
+                  .catch(() => setFailed(true))
+                  .finally(() => setSaving(false))
+              }}
             >
               <Download className="h-3.5 w-3.5" aria-hidden />
-              {t('portal.receipts.download')}
-            </a>
+              {saving ? '…' : t('portal.receipts.download')}
+            </Button>
+            {failed && (
+              <span className="text-[12px] text-destructive">
+                {t('portal.receipts.download_failed')}
+              </span>
+            )}
             <PrintButton label="Print" scope="card" title="Fee receipt" docNo={d.receipt_no} subtitle={`${d.student_name} · ${d.financial_year}`} />
           </span>
         }
