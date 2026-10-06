@@ -208,7 +208,7 @@ function SessionList() {
             options={[{ value: '', label: 'Any' }, { value: 'live', label: 'Live' }, { value: 'ended', label: 'Ended' }]} /></span>
         </label>
         <span className="ml-auto">
-          <Button size="sm" variant="secondary" onClick={exportCsv} disabled={!rows.length}>
+          <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}>
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
         </span>
