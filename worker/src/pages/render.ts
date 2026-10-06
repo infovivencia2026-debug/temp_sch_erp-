@@ -5,7 +5,7 @@ import * as C from './captured'
    what the Go server sends for the same data. */
 
 /** The /static/app.css cache-buster the live site uses (same as auth/login-page.ts). */
-export const ASSET_VERSION = 'a124a6621f'
+export const ASSET_VERSION = '7a164c6107'
 
 export const esc = (s: string) => s.replace(/[&<>"'\0]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&#34;', "'": '&#39;', '\0': '�' }[c]!))
