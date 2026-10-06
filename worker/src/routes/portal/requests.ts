@@ -1016,7 +1016,9 @@ async function portalReceiptPDF(c: Ctx): Promise<Response> {
       : [['Fee', '-', docINR(amount, true)]],
   )
   pdf.total('Total received', docINR(amount, true), true)
-  pdf.paragraph(`Rupees ${rupeesInWords(amount)}.`)
+  /* rupeesInWords already ends in "Rupees Only"; prefixing it printed
+     "Rupees One Hundred Eighty Eight Rupees Only". */
+  pdf.paragraph(`${rupeesInWords(amount)}.`)
   /* A receipt that does not say it needs no signature invites somebody to ask
      for one that this document will never carry. */
   pdf.paragraph('This is a computer-generated receipt and needs no signature.')

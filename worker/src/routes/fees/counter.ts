@@ -436,7 +436,9 @@ export function registerCounter(r: Router): void {
         : [['Fee', '-', docINR(amount, true)]],
     )
     pdf.total('Total received', docINR(amount, true), true)
-    pdf.paragraph(`Rupees ${rupeesInWords(amount)}.`)
+    /* rupeesInWords already ends in "Rupees Only"; prefixing it printed
+       "Rupees One Hundred Eighty Eight Rupees Only". */
+    pdf.paragraph(`${rupeesInWords(amount)}.`)
     pdf.paragraph('This is a computer-generated receipt and needs no signature.')
 
     const bytes = await pdf.save()
