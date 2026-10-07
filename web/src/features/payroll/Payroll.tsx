@@ -236,15 +236,6 @@ export default function Payroll() {
                     ? 'Locked, ready for the bank'
                     : 'Draft, nobody has approved these figures yet'
               }
-              description={
-                published
-                  ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
-                  : status === 'paid'
-                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
-                  : status === 'locked'
-                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
-                    : 'Check the figures, then lock the month so attendance cannot change them.'
-              }
               action={
                 <div className="flex flex-wrap gap-2">
                   {status !== 'locked' && status !== 'paid' && (
@@ -277,12 +268,31 @@ export default function Payroll() {
                       Publish payslips
                     </Button>
                   )}
-                  {published && (
-                    <span className="text-[13px] text-success">Payslips published.</span>
-                  )}
                 </div>
               }
             />
+            {/* WHERE THE SENTENCE ACTUALLY GOES.
+
+                This card carried its whole meaning in CardHeader's
+                `description`, and card descriptions are no longer drawn
+                anywhere in the product -- the prop is kept so screens do not
+                break. So what was left on screen was a 62px strip reading
+                "Published", a button, and a green "Payslips published."
+                repeating the title, with an empty band between them. The one
+                line a person needs -- the money has gone, nobody has approved
+                this yet, here is what to do next -- was not rendered at all.
+
+                In the body, where it is drawn, and the redundant green echo
+                of the title is gone with it. */}
+            <p className="px-[var(--card-pad)] py-3 text-[13px] text-muted-foreground">
+              {published
+                ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
+                : status === 'paid'
+                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
+                  : status === 'locked'
+                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
+                    : 'Check the figures, then lock the month so attendance cannot change them.'}
+            </p>
           </Card>
         )}
 
