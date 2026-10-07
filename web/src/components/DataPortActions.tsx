@@ -29,12 +29,14 @@ import { useOpenState } from '@/lib/motion'
 export function ExportButton({
   name,
   label,
+  query,
 }: {
   /** A dataset name from the server's `exportable` map: students, marks, … */
   name: string
   label?: string
+  query?: Record<string, string>
 }) {
-  return <ReportExportButton report={name} label={label ?? 'Export'} />
+  return <ReportExportButton report={name} label={label ?? 'Export'} query={query} />
 }
 
 /**

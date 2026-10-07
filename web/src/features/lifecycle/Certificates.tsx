@@ -88,9 +88,12 @@ export default function Certificates() {
     school: session.institution?.display_name ?? 'School',
     logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
   }
-  const openCert = async (id: string) => {
+  /* A register row's Print prints; the preview stays up above for a second copy. */
+  const openCert = async (id: string, print = false) => {
     const v = await api.get<CertificateRender & { name?: string }>(`/api/v1/lifecycle/certificates/${id}/render`)
-    setPreview({ html: certificateHtml(v, school), title: v.name ?? v.title })
+    const html = certificateHtml(v, school)
+    setPreview({ html, title: v.name ?? v.title })
+    if (print) printHtml(html)
   }
 
   const decide = useMutation({
@@ -404,7 +407,7 @@ export default function Certificates() {
                         on says what it said the day it was handed over. */}
                     {c.status === 'issued' && (
                       <Button size="sm" variant="ghost"
-                        onClick={() => { void openCert(c.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                        onClick={() => { void openCert(c.id, true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                         Print
                       </Button>
                     )}

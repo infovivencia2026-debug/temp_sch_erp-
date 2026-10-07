@@ -497,7 +497,7 @@ export default function ReportCards() {
           <>
             {/* The marks behind these cards, as a sheet — the raw scores a
                 board or a spreadsheet wants, scoped to what this account sees. */}
-            <ExportButton name="marks" />
+            <ExportButton name="marks" query={{ exam: examId, section: sectionId }} />
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
             <div className="relative w-full sm:w-auto">

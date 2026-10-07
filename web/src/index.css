@@ -800,6 +800,17 @@
     z-index: 3;
     background: hsl(var(--surface-subtle));
   }
+  /* The row's buttons (Open, More, Remove) are the other end of the same
+     problem: on Staff records they sat past the card's right edge, cut in
+     half. A last column that holds buttons stays pinned to the right. Older
+     browsers without :has() simply scroll it, as before. */
+  .responsive-table.is-wide tbody td:last-child:has(button, a[role=button]) {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: hsl(var(--card));
+    box-shadow: -8px 0 8px -8px hsl(var(--foreground) / 0.12);
+  }
   /* The hover tint has to reach the frozen cell too, or the row looks broken
      in half as the pointer crosses it. */
   /* HOVER IS FOR THINGS THAT CAN HOVER. A touchscreen has no pointer to lift

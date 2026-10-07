@@ -95,7 +95,7 @@ async function csvAttachments(db: D1Database, enabled: string[], r: Range, today
     const spec = all[slug]
     if (!spec) continue
     const n = spec.header.length
-    const rows = await db.prepare(spec.query).raw<unknown[]>()
+    const rows = await (spec.params ? db.prepare(spec.query).bind(...spec.params.map(() => "")) : db.prepare(spec.query)).raw<unknown[]>()
     let text = '﻿' + spec.header.map(csvField).join(',') + '\n'
     for (const vals of rows) {
       const rec: string[] = []
