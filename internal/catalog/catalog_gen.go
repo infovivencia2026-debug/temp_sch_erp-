@@ -874,7 +874,7 @@ var Roles = []Role{
 					{Key: "transport_manager.transport.student_allocation", Slug: "student_allocation", Name: "Student allocation", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Which child boards at which stop on which route, and the fee slab that implies."},
 					{Key: "transport_manager.transport.route_attendance", Slug: "route_attendance", Name: "Route attendance", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Boarding and alighting scans for each route, morning and afternoon."},
 					{Key: "transport_manager.transport.delays_exceptions", Slug: "delays_exceptions", Name: "Delays & exceptions", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Routes running late, breakdowns and any child not scanned."},
-					{Key: "transport_manager.transport.todays_runs", Slug: "todays_runs", Name: "Today''s runs", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running."},
+					{Key: "transport_manager.transport.todays_runs", Slug: "todays_runs", Name: "Today's runs", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running."},
 					{Key: "transport_manager.transport.live_vehicle_tracking", Slug: "live_vehicle_tracking", Name: "Live vehicle tracking", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Where every bus is now, against the route it should be running."},
 				},
 			},

@@ -827,7 +827,7 @@ export const ROLES: Role[] = [
           { key: 'transport_manager.transport.student_allocation', slug: 'student_allocation', name: 'Student allocation', scope: 'campus', tier: 'core', summary: 'Which child boards at which stop on which route, and the fee slab that implies.' },
           { key: 'transport_manager.transport.route_attendance', slug: 'route_attendance', name: 'Route attendance', scope: 'campus', tier: 'core', summary: 'Boarding and alighting scans for each route, morning and afternoon.' },
           { key: 'transport_manager.transport.delays_exceptions', slug: 'delays_exceptions', name: 'Delays & exceptions', scope: 'campus', tier: 'core', summary: 'Routes running late, breakdowns and any child not scanned.' },
-          { key: 'transport_manager.transport.todays_runs', slug: 'todays_runs', name: 'Today\'\'s runs', scope: 'campus', tier: 'core', summary: 'Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running.' },
+          { key: 'transport_manager.transport.todays_runs', slug: 'todays_runs', name: 'Today\'s runs', scope: 'campus', tier: 'core', summary: 'Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running.' },
           { key: 'transport_manager.transport.live_vehicle_tracking', slug: 'live_vehicle_tracking', name: 'Live vehicle tracking', scope: 'campus', tier: 'core', summary: 'Where every bus is now, against the route it should be running.' },
         ],
       },
