@@ -238,7 +238,7 @@ export async function issueStaffCertificate(db: D1Database, inst: string, actor:
   let typeID = (await db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(code).first<{ id: string }>())?.id
   if (!typeID) {
     typeID = uuid()
-    stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, requires_approval, updated_at) VALUES (?,?,?,?,0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
+    stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, subject_kind, requires_approval, updated_at) VALUES (?,?,?,?,'staff',0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
   }
   const serial = await nextNumber(db, inst, 'certificate')
   const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on,

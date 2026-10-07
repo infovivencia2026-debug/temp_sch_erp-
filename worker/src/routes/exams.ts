@@ -1504,6 +1504,8 @@ function registerLifecycle(r: Router) {
         LEFT JOIN sections sec ON sec.id = en.section_id
         LEFT JOIN users u ON u.id = ic.requested_by
         LEFT JOIN guardians g ON g.id = (SELECT id FROM guardians WHERE user_id = ic.requested_by LIMIT 1)
+       -- Students' certificates only: staff letters (appointment, salary revision, warning) live in HR (owner, 2026-10-07).
+       WHERE ic.student_id IS NOT NULL AND ct.subject_kind <> 'staff'
        ORDER BY ic.created_at DESC LIMIT 200`).all()
     return ok(items(rows.results.map((v) => ({
       serial_no: v.serial_no, type: v.type, student_name: v.student_name ?? '', issued_on: v.issued_on, status: v.status,
