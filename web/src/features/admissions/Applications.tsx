@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge, PrintButton,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -644,7 +644,11 @@ export default function Applications() {
             <CardHeader
               title={`${open.name} · ${open.application_no}`}
               description={`${open.class_sought ?? 'Class not set'} · parent ${open.parent_name}`}
-              action={<Button variant="ghost" onClick={() => setOpen(null)}>Close</Button>}
+              action={<div className="flex gap-2">
+                {/* The application as a paper the office can file or hand over. */}
+                <PrintButton label="Print" scope="card" title="Application form" subtitle={`${open.name} · ${open.class_sought ?? ''}`} docNo={open.application_no} />
+                <Button variant="ghost" onClick={() => setOpen(null)}>Close</Button>
+              </div>}
             />
 
             {/* Where this applicant has got to. A ladder read left to right
