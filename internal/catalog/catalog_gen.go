@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 403 features.
+// Roles is the catalog: 24 roles, 405 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1622,6 +1622,7 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.exams_results.exams_grades", Slug: "exams_grades", Name: "Exams & grades", Scope: Scope("self"), Tier: Tier("core"), Summary: "Exam schedule, marks, grades, published results and report cards."},
+					{Key: "student.exams_results.hall_ticket", Slug: "hall_ticket", Name: "Hall ticket", Scope: Scope("self"), Tier: Tier("core"), Summary: "My hall ticket for the exam: hall, seat and timetable, ready to print."},
 					{Key: "student.exams_results.academic_record", Slug: "academic_record", Name: "Academic record", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current/previous grades, transcript/academic history when published."},
 				},
 			},
@@ -1688,6 +1689,7 @@ var Roles = []Role{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow's PT kit or lab day is never a surprise."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
+					{Key: "parent.academics.hall_ticket", Slug: "hall_ticket", Name: "Hall ticket", Scope: Scope("children"), Tier: Tier("core"), Summary: "Each child's hall ticket for the exam: hall, seat and timetable, ready to print."},
 				},
 			},
 			{
