@@ -1541,6 +1541,30 @@ function registerLifecycle(r: Router) {
 
   r.post('/lifecycle/certificates', STUDENTS_WRITE, issueCertificate)
 
+  /* CERTIFICATE DESIGNS (owner, 2026-10-07: "let them add the design of the
+     certificate"). Per certificate code: a frame style (classic border or
+     plain letterhead), an optional uploaded background the details print on,
+     and an optional signature image. Kept in module_settings as one JSON
+     document, so no schema change. */
+  r.get('/lifecycle/certificate-designs', STUDENTS_READ, async (c) => {
+    const row = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(c.id.institution!.id).first<{ config: string | null }>()
+    return ok({ designs: parseJSON(row?.config ?? '{}') ?? {} })
+  })
+  r.put('/lifecycle/certificate-designs', STUDENTS_WRITE, async (c) => {
+    const req = await readJSON<{ code?: string; style?: string; background_file_id?: string | null; signature_file_id?: string | null }>(c.req)
+    const code = (req.code ?? '').trim().toUpperCase()
+    if (!/^[A-Z0-9_]{1,40}$/.test(code)) throw badRequest('Say which certificate this design is for.')
+    const style = ['classic', 'letterhead', 'background'].includes(String(req.style)) ? String(req.style) : 'classic'
+    const id = (v: unknown) => (typeof v === 'string' && isUUID(v) ? v : null)
+    const inst = c.id.institution!.id
+    const row = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(inst).first<{ config: string | null }>()
+    const all = (parseJSON(row?.config ?? '{}') ?? {}) as Record<string, unknown>
+    all[code] = { style, background_file_id: id(req.background_file_id), signature_file_id: id(req.signature_file_id) }
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'certificate_designs', 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(inst, JSON.stringify(all)).run()
+    return ok({ designs: all })
+  })
+
   r.get('/lifecycle/certificates/{id}/render', STUDENTS_READ, async (c) => {
     const certId = c.params.id
     if (!isUUID(certId)) throw badRequest('invalid certificate id')
@@ -1567,7 +1591,12 @@ function registerLifecycle(r: Router) {
       rendered = body
       for (const [k, v] of Object.entries(fields)) rendered = rendered.split('{{' + k + '}}').join(escapeHtml(v))
     } else rendered = plainCertificate(str(row.type_name), str(row.code), fields, await schoolFacts(c.db, c.id.institution!))
-    return ok({ html: rendered, css: body.trim() !== '' ? undefined : DOC_PRINT_CSS, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '' })
+    const dz = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(c.id.institution!.id).first<{ config: string | null }>()
+    const design = ((parseJSON(dz?.config ?? '{}') ?? {}) as Record<string, unknown>)[str(row.code).toUpperCase()] ?? null
+    return ok({ html: rendered, css: body.trim() !== '' ? undefined : DOC_PRINT_CSS, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '',
+      // For the designed A4 print: the parts, not only the rendered page.
+      title: str(row.type_name), code: str(row.code), serial_no: str(row.serial_no), issued_on: issuedOn, signatory: str(row.signatory), signatory_role: str(row.signatory_role),
+      body: body.trim() !== '' ? rendered : plainCertificateBody(str(row.code), fields), fields, design })
   })
 
   r.post('/lifecycle/certificates/{id}/decide', STUDENTS_WRITE, async (c) => {
@@ -1630,6 +1659,16 @@ const tcLines: [string, string][] = [
 ]
 
 function plainCertificate(typeName: string, code: string, f: Record<string, string>, facts: SchoolFacts): string {
+  let b = plainCertificateBody(code, f)
+  b += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:48pt;font-size:10pt">` +
+    `<div style="color:#4b5563">Date of issue: ${escapeHtml(f.date_of_issue ?? '')}</div>` +
+    `<div style="text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt">${escapeHtml(f.signatory || 'Principal')}` +
+    `<div style="font-size:8.5pt;color:#6b7280">${escapeHtml(f.signatory_role || 'Signature with seal')}</div></div></div>`
+  return documentHTML(facts, { title: typeName, subtitle: f.student_name || undefined, docNo: f.serial_no || undefined, date: f.date_of_issue || undefined }, b)
+}
+
+/** The certificate's own words and particulars, without letterhead or signature (the designed print adds those). */
+function plainCertificateBody(code: string, f: Record<string, string>): string {
   /* The standard design: the school's letterhead (services/document.ts), the
      certificate's particulars as numbered facts with hairline rules, then the
      date and the signatory. A school that has imported its own design never
@@ -1678,11 +1717,7 @@ function plainCertificate(typeName: string, code: string, f: Record<string, stri
       `<td style="${cell}padding:5pt 0;font-weight:600;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`
   }
   b += '</table>'
-  b += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:48pt;font-size:10pt">` +
-    `<div style="color:#4b5563">Date of issue: ${escapeHtml(f.date_of_issue ?? '')}</div>` +
-    `<div style="text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt">${escapeHtml(f.signatory || 'Principal')}` +
-    `<div style="font-size:8.5pt;color:#6b7280">${escapeHtml(f.signatory_role || 'Signature with seal')}</div></div></div>`
-  return documentHTML(facts, { title: typeName, subtitle: f.student_name || undefined, docNo: f.serial_no || undefined, date: f.date_of_issue || undefined }, b)
+  return b
 }
 
 const ordinalSmall: Record<number, string> = {
