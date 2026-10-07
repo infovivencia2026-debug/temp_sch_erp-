@@ -1,3 +1,4 @@
+import { printAllStore } from '@/lib/print'
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -6,7 +7,7 @@ import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
-  type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject } from 'react'
+  type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import { useAutoGrow } from '@/lib/auto-grow'
@@ -862,12 +863,15 @@ export function Table({
   const rows = Children.toArray(children)
   const [page, setPage] = useState(0)
   const [full, setFull] = useState(false)
+  /* While a print is being built every row is drawn: the owner's prints came
+     out as "1–10 of 11", the first page of the list and nothing more. */
+  const printingAll = useSyncExternalStore(printAllStore.sub, printAllStore.get, () => false)
   /* Full screen means the whole list, scrolled — not four pages of it.
 
      Expanding a table is what somebody does when ten rows at a time is the
      problem, and answering with forty at a time is the same problem further
      away. Paged in the card, whole on the screen. */
-  const size = full ? Math.max(rows.length, 1) : PAGE_SIZE
+  const size = full || printingAll ? Math.max(rows.length, 1) : PAGE_SIZE
   const pages = Math.max(1, Math.ceil(rows.length / size))
 
   /* The list continues past the rows in hand.
@@ -1104,7 +1108,7 @@ export function Table({
             the pager when there is paging to do, and with the export alone when
             there is not. */}
         {rows.length > 0 && (
-          <div className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
+          <div data-table-foot="" className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
                 numbers answer it directly.
