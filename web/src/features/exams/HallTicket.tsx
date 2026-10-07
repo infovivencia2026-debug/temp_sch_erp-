@@ -151,12 +151,12 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
     <>
       <PageHead
         eyebrow="Examinations"
-        title="Seating and hall tickets"
+        title="Exam seating plan"
         description="Allocate candidates to halls, then print the invigilator's plan. Re-running replaces the whole allocation."
         actions={
           <>
             {picker}
-            <PrintButton label="Print plan" />
+            <PrintButton label="Print" title="Exam seating plan" />
           </>
         }
       />
