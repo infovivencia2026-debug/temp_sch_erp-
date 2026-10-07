@@ -48,6 +48,7 @@ import { examControllerKeys } from './exams/exam-controller-keys'
 import { itAdminKeys } from './super_admin/it-admin-keys'
 import { operationsKeys } from './operations/operations-keys'
 import { driverKeys } from './operations/driver-keys'
+import { transportDeskKeys } from './operations/transport-desk-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -555,6 +556,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...itAdminKeys,
   ...operationsKeys,
   ...driverKeys,
+  ...transportDeskKeys,
 
   'hr.onboarding_exit.staff_joinings_exits': screen(() => import('./hr/Lifecycle')),
   'hr.leave.leave_rules': screen(() => import('./hr/LeavePolicy')),

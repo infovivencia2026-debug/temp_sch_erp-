@@ -114,6 +114,99 @@ export function registerTransportOffice(r: Router): void {
     })
   })
 
+  /* EVERY ROUTE TODAY, ON ONE LINE EACH.
+
+     The office's morning question is per route, not per table: has R-01 gone
+     out, who is driving it, was it checked, how many children are aboard.
+     Answering it used to mean four screens and holding the route in your head
+     between them.
+
+     One query per fact rather than one per route: a school with forty routes
+     would otherwise be a hundred and sixty round trips.
+
+     Status is read from what happened, never set by hand. A trip exists
+     because a driver's phone started one; it is finished because that phone
+     ended it. The office cannot type a bus into motion. */
+  r.get('/ops/transport/runs', READ, async (c) => {
+    const t = today()
+    const leg = str(c.url.searchParams.get('leg')) || 'morning'
+    const direction = leg === 'afternoon' ? 'drop' : 'pickup'
+
+    const routes = (await c.db.prepare(`
+      SELECT rt.id, rt.name, COALESCE(rt.code,'') AS code,
+             COALESCE(v.registration_no,'') AS vehicle, v.id AS vehicle_id,
+             COALESCE(v.capacity, 0) AS capacity,
+             COALESCE(${NAME('d')}, '') AS driver, COALESCE(${NAME('a')}, '') AS attendant,
+             (SELECT count(*) FROM transport_allocations ta
+               WHERE ta.route_id = rt.id AND ${LIVE('ta')}) AS riders
+        FROM routes rt
+        LEFT JOIN vehicles v ON v.id = rt.vehicle_id
+        LEFT JOIN employees d ON d.id = v.driver_employee_id
+        LEFT JOIN employees a ON a.id = v.attendant_employee_id
+       WHERE rt.is_active
+       ORDER BY rt.name`).bind(t).all<Record<string, unknown>>()).results
+
+    const trips = new Map<string, Record<string, unknown>>()
+    for (const x of (await c.db.prepare(`
+      SELECT route_id, direction, ended_at,
+             strftime('%H:%M', started_at, '+5 hours', '+30 minutes') AS started
+        FROM vehicle_trips
+       WHERE date(started_at, '+5 hours', '+30 minutes') = ?
+       ORDER BY started_at`).bind(t).all<Record<string, unknown>>()).results) {
+      if (str(x.direction) === direction) trips.set(str(x.route_id), x)
+    }
+
+    const checks = new Map<string, number>()
+    for (const x of (await c.db.prepare(`
+      SELECT vehicle_id, cleared FROM trip_checks WHERE on_date = ? AND leg = ?`)
+      .bind(t, leg).all<Record<string, unknown>>()).results) {
+      checks.set(str(x.vehicle_id), Number(x.cleared) ? 1 : 0)
+    }
+
+    /* Scanned, from the register the attendant is marking. 'absent' is a
+       scan -- somebody looked and the child was not there -- so it counts as
+       accounted for; only 'not_scanned' is a child nobody has looked at. */
+    const marked = new Map<string, number>()
+    for (const x of (await c.db.prepare(`
+      SELECT ta.route_id, count(*) AS n
+        FROM transport_attendance att
+        JOIN transport_allocations ta ON ta.student_id = att.student_id AND ${LIVE('ta')}
+       WHERE att.on_date = ? AND att.leg = ?
+       GROUP BY ta.route_id`).bind(t, t, leg).all<Record<string, unknown>>()).results) {
+      marked.set(str(x.route_id), Number(x.n))
+    }
+
+    const incidents = new Map<string, number>()
+    for (const x of (await c.db.prepare(`
+      SELECT route_id, count(*) AS n FROM transport_incidents
+       WHERE resolved_at IS NULL AND route_id IS NOT NULL GROUP BY route_id`)
+      .all<Record<string, unknown>>()).results) {
+      incidents.set(str(x.route_id), Number(x.n))
+    }
+
+    const items = routes.map((rt) => {
+      const id = str(rt.id)
+      const trip = trips.get(id)
+      const cleared = rt.vehicle_id ? checks.get(str(rt.vehicle_id)) : undefined
+      let status: string
+      if (!rt.vehicle) status = 'no_bus'
+      else if (!rt.driver) status = 'no_driver'
+      else if (trip && !trip.ended_at) status = 'running'
+      else if (trip) status = 'completed'
+      else status = 'not_started'
+      const out: Record<string, unknown> = {
+        route_id: id, route: str(rt.name), code: str(rt.code), vehicle: str(rt.vehicle),
+        driver: str(rt.driver), attendant: str(rt.attendant),
+        riders: Number(rt.riders), capacity: Number(rt.capacity),
+        marked: marked.get(id) ?? 0, open_incidents: incidents.get(id) ?? 0, status,
+      }
+      if (cleared !== undefined) out.check = cleared ? 'cleared' : 'failed'
+      if (trip?.started) out.started_at = str(trip.started)
+      return out
+    })
+    return ok({ on_date: t, leg, items })
+  })
+
   /* --- drivers and attendants ------------------------------------------ */
 
   r.get('/ops/transport/staff', READ, async (c) => {

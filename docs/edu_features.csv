@@ -83,6 +83,7 @@ Transport Manager,Transport,Transport,Driver Phone Tracker,"Turn a driver''s own
 Transport Manager,Transport,Transport,Route Distance Fee Slabs,Define transport fee slabs by route distance and auto-apply them to the student's fee structure.,Assigned campus,Must-Have,core
 Transport Manager,Transport,Transport,Geo-fenced Bus Stop Alerts,Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.,Assigned campus,Should-Have,advanced
 Transport Manager,Transport,Transport,Bus Speeding & Rash Driving Alerts,Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.,Assigned campus,Must-Have,advanced
+Transport Manager,Home,Home,Dashboard,"The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Vehicle Fuel & Maintenance Log,"Track fuel purchases, mileage performance, routine servicing, and repair expense logs.",Assigned campus,Should-Have,core
 Transport Manager,Transport,Transport,Fuel Sensor & Mileage Telematics,Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage. Not built: needs a fuel-level sensor and vendor feed per vehicle; fuel and mileage are entered by hand in the fuel and maintenance log.,Assigned campus,Should-Have,optional
 Transport Manager,Transport,Transport,Driver Sobriety & Safety Checklist,Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.,Assigned campus,Should-Have,optional
@@ -94,6 +95,8 @@ Transport Manager,Transport,Transport,Routes & stops,"Route definitions, the sto
 Transport Manager,Transport,Transport,Student allocation,"Which child boards at which stop on which route, and the fee slab that implies.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Route attendance,"Boarding and alighting scans for each route, morning and afternoon.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Delays & exceptions,"Routes running late, breakdowns and any child not scanned.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Transport,Transport,Today''s runs,"Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running.",Only assigned operational module/campus,Must-Have,core
+Transport Manager,Reports,Reports,Transport reports,"The sheets a transport office is asked for, ready made: who rides what, the fleet and its papers, attendance, fuel and incidents. Prints, and exports to a spreadsheet.",Only assigned operational module/campus,Must-Have,core
 Transport Manager,Transport,Transport,Live vehicle tracking,"Where every bus is now, against the route it should be running.",Only assigned operational module/campus,Must-Have,core
 Librarian,Library,Library,Book Cataloging & Accession Register,"Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.",Assigned campus,Must-Have,core
 Librarian,Library,Library,Barcode & Spine Label Printing,Generate and print custom barcode labels and spine call tags for library books.,Assigned campus,Should-Have,core
