@@ -4,13 +4,18 @@ import { Download, Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Button,
-  PrintButton, Skeleton,
+  Skeleton,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise } from '@/lib/utils'
-import { useT } from '@/lib/i18n'
+import { useT } from '@/lib/i18n'
 import { saveFile } from '@/lib/save-file'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import A4Frame from '@/components/A4Frame'
+import { printReceipt, receiptHtml } from '@/features/finance/receipt-print'
+import type { FeeReceipt } from '@shared/api/fees'
 import { useOpenState } from '@/lib/motion'
 
 /* The family's own copy of a receipt.
@@ -138,6 +143,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
   const t = useT()
+  const inst = useSession().institution
   const detail = useQuery({
     queryKey: ['portal-receipt', paymentId],
     queryFn: () => api.get<ReceiptDetail>(`/api/v1/portal/receipts/${paymentId}`),
@@ -147,6 +153,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   if (detail.error && !detail.data) return <ScreenError error={detail.error} />
   const d = detail.data
   if (!d) return null
+  const school = { name: inst?.display_name || d.institution, logoUrl: inst?.logo_key ? `${location.origin}/api/v1/files/${inst.logo_key}?inline=1` : undefined }
 
   return (
     <div id="receipt-sheet" data-print-source="">
@@ -190,59 +197,19 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
                 {t('portal.receipts.download_failed')}
               </span>
             )}
-            <PrintButton label="Print" scope="card" title="Fee receipt" docNo={d.receipt_no} subtitle={`${d.student_name} · ${d.financial_year}`} />
+            <Button variant="secondary" onClick={() => printReceipt(asReceipt(d), school)}><Printer className="h-4 w-4" /> Print</Button>
           </span>
         }
       />
 
-      <div className="p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Detail label={t('portal.receipts.detail_received_from')} value={d.student_name} />
-          <Detail label={t('portal.receipts.detail_admission_no')} value={d.admission_no} />
-          <Detail
-            label={t('portal.receipts.detail_class')}
-            value={[d.class_name, d.section_name].filter(Boolean).join(' ') || '-'}
-          />
-          <Detail label={t('portal.receipts.detail_paid_on')} value={formatDate(d.paid_on)} />
-          <Detail label={t('portal.receipts.detail_method')} value={d.mode + (d.reference_no ? ` · ${d.reference_no}` : '')} />
-          <Detail label={t('portal.receipts.detail_status')} value={d.status} />
-        </div>
-
-        {/* The primitives, not a hand-rolled table: Table/Td carry the sizing,
-            the sideways scroll and the frozen first column a phone needs, and
-            a copy of their classes drifts the first time either changes. */}
-        <div className="mt-6">
-          <Table head={[t('portal.receipts.col_invoice'), t('portal.receipts.col_particulars'), { label: t('portal.receipts.col_line_amount'), align: 'right' }]}>
-            {d.lines.map((l) => (
-              <tr key={l.invoice_no}>
-                <Td>{l.invoice_no}</Td>
-                <Td>{l.particulars}</Td>
-                <Td className="text-right tabular-nums">{formatPaise(l.amount_paise)}</Td>
-              </tr>
-            ))}
-            <tr className="font-medium">
-              <Td colSpan={2}>{t('portal.receipts.total')}</Td>
-              <Td className="text-right tabular-nums">{formatPaise(d.amount_paise)}</Td>
-            </tr>
-          </Table>
-        </div>
-
-        {/* Rupees in words is not decoration: it is what makes a receipt hard to
-            alter, and Indian schools are asked for it by auditors. */}
-        <div className="mt-4 text-[13px] text-muted-foreground">
-          {d.amount_words}
-        </div>
+      {/* The same receipt the counter prints (owner: "the receipts are different"), at A4, scaled to fit. */}
+      <div className="bg-muted/30 p-3 sm:p-5">
+        <A4Frame title={`Receipt ${d.receipt_no}`} html={receiptHtml(asReceipt(d), school)} />
       </div>
     </Card>
     </div>
   )
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[12px] text-muted-foreground">{label}</div>
-      <div className="text-[14px] font-medium">{value}</div>
-    </div>
-  )
-}
+
+const asReceipt = (d: ReceiptDetail): FeeReceipt => ({ ...d, reference_no: d.reference_no ?? null, class_name: d.class_name ?? null, section_name: d.section_name ?? null, collected_by: null })
