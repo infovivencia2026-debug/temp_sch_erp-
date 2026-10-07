@@ -230,12 +230,38 @@ self.addEventListener('fetch', (e) => {
   // Every API read goes to the network; the app's local store owns data.
   if (url.pathname.startsWith('/api/')) return
 
-  // Everything else is a build artefact: hashed, immutable, cache first.
+  /* Everything else is a build artefact: hashed, immutable, cache first.
+
+     A MISS IS NOT A PAGE, AND MUST NEVER BE CACHED AS ONE.
+
+     The host answers an asset that no longer exists with the single-page
+     shell: 200, text/html. `res.ok` is true for that, so this used to store a
+     web page under the stylesheet's URL -- and the next load served the
+     poisoned entry from cache, which is why reloading did not clear it. What
+     the person saw was the product with no CSS at all: every control stacked
+     down the left, the school crest at its natural size.
+
+     It happens the ordinary way: a tab open across a deploy asks for a chunk
+     from the build it is running, the new worker has already dropped that
+     build's files on activate, and the request falls through to the host.
+
+     So: an HTML answer to a request for a script, a stylesheet or a font is a
+     miss. It is not cached, the browser is told 404 rather than being handed
+     a page to parse as CSS, and the tab is asked to reload itself onto the
+     build that does exist. Reloading is safe here -- the document is already
+     broken in a way no amount of waiting repairs. */
   e.respondWith(
     caches.match(req, { cacheName: SHELL }).then(
       (hit) =>
         hit ??
         fetch(req).then(async (res) => {
+          const asset = /\.(?:js|mjs|css|woff2?|ttf|map)$/.test(url.pathname)
+          const html = (res.headers.get('content-type') || '').includes('text/html')
+          if (asset && html) {
+            const clients = await self.clients.matchAll({ type: 'window' })
+            for (const c of clients) c.postMessage({ type: 'erp-stale-build' })
+            return new Response('', { status: 404, statusText: 'stale build asset' })
+          }
           if (res.ok) (await caches.open(SHELL)).put(req, res.clone())
           return res
         }),

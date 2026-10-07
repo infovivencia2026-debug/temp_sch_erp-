@@ -51,20 +51,31 @@ for i, ln in enumerate(lines):
         rows.append((role_name, workspace or sec_name, sec_name, feat, key,
                      'yes' if key in built else 'not yet', summary))
 
-def short(text, limit=150):
+def short(text, limit=70):
+    """One short line a person can scan, not the catalogue paragraph.
+
+    The leading clause is the definition; what follows a colon or a dash is
+    nearly always the elaboration, and a reviewer reading four hundred rows
+    does not want it. Cut there first, then cap on a word boundary.
+    """
     t = re.sub(r'\s+', ' ', text or '').strip().replace("''", "'")
     if not t:
         return ''
-    first = re.split(r'(?<=[.])\s+(?=[A-Z])', t)[0]
-    if len(first) > limit:
-        first = first[:limit].rsplit(' ', 1)[0] + '...'
-    return first
+    t = re.split(r'(?<=[.])\s+(?=[A-Z])', t)[0]          # first sentence
+    t = re.split(r'\s+[-–—]+\s+|:\s+', t)[0]   # before a dash or colon
+    t = t.rstrip(' .')
+    if len(t) > limit:
+        t = t[:limit].rsplit(' ', 1)[0] + '...'
+    return t
+
+# Role-wise, so a reviewer can take one role at a time.
+rows.sort(key=lambda r: (r[0], r[1], r[2], r[3]))
 
 out = os.path.join(root, 'docs', 'FEATURE_REVIEW.csv')
 with io.open(out, 'w', encoding='utf-8-sig', newline='') as f:
     w = csv.writer(f)
     w.writerow(['Role', 'Workspace', 'Section', 'Feature', 'Permission key',
-                'Built?', 'What it is for (short)', 'Your remarks'])
+                'Built?', 'What it is for', 'Remarks'])
     for r in rows:
         w.writerow(list(r[:6]) + [short(r[6]), ''])
 

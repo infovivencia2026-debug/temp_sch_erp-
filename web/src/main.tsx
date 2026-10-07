@@ -360,6 +360,30 @@ if ('serviceWorker' in navigator) {
         }
         window.location.reload()
       })
+
+      /* THE PAGE IS ALREADY BROKEN; RELOADING IT IS THE REPAIR.
+       *
+       * The worker says this when a stylesheet or a chunk from the build this
+       * tab is running has gone from the server -- the host answers a missing
+       * asset with the app shell, 200 and text/html, which a browser will not
+       * apply as CSS and will not execute as script. What the person sees is
+       * the product with no styling at all.
+       *
+       * Waiting does not fix it, and neither does the controllerchange above:
+       * the worker may already have taken over. The same ten-second guard, so
+       * a page that somehow keeps missing cannot spin. */
+      navigator.serviceWorker.addEventListener('message', (ev) => {
+        if (ev.data?.type !== 'erp-stale-build') return
+        let last = 0
+        try {
+          last = Number(sessionStorage.getItem('erp.sw.reloaded') ?? 0)
+        } catch { /* private mode: no guard */ }
+        if (last && Date.now() - last < 10_000) return
+        try {
+          sessionStorage.setItem('erp.sw.reloaded', String(Date.now()))
+        } catch { /* as above */ }
+        window.location.reload()
+      })
     }).catch(() => {})
   })
 }
