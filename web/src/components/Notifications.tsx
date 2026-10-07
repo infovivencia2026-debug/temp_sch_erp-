@@ -549,7 +549,7 @@ export default function Notifications() {
                         .filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000)
                         .map((x) => (
                           <button key={x.id} type="button" onClick={() => { dismiss(); if (toHub) navigate(toHub) }}
-                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30">
+                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30">
                             <span className={cn('grid size-10 shrink-0 place-items-center rounded-full text-[12px] font-bold',
                               x.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary ring-2 ring-primary ring-offset-2 ring-offset-card')}>
                               {(x.uploaded_by ?? 'School').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
@@ -596,7 +596,7 @@ export default function Notifications() {
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
                             <button key={n.id} type="button" onClick={() => openNote(n)}
-                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-all hover:shadow-md',
+                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-[transform,background-color,box-shadow,color] hover:shadow-md',
                                 n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                               <StatusThumb post={post} read={!!n.read_at} />
                               <span className="min-w-0 flex-1">
@@ -618,7 +618,7 @@ export default function Notifications() {
                         }
                         return (
                           <button key={n.id} type="button" onClick={() => openNote(n)}
-                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30',
+                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30',
                               n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                             <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
                               n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
@@ -655,7 +655,7 @@ export default function Notifications() {
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["unread","Unread"],["all","All"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
-                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-[transform,background-color,box-shadow,color]',
                         (v === 'unread') === onlyUnread ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
                       {label}
                     </button>
@@ -664,7 +664,7 @@ export default function Notifications() {
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["messages","Messages"],["activity","Activity"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
-                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-[transform,background-color,box-shadow,color]',
                         v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
                       {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[hsl(var(--sys-danger-fill))] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
                     </button>
