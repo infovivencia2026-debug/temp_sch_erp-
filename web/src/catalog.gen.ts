@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 403 features. */
+/** 24 roles, 405 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1575,6 +1575,7 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.exams_results.exams_grades', slug: 'exams_grades', name: 'Exams & grades', scope: 'self', tier: 'core', summary: 'Exam schedule, marks, grades, published results and report cards.' },
+          { key: 'student.exams_results.hall_ticket', slug: 'hall_ticket', name: 'Hall ticket', scope: 'self', tier: 'core', summary: 'My hall ticket for the exam: hall, seat and timetable, ready to print.' },
           { key: 'student.exams_results.academic_record', slug: 'academic_record', name: 'Academic record', scope: 'self', tier: 'core', summary: 'Current/previous grades, transcript/academic history when published.' },
         ],
       },
@@ -1641,6 +1642,7 @@ export const ROLES: Role[] = [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
+          { key: 'parent.academics.hall_ticket', slug: 'hall_ticket', name: 'Hall ticket', scope: 'children', tier: 'core', summary: 'Each child\'s hall ticket for the exam: hall, seat and timetable, ready to print.' },
         ],
       },
       {

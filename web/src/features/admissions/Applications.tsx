@@ -651,6 +651,22 @@ export default function Applications() {
               </div>}
             />
 
+            {/* The applicant's particulars: what the printed form is filed for. */}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b px-[var(--card-pad)] py-4 text-[13px] sm:grid-cols-4">
+              {([
+                ['Applicant', open.name],
+                ['Class sought', open.class_sought ?? '-'],
+                ['Parent / guardian', open.parent_name || '-'],
+                ['Phone', open.parent_phone || '-'],
+                ['Applied on', new Date(open.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })],
+                ['RTE seat', open.is_rte ? 'Yes' : 'No'],
+                ['Form fee', open.form_fee_paise == null ? 'None' : `₹${(open.form_fee_paise / 100).toLocaleString('en-IN')}${open.form_fee_paid_at ? ' · paid' : ' · unpaid'}`],
+                ['Documents', `${open.docs_verified} of ${open.docs_required} verified${open.docs_rejected ? `, ${open.docs_rejected} rejected` : ''}`],
+              ] as const).map(([k, v]) => (
+                <div key={k}><dt className="text-[11.5px] text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
+              ))}
+            </dl>
+
             {/* Where this applicant has got to. A ladder read left to right
                 says more than a status word on its own. */}
             <div className="flex flex-wrap items-center gap-1 border-b px-5 py-4">
