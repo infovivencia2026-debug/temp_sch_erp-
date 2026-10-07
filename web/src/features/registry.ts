@@ -437,21 +437,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      registration are deliberately absent: each needs a certified device in the
      vehicle and a vendor feed, and drawing a bus on a map from no position
      data would be a lie told convincingly. */
-  'transport_manager.transport.driver_attendant_profiles': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.student_route_assignment': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.transport_attendance_scans': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.vehicle_fuel_maintenance_log': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.driver_sobriety_safety_checklist': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.bus_breakdown_emergency_dispatch': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.drivers_attendants': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.student_allocation': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.route_attendance': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.delays_exceptions': screen(() => import('./operations/TransportOffice')),
 
   'transport_manager.transport.vehicles': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.vehicle_master_registry': screen(() => import('./operations/Transport')),
   'transport_manager.transport.routes_stops': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.route_pickup_stop_mapping': screen(() => import('./operations/Transport')),
   'transport_manager.transport.route_distance_fee_slabs': screen(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --

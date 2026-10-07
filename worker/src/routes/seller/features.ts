@@ -65,7 +65,6 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'transport.vehicles': ['/ops/transport', '/transport/vehicles'],
   'transport.routes_stops': ['/ops/transport', '/transport/map-stops'],
   'transport.student_allocation': ['/ops/transport'],
-  'transport.live_vehicle_tracking': ['/transport/live', '/transport/trackers', '/transport/tracking-policy', '/me/child-bus'],
   'transport.my_bus_route': ['/me/child-bus'],
   'homework.homework_assignments': ['/homework'],
   'teaching.homework_classwork': ['/homework', '/teaching/assignments'],

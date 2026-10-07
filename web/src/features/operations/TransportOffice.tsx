@@ -224,7 +224,6 @@ export default function TransportOffice() {
   const lapsing = (staff.data?.items ?? []).filter(
     (s) => s.days_to_lapse == null || s.days_to_lapse < 30,
   )
-  const openIncidents = (incidents.data?.items ?? []).filter((i) => !i.resolved_at)
 
   return (
     <>
@@ -234,7 +233,12 @@ export default function TransportOffice() {
         description="Who is driving, who is on board, what it cost to run and what went wrong today."
       />
       <PageBody>
-        <CellGrid cols={4}>
+        {/* Two tiles, not four. Open incidents and the month's count moved
+            into Today, which reports both against today's running; saying
+            them twice on one screen taught people to read neither. What is
+            left is the part Today does not cover: the people, and the papers
+            that belong to people rather than to buses. */}
+        <CellGrid cols={2}>
           <Stat label="Drivers & attendants" value={staff.data?.items.length ?? 0} icon={IdCard} />
           <Stat
             label="Papers lapsing"
@@ -246,11 +250,9 @@ export default function TransportOffice() {
                 : { value: 'All current', positive: true }
             }
           />
-          <Stat label="Open incidents" value={openIncidents.length} icon={BusFront} />
-          <Stat label="This month" value={incidents.data?.items.length ?? 0} />
         </CellGrid>
 
-        <Today />
+        <Today monthIncidents={incidents.data?.items.length ?? 0} />
 
         <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
@@ -1018,7 +1020,7 @@ interface TodayView {
    A failed check is stated, never used to stop a bus. At 7:02 the children
    are already at the stop, and a module that holds the bus over a tick box
    has done more harm than the tick box prevents. */
-function Today() {
+function Today({ monthIncidents }: { monthIncidents: number }) {
   const q = useQuery({
     queryKey: ['transport-today'],
     queryFn: () => api.get<TodayView>('/api/v1/ops/transport/today'),
@@ -1043,7 +1045,15 @@ function Today() {
           <Stat label="Routes" value={d.routes} icon={Route} />
           <Stat label="Running" value={d.running} icon={Bus} />
           <Stat label="Completed" value={d.completed} />
-          <Stat label="Not started" value={d.not_started} />
+          <Stat
+            label="Not started"
+            value={d.not_started}
+            delta={
+              monthIncidents
+                ? { value: `${monthIncidents} incidents this month`, positive: false }
+                : undefined
+            }
+          />
         </CellGrid>
 
         {attention > 0 && (

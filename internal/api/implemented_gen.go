@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 398 of the catalog's features are implemented.
+// 391 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -386,24 +386,17 @@ var implementedFeatures = map[string]bool{
 	"super_admin.statutory_boards.udise_data_sync":                        true,
 	"transport_manager.communication.messages":                            true,
 	"transport_manager.my_profile.my_pay":                                 true,
-	"transport_manager.transport.bus_breakdown_emergency_dispatch":        true,
 	"transport_manager.transport.bus_speeding_rash_driving_alerts":        true,
 	"transport_manager.transport.delays_exceptions":                       true,
-	"transport_manager.transport.driver_attendant_profiles":               true,
 	"transport_manager.transport.driver_phone_tracker":                    true,
 	"transport_manager.transport.driver_sobriety_safety_checklist":        true,
 	"transport_manager.transport.drivers_attendants":                      true,
 	"transport_manager.transport.geo_fenced_bus_stop_alerts":              true,
 	"transport_manager.transport.live_vehicle_tracking":                   true,
-	"transport_manager.transport.real_time_vehicle_tracking_vts":          true,
 	"transport_manager.transport.route_attendance":                        true,
 	"transport_manager.transport.route_distance_fee_slabs":                true,
-	"transport_manager.transport.route_pickup_stop_mapping":               true,
 	"transport_manager.transport.routes_stops":                            true,
 	"transport_manager.transport.student_allocation":                      true,
-	"transport_manager.transport.student_route_assignment":                true,
-	"transport_manager.transport.transport_attendance_scans":              true,
 	"transport_manager.transport.vehicle_fuel_maintenance_log":            true,
-	"transport_manager.transport.vehicle_master_registry":                 true,
 	"transport_manager.transport.vehicles":                                true,
 }

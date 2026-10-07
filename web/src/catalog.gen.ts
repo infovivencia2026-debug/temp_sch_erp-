@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 408 features. */
+/** 24 roles, 401 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -812,20 +812,13 @@ export const ROLES: Role[] = [
         name: 'Transport',
         workspace: 'Transport',
         features: [
-          { key: 'transport_manager.transport.vehicle_master_registry', slug: 'vehicle_master_registry', name: 'Vehicle Master Registry', scope: 'campus', tier: 'core', summary: 'Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.' },
-          { key: 'transport_manager.transport.driver_attendant_profiles', slug: 'driver_attendant_profiles', name: 'Driver & Attendant Profiles', scope: 'campus', tier: 'core', summary: 'Store driver licenses, police verification docs, phone numbers, and assigned bus routes.' },
           { key: 'transport_manager.transport.driver_phone_tracker', slug: 'driver_phone_tracker', name: 'Driver Phone Tracker', scope: 'institution', tier: 'core', summary: 'Turn a driver\'\'s own phone into the bus\'\'s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login, there is no hardware to buy.' },
-          { key: 'transport_manager.transport.route_pickup_stop_mapping', slug: 'route_pickup_stop_mapping', name: 'Route & Pickup Stop Mapping', scope: 'campus', tier: 'core', summary: 'Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.' },
-          { key: 'transport_manager.transport.student_route_assignment', slug: 'student_route_assignment', name: 'Student Route Assignment', scope: 'campus', tier: 'core', summary: 'Assign students to specific bus routes and pick-up stops with automated fee mapping.' },
           { key: 'transport_manager.transport.route_distance_fee_slabs', slug: 'route_distance_fee_slabs', name: 'Route Distance Fee Slabs', scope: 'campus', tier: 'core', summary: 'Define transport fee slabs by route distance and auto-apply them to the student\'s fee structure.' },
-          { key: 'transport_manager.transport.transport_attendance_scans', slug: 'transport_attendance_scans', name: 'Transport Attendance Scans', scope: 'campus', tier: 'core', summary: 'Scan student RFID tags as they step on and off the bus to confirm safe transit.' },
-          { key: 'transport_manager.transport.real_time_vehicle_tracking_vts', slug: 'real_time_vehicle_tracking_vts', name: 'Real-time Vehicle Tracking (VTS)', scope: 'campus', tier: 'core', summary: 'View live GPS map of moving school buses, current speed, route adherence, and delay alerts.' },
           { key: 'transport_manager.transport.geo_fenced_bus_stop_alerts', slug: 'geo_fenced_bus_stop_alerts', name: 'Geo-fenced Bus Stop Alerts', scope: 'campus', tier: 'advanced', summary: 'Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.' },
           { key: 'transport_manager.transport.bus_speeding_rash_driving_alerts', slug: 'bus_speeding_rash_driving_alerts', name: 'Bus Speeding & Rash Driving Alerts', scope: 'campus', tier: 'advanced', summary: 'Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.' },
           { key: 'transport_manager.transport.vehicle_fuel_maintenance_log', slug: 'vehicle_fuel_maintenance_log', name: 'Vehicle Fuel & Maintenance Log', scope: 'campus', tier: 'core', summary: 'Track fuel purchases, mileage performance, routine servicing, and repair expense logs.' },
           { key: 'transport_manager.transport.fuel_sensor_mileage_telematics', slug: 'fuel_sensor_mileage_telematics', name: 'Fuel Sensor & Mileage Telematics', scope: 'campus', tier: 'optional', summary: 'Integrate digital fuel tank sensors to detect fuel theft and track real-time bus mileage. Not built: needs a fuel-level sensor and vendor feed per vehicle; fuel and mileage are entered by hand in the fuel and maintenance log.' },
           { key: 'transport_manager.transport.driver_sobriety_safety_checklist', slug: 'driver_sobriety_safety_checklist', name: 'Driver Sobriety & Safety Checklist', scope: 'campus', tier: 'optional', summary: 'Require drivers to complete pre-trip safety checklists and breathalyzer checks before starting.' },
-          { key: 'transport_manager.transport.bus_breakdown_emergency_dispatch', slug: 'bus_breakdown_emergency_dispatch', name: 'Bus Breakdown Emergency Dispatch', scope: 'campus', tier: 'core', summary: 'Trigger emergency notifications and dispatch replacement buses with auto-route updates.' },
           { key: 'transport_manager.transport.seatbelt_cctv_video_streaming', slug: 'seatbelt_cctv_video_streaming', name: 'Seatbelt & CCTV Video Streaming', scope: 'campus', tier: 'optional', summary: 'Stream live in-bus CCTV video feeds to transport admin dashboards for safety monitoring. Not built: needs cameras and a vendor video feed in each bus, and a stream drawn from no camera would be a lie.' },
           { key: 'transport_manager.transport.ais_140_telematics_vahan_compliance', slug: 'ais_140_telematics_vahan_compliance', name: 'AIS-140 Telematics & VAHAN Compliance', scope: 'campus', tier: 'advanced', summary: 'Register AIS-140 certified GPS units per vehicle, ingest NavIC position and panic-button events, monitor tamper and offline buffering, and evidence the VAHAN transmission MoRTH requires. Not built: AIS-140 is a statutory certification of a fitted device with a vendor feed, and software claiming it without the hardware would be a false claim.' },
           { key: 'transport_manager.transport.vehicles', slug: 'vehicles', name: 'Vehicles', scope: 'campus', tier: 'core', summary: 'The vehicle register: registration, capacity, permit, insurance and fitness expiry.' },
