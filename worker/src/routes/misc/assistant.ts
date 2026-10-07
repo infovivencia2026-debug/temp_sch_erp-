@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../../router'
+import { aiFetch } from '../../services/ai/fetch'
 import { can } from '../../identity'
 import { badRequest, HttpError, isUUID, ok, readJSON, unauthorized } from '../../http'
 import { json } from '../../env'
@@ -371,7 +372,7 @@ async function assistantTTS(c: Ctx): Promise<Response> {
   const audio = (bytes: Uint8Array, type: string) =>
     new Response(bytes, { headers: { 'content-type': type, 'cache-control': 'private, max-age=60' } })
   try {
-    const r = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
+    const r = await aiFetch(c.env, 'https://texttospeech.googleapis.com/v1/text:synthesize', {
       method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({ input: { text }, voice: { languageCode: 'en-IN', name: 'en-IN-Neural2-A' }, audioConfig: { audioEncoding: 'MP3', speakingRate: 0.98 } }),
     })
@@ -381,7 +382,7 @@ async function assistantTTS(c: Ctx): Promise<Response> {
     } else {
       console.error('tts', r.status, (await r.text()).slice(0, 300))
     }
-    const g = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
+    const g = await aiFetch(c.env, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
       method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: 'Read this aloud in a warm Indian English voice: ' + text }] }],

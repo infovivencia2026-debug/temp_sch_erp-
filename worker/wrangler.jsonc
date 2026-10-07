@@ -46,6 +46,8 @@
   // Live updates (src/services/live.ts): one LiveHub per school holds its
   // open Server-Sent Events streams and fans hints to them.
   "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }] },
+  // Gemini calls leave through the relay: Google refuses them from ap-east-1 (ai-relay/index.ts).
+  "services": [{ "binding": "AI_RELAY", "service": "school-erp-ai-relay" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
   // One tick a minute; the schedule itself (per school, in the school's
   // timezone) is src/services/cron.ts, replacing Cloud Scheduler -> /api/v1/cron.

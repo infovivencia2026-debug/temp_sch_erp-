@@ -555,8 +555,10 @@ export function registerRollups(r: Router) {
     const f = dp(b, 'e.department_id')
     const rows = await c.db.prepare(`
       SELECT COALESCE(d.name, 'Unassigned') AS department, count(*) AS total,
-             count(CASE WHEN dg.category = 'teaching' THEN 1 END) AS teaching,
-             count(CASE WHEN dg.category IS NOT 'teaching' THEN 1 END) AS non_teaching,
+             /* Teaching as the dashboard counts it (owner saw 0 here and 9 there): a
+                teaching designation, or anyone who actually teaches. */
+             count(CASE WHEN (dg.category = 'teaching' OR (e.user_id IS NOT NULL AND (EXISTS (SELECT 1 FROM timetable_entries te WHERE te.teacher_user_id = e.user_id) OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.teacher_user_id = e.user_id) OR EXISTS (SELECT 1 FROM teacher_subjects ts WHERE ts.user_id = e.user_id) OR EXISTS (SELECT 1 FROM sections se WHERE se.class_teacher_id = e.user_id)))) THEN 1 END) AS teaching,
+             count(CASE WHEN NOT (dg.category = 'teaching' OR (e.user_id IS NOT NULL AND (EXISTS (SELECT 1 FROM timetable_entries te WHERE te.teacher_user_id = e.user_id) OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.teacher_user_id = e.user_id) OR EXISTS (SELECT 1 FROM teacher_subjects ts WHERE ts.user_id = e.user_id) OR EXISTS (SELECT 1 FROM sections se WHERE se.class_teacher_id = e.user_id)))) THEN 1 END) AS non_teaching,
              count(CASE WHEN e.employment_type = 'permanent' THEN 1 END) AS permanent,
              count(CASE WHEN e.employment_type = 'contract' THEN 1 END) AS contract,
              count(CASE WHEN e.employment_type = 'probation' THEN 1 END) AS probation,

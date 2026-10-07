@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { aiFetch } from '../../services/ai/fetch'
 import { HttpError } from '../../http'
 import { aiKey, knownAiState, noteAiResult, stateOf, vertexOnly } from '../../services/ai/key'
 
@@ -106,19 +107,19 @@ export async function geminiRequest(c: Ctx, payload: Record<string, unknown>, ti
       if (!apiKey) throw new GeminiNotConfigured('GOOGLE_API_KEY does not hold a Google API key (expected AIza... or AQ....); set it to the bare key')
       const known = await knownAiState(c.env)
       if (known === 'refused') throw new GeminiError(401, 'key refused at the last check')
-      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
+      resp = await aiFetch(c.env, `https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
         { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) })
       if (apiKey.startsWith('AQ.') && (resp.status === 401 || resp.status === 403)) {
         const body = await resp.text()
         resp = vertexOnly(resp.status, body)
-          ? await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          ? await aiFetch(c.env, `https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
             { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
           : new Response(body, { status: resp.status })
       }
     } else {
       const { project, token } = await credentials(c, signal)
       const url = `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google/models/${ASSISTANT_MODEL}:generateContent`
-      resp = await fetch(url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) })
+      resp = await aiFetch(c.env, url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) })
     }
     const rb = await resp.text()
     const st = stateOf(resp.status, rb)

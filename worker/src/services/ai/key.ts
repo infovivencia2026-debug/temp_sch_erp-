@@ -1,4 +1,5 @@
 import type { Env } from '../../env'
+import { aiFetch } from './fetch'
 import type { Ctx } from '../../router'
 import { openSecret, sealSecret } from '../../routes/admin/providers'
 
@@ -109,13 +110,13 @@ export async function noteAiResult(env: Env, state: AiState): Promise<void> {
 }
 
 /** One cheap call: the model's metadata. Vertex express keys get one try on Vertex. */
-async function probe(key: string): Promise<AiState> {
+async function probe(env: Env, key: string): Promise<AiState> {
   const signal = AbortSignal.timeout(CHECK_TIMEOUT)
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`, { signal, headers: { 'x-goog-api-key': key } })
+    const r = await aiFetch(env, `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`, { signal, headers: { 'x-goog-api-key': key } })
     const body = r.ok ? '' : await r.text()
     if (key.startsWith('AQ.') && vertexOnly(r.status, body)) {
-      const v = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${MODEL}:countTokens?key=${encodeURIComponent(key)}`,
+      const v = await aiFetch(env, `https://aiplatform.googleapis.com/v1/publishers/google/models/${MODEL}:countTokens?key=${encodeURIComponent(key)}`,
         { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'hi' }] }] }) })
       return stateOf(v.status, v.ok ? '' : await v.text())
     }
@@ -144,7 +145,7 @@ export async function aiStatus(env: Env, force = false): Promise<AiStatus> {
     }
   }
   // A service account has no cheap check; it is trusted until a call is refused.
-  const state = k.key ? await probe(k.key) : (stateCache?.fp === fp ? stateCache.v.state : 'ok')
+  const state = k.key ? await probe(env, k.key) : (stateCache?.fp === fp ? stateCache.v.state : 'ok')
   const v = { state, checked_at: new Date().toISOString() }
   await save(env, fp, v)
   return v
