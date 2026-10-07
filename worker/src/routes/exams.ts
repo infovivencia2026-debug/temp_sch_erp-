@@ -1438,6 +1438,20 @@ function registerHpc(r: Router) {
 
   r.get('/hpc/hall-ticket', SELF_READ, getHallTicket)
 
+  /* The exams a student (or a parent's children) holds a seat in: the picker
+     on their hall-ticket screen. /exams/list is the office's, and refused them. */
+  r.get('/hpc/my-exams', SELF_READ, async (c) => {
+    const res = await resolveScope(c)
+    const ids = res.studentIds
+    if (!ids.length) return ok({ items: [] })
+    const rows = await c.db.prepare(`
+      SELECT DISTINCT e.id, e.name, e.kind, ${dateOf('e.starts_on')} AS starts_on
+        FROM exam_seats se JOIN exams e ON e.id = se.exam_id
+       WHERE se.student_id IN ${inList(ids)}
+       ORDER BY e.starts_on IS NULL, e.starts_on DESC, e.name`).bind(js(ids)).all()
+    return ok({ items: rows.results.map((v) => ({ id: str(v.id), name: str(v.name), kind: str(v.kind), starts_on: v.starts_on == null ? undefined : str(v.starts_on) })) })
+  })
+
   r.get('/hpc/competencies', SELF_READ, async (c) => {
     const domain = c.url.searchParams.get('domain') || null
     const rows = await c.db.prepare(`SELECT id, domain, code, name, COALESCE(description,'') AS description, stages

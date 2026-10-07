@@ -73,14 +73,16 @@ export default function HallTicket() {
   })
   const isStaff = session.data?.permissions.includes('academics.exams.write') ?? false
 
+  /* A student or parent asks for the exams they are seated in; the office list is not theirs. */
   const exams = useQuery({
-    queryKey: ['exams'],
-    queryFn: () => api.call('GET /exams/list'),
+    queryKey: ['exams', isStaff],
+    queryFn: () => (isStaff ? api.call('GET /exams/list') : api.get<List<{ id: string; name: string }>>('/api/v1/hpc/my-exams')),
+    enabled: !!session.data,
   })
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''
 
-  if (exams.isLoading && !exams.data) return <SkeletonTiles count={4} />
+  if (!session.data || (exams.isLoading && !exams.data)) return <SkeletonTiles count={4} />
   if (exams.error) return <ErrorState error={exams.error} />
   if (!exam) {
     return (
@@ -88,8 +90,8 @@ export default function HallTicket() {
         <PageHead eyebrow="Examinations" title="Hall tickets" />
         <PageBody>
           <EmptyState
-            title="No exam scheduled"
-            body="Schedule an exam first; seating and tickets follow from it."
+            title={isStaff ? 'No exam scheduled' : 'No hall ticket yet'}
+            body={isStaff ? 'Schedule an exam first; seating and tickets follow from it.' : 'The school issues tickets once seating is done. It will appear here.'}
           />
         </PageBody>
       </>
