@@ -2293,7 +2293,7 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     return (
       <p
         role="status"
-        className="rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
+        className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
       >
         {error.message}
       </p>
@@ -2312,7 +2312,11 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
        So a blank message falls back to a sentence, and where the server gave
        a status it is named. "Could not read this (403)" is something a person
        can act on or repeat down a telephone; a coloured rectangle is not. */
-    const said = error instanceof Error ? error.message.trim() : ''
+    /* The server's refusals are written lowercase and unpunctuated ("a fuel
+       entry needs the litres, ..."); shown to a person they read as a log
+       line. A capital and a full stop make them a sentence. */
+    const raw = error instanceof Error ? error.message.trim() : ''
+    const said = raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
     const status = error instanceof ApiError ? error.status : 0
     const msg = said
       || (status === 401 ? 'Your session has ended. Sign in again.'
@@ -2320,7 +2324,7 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
         : status ? `The server refused this (${status}). Try again, or reload the page.`
         : 'Something went wrong. Try again, or reload the page.')
     return (
-      <p className="flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
+      <p role="alert" className="mt-3 flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
         <span className="min-w-0">{msg}</span>
         <CopyRef text={msg} />
       </p>
@@ -2328,7 +2332,7 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
   }
   if (ok)
     return (
-      <p className="rounded-md border border-success/25 bg-success/5 px-3 py-2 text-[13px] text-success">
+      <p role="status" className="mt-3 rounded-md border border-success/25 bg-success/5 px-3 py-2 text-[13px] text-success">
         {ok}
       </p>
     )
