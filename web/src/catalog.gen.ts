@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 405 features. */
+/** 24 roles, 409 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -747,6 +747,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'assigned_classes', tier: 'core', summary: 'Own profile, password and leave.' },
           { key: 'faculty.my_profile.student_leave_requests', slug: 'student_leave_requests', name: 'Student leave requests', scope: 'assigned_classes', tier: 'core', summary: 'Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.' },
           { key: 'faculty.my_profile.remarks_about_me', slug: 'remarks_about_me', name: 'Remarks about me', scope: 'self', tier: 'core', summary: 'What your head of department, the principal or a parent has written about you. You are told when one is added.' },
+          { key: 'faculty.my_profile.my_tasks', slug: 'my_tasks', name: 'My tasks', scope: 'self', tier: 'core', summary: 'The jobs the office or your reporting manager has handed you, due date first. Start one, finish it with a note, and hand jobs to the people who report to you.' },
           { key: 'faculty.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
@@ -782,6 +783,7 @@ export const ROLES: Role[] = [
           { key: 'librarian.library.accession_register', slug: 'accession_register', name: 'Accession register', scope: 'campus', tier: 'core', summary: 'The statutory accession register, with barcode and spine label printing.' },
           { key: 'librarian.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
           { key: 'librarian.library.reservations', slug: 'reservations', name: 'Reservations', scope: 'campus', tier: 'core', summary: 'Holds placed by students and staff, and who is next in the queue.' },
+          { key: 'librarian.library.reading_levels', slug: 'reading_levels', name: 'Reading levels', scope: 'campus', tier: 'core', summary: 'Each child\'s measured reading level and when it was measured, who has never been measured or is overdue, and how many titles the library holds at each level, so a child is handed a book they can read.' },
           { key: 'librarian.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it.' },
         ],
       },
@@ -1209,6 +1211,7 @@ export const ROLES: Role[] = [
         name: 'Banking & Reports',
         workspace: 'Banking & Reports',
         features: [
+          { key: 'finance.banking_reports.fixed_reports', slug: 'fixed_reports', name: 'Fixed reports', scope: 'institution', tier: 'core', summary: 'The sheets an accountant asks for by name: the cheque deposit dashboard, the bank pay-in slip for a day, outstanding as at a month end class by class, each child\'s fee plan head by head, the month-wise consolidated statement, parent bank details for refunds and scholarships, and what card swipes cost. Each one prints and exports.' },
           { key: 'finance.banking_reports.match_bank_records', slug: 'match_bank_records', name: 'Match bank records', scope: 'institution', tier: 'core', summary: 'The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside.' },
           { key: 'finance.banking_reports.accounting_tax_reports', slug: 'accounting_tax_reports', name: 'Accounting & tax reports', scope: 'institution', tier: 'core', summary: 'The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements, with a one-click export for the school\'s accountant.' },
         ],
@@ -1445,6 +1448,14 @@ export const ROLES: Role[] = [
           { key: 'hr.payroll.monthly_payroll', slug: 'monthly_payroll', name: 'Monthly payroll', scope: 'institution', tier: 'core', summary: 'Run the month\'s salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee\'s days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them.' },
           { key: 'hr.payroll.salary_setup', slug: 'salary_setup', name: 'Salary setup', scope: 'institution', tier: 'core', summary: 'What each member of staff is paid, and the components a payslip is built from, basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year\'s payslips still explain themselves.' },
           { key: 'hr.payroll.taxes_statutory', slug: 'taxes_statutory', name: 'Taxes & statutory', scope: 'institution', tier: 'core', summary: 'Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff.' },
+        ],
+      },
+      {
+        slug: 'tasks',
+        name: 'Tasks',
+        workspace: 'People',
+        features: [
+          { key: 'hr.tasks.staff_tasks', slug: 'staff_tasks', name: 'Staff tasks', scope: 'institution', tier: 'core', summary: 'Hand a job to a member of staff with a due date, watch it move from open to done, and read the report of who has what open and overdue. The Reporting managers tab says who each person answers to, which is where their leave request goes first.' },
         ],
       },
       {

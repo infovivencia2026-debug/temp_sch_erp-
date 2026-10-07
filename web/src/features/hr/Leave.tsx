@@ -38,6 +38,15 @@ interface LeaveRow {
   days: string
   reason: string
   status: string
+  kind?: string
+  hours?: number
+}
+
+/** What the Type column says: the leave type, or the kind when it is not a leave. */
+function typeLabel(l: LeaveRow): string | undefined {
+  if (l.kind === 'comp_off') return 'Compensatory off'
+  if (l.kind === 'permission') return `Permission, ${l.hours ?? ''} h`.replace(',  h', '')
+  return l.leave_type
 }
 
 export default function Leave() {
@@ -144,7 +153,7 @@ export default function Leave() {
   const [apply, setApply] = useState(false)
   const [form, setForm] = useState({
     from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
-    employee_id: '',
+    employee_id: '', kind: 'leave', hours: '',
   })
 
   /* Approving on the self-service screen would be the same confusion the other
@@ -217,7 +226,9 @@ export default function Leave() {
     mutationFn: () =>
       api.post('/api/v1/workflow/leave', {
         ...form,
-        leave_type_id: form.leave_type_id || undefined,
+        leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
+        hours: form.kind === 'permission' ? Number(form.hours) : undefined,
+        to_date: form.kind === 'permission' ? form.from_date : form.to_date,
         // Omitted entirely when blank, so the server keeps its "the applicant
         // is the signed-in employee" path rather than being handed an empty id.
         employee_id: form.employee_id || undefined,
@@ -226,7 +237,7 @@ export default function Leave() {
       setApplied('Sent. Whoever approves leave here will see it, the head of department or the principal, whichever gets there first.')
       setForm({
         from_date: '', to_date: '', reason: '', is_half_day: false,
-        leave_type_id: '', employee_id: '',
+        leave_type_id: '', employee_id: '', kind: 'leave', hours: '',
       })
       setApply(false)
       qc.invalidateQueries({ queryKey: ['leave'] })
@@ -248,7 +259,7 @@ export default function Leave() {
   /* Who asked, and why. A book of thirty requests is read looking for one
      person's, and read again at the end of term to count them. */
   const { q: term, setQ: setTerm, shown } = useSearch(items,
-    (l) => [l.who, l.leave_type, l.reason, l.status])
+    (l) => [l.who, typeLabel(l), l.reason, l.status])
 
   /* The owner's print: four count boxes, then the requests as listed. */
   const printLeave = () => printHtml(leaveHtml({
@@ -379,20 +390,44 @@ export default function Leave() {
                     />
                   </Field>
                 )}
-                <Field label="From" required>
+                {/* A leave, a day earned by working a holiday, or a few hours
+                    out. The quota only applies to the first. */}
+                <Field label="Request" required>
+                  <Select
+                    value={form.kind}
+                    onChange={(v) => setForm({ ...form, kind: v })}
+                    options={[
+                      { value: 'leave', label: 'Leave' },
+                      { value: 'comp_off', label: 'Compensatory off' },
+                      { value: 'permission', label: 'Permission (a few hours)' },
+                    ]}
+                  />
+                </Field>
+                <Field label={form.kind === 'permission' ? 'On' : 'From'} required>
                   <Input
                     type="date"
                     value={form.from_date}
                     onChange={(v) => setForm({ ...form, from_date: v })}
                   />
                 </Field>
-                <Field label="To" required>
-                  <Input
-                    type="date"
-                    value={form.to_date}
-                    onChange={(v) => setForm({ ...form, to_date: v })}
-                  />
-                </Field>
+                {form.kind === 'permission' ? (
+                  <Field label="Hours" required hint="Up to 8.">
+                    <Input
+                      type="number"
+                      value={form.hours}
+                      onChange={(v) => setForm({ ...form, hours: v })}
+                      placeholder="2"
+                    />
+                  </Field>
+                ) : (
+                  <Field label="To" required>
+                    <Input
+                      type="date"
+                      value={form.to_date}
+                      onChange={(v) => setForm({ ...form, to_date: v })}
+                    />
+                  </Field>
+                )}
               </FormGrid>
               {/* Required, because the kind of leave is the whole point of
                   recording it.
@@ -404,7 +439,7 @@ export default function Leave() {
                   differently, deducted differently, and a leave with no kind
                   cannot be counted against a balance at all — which is what
                   the balance tiles beside it are for. */}
-              {leaveTypes.length > 0 && (
+              {leaveTypes.length > 0 && form.kind === 'leave' && (
                 <Field label="Kind of leave" required hint="What it is counted against.">
                   <Select
                     value={form.leave_type_id}
@@ -424,6 +459,7 @@ export default function Leave() {
                   placeholder="Medical, parent function, examination duty…"
                 />
               </Field>
+              {form.kind !== 'permission' && (
               <label className="mt-2 flex items-center gap-2 text-[13.5px]">
                 <input
                   type="checkbox"
@@ -432,16 +468,17 @@ export default function Leave() {
                 />
                 Half day
               </label>
+              )}
               <FormNotice error={send.error} />
               <Button
                 className="mt-3"
                 disabled={
                   !form.from_date ||
-                  !form.to_date ||
+                  (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) ||
                   !form.reason.trim() ||
                   // Only when there is something to choose. A school that has
                   // not set its leave types up must still be able to apply.
-                  (leaveTypes.length > 0 && !form.leave_type_id) ||
+                  (form.kind === 'leave' && leaveTypes.length > 0 && !form.leave_type_id) ||
                   send.isPending
                 }
                 onClick={() => send.mutate()}
@@ -488,7 +525,7 @@ export default function Leave() {
                 name="leave"
                 columns={[
                   { header: 'Who', value: (l) => l.who },
-                  { header: 'Type', value: (l) => l.leave_type },
+                  { header: 'Type', value: (l) => typeLabel(l) },
                   { header: 'From', value: (l) => l.from_date },
                   { header: 'To', value: (l) => l.to_date },
                   { header: 'Days', value: (l) => l.days },
@@ -518,7 +555,7 @@ export default function Leave() {
                       none, and there is no honest way to guess one. "Not
                       recorded" says that; a dash reads as data we lost. */}
                   <Td className="text-muted-foreground">
-                    {l.leave_type ?? <span className="italic">Not recorded</span>}
+                    {typeLabel(l) ?? <span className="italic">Not recorded</span>}
                   </Td>
                   <Td className="text-muted-foreground">{formatDate(l.from_date)}</Td>
                   <Td className="text-muted-foreground">{formatDate(l.to_date)}</Td>

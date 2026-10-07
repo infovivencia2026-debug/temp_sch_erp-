@@ -1079,8 +1079,9 @@ async function getApprovals(c: Ctx): Promise<Response> {
         LEFT JOIN users u ON u.id = lr.applied_by
        WHERE lr.status = 'pending'
          AND (? OR lr.subject_kind <> 'staff' OR e.department_id IS NULL
-              OR EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id AND d.head_user_id = ?))
-       ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at`).bind(schoolWide ? 1 : 0, c.id.userId).all()
+              OR EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id AND d.head_user_id = ?)
+              OR EXISTS (SELECT 1 FROM employees m WHERE m.id = e.reports_to AND m.user_id = ?))
+       ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at`).bind(schoolWide ? 1 : 0, c.id.userId, c.id.userId).all()
     for (const v of rows.results) {
       out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
         requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
@@ -1160,15 +1161,27 @@ async function getApprovals(c: Ctx): Promise<Response> {
 
 async function applyForLeave(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
-  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; student_id?: string; employee_id?: string }>(c.req)
+  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; student_id?: string; employee_id?: string; kind?: string; hours?: number }>(c.req)
   const from = req.from_date ?? '', to = req.to_date ?? ''
   if (!isDate(from)) throw badRequest('from_date must be YYYY-MM-DD')
   if (!isDate(to)) throw badRequest('to_date must be YYYY-MM-DD')
   if (to < from) throw badRequest('the leave ends before it starts')
   const reason = req.reason ?? ''
   if (!reason.trim()) throw badRequest('a reason is required')
+  /* What kind of request this is. A leave is counted against a type's quota.
+     A compensatory off is a day earned by working a holiday, so no type.
+     A permission is a few hours out on one day, and counts in hours. */
+  const requestKind = req.kind ?? 'leave'
+  if (!['leave', 'comp_off', 'permission'].includes(requestKind)) throw badRequest('kind is leave, comp_off or permission')
+  let hours: number | null = null
+  if (requestKind === 'permission') {
+    if (from !== to) throw badRequest('a permission is for one day; give the same from and to date')
+    hours = Number(req.hours)
+    if (!(hours > 0 && hours <= 8)) throw badRequest('hours must be between 0 and 8 for a permission')
+  }
   let days = (Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10)) - Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10))) / 86_400_000 + 1
   if (req.is_half_day) days = 0.5
+  if (requestKind === 'permission' && hours !== null) days = Math.round((hours / 8) * 100) / 100
   const res = await resolveScope(c)
 
   const haveTypes = await c.db.prepare('SELECT EXISTS (SELECT 1 FROM leave_types) AS x').first<{ x: number }>()
@@ -1176,7 +1189,7 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   /* Leave types (casual, sick, earned) are staff leave. A parent asking for
      a child's day off was refused with "choose the kind of leave" in every
      school that had set staff types up. */
-  if (haveTypes?.x && !leaveType && !req.student_id) {
+  if (haveTypes?.x && !leaveType && !req.student_id && requestKind === 'leave') {
     throw badRequest('choose the kind of leave. Casual, sick, or whichever it is. It decides what the days are counted against.')
   }
   let employeeId: string | null = null, studentId: string | null = null
@@ -1220,8 +1233,8 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   const newId = uuid()
   const stmts: D1PreparedStatement[] = [
     c.db.prepare(`INSERT INTO leave_requests (id, institution_id, leave_type_id, subject_kind, employee_id, student_id, from_date, to_date,
-                    is_half_day, days, reason, status, applied_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`)
-      .bind(newId, inst, leaveType, kind, employeeId, studentId, from, to, req.is_half_day ? 1 : 0, String(days), reason, c.id.userId, now()),
+                    is_half_day, days, reason, status, applied_by, created_at, kind, hours) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)`)
+      .bind(newId, inst, leaveType, kind, employeeId, studentId, from, to, req.is_half_day ? 1 : 0, String(days), reason, c.id.userId, now(), requestKind, hours),
   ]
   /* A CHILD'S LEAVE HAD NOBODY TO GO TO.
 
@@ -1391,7 +1404,7 @@ async function decideConcession(c: Ctx): Promise<Response> {
   return ok({ id: cid, status: req.decision })
 }
 
-const staffStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday', 'week_off'])
+const staffStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday', 'week_off', 'wfh'])
 
 async function markStaffAttendance(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id

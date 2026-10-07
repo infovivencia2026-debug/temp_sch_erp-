@@ -304,7 +304,7 @@ export function registerStaff(r: Router) {
     const mine = !can(c.id, READ) || q.get('for') === 'mine'
     const rows = await c.db.prepare(`
       SELECT lr.id, COALESCE(NULLIF(${fullName('e.first_name', 'e.last_name')}, ''), NULLIF(${fullName('st.first_name', 'st.last_name')}, ''), '-') AS who,
-             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status
+             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status, lr.kind, lr.hours
         FROM leave_requests lr LEFT JOIN employees e ON e.id = lr.employee_id LEFT JOIN students st ON st.id = lr.student_id LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
        WHERE (? IS NULL OR lr.status = ?) AND (? IS NULL OR lr.subject_kind = ?) AND ${mine ? 'e.user_id = ?' : '1'}
        ORDER BY lr.created_at DESC LIMIT 300`)

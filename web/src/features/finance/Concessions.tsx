@@ -46,6 +46,9 @@ interface Concession {
   requested_by?: string
   decided_on?: string
   raised_on?: string
+  attachment_file_id?: string
+  document_note?: string
+  document_name?: string
 }
 
 interface Refund {
@@ -93,6 +96,29 @@ export default function Concessions() {
   /* The note the decider writes, kept per row so two people being decided in
      one sitting cannot end up with each other's reason. */
   const [notes, setNotes] = useState<Record<string, string>>({})
+  /* The paper behind a negotiated fee. A file goes up through POST /files
+     and is then pinned to the concession with a note; either alone is fine. */
+  const [docFor, setDocFor] = useState<string | null>(null)
+  const [docNote, setDocNote] = useState('')
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const attach = useMutation({
+    mutationFn: async (id: string) => {
+      let fileId: string | undefined
+      if (docFile) {
+        const fd = new FormData()
+        fd.append('file', docFile)
+        fd.append('purpose', 'attachment')
+        const res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin' })
+        if (!res.ok) throw new Error('The file could not be uploaded.')
+        fileId = ((await res.json()) as { file_id: string }).file_id
+      }
+      return api.post(`/api/v1/fees/concessions/${id}/document`, { file_id: fileId, note: docNote || undefined })
+    },
+    onSuccess: () => {
+      setDocFor(null); setDocNote(''); setDocFile(null)
+      qc.invalidateQueries({ queryKey: ['concessions'] })
+    },
+  })
   const decide = useMutation({
     mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) =>
       api.post(`/api/v1/workflow/concessions/${v.id}/decide`,
@@ -222,7 +248,7 @@ export default function Concessions() {
             <ErrorState error={concessions.error} />
           ) : (
             <Table
-              head={['Student', 'Fee head', 'Kind', 'Value', 'Reason', 'Status', '']}
+              head={['Student', 'Fee head', 'Kind', 'Value', 'Reason', 'Document', 'Status', '']}
               empty={!cs.length}
               emptyLabel="No concessions recorded."
             >
@@ -241,6 +267,30 @@ export default function Concessions() {
                     <span className="block max-w-[24ch] truncate" title={c.reason ?? ''}>
                       {c.reason ?? '-'}
                     </span>
+                  </Td>
+                  <Td>
+                    {c.attachment_file_id && (
+                      <a className="block max-w-[22ch] truncate text-[13px] underline-offset-2 hover:underline" href={`/api/v1/files/${c.attachment_file_id}`} target="_blank" rel="noreferrer">
+                        {c.document_name ?? 'Document'}
+                      </a>
+                    )}
+                    {c.document_note && <span className="block max-w-[24ch] truncate text-[11.5px] text-muted-foreground" title={c.document_note}>{c.document_note}</span>}
+                    {mayDecide && docFor !== c.id && (
+                      <Button size="sm" variant="ghost" onClick={() => { setDocFor(c.id); setDocNote(c.document_note ?? ''); setDocFile(null) }}>
+                        {c.attachment_file_id || c.document_note ? 'Change' : 'Attach'}
+                      </Button>
+                    )}
+                    {docFor === c.id && (
+                      <span className="mt-1 flex flex-col gap-2">
+                        <input type="file" accept="application/pdf,image/jpeg,image/png" className="text-[12.5px]" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
+                        <Input className="w-48" value={docNote} onChange={setDocNote} placeholder="What the paper is" />
+                        <span className="flex gap-2">
+                          <Button size="sm" disabled={attach.isPending || (!docFile && !docNote.trim())} onClick={() => attach.mutate(c.id)}>{attach.isPending ? 'Saving…' : 'Save'}</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDocFor(null)}>Cancel</Button>
+                        </span>
+                        <FormNotice error={attach.error} />
+                      </span>
+                    )}
                   </Td>
                   <Td>
                     <StatusPill status={c.status} />

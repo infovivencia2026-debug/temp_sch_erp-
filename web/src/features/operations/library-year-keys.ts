@@ -17,4 +17,5 @@ export const libraryYearKeys = {
   'librarian.library.digital_library_usage': screen(() => import('./DigitalUsage')),
   'librarian.library.annual_book_stock_verification': screen(() => import('./LibraryDesk')),
   'librarian.library.new_session_textbook_orders': screen(() => import('./LibraryDesk')),
+  'librarian.library.reading_levels': screen(() => import('./ReadingLevels')),
 }

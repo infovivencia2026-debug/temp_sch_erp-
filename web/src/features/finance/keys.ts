@@ -27,6 +27,8 @@ import { lazy } from 'react'
  */
 export const financeKeys = {
   'finance.home.dashboard': screen(() => import('./Dashboard')),
+  // The fixed reports an accountant asks for by name.
+  'finance.banking_reports.fixed_reports': screen(() => import('./FixedReports')),
 
   // Fee collection & setup.
   'finance.fees.take_fee_payment': screen(() => import('./FeeCounter')),

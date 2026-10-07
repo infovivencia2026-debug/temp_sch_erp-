@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 405 features.
+// Roles is the catalog: 24 roles, 409 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -794,6 +794,7 @@ var Roles = []Role{
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
 					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
 					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
+					{Key: "faculty.my_profile.my_tasks", Slug: "my_tasks", Name: "My tasks", Scope: Scope("self"), Tier: Tier("core"), Summary: "The jobs the office or your reporting manager has handed you, due date first. Start one, finish it with a note, and hand jobs to the people who report to you."},
 					{Key: "faculty.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
@@ -829,6 +830,7 @@ var Roles = []Role{
 					{Key: "librarian.library.accession_register", Slug: "accession_register", Name: "Accession register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The statutory accession register, with barcode and spine label printing."},
 					{Key: "librarian.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 					{Key: "librarian.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
+					{Key: "librarian.library.reading_levels", Slug: "reading_levels", Name: "Reading levels", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Each child's measured reading level and when it was measured, who has never been measured or is overdue, and how many titles the library holds at each level, so a child is handed a book they can read."},
 					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it."},
 				},
 			},
@@ -1256,6 +1258,7 @@ var Roles = []Role{
 				Name: "Banking & Reports",
 				Workspace: "Banking & Reports",
 				Features: []Feature{
+					{Key: "finance.banking_reports.fixed_reports", Slug: "fixed_reports", Name: "Fixed reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The sheets an accountant asks for by name: the cheque deposit dashboard, the bank pay-in slip for a day, outstanding as at a month end class by class, each child's fee plan head by head, the month-wise consolidated statement, parent bank details for refunds and scholarships, and what card swipes cost. Each one prints and exports."},
 					{Key: "finance.banking_reports.match_bank_records", Slug: "match_bank_records", Name: "Match bank records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside."},
 					{Key: "finance.banking_reports.accounting_tax_reports", Slug: "accounting_tax_reports", Name: "Accounting & tax reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements, with a one-click export for the school's accountant."},
 				},
@@ -1492,6 +1495,14 @@ var Roles = []Role{
 					{Key: "hr.payroll.monthly_payroll", Slug: "monthly_payroll", Name: "Monthly payroll", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Run the month's salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee's days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them."},
 					{Key: "hr.payroll.salary_setup", Slug: "salary_setup", Name: "Salary setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each member of staff is paid, and the components a payslip is built from, basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year's payslips still explain themselves."},
 					{Key: "hr.payroll.taxes_statutory", Slug: "taxes_statutory", Name: "Taxes & statutory", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff."},
+				},
+			},
+			{
+				Slug: "tasks",
+				Name: "Tasks",
+				Workspace: "People",
+				Features: []Feature{
+					{Key: "hr.tasks.staff_tasks", Slug: "staff_tasks", Name: "Staff tasks", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Hand a job to a member of staff with a due date, watch it move from open to done, and read the report of who has what open and overdue. The Reporting managers tab says who each person answers to, which is where their leave request goes first."},
 				},
 			},
 			{

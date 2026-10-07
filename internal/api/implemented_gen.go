@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 391 of the catalog's features are implemented.
+// 399 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -89,6 +89,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_classes.student_progress":                                 true,
 	"faculty.my_profile.leave_self_service":                               true,
 	"faculty.my_profile.my_pay":                                           true,
+	"faculty.my_profile.my_tasks":                                         true,
 	"faculty.my_profile.profile":                                          true,
 	"faculty.my_profile.remarks_about_me":                                 true,
 	"faculty.my_profile.student_leave_requests":                           true,
@@ -105,6 +106,7 @@ var implementedFeatures = map[string]bool{
 	"finance.accounts.school_property_budgeting":                          true,
 	"finance.accounts.vendor_bills_petty_cash":                            true,
 	"finance.banking_reports.accounting_tax_reports":                      true,
+	"finance.banking_reports.fixed_reports":                               true,
 	"finance.banking_reports.match_bank_records":                          true,
 	"finance.campus_money.cafeteria_store_sales":                          true,
 	"finance.campus_money.donations_aid":                                  true,
@@ -172,6 +174,7 @@ var implementedFeatures = map[string]bool{
 	"hr.records.service_book_qualifications":                              true,
 	"hr.records.staff_records":                                            true,
 	"hr.reports.staff_analytics_reports":                                  true,
+	"hr.tasks.staff_tasks":                                                true,
 	"hr.welfare.staff_welfare":                                            true,
 	"institution_admin.academics.activities_electives":                    true,
 	"institution_admin.academics.attendance_audit":                        true,
@@ -270,6 +273,7 @@ var implementedFeatures = map[string]bool{
 	"librarian.library.issue_return":                                      true,
 	"librarian.library.new_session_textbook_orders":                       true,
 	"librarian.library.opac_digital_book_search":                          true,
+	"librarian.library.reading_levels":                                    true,
 	"librarian.library.reservations":                                      true,
 	"librarian.my_profile.my_pay":                                         true,
 	"lms_admin.lms.courses":                                               true,
@@ -288,6 +292,7 @@ var implementedFeatures = map[string]bool{
 	"operations.stores.stock_movements":                                   true,
 	"operations.transport.transport_office":                               true,
 	"operations.transport.vehicles_routes":                                true,
+	"parent.academics.hall_ticket":                                        true,
 	"parent.academics.homework_academics":                                 true,
 	"parent.academics.results_report_cards":                               true,
 	"parent.academics.timetable":                                          true,
@@ -330,6 +335,7 @@ var implementedFeatures = map[string]bool{
 	"student.attendance.attendance":                                       true,
 	"student.exams_results.academic_record":                               true,
 	"student.exams_results.exams_grades":                                  true,
+	"student.exams_results.hall_ticket":                                   true,
 	"student.fees.fees":                                                   true,
 	"student.home.digital_diary_schedule":                                 true,
 	"student.home.my_day":                                                 true,
@@ -385,7 +391,9 @@ var implementedFeatures = map[string]bool{
 	"super_admin.statutory_boards.state_board_configuration":              true,
 	"super_admin.statutory_boards.udise_data_sync":                        true,
 	"transport_manager.communication.messages":                            true,
+	"transport_manager.home.dashboard":                                    true,
 	"transport_manager.my_profile.my_pay":                                 true,
+	"transport_manager.reports.transport_reports":                         true,
 	"transport_manager.transport.bus_speeding_rash_driving_alerts":        true,
 	"transport_manager.transport.delays_exceptions":                       true,
 	"transport_manager.transport.driver_phone_tracker":                    true,
@@ -394,9 +402,9 @@ var implementedFeatures = map[string]bool{
 	"transport_manager.transport.geo_fenced_bus_stop_alerts":              true,
 	"transport_manager.transport.live_vehicle_tracking":                   true,
 	"transport_manager.transport.route_attendance":                        true,
-	"transport_manager.transport.route_distance_fee_slabs":                true,
 	"transport_manager.transport.routes_stops":                            true,
 	"transport_manager.transport.student_allocation":                      true,
+	"transport_manager.transport.todays_runs":                             true,
 	"transport_manager.transport.vehicle_fuel_maintenance_log":            true,
 	"transport_manager.transport.vehicles":                                true,
 }

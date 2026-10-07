@@ -39,6 +39,7 @@ const MARKS: { value: string; short: string; label: string; tone: string }[] = [
   { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning/40 bg-warning/10' },
   { value: 'half_day', short: '½', label: 'Half day', tone: 'text-warning border-warning/40 bg-warning/10' },
   { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-secondary-foreground border-border-strong bg-surface-hover' },
+  { value: 'wfh', short: 'H', label: 'From home', tone: 'text-info border-info/40 bg-info/10' },
 ]
 
 export default function StaffAttendance() {
@@ -74,7 +75,7 @@ export default function StaffAttendance() {
   const rows = q.data?.items ?? []
   const value = (r: StaffRow) => draft[r.user_id] ?? r.status ?? ''
   const marked = rows.filter((r) => value(r)).length
-  const present = rows.filter((r) => ['present', 'late', 'half_day'].includes(value(r))).length
+  const present = rows.filter((r) => ['present', 'late', 'half_day', 'wfh'].includes(value(r))).length
   const absent = rows.filter((r) => ['absent', 'leave'].includes(value(r))).length
 
   /* Every employee, as marked on screen (owner's design, staff-register-print.ts). */
