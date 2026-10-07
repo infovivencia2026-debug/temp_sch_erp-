@@ -4781,3 +4781,7 @@ html:not([data-layout='bento']) [data-settings-page] {
     height: var(--board-h, auto);
   }
 }
+
+/* The assistant covers the board on a phone; its page dots stayed on top of
+   the chat (owner, 2026-10-07: "why do I see the dots there"). */
+html[data-assistant-open] .bento-dots { display: none !important; }
