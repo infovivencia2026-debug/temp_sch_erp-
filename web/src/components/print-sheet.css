@@ -99,7 +99,15 @@ html[data-printing] { overflow: hidden; }
    document's title with its number and date set against the right margin.
    Tables have a tinted head and hairline rules. Type is the system's own
    sans, in points, black on white. */
-.print-sheet__paper { --doc-accent: #1f2937; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Telugu', 'Helvetica Neue', Arial, sans-serif; }
+/* INTER ON PAPER TOO (owner: "FOR EVERY PRINT USE INTER FONT").
+
+   The app has shipped Inter bundled since the first commit, and this sheet
+   named a system stack -- so every printed document came out in whatever the
+   machine happened to have: Segoe on Windows, Helvetica on a Mac, something
+   else on the school's old laptop. Three schools printing the same receipt
+   got three documents. Inter leads now, with the same fallbacks behind it and
+   Noto Sans Telugu still there for the Telugu pages. */
+.print-sheet__paper { --doc-accent: #1f2937; font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Telugu', 'Helvetica Neue', Arial, sans-serif; }
 .print-sheet__head {
   display: flex;
   align-items: center;
@@ -269,9 +277,44 @@ html[data-printing] { overflow: hidden; }
    lines; two across keeps every number whole. Other side-by-side panels come
    back to one column, so the second panel's last column is not lost off the
    edge. */
-.print-sheet__body .cell-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-.print-sheet__body .cell { padding: 10pt 12pt; }
-.print-sheet__body .stat { font-size: 15pt; white-space: nowrap; margin-top: 4pt; }
+/* THE FIGURES READ AS A ROW OF FIGURES (owner's first picture).
+
+   Two across with an icon beside each number is the screen's shape, and on
+   paper it made a cramped block where the eye could not take the four numbers
+   in at once. Four across, the label small and set in capitals above its
+   number, the number large and bold, and no icons -- an icon is a wayfinding
+   aid on a screen somebody is clicking, and dead ink on a sheet of paper.
+
+   Four fit: A4 less the margins is about 180mm, so each column is 45mm, and
+   the longest figure a school prints (a lakh with paise) is 32mm at 15pt. */
+.print-sheet__body .cell-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0 !important; }
+.print-sheet__body .cell {
+  padding: 9pt 11pt;
+  border: 0 !important;
+  border-right: 0.5pt solid #e5e7eb !important;
+  border-radius: 0 !important;
+}
+.print-sheet__body .cell-grid > .cell:last-child { border-right: 0 !important; }
+/* The label: small, in capitals, above the number rather than beside it. */
+.print-sheet__body .cell > :first-child {
+  font-size: 7.5pt;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.print-sheet__body .stat { font-size: 16pt; font-weight: 700; white-space: nowrap; margin-top: 3pt; }
+/* An icon earns its place by being clickable. Nothing on paper is. */
+.print-sheet__body .cell svg { display: none !important; }
+
+/* A COLUMN HEADING IS NOT A CELL. Capitals, tracked, grey, over a rule --
+   so the eye finds the top of the table without reading it. */
+.print-sheet__body thead th {
+  font-size: 7.5pt;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 0.75pt solid #d1d5db;
+}
 .print-sheet__body [class*="grid-cols-"]:not(.cell-grid) { grid-template-columns: minmax(0, 1fr) !important; }
 .print-sheet__body th, .print-sheet__body td { padding: 3pt 5pt; }
 .print-sheet__body [class*="overflow-x"] { overflow: visible !important; }

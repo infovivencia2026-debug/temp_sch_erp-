@@ -152,11 +152,11 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
       <PageHead
         eyebrow="Examinations"
         title="Exam seating plan"
-        description="Allocate candidates to halls, then print the invigilator's plan. Re-running replaces the whole allocation."
+        description="Allocate candidates to halls, then print the plan. Re-running replaces it."
         actions={
           <>
             {picker}
-            <PrintButton label="Print" title="Exam seating plan" />
+            <PrintButton label="Print" title="Seating plan" />
           </>
         }
       />
@@ -179,7 +179,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Halls"
-            description="A grid, not a headcount, an invigilator calls a row and a seat."
+            description="A grid, not a headcount: a row and a seat."
             action={
               <>
                 <Button variant="secondary" onClick={() => setAdding((v) => !v)}>
@@ -217,7 +217,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Seating plan"
-            description={`${seats.length} candidates, neighbours are drawn from different sections`}
+            description={`${seats.length} candidates, neighbours from different sections`}
             action={
               <Select
                 value={hall}
@@ -398,7 +398,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
       <PageHead
         eyebrow="Examinations"
         title="Hall ticket"
-        description="Bring this to every paper. You will not be admitted without it."
+        description="Bring this to every paper."
         actions={
           <>
             {kids.length > 1 && (
