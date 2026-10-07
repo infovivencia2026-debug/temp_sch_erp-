@@ -75,7 +75,9 @@ export default function Exports() {
                 const label = { title: x.title ?? x.name, blurb: x.about ?? '' }
                 return (
                   <tr key={x.name}>
-                    <Td className="font-medium">
+                    {/* Wrapped, so a long description never pushes the downloads off
+                        the right edge (owner: page 1 scrolled sideways, page 2 did not). */}
+                    <Td className="min-w-[14rem] whitespace-normal font-medium">
                       {label.title}
                       {label.blurb && (
                         <span className="block text-[12.5px] font-normal text-muted-foreground">
@@ -83,12 +85,12 @@ export default function Exports() {
                         </span>
                       )}
                     </Td>
-                    <Td className="text-[12.5px] text-muted-foreground">
+                    <Td className="max-w-[20rem] whitespace-normal text-[12.5px] text-muted-foreground">
                       {x.columns.length} columns
-                      <span className="block max-w-[42ch] truncate">{x.columns.join(', ')}</span>
+                      <span className="line-clamp-2 block">{x.columns.join(', ')}</span>
                     </Td>
                     <Td>
-                      <div className="flex flex-wrap justify-end gap-1.5">
+                      <div className="flex flex-nowrap justify-end gap-1.5">
                         {(x.formats ?? ['csv']).map((fmt) => (
                           <Button
                             key={fmt}
