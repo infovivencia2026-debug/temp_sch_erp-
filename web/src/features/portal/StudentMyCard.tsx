@@ -1,3 +1,4 @@
+import { printDocument } from '@/lib/print'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cake, Droplet, House, Phone, Printer, ShieldCheck, UserRound } from 'lucide-react'
@@ -43,7 +44,7 @@ export default function StudentMyCard() {
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ['student-id-card', ''] })}>
       <StudentPage>
         <StudentHeader title="My ID card" sub="Show this screen at the gate or the library"
-          right={<button type="button" onClick={() => window.print()} aria-label="Print my card" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
+          right={<button type="button" onClick={() => printDocument({ title: 'Student ID card' })} aria-label="Print my card" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
 
         {q.error ? <ErrorState error={q.error} /> : !card || !pass ? (
           <><Bone className="h-[360px] w-full rounded-3xl" /><Bone className="h-[220px] w-full rounded-2xl" /></>

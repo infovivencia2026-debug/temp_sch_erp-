@@ -1,3 +1,4 @@
+import { printDocument } from '@/lib/print'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, GraduationCap, Printer, School, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -41,7 +42,7 @@ export default function StudentRecord() {
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: q.queryKey })}>
       <StudentPage>
         <StudentHeader title="My school record" sub={d ? `${d.student_name} · ${d.admission_no}` : undefined}
-          right={<button type="button" onClick={() => window.print()} aria-label="Print my record" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
+          right={<button type="button" onClick={() => printDocument({ title: 'School record' })} aria-label="Print my record" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
 
         {r.error ? <ErrorState error={r.error} /> : !d ? (
           <div className="space-y-3"><Bone className="h-[152px] w-full rounded-2xl" /><div className="grid grid-cols-2 gap-3"><Bone className="h-[92px] rounded-2xl" /><Bone className="h-[92px] rounded-2xl" /></div><Bone className="h-[180px] w-full rounded-2xl" /></div>
