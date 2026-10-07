@@ -87,6 +87,17 @@ interface Allocation {
   pickup_time?: string
   fare_paise?: number
 }
+/** What allocating this child to this route would do, asked before doing it. */
+interface Preflight {
+  moving: boolean
+  from_route?: string
+  ends_on?: string
+  over_capacity: boolean
+  capacity?: number
+  seated_after?: number
+  over_by?: number
+  vehicle?: string
+}
 interface BusRow {
   student_id: string
   full_name: string
@@ -238,6 +249,8 @@ export default function TransportOffice() {
           <Stat label="Open incidents" value={openIncidents.length} icon={BusFront} />
           <Stat label="This month" value={incidents.data?.items.length ?? 0} />
         </CellGrid>
+
+        <Today />
 
         <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
@@ -981,6 +994,103 @@ function DriverSignIn({ staff }: { staff: Staff }) {
   )
 }
 
+/** Today's state of the fleet, and the handful of things wanting doing. */
+interface TodayView {
+  on_date: string
+  routes: number
+  running: number
+  completed: number
+  not_started: number
+  failed_checks: { vehicle: string; leg: string; failed_items: string[] }[]
+  expiring: { vehicle: string; kind: string; on_date: string; days: number }[]
+  gaps: { route: string; gap: string }[]
+  open_incidents: number
+}
+
+/* THE QUESTION ASKED AT SEVEN IN THE MORNING.
+
+   Are the buses out, and is anything wrong. Every fact here was already in
+   the database and reachable only by opening a different tab: a fortnight of
+   safety checks to find this morning's failure, the vehicle register to find
+   the insurance that lapses on Thursday. One card, read top to bottom, and
+   the office knows where it stands before the phone rings.
+
+   A failed check is stated, never used to stop a bus. At 7:02 the children
+   are already at the stop, and a module that holds the bus over a tick box
+   has done more harm than the tick box prevents. */
+function Today() {
+  const q = useQuery({
+    queryKey: ['transport-today'],
+    queryFn: () => api.get<TodayView>('/api/v1/ops/transport/today'),
+  })
+  const d = q.data
+  if (!d) return null
+  const attention =
+    d.failed_checks.length + d.expiring.length + d.gaps.length + (d.open_incidents > 0 ? 1 : 0)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Today"
+        description={
+          attention === 0
+            ? 'Nothing is waiting on the office.'
+            : 'What is running, and what wants doing about it.'
+        }
+      />
+      <div className="p-4 pt-0">
+        <CellGrid cols={4}>
+          <Stat label="Routes" value={d.routes} icon={Route} />
+          <Stat label="Running" value={d.running} icon={Bus} />
+          <Stat label="Completed" value={d.completed} />
+          <Stat label="Not started" value={d.not_started} />
+        </CellGrid>
+
+        {attention > 0 && (
+          <ul className="mt-4 flex flex-col gap-2 text-[13px]">
+            {d.failed_checks.map((f) => (
+              <li
+                key={`${f.vehicle}-${f.leg}`}
+                className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2"
+              >
+                <strong>{f.vehicle}</strong> failed its {f.leg} check
+                {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+              </li>
+            ))}
+            {d.gaps.map((g) => (
+              <li
+                key={g.route}
+                className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2"
+              >
+                <strong>{g.route}</strong> has {g.gap}.
+              </li>
+            ))}
+            {d.expiring.map((e) => (
+              <li
+                key={`${e.vehicle}-${e.kind}`}
+                className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2"
+              >
+                <strong>{e.vehicle}</strong> — {e.kind}{' '}
+                {e.days < 0
+                  ? `expired ${Math.abs(e.days)} days ago`
+                  : e.days === 0
+                    ? 'expires today'
+                    : `expires in ${e.days} days`}
+                .
+              </li>
+            ))}
+            {d.open_incidents > 0 && (
+              <li className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2">
+                {d.open_incidents} incident{d.open_incidents === 1 ? '' : 's'} still open.
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 function Allocations() {
   const qc = useQueryClient()
   const routes = useRoutes()
@@ -1005,12 +1115,34 @@ function Allocations() {
       ),
     enabled: !!routeId,
   })
+
+  /* WHAT THE SAVE WILL DO, SAID BEFORE IT DOES IT.
+
+     Allocating ends whichever allocation the child already had. That is the
+     right behaviour -- a child changing route in December is the commonest
+     edit here -- but it used to happen in silence, so picking the wrong
+     "Aditya Sharma" out of a search list ended a real child's bus and the
+     screen said nothing. The notice below reads before the button, so
+     pressing the button IS the confirmation: one click, and nobody is
+     surprised. */
+  const preflight = useQuery({
+    queryKey: ['transport-preflight', studentId, routeId],
+    queryFn: () =>
+      api.get<Preflight>(
+        `/api/v1/ops/transport/allocations/preflight?student_id=${studentId}&route_id=${routeId}`,
+      ),
+    enabled: !!studentId && !!routeId,
+  })
+  const warn = preflight.data
   const save = useMutation({
     mutationFn: () =>
       api.post<{ fare_paise: number }>('/api/v1/ops/transport/allocations', {
         student_id: studentId,
         route_id: routeId,
         pickup_stop_id: stopId,
+        /* Only once the warning has actually been fetched and is on screen.
+           Without it the server asks again, which is the point of asking. */
+        confirm: !!warn,
       }),
     onSuccess: () => {
       setStudentId('')
@@ -1069,12 +1201,28 @@ function Allocations() {
               </div>
             </Field>
           </FormGrid>
+          {(warn?.moving || warn?.over_capacity) && (
+            <div className="mt-4 rounded-xl border border-warning/40 bg-warning/5 p-3 text-[13px]">
+              {warn.moving && (
+                <p>
+                  This child is on <strong>{warn.from_route || 'another route'}</strong>. Saving ends
+                  that allocation{warn.ends_on ? ` on ${warn.ends_on}` : ''} and starts this one.
+                </p>
+              )}
+              {warn.over_capacity && (
+                <p className={warn.moving ? 'mt-1.5' : undefined}>
+                  {warn.vehicle ? `${warn.vehicle} seats` : 'That bus seats'}{' '}
+                  {warn.capacity}, and this makes {warn.seated_after}.
+                </p>
+              )}
+            </div>
+          )}
           <div className="mt-4">
             <Button
               disabled={save.isPending || !studentId || !routeId || !stopId}
               onClick={() => save.mutate()}
             >
-              {save.isPending ? 'Saving…' : 'Allocate'}
+              {save.isPending ? 'Saving…' : warn?.moving ? 'Move this child' : 'Allocate'}
             </Button>
           </div>
           <FormNotice error={save.error} />

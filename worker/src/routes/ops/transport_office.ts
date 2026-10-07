@@ -1,5 +1,5 @@
 import type { Router, Ctx } from '../../router'
-import { badRequest, bool, created, isUUID, now, ok, readJSON, uuid, uuidQuery } from '../../http'
+import { badRequest, bool, created, HttpError, isUUID, now, ok, readJSON, uuid, uuidQuery } from '../../http'
 import { addDays, daysBetween, resolveRange, today } from '../fees/common'
 import { instId } from './common'
 
@@ -22,6 +22,98 @@ const NAME = (a: string) => `TRIM(COALESCE(${a}.first_name,'') || ' ' || COALESC
 const LIVE = (a: string) => `(${a}.valid_to IS NULL OR ${a}.valid_to >= ?)`
 
 export function registerTransportOffice(r: Router): void {
+  /* TODAY, AND THE THINGS THAT WANT DOING ABOUT IT.
+
+     The transport office had eleven lists and no answer to the only question
+     asked at 7am: are the buses out, and is anything wrong. Every fact below
+     was already in the database and was reachable only by opening a different
+     tab and reading it -- a fortnight of safety checks to find this morning's
+     failure, the vehicle register to find the insurance that lapses on
+     Thursday.
+
+     A failed check is listed, never used to stop a bus. It is 7:02, the
+     children are at the stop, and a module that refuses to let the bus leave
+     over a tick box has done more harm than the tick box prevents. The
+     manager is told loudly and decides. */
+  r.get('/ops/transport/today', READ, async (c) => {
+    const t = today()
+
+    const fleet = await c.db.prepare(`
+      SELECT
+        (SELECT count(*) FROM routes WHERE is_active) AS routes,
+        (SELECT count(*) FROM vehicle_trips WHERE ended_at IS NULL
+          AND date(started_at, '+5 hours', '+30 minutes') = ?1) AS running,
+        (SELECT count(DISTINCT route_id) FROM vehicle_trips
+          WHERE ended_at IS NOT NULL
+            AND date(started_at, '+5 hours', '+30 minutes') = ?1) AS completed`)
+      .bind(t).first<{ routes: number; running: number; completed: number }>()
+
+    const routes = Number(fleet?.routes ?? 0)
+    const running = Number(fleet?.running ?? 0)
+    const completed = Number(fleet?.completed ?? 0)
+
+    /* This morning's failed checks, named. "1 safety check failed" that does
+       not say which bus sends somebody hunting through a fortnight of them. */
+    const failed = (await c.db.prepare(`
+      SELECT v.registration_no AS vehicle, tc.leg, tc.breathalyser,
+             tc.brakes_ok, tc.tyres_ok, tc.lights_ok, tc.first_aid_ok, tc.extinguisher_ok, tc.doors_ok
+        FROM trip_checks tc JOIN vehicles v ON v.id = tc.vehicle_id
+       WHERE tc.on_date = ? AND tc.cleared = 0 ORDER BY v.registration_no LIMIT 20`)
+      .bind(t).all<Record<string, unknown>>()).results.map((x) => {
+      const items: string[] = []
+      if (!bool(x.brakes_ok)) items.push('brakes')
+      if (!bool(x.tyres_ok)) items.push('tyres')
+      if (!bool(x.lights_ok)) items.push('lights')
+      if (!bool(x.first_aid_ok)) items.push('first aid')
+      if (!bool(x.extinguisher_ok)) items.push('extinguisher')
+      if (!bool(x.doors_ok)) items.push('doors')
+      if ((Number(x.breathalyser) || 0) > 0) items.push('breathalyser')
+      return { vehicle: str(x.vehicle), leg: str(x.leg), failed_items: items }
+    })
+
+    /* Papers running out. Thirty days, because that is about how long a
+       renewal takes to come back, and expired ones first. */
+    const papers = (await c.db.prepare(`
+      SELECT v.registration_no AS vehicle, k.kind, k.on_date FROM vehicles v
+      JOIN (SELECT 'insurance' AS kind, id AS vid, insurance_expiry AS on_date FROM vehicles
+            UNION ALL SELECT 'fitness', id, fitness_expiry FROM vehicles
+            UNION ALL SELECT 'permit', id, permit_expiry FROM vehicles
+            UNION ALL SELECT 'PUC', id, puc_expiry FROM vehicles) k ON k.vid = v.id
+       WHERE v.status <> 'retired' AND k.on_date IS NOT NULL AND k.on_date <= date(?, '+30 days')
+       ORDER BY k.on_date LIMIT 20`).bind(t).all<Record<string, unknown>>()).results
+      .map((x) => ({
+        vehicle: str(x.vehicle), kind: str(x.kind), on_date: str(x.on_date),
+        days: daysBetween(t, str(x.on_date)),
+      }))
+
+    /* A route with no bus, or a bus with no driver, is a run that will not
+       happen -- better found at 6am than at 7. */
+    const gaps = (await c.db.prepare(`
+      SELECT rt.name AS route,
+             CASE WHEN rt.vehicle_id IS NULL THEN 'no bus'
+                  WHEN v.driver_employee_id IS NULL THEN 'no driver' END AS gap
+        FROM routes rt LEFT JOIN vehicles v ON v.id = rt.vehicle_id
+       WHERE rt.is_active AND (rt.vehicle_id IS NULL OR v.driver_employee_id IS NULL)
+       ORDER BY rt.name LIMIT 20`).all<Record<string, unknown>>()).results
+      .map((x) => ({ route: str(x.route), gap: str(x.gap) }))
+
+    const open = (await c.db.prepare(`
+      SELECT count(*) AS n FROM transport_incidents
+       WHERE resolved_at IS NULL`).first<{ n: number }>())?.n ?? 0
+
+    return ok({
+      on_date: t,
+      routes,
+      running,
+      completed,
+      not_started: Math.max(routes - running - completed, 0),
+      failed_checks: failed,
+      expiring: papers,
+      gaps,
+      open_incidents: Number(open),
+    })
+  })
+
   /* --- drivers and attendants ------------------------------------------ */
 
   r.get('/ops/transport/staff', READ, async (c) => {
@@ -120,6 +212,65 @@ export function registerTransportOffice(r: Router): void {
     }) })
   })
 
+  /* WHAT THIS ALLOCATION WILL DO, BEFORE IT DOES IT.
+
+     Saving an allocation quietly ends whichever one the child already had --
+     right, because "Rahul changed route in December" is the commonest edit in
+     this module and blocking it would turn a five-second job into a hunt
+     through two screens. But quietly is the wrong half: the clerk who picks
+     the wrong child from a search list ends a real allocation and nothing on
+     the screen says so.
+
+     So the screen asks first. This says what would change in the clerk's own
+     words -- which route the child leaves, the day it ends, and whether the
+     bus is already full -- and the save below refuses until the clerk has
+     been told. Nothing here writes. */
+  r.get('/ops/transport/allocations/preflight', READ, async (c) => {
+    const q = c.url.searchParams
+    const student = uuidQuery(q.get('student_id'))
+    const route = uuidQuery(q.get('route_id'))
+    if (!student || !route) throw badRequest('student_id and route_id must be uuids')
+    const t = today()
+
+    const current = await c.db.prepare(`
+      SELECT ta.route_id, rt.name AS route
+        FROM transport_allocations ta LEFT JOIN routes rt ON rt.id = ta.route_id
+       WHERE ta.student_id = ? AND ${LIVE('ta')} LIMIT 1`).bind(student, t)
+      .first<{ route_id: string; route: string | null }>()
+
+    /* The bus the route runs, and how many children are already on it. A
+       child moving INTO this route from another counts as an arrival; one
+       already on it is not counted twice. */
+    const seat = await c.db.prepare(`
+      SELECT COALESCE(v.capacity, 0) AS capacity, COALESCE(v.registration_no, '') AS vehicle,
+             (SELECT count(*) FROM transport_allocations ta
+               WHERE ta.route_id = ?1 AND ta.student_id <> ?2 AND ${LIVE('ta')}) AS seated
+        FROM routes rt LEFT JOIN vehicles v ON v.id = rt.vehicle_id WHERE rt.id = ?1`)
+      .bind(route, student, t).first<{ capacity: number; vehicle: string; seated: number }>()
+
+    const out: Record<string, unknown> = { moving: false, over_capacity: false }
+    if (current && current.route_id !== route) {
+      out.moving = true
+      out.from_route = current.route ?? ''
+      out.ends_on = addDays(t, -1)
+    }
+    if (seat) {
+      const capacity = Number(seat.capacity) || 0
+      const after = Number(seat.seated) + 1
+      out.capacity = capacity
+      out.seated_after = after
+      out.vehicle = seat.vehicle
+      /* A capacity of zero means nobody has filled the bus's seat count in,
+         not that the bus has no seats. Warning on that would train people to
+         click past the warning that matters. */
+      if (capacity > 0 && after > capacity) {
+        out.over_capacity = true
+        out.over_by = after - capacity
+      }
+    }
+    return ok(out)
+  })
+
   r.post('/ops/transport/allocations', WRITE, async (c) => {
     const req = await readJSON<Record<string, unknown>>(c.req)
     const student = str(req.student_id)
@@ -128,6 +279,38 @@ export function registerTransportOffice(r: Router): void {
     if (!isUUID(route)) throw badRequest('route_id must be a uuid')
     const pickup = str(req.pickup_stop_id)
     const drop = str(req.drop_stop_id) || pickup
+
+
+    /* The two things the clerk has to have been told, enforced here and not
+       only on the screen that asks. `confirm` is the screen saying it asked.
+
+       Neither is a refusal: both say yes the second time. A school does run a
+       bus one over its paper capacity for a week, and a hard block there does
+       not produce an empty seat -- it produces a child with no transport
+       record at all, which is the worse failure. */
+    const confirmed = req.confirm === true
+    if (!confirmed) {
+      const current = await c.db.prepare(`
+        SELECT rt.name AS route FROM transport_allocations ta
+          LEFT JOIN routes rt ON rt.id = ta.route_id
+         WHERE ta.student_id = ? AND ta.route_id <> ? AND ${LIVE('ta')} LIMIT 1`)
+        .bind(student, route, today()).first<{ route: string | null }>()
+      if (current) {
+        throw new HttpError(409, `this child is already on ${current.route ?? 'another route'}. Saving moves them; confirm to go ahead`,
+          { code: 'already_allocated' })
+      }
+      const seat = await c.db.prepare(`
+        SELECT COALESCE(v.capacity, 0) AS capacity,
+               (SELECT count(*) FROM transport_allocations ta
+                 WHERE ta.route_id = ?1 AND ta.student_id <> ?2 AND ${LIVE('ta')}) AS seated
+          FROM routes rt LEFT JOIN vehicles v ON v.id = rt.vehicle_id WHERE rt.id = ?1`)
+        .bind(route, student, today()).first<{ capacity: number; seated: number }>()
+      const capacity = Number(seat?.capacity) || 0
+      if (capacity > 0 && Number(seat?.seated) + 1 > capacity) {
+        throw new HttpError(409, `that bus seats ${capacity} and this would make ${Number(seat?.seated) + 1}. Confirm to go ahead`,
+          { code: 'over_capacity' })
+      }
+    }
 
     const stop = await c.db.prepare(`SELECT fare_paise FROM route_stops WHERE id = ? AND route_id = ?`)
       .bind(pickup, route).first<{ fare_paise: number | null }>()
