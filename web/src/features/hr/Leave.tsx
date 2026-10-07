@@ -276,7 +276,7 @@ export default function Leave() {
               ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
               : 'Staff and student leave awaiting a decision, and the history behind it.'
         }
-      actions={<><ExportButton report="leave" /><Button variant="secondary" onClick={printLeave}><Printer className="h-4 w-4" /> Print</Button></>}
+      actions={<>{/* A teacher's own leave has no export: the register is HR's, and the button answered 403. */}{!mine && <ExportButton report={forWhom === 'staff' ? 'staff-leave' : 'leave'} />}<Button variant="secondary" onClick={printLeave}><Printer className="h-4 w-4" /> Print</Button></>}
         />
       <PageBody>
         <CellGrid cols={4}>

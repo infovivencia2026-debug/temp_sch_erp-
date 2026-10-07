@@ -94,6 +94,17 @@ export interface PrintDocumentOptions {
 
 const SHEET_ID = 'erp-print-sheet'
 
+/* EVERY ROW, NOT THE PAGE ON SCREEN. Tables draw ten rows at a time; a print
+   wants the list. The Table subscribes to this and draws everything while it
+   is on, and printDocument turns it on, lets React draw, then copies. */
+let showAll = false
+const showAllSubs = new Set<() => void>()
+export const printAllStore = {
+  get: () => showAll,
+  sub: (f: () => void) => { showAllSubs.add(f); return () => { showAllSubs.delete(f) } },
+}
+function setShowAll(v: boolean) { if (showAll === v) return; showAll = v; showAllSubs.forEach((f) => f()) }
+
 /** The sheet currently up, if any. */
 export function printSheet(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById(SHEET_ID)
@@ -108,6 +119,7 @@ export function closePrintSheet(): void {
   const sheet = printSheet()
   if (!sheet) return
   sheet.remove()
+  setShowAll(false)
   delete document.documentElement.dataset.printing
   document.removeEventListener('keydown', onKey)
   window.removeEventListener('afterprint', closePrintSheet)
@@ -135,6 +147,12 @@ export function printDocument(opts: PrintDocumentOptions = {}): HTMLElement | nu
   }
 
   const source = opts.source ?? document.querySelector<HTMLElement>('main')
+  /* A paged table on the page: draw it whole first, then come back. */
+  if (source && !showAll && source.querySelector('[data-table-foot]')) {
+    setShowAll(true)
+    window.setTimeout(() => { printDocument(opts) }, 120)
+    return null
+  }
   if (!source) {
     printPage()
     return null
@@ -355,7 +373,22 @@ export function readableAccent(hex: string | undefined): string {
 
 /* A copy of the source that is a document rather than a screen. */
 function tidyCopy(source: HTMLElement): HTMLElement {
+  /* Picker cards ("Which sheet", filters, tabs) are how the screen was
+     asked, not what it answered: a card with two or more controls and no
+     table, picture or figure in it is left off the paper. */
+  const pickers: Element[] = []
+  source.querySelectorAll('.card, [data-card]').forEach((card) => {
+    if (card.querySelector('table, img, canvas, svg[role=img], [data-stat]')) return
+    const controls = card.querySelectorAll('button, select, input, [role=tab], [role=radio]').length
+    if (controls < 2) return
+    const words = (card.textContent ?? '').length - [...card.querySelectorAll('button, option')].reduce((n, b) => n + (b.textContent ?? '').length, 0)
+    if (words > 240) return
+    card.setAttribute('data-print-drop', '')
+    pickers.push(card)
+  })
   const copy = source.cloneNode(true) as HTMLElement
+  pickers.forEach((c) => c.removeAttribute('data-print-drop'))
+  copy.querySelectorAll('[data-print-drop], [data-table-foot]').forEach((e) => e.remove())
   copy.removeAttribute('id')
   copy.removeAttribute('style')
   /* The page's <main> is a screen layout and loses its classes; a named
