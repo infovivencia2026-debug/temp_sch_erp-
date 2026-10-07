@@ -249,9 +249,16 @@ export function UnavailableState({
   body?: string
   technical?: { label: string; value: string }[]
 }) {
+  /* A WHOLE SCREEN'S ANSWER BELONGS IN THE MIDDLE OF IT.
+
+     This drew flush to the top-left corner of an otherwise empty page, hard
+     against the gutter, with the rest of the window blank below it. It read
+     as a stray line of text somebody forgot to delete rather than as the
+     page's answer -- and where it is the only thing on the screen, it is the
+     page's answer. Centred, on a card, like every other empty state. */
   return (
-    <div className="max-w-[720px]">
-      <div className="flex items-start gap-3">
+    <div className="mx-auto w-full max-w-[720px] py-10">
+      <div className="flex items-start gap-3 rounded-2xl border bg-card p-6 text-left">
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-[15px] font-medium">{title}</p>
