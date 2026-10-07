@@ -164,7 +164,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
                 {list.map((p) => (
                   <article key={p.id}
                     className="group flex flex-col overflow-hidden rounded-xl border bg-card shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]
-                               transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(15,23,42,0.12)]">
+                               transition-[transform,background-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-4px_rgba(15,23,42,0.12)]">
                     <button type="button" onClick={() => setOpen(p.id)}
                       className="relative block aspect-square w-full overflow-hidden bg-foreground/90 text-left">
                       {p.media_kind === 'text' ? (

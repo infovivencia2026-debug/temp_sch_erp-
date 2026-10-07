@@ -785,3 +785,21 @@ export function installMotionGuard() {
   })
   mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-closing'] })
 }
+
+/** Gives focus back to the control that opened a surface, when the surface
+    closes. A trigger re-rendered while the surface was open (the dock redraws
+    under the launcher) is found again by its label. */
+export function restoreFocus(opener: Element | null, retry = true) {
+  if (!(opener instanceof HTMLElement) || opener === document.body) return
+  let el: HTMLElement | null = opener
+  if (!el.isConnected) {
+    const label = opener.getAttribute('aria-label')
+    el = label
+      ? Array.from(document.querySelectorAll<HTMLElement>(`[aria-label="${CSS.escape(label)}"]`)).find((x) => x.offsetParent !== null && !x.closest('[data-ghost],[aria-hidden="true"]')) ?? null
+      : null
+  }
+  // After the commit that put the trigger back: an effect cleanup can run
+  // before a sibling's new node is in the document.
+  if (el) el.focus({ preventScroll: true })
+  else if (retry) requestAnimationFrame(() => { if (!document.activeElement || document.activeElement === document.body) restoreFocus(opener, false) })
+}

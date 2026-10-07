@@ -167,7 +167,7 @@ export function NowNextCard({ periods, to, compact }: { periods: Period[]; to?: 
         <span className="block truncate text-[13px] tabular-nums text-muted-foreground">{body.sub}</span>
         {body.pct !== null && (
           <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <span className="block h-full rounded-full bg-primary transition-[width] duration-1000" style={{ width: `${body.pct}%` }} />
+            <span className="block h-full origin-left rounded-full bg-primary transition-transform duration-1000" style={{ transform: `scaleX(${body.pct / 100})` }} />
           </span>
         )}
       </span>
@@ -387,7 +387,7 @@ export function Bar({ pct, hue = 'indigo', className }: { pct: number; hue?: Hue
   const shown = useGrow(Math.max(0, Math.min(100, pct)))
   return (
     <span className={cn('block h-2 overflow-hidden rounded-full bg-muted', className)} aria-hidden>
-      <span className="stu-bar block h-full rounded-full" style={{ width: `${shown}%`, background: HUE[hue].stroke }} />
+      <span className="stu-bar block h-full origin-left rounded-full" style={{ transform: `scaleX(${shown / 100})`, background: HUE[hue].stroke }} />
     </span>
   )
 }

@@ -46,7 +46,7 @@ Last checked: 2026-10-02.
 
 | Asked | Notes |
 |---|---|
-| Animations never cut off part-way | Restarted 2026-10-02 (a restart lost the first attempt) |
+| Animations never cut off part-way | Done 2026-10-06: exits for every overlay, interrupted animations carry on, one crossing at a time, loops seamless and paused when hidden; dev audit `window.__motionAudit()` (docs/motion-kit.md Part C) |
 | Help Centre (Mac / iPhone / Windows style) and seller support desk, maintainable at 10 schools | Built on `main` 2026-10-03, not yet on the test site: Help (? key, top bar, Settings > Account > Help), requests answered by the school's Helpdesk first then XULO support (no child's name ever sent), error Ref codes, Me too, troubleshooters, three-pane desk, Quick Assist (read-only), known issues, reports, help content edited once for every school. Telugu: Help Centre chrome only; articles English until read by a Telugu speaker |
 | User guide for every role, as one HTML book | Restarted 2026-10-02 |
 | Every screen checked for silly UI mistakes | 2026-10-03: all routes x 4 accounts crawled (2,122 loads); 16 root causes fixed (4 blockers incl. cut money figures, restore crash, dark brand ink, phone gutters); open: page dots on last card, ISO dates, polish contrast; seller Controls dark not reachable |
@@ -94,7 +94,8 @@ Last checked: 2026-10-02.
 
 ## Known and not fixed
 
-- Web tests: 5 failures that predate this work (1 palette contrast, 4 bento size tiers).
+- Remote school databases are behind (2026-10-06): demo has 21 and demo-school 20 tenant migrations pending (0032-0052), and 0036_status_likes reads as a checksum mismatch where it was recorded without a checksum. The deploy guard now refuses until `migrate.mjs up --remote` is run (or ALLOW_PENDING_MIGRATIONS=1).
+- deploy-cloudrun no longer runs on push (Cloud Run being retired, its DATABASE_URL secret is gone); start it by hand if ever needed.
 - Four Work-layout pages scroll slightly sideways on phones (My students, My classes, My pay, Background jobs).
 - "Hold a card to customize" hint sits half behind the dock.
 - Tinted stat tiles: label and icon too faint in dark.

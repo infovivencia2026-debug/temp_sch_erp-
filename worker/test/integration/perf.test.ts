@@ -70,8 +70,11 @@ const cases: [string, Who, string, number, number][] = [
   ['bootstrap, student', 'student', '/bootstrap', 23, 5],
   ['portal notifications, parent', 'parent', '/portal/notifications', 15, 4],
   ['portal notifications, student', 'student', '/portal/notifications', 15, 4],
-  ['status feed, parent', 'parent', '/status/feed', 14, 4],
-  ['status feed, teacher', 'teacher', '/status/feed', 14, 4],
+  // +1 each for the hearts (one aggregate over status_likes); the teacher's
+  // +1 more is the school's media total, read for whoever may post (5 GB cap).
+  // The three reads of status_post_targets were folded into one to pay for it.
+  ['status feed, parent', 'parent', '/status/feed', 15, 4],
+  ['status feed, teacher', 'teacher', '/status/feed', 16, 4],
   ['principal dashboard', 'admin', '/principal/dashboard', 12, 4],
   ['teaching today', 'teacher', '/teaching/today', 5, 4],
   ['teaching my-work', 'teacher', '/teaching/my-work', 15, 4],
