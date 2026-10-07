@@ -9,6 +9,8 @@ export interface Env {
   /** Live update hubs, one per school (src/services/live.ts). */
   LIVE: DurableObjectNamespace
   CREDENTIAL_KEY?: string
+  /** The Gemini relay, pinned where Google serves the API (worker/ai-relay). */
+  AI_RELAY?: Fetcher
   /** Shared with the Pages function; see origin.ts. */
   ORIGIN_SHARED_SECRET?: string
   /** Identity cache lifetime (idcache.ts); "0" turns it off. */
@@ -19,7 +21,7 @@ export interface Env {
   SESSION_IDLE_SECONDS: string
   COOKIE_SECURE: string
   // TENANT_<slug> bindings, added per school by scripts/provision-school.sh.
-  [binding: string]: D1Database | R2Bucket | Queue | DurableObjectNamespace | string | undefined
+  [binding: string]: D1Database | R2Bucket | Queue | DurableObjectNamespace | Fetcher | string | undefined
 }
 
 export const now = () => new Date().toISOString()

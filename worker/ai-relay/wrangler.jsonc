@@ -1,0 +1,10 @@
+{
+  // The Gemini relay (index.ts says why). Deploy: npx wrangler deploy -c ai-relay/wrangler.jsonc
+  "name": "school-erp-ai-relay",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  // Mumbai: Gemini serves India; Hong Kong, where the main Worker sits, it does not.
+  "placement": { "mode": "targeted", "region": "aws:ap-south-1" }
+}
