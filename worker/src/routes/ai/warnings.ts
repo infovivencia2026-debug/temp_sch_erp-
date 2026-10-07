@@ -64,7 +64,7 @@ export function registerAIWarnings(r: Router): void {
     const rows = (await c.db.prepare(`SELECT ${COLS} FROM ai_warnings w WHERE ${where.join(' AND ')}
         ORDER BY CASE w.status WHEN 'open' THEN 0 ELSE 1 END, ${SEV_ORDER}, w.first_seen_at DESC LIMIT 300`).bind(...args).all<Record<string, unknown>>()).results ?? []
     const last = await c.db.prepare(`SELECT max(last_seen_at) AS at FROM ai_warnings`).first<{ at: string | null }>()
-    return ok({ items: rows.map(shape), computed_at: last?.at ?? null, ai: geminiKeySet(c.env) })
+    return ok({ items: rows.map(shape), computed_at: last?.at ?? null, ai: (await geminiKeySet(c.env)) })
   })
 
   // Badge on a student profile: that child's open flags the caller may see.
@@ -140,6 +140,6 @@ export function registerAIWarnings(r: Router): void {
   r.post('/ai/warnings/run', 'students.read.all', async (c) => {
     const inst = c.id.institution
     if (!inst) throw new HttpError(400, 'this needs a school in scope', { code: 'no_institution' })
-    return ok(await runWarnings(c.db, inst.id, localDate(inst.timezone || 'Asia/Kolkata'), llmFromEnv(c.env)))
+    return ok(await runWarnings(c.db, inst.id, localDate(inst.timezone || 'Asia/Kolkata'), await llmFromEnv(c.env)))
   })
 }

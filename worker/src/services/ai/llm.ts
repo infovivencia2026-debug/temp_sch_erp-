@@ -1,6 +1,7 @@
 import type { Env } from '../../env'
 import type { Ctx } from '../../router'
 import { HttpError } from '../../http'
+import { aiKeyPresent } from './key'
 import { ASSISTANT_MODEL, assistantFailure, callGeminiParts } from '../../routes/teaching/gemini'
 
 /* The one door every "AI native" feature (drafting, translation, briefs) goes
@@ -24,13 +25,13 @@ let transport: AiTransport | null = null
 /** Tests only: route every model call to `t` (null restores Gemini). */
 export function setAiTransport(t: AiTransport | null): void { transport = t }
 
-export function aiConfigured(env: Env): boolean {
+/** A key is set (stored under Controls > AI or in the secret), or a test fake answers. */
+export async function aiConfigured(env: Env): Promise<boolean> {
   if (transport) return true
   const e = env as unknown as Record<string, unknown>
   // Integration tests: gemini.ts answers from globalThis.__FAKE_GEMINI__ under APP_ENV=test.
   if (e.APP_ENV === 'test' && typeof (globalThis as { __FAKE_GEMINI__?: unknown }).__FAKE_GEMINI__ === 'function') return true
-  const has = (k: string) => typeof e[k] === 'string' && (e[k] as string).trim() !== ''
-  return has('GOOGLE_API_KEY') || has('GOOGLE_SERVICE_ACCOUNT_JSON')
+  return aiKeyPresent(env)
 }
 
 export const NOT_CONFIGURED_MSG = 'AI writing is not switched on for this server yet (no Google key is set). You can still write it yourself.'
@@ -90,13 +91,13 @@ export interface GenOpts { maxTokens?: number; timeoutMs?: number; today?: strin
 
 /** One model call under the cap. Errors are HttpErrors a route can throw as they are. */
 export async function aiGenerate(env: Env, db: D1Database, system: string, prompt: string, o: GenOpts = {}): Promise<string> {
-  if (!aiConfigured(env)) throw notConfigured()
+  if (!(await aiConfigured(env))) throw notConfigured()
   await spend(db, o.today ?? schoolToday())
   const max = o.maxTokens ?? 1024
   try {
     const out = transport
       ? await transport(system, prompt, max)
-      : await callGeminiParts({ env } as unknown as Ctx, system, [{ text: prompt }], max, o.timeoutMs ?? 30_000)
+      : await callGeminiParts({ env } as unknown as Ctx, system, [{ text: prompt }], max, o.timeoutMs ?? 15_000)
     return out.trim()
   } catch (e) {
     if (e instanceof HttpError) throw e

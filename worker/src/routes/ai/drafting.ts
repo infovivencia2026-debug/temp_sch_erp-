@@ -3,6 +3,7 @@ import { badRequest, forbidden, isUUID, notFound, ok, readJSON } from '../../htt
 import { can, resolveScope, studentPredicate, addDays, indiaToday } from '../students/common'
 import { assistantRateLimit } from '../teaching/gemini'
 import { AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject } from '../../services/ai/llm'
+import { aiStatus } from '../../services/ai/key'
 import { safe, snapshotText, studentSnapshot, teacherStyle } from '../../services/ai/context'
 
 /* "Write with AI": POST /ai/draft returns drafts, POST /ai/translate returns a
@@ -197,7 +198,7 @@ async function draft(c: Ctx) {
   const language = LANGUAGES[b.language ?? ''] ? b.language! : 'en'
   const n = Math.max(1, Math.min(3, Math.floor(Number(b.variants ?? 2)) || 2))
   const ctx = await draftContext(c, kind, b)
-  if (!aiConfigured(c.env)) return ok({ drafts: [], label: 'AI draft', configured: false, message: NOT_CONFIGURED_MSG })
+  if (!(await aiConfigured(c.env))) return ok({ drafts: [], label: 'AI draft', configured: false, message: NOT_CONFIGURED_MSG })
   await assistantRateLimit(c)
   const notes = clip(b.notes, 1500), current = clip(b.current, 3000)
   const prompt = `Task: ${ctx.task}\n\nFacts:\n${ctx.facts}` +
@@ -214,7 +215,7 @@ async function translate(c: Ctx) {
   const language = b.language === 'te' || b.language === 'hi' || b.language === 'en' ? b.language : ''
   if (!text) throw badRequest('text is required')
   if (!language) throw badRequest('language must be te, hi or en')
-  if (!aiConfigured(c.env)) return ok({ configured: false, message: NOT_CONFIGURED_MSG, original: { title, text } })
+  if (!(await aiConfigured(c.env))) return ok({ configured: false, message: NOT_CONFIGURED_MSG, original: { title, text } })
   await assistantRateLimit(c)
   const system = `Translate a school notice into ${LANGUAGES[language]}. Keep names, dates, times, amounts, class names and [placeholders] exactly. ` +
     'Natural, simple wording a parent would use; not word-for-word. Return JSON only: {"title": "...", "text": "..."} (title empty if none given).'
@@ -228,7 +229,11 @@ async function translate(c: Ctx) {
 }
 
 export function registerDrafting(r: Router): void {
-  r.get('/ai/status', 'auth', async (c) => ok({ configured: aiConfigured(c.env), kinds: DRAFT_KINDS, languages: Object.keys(LANGUAGES) }))
+  // configured stays for older screens: true only when Google accepts the key.
+  r.get('/ai/status', 'auth', async (c) => {
+    const s = (await aiConfigured(c.env)) ? await aiStatus(c.env) : { state: 'missing' as const, checked_at: null }
+    return ok({ configured: s.state === 'ok', state: s.state, checked_at: s.checked_at, kinds: DRAFT_KINDS, languages: Object.keys(LANGUAGES) })
+  })
   r.post('/ai/draft', 'auth', draft)
   r.post('/ai/translate', 'auth', translate)
 }

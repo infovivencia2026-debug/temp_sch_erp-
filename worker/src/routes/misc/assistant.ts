@@ -5,7 +5,8 @@ import { json } from '../../env'
 import { CATALOG_ROLES } from '../admin/static_data'
 import { importSpecs } from '../setup/imports'
 import { indiaToday, resolveScope, SECTION_SET_SQL } from '../students/common'
-import { assistantFailure, assistantRateLimit, callGemini, extractApiKey, type GeminiTurn } from '../teaching/gemini'
+import { assistantFailure, assistantRateLimit, callGemini, type GeminiTurn } from '../teaching/gemini'
+import { aiKey } from '../../services/ai/key'
 import { HELP_ANSWERS } from './assistant/help_answers_data'
 import { registerAgent } from './assistant/agent'
 import { ASSISTANT_ACTIONS, ASSISTANT_ACTION_CATALOGUE, ActionRefusal, dispatch, parseProposedAction, refusalText, type ProposedAction } from './assistant/actions'
@@ -364,8 +365,7 @@ async function assistantTTS(c: Ctx): Promise<Response> {
   let text = (req.text ?? '').trim()
   if (text === '') throw badRequest('text is required')
   if (text.length > 2400) text = text.slice(0, 2400)
-  const raw = (c.env as unknown as Record<string, unknown>).GOOGLE_API_KEY
-  const key = typeof raw === 'string' ? extractApiKey(raw) : null
+  const key = (await aiKey(c.env)).key
   if (!key) throw new HttpError(503, 'the voice service is only available on the cloud deployment', { code: 'tts_unavailable' })
   const signal = AbortSignal.timeout(20_000)
   const audio = (bytes: Uint8Array, type: string) =>

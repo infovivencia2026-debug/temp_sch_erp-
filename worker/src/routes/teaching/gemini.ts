@@ -1,5 +1,6 @@
 import type { Ctx } from '../../router'
 import { HttpError } from '../../http'
+import { aiKey, knownAiState, noteAiResult, stateOf, vertexOnly } from '../../services/ai/key'
 
 /* Gemini through Vertex AI, from internal/api/assistant_chat.go (callGeminiParts,
    geminiGenerate, assistantFailure) and ratelimits.go (assistantRateLimit).
@@ -12,6 +13,8 @@ import { HttpError } from '../../http'
    URL, model and payload as Go. */
 
 export const ASSISTANT_MODEL = 'gemini-2.5-flash'
+/** No generation call waits longer than this. */
+export const GENERATION_TIMEOUT_MS = 15_000
 
 export class GeminiError extends Error {
   constructor(public statusCode: number, public body: string) { super(`gemini ${statusCode}: ${body}`) }
@@ -19,11 +22,7 @@ export class GeminiError extends Error {
 export class GeminiTimeout extends Error {}
 export class GeminiNotConfigured extends Error {}
 
-/** The bare key from the secret; tolerates quotes or a pasted snippet around it. */
-export function extractApiKey(raw: string): string | null {
-  const m = raw.match(/AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_.-]{20,}/)
-  return m ? m[0] : null
-}
+export { extractApiKey } from '../../services/ai/key'
 
 export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } }
 
@@ -91,28 +90,30 @@ async function geminiGenerate(c: Ctx, system: string, contents: { role: string; 
 export async function geminiRequest(c: Ctx, payload: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
   const fake = (globalThis as { __FAKE_GEMINI__?: (p: Record<string, unknown>) => unknown }).__FAKE_GEMINI__
   if (fake && (c.env as unknown as Record<string, unknown>).APP_ENV === 'test') return await fake(payload)
-  const signal = AbortSignal.timeout(timeoutMs)
+  /* Fail fast: one attempt, at most GENERATION_TIMEOUT_MS, and none at all
+     when the key was refused at the last check (services/ai/key.ts). */
+  const signal = AbortSignal.timeout(Math.min(timeoutMs, GENERATION_TIMEOUT_MS))
   try {
-    /* Two ways in. The Go server used Cloud Run's own identity against
-       Vertex AI; a Worker has none. So an API key in GOOGLE_API_KEY is used
-       when set, and its format picks the endpoint: an AI Studio key (AIza...)
-       only works on the Gemini API (Vertex answers 401 CREDENTIALS_MISSING),
-       a Vertex express-mode key (AQ....) only on Vertex. A service-account key
-       in GOOGLE_SERVICE_ACCOUNT_JSON still works for Vertex if one is set. */
-    const rawKey = (c.env as unknown as Record<string, unknown>).GOOGLE_API_KEY
+    /* A key (stored under Controls > AI, else GOOGLE_API_KEY) goes to the
+       Gemini API. Only an AQ. key that the Gemini API answers with "API keys
+       are not supported here" (a Vertex express-mode key) gets one try on
+       Vertex; a refused key is never retried elsewhere. Without a key, a
+       service-account key in GOOGLE_SERVICE_ACCOUNT_JSON reaches Vertex. */
+    const k = await aiKey(c.env)
     let resp: Response
-    if (typeof rawKey === 'string' && rawKey.trim() !== '') {
-      const apiKey = extractApiKey(rawKey)
+    if (k.source === 'stored' || k.source === 'env') {
+      const apiKey = k.key
       if (!apiKey) throw new GeminiNotConfigured('GOOGLE_API_KEY does not hold a Google API key (expected AIza... or AQ....); set it to the bare key')
-      /* AI Studio now issues keys in both formats (AIza... and AQ....), and
-         both work on the Gemini API. Try that first; an AQ. key that the
-         Gemini API refuses may be a Vertex express-mode key, so retry there. */
-      const gemini = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
+      const known = await knownAiState(c.env)
+      if (known === 'refused') throw new GeminiError(401, 'key refused at the last check')
+      resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
         { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) })
-      resp = await gemini()
-      if (apiKey.startsWith('AQ.') && (resp.status === 401 || resp.status === 403 || resp.status === 400)) {
-        resp = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (apiKey.startsWith('AQ.') && (resp.status === 401 || resp.status === 403)) {
+        const body = await resp.text()
+        resp = vertexOnly(resp.status, body)
+          ? await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+            { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          : new Response(body, { status: resp.status })
       }
     } else {
       const { project, token } = await credentials(c, signal)
@@ -120,6 +121,8 @@ export async function geminiRequest(c: Ctx, payload: Record<string, unknown>, ti
       resp = await fetch(url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) })
     }
     const rb = await resp.text()
+    const st = stateOf(resp.status, rb)
+    if (st === 'ok' || st === 'refused' || st === 'quota') await noteAiResult(c.env, st)
     if (resp.status !== 200) throw new GeminiError(resp.status, rb)
     return JSON.parse(rb)
   } catch (e) {
@@ -135,7 +138,7 @@ export function assistantFailure(err: unknown): HttpError {
   if (err instanceof GeminiError) {
     if (err.statusCode === 429) return new HttpError(429, 'the assistant is busy. Wait a moment and ask again.', { code: 'assistant_busy' })
     if (err.statusCode === 401 || err.statusCode === 403 || (err.statusCode === 400 && err.body.includes('API_KEY_INVALID'))) {
-      return new HttpError(503, "the assistant's key was refused. Ask whoever runs the server to check it.", { code: 'assistant_not_configured' })
+      return new HttpError(503, 'The assistant is unavailable right now: Google refused the AI key. A seller admin can replace it under Controls, AI.', { code: 'assistant_not_configured' })
     }
   }
   if (err instanceof GeminiNotConfigured) {

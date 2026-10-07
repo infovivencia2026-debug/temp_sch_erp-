@@ -10,7 +10,9 @@ import {
 import { PERMISSION_SET, SCHOOL_ROLES, roleTemplates } from '../../services/role_templates'
 import { PERMISSIONS } from '../../services/provision_seed'
 import type { ApplyResult, ConfigTemplate, RolePushResult, RoleTemplate, SchoolSettings, SettingValue } from '@shared/api/settings'
-import { requirePlatformAdmin } from './common'
+import { hasRole, requirePlatformAdmin } from './common'
+import { aiKey, aiStatus, storeAiKey, extractApiKey } from '../../services/ai/key'
+import { credentialKeyPresent } from '../admin/connectors_common'
 
 /* SELLER CONTROLS: every school-level setting, the vendor's defaults, the
    role templates, and configuration templates (docs/seller-controls.md).
@@ -214,7 +216,52 @@ async function pushRole(c: Ctx, key: string, perms: string[], ids: string[], for
 
 /* --- routes ----------------------------------------------------------------- */
 
+/* The platform's Google (Gemini) key. Anyone who reads Controls sees its
+   state; only a seller_admin replaces, tests or removes it. The key is
+   write-only: no route returns it, only its last four characters. */
+async function aiPanel(c: Ctx) {
+  const k = await aiKey(c.env)
+  const s = await aiStatus(c.env)
+  return {
+    state: s.state, checked_at: s.checked_at,
+    source: k.source, last4: k.source === 'stored' ? k.last4 : null, set_at: k.source === 'stored' ? k.set_at : null,
+    credential_key: credentialKeyPresent(c), can_edit: hasRole(c, 'seller_admin'),
+  }
+}
+function requireSellerAdmin(c: Ctx): void {
+  requirePlatformAdmin(c)
+  if (!hasRole(c, 'seller_admin')) throw new HttpError(403, 'only a seller admin can change the AI key', { code: 'forbidden' })
+}
+
 export function registerSellerControls(r: Router): void {
+  r.get('/seller/controls/ai', READ, async (c) => { requirePlatformAdmin(c); return ok(await aiPanel(c)) })
+  r.put('/seller/controls/ai', WRITE, async (c) => {
+    requireSellerAdmin(c)
+    const b = await readJSON<{ api_key?: unknown }>(c.req)
+    const raw = typeof b.api_key === 'string' ? b.api_key : ''
+    if (!extractApiKey(raw)) throw badRequest('That is not a Google API key. Paste the key that starts with AIza or AQ.')
+    if (!credentialKeyPresent(c)) throw new HttpError(409, 'The server has no CREDENTIAL_KEY, so a key cannot be stored safely. Set the GOOGLE_API_KEY secret instead.', { code: 'no_credential_key' })
+    await storeAiKey(c, raw)
+    await aiStatus(c.env, true)
+    const out = await aiPanel(c)
+    auditDetail(c, { action: 'controls.ai_key.set', target: 'AI key', after: { last4: out.last4, state: out.state } })
+    return ok(out)
+  })
+  r.post('/seller/controls/ai/test', WRITE, async (c) => {
+    requireSellerAdmin(c)
+    await aiStatus(c.env, true)
+    const out = await aiPanel(c)
+    auditDetail(c, { action: 'controls.ai_key.test', target: 'AI key', after: { state: out.state } })
+    return ok(out)
+  })
+  r.del('/seller/controls/ai', WRITE, async (c) => {
+    requireSellerAdmin(c)
+    await storeAiKey(c, null)
+    await aiStatus(c.env, true)
+    const out = await aiPanel(c)
+    auditDetail(c, { action: 'controls.ai_key.clear', target: 'AI key', after: { source: out.source, state: out.state } })
+    return ok(out)
+  })
   // The registry itself, the groups, the defaults and the plans they can be set for.
   r.get('/seller/controls/registry', READ, async (c) => {
     requirePlatformAdmin(c)

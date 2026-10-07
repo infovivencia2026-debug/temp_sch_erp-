@@ -1,5 +1,6 @@
 import type { Env } from '../../env'
 import type { Ctx } from '../../router'
+import { aiKeyPresent } from './key'
 import { callGeminiParts, type GeminiPart } from '../../routes/teaching/gemini'
 
 /* The Gemini seam for early warnings and smart import. Both take an `Llm`
@@ -10,15 +11,13 @@ import { callGeminiParts, type GeminiPart } from '../../routes/teaching/gemini'
 
 export type Llm = (system: string, parts: GeminiPart[], maxTokens: number) => Promise<string>
 
-export function geminiKeySet(env: Env): boolean {
-  const e = env as unknown as Record<string, unknown>
-  const has = (k: string) => typeof e[k] === 'string' && (e[k] as string).trim() !== ''
-  return has('GOOGLE_API_KEY') || has('GOOGLE_SERVICE_ACCOUNT_JSON')
+export function geminiKeySet(env: Env): Promise<boolean> {
+  return aiKeyPresent(env)
 }
 
 /** A Gemini-backed Llm, or null when no key is set. */
-export function llmFromEnv(env: Env, timeoutMs = 25_000): Llm | null {
-  if (!geminiKeySet(env)) return null
+export async function llmFromEnv(env: Env, timeoutMs = 15_000): Promise<Llm | null> {
+  if (!(await geminiKeySet(env))) return null
   // callGeminiParts only reads c.env; a job has no request context.
   const c = { env } as unknown as Ctx
   return (system, parts, maxTokens) => callGeminiParts(c, system, parts, maxTokens, timeoutMs)

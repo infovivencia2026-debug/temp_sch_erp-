@@ -922,7 +922,7 @@ export function registerLMS(r: Router) {
     }
     if (text.trim().length < 40) throw badRequest('give the AI some lesson text to work from, a paragraph at least')
     const n = Math.max(1, Math.min(10, Math.trunc(Number(b.count ?? 5)) || 5))
-    if (!aiConfigured(c.env)) return ok({ configured: false, message: NOT_CONFIGURED_MSG, questions: [], label: 'AI draft' })
+    if (!(await aiConfigured(c.env))) return ok({ configured: false, message: NOT_CONFIGURED_MSG, questions: [], label: 'AI draft' })
     await assistantRateLimit(c)
     const system = ['You write multiple-choice questions for a school teacher in India, from the lesson text given. The teacher checks every question before a child sees it.',
       'Use only facts in the text. Four options each, exactly one correct. Plain text, no markdown.',

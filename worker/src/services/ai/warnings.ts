@@ -266,7 +266,7 @@ async function sendDigest(db: D1Database, inst: Institution): Promise<number> {
 
 registerJob('ai:warnings_nightly', async (env: Env, job) => {
   const { inst, db } = await jobSchool(env, job)
-  const r = await runWarnings(db, inst.id, localDate(inst.timezone), llmFromEnv(env))
+  const r = await runWarnings(db, inst.id, localDate(inst.timezone), await llmFromEnv(env))
   console.log('early warnings', inst.slug, r)
 })
 
