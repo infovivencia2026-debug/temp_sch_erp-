@@ -686,8 +686,18 @@ function csvField(v: string): string {
   return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
 }
 
-function rowsToCSV(labels: string[], rows: ReactNode[]): string {
+function rowsToCSV(labels: string[], rows: ReactNode[], dom?: HTMLTableElement | null): string {
   const lines = [labels.map(csvField).join(',')]
+  /* Rows drawn by a component of their own (<ConnectorRow />) carry no cells
+     in their props; the export came out as a header and nothing. Those are
+     read from the table as drawn. */
+  if (dom && rows.some((r) => isValidElement(r) && r.type !== 'tr')) {
+    dom.querySelectorAll('tbody tr').forEach((tr) => {
+      const cells = [...tr.querySelectorAll('td')].filter((td) => !td.classList.contains('no-print'))
+      lines.push(cells.map((td) => csvField((td.innerText || '').replace(/\s+/g, ' ').trim())).join(','))
+    })
+    return lines.join(String.fromCharCode(13, 10))
+  }
   for (const row of rows) {
     if (!isValidElement(row)) continue
     const cells = Children.toArray((row as { props: { children?: ReactNode } }).props?.children)
@@ -884,7 +894,7 @@ export function Table({
      folder of them is still legible in a week and yesterday's is still there. */
   const takeAway = () => {
     const stem = (labels[0] || 'table').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    const blob = new Blob(['﻿' + rowsToCSV(labels, rows)], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob(['﻿' + rowsToCSV(labels, rows, tableEl.current)], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -904,6 +914,7 @@ export function Table({
   const canGrow = !!onLoadMore && !!hasMore
   const more = () => { if (canGrow && !loadingMore) onLoadMore!() }
   const sentinel = useRef<HTMLDivElement | null>(null)
+  const tableEl = useRef<HTMLTableElement | null>(null)
 
   /* Snap back when the rows change underneath.
 
@@ -1000,6 +1011,7 @@ export function Table({
     <div className="table-frame">
       <div className="scroll-x">
       <table
+        ref={tableEl}
         className={cn(
           'responsive-table text-[14px]',
           // A table scrolled sideways must not carry away the column naming
@@ -1127,7 +1139,7 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="secondary" className="no-print" onClick={onExport ?? takeAway}
+              <Button variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -2560,7 +2572,8 @@ const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string
    was the small size beside full-size Import, Print and Save. */
 const InPageActions = createContext(false)
 
-export function ExportButton({ report, label }: { report: string; label?: string }) {
+/** `query` scopes the file to what the screen shows (a month, an exam, a section). */
+export function ExportButton({ report, label, query }: { report: string; label?: string; query?: Record<string, string> }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLDivElement | null>(null)
@@ -2595,7 +2608,12 @@ export function ExportButton({ report, label }: { report: string; label?: string
     }
   }, [open])
 
-  const href = (f: string) => `/api/v1/export/${report}${f === 'csv' ? '' : `?format=${f}`}`
+  const href = (f: string) => {
+    const qs = new URLSearchParams(Object.entries(query ?? {}).filter(([, v]) => v))
+    if (f !== 'csv') qs.set('format', f)
+    const s = qs.toString()
+    return `/api/v1/export/${report}${s ? `?${s}` : ''}`
+  }
 
   /* Up and down walk the list; the list is short enough that they wrap. */
   const walk = (e: ReactKeyboardEvent<HTMLDivElement>) => {

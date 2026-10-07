@@ -9,7 +9,9 @@ import { institutionId } from './common'
    to_char became strftime/printf, string_agg(DISTINCT ..) a group_concat
    over a DISTINCT subquery. Timestamps are shown in Indian time. */
 
-interface Spec { perm: string; title: string; about: string; header: string[]; query: string }
+/* `params`: query-string names bound as ?1, ?2 ... in order, '' when absent,
+   so a screen can export what it shows (one month, one exam and section). */
+interface Spec { perm: string; title: string; about: string; header: string[]; query: string; params?: string[] }
 
 const name3 = (a: string) => `trim(COALESCE(${a}.first_name,'') || COALESCE(' ' || ${a}.middle_name,'') || COALESCE(' ' || ${a}.last_name,''))`
 const name2 = (a: string) => `trim(COALESCE(${a}.first_name,'') || COALESCE(' ' || ${a}.last_name,''))`
@@ -147,7 +149,8 @@ export function specs(today: string): Record<string, Spec> {
           CAST(ps.paid_days AS TEXT), CAST(ps.lop_days AS TEXT),
           ${rs('ps.gross_paise')}, ${rs('ps.deduction_paise')}, ${rs('ps.net_paise')}, pr.status
         FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
-        ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code` },
+        WHERE (?1 = '' OR pr.period_month = CAST(?1 AS INTEGER)) AND (?2 = '' OR pr.period_year = CAST(?2 AS INTEGER))
+        ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code`, params: ['month', 'year'] },
     marks: { title: 'Mark sheet', about: 'Every mark entered, by exam, class and subject.', perm: 'academics.exams.read',
       header: ['Exam', 'Class', 'Subject', 'Admission No', 'Student', 'Marks', 'Grace', 'Total', 'Out Of', 'Grade', 'Absent'],
       query: `SELECT ex.name, c.name, sub.name, st.admission_no, ${name2('st')},
@@ -157,7 +160,9 @@ export function specs(today: string): Record<string, Spec> {
         FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams ex ON ex.id = es.exam_id
         JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN classes c ON c.id = cs.class_id
         JOIN subjects sub ON sub.id = cs.subject_id JOIN students st ON st.id = m.student_id
-        ORDER BY ex.name, c.name, sub.name, st.admission_no` },
+        WHERE (?1 = '' OR ex.id = ?1)
+          AND (?2 = '' OR EXISTS (SELECT 1 FROM enrollments e2 WHERE e2.student_id = st.id AND e2.section_id = ?2))
+        ORDER BY ex.name, c.name, sub.name, st.admission_no`, params: ['exam', 'section'] },
     'staff-attendance': { title: 'Staff register', about: 'Who was present, absent or late, day by day.', perm: 'hr.attendance.write',
       header: ['Date', 'Code', 'Employee', 'Status', 'In', 'Out', 'Remarks'],
       query: `SELECT ${dmy('sa.on_date')}, e.employee_code, ${name2('e')}, sa.status,
@@ -248,10 +253,11 @@ async function exportFile(c: Ctx): Promise<Response> {
   institutionId(c)
   const date = new Date().toISOString().slice(0, 10)
   const format = (c.url.searchParams.get('format') ?? '').toLowerCase()
+  const stmt = () => { const s = c.db.prepare(spec.query); return spec.params ? s.bind(...spec.params.map((p) => c.url.searchParams.get(p) ?? '')) : s }
   if (format === 'xlsx') {
     // exportXLSX: buffered, so a query error is a clean 500 rather than a truncated file.
     const n = spec.header.length
-    const rows = (await c.db.prepare(spec.query).raw<unknown[]>()).map((vals) => {
+    const rows = (await stmt().raw<unknown[]>()).map((vals) => {
       const rec: (string | null)[] = new Array(n).fill(null)
       for (let i = 0; i < n && i < vals.length; i++) if (vals[i] != null) rec[i] = String(vals[i]).trim()
       return rec
@@ -263,7 +269,7 @@ async function exportFile(c: Ctx): Promise<Response> {
   const line = (rec: string[]) => rec.map((f) => csvField(f, sep)).join(sep) + '\n'
   let body = '﻿' + line(spec.header)
   try {
-    const rows = await c.db.prepare(spec.query).raw<unknown[]>()
+    const rows = await stmt().raw<unknown[]>()
     const n = spec.header.length
     for (const vals of rows) {
       const rec: string[] = new Array(n).fill('')

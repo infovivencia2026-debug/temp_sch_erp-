@@ -169,7 +169,7 @@ export default function Payroll() {
         description="Run monthly salaries. Loss of pay comes from staff attendance, not manual entry."
         actions={
           <>
-            <ExportButton report="payroll" />
+            <ExportButton report="payroll" query={{ month, year }} />
             <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
