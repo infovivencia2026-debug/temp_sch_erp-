@@ -1,3 +1,4 @@
+import { printHtml } from '@/features/finance/receipt-print'
 /* THE FEE STATEMENT, AS A DOCUMENT RATHER THAN A SCREENSHOT.
  *
  * Printing this page used to hand the browser the portal's own markup with the
@@ -127,7 +128,7 @@ const CSS = [
   '@page { size: A4 portrait; margin: 12mm 12mm 10mm; }',
   '* { box-sizing: border-box; }',
   'html, body { margin: 0; padding: 0; }',
-  'body { font: 10pt/1.45 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; color: #1a1d21;',
+  'body { font: 10pt/1.45 Inter, system-ui, -apple-system, Arial, sans-serif; color: #1a1d21;',
   '  -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
   '.sheet { width: 186mm; margin: 0 auto; }',
   'header { display: flex; align-items: flex-start; gap: 12px; border-bottom: 2.5px solid #9b1c1c; padding-bottom: 8px; }',
@@ -177,8 +178,6 @@ const CSS = [
 ].join('\n')
 
 export function printFeeStatement(v: StatementInput) {
-  const w = window.open('', '_blank')
-  if (!w) return
 
   const paidTotal = v.receipts
     .filter((r) => r.status !== 'bounced')
@@ -255,7 +254,8 @@ export function printFeeStatement(v: StatementInput) {
   const doc = '<!doctype html><html><head><meta charset="utf-8">'
     + '<title>Fee statement ' + DASH + ' ' + esc(v.student.name) + '</title>'
     /* The statement opens in its own tab; the tab had no way back to the app. */
-    + '<style>' + CSS + '.erp-back{position:fixed;top:12px;left:12px;z-index:9;padding:8px 14px;border:1px solid #ccc;border-radius:999px;background:#fff;font:600 14px system-ui;cursor:pointer}@media print{.erp-back{display:none}}</style></head><body><button class="erp-back" onclick="window.close();setTimeout(function(){history.length>1?history.back():location.href=\x27/\x27},200)">← Back</button><div class="sheet">'
+    + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">'
+    + '<style>' + CSS + '.erp-back{display:none}.x{position:fixed;top:12px;left:12px;z-index:9;padding:8px 14px;border:1px solid #ccc;border-radius:999px;background:#fff;font:600 14px system-ui;cursor:pointer}@media print{.erp-back{display:none}}</style></head><body><button class="erp-back" onclick="window.close();setTimeout(function(){history.length>1?history.back():location.href=\x27/\x27},200)">← Back</button><div class="sheet">'
     + '<header>' + logo + '<div class="sch"><h1>' + esc(v.school.name) + '</h1><div class="sub">'
     + (v.school.affiliation ? esc(v.school.affiliation) + '<br>' : '')
     + (v.school.address ? esc(v.school.address) + '<br>' : '')
@@ -318,19 +318,6 @@ export function printFeeStatement(v: StatementInput) {
 
     + '</div></body></html>'
 
-  w.document.write(doc)
-  w.document.close()
-  w.focus()
-  /* Printed or cancelled: the tab closes and they are back where they pressed Print. */
-  w.addEventListener('afterprint', () => { try { w.close() } catch { /* already closed */ } })
-
-  /* The logo and the QR are images, and printing before they decode prints
-     their alt text into the letterhead. Waiting for load covers it; the
-     timeout is for the case where one of them never arrives, which must still
-     produce a statement rather than a window that sits there. */
-  const go = () => {
-    try { w.print() } catch { /* the window was closed before we got here */ }
-  }
-  if (w.document.readyState === 'complete') setTimeout(go, 250)
-  else w.addEventListener('load', () => setTimeout(go, 150))
+  /* Printed in a hidden frame: a new tab was blocked on phones and in the app. */
+  printHtml(doc)
 }
