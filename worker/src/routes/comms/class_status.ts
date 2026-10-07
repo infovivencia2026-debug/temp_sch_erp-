@@ -207,16 +207,23 @@ async function ownOrAdmin(c: Ctx, id: string): Promise<PostRow> {
 // ---------------------------------------------------------------------------
 // audiences
 
-async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  if (!ids.length) return out
-  const rows = (await c.db.prepare(`SELECT t.post_id, t.kind, cl.name AS class_name, scl.name AS sclass, sec.name AS section
+interface TargetRow { post_id: string; kind: string; target_id: string; class_name: string | null; sclass: string | null; section: string | null }
+
+/* One read of the targets serves the label, the scope and which child a post
+   is for: the feed used to ask the same table three times. */
+async function audienceTargets(c: Ctx, ids: string[]): Promise<TargetRow[]> {
+  if (!ids.length) return []
+  return (await c.db.prepare(`SELECT t.post_id, t.kind, t.target_id, cl.name AS class_name, scl.name AS sclass, sec.name AS section
       FROM status_post_targets t
       LEFT JOIN classes cl ON t.kind = 'class' AND cl.id = t.target_id
       LEFT JOIN sections sec ON t.kind = 'section' AND sec.id = t.target_id
       LEFT JOIN classes scl ON scl.id = sec.class_id
       WHERE t.post_id IN (${marks()}) ORDER BY t.kind, cl.name, scl.name, sec.name`).bind(js(ids))
-    .all<{ post_id: string; kind: string; class_name: string | null; sclass: string | null; section: string | null }>()).results ?? []
+    .all<TargetRow>()).results ?? []
+}
+
+function labelsOf(rows: TargetRow[]): Map<string, string> {
+  const out = new Map<string, string>()
   const parts = new Map<string, string[]>()
   for (const r of rows) {
     const l = r.kind === 'school' ? 'Whole school' : r.kind === 'staff' ? 'Staff' : r.kind === 'class' ? (r.class_name ?? 'A class')
@@ -227,17 +234,18 @@ async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string
   return out
 }
 
+async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string>> {
+  return labelsOf(await audienceTargets(c, ids))
+}
+
 /* HOW WIDE IT WENT, WITHOUT SAYING WHO TO.
 
    The label names the school's distribution list and is staff-only. A family
    still needs to tell the whole school's notice from their own child's class
    -- that is the filter on the gallery -- so everybody is told which of the
    three a post is, and nobody outside the staff is told the list. */
-async function audienceScopes(c: Ctx, ids: string[]): Promise<Map<string, 'school' | 'staff' | 'class'>> {
+function scopesOf(rows: TargetRow[]): Map<string, 'school' | 'staff' | 'class'> {
   const out = new Map<string, 'school' | 'staff' | 'class'>()
-  if (!ids.length) return out
-  const rows = (await c.db.prepare(`SELECT post_id, kind FROM status_post_targets WHERE post_id IN (${marks()})`)
-    .bind(js(ids)).all<{ post_id: string; kind: string }>()).results ?? []
   for (const r of rows) {
     const was = out.get(r.post_id)
     const now_ = r.kind === 'school' ? 'school' : r.kind === 'staff' ? 'staff' : 'class'
@@ -451,7 +459,8 @@ export function registerClassStatus(r: Router): void {
         ORDER BY p.published_at LIMIT 400`).bind(v.userId, t, ...vis.args)
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
         published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
-    const labels = await audienceLabels(c, rows.map((x) => x.id))
+    const targets = await audienceTargets(c, rows.map((x) => x.id))
+    const labels = labelsOf(targets)
     /* The hearts: how many, and whether this person is one of them. Two
        aggregates in one read, not one read per post. */
     const likeRows = (await c.db.prepare(`SELECT post_id, COUNT(*) AS n,
@@ -459,14 +468,12 @@ export function registerClassStatus(r: Router): void {
           FROM status_likes WHERE post_id IN (${marks()}) GROUP BY post_id`)
       .bind(v.userId, js(rows.map((x) => x.id))).all<{ post_id: string; n: number; mine: number }>()).results ?? []
     const likes = new Map(likeRows.map((r) => [r.post_id, r]))
-    const scopes = await audienceScopes(c, rows.map((x) => x.id))
+    const scopes = scopesOf(targets)
     /* WHICH OF MY CHILDREN IT IS FOR, for a family: the gallery switches
        between children (owner, 2026-10-03). Ids only, never the list. */
     const forKids = new Map<string, string[]>()
     if (!v.staff && v.kids.length && rows.length) {
-      const tg = (await c.db.prepare(`SELECT post_id, kind, target_id FROM status_post_targets WHERE post_id IN (${marks()})`)
-        .bind(js(rows.map((x) => x.id))).all<{ post_id: string; kind: string; target_id: string }>()).results ?? []
-      for (const t of tg) {
+      for (const t of targets) {
         const hit = v.kids.filter((k) => t.kind === 'school' || (t.kind === 'class' && t.target_id === k.class_id) || (t.kind === 'section' && t.target_id === k.section_id))
         if (hit.length) forKids.set(t.post_id, [...new Set([...(forKids.get(t.post_id) ?? []), ...hit.map((k) => k.student_id)])])
       }

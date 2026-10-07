@@ -2425,7 +2425,7 @@ export {
   Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
-import { useOpenState, usePresence } from '@/lib/motion'
+import { restoreFocus, useOpenState, usePresence } from '@/lib/motion'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useOnline } from '@/lib/online'
 
@@ -3026,7 +3026,7 @@ export function Dialog({
     return () => {
       document.removeEventListener('keydown', onKey, true)
       document.body.style.overflow = prev
-      opener?.focus?.({ preventScroll: true })
+      restoreFocus(opener)
     }
   }, [open])
 

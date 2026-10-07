@@ -66,7 +66,7 @@ export default function StudentMyCard() {
                 <p className="flex items-center justify-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-4 w-4 text-success" /> Gate code</p>
                 <p className="mt-1 text-center font-mono text-[30px] font-semibold tracking-[0.22em] tabular-nums" aria-live="polite">{pass.code}</p>
                 <span className="mx-auto mt-2 block h-1.5 max-w-[220px] overflow-hidden rounded-full bg-muted" aria-hidden>
-                  <span className="block h-full rounded-full bg-success transition-[width] duration-1000 ease-linear" style={{ width: `${Math.min(100, (left / 150) * 100)}%` }} />
+                  <span className="block h-full origin-left rounded-full bg-success transition-transform duration-1000 ease-linear" style={{ transform: `scaleX(${Math.min(1, left / 150)})` }} />
                 </span>
                 <p className="mt-1.5 text-center text-[12px] text-muted-foreground">Changes every couple of minutes, so a photo of it will not work. Card {pass.serial}</p>
               </div>

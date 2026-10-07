@@ -333,6 +333,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   system_health_integration_alerts: 'notification_important', // System Health & Integration Alerts
   systems_desk: 'dns', // Systems desk
   take_attendance: 'how_to_reg', // Take attendance
+  take_attendance_school: 'fact_check', // Take attendance (whole school)
   take_fee_payment: 'point_of_sale', // Take fee payment
   student_wallets: 'account_balance_wallet', // Student wallets (digital money, office)
   wallet: 'account_balance_wallet', // Wallet (digital money, parent)

@@ -1709,6 +1709,8 @@ function plainCertificateBody(code: string, f: Record<string, string>): string {
   for (const [key, label] of lines) {
     if (!(key in f)) continue
     let v = val(key)
+    // A bonafide or character certificate is not a fee or attendance statement (owner, 2026-10-07).
+    if (code !== 'TC' && (key === 'dues_paise' || key === 'attendance_percent' || key === 'dues_override_by' || v === '')) continue
     if (v === '' && key === 'dues_override_by') continue
     n++
     if (v === '') v = '-'

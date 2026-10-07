@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { WifiOff, Wifi } from 'lucide-react'
 import { stateOf, subscribe } from '@/lib/outbox'
+import { usePresence } from '@/lib/motion'
 
 /* ONE QUIET LINE ABOUT THE CONNECTION.
 
@@ -33,14 +34,18 @@ export function OfflineBanner() {
     return () => clearTimeout(hide.current)
   }, [online, back, waiting])
 
-  if (online && !back) return null
+  /* Arrives and leaves on the kit's enter/exit pair (.motion-enter,
+     [data-closing]) instead of appearing and vanishing in one frame. */
+  const [present, closing] = usePresence(!(online && !back))
+  if (!present) return null
   const changes = `${waiting} ${waiting === 1 ? 'change' : 'changes'}`
   return (
     <div
       role="status"
       aria-live="polite"
       data-testid="connectivity"
-      className="flex min-h-[36px] items-center gap-2 border-b bg-muted/60 px-4 py-2 text-[13px] text-muted-foreground"
+      data-closing={closing || undefined}
+      className="motion-enter flex min-h-[36px] items-center gap-2 border-b bg-muted/60 px-4 py-2 text-[13px] text-muted-foreground"
     >
       {online ? <Wifi className="size-4 shrink-0" aria-hidden="true" /> : <WifiOff className="size-4 shrink-0" aria-hidden="true" />}
       <span className="min-w-0 truncate">

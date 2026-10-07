@@ -202,7 +202,14 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # packages: the action's default list still names the long-removed
+      # 'tools' package, which current sdkmanager refuses ("Failed to find
+      # package 'tools'"), failing the step before Gradle ever runs.
+      # platform-tools is all this needs; AGP fetches the platform and
+      # build-tools it is pinned to.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       # Caches ~/.gradle (wrapper distribution and dependency jars) between
       # runs. On pull requests the cache is read-only so a PR cannot poison
