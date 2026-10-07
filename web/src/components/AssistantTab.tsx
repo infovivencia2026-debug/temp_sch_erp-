@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import './assistant/assistant-chat.css'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, Maximize2, Minimize2, SquarePen, RotateCcw } from 'lucide-react'
+import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, Maximize2, Minimize2, SquarePen, RotateCcw, CloudOff } from 'lucide-react'
 import { AssistantImportWithAI } from '@/components/ai/SmartImport'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -197,6 +197,8 @@ const IMPORT_KINDS: { value: string; label: string }[] = [
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
+  /** AI is off: a calm line with an icon, not an answer and not an error. */
+  notice?: boolean
   /** A proposed data change awaiting confirmation on a card. */
   action?: ProposedAction
   /** A spreadsheet awaiting confirmation to import. */
@@ -617,7 +619,7 @@ export function AssistantTab() {
   useEffect(() => {
     const i = lastIdx
     const last = turns[i]
-    if (!last || last.role !== 'bot' || last.text === '') return
+    if (!last || last.role !== 'bot' || last.text === '' || last.notice) return
     if (printed.current!.has(lastKey)) return
     printed.current!.add(lastKey)
 
@@ -753,7 +755,7 @@ export function AssistantTab() {
     abortRef.current = ctrl
     const signal = ctrl?.signal
 
-    if (!ENDPOINT) {
+    if (!ENDPOINT && ai.ok) {
       setTurns((t) => [...t, {
         role: 'error',
         text: 'No assistant is connected. Set VITE_ASSISTANT_URL to a chat endpoint and rebuild.',
@@ -802,6 +804,7 @@ export function AssistantTab() {
       if (!ai.ok) {
         setTurns((t) => [...t, {
           role: 'bot',
+          notice: true,
           text: ai.operator ? (ai.reason ?? '') : 'The assistant is unavailable right now. Screens and search still work; try the assistant again later.',
           links: ai.operator ? [{ label: 'Controls, AI', to: AI_KEY_HREF }] : undefined,
         }])
@@ -1251,7 +1254,9 @@ export function AssistantTab() {
                   {turn.steps && turn.steps.length > 0 && (
                     <ToolSteps steps={turn.steps} onOpen={(to) => { navigate(to); setOpen(false) }} />
                   )}
-                  {turn.role === 'bot'
+                  {turn.notice
+                    ? <span className="flex items-start gap-2 text-muted-foreground"><CloudOff className="mt-[3px] h-4 w-4 shrink-0" aria-hidden />{turn.text}</span>
+                    : turn.role === 'bot'
                     ? (i === printingIdx
                         ? <span className="md-answer">{turn.text.slice(0, printedLen)}<span className="assistant-caret" aria-hidden="true" /></span>
                         : (
@@ -1263,7 +1268,7 @@ export function AssistantTab() {
                     : turn.text}
                   {/* "This didn't help": the request form, with this conversation attached
                       (features/help/HelpCentre.tsx reads it). Only under the last answer. */}
-                  {turn.role === 'bot' && i === lastIdx && i !== printingIdx && state === 'idle' && (
+                  {turn.role === 'bot' && !turn.notice && i === lastIdx && i !== printingIdx && state === 'idle' && (
                     <div className="mt-2">
                       <Button variant="ghost" size="sm" onClick={() => {
                         try {

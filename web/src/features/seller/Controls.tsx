@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { timeAgo } from '@/components/StoryViewer'
 import {
   Card, CardHeader, Table, Td, Badge, Button, Checkbox, Dialog, EmptyState, ErrorState, Field, FormGrid, FormNotice, Input,
   Select, SkeletonTable, Textarea, TAB_BAR, tabClass,
@@ -394,17 +395,18 @@ type AiPanel = {
   state: AiState; checked_at: string | null; source: 'stored' | 'env' | 'service_account' | 'none'
   last4: string | null; set_at: string | null; credential_key: boolean; can_edit: boolean
 }
-const AI_STATE: Record<AiState, { label: string; tone: 'success' | 'danger' | 'warning' | 'neutral'; say: string }> = {
-  ok: { label: 'Working', tone: 'success', say: 'Google accepts the key. AI features are on wherever a school has them switched on.' },
-  refused: { label: 'Refused', tone: 'danger', say: 'Google refused the key. AI features are off in every school until it is replaced.' },
-  quota: { label: 'Over quota', tone: 'warning', say: 'Google accepts the key but its quota is used up. Wait, raise the quota in Google Cloud, or replace the key.' },
-  unreachable: { label: 'Not reached', tone: 'warning', say: 'Google could not be reached at the last check. Press Test key to try again.' },
-  missing: { label: 'No key', tone: 'neutral', say: 'No key is set, so AI features are off in every school.' },
+/* One status row: a dot in the colour that means something (green working,
+   orange over quota, red refused, grey otherwise) and one plain sentence. */
+const AI_STATE: Record<AiState, { label: string; dot: string; say: string }> = {
+  ok: { label: 'Working', dot: '--sys-green', say: 'Google accepts the key. AI is on wherever a school has it switched on.' },
+  quota: { label: 'Over quota', dot: '--sys-orange', say: 'Google accepts the key but its quota is used up. Wait, raise the quota in Google Cloud, or replace the key.' },
+  refused: { label: 'Refused', dot: '--sys-red', say: 'Google refused the key. AI is off in every school until it is replaced.' },
+  unreachable: { label: 'Not reached', dot: '--muted-foreground', say: 'Google could not be reached at the last check. Press Test key to try again.' },
+  missing: { label: 'No key', dot: '--muted-foreground', say: 'No key is set, so AI is off in every school.' },
 }
 const SOURCE_SAY: Record<AiPanel['source'], string> = {
-  stored: 'Key set here', env: 'Key from the server secret GOOGLE_API_KEY', service_account: 'Google service account from the server secret', none: 'No key',
+  stored: 'Key saved here', env: 'Key from the server secret GOOGLE_API_KEY', service_account: 'Google service account from the server secret', none: '',
 }
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'never')
 
 /* The platform's Google key. Write-only: the page never sees the key, only
    its last four characters. Per-school AI switches stay in School settings. */
@@ -424,32 +426,34 @@ function AiTab() {
   const st = AI_STATE[d.state]
   return (
     <Card>
-      <CardHeader title="AI (Gemini)" description="The Google key every school's AI features use: the assistant, Write with AI, translation and summaries." />
+      <CardHeader title="AI (Gemini)" description="The Google key behind the assistant, Write with AI, translation and summaries in every school." />
       <div className="space-y-4 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={st.tone}>{st.label}</Badge>
-          <span className="text-[13px] text-muted-foreground">Last checked {when(d.checked_at)}</span>
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden className="mt-[7px] h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: `hsl(var(${st.dot}))` }} />
+          <div className="min-w-0">
+            <p className="text-[15px] font-semibold">{st.label}<span className="ms-2 text-[13px] font-normal text-muted-foreground">Last checked {d.checked_at ? timeAgo(d.checked_at) : 'never'}</span></p>
+            <p className="text-[14px] text-muted-foreground">{st.say}</p>
+          </div>
         </div>
-        <p className="text-[14px]">{st.say}</p>
-        <p className="text-[13px] text-muted-foreground">
-          {SOURCE_SAY[d.source]}{d.source === 'stored' && d.last4 ? `, ending ${d.last4}, set ${when(d.set_at)}` : ''}.
-        </p>
+        {d.source !== 'none' && (
+          <p className="truncate text-[13px] text-muted-foreground">
+            {d.source === 'stored' && d.last4 ? <>Key <span className="font-mono tabular-nums">•••• {d.last4}</span>, saved {timeAgo(d.set_at ?? undefined)}</> : SOURCE_SAY[d.source]}
+          </p>
+        )}
         {d.can_edit ? (
           <>
-            <FormGrid>
-              <Field label="Replace key" hint="Paste the new key from Google AI Studio. It is stored encrypted and never shown again.">
-                <Input type="password" autoComplete="off" value={draft} onChange={setDraft} placeholder="AIza…" />
-              </Field>
-            </FormGrid>
-            {!d.credential_key && <p className="text-[13px] text-muted-foreground">This server has no CREDENTIAL_KEY, so a key cannot be stored here. Set the GOOGLE_API_KEY secret instead.</p>}
+            <Field label="Replace key" hint="Paste the new key from Google AI Studio. It is stored encrypted and never shown again.">
+              <Input type="password" autoComplete="off" value={draft} onChange={setDraft} placeholder="Paste the new key" srLabel="New Google API key" />
+            </Field>
+            {!d.credential_key && <p className="text-[13px] text-muted-foreground">This server has no CREDENTIAL_KEY, so a key cannot be saved here. Set the GOOGLE_API_KEY secret instead.</p>}
             <FormNotice error={save.error ?? test.error ?? remove.error} />
             <div className="flex flex-wrap gap-2">
-              <Button pending={save.isPending} disabled={!draft.trim() || !d.credential_key} onClick={() => save.mutate()}>Save key</Button>
-              <Button variant="secondary" pending={test.isPending} disabled={d.source === 'none'} onClick={() => test.mutate()}>Test key</Button>
+              <Button pending={test.isPending} disabled={d.source === 'none'} onClick={() => test.mutate()}>Test key</Button>
+              <Button variant="secondary" pending={save.isPending} disabled={!draft.trim() || !d.credential_key} onClick={() => save.mutate()}>Save key</Button>
               {d.source === 'stored' && !confirmRemove && <Button variant="ghost" onClick={() => setConfirmRemove(true)}>Remove</Button>}
               {d.source === 'stored' && confirmRemove && (
                 <>
-                  <Button tone="danger" pending={remove.isPending} onClick={() => remove.mutate()}>Remove, use the server secret</Button>
+                  <Button variant="ghost" tone="danger" pending={remove.isPending} onClick={() => remove.mutate()}>Remove, use the server secret</Button>
                   <Button variant="ghost" onClick={() => setConfirmRemove(false)}>Cancel</Button>
                 </>
               )}

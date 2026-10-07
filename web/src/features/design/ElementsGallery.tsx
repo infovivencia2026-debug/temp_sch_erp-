@@ -1,4 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
+import WriteWithAI from '@/components/ai/WriteWithAI'
+import TranslateNotice from '@/components/ai/TranslateNotice'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
@@ -122,6 +124,10 @@ function Gallery() {
             <Specimen label="Long and Telugu labels">
               <Button variant="secondary">{TE}</Button>
               <Button variant="primary">Send the fee reminder to every parent</Button>
+            </Specimen>
+            <Specimen label="AI buttons (live): off with a one-line reason while the AI key is not working">
+              <div className="space-y-1"><WriteWithAI kind="parent_message" onInsert={() => {}} /></div>
+              <TranslateNotice text="School closes at noon on Friday." />
             </Specimen>
             <Specimen label="ConfirmButton, PrintButton, Reload, export-like">
               <ConfirmButton question="Remove this row?" confirmLabel="Remove" onConfirm={() => {}}>Remove</ConfirmButton>
