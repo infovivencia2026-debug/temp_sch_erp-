@@ -7,6 +7,7 @@ import { assistantGrounding, assistantRoles, SYSTEM_PROMPT } from '../assistant'
 import { ActionRefusal, refusalText } from './actions'
 import { AGENT_ACTIONS, actionByKind, mayPropose, proposeName, type AgentAction, type AgentProposal } from './actions_more'
 import { READ_TOOLS, type ToolResult, type ToolSpec } from './tools'
+import { MORE_TOOLS } from './tools_more'
 import type { Link } from './read'
 
 /* THE ASSISTANT THAT CAN LOOK THINGS UP AND PREPARE CHANGES.
@@ -58,6 +59,29 @@ done; say it is ready to confirm on the card. One change per reply. If a
 proposal is refused, say why in one sentence.
 `
 
+/* What the product has that a person may ask about. Names only: where a
+   thing lives differs by role, so the model finds the real screen with
+   open_screen and names it from there, or says it is not open to them. */
+const PRODUCT = `
+Features people ask about (call open_screen to find the real screen for THIS
+person before naming where something is; if open_screen finds nothing, say it
+is not open to them and who usually has it):
+- Class Status: teachers and the school post a photo, a short video or text
+  for a class or the school; it shows for 24 hours as rings on the home
+  screen, people can like it, the school may hold posts for approval, and
+  pinned posts stay in the class gallery. recent_class_status reads them.
+- LMS: subjects hold modules, modules hold sub-modules and content, opened day
+  by day; students see a simpler view.
+- Help Centre: articles, troubleshooters (run_troubleshooter runs them), and
+  Report a problem, which sends a request to the school's helpdesk or to
+  support; an error shows a Ref code to quote. my_help_requests lists the
+  person's own requests. "Let support see my screen" gives a six-digit code.
+- Offline: changes made without internet wait in the Outbox and are sent when
+  the phone is back online.
+- All features: the full list of screens, with search.
+Never invent a screen, button or number; use what a tool returned.
+`
+
 function agentPrompt(roles: string[]): string {
   let base = SYSTEM_PROMPT
   const i = base.indexOf('You have no access to school records')
@@ -68,7 +92,7 @@ function agentPrompt(roles: string[]): string {
     base += '\n\n' + DATA_RULES
   }
   // The import paragraph tells the model not to emit an action line; with tools there is none to emit.
-  return `${base}\n\nToday is ${indiaToday()} (India).\n\n${assistantGrounding(roles)}`
+  return `${base}\n${PRODUCT}\nToday is ${indiaToday()} (India).\n\n${assistantGrounding(roles)}`
 }
 
 // --- declarations -------------------------------------------------------------------------------
@@ -133,7 +157,7 @@ type Emit = (o: Record<string, unknown>) => void
 /** runAgent: the model, its tool calls, and at most one proposal, reported through emit. */
 export async function runAgent(c: Ctx, message: string, conversationId: string, emit: Emit): Promise<void> {
   const roles = await assistantRoles(c)
-  const tools = READ_TOOLS.filter((t) => t.offer(c))
+  const tools = [...READ_TOOLS, ...MORE_TOOLS].filter((t) => t.offer(c))
   const actions = AGENT_ACTIONS.filter((a) => mayPropose(c, a))
   const history = loadThread(conversationId, c.id.userId)
   const contents: Content[] = [...history, { role: 'user', parts: [{ text: message }] }]

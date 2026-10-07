@@ -41,11 +41,11 @@ export interface ToolSpec {
   run: (c: Ctx, a: Args) => Promise<ToolResult>
 }
 
-const fail = (error: string): ToolResult => ({ data: { error }, error })
+export const fail = (error: string): ToolResult => ({ data: { error }, error })
 const cell = (v: unknown): string | number => (v === null || v === undefined ? '' : typeof v === 'number' ? v : String(v))
 
 /** A capped table for the model and the chat alike. */
-function table(title: string, rows: Record<string, unknown>[], cols: [string, string][], link?: (r: Record<string, unknown>) => string | null,
+export function table(title: string, rows: Record<string, unknown>[], cols: [string, string][], link?: (r: Record<string, unknown>) => string | null,
   extra: Partial<View> = {}): { view: View; data: unknown } {
   const shown = rows.slice(0, MAX_ROWS)
   const view: View = { title, columns: cols.map((c) => c[1]), rows: shown.map((r) => cols.map(([k]) => cell(r[k]))), total: rows.length, ...extra }
