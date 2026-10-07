@@ -140,6 +140,13 @@ function download(name: string, csv: string) {
   setTimeout(() => URL.revokeObjectURL(href), 0)
 }
 
+/* `wide` on the table, deliberately.
+
+   Seven columns sits under the threshold that turns the roomy layout on by
+   itself, and these seven still outgrew the card by about thirty pixels --
+   a route named "Route 1 - Kompally to school" is most of a column on its
+   own, and the rows ran past the card's right edge. Roomy puts the table in
+   the container that scrolls rather than over the edge of the card. */
 export default function TransportReports() {
   const [key, setKey] = useState(REPORTS[0].key)
   const report = REPORTS.find((r) => r.key === key) ?? REPORTS[0]
@@ -211,7 +218,7 @@ export default function TransportReports() {
           ) : rows.length === 0 ? (
             <EmptyState title="Nothing to report" body="There are no rows for this sheet yet." />
           ) : (
-            <Table head={report.columns.map((c) => ({ label: c.label }))}>
+            <Table wide head={report.columns.map((c) => ({ label: c.label }))}>
               {rows.map((row, i) => (
                 <tr key={String(row.id ?? i)}>
                   {report.columns.map((c) => (

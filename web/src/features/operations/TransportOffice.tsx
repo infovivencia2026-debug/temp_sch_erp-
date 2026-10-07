@@ -1,4 +1,5 @@
 import { lazy, Suspense, startTransition, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -206,8 +207,52 @@ const TABS = [
 
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 
+/* THE DOOR YOU CAME IN BY IS THE PAGE YOU GET.
+
+   Six menu entries open this file, and every one of them used to land on a
+   page headed "The bus office" showing the bus register. Pressing "Student
+   allocation" and being shown something called the bus office is the menu
+   telling you it does not know what it just did -- and the tab you wanted was
+   three along, unmarked.
+
+   So the entry picks both the heading and the tab. The tabs stay: this really
+   is one office, and somebody marking the register often wants the safety
+   check next. Only the way in changed. */
+const DOORS: Record<string, { tab: (typeof TABS)[number][0]; title: string; blurb: string }> = {
+  route_attendance: {
+    tab: 'register', title: 'Route attendance',
+    blurb: 'Who boarded and who got off, route by route. A child nobody scanned is listed as not scanned rather than left out.',
+  },
+  drivers_attendants: {
+    tab: 'staff', title: 'Drivers & attendants',
+    blurb: 'Who drives what, with licence expiry and verification. One driver cannot hold two active buses.',
+  },
+  driver_attendant_profiles: {
+    tab: 'staff', title: 'Drivers & attendants',
+    blurb: 'Who drives what, with licence expiry and verification.',
+  },
+  student_allocation: {
+    tab: 'allocation', title: 'Student allocation',
+    blurb: 'Which child boards at which stop on which route, and the fee that implies.',
+  },
+  driver_sobriety_safety_checklist: {
+    tab: 'checks', title: 'Safety checks',
+    blurb: 'The check before each leg. A failure is recorded and raised with the office; it never holds the bus.',
+  },
+  vehicle_fuel_maintenance_log: {
+    tab: 'logs', title: 'Fuel & servicing',
+    blurb: 'Fuel bought, distance run and what the servicing cost.',
+  },
+  delays_exceptions: {
+    tab: 'incidents', title: 'Delays & exceptions',
+    blurb: 'Routes running late, breakdowns, and anything that happened on board.',
+  },
+}
+
 export default function TransportOffice() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('register')
+  const { featureSlug } = useParams()
+  const door = DOORS[featureSlug ?? ''] ?? null
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(door?.tab ?? 'register')
 
   const staff = useQuery({
     queryKey: ['transport-staff'],
@@ -229,8 +274,9 @@ export default function TransportOffice() {
     <>
       <PageHead
         eyebrow="Transport"
-        title="The bus office"
-        description="Who is driving, who is on board, what it cost to run and what went wrong today."
+        title={door?.title ?? 'The bus office'}
+        description={door?.blurb
+          ?? 'Who is driving, who is on board, what it cost to run and what went wrong today.'}
       />
       <PageBody>
         {/* Two tiles, not four. Open incidents and the month's count moved
@@ -254,6 +300,19 @@ export default function TransportOffice() {
 
         <Today monthIncidents={incidents.data?.items.length ?? 0} />
 
+        {/* A MENU ENTRY IS A PAGE, NOT A TAB.
+
+            Six entries opened this file and every one of them showed the same
+            strip of eight tabs. Giving each its own heading was not enough:
+            the strip is still the thing that says "you are in one screen with
+            eight parts", and somebody who pressed Student allocation does not
+            want seven other things offered above it.
+
+            So the strip is only drawn when nothing on the menu named a
+            destination -- the combined office, which is still reachable and
+            still useful to whoever wants to move between the parts. Through a
+            named entry, the page is that one part and nothing else. */}
+        {!door && (
         <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
@@ -272,6 +331,7 @@ export default function TransportOffice() {
             </button>
           ))}
         </div>
+        )}
 
         {tab === 'register' && <BusRegister />}
         {tab === 'buses' && <Buses />}
@@ -336,6 +396,7 @@ function BusRegister() {
                 options={[
                   { value: 'morning', label: 'Morning' },
                   { value: 'afternoon', label: 'Afternoon' },
+                  { value: 'evening', label: 'Evening' },
                 ]}
               />
               <Select
@@ -529,6 +590,7 @@ function SafetyChecks() {
                 options={[
                   { value: 'morning', label: 'Morning' },
                   { value: 'afternoon', label: 'Afternoon' },
+                  { value: 'evening', label: 'Evening' },
                 ]}
               />
             </Field>

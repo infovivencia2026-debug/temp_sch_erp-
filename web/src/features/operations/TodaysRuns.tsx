@@ -62,6 +62,7 @@ function LegPicker({ leg, setLeg }: { leg: string; setLeg: (v: string) => void }
       options={[
         { value: 'morning', label: 'Morning' },
         { value: 'afternoon', label: 'Afternoon' },
+        { value: 'evening', label: 'Evening' },
       ]}
     />
   )

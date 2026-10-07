@@ -130,7 +130,10 @@ export function registerTransportOffice(r: Router): void {
   r.get('/ops/transport/runs', READ, async (c) => {
     const t = today()
     const leg = str(c.url.searchParams.get('leg')) || 'morning'
-    const direction = leg === 'afternoon' ? 'drop' : 'pickup'
+    /* Morning carries them in; everything else carries them home. Written
+       this way round so a school that runs an evening leg is not silently
+       treated as a second morning pickup. */
+    const direction = leg === 'morning' ? 'pickup' : 'drop'
 
     const routes = (await c.db.prepare(`
       SELECT rt.id, rt.name, COALESCE(rt.code,'') AS code,

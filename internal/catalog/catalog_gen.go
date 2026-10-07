@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 404 features.
+// Roles is the catalog: 24 roles, 403 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -855,12 +855,19 @@ var Roles = []Role{
 		Name: "Transport Manager",
 		Sections: []Section{
 			{
+				Slug: "home",
+				Name: "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "transport_manager.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings."},
+				},
+			},
+			{
 				Slug: "transport",
 				Name: "Transport",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "transport_manager.transport.driver_phone_tracker", Slug: "driver_phone_tracker", Name: "Driver Phone Tracker", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Turn a driver''s own phone into the bus''s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login, there is no hardware to buy."},
-					{Key: "transport_manager.transport.route_distance_fee_slabs", Slug: "route_distance_fee_slabs", Name: "Route Distance Fee Slabs", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Define transport fee slabs by route distance and auto-apply them to the student's fee structure."},
 					{Key: "transport_manager.transport.geo_fenced_bus_stop_alerts", Slug: "geo_fenced_bus_stop_alerts", Name: "Geo-fenced Bus Stop Alerts", Scope: Scope("campus"), Tier: Tier("advanced"), Summary: "Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives."},
 					{Key: "transport_manager.transport.bus_speeding_rash_driving_alerts", Slug: "bus_speeding_rash_driving_alerts", Name: "Bus Speeding & Rash Driving Alerts", Scope: Scope("campus"), Tier: Tier("advanced"), Summary: "Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits."},
 					{Key: "transport_manager.transport.vehicle_fuel_maintenance_log", Slug: "vehicle_fuel_maintenance_log", Name: "Vehicle Fuel & Maintenance Log", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Track fuel purchases, mileage performance, routine servicing, and repair expense logs."},
@@ -876,14 +883,6 @@ var Roles = []Role{
 					{Key: "transport_manager.transport.delays_exceptions", Slug: "delays_exceptions", Name: "Delays & exceptions", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Routes running late, breakdowns and any child not scanned."},
 					{Key: "transport_manager.transport.todays_runs", Slug: "todays_runs", Name: "Today's runs", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running."},
 					{Key: "transport_manager.transport.live_vehicle_tracking", Slug: "live_vehicle_tracking", Name: "Live vehicle tracking", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Where every bus is now, against the route it should be running."},
-				},
-			},
-			{
-				Slug: "home",
-				Name: "Home",
-				Workspace: "Home",
-				Features: []Feature{
-					{Key: "transport_manager.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings."},
 				},
 			},
 			{

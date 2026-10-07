@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 404 features. */
+/** 24 roles, 403 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -808,12 +808,19 @@ export const ROLES: Role[] = [
     name: 'Transport Manager',
     sections: [
       {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'transport_manager.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'campus', tier: 'core', summary: 'The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings.' },
+        ],
+      },
+      {
         slug: 'transport',
         name: 'Transport',
         workspace: 'Transport',
         features: [
           { key: 'transport_manager.transport.driver_phone_tracker', slug: 'driver_phone_tracker', name: 'Driver Phone Tracker', scope: 'institution', tier: 'core', summary: 'Turn a driver\'\'s own phone into the bus\'\'s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login, there is no hardware to buy.' },
-          { key: 'transport_manager.transport.route_distance_fee_slabs', slug: 'route_distance_fee_slabs', name: 'Route Distance Fee Slabs', scope: 'campus', tier: 'core', summary: 'Define transport fee slabs by route distance and auto-apply them to the student\'s fee structure.' },
           { key: 'transport_manager.transport.geo_fenced_bus_stop_alerts', slug: 'geo_fenced_bus_stop_alerts', name: 'Geo-fenced Bus Stop Alerts', scope: 'campus', tier: 'advanced', summary: 'Trigger automated proximity SMS/Push notifications to parents 5 minutes before bus arrives.' },
           { key: 'transport_manager.transport.bus_speeding_rash_driving_alerts', slug: 'bus_speeding_rash_driving_alerts', name: 'Bus Speeding & Rash Driving Alerts', scope: 'campus', tier: 'advanced', summary: 'Receive immediate dashboard alerts if a driver exceeds pre-set campus speed limits.' },
           { key: 'transport_manager.transport.vehicle_fuel_maintenance_log', slug: 'vehicle_fuel_maintenance_log', name: 'Vehicle Fuel & Maintenance Log', scope: 'campus', tier: 'core', summary: 'Track fuel purchases, mileage performance, routine servicing, and repair expense logs.' },
@@ -829,14 +836,6 @@ export const ROLES: Role[] = [
           { key: 'transport_manager.transport.delays_exceptions', slug: 'delays_exceptions', name: 'Delays & exceptions', scope: 'campus', tier: 'core', summary: 'Routes running late, breakdowns and any child not scanned.' },
           { key: 'transport_manager.transport.todays_runs', slug: 'todays_runs', name: 'Today\'s runs', scope: 'campus', tier: 'core', summary: 'Every route today with its bus, driver, attendant, pre-trip check, how many children are aboard and whether it is running.' },
           { key: 'transport_manager.transport.live_vehicle_tracking', slug: 'live_vehicle_tracking', name: 'Live vehicle tracking', scope: 'campus', tier: 'core', summary: 'Where every bus is now, against the route it should be running.' },
-        ],
-      },
-      {
-        slug: 'home',
-        name: 'Home',
-        workspace: 'Home',
-        features: [
-          { key: 'transport_manager.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'campus', tier: 'core', summary: 'The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings.' },
         ],
       },
       {

@@ -447,7 +447,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'transport_manager.transport.vehicles': screen(() => import('./operations/Transport')),
   'transport_manager.transport.routes_stops': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.route_distance_fee_slabs': screen(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --
      do we have it, who has it, what do they owe -- so the catalogue, the
