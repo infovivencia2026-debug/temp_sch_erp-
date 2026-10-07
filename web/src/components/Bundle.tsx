@@ -2,6 +2,7 @@ import { Suspense, type ComponentType, type LazyExoticComponent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Loading, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { BundleTitle } from '@/lib/bundle-title'
 
 /* One menu entry, several screens behind it.
  *
@@ -67,9 +68,19 @@ export default function Bundle({ tabs }: { tabs: BundleTab[] }) {
           </button>
         ))}
       </div>
-      <Suspense fallback={<Loading />}>
-        <Screen />
-      </Suspense>
+      {/* The heading below is the tab above, not the screen's own name.
+
+          These screens are shared: Banking payouts is a page in its own right
+          and a tab inside the salary job. Rendered here it used to keep its
+          own title, so the page named itself three times and agreed with
+          itself none of them -- the menu said "Approve & pay salaries", the
+          tab said "Release the money", the heading said "Banking payouts".
+          Opened on its own the screen still uses the name it was given. */}
+      <BundleTitle.Provider value={active.label}>
+        <Suspense fallback={<Loading />}>
+          <Screen />
+        </Suspense>
+      </BundleTitle.Provider>
     </>
   )
 }

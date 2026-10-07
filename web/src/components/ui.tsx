@@ -4,6 +4,7 @@ import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-ext
 import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
+import { useBundleTitle } from '@/lib/bundle-title'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
@@ -96,6 +97,10 @@ export function PageHead({
   /** Must match the PageBody beneath it, or the two edges disagree. */
   width?: Width
 }) {
+  /* Inside a bundle the tab somebody pressed is the name of the page, and the
+     screen's own name is the third one nobody asked for. See lib/bundle-title. */
+  const bundled = useBundleTitle()
+  if (bundled) title = bundled
   const embedded = useContext(EmbeddedPage)
   if (embedded) {
     return (
