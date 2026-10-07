@@ -295,14 +295,27 @@ html[data-printing] { overflow: hidden; }
   border-radius: 0 !important;
 }
 .print-sheet__body .cell-grid > .cell:last-child { border-right: 0 !important; }
-/* The label: small, in capitals, above the number rather than beside it. */
-.print-sheet__body .cell > :first-child {
+/* THE LABEL IS NOT THE WHOLE CELL.
+
+   `.cell > :first-child` looked like the label and is not: the print copy
+   wraps a clickable Stat in one plain div, so that selector caught the cell
+   entire -- and the number inherited the label's grey. Measured on the live
+   sheet, not reasoned about. Each part is addressed by what it is now. */
+.print-sheet__body .cell p { font-size: 8pt; color: #6b7280; }
+.print-sheet__body .cell .flex p {
   font-size: 7.5pt;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
 }
-.print-sheet__body .stat { font-size: 16pt; font-weight: 700; white-space: nowrap; margin-top: 3pt; }
+.print-sheet__body .cell p.stat {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  margin-top: 3pt;
+}
 /* An icon earns its place by being clickable. Nothing on paper is. */
 .print-sheet__body .cell svg { display: none !important; }
 
@@ -318,6 +331,37 @@ html[data-printing] { overflow: hidden; }
 .print-sheet__body [class*="grid-cols-"]:not(.cell-grid) { grid-template-columns: minmax(0, 1fr) !important; }
 .print-sheet__body th, .print-sheet__body td { padding: 3pt 5pt; }
 .print-sheet__body [class*="overflow-x"] { overflow: visible !important; }
-/* Paper is white: the on-screen colour washes and glows do not print. */
+/* PAPER IS WHITE, ALL THE WAY DOWN.
+
+   This rule named the cells and the tint grid, and the sheet still printed a
+   mint tile, a peach tile and a blue-grey band behind the body -- because the
+   washes are gradients (background-image, which `background: #fff` on the
+   cell does not reach) and several sit on a wrapper inside the cell rather
+   than on the cell. Screen colour is depth cueing for a lit display; on paper
+   it is a tint over the text and a cost at the toner cartridge.
+
+   So: inside the body, nothing paints and nothing glows. The borders and the
+   table rules below draw the structure instead, which is what the printed
+   page uses them for. */
+.print-sheet__body,
+.print-sheet__body * {
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
 .print-sheet__body .cell-grid > .cell,
-.print-sheet__body .tint-grid > * { background: #fff !important; box-shadow: none !important; }
+.print-sheet__body .cell-grid > .cell *,
+.print-sheet__body .tint-grid > *,
+.print-sheet__body .card,
+.print-sheet__body .print-sheet__source { background-color: #fff !important; }
+
+/* The four figures as ONE bordered card, the way the owner's first picture
+   has it -- not four floating boxes. The dividers between them are already
+   drawn above. */
+.print-sheet__body .cell-grid {
+  border: 0.5pt solid #d1d5db !important;
+  border-radius: 3pt !important;
+  overflow: hidden !important;
+}
