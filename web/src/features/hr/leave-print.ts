@@ -1,3 +1,4 @@
+import { PRINT_KIT_CSS } from '@/lib/print-kit'
 /* STAFF LEAVE APPROVALS, AS PRINTED (owner, 2026-10-06): the school's header,
    the four count boxes as one ruled strip (Total requests, Pending approval,
    Approved, Rejected; each a label row, a big number and a caption), then the
@@ -42,7 +43,7 @@ table.list td { padding: 9px 8px; border-bottom: 1px solid #e2e8f0; vertical-ali
 .sub { font-size: 10px; color: #64748b; } .c { text-align: center; } .reason { color: #334155; max-width: 60mm; }
 .none { font-size: 12px; color: #64748b; font-style: italic; padding: 14px 0; }
 .foot { display: flex; justify-content: space-between; margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 10.5px; color: #94a3b8; }
-</style></head><body>
+${PRINT_KIT_CSS}</style></head><body>
 <div class="lh"><div class="logo">${o.logoUrl ? `<img src="${esc(o.logoUrl)}" alt="">` : 'LOGO'}</div><h1>${esc(o.school)}</h1></div>
 <div class="rule"></div>
 <div class="title-row"><h2>${esc(o.title)}</h2><span>${o.rows.length} request${o.rows.length === 1 ? '' : 's'} listed</span></div>
