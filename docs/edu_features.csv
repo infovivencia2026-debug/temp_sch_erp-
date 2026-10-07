@@ -154,6 +154,7 @@ Student,Academics,Learning,Courses / subjects,"Current enrolled courses/subjects
 Student,Academics,Learning,LMS,"Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",Specific student,Must-Have,core
 Student,Academics,Learning,AI Personal Learning Companion,"Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.",Specific student,Nice-to-Have,core
 Student,Academics,Exams & Results,Exams & grades,"Exam schedule, marks, grades, published results and report cards.",Self only,Must-Have,core
+Student,Academics,Exams & Results,Hall ticket,"My hall ticket for the exam: hall, seat and timetable, ready to print.",Self only,Must-Have,core
 Student,Academics,Exams & Results,Academic record,"Current/previous grades, transcript/academic history when published.",Self only,Must-Have,core
 Student,Fees,Fees,Fees,"Current dues, fee history, payment status, online payment and receipts.",Self only,Must-Have,core
 Student,School,Notices & Calendar,Calendar,"Academic calendar, holidays, events and deadlines.",Self only,Must-Have,core
@@ -165,6 +166,7 @@ Parent / Guardian,My Child,Attendance,Attendance,Daily/monthly attendance and ab
 Parent / Guardian,My Child,Academics,Homework & academics,"Homework, classwork, subjects and published academic progress.",Linked child/children only,Should-Have,core
 Parent / Guardian,My Child,Academics,Timetable,"Your child's week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow's PT kit or lab day is never a surprise.",Linked child/children only,Must-Have,core
 Parent / Guardian,My Child,Academics,Results & report cards,"Exam schedule, marks/grades and downloadable published report cards.",Linked child/children only,Must-Have,core
+Parent / Guardian,My Child,Academics,Hall ticket,"Each child's hall ticket for the exam: hall, seat and timetable, ready to print.",Linked child/children only,Must-Have,core
 Parent / Guardian,Fees,Fees,Fees & payments,"Dues, installments, online payment and payment history, with a Receipts tab holding every payment the school has banked, to save as a PDF or print on the school's letterhead.",Linked child/children only,Must-Have,core
 Parent / Guardian,Fees,Fees,Wallet,"Your child's digital money: the prepaid balance the school holds, every top-up you have paid in and everything it has been spent on, per child.",Linked child/children only,Must-Have,core
 Parent / Guardian,Transport,My Child's Bus,Live bus tracking,"Your child's bus: the route, the vehicle, their stop and when it is due, and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus.",Specific student,Should-Have,core

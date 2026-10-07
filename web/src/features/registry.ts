@@ -273,6 +273,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.students.academic_performance': screen(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': screen(() => import('./portal/StudentResults')),
   'parent.academics.results_report_cards': screen(() => import('./portal/Results')),
+  'student.exams_results.hall_ticket': screen(() => import('./exams/HallTicket')),
+  'parent.academics.hall_ticket': screen(() => import('./exams/HallTicket')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
