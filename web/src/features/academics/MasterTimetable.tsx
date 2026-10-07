@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Upload } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -237,7 +238,9 @@ export default function MasterTimetable() {
     mutationFn: () => api.post<DraftHead>(`${OPTIMIZER}/drafts`, { seed: Date.now() % 100000 }),
     onSuccess: (d) => {
       setOpenDraft(d.id)
-      setNote('Worked out. Nothing has changed for teachers yet, open it to look.')
+      /* No banner. The draft card that appears says it is a suggestion not
+         yet in use, in its own title, and a green bar above it repeating that
+         is the page talking to itself. */
       qc.invalidateQueries({ queryKey: ['master-timetable'] })
     },
   })
@@ -246,7 +249,7 @@ export default function MasterTimetable() {
      does: the draft opens, and nothing has reached a teacher yet. */
   function onSectionDraft(draftID: string, sectionName: string) {
     setOpenDraft(draftID)
-    setNote(`Worked out ${sectionName}. Nothing has changed for teachers yet, open it to look.`)
+    void sectionName
     qc.invalidateQueries({ queryKey: ['master-timetable'] })
   }
 
@@ -384,6 +387,16 @@ export default function MasterTimetable() {
         </Card>
         )}
 
+        {/* THE GREEN BAR IS GONE (owner).
+
+            "Worked out Grade 8 B. Nothing has changed for teachers yet, open
+            it to look." sat at the top of the page after every run and said
+            what the draft card below it already says in its own title. A
+            failure still has to speak; a success that repeats the screen does
+            not. */}
+        {/* Only the two that tell somebody something the screen does not:
+            a sheet loaded and live, and a timetable published. Making a draft
+            says so by showing the draft. */}
         <FormNotice error={generate.error} ok={note} />
 
         {/* THE INPUT, IN FRONT OF THE BUTTON THAT CONSUMES IT.
@@ -415,9 +428,20 @@ export default function MasterTimetable() {
             it once, and it must not stand between anybody and the timetable
             on every visit afterwards. */}
         {mayWrite && at === 1 && (
-          <details className="rounded-[10px] border bg-card">
-            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-              Already have a timetable? Upload it instead
+          <details className="group overflow-hidden rounded-xl border-2 border-primary/30 bg-primary/5">
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
+              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <Upload className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold">Already have a timetable?</span>
+                <span className="block text-[12.5px] text-muted-foreground">
+                  Upload the sheet you already use and skip the rest of this
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-primary-foreground">
+                {'Upload it'}
+              </span>
             </summary>
             <div className="border-t p-5">
               <BulkImport
