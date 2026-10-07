@@ -166,45 +166,69 @@ function Steps({ at, go, done }: {
     { n: 2, label: 'Make a draft', hint: 'The computer works out the week' },
     { n: 3, label: 'Check and use', hint: 'Read it, then put it in use' },
   ]
+  /* THE MARK SLIDES, THE BOXES DO NOT FLASH (owner: "why is the color
+     jumping", "change them like ios moving the glass effect").
+
+     Each step used to paint its own tinted background when it became current,
+     so moving between them was two backgrounds swapping at once -- one lights,
+     one goes out, and the eye reads it as a flash. A segmented control on a
+     phone does the opposite: the steps stay still and ONE pane of glass slides
+     under the words, which is what makes it feel like a physical switch rather
+     than a redraw.
+
+     The pane is a single absolutely positioned element moved with a transform,
+     so the browser can animate it on the compositor; the steps themselves only
+     change ink, which costs nothing. Under reduced motion it jumps, because
+     somebody who has asked for no movement has asked for exactly that. */
   return (
     <Card>
-      <ol className="flex flex-col divide-y sm:flex-row sm:divide-x sm:divide-y-0">
-        {steps.map((s) => {
-          const on = s.n === at
-          const finished = done[s.n] && !on
-          return (
-            <li key={s.n} className="min-w-0 flex-1">
-              <button
-                type="button"
-                onClick={() => go(s.n)}
-                aria-current={on ? 'step' : undefined}
-                className={cn(
-                  'flex w-full items-center gap-3 px-5 py-4 text-left transition-colors',
-                  on ? 'bg-primary/5' : 'hover:bg-muted/50',
-                )}
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    'grid size-7 shrink-0 place-items-center rounded-full text-[12.5px] font-bold',
-                    on ? 'bg-primary text-primary-foreground'
-                      : finished ? 'bg-success/15 text-success'
-                        : 'bg-muted text-muted-foreground',
-                  )}
+      <div className="relative p-1.5">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-1.5 left-1.5 rounded-xl bg-card shadow-[0_2px_8px_-2px_rgba(15,23,42,0.18)]
+                     ring-1 ring-black/5 transition-transform duration-300 ease-[cubic-bezier(.32,.72,0,1)]
+                     motion-reduce:transition-none"
+          style={{
+            width: 'calc((100% - 0.75rem) / 3)',
+            transform: `translateX(calc(${at - 1} * 100%))`,
+          }}
+        />
+        <ol className="relative grid grid-cols-3">
+          {steps.map((s) => {
+            const on = s.n === at
+            const finished = done[s.n] && !on
+            return (
+              <li key={s.n} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => go(s.n)}
+                  aria-current={on ? 'step' : undefined}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-center transition-colors sm:justify-start sm:px-4 sm:text-left"
                 >
-                  {finished ? '✓' : s.n}
-                </span>
-                <span className="min-w-0">
-                  <span className={cn('block truncate text-[14px]', on ? 'font-bold' : 'font-medium')}>
-                    {s.label}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'grid size-6 shrink-0 place-items-center rounded-full text-[11.5px] font-bold transition-colors',
+                      on ? 'bg-primary text-primary-foreground'
+                        : finished ? 'bg-success/15 text-success'
+                          : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {finished ? '✓' : s.n}
                   </span>
-                  <span className="block truncate text-[12px] text-muted-foreground">{s.hint}</span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ol>
+                  <span className="min-w-0">
+                    <span className={cn('block truncate text-[13.5px] transition-colors',
+                      on ? 'font-bold text-foreground' : 'font-medium text-muted-foreground')}>
+                      {s.label}
+                    </span>
+                    <span className="hidden truncate text-[11.5px] text-muted-foreground sm:block">{s.hint}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
     </Card>
   )
 }
@@ -482,20 +506,31 @@ export default function MasterTimetable() {
               mayWrite={mayWrite}
               onOpen={() => setOpenDraft(openDraft === drafts[0].id ? '' : drafts[0].id)}
             />
-            {drafts.length > 1 && (
+            {/* A BUTTON THAT LOOKS LIKE A BUTTON (owner).
+
+                This was a full-width row inside a card of its own, with Show
+                floating at the far right -- a whole boxed shelf to say one
+                sentence nobody needs most days. It is a plain pill now,
+                sitting on the page rather than in a box, and the card appears
+                only once it has something to hold. */}
+            {drafts.length > 1 && !showHistory && (
+              <div>
+                <Button variant="secondary" size="sm" onClick={() => setShowHistory(true)}>
+                  Show {drafts.length - 1} earlier{' '}
+                  {drafts.length === 2 ? 'attempt' : 'attempts'}
+                </Button>
+              </div>
+            )}
+            {drafts.length > 1 && showHistory && (
               <Card>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between px-5 py-3 text-left text-[13.5px]"
-                  onClick={() => setShowHistory(!showHistory)}
-                >
-                  <span className="text-muted-foreground">
-                    {drafts.length - 1} earlier{' '}
-                    {drafts.length === 2 ? 'attempt' : 'attempts'}, still open
-                  </span>
-                  <span className="text-primary">{showHistory ? 'Hide' : 'Show'}</span>
-                </button>
-                {showHistory && (
+                <CardHeader
+                  title={`${drafts.length - 1} earlier ${drafts.length === 2 ? 'attempt' : 'attempts'}`}
+                  description="Still open, and still only suggestions. Open one to read it, or leave them."
+                  action={
+                    <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>Hide</Button>
+                  }
+                />
+                {(
                   <Table head={['Made', 'Filled', 'Left out', 'By', '']}>
                     {drafts.slice(1).map((x) => (
                       <tr key={x.id}>
