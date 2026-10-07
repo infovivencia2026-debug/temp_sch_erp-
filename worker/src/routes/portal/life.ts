@@ -8,9 +8,9 @@ import {
 } from '../teaching/common'
 
 /* Port of internal/api/student_life.go (mountStudentLife: lost-property claims,
-   the student wall, the diary, display preferences, live-class hand raises)
-   and internal/api/student_growth.go (mountStudentGrowth: streak, badges, hall
-   of fame). Mounted under /portal; group perm self.profile.read.
+   the student wall, the diary, display preferences, live-class hand raises).
+   The streak, badges and hall of fame went with those features' retirement
+   (commit 661d0395). Mounted under /portal; group perm self.profile.read.
 
    Postgres ran every to_char in Asia/Kolkata (database/resolver.go), so every
    timestamp rendered here is shifted by +330 minutes before formatting. */
@@ -19,9 +19,6 @@ const PERM = 'self.profile.read'
 const FRONT_DESK_WRITE = 'office.front_desk.write'
 const ANNOUNCEMENTS_WRITE = 'comms.announcements.write'
 const HOMEWORK_WRITE = 'academics.homework.write'
-const FEAT_STREAK = 'student.learning.gamified_learning_streak_counter'
-const FEAT_BADGES = 'student.learning.gamified_learning_badge_showcase'
-const FEAT_HALL_OF_FAME = 'student.campus_life.digital_hall_of_fame'
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -783,196 +780,6 @@ async function getMyHandRaiseHistory(c: Ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// streaks and badges (student_growth.go)
-
-interface StreakBadge { key: string; title: string; detail: string; group: string; earned: boolean; on?: string }
-interface HomeworkMark { due: string; submitted: string | null }
-
-function streakOf(days: string[], today: string): { current: number; longest: number } {
-  const set = new Set(days)
-  if (set.size === 0) return { current: 0, longest: 0 }
-  const keys = [...set].sort()
-  let run = 0, longest = 0, prev: string | null = null
-  for (const k of keys) {
-    if (prev !== null && ymd(addDays(parseYMD(prev)!, 1)) === k) run++
-    else run = 1
-    if (run > longest) longest = run
-    prev = k
-  }
-  const y = ymd(addDays(parseYMD(today)!, -1))
-  let start = today
-  if (!set.has(today)) {
-    if (!set.has(y)) return { current: 0, longest }
-    start = y
-  }
-  let current = 0
-  let d = parseYMD(start)!
-  while (set.has(ymd(d))) { current++; d = addDays(d, -1) }
-  return { current, longest }
-}
-
-function onTimeStreak(marks: HomeworkMark[], today: string): { streak: number; onTime: number; due: number } {
-  const sorted = [...marks].sort((a, b) => (a.due < b.due ? 1 : a.due > b.due ? -1 : 0))
-  let alive = true, streak = 0, onTime = 0, due = 0
-  for (const m of sorted) {
-    if (m.due > today) continue
-    due++
-    const okay = m.submitted !== null && m.submitted <= m.due
-    if (okay) onTime++
-    if (alive) { if (okay) streak++; else alive = false }
-  }
-  return { streak, onTime, due }
-}
-
-const OPEN_MILESTONES = [3, 7, 14, 30, 60, 100]
-const HOMEWORK_MILESTONES = [5, 10, 25, 50]
-function streakBadges(openLongest: number, homeworkStreak: number): StreakBadge[] {
-  const out: StreakBadge[] = []
-  for (const m of OPEN_MILESTONES) {
-    out.push({ key: `open_${m}`, title: `${m} days in a row`, detail: `Opened the app every day for ${m} days`, group: 'streaks', earned: openLongest >= m })
-  }
-  for (const m of HOMEWORK_MILESTONES) {
-    out.push({ key: `homework_${m}`, title: `${m} on time`, detail: `${m} pieces of homework handed in by the due date, in a row`, group: 'streaks', earned: homeworkStreak >= m })
-  }
-  return out
-}
-
-async function loadStreak(c: Ctx, student: string) {
-  const today = todayIST()
-  const yearAgo = ymd(addDays(parseYMD(today)!, -365))
-  const [, dayRows, hwRows] = await c.db.batch([
-    c.db.prepare(`INSERT OR IGNORE INTO student_activity_days (institution_id, student_id, day) VALUES (?, ?, ?)`)
-      .bind(institutionId(c), student, today),
-    c.db.prepare(`SELECT day FROM student_activity_days WHERE student_id = ?
-                  UNION
-                  SELECT date(se.created_at) FROM sessions se JOIN students st ON st.user_id = se.user_id WHERE st.id = ?`)
-      .bind(student, student),
-    c.db.prepare(`SELECT h.due_on,
-                         (SELECT date(min(hs.submitted_at), '+330 minutes') FROM homework_submissions hs
-                           WHERE hs.homework_id = h.id AND hs.student_id = ? AND hs.submitted_at IS NOT NULL) AS submitted_on
-                    FROM homework h
-                   WHERE h.is_published = 1 AND h.due_on IS NOT NULL
-                     AND h.section_id IN (SELECT e.section_id FROM enrollments e WHERE e.student_id = ?)
-                     AND h.assigned_on >= ?`).bind(student, student, yearAgo),
-  ])
-  const days = (dayRows.results as { day: string | null }[]).map((r) => r.day).filter((d): d is string => !!d).map((d) => d.slice(0, 10))
-  const marks: HomeworkMark[] = (hwRows.results as { due_on: string; submitted_on: string | null }[])
-    .map((r) => ({ due: r.due_on.slice(0, 10), submitted: r.submitted_on }))
-  const { current, longest } = streakOf(days, today)
-  const hw = onTimeStreak(marks, today)
-  const set = new Set(days)
-  const recent: { day: string; opened: boolean }[] = []
-  let daysThisMonth = 0
-  const t = parseYMD(today)!
-  for (let d = addDays(t, -34); d <= t; d = addDays(d, 1)) {
-    const k = ymd(d)
-    recent.push({ day: k, opened: set.has(k) })
-    if (d.getUTCMonth() === t.getUTCMonth() && set.has(k)) daysThisMonth++
-  }
-  let pending = 0
-  for (const m of marks) if (m.due <= today && m.submitted === null) pending++
-  return {
-    student_id: student, today, open_streak: current, open_longest: longest, opened_today: set.has(today),
-    days_this_month: daysThisMonth, homework_streak: hw.streak, homework_on_time: hw.onTime, homework_due: hw.due,
-    homework_pending: pending, recent, badges: streakBadges(longest, hw.streak),
-  }
-}
-
-async function getMyStreak(c: Ctx) {
-  const student = await whichChild(c)
-  return ok(await loadStreak(c, student))
-}
-
-async function getMyBadges(c: Ctx) {
-  const student = await whichChild(c)
-  const rows = await c.db.prepare(`
-      SELECT 'conduct_' || dr.id AS key, dr.category AS title, dr.description AS detail, 'behaviour' AS grp, dr.occurred_on AS on_date
-        FROM discipline_records dr
-       WHERE dr.student_id = ? AND dr.is_positive = 1 AND dr.visible_to_student = 1
-      UNION ALL
-      SELECT 'achievement_' || sa.id, sa.title,
-             ${cws(' · ', "nullif(sa.level, '')", "nullif(sa.\"position\", '')", 'sa.description')},
-             CASE WHEN sa.kind IN ('sport','club','activity') THEN 'activities' ELSE 'academic' END,
-             COALESCE(sa.awarded_on, date(sa.created_at, '+330 minutes'))
-        FROM student_achievements sa
-       WHERE sa.student_id = ?
-      UNION ALL
-      SELECT 'remark_' || sr.id, 'Commended', sr.body, 'academic', sr.observed_on
-        FROM student_remarks sr
-       WHERE sr.student_id = ? AND sr.kind = 'achievement' AND sr.visible_to_family = 1
-      ORDER BY 5 DESC`).bind(student, student, student).all<{ key: string; title: string; detail: string; grp: string; on_date: string }>()
-  const badges: StreakBadge[] = rows.results.map((r) => ({
-    key: r.key, title: r.title, detail: r.detail, group: r.grp, earned: true, on: r.on_date,
-  }))
-  const streak = await loadStreak(c, student)
-  badges.push(...streak.badges)
-  return ok({ student_id: student, earned: badges.filter((b) => b.earned).length, badges })
-}
-
-// ---------------------------------------------------------------------------
-// hall of fame
-
-const HOF_CATEGORIES = new Set(['academic', 'sports', 'arts', 'service', 'other'])
-
-async function listHallOfFame(c: Ctx) {
-  requireAny(c, FEAT_HALL_OF_FAME, ANNOUNCEMENTS_WRITE)
-  const rows = await c.db.prepare(`
-      SELECT e.id, e.category, e.title, e.holder, e.year, e.detail, 'board' AS source
-        FROM hall_of_fame_entries e
-       WHERE e.retired_at IS NULL
-      UNION ALL
-      SELECT sa.id,
-             CASE WHEN sa.kind IN ('sport') THEN 'sports' WHEN sa.kind IN ('club','activity') THEN 'arts' ELSE 'academic' END,
-             sa.title, ${fullName('st')},
-             CAST(strftime('%Y', COALESCE(sa.awarded_on, datetime(sa.created_at, '+330 minutes'))) AS INTEGER),
-             ${cws(' · ', "upper(substr(sa.level, 1, 1)) || lower(substr(sa.level, 2))", "nullif(sa.\"position\", '')", 'sa.description')},
-             'achievement'
-        FROM student_achievements sa
-        JOIN students st ON st.id = sa.student_id
-       WHERE sa.level IN ('state','national','international')
-      ORDER BY 5 DESC NULLS LAST, 3`).all<Record<string, unknown>>()
-  return ok({
-    items: rows.results.map((r) => omitNull({
-      id: r.id, category: r.category, title: r.title, holder: r.holder,
-      year: r.year === null ? null : Number(r.year), detail: r.detail, source: r.source,
-    })),
-  })
-}
-
-async function addHallOfFameEntry(c: Ctx) {
-  const req = await readJSON(c.req)
-  const category = s(req.category).toLowerCase().trim() || 'academic'
-  if (!HOF_CATEGORIES.has(category)) throw badRequest('category must be academic, sports, arts, service or other')
-  const title = s(req.title).trim(), holder = s(req.holder).trim()
-  if (title === '' || blen(title) > 160) throw badRequest('title is required, up to 160 characters')
-  if (holder === '' || blen(holder) > 160) throw badRequest('say whose it is, up to 160 characters')
-  let year: number | null = null
-  if (req.year !== undefined && req.year !== null) {
-    if (typeof req.year !== 'number' || !Number.isInteger(req.year)) throw badRequest('malformed JSON body')
-    if (req.year < 1800 || req.year > 2200) throw badRequest('year must be a four-digit year')
-    year = req.year
-  }
-  const detail = s(req.detail).trim()
-  if (blen(detail) > 1000) throw badRequest('keep the detail under 1000 characters')
-  const studentId = s(req.student_id).trim(), campusId = s(req.campus_id).trim()
-  if (studentId !== '' && !isUUID(studentId)) throw badRequest('student_id must be a uuid')
-  if (campusId !== '' && !isUUID(campusId)) throw badRequest('campus_id must be a uuid')
-  const id = uuid()
-  await c.db.prepare(`INSERT INTO hall_of_fame_entries (id, institution_id, campus_id, category, title, holder, student_id, year, detail, added_by, created_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, nullif(?, ''), ?, ?)`)
-    .bind(id, institutionId(c), campusId || null, category, title, holder, studentId || null, year, detail, c.id.userId, now()).run()
-  return created({ id })
-}
-
-async function retireHallOfFameEntry(c: Ctx) {
-  const entry = pathUUID(c)
-  const res = await c.db.prepare(`UPDATE hall_of_fame_entries SET retired_at = ? WHERE id = ? AND retired_at IS NULL`)
-    .bind(now(), entry).run()
-  if (!res.meta.changes) throw notFound('resource not found')
-  return ok({ id: entry, retired: true })
-}
-
-// ---------------------------------------------------------------------------
 
 export function registerPortalLife(r: Router): void {
   // lost and found: literal claims/... paths before {id}
@@ -1009,11 +816,4 @@ export function registerPortalLife(r: Router): void {
   r.post('/portal/live-classes/{id}/hand', PERM, raiseHand)
   r.post('/portal/live-classes/{id}/hand/lower', PERM, lowerHand)
   r.get('/portal/live-classes/{id}/hands', PERM, listRaisedHands)
-
-  // growth
-  r.get('/portal/learning/streak', FEAT_STREAK, getMyStreak)
-  r.get('/portal/learning/badges', FEAT_BADGES, getMyBadges)
-  r.get('/portal/campus/hall-of-fame', 'auth', listHallOfFame)
-  r.post('/portal/campus/hall-of-fame', ANNOUNCEMENTS_WRITE, addHallOfFameEntry)
-  r.post('/portal/campus/hall-of-fame/{id}/retire', ANNOUNCEMENTS_WRITE, retireHallOfFameEntry)
 }

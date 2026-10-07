@@ -119,7 +119,12 @@ test('schema chunks are re-runnable and under the size limit', () => {
   const db = new DatabaseSync(':memory:')
   for (const c of chunks) db.exec(c)
   for (const c of chunks) db.exec(c) // twice: a retry of any chunk is harmless
-  assert.equal((one(db, `SELECT count(*) n FROM sqlite_master WHERE type='table'`)!.n), 470) // 469 + _migrations
+  // Every table tenant.sql declares (_migrations among them). Counted from
+  // the file, not written down: a hard-coded 470 went stale as soon as a
+  // table was added. sqlite_sequence is SQLite's own, made by AUTOINCREMENT.
+  const declared = new Set([...TENANT_SQL.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?["`]?(\w+)/g)].map((m) => m[1]))
+  const made = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence'`).all() as { name: string }[]).map((r) => r.name)
+  assert.deepEqual(new Set(made), declared)
 })
 
 test('happy path: queued to ready, school usable', async () => {
