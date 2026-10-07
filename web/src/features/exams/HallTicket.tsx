@@ -87,12 +87,12 @@ export default function HallTicket() {
   const exams = useQuery({
     queryKey: ['exams', isStaff],
     queryFn: () => (isStaff ? api.call('GET /exams/list') : api.get<List<{ id: string; name: string }>>('/api/v1/hpc/my-exams')),
-    enabled: !!session.data,
+    enabled: !session.isLoading,
   })
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''
 
-  if (!session.data || (exams.isLoading && !exams.data)) return <SkeletonTiles count={4} />
+  if (session.isLoading || (exams.isLoading && !exams.data)) return <SkeletonTiles count={4} />
   if (exams.error) return <ErrorState error={exams.error} />
   if (!exam) {
     return (
