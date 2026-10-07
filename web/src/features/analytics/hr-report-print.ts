@@ -1,3 +1,4 @@
+import { PRINT_KIT_CSS } from '@/lib/print-kit'
 /* STAFF ANALYTICS, AS PRINTED (owner, 2026-10-07: "ugly, the lines are not
    right, unnecessary data and + -"). Same family as the fee prints: school
    and red rule, four ruled count boxes, then only what a principal reads on
@@ -62,7 +63,7 @@ table.list tr.total td { font-weight: 700; background: #f8fafc; border-top: 1.5p
 .sign { display: flex; justify-content: space-between; margin-top: 40px; page-break-inside: avoid; }
 .sig { width: 30%; text-align: center; font-size: 11.5px; font-weight: 600; border-top: 1px solid #334155; padding-top: 6px; }
 .foot { display: flex; justify-content: space-between; margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 10.5px; color: #94a3b8; }
-</style></head><body>
+${PRINT_KIT_CSS}</style></head><body>
 <div class="lh"><div class="logo">${o.logoUrl ? `<img src="${esc(o.logoUrl)}" alt="">` : 'LOGO'}</div><h1>${esc(o.school)}</h1></div>
 <div class="rule"></div>
 <div class="title-row"><h2>Staff Report</h2><span>Period <b>${esc(o.period)}</b></span></div>
