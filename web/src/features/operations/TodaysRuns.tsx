@@ -192,7 +192,7 @@ export function TransportDashboard() {
       <PageHead
         eyebrow="Transport"
         title="Transport desk"
-        description="How many buses are out, and the handful of things wanting doing."
+        description="How many buses are out, and what needs attention."
         actions={<LegPicker leg={leg} setLeg={setLeg} />}
       />
       <PageBody>
@@ -205,10 +205,10 @@ export function TransportDashboard() {
 
         <Card>
           <CardHeader
-            title="Wanting doing"
+            title="Needs attention"
             description={attention === 0 ? undefined : 'Read this before the phone rings.'}
           />
-          <div className="p-4 pt-0">
+          <div className="p-4">
             {attention === 0 ? (
               <p className="text-[13px] text-muted-foreground">
                 Every route has a bus and a driver, every check passed, and no papers lapse this month.
@@ -246,7 +246,7 @@ export function TransportDashboard() {
 
         <Card>
           <CardHeader title="Today's runs" description="The same routes, as they stand now." />
-          <div className="flex flex-col gap-3 p-4 pt-0">
+          <div className="flex flex-col gap-3 p-4">
             {items.length === 0
               ? <EmptyState title="No active routes" body="Add a route, and give it a bus and a driver." />
               : items.map((r) => <RunCard key={r.route_id} r={r} />)}
