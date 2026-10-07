@@ -870,6 +870,9 @@ export function AssistantTab() {
       if (!signal?.aborted) {
         setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
         markAiOff()
+      } else {
+        // Stopped before a word arrived: no empty answer left behind.
+        setTurns((ts) => ts.filter((t) => !(t.role === 'bot' && t.text === '' && !(t.steps?.length) && !t.card)))
       }
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null
@@ -1268,7 +1271,7 @@ export function AssistantTab() {
                     : turn.text}
                   {/* "This didn't help": the request form, with this conversation attached
                       (features/help/HelpCentre.tsx reads it). Only under the last answer. */}
-                  {turn.role === 'bot' && !turn.notice && i === lastIdx && i !== printingIdx && state === 'idle' && (
+                  {turn.role === 'bot' && !turn.notice && turn.text !== '' && i === lastIdx && i !== printingIdx && state === 'idle' && (
                     <div className="mt-2">
                       <Button variant="ghost" size="sm" onClick={() => {
                         try {
