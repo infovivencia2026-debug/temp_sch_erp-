@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
+  AlertTriangle, Bus, BusFront, CalendarClock, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
 } from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
 import { useStudentRoster } from '@/lib/rosters'
@@ -1082,6 +1082,13 @@ interface TodayView {
    A failed check is stated, never used to stop a bus. At 7:02 the children
    are already at the stop, and a module that holds the bus over a tick box
    has done more harm than the tick box prevents. */
+/** One attention row: a coloured edge, an icon, and the words. */
+const ATTN = {
+  danger: 'flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-destructive bg-destructive/[0.045] py-2 pl-3 pr-3',
+  warning: 'flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-warning bg-warning/[0.055] py-2 pl-3 pr-3',
+  icon: 'mt-[1px] h-4 w-4 shrink-0',
+}
+
 function Today({ monthIncidents }: { monthIncidents: number }) {
   const q = useQuery({
     queryKey: ['transport-today'],
@@ -1118,42 +1125,49 @@ function Today({ monthIncidents }: { monthIncidents: number }) {
           />
         </CellGrid>
 
+        {/* A LINE OF TEXT IS A ROW, NOT A PILL.
+
+            Each of these was a fully outlined capsule the width of the page
+            holding four words, so a single warning read as an enormous empty
+            lozenge with a sentence lost at the left end. They are rows now:
+            a coloured edge to carry the severity, an icon to carry the kind,
+            and the words next to it. Severity survives at a glance, which is
+            the only thing the outline was doing. */}
         {attention > 0 && (
-          <ul className="mt-4 flex flex-col gap-2 text-[13px]">
+          <ul className="mt-4 flex flex-col gap-1.5 text-[13px]">
             {d.failed_checks.map((f) => (
-              <li
-                key={`${f.vehicle}-${f.leg}`}
-                className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2"
-              >
-                <strong>{f.vehicle}</strong> failed its {f.leg} check
-                {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+              <li key={`${f.vehicle}-${f.leg}`} className={ATTN.danger}>
+                <AlertTriangle className={ATTN.icon + ' text-destructive'} aria-hidden />
+                <span>
+                  <strong>{f.vehicle}</strong> failed its {f.leg} check
+                  {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+                </span>
               </li>
             ))}
             {d.gaps.map((g) => (
-              <li
-                key={g.route}
-                className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2"
-              >
-                <strong>{g.route}</strong> has {g.gap}.
+              <li key={g.route} className={ATTN.warning}>
+                <Bus className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span><strong>{g.route}</strong> has {g.gap}.</span>
               </li>
             ))}
             {d.expiring.map((e) => (
-              <li
-                key={`${e.vehicle}-${e.kind}`}
-                className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2"
-              >
-                <strong>{e.vehicle}</strong> — {e.kind}{' '}
-                {e.days < 0
-                  ? `expired ${Math.abs(e.days)} days ago`
-                  : e.days === 0
-                    ? 'expires today'
-                    : `expires in ${e.days} days`}
-                .
+              <li key={`${e.vehicle}-${e.kind}`} className={ATTN.warning}>
+                <CalendarClock className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span>
+                  <strong>{e.vehicle}</strong> — {e.kind}{' '}
+                  {e.days < 0
+                    ? `expired ${Math.abs(e.days)} days ago`
+                    : e.days === 0
+                      ? 'expires today'
+                      : `expires in ${e.days} days`}
+                  .
+                </span>
               </li>
             ))}
             {d.open_incidents > 0 && (
-              <li className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2">
-                {d.open_incidents} incident{d.open_incidents === 1 ? '' : 's'} still open.
+              <li className={ATTN.warning}>
+                <AlertTriangle className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span>{d.open_incidents} incident{d.open_incidents === 1 ? '' : 's'} still open.</span>
               </li>
             )}
           </ul>
@@ -1274,7 +1288,9 @@ function Allocations() {
             </Field>
           </FormGrid>
           {(warn?.moving || warn?.over_capacity) && (
-            <div className="mt-4 rounded-xl border border-warning/40 bg-warning/5 p-3 text-[13px]">
+            <div className={cn('mt-4 text-[13px]', ATTN.warning)}>
+              <AlertTriangle className={ATTN.icon + ' text-warning'} aria-hidden />
+              <div>
               {warn.moving && (
                 <p>
                   This child is on <strong>{warn.from_route || 'another route'}</strong>. Saving ends
@@ -1287,6 +1303,7 @@ function Allocations() {
                   {warn.capacity}, and this makes {warn.seated_after}.
                 </p>
               )}
+              </div>
             </div>
           )}
           <div className="mt-4">

@@ -894,8 +894,31 @@ async function teacherIsThreadParty(c: Ctx, sid: string, teacherID: string, pare
 }
 
 /** The caller teaches the child (or reads every student), and the parent is the child's guardian. */
+/* WHO MAY OPEN A THREAD WITH A FAMILY.
+
+   Teaching the child, or seeing every child -- and now running the bus the
+   child is on. The transport office has the one piece of news a family needs
+   within the minute (the bus has broken down, it is forty minutes late) and
+   had no way to send it: they rang down a paper list instead.
+
+   Narrow on purpose. Not "the transport office may write to parents", which
+   would hand it the whole school: only the families whose child has a live
+   allocation, which is the same row that puts the child on the register and
+   the fee on the demand. A child taken off the bus in December stops being
+   reachable this way the same day. */
+async function transportMayWrite(c: Ctx, sid: string): Promise<boolean> {
+  if (!can(c.id, 'operations.transport.read')) return false
+  const row = await c.db.prepare(`
+    SELECT 1 AS ok FROM transport_allocations ta
+     WHERE ta.student_id = ?1
+       AND ta.valid_from <= date('now', '+5 hours', '+30 minutes')
+       AND (ta.valid_to IS NULL OR ta.valid_to >= date('now', '+5 hours', '+30 minutes'))
+     LIMIT 1`).bind(sid).first<{ ok: number }>()
+  return bool(row?.ok)
+}
+
 async function teacherMayWrite(c: Ctx, sid: string, teacherID: string, parentID: string): Promise<boolean> {
-  const schoolWide = can(c.id, 'students.read.all') ? 1 : 0
+  const schoolWide = can(c.id, 'students.read.all') || (await transportMayWrite(c, sid)) ? 1 : 0
   const row = await c.db.prepare(`
     SELECT ((?4 = 1) OR EXISTS (
         SELECT 1 FROM enrollments e

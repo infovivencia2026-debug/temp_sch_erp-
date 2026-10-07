@@ -210,6 +210,37 @@ export function registerTransportOffice(r: Router): void {
     return ok({ on_date: t, leg, items })
   })
 
+  /* THE FAMILIES ON THE BUS, FOR THE OFFICE THAT RUNS IT.
+
+     The Messages screen reads its contacts from /teaching/parent-contacts,
+     which is gated on a teaching permission and returns the classes the
+     caller teaches. Correct for a teacher and useless to the transport
+     office, which does not teach anybody and needs exactly one list: the
+     families whose child is on a bus today.
+
+     A separate route rather than a wider permission on the teaching one,
+     because widening that would have handed the transport office every
+     family in the school. Here the allocation is the membership test, and it
+     is the same row that puts the child on the register and the fee on the
+     demand -- a child taken off the bus stops appearing the same day. */
+  r.get('/ops/transport/parent-contacts', READ, async (c) => {
+    const t = today()
+    const rows = await c.db.prepare(`
+      SELECT st.id AS student_id,
+             st.first_name || COALESCE(' ' || st.last_name, '') AS student_name,
+             g.user_id AS parent_user_id, g.full_name AS parent_name, g.relation,
+             rt.name AS class_label
+        FROM transport_allocations ta
+        JOIN students st ON st.id = ta.student_id AND st.status = 'active'
+        JOIN student_guardians sg ON sg.student_id = st.id AND sg.portal_blocked = 0
+        JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+        LEFT JOIN routes rt ON rt.id = ta.route_id
+       WHERE ta.valid_from <= ?1 AND (ta.valid_to IS NULL OR ta.valid_to >= ?1)
+       ORDER BY st.first_name, g.full_name
+       LIMIT 2000`).bind(t).all<Record<string, unknown>>()
+    return ok({ items: rows.results })
+  })
+
   /* --- drivers and attendants ------------------------------------------ */
 
   r.get('/ops/transport/staff', READ, async (c) => {

@@ -956,4 +956,18 @@ export function registerDashboards(r: Router): void {
   r.get('/teaching/progress', 'academics.timetable.read', listStudentProgress)
   r.get('/teaching/progress/options', 'academics.timetable.read', progressOptions)
   r.get('/teaching/parent-contacts', 'academics.timetable.read', listParentContacts)
+
+  /* THE SAME TWO READS, FOR THE OFFICE THAT RUNS THE BUSES.
+
+     Both handlers key on `m.teacher_user_id = me`, so what comes back is the
+     caller's own threads and nobody else's -- which is exactly right for a
+     transport manager, and is why these are the same functions rather than
+     copies. Only the permission differs: the teaching gate is a teaching
+     test, and the transport office does not teach anybody.
+
+     Who they are allowed to START a thread with is a separate question,
+     answered in portal/requests.ts: the families whose child is on a bus
+     today, and no others. */
+  r.get('/ops/transport/parent-messages', 'operations.transport.read', listTeacherParentThreads)
+  r.get('/ops/transport/parent-messages/thread', 'operations.transport.read', listTeacherParentMessages)
 }

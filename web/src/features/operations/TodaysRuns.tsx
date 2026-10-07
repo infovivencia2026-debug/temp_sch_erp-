@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bus, BusFront, IdCard, Route as RouteIcon } from 'lucide-react'
+import { AlertTriangle, Bus, BusFront, CalendarClock, IdCard, Route as RouteIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
@@ -217,27 +217,35 @@ export function TransportDashboard() {
             ) : (
               <ul className="flex flex-col gap-2 text-[13px]">
                 {d?.failed_checks.map((f) => (
-                  <li key={`${f.vehicle}-${f.leg}`} className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2">
-                    <strong>{f.vehicle}</strong> failed its {f.leg} check
-                    {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+                  <li key={`${f.vehicle}-${f.leg}`} className="flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-destructive bg-destructive/[0.045] py-2 pl-3 pr-3">
+                    <AlertTriangle className="mt-[1px] h-4 w-4 shrink-0 text-destructive" aria-hidden />
+                    <span>
+                      <strong>{f.vehicle}</strong> failed its {f.leg} check
+                      {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+                    </span>
                   </li>
                 ))}
                 {d?.gaps.map((g) => (
-                  <li key={g.route} className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2">
-                    <strong>{g.route}</strong> has {g.gap}.
+                  <li key={g.route} className="flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-warning bg-warning/[0.055] py-2 pl-3 pr-3">
+                    <Bus className="mt-[1px] h-4 w-4 shrink-0 text-warning" aria-hidden />
+                    <span><strong>{g.route}</strong> has {g.gap}.</span>
                   </li>
                 ))}
                 {d?.expiring.map((e) => (
-                  <li key={`${e.vehicle}-${e.kind}`} className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2">
+                  <li key={`${e.vehicle}-${e.kind}`} className="flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-warning bg-warning/[0.055] py-2 pl-3 pr-3">
+                    <CalendarClock className="mt-[1px] h-4 w-4 shrink-0 text-warning" aria-hidden />
+                    <span>
                     <strong>{e.vehicle}</strong> — {e.kind}{' '}
                     {e.days < 0
                       ? `expired ${Math.abs(e.days)} days ago`
                       : e.days === 0 ? 'expires today' : `expires in ${e.days} days`}.
+                    </span>
                   </li>
                 ))}
                 {(d?.open_incidents ?? 0) > 0 && (
-                  <li className="rounded-xl border border-warning/40 bg-warning/5 px-3 py-2">
-                    {d?.open_incidents} incident{d?.open_incidents === 1 ? '' : 's'} still open.
+                  <li className="flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-warning bg-warning/[0.055] py-2 pl-3 pr-3">
+                    <AlertTriangle className="mt-[1px] h-4 w-4 shrink-0 text-warning" aria-hidden />
+                    <span>{d?.open_incidents} incident{d?.open_incidents === 1 ? '' : 's'} still open.</span>
                   </li>
                 )}
               </ul>
