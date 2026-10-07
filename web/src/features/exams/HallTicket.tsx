@@ -151,7 +151,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
     <>
       <PageHead
         eyebrow="Examinations"
-        title="Exam seating plan"
+        title="Seating plan"
         description="Allocate candidates to halls, then print the plan. Re-running replaces it."
         actions={
           <>
