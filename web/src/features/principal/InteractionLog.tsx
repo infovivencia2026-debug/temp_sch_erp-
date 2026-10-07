@@ -74,7 +74,7 @@ export default function InteractionLog() {
 
   const exportCSV = () => {
     const esc = (v: unknown) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
-    const lines = ['when,kind,from,to,about,summary,files']
+    const lines = ['When,Kind,From,To,About,Summary,Files']
     for (const r of rows) {
       lines.push([r.at, KIND_LABEL[r.kind] ?? r.kind, r.from_name, r.to_name, r.student_name ?? '', r.summary, r.files].map(esc).join(','))
     }

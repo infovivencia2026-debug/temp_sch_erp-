@@ -173,6 +173,14 @@ export function specs(today: string): Record<string, Spec> {
         FROM leave_requests lr LEFT JOIN employees e ON e.id = lr.employee_id
         LEFT JOIN students st ON st.id = lr.student_id LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
         ORDER BY lr.created_at DESC` },
+    'staff-leave': { title: 'Staff leave register', about: 'Leave applied for by staff, and how it was decided.', perm: 'hr.employees.read',
+      header: ['Employee', 'Type', 'From', 'To', 'Days', 'Reason', 'Status'],
+      query: `SELECT ${name2('e')}, COALESCE(lt.name,''), ${dmy('lr.from_date')}, ${dmy('lr.to_date')},
+          CAST(lr.days AS TEXT), lr.reason, lr.status
+        FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
+        LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+        WHERE lr.subject_kind = 'staff'
+        ORDER BY lr.created_at DESC` },
     'staff-documents': { title: 'Staff document expiry', about: 'Which papers have lapsed and which lapse soon.', perm: 'hr.employees.read',
       header: ['Code', 'Employee', 'Document', 'Expires', 'Days Left', 'State'],
       query: `SELECT e.employee_code, ${name2('e')}, d.doc_type, COALESCE(${dmy('d.expires_on')},''),
@@ -197,6 +205,13 @@ export function specs(today: string): Record<string, Spec> {
         FROM library_loans l LEFT JOIN library_copies cp ON cp.id = l.copy_id LEFT JOIN library_titles t ON t.id = cp.title_id
         LEFT JOIN students st ON st.id = l.student_id LEFT JOIN employees e ON e.id = l.employee_id
         ORDER BY l.issued_on DESC` },
+    'library-books': { title: 'Library catalogue', about: 'Every title, its copies, and how many are on the shelf.', perm: 'operations.library.read',
+      header: ['Title', 'Author', 'ISBN', 'Category', 'Copies', 'On shelf'],
+      query: `SELECT t.title, COALESCE(t.author,''), COALESCE(t.isbn,''), COALESCE(t.category,''),
+          CAST(COUNT(cp.id) AS TEXT),
+          CAST(SUM(CASE WHEN cp.id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM library_loans l WHERE l.copy_id = cp.id AND l.returned_on IS NULL) THEN 1 ELSE 0 END) AS TEXT)
+        FROM library_titles t LEFT JOIN library_copies cp ON cp.title_id = t.id
+        GROUP BY t.id, t.title, t.author, t.isbn, t.category ORDER BY t.title` },
     udise: { title: 'UDISE+ student data', about: 'The fields the government return asks for, with the gaps flagged.', perm: 'admin.reports.read',
       header: ['Admission No', 'Name', 'APAAR ID', 'Child Info ID', 'Date of Birth', 'Gender', 'Class', 'Medium', 'RTE', 'CWSN', 'Problems'],
       query: `SELECT st.admission_no, ${name3('st')}, COALESCE(st.apaar_id,''), COALESCE(st.child_info_id,''),

@@ -1,3 +1,4 @@
+import { saveFile } from '@/lib/save-file'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui'
 
@@ -26,12 +27,12 @@ import { Button } from '@/components/ui'
 export function CsvButton({ href, label = 'Export CSV' }: { href: string; label?: string }) {
   const sep = href.includes('?') ? '&' : '?'
   return (
-    <a href={`${href}${sep}format=csv`} download>
-      <Button variant="secondary">
-        <Download className="h-4 w-4" />
-        {label}
-      </Button>
-    </a>
+    /* Fetched and saved (lib/save-file.ts): a bare <a download> to the API
+       was answered by the service worker with the app shell on some devices. */
+    <Button variant="secondary" onClick={() => { void saveFile(`${href}${sep}format=csv`, 'export.csv').catch(() => {}) }}>
+      <Download className="h-4 w-4" />
+      {label}
+    </Button>
   )
 }
 
