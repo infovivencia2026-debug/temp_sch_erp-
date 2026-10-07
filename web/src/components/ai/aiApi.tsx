@@ -31,8 +31,10 @@ export interface Brief {
   model: string; ai: boolean; label: string; created_at: string; updated_at: string
 }
 
+export type AiState = 'ok' | 'refused' | 'quota' | 'unreachable' | 'missing'
+
 export const aiApi = {
-  status: () => api.get<{ configured: boolean }>('/api/v1/ai/status'),
+  status: () => api.get<{ configured: boolean; state?: AiState; checked_at?: string | null }>('/api/v1/ai/status'),
   draft: (body: DraftContext & { kind: DraftKind; tone: string; length: string; language: Lang; notes?: string; current?: string; variants?: number }) =>
     api.post<DraftResult>('/api/v1/ai/draft', body),
   translate: (body: { title?: string; text: string; language: Lang }) => api.post<TranslateResult>('/api/v1/ai/translate', body),

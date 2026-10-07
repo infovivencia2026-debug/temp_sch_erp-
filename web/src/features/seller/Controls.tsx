@@ -387,14 +387,96 @@ function TemplatesTab({ canEdit }: { canEdit: boolean }) {
   )
 }
 
+/* --- AI key -------------------------------------------------------------------- */
+
+type AiState = 'ok' | 'refused' | 'quota' | 'unreachable' | 'missing'
+type AiPanel = {
+  state: AiState; checked_at: string | null; source: 'stored' | 'env' | 'service_account' | 'none'
+  last4: string | null; set_at: string | null; credential_key: boolean; can_edit: boolean
+}
+const AI_STATE: Record<AiState, { label: string; tone: 'success' | 'danger' | 'warning' | 'neutral'; say: string }> = {
+  ok: { label: 'Working', tone: 'success', say: 'Google accepts the key. AI features are on wherever a school has them switched on.' },
+  refused: { label: 'Refused', tone: 'danger', say: 'Google refused the key. AI features are off in every school until it is replaced.' },
+  quota: { label: 'Over quota', tone: 'warning', say: 'Google accepts the key but its quota is used up. Wait, raise the quota in Google Cloud, or replace the key.' },
+  unreachable: { label: 'Not reached', tone: 'warning', say: 'Google could not be reached at the last check. Press Test key to try again.' },
+  missing: { label: 'No key', tone: 'neutral', say: 'No key is set, so AI features are off in every school.' },
+}
+const SOURCE_SAY: Record<AiPanel['source'], string> = {
+  stored: 'Key set here', env: 'Key from the server secret GOOGLE_API_KEY', service_account: 'Google service account from the server secret', none: 'No key',
+}
+const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'never')
+
+/* The platform's Google key. Write-only: the page never sees the key, only
+   its last four characters. Per-school AI switches stay in School settings. */
+function AiTab() {
+  const qc = useQueryClient()
+  const key = ['seller-controls-ai']
+  const data = useQuery({ queryKey: key, queryFn: () => api.get<AiPanel>(`${BASE}/ai`) })
+  const [draft, setDraft] = useState('')
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const done = (d: AiPanel) => { qc.setQueryData(key, d); void qc.invalidateQueries({ queryKey: ['ai-status'] }) }
+  const save = useMutation({ mutationFn: () => api.put<AiPanel>(`${BASE}/ai`, { api_key: draft }), onSuccess: (d) => { setDraft(''); done(d) } })
+  const test = useMutation({ mutationFn: () => api.post<AiPanel>(`${BASE}/ai/test`, {}), onSuccess: done })
+  const remove = useMutation({ mutationFn: () => api.del<AiPanel>(`${BASE}/ai`), onSuccess: (d) => { setConfirmRemove(false); done(d) } })
+  if (data.error) return <ErrorState error={data.error} />
+  if (!data.data) return <SkeletonTable columns={2} />
+  const d = data.data
+  const st = AI_STATE[d.state]
+  return (
+    <Card>
+      <CardHeader title="AI (Gemini)" description="The Google key every school's AI features use: the assistant, Write with AI, translation and summaries." />
+      <div className="space-y-4 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={st.tone}>{st.label}</Badge>
+          <span className="text-[13px] text-muted-foreground">Last checked {when(d.checked_at)}</span>
+        </div>
+        <p className="text-[14px]">{st.say}</p>
+        <p className="text-[13px] text-muted-foreground">
+          {SOURCE_SAY[d.source]}{d.source === 'stored' && d.last4 ? `, ending ${d.last4}, set ${when(d.set_at)}` : ''}.
+        </p>
+        {d.can_edit ? (
+          <>
+            <FormGrid>
+              <Field label="Replace key" hint="Paste the new key from Google AI Studio. It is stored encrypted and never shown again.">
+                <Input type="password" autoComplete="off" value={draft} onChange={setDraft} placeholder="AIza…" />
+              </Field>
+            </FormGrid>
+            {!d.credential_key && <p className="text-[13px] text-muted-foreground">This server has no CREDENTIAL_KEY, so a key cannot be stored here. Set the GOOGLE_API_KEY secret instead.</p>}
+            <FormNotice error={save.error ?? test.error ?? remove.error} />
+            <div className="flex flex-wrap gap-2">
+              <Button pending={save.isPending} disabled={!draft.trim() || !d.credential_key} onClick={() => save.mutate()}>Save key</Button>
+              <Button variant="secondary" pending={test.isPending} disabled={d.source === 'none'} onClick={() => test.mutate()}>Test key</Button>
+              {d.source === 'stored' && !confirmRemove && <Button variant="ghost" onClick={() => setConfirmRemove(true)}>Remove</Button>}
+              {d.source === 'stored' && confirmRemove && (
+                <>
+                  <Button tone="danger" pending={remove.isPending} onClick={() => remove.mutate()}>Remove, use the server secret</Button>
+                  <Button variant="ghost" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+                </>
+              )}
+            </div>
+          </>
+        ) : <p className="text-[13px] text-muted-foreground">Only a seller admin can replace the key.</p>}
+      </div>
+    </Card>
+  )
+}
+
 const TABS = [
   { key: 'school', label: 'School settings' }, { key: 'apply', label: 'Apply to schools' }, { key: 'defaults', label: 'Defaults' },
-  { key: 'roles', label: 'Role templates' }, { key: 'templates', label: 'Configuration templates' },
+  { key: 'roles', label: 'Role templates' }, { key: 'templates', label: 'Configuration templates' }, { key: 'ai', label: 'AI' },
 ] as const
+type TabKey = (typeof TABS)[number]['key']
+/* ?tab=ai opens the AI tab (the assistant's "Controls, AI" link). */
+function startTab(): TabKey {
+  try {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return TABS.some((x) => x.key === t) ? (t as TabKey) : 'school'
+  } catch { return 'school' }
+}
 
 export function Controls() {
   const registry = useRegistry()
-  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('school')
+  const [tab, setTab] = useState<TabKey>(startTab)
   if (registry.error) return <ErrorState error={registry.error} />
   if (!registry.data) return <SkeletonTable columns={4} />
   const canEdit = registry.data.can_edit
@@ -409,6 +491,7 @@ export function Controls() {
       {tab === 'defaults' && <DefaultsTab registry={registry.data} canEdit={canEdit} />}
       {tab === 'roles' && <RolesTab canEdit={canEdit} />}
       {tab === 'templates' && <TemplatesTab canEdit={canEdit} />}
+      {tab === 'ai' && <AiTab />}
     </div>
   )
 }

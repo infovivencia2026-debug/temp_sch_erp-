@@ -15,6 +15,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { useOpenState } from '@/lib/motion'
 import { ToolSteps } from '@/components/assistant/ToolSteps'
 import { ConfirmCard } from '@/components/assistant/ConfirmCard'
+import { AI_KEY_HREF, useAiStatus, useMarkAiOff } from '@/components/ai/useAiStatus'
 import { ASK_EVENT, confirmCard, streamAgent, type AgentCard, type ToolStep } from '@/components/assistant/agent'
 
 /* A tiny, safe Markdown render for the bot's answers.
@@ -288,6 +289,9 @@ function linksFromText(catalog: CatalogResponse, text?: string): ScreenLink[] {
 
 export function AssistantTab() {
   const session = useSession()
+  /* AI off (key refused, missing, over quota): say so at once, calmly, instead of a red error after a wait. */
+  const ai = useAiStatus()
+  const markAiOff = useMarkAiOff()
   const [open, setOpen] = useOpenState(false)
   /* Full screen, remembered on this device (a per-viewer convenience). */
   const [full, setFullState] = useState<boolean>(() => {
@@ -795,6 +799,15 @@ export function AssistantTab() {
         if (signal?.aborted) throw e
       }
 
+      if (!ai.ok) {
+        setTurns((t) => [...t, {
+          role: 'bot',
+          text: ai.operator ? (ai.reason ?? '') : 'The assistant is unavailable right now. Screens and search still work; try the assistant again later.',
+          links: ai.operator ? [{ label: 'Controls, AI', to: AI_KEY_HREF }] : undefined,
+        }])
+        return
+      }
+
       if (agentMode) {
         await askAgent(message, signal)
         await new Promise((r) => setTimeout(r, 300))
@@ -851,7 +864,10 @@ export function AssistantTab() {
       await new Promise((r) => setTimeout(r, 450))
     } catch (err) {
       // Stopped on purpose: no error, the question stays where it was.
-      if (!signal?.aborted) setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
+      if (!signal?.aborted) {
+        setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
+        markAiOff()
+      }
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null
       setState('idle')

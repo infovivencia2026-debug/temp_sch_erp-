@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, GraduationCap, IndianRupee, Loader2, Sparkles } from 'lucide-react'
 import { Button, Card, CardHeader } from '@/components/ui'
 import { aiApi, AiLabel } from './aiApi'
+import { useAiStatus } from './useAiStatus'
 
 /* Student 360: one paragraph over marks, attendance, homework and conduct,
    written on request and cached until the student's records change. */
@@ -19,7 +20,9 @@ export default function Student360Card({ studentId, fallback }: { studentId: str
   const key = ['ai-student-360', studentId]
   const q = useQuery({ queryKey: key, queryFn: () => aiApi.student360(studentId), retry: false })
   const make = useMutation({ mutationFn: () => aiApi.makeStudent360(studentId), onSuccess: (d) => qc.setQueryData(key, d) })
-  const failed = q.isError || make.isError || !!make.data?.message || q.data?.configured === false
+  /* AI off: Summarise still answers, at once, with the record summary. */
+  const ai = useAiStatus()
+  const failed = !ai.ok || q.isError || make.isError || !!make.data?.message || q.data?.configured === false
   const b = q.data?.brief
   const stale = !!b && q.data && !q.data.fresh
   return (

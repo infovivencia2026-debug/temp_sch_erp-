@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Languages } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { aiApi, AiLabel, type Lang } from './aiApi'
+import { AiOffNote, isAiKeyError, useAiStatus, useMarkAiOff } from './useAiStatus'
 
 /* "Translate" for a notice: Telugu or Hindi, shown beside the original, which
    is kept. onUse receives the translation to append or place in the editor;
@@ -15,6 +16,9 @@ export default function TranslateNotice({ title, text, onUse }: {
   const [busy, setBusy] = useState<Lang | null>(null)
   const [out, setOut] = useState<{ language: Lang; title: string; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const ai = useAiStatus()
+  const markOff = useMarkAiOff()
+  const offId = useId()
   const run = async (language: Lang) => {
     setBusy(language); setError(null)
     try {
@@ -23,16 +27,19 @@ export default function TranslateNotice({ title, text, onUse }: {
       setOut({ language, ...r.translated })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not translate just now.')
+      if (isAiKeyError(e)) markOff()
     } finally { setBusy(null) }
   }
-  const disabled = text.trim() === ''
+  const disabled = text.trim() === '' || !ai.ok
+  const described = ai.ok ? undefined : offId
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Languages className="h-4 w-4 text-muted-foreground" aria-hidden />
-        <Button size="sm" variant="outline" disabled={disabled} pending={busy === 'te'} onClick={() => run('te')}>Translate to Telugu</Button>
-        <Button size="sm" variant="outline" disabled={disabled} pending={busy === 'hi'} onClick={() => run('hi')}>Translate to Hindi</Button>
+        <Button size="sm" variant="outline" disabled={disabled} ariaDescribedBy={described} pending={busy === 'te'} onClick={() => run('te')}>Translate to Telugu</Button>
+        <Button size="sm" variant="outline" disabled={disabled} ariaDescribedBy={described} pending={busy === 'hi'} onClick={() => run('hi')}>Translate to Hindi</Button>
       </div>
+      <AiOffNote id={offId} reason={ai.reason} />
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
       {out && (
         <div className="rounded-md border p-2">

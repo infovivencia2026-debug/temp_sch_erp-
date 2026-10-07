@@ -1383,6 +1383,7 @@ export function Button({
   className,
   ariaHasPopup,
   ariaExpanded,
+  ariaDescribedBy,
   needsNetwork,
 }: {
   /** Money, logins, publishing, admissions: never kept for later. Offline,
@@ -1396,6 +1397,8 @@ export function Button({
   /** For a button that opens a menu: what it opens, and whether it is open. */
   ariaHasPopup?: 'menu' | 'listbox' | 'dialog'
   ariaExpanded?: boolean
+  /** The id of the line that says why the button is off. */
+  ariaDescribedBy?: string
   type?: 'button' | 'submit'
   /* The tooltip, and the accessible name that has to go with it.
 
@@ -1428,6 +1431,7 @@ export function Button({
       aria-label={title}
       aria-haspopup={ariaHasPopup}
       aria-expanded={ariaExpanded}
+      aria-describedby={ariaDescribedBy}
       /* `btn` and the level are what index.css reads to put the button on
          the elevation ladder: a key at level 1, sunk on press, flat when
          ghost. The classes below paint colour only. */
