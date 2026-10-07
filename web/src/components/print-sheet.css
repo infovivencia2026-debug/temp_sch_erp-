@@ -295,14 +295,27 @@ html[data-printing] { overflow: hidden; }
   border-radius: 0 !important;
 }
 .print-sheet__body .cell-grid > .cell:last-child { border-right: 0 !important; }
-/* The label: small, in capitals, above the number rather than beside it. */
-.print-sheet__body .cell > :first-child {
+/* THE LABEL IS NOT THE WHOLE CELL.
+
+   `.cell > :first-child` looked like the label and is not: the print copy
+   wraps a clickable Stat in one plain div, so that selector caught the cell
+   entire -- and the number inherited the label's grey. Measured on the live
+   sheet, not reasoned about. Each part is addressed by what it is now. */
+.print-sheet__body .cell p { font-size: 8pt; color: #6b7280; }
+.print-sheet__body .cell .flex p {
   font-size: 7.5pt;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
 }
-.print-sheet__body .stat { font-size: 16pt; font-weight: 700; white-space: nowrap; margin-top: 3pt; }
+.print-sheet__body .cell p.stat {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  margin-top: 3pt;
+}
 /* An icon earns its place by being clickable. Nothing on paper is. */
 .print-sheet__body .cell svg { display: none !important; }
 
