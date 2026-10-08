@@ -317,6 +317,12 @@ export function FleetMap({
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
   const firstFlavor = useRef(flavor)
+  /* Bumped on every style load after the first. A style swap drops `ready`
+     and raises it once the new style is in; when both land in one React
+     batch the flag never visibly changes and no effect re-runs, so the
+     sources and layers this component adds were gone for good. The epoch
+     is a dependency of every layer effect, and it only ever goes up. */
+  const [styleEpoch, setStyleEpoch] = useState(0)
   /* Filling the screen is a state of this component, not the browser's.
 
      The Fullscreen API is the obvious answer and the wrong one here: the parent
@@ -378,7 +384,7 @@ export function FleetMap({
          which re-runs every effect below exactly as on first load. Only on
          the swap itself: the old style's sprites and fonts go on failing
          for a moment after it, and each of those must not drop ready again. */
-      const swapped = fallBackToPublicMap(m, firstFlavor.current, () => setReady(true))
+      const swapped = fallBackToPublicMap(m, firstFlavor.current, () => { setReady(true); setStyleEpoch((e) => e + 1) })
       if (swapped) setReady(false)
     })
     map.current = m
@@ -409,6 +415,7 @@ export function FleetMap({
     m.once('style.load', () => {
       collapseAttribution(m)
       setReady(true)
+      setStyleEpoch((e) => e + 1)
     })
     m.setStyle(selfHostedStyle(flavor))
   }, [flavor, tone])
@@ -508,7 +515,7 @@ export function FleetMap({
         },
       })
     }
-  }, [stops, ready, tone, g])
+  }, [stops, ready, tone, g, styleEpoch])
 
   /* The run itself, in the accent, under the stops and over the streets.
 
@@ -556,7 +563,7 @@ export function FleetMap({
       },
       before,
     )
-  }, [routes, ready, tone, g])
+  }, [routes, ready, tone, g, styleEpoch])
 
   // The bus-to-stop line, redrawn as the bus moves.
   useEffect(() => {
@@ -616,7 +623,7 @@ export function FleetMap({
         'text-halo-width': 1.6,
       },
     })
-  }, [link, ready, tone, g])
+  }, [link, ready, tone, g, styleEpoch])
 
   // Vehicles: markers are created and moved rather than torn down each poll,
   // so a bus does not blink out of existence every fifteen seconds.
@@ -686,7 +693,7 @@ export function FleetMap({
         markers.current.delete(id)
       }
     }
-  }, [vehicles, focusId, onFocus, ready, glideMs, tone])
+  }, [vehicles, focusId, onFocus, ready, glideMs, tone, styleEpoch])
 
   /* Frame everything drawn. Called once on load, and again whenever somebody
      asks for it.
@@ -715,7 +722,7 @@ export function FleetMap({
     if (!map.current || !ready || fitted.current || points.length === 0) return
     frame(false)
     fitted.current = true
-  }, [points, ready, frame])
+  }, [points, ready, frame, styleEpoch])
 
   /* The canvas is sized in pixels at creation and does not notice its box
      changing. Without this the map keeps the small screen's dimensions after
