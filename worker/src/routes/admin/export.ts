@@ -3,6 +3,7 @@ import type { Router, Ctx } from '../../router'
 import { forbidden, notFound, ok } from '../../http'
 import { can } from '../../identity'
 import { institutionId } from './common'
+import { moreSpecs } from './export_more'
 
 /* Port of internal/api/export.go: GET /export and GET /export/{name}.
    The Postgres LATERAL joins became joins on a correlated "latest row" id,
@@ -33,7 +34,7 @@ const rollQuery = (where: string) => `SELECT st.admission_no, ${name3('st')}, CO
   ${where} ORDER BY c.level NULLS LAST, sec.name, st.admission_no`
 
 // Evaluated per request: "today" in India, as CURRENT_DATE was.
-export function specs(today: string): Record<string, Spec> {
+function baseSpecs(today: string): Record<string, Spec> {
   const t = `'${today}'`
   const feeCase = (col: string, cond: string) => `sum(${col}) FILTER (WHERE ${cond})`
   const other = `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND COALESCE(hd,'') NOT LIKE '%book%' AND COALESCE(hd,'') NOT LIKE '%uniform%' AND COALESCE(hd,'') NOT LIKE '%transport%'`
@@ -294,4 +295,9 @@ export function registerExport(r: Router): void {
     return ok({ items })
   })
   r.get('/export/{name}', 'auth', exportFile)
+}
+
+/** Every export: the originals plus the reports added for schools moving from MyClassBoard (export_more.ts). */
+export function specs(today: string): Record<string, Spec> {
+  return { ...baseSpecs(today), ...moreSpecs(today) }
 }

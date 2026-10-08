@@ -11,6 +11,7 @@ import { registerBanking } from './fees/banking'
 import { registerConcessions } from './fees/concessions'
 import { registerCollections } from './fees/collections'
 import { registerFixedReports } from './fees/fixed_reports'
+import { registerCorrections } from './fees/corrections'
 
 /* Port of the /finance and /fees chi groups (api.go 831-919).
 
@@ -34,6 +35,7 @@ export function registerFees(r: Router): void {
   registerCollections(r)
   registerBackoffice(r)
   registerFixedReports(r)
+  registerCorrections(r)
 
   // /fees — the counter
   registerCounter(r)

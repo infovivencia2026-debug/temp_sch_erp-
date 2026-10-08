@@ -20,7 +20,35 @@ const cleanLevel = (v: unknown): string => {
   return l
 }
 
+interface Band { class_level: number; label: string; note?: string }
+async function bandsOf(c: Parameters<typeof instId>[0]): Promise<Band[]> {
+  const row = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'reading_bands'`).bind(instId(c)).first<{ config: string }>()
+  if (!row) return []
+  try { const v = JSON.parse(row.config) as { bands?: Band[] }; return Array.isArray(v.bands) ? v.bands : [] } catch { return [] }
+}
+
 export function registerReadingLevels(r: Router): void {
+  /* The band each class is expected to read at: "Class 3 reads Orange",
+     "Class 5 reads 600L to 800L". A label per class level, nothing more;
+     the screen marks a child below the band for their class. */
+  r.get('/ops/library/reading-bands', READ, async (c) => ok({ items: await bandsOf(c) }))
+  r.put('/ops/library/reading-bands', WRITE, async (c) => {
+    const req = await readJSON<{ items?: unknown }>(c.req)
+    if (!Array.isArray(req.items)) throw badRequest('items must be a list of { class_level, label }')
+    const items: Band[] = []
+    for (const it of req.items as Record<string, unknown>[]) {
+      const lvl = Number(it.class_level)
+      if (!Number.isInteger(lvl) || lvl < -2 || lvl > 15) throw badRequest('class_level must be a whole number between -2 (nursery) and 15')
+      const label = cleanLevel(it.label)
+      if (items.some((b) => b.class_level === lvl)) throw badRequest(`class level ${lvl} is listed twice`)
+      items.push({ class_level: lvl, label, note: s(it.note).trim() || undefined })
+    }
+    items.sort((a, b) => a.class_level - b.class_level)
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?1, 'reading_bands', 1, ?2)
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = ?2`).bind(instId(c), JSON.stringify({ bands: items })).run()
+    return ok({ items })
+  })
+
   /* Everything on one answer: each child's latest level, the titles by
      level, and the counts the librarian reads first. ?section_id narrows the
      children. */
@@ -30,7 +58,7 @@ export function registerReadingLevels(r: Router): void {
     if (section && !isUUID(section)) throw badRequest('section_id must be a uuid')
     const students = await c.db.prepare(`
       SELECT st.id AS student_id, TRIM(COALESCE(st.first_name, '') || ' ' || COALESCE(st.last_name, '')) AS student_name, st.admission_no,
-             c.name AS class_name, sec.name AS section_name, sec.id AS section_id,
+             c.name AS class_name, c.level AS class_level, sec.name AS section_name, sec.id AS section_id,
              rl.level, rl.measured_on, rl.note,
              (SELECT COUNT(*) FROM library_loans lo JOIN library_copies cp ON cp.id = lo.copy_id WHERE lo.student_id = st.id AND lo.returned_on IS NOT NULL) AS books_read
         FROM students st
@@ -44,15 +72,19 @@ export function registerReadingLevels(r: Router): void {
     const titles = await c.db.prepare(`
       SELECT reading_level AS level, COUNT(*) AS titles FROM library_titles WHERE institution_id = ? AND reading_level IS NOT NULL AND reading_level <> ''
        GROUP BY reading_level ORDER BY reading_level`).bind(inst).all<Row>()
+    const bands = await bandsOf(c)
+    const expected = (lvl: unknown) => bands.find((b) => b.class_level === Number(lvl))?.label ?? null
     const list = students.results.map((v) => ({
       student_id: s(v.student_id), student_name: s(v.student_name), admission_no: s(v.admission_no),
       class_name: s(v.class_name) + (v.section_name ? ' ' + s(v.section_name) : ''), section_id: s(v.section_id) || null,
+      class_level: v.class_level === null ? null : Number(v.class_level), expected_level: expected(v.class_level),
       level: s(v.level) || null, measured_on: s(v.measured_on) || null, note: s(v.note) || null, books_read: Number(v.books_read ?? 0),
     }))
     const cutoff = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10)
     return ok({
       items: list,
       titles_by_level: titles.results.map((v) => ({ level: s(v.level), titles: Number(v.titles ?? 0) })),
+      bands,
       summary: {
         students: list.length,
         measured: list.filter((v) => v.level).length,

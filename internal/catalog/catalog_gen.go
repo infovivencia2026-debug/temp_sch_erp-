@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 409 features.
+// Roles is the catalog: 24 roles, 410 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1229,6 +1229,7 @@ var Roles = []Role{
 					{Key: "finance.fees.take_fee_payment", Slug: "take_fee_payment", Name: "Take fee payment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen."},
 					{Key: "finance.fees.student_wallets", Slug: "student_wallets", Name: "Student wallets", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Digital money. A prepaid balance the school holds for each child: record a top-up the family has paid in (cash, UPI, transfer), correct a balance with a reason, and read the full ledger of what went in and what was spent."},
 					{Key: "finance.fees.online_fee_portal", Slug: "online_fee_portal", Name: "Online fee portal", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered."},
+					{Key: "finance.fees.fee_corrections", Slug: "fee_corrections", Name: "Fee corrections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Void a receipt issued by mistake, move a receipt taken against the wrong child, mark received an online payment the gateway confirmed but never called back about, and stop a fee head for a whole class from a date. Each one keeps its reason on the record."},
 					{Key: "finance.fees.unpaid_fees_reminders", Slug: "unpaid_fees_reminders", Name: "Unpaid fees & reminders", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too."},
 					{Key: "finance.fees.class_transport_fee_setup", Slug: "class_transport_fee_setup", Name: "Class & transport fee setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each class is charged for the year, tuition, lab, transport by distance, with concessions and refunds, the receipt series, and the one action that turns the structure into every parent's invoice."},
 				},

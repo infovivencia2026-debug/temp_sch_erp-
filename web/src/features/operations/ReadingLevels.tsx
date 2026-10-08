@@ -11,11 +11,17 @@ import { formatDate, cn } from '@/lib/utils'
    what the library holds at each level. The level is whatever label the
    school uses; the product keeps the measurement and the date. */
 
-interface Row { student_id: string; student_name: string; admission_no: string; class_name: string; level: string | null; measured_on: string | null; note: string | null; books_read: number }
-interface Answer { items: Row[]; titles_by_level: { level: string; titles: number }[]; summary: { students: number; measured: number; never_measured: number; stale: number } }
+interface Row { student_id: string; student_name: string; admission_no: string; class_name: string; class_level: number | null; expected_level: string | null; level: string | null; measured_on: string | null; note: string | null; books_read: number }
+interface Band { class_level: number; label: string; note?: string }
+interface Answer { items: Row[]; titles_by_level: { level: string; titles: number }[]; bands: Band[]; summary: { students: number; measured: number; never_measured: number; stale: number } }
 interface History { id: string; level: string; measured_on: string; note?: string; measured_by?: string }
 
 const today = () => new Date().toISOString().slice(0, 10)
+/** Below the band when both labels carry a number and the child's is smaller (600L against 800L). Words compare by equality only. */
+function belowBand(level: string, expected: string): boolean {
+  const a = parseFloat(level), b = parseFloat(expected)
+  return Number.isFinite(a) && Number.isFinite(b) ? a < b : false
+}
 const sixMonthsAgo = () => new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10)
 
 export default function ReadingLevels() {
@@ -24,6 +30,12 @@ export default function ReadingLevels() {
   const [only, setOnly] = useState<'' | 'never' | 'stale'>('')
   const [open, setOpen] = useState<Row | null>(null)
   const [form, setForm] = useState({ level: '', measured_on: today(), note: '' })
+  const [editBands, setEditBands] = useState(false)
+  const [bandRows, setBandRows] = useState<Band[] | null>(null)
+  const saveBands = useMutation({
+    mutationFn: (items: Band[]) => api.put('/api/v1/ops/library/reading-bands', { items }),
+    onSuccess: () => { setEditBands(false); setBandRows(null); qc.invalidateQueries({ queryKey: ['reading-levels'] }) },
+  })
 
   const q = useQuery({ queryKey: ['reading-levels'], queryFn: () => api.get<Answer>('/api/v1/ops/library/reading-levels') })
   const history = useQuery({
@@ -59,6 +71,32 @@ export default function ReadingLevels() {
             <Stat label="Never measured" value={d.summary.never_measured} onClick={() => setOnly(only === 'never' ? '' : 'never')} active={only === 'never'} />
             <Stat label="Older than six months" value={d.summary.stale} onClick={() => setOnly(only === 'stale' ? '' : 'stale')} active={only === 'stale'} />
           </CellGrid>
+          <Card>
+            <CardHeader title="Expected band per class" description="What a child in each class is expected to read at. A child measured below it is marked."
+              action={<Button variant="secondary" onClick={() => { setEditBands(!editBands); setBandRows(editBands ? null : (d.bands.length ? d.bands : [{ class_level: 1, label: '' }])) }}>{editBands ? 'Close' : d.bands.length ? 'Change' : 'Set bands'}</Button>} />
+            {!editBands && (
+              <div className="flex flex-wrap gap-2 px-5 pb-5">
+                {d.bands.length === 0 && <p className="text-[13.5px] text-muted-foreground">No bands set. Children are listed without an expected level.</p>}
+                {d.bands.map((b) => <span key={b.class_level} className="rounded-full border px-3 py-1 text-[13px]">Class {b.class_level}: {b.label}</span>)}
+              </div>
+            )}
+            {editBands && bandRows && (
+              <div className="space-y-2 px-5 pb-5">
+                {bandRows.map((b, i) => (
+                  <div key={i} className="flex flex-wrap items-end gap-2">
+                    <Field label="Class level"><Input type="number" className="w-24" value={String(b.class_level)} onChange={(v) => setBandRows(bandRows.map((x, j) => j === i ? { ...x, class_level: Number(v) } : x))} /></Field>
+                    <Field label="Band"><Input className="w-40" value={b.label} onChange={(v) => setBandRows(bandRows.map((x, j) => j === i ? { ...x, label: v } : x))} placeholder="600L" /></Field>
+                    <Button variant="ghost" onClick={() => setBandRows(bandRows.filter((_, j) => j !== i))}>Remove</Button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setBandRows([...bandRows, { class_level: (bandRows[bandRows.length - 1]?.class_level ?? 0) + 1, label: '' }])}>Add a class</Button>
+                  <Button disabled={saveBands.isPending || bandRows.some((b) => !b.label.trim())} onClick={() => saveBands.mutate(bandRows)}>Save bands</Button>
+                </div>
+                <FormNotice error={saveBands.error} />
+              </div>
+            )}
+          </Card>
           {d.titles_by_level.length > 0 && (
             <Card>
               <CardHeader title="Titles at each level" description="Set on a title in Books & copies." />
@@ -79,7 +117,13 @@ export default function ReadingLevels() {
                 <tr key={r.student_id}>
                   <Td className="font-medium">{r.student_name}<span className="block font-mono text-[11.5px] font-normal text-muted-foreground">{r.admission_no}</span></Td>
                   <Td className="text-muted-foreground">{r.class_name}</Td>
-                  <Td>{r.level ?? <span className="text-muted-foreground">Not measured</span>}{r.note && <span className="block max-w-[28ch] truncate text-[11.5px] text-muted-foreground" title={r.note}>{r.note}</span>}</Td>
+                  <Td>
+                    {r.level ?? <span className="text-muted-foreground">Not measured</span>}
+                    {r.expected_level && <span className={cn('block text-[11.5px]', r.level && r.level !== r.expected_level && belowBand(r.level, r.expected_level) ? 'text-warning' : 'text-muted-foreground')}>
+                      {r.level && belowBand(r.level, r.expected_level) ? `Below the ${r.expected_level} band` : `Expected ${r.expected_level}`}
+                    </span>}
+                    {r.note && <span className="block max-w-[28ch] truncate text-[11.5px] text-muted-foreground" title={r.note}>{r.note}</span>}
+                  </Td>
                   <Td className={cn('text-muted-foreground', r.measured_on && r.measured_on < cutoff && 'text-warning')}>{r.measured_on ? formatDate(r.measured_on) : '-'}</Td>
                   <Td className="text-right tabular-nums">{r.books_read}</Td>
                   <Td><Button size="sm" variant="secondary" onClick={() => setOpen(r)}>Record</Button></Td>
