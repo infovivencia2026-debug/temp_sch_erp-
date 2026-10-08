@@ -842,9 +842,24 @@ async function setPayrollState(c: Ctx) {
     .bind(month, year, js(from)).first<{ id: string }>()
   if (!run) throw badRequest('That month is not at a stage where this can be done. Lock it before drawing the bank file, and pay it before publishing.')
   const ts = now()
+  /* REOPENING CLEARS THE EXPORT MARK TOO, OR THE MONTH IS NOT REALLY OPEN.
+   *
+   * Drawing the bank file stamps bank_file_drawn_at, and runPayroll refuses
+   * any month carrying that stamp -- rightly, because recomputing figures
+   * that have gone to a bank is how somebody gets paid twice. But unlocking
+   * cleared only the status, so the card read "Draft, nobody has approved
+   * these figures yet" over a Run payroll button that answered 409, "this
+   * month's salary file has already gone to the bank". Two states at once,
+   * and no way out of the second one.
+   *
+   * Reopening is the deliberate statement that these figures are going to
+   * change, so the stamp goes with the lock and the publish mark. The file
+   * already at the bank does not un-send itself -- that is why the screen
+   * says so before you press -- and a fresh file has to be drawn afterwards. */
   await c.db.prepare(`UPDATE payroll_runs SET status = ?2,
         locked_at = CASE WHEN ?2 = 'draft' THEN NULL WHEN locked_at IS NULL THEN ?3 ELSE locked_at END,
-        published_at = CASE WHEN ?4 THEN ?3 WHEN ?2 = 'draft' THEN NULL ELSE published_at END
+        published_at = CASE WHEN ?4 THEN ?3 WHEN ?2 = 'draft' THEN NULL ELSE published_at END,
+        bank_file_drawn_at = CASE WHEN ?2 = 'draft' THEN NULL ELSE bank_file_drawn_at END
       WHERE id = ?1`).bind(run.id, status, ts, to === 'published' ? 1 : 0).run()
   let told = 0
   if (to === 'published') {
