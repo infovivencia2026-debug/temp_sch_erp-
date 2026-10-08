@@ -19,6 +19,11 @@ import { Widget } from './WidgetLayer'
    the server's own overdue_paise against its own outstanding_paise, not a
    guess from due dates this screen cannot see.
 
+   The ground names are the product's own domain tokens (finance, critical,
+   staff, reports). Invented ones -- money, danger, people -- fall through to
+   an unpainted white cell beside the principal's coloured board, which is
+   how the first cut of this looked.
+
    The money is shown in whole rupees. A trustee asking "what are we owed"
    is not helped by 32 paise, and the exact figure is one press away on the
    screen behind the cell. */
@@ -77,7 +82,7 @@ function CollectedCell({ span, total, to }: { span: CellSpan; total: CampusMoney
   return (
     <PersonaCard
       span={span}
-      ground="money"
+      ground="finance"
       title="Collected"
       glyph="₹"
       value={rupees(total.collected_paise)}
@@ -100,7 +105,7 @@ function OwedCell({ span, total, to }: { span: CellSpan; total: CampusMoney; to?
   return (
     <PersonaCard
       span={span}
-      ground="danger"
+      ground="critical"
       title="Still owed"
       glyph="!"
       value={rupees(owed)}
@@ -128,7 +133,7 @@ function SalariesCell({ span, total, to }: { span: CellSpan; total: CampusMoney;
   return (
     <PersonaCard
       span={span}
-      ground="people"
+      ground="staff"
       title="Salaries paid"
       glyph="↑"
       value={rupees(total.payroll_paise)}
@@ -150,7 +155,7 @@ function CampusCell({ span, campuses, to }: { span: CellSpan; campuses: CampusMo
   return (
     <PersonaCard
       span={span}
-      ground="academics"
+      ground="reports"
       title="By campus"
       glyph="◈"
       value={campuses.length}
