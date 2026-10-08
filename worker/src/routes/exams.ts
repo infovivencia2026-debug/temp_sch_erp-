@@ -47,6 +47,81 @@ function registerExamGroup(r: Router) {
     })))
   })
 
+  /* THE DATE SHEET (owner, 2026-10-08): when each paper is written. Set
+     here by the exam office, read by the hall ticket, the family calendar and
+     the parent and student exam screens. starts_at is stored as the paper's
+     date and time ("2026-10-12T09:30:00"), the shape the hall ticket reads. */
+  r.get('/exams/{id}/date-sheet', EXAMS_READ, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const rows = await c.db.prepare(`
+      SELECT es.id, c.name AS class_name, c.level, sub.name AS subject, ${dateOf('es.exam_date')} AS exam_date,
+             SUBSTR(es.starts_at, 12, 5) AS start_time, es.duration_minutes, CAST(es.max_marks AS INTEGER) AS max_marks
+        FROM exam_subjects es
+        JOIN class_subjects cs ON cs.id = es.class_subject_id
+        JOIN classes c ON c.id = cs.class_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+       WHERE es.exam_id = ?
+       ORDER BY c.level, c.name, es.exam_date IS NULL, es.exam_date, es.starts_at, sub.name`).bind(examId).all()
+    /* When it last went out is read from the messages it sent: no column to keep in step. */
+    const ex = await c.db.prepare(`SELECT e.name, (SELECT MAX(n.created_at) FROM notifications n WHERE n.kind = 'date_sheet' AND n.source_id LIKE e.id || ':%') AS published_at
+        FROM exams e WHERE e.id = ?`).bind(examId).first<{ name: string; published_at: string | null }>()
+    return ok({ exam: ex?.name ?? '', published_at: ex?.published_at ?? null, items: rows.results.map((v) => ({
+      id: str(v.id), class_name: str(v.class_name), subject: str(v.subject), exam_date: v.exam_date == null ? '' : str(v.exam_date),
+      start_time: v.start_time == null ? '' : str(v.start_time), duration_minutes: v.duration_minutes == null ? null : Number(v.duration_minutes),
+      max_marks: v.max_marks == null ? null : Number(v.max_marks),
+    })) })
+  })
+
+  r.put('/exams/{id}/date-sheet', EXAMS_WRITE, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const body = await readJSON<{ items?: { id: string; exam_date?: string; start_time?: string; duration_minutes?: number | null }[] }>(c.req)
+    const list = Array.isArray(body.items) ? body.items : []
+    if (!list.length) throw badRequest('Nothing to save.')
+    const stmts: D1PreparedStatement[] = []
+    for (const it of list) {
+      if (!isUUID(it.id)) throw badRequest('Each paper needs its id.')
+      const d = (it.exam_date ?? '').trim(), t = (it.start_time ?? '').trim()
+      if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) throw badRequest('A date is written as YYYY-MM-DD.')
+      if (t && !/^\d{2}:\d{2}$/.test(t)) throw badRequest('A time is written as HH:MM.')
+      if (t && !d) throw badRequest('A paper with a start time needs a date too.')
+      const dur = it.duration_minutes == null || it.duration_minutes === 0 ? null : Number(it.duration_minutes)
+      if (dur !== null && !(dur > 0 && dur <= 600)) throw badRequest('A paper runs between 1 and 600 minutes.')
+      stmts.push(c.db.prepare(`UPDATE exam_subjects SET exam_date = NULLIF(?2,''), starts_at = CASE WHEN ?3 = '' THEN NULL ELSE ?2 || 'T' || ?3 || ':00' END,
+          duration_minutes = ?4 WHERE id = ?1 AND exam_id = ?5`).bind(it.id, d, t, dur, examId))
+    }
+    await c.db.batch(stmts)
+    return ok({ saved: stmts.length })
+  })
+
+  /* Publishing tells every family in the exam's classes, once per version of
+     the sheet: a changed date sheet published again is a new message. */
+  r.post('/exams/{id}/date-sheet/publish', EXAMS_WRITE, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const ex = await c.db.prepare(`SELECT name FROM exams WHERE id = ?`).bind(examId).first<{ name: string }>()
+    if (!ex) throw notFound('resource not found')
+    const sheet = await c.db.prepare(`SELECT COUNT(*) AS n, SUM(exam_date IS NULL) AS undated, MIN(exam_date) AS first, group_concat(COALESCE(starts_at, exam_date, ''), '|') AS sig
+        FROM exam_subjects WHERE exam_id = ?`).bind(examId).first<{ n: number; undated: number; first: string | null; sig: string | null }>()
+    if (!sheet?.n) throw badRequest('This exam has no papers yet. Create them first.')
+    if (sheet.undated) throw coded(409, 'undated_papers', `${sheet.undated} paper${sheet.undated === 1 ? ' has' : 's have'} no date yet. Give every paper a date before publishing the date sheet.`)
+    let h = 0; for (const ch of sheet.sig ?? '') h = (h * 31 + ch.charCodeAt(0)) >>> 0
+    const version = `${examId}:${h.toString(36)}`
+    const people = await c.db.prepare(`
+      SELECT DISTINCT u, sid FROM (
+        SELECT g.user_id AS u, st.id AS sid FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+          JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active' JOIN students st ON st.id = e.student_id
+          JOIN student_guardians sg ON sg.student_id = st.id JOIN guardians g ON g.id = sg.guardian_id
+         WHERE es.exam_id = ?1 AND g.user_id IS NOT NULL
+        UNION
+        SELECT st.user_id, st.id FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+          JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active' JOIN students st ON st.id = e.student_id
+         WHERE es.exam_id = ?1 AND st.user_id IS NOT NULL)`).bind(examId).all<{ u: string; sid: string }>()
+    const first = sheet.first ? new Date(sheet.first + 'T00:00:00Z').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
+    const stmts = people.results.map((p) => notifyStmt(c, p.u, p.sid, 'date_sheet', `${ex.name}: the date sheet is out`,
+      `Papers start ${first}. Open it for every paper's date and time; the hall ticket shows the same.`, '/go/hall_ticket', 'date_sheet', version))
+    for (let i = 0; i < stmts.length; i += 80) await c.db.batch(stmts.slice(i, i + 80))
+    return ok({ told: stmts.length })
+  })
+
   r.post('/exams/{id}/papers', EXAMS_WRITE, async (c) => {
     const examId = uuidParam(c.params.id)
     const req = await readJSON<{ class_ids?: string[]; max_marks?: number }>(c.req)

@@ -228,12 +228,12 @@ export function registerPortalRecords(r: Router): void {
              AND (h.academic_year_id IS NULL OR h.academic_year_id = ?)`).bind(from, to, room.campusId, room.yearId),
         // The papers this child's own class sits, and only those.
         c.db.prepare(`SELECT substr(es.exam_date,1,10) AS on_date, ex.name || ' · ' || sub.name AS title,
-                 substr(es.starts_at,1,5) AS starts_at, es.duration_minutes, es.max_marks
+                 substr(es.starts_at,12,5) AS starts_at, es.duration_minutes, es.max_marks
             FROM exam_subjects es
             JOIN exams          ex ON ex.id = es.exam_id
             JOIN class_subjects cs ON cs.id = es.class_subject_id
             JOIN subjects      sub ON sub.id = cs.subject_id
-           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ?`).bind(room.classId, from, to),
+           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ? AND EXISTS (SELECT 1 FROM notifications nd WHERE nd.kind = 'date_sheet' AND nd.source_id LIKE ex.id || ':%')`).bind(room.classId, from, to),
         // Club nights this year group may attend.
         c.db.prepare(`SELECT date(ev.starts_at, ${IST}) AS on_date, ev.club_name || ' · ' || ev.title AS title,
                  ev.venue AS detail, strftime('%H:%M', ev.starts_at, ${IST}) AS starts_at
