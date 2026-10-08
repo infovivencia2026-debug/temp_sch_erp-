@@ -71,9 +71,10 @@ ch['A3'] = ('Verified: "code" = the link was read in the source. "check" = it fo
             'wired and wants confirming on the day.')
 ch['A3'].font = Font(size=10, color='6B7280')
 
-CH_COLS = [('Flow', 17), ('#', 5), ('Who presses it', 20), ('Screen', 24), ('What you press', 27),
-           ('What happens', 46), ('What it changes elsewhere', 50), ('Where to check it', 34),
-           ('Verified', 9), ('Pass?', 8), ('Remarks', 30)]
+CH_COLS = [('Flow', 15), ('#', 4), ('1. Sign in as', 26), ('2. Go to', 30),
+           ('3. Do exactly this', 46), ('4. You should see', 40),
+           ('5. Then sign in as', 24), ('6. And open', 28), ('7. You should see there', 50),
+           ('Verified', 9), ('Pass?', 8), ('Remarks', 28)]
 for i, (label, width) in enumerate(CH_COLS, start=1):
     c = ch.cell(row=5, column=i, value=label)
     c.font = HEAD
@@ -84,7 +85,7 @@ for i, (label, width) in enumerate(CH_COLS, start=1):
 FLOW_FILL = PatternFill('solid', fgColor='EEF2FF')
 r = 6
 seen_flow = None
-for flow, step, who, screen, action, happens, elsewhere, verify, verified in CHAINS:
+for flow, step, who, screen, action, happens, who2, screen2, expect, verified in CHAINS:
     if flow != seen_flow:
         seen_flow = flow
         c = ch.cell(row=r, column=1, value=flow + '  -  ' + FLOW_NOTE.get(flow, ''))
@@ -94,16 +95,18 @@ for flow, step, who, screen, action, happens, elsewhere, verify, verified in CHA
         for i in range(1, len(CH_COLS) + 1):
             ch.cell(row=r, column=i).fill = FLOW_FILL
         r += 1
-    for i, v in enumerate([flow, step, who, screen, action, happens, elsewhere, verify, verified, '', ''], start=1):
+    for i, v in enumerate([flow, step, who, screen, action, happens, who2, screen2, expect, verified, '', ''], start=1):
+        pass
+    for i, v in enumerate([flow, step, who, screen, action, happens, who2, screen2, expect, verified, '', ''], start=1):
         cell = ch.cell(row=r, column=i, value=v)
         cell.alignment = WRAP
         cell.border = EDGE
-        if i == 9 and v == 'check':
+        if i == 10 and v == 'check':
             cell.fill = NOTYET
     r += 1
 
 ch.freeze_panes = 'A6'
-ch.auto_filter.ref = 'A5:K%d' % (r - 1)
+ch.auto_filter.ref = 'A5:L%d' % (r - 1)
 chain_rows = sum(1 for _ in CHAINS)
 
 # --- every bell the product rings -----------------------------------------
