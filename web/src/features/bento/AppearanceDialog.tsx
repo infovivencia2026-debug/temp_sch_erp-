@@ -935,13 +935,13 @@ export function SettingsPane({
     <>
       {tab === 'appearance' && (
         <>
-        /* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
+        {/* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
            it changes the shape of the screen the rest is applied to; then the
            typeface, whose value is set in the face itself so no specimen
            cards are needed; then the five continuous axes; then the three
            named choices; then the two actions. No heading over any of it --
            the page's own title says Appearance -- and no paragraph: the only
-           helper is on Contrast, whose name does not say what it trades. */
+           helper is on Contrast, whose name does not say what it trades. */}
         <Rows>
           {/* Language, inline and available to everyone. It used to be only a
               nav row gated on a catalogue feature, so a role without that
