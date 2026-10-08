@@ -313,7 +313,7 @@ export function SliderRow({
   const pct = max > min ? ((value - min) / (max - min)) : 0
   const fill = `calc(9px + (100% - 18px) * ${pct})`
   return (
-    <Row label={label} value={shown} helper={helper}>
+    <Row label={label} value={shown} helper={helper} data-slider-row="">
       <input
         type="range"
         min={min}

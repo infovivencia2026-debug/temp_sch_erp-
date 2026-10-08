@@ -4826,28 +4826,32 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 [data-layout='bento'] .bento-widget[data-editing] { overflow: visible !important; }
 
 
-/* SETTINGS GLASS. A grouped card that lets the page show through, blurred,
-   the way iOS draws its settings groups; built from the theme's card colour
-   so it follows light, dark and the chosen palette. Browsers without
-   backdrop-filter get the solid card. */
+/* SETTINGS CARDS (owner, 2026-10-08: the see-through window was wrong;
+   "it should be like that" -- a solid white window, light grouped cards,
+   compact rows, each slider on the right of its own row). */
 .settings-glass {
-  background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 9%, transparent);
-  box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 8px 24px -16px rgb(0 0 0 / .18);
+  background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 97%, hsl(var(--muted)));
+  border: 1px solid color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 10%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .04);
 }
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .settings-glass {
-    background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 72%, transparent);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    backdrop-filter: saturate(180%) blur(20px);
-  }
-  [data-appearance-dialog] {
-    background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 80%, transparent) !important;
-    -webkit-backdrop-filter: saturate(180%) blur(28px);
-    backdrop-filter: saturate(180%) blur(28px);
-  }
+[data-appearance-dialog] {
+  background: var(--bento-card, hsl(var(--card))) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px -15px rgb(0 0 0 / .35) !important;
 }
-[data-appearance-dialog] { border-radius: 20px !important; }
-/* Groups stand apart from each other, as cards on a page, not one long list. */
 [data-settings-group] + [data-settings-group],
 [data-settings-group] + * [data-settings-group] { margin-top: 16px; }
+/* A slider sits on its own row's right, a fixed 220px with its value after
+   it, on anything wider than a phone. */
+@media (min-width: 768px) {
+  [data-slider-row] { display: grid !important; grid-template-columns: minmax(0, 1fr) 220px 48px; align-items: center; column-gap: 12px; }
+  [data-slider-row] > span:first-child { display: contents; }
+  [data-slider-row] > span:first-child > span:first-child { order: 1; }
+  [data-slider-row] > span:first-child > span:nth-child(2) { order: 3; text-align: right; font-size: 13px; font-weight: 600; }
+  [data-slider-row] > input { order: 2; width: 220px; }
+  [data-slider-row] > span:last-child:not(:first-child) { grid-column: 1 / -1; order: 4; }
+}
+@media (min-width: 768px) {
+  [data-slider-row] > input[type='range']::-webkit-slider-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
+  [data-slider-row] > input[type='range']::-moz-range-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
+}

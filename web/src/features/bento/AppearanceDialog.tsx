@@ -934,6 +934,7 @@ export function SettingsPane({
   return (
     <>
       {tab === 'appearance' && (
+        <>
         /* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
            it changes the shape of the screen the rest is applied to; then the
            typeface, whose value is set in the face itself so no specimen
@@ -994,6 +995,8 @@ export function SettingsPane({
             valueStyle={{ fontFamily: face.stack }}
             optionStyle={(id) => ({ fontFamily: typefaceById(id).stack })}
           />
+        </Rows>
+        <Rows>
           <Scale axis="text" label={t('bento.settings.text')} />
           <Scale axis="density" label={t('bento.settings.density')} />
           <Scale axis="corners" label={t('bento.settings.corners')} />
@@ -1012,6 +1015,8 @@ export function SettingsPane({
               stylesheet has to change and a value stored by somebody who moved
               these sliders before today is still read and still honoured. Only
               the controls are withdrawn. */}
+        </Rows>
+        <Rows>
           <Axis<Contrast>
             label={t('bento.settings.contrast')}
             value={appearance.contrast}
@@ -1033,6 +1038,7 @@ export function SettingsPane({
           />
           <AppearanceActions onClose={onClose} />
         </Rows>
+        </>
       )}
       {tab === 'colour' && (
         <section>
@@ -1290,7 +1296,7 @@ export function AppearanceDialog({
       onClose={handleClose}
       onEscape={onEscape}
       label={t('bento.settings.label')}
-      width="980px"
+      width="720px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
       panelProps={{ 'data-appearance-dialog': '' }}
