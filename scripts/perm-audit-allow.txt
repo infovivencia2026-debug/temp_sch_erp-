@@ -1,0 +1,15 @@
+# Buttons the audit flags that the screen already hides another way. role<TAB>screen<TAB>call
+admissions	admissions.applications.student_360	POST /teaching/remarks
+parent	parent.academics.homework_academics	POST /homework
+faculty	faculty.teaching.lesson_plans_content	PUT /syllabus/units
+student	student.exams_results.hall_ticket	POST /exams/seats/allocate
+student	student.exams_results.hall_ticket	POST /exams/halls
+parent	parent.academics.hall_ticket	POST /exams/seats/allocate
+parent	parent.academics.hall_ticket	POST /exams/halls
+faculty	faculty.my_classes.student_progress	PUT /students/support-plans
+faculty	faculty.exams.question_papers	POST /exams/question-papers/{id}/decide
+faculty	faculty.attendance.attendance_correction	POST /attendance-workflow/corrections/{id}/decide
+hr	hr.onboarding_exit.staff_joinings_exits	POST /academics/admin/faculty-allocation
+hr	hr.onboarding_exit.staff_joinings_exits	POST /setup/class-teacher
+hr	hr.records.staff_records	POST /academics/admin/faculty-allocation
+hr	hr.records.staff_records	POST /setup/class-teacher

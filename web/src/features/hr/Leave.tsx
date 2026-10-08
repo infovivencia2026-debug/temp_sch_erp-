@@ -518,7 +518,7 @@ export default function Leave() {
             <ErrorState error={q.error} />
           ) : (
             <>
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
               <SearchBox value={term} onChange={setTerm} placeholder="Name, type or reason" />
               <Showing shown={shown.length} total={items.length} noun="requests" />
               <ExportRows

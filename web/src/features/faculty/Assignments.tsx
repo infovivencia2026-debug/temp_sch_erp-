@@ -80,7 +80,7 @@ export default function Assignments() {
             />
           ) : (
             <>
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
               <SearchBox value={term} onChange={setTerm} placeholder="Title, subject or class" />
               <Showing shown={shown.length} total={rows.length} noun="assignments" />
               <ExportRows

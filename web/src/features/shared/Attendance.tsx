@@ -318,7 +318,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+          <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
             <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
             <Showing shown={shown.length} total={students.length} noun="students" />
             {/* The register as it stands, which is what a school hands to an
