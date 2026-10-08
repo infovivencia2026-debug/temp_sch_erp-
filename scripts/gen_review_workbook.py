@@ -106,6 +106,43 @@ ch.freeze_panes = 'A6'
 ch.auto_filter.ref = 'A5:K%d' % (r - 1)
 chain_rows = sum(1 for _ in CHAINS)
 
+# --- every bell the product rings -----------------------------------------
+# The chains are the big journeys. This is the rest of the product's
+# cross-role wiring: each row is a thing that happens in one account and
+# makes a notification appear in another. Read out of the Worker, not
+# remembered, so it covers what the journeys do not.
+from signals import SIGNALS
+
+sg = wb.create_sheet('Signals - who gets told')
+sg['A1'] = 'Every notification the product sends'
+sg['A1'].font = Font(bold=True, size=14)
+sg['A2'] = ('Read out of the server code. Each row is something done in one account that makes a bell ring in '
+            'another. Do the thing, then sign in as the other person and look at the bell.')
+sg['A2'].font = Font(size=10, color='6B7280')
+sg['A3'] = ('Blank "What they are told" means the sentence is built at run time, so only the live app can show '
+            'it -- which is worth checking reads properly.')
+sg['A3'].font = Font(size=10, color='6B7280')
+
+SG_COLS = [('Area', 20), ('What happened', 30), ('What they are told', 40),
+           ('Where the notification opens', 40), ('In the code', 34), ('Pass?', 8), ('Remarks', 30)]
+for i, (label, width) in enumerate(SG_COLS, start=1):
+    c = sg.cell(row=5, column=i, value=label)
+    c.font = HEAD
+    c.fill = HEAD_FILL
+    c.alignment = TOP
+    sg.column_dimensions[get_column_letter(i)].width = width
+
+sr = 6
+for area, kind, land, src, title in SIGNALS:
+    for i, v in enumerate([area, kind.replace('_', ' '), title, land, src, '', ''], start=1):
+        cell = sg.cell(row=sr, column=i, value=v)
+        cell.alignment = WRAP
+        cell.border = EDGE
+    sr += 1
+sg.freeze_panes = 'A6'
+sg.auto_filter.ref = 'A5:G%d' % (sr - 1)
+signal_rows = len(SIGNALS)
+
 roles = OrderedDict()
 for f in feats:
     roles.setdefault(f['Role'], []).append(f)
@@ -160,7 +197,9 @@ for role, rows in roles.items():
 summary['A1'] = 'WISEN ERP - testing workbook'
 summary['A1'].font = Font(bold=True, size=14)
 summary['A2'] = ('Start on "TEST THIS FIRST - chains": %d actions in the order a school does them, each saying '
-                 'what it changes for somebody else and whose account to open to prove it.' % chain_rows)
+                 'what it changes for somebody else and whose account to open to prove it. Then '
+                 '"Signals - who gets told": %d notifications read out of the server, which is the rest of the '
+                 'cross-role wiring the journeys do not cover.' % (chain_rows, signal_rows))
 summary['A2'].font = Font(size=10, color='6B7280')
 summary['A3'] = ('Then one tab per role: every screen, the tabs inside it (indented), the buttons on it, and a '
                  'Remarks column. A shaded row is a feature not built yet.')
