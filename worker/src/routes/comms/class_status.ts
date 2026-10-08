@@ -342,11 +342,20 @@ async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   for (let i = 0; i < people.length; i += 400) {
     const part = people.slice(i, i + 400)
     const pairs = JSON.stringify(part.map(([u, s]) => [u, s, uuid()]))
-    /* One entry per person per poster (notifications_one_per_source). An
-       unread one is updated in place and not pushed again; a read or cleared
-       one comes back unread, and is pushed as new. */
+    /* One entry per person per poster (notifications_one_per_source), so a
+       teacher who posts twice does not leave two rows in a parent's bell.
+
+       It used to keep the old pushed_at while the row was unread, meaning a
+       SECOND post was written into the first one's place and never announced:
+       a parent holding an unread "Priya Rao added a status" from this morning
+       was told nothing at all about the one that says the bus is late. The
+       tester read that as the feature simply not working, which from the
+       parent's side it was.
+
+       A new post is new. The row is still reused -- one per poster -- but it
+       is pushed again, because the thing being announced has changed. */
     stmts.push(c.db.prepare(`UPDATE notifications SET title = ?, body = ?, link = ?, created_at = ?,
-          pushed_at = CASE WHEN read_at IS NULL AND dismissed_at IS NULL THEN pushed_at ELSE ? END, read_at = NULL, dismissed_at = NULL
+          pushed_at = ?, read_at = NULL, dismissed_at = NULL
         WHERE kind = 'status' AND source_kind = 'status' AND source_id = ?
           AND user_id IN (SELECT json_extract(value, '$[0]') FROM json_each(?))`).bind(title, body, link, at, quiet, src, pairs))
     stmts.push(c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at, pushed_at)
