@@ -967,7 +967,7 @@ export const en = {
   'bento.my_work.late_units': 'late',
   'bento.my_work.kinds_count': 'kinds',
   'bento.my_work.kinds_sr': 'Outstanding work by kind',
-  'bento.my_work.kinds_note': 'The bar sums to the figure above it: each kind\'s own count, less leave already decided.',
+  'bento.my_work.kinds_note': 'By kind',
   'bento.my_work.empty_queue': 'Nothing outstanding on this list.',
   'bento.my_work.late_head': 'Late',
   'bento.my_work.none_late': 'None of it is late.',
@@ -982,9 +982,9 @@ export const en = {
   'bento.my_work.largest_none': 'No marks queue on this list.',
   'bento.my_work.largest_unit': '{count} missing',
   // Says out loud why there is no ranking across the kinds.
-  'bento.my_work.units_note': 'Only marks papers are ranked against each other. Marks, lessons and notices are different units.',
+  'bento.my_work.units_note': 'Marks papers only',
   'bento.my_work.dated_note': '{dated} of {count} outstanding items carry a date.',
-  'bento.my_work.cap_note': 'Listed ten at a time ({kinds}), so these are at least the figures shown.',
+  'bento.my_work.cap_note': 'At least these ({kinds})',
   // Overdue — the ageing of the queue.
   'bento.my_work.oldest': 'oldest',
   'bento.my_work.days_late': '{days}d',
@@ -1009,7 +1009,7 @@ export const en = {
   'bento.my_work.scope_section': 'from your sections',
   'bento.my_work.scope_own': 'from your account',
   'bento.my_work.rows_by_kind': 'Rows by kind',
-  'bento.my_work.sections_note': 'Submissions, marks and cover are scoped by section; leave and notices by account.',
+  'bento.my_work.sections_note': 'Across your sections',
   // --- the card language ---------------------------------------------------
   'bento.my_work.on_you': 'Outstanding on you',
   'bento.my_work.by_kind_head': 'By kind',
@@ -1165,10 +1165,10 @@ export const en = {
   'bento.principal.unassigned_tally_sr': '{count} subjects without a teacher, one mark each',
   /* The sentences. Each says what the number IS — which population, counted
      when — because that is the half of a figure a dashboard usually drops. */
-  'bento.principal.students_note': 'Active students on roll, with the sections and staff counted at the same instant.',
-  'bento.principal.staff_note': 'Active employees. The load is the roll divided by them, not a target.',
+  'bento.principal.students_note': 'On roll today',
+  'bento.principal.staff_note': 'Active staff',
   'bento.principal.defaulters_note': 'Students with at least one invoice past its due date.',
-  'bento.principal.outstanding_note_plain': 'Every unpaid invoice, of every year. No bills are tagged to an academic year, so there is nothing to show it against.',
+  'bento.principal.outstanding_note_plain': 'All unpaid invoices',
   'bento.principal.collected_note_plain': "Receipts banked in this period, whatever year's bill they settle.",
 
   /* THE CARD VOCABULARY — the eight KPI cells rebuilt on `CardShell`.
@@ -1737,11 +1737,11 @@ export const en = {
 
   'bento.hod.absent': 'Staff out today',
   'bento.hod.absent_sub': 'Not in today',
-  'bento.hod.absent_note': 'Out of {n} teachers. A level against a level is not a fraction, so it is not drawn as one.',
+  'bento.hod.absent_note': 'of {n} teachers',
   'bento.hod.cue_leave': 'Open leave',
 
   'bento.hod.marks_sub': 'Not yet moderated',
-  'bento.hod.marks_note': 'A queue, not a share: this page carries no total to divide it by, and a percentage of nothing is worse than a number.',
+  'bento.hod.marks_note': 'papers waiting',
   'bento.hod.cue_marks': 'Open moderation',
 
   'bento.hod.department': 'Teachers',
@@ -1784,12 +1784,12 @@ export const en = {
 
   'bento.hr.leave': 'Leave to decide',
   'bento.hr.leave_sub': 'Unanswered',
-  'bento.hr.leave_note': 'A queue rather than a share: nothing on this page is the number of requests it could have been out of.',
+  'bento.hr.leave_note': 'requests waiting',
   'bento.hr.cue_leave': 'Open leave',
 
   'bento.hr.joiners': 'Joined this month',
   'bento.hr.joiners_sub': 'Started in 30 days',
-  'bento.hr.joiners_note': 'Across {n} departments. A period count against a level is not a fraction, so it is not drawn as one.',
+  'bento.hr.joiners_note': 'across {n} departments',
   'bento.hr.cue_records': 'Open Staff 360',
 
   // --- the admissions desk board ------------------------------------------
@@ -1830,7 +1830,7 @@ export const en = {
 
   'bento.admissions.offered': 'Offers made',
   'bento.admissions.offered_sub': 'At offered',
-  'bento.admissions.offered_note': 'Shown as a stage in the funnel above rather than as a share: offered and enrolled test different columns, and an application can reach a student without passing through offered.',
+  'bento.admissions.offered_note': 'offers made',
   'bento.admissions.cue_offers': 'Open offers',
 
   'bento.admissions.sources': 'Where they came from',

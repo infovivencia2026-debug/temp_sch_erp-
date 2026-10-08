@@ -263,7 +263,7 @@ export function Ring({
       aria-label={`${srLabel}: ${v} of ${total}, ${pctText(v, total)}`}
       className={cn('flex h-full w-full items-center justify-center', className)}
     >
-      <div className="relative aspect-square h-full max-h-[120px] min-h-[64px]">
+      <div className="relative aspect-square h-full max-h-[120px] min-h-[64px] max-w-full">
         <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false" className="h-full w-full">
           <defs>
             {/* ONE hue, light step to full mark, along the arc — the

@@ -1306,7 +1306,7 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
           against the width overflowed the row and had its bottom sliced off by
           the cell's `overflow: hidden`. `h-full` with a square aspect makes the
           height the binding constraint, which is the one that is short. */}
-      <div className="relative grid aspect-square h-full max-h-[104px] place-items-center">
+      <div className="relative grid aspect-square h-full max-h-[104px] max-w-full place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
           {/* Thinner, and cut square at both ends.
 
@@ -1847,7 +1847,7 @@ export function Rings({
   if (!usable.length) return null
   return (
     <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
-      <div className="relative grid aspect-square h-full max-h-[112px] place-items-center">
+      <div className="relative grid aspect-square h-full max-h-[112px] max-w-full place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
           {usable.map((a, i) => {
             const r = 45 - i * 13

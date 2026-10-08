@@ -138,8 +138,8 @@ function Card({
     middle. */
 function GaugeBox({ value, total, srLabel }: { value: number; total: number; srLabel: string }) {
   return (
-    <div className="grid h-full min-h-0 place-items-center">
-      <div className="grid aspect-square h-full max-h-full place-items-center">
+    <div className="gauge-host grid h-full min-h-0 place-items-center">
+      <div className="gauge-fit grid place-items-center">
         <Gauge value={value} total={total} srLabel={srLabel} />
       </div>
     </div>
