@@ -135,9 +135,15 @@ export function Timeline({ items, office, raiserLabel = 'From the raiser' }: { i
               </span>
               <span>{u.author ?? 'System'}</span>
               <span>{formatDateTime(u.created_at)}</span>
+              {/* "Seen by the raiser" read as a receipt -- the office sent a
+                  reply and was told, within the same second, that the family
+                  had already read it. It never meant that: it is the opposite
+                  of the internal badge beside it, and says only that this
+                  entry is visible to them. Said plainly now. Whether they
+                  have actually read it is not something this screen knows. */}
               {office && (internal
                 ? <Badge tone="warning">Internal, not shown to the raiser</Badge>
-                : <Badge tone="info">Seen by the raiser</Badge>)}
+                : <Badge tone="info">Visible to the raiser</Badge>)}
             </div>
             <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed">{u.body}</p>
           </li>

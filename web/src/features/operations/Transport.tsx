@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useSession } from '@/lib/session'
-import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 
 /* Transport: the fleet, and the runs it makes.
  *
@@ -378,7 +378,11 @@ function BusTrackers() {
                   <span className="block text-[12px]">registered by {r.enrolled_by}</span>
                 )}
               </Td>
-              <Td className="text-muted-foreground tabular-nums">{r.last_seen_at ?? 'never'}</Td>
+              {/* The raw stored string was printed here -- "2026-09-05T05:25",
+                  a T and all, in UTC. It is when a phone last reported, which
+                  somebody reads to decide whether a bus is being tracked, so
+                  it is written the way the rest of the product writes a time. */}
+              <Td className="text-muted-foreground tabular-nums">{formatDateTime(r.last_seen_at) || 'never'}</Td>
               <Td>
                 <StatusPill
                   status={
