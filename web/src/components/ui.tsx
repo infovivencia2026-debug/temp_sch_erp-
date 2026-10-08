@@ -368,6 +368,21 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const filled = kids.length
   if (filled === 0) return null
 
+  /* ONE FIGURE IS A TILE, NOT A BANNER.
+
+     The rule below widens the last cell to close the row's right edge, which
+     is right for three tiles in a four-track row and wrong for one: a lone
+     "Collected today" stretched the full width of the page with its number
+     marooned at the left, and the board's home screen opened with it. It
+     happens wherever permissions leave a single tile standing -- the trustee
+     sees one of the five money cards, the transport desk one of four.
+
+     A single tile keeps a tile's width and the row stays open to its right,
+     which is what every other row in the product does when it is short. */
+  if (filled === 1) {
+    return <div className="cell-grid reveal grid grid-cols-1 sm:max-w-[22rem]">{kids}</div>
+  }
+
   const grid: string[] = []
   const span: string[] = []
   let widest = 1
