@@ -1,3 +1,4 @@
+import { markLaunch, playClose, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/ui'
 import {
@@ -1282,7 +1283,15 @@ export function AppearanceDialog({
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }, [open, initialTab])
 
+  const launchRef = useRef<boolean | null>(null)
+  if (open && launchRef.current === null) launchRef.current = shouldLaunch()
+  if (!open) launchRef.current = null
+  useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
   const handleClose = () => {
+    const panel = typeof document !== 'undefined' ? document.querySelector('[data-appearance-dialog]') : null
+    playClose(panel, closeNow, panel?.closest('.appearance-overlay') ?? document.querySelector('.appearance-overlay'))
+  }
+  const closeNow = () => {
     if (typeof document !== 'undefined' && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
@@ -1335,7 +1344,7 @@ export function AppearanceDialog({
       width="920px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
-      panelProps={{ 'data-appearance-dialog': '' }}
+      panelProps={{ 'data-appearance-dialog': '', ...(launchRef.current ? { 'data-launching': '' } : {}) }}
       className={cn(
         'appearance-panel pop-down sm:h-[min(88vh,760px)]',
         SURFACE, EDGE,
