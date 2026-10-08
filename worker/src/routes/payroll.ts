@@ -683,22 +683,32 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
 // ------------------------------------------------------------ the run
 
 async function runPayroll(c: Ctx) {
-  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean }>(c.req)
+  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean; exclude_employee_ids?: string[] }>(c.req)
+  /* Staff the person running payroll chose to leave out of this month (owner,
+     2026-10-08: "let them deselect him / her"). */
+  const excluded = new Set((Array.isArray(req.exclude_employee_ids) ? req.exclude_employee_ids : []).filter((x) => typeof x === 'string'))
   const month = Number(req.month ?? 0), year = Number(req.year ?? 0)
   if (month < 1 || month > 12 || year < 2000) throw badRequest('month must be 1-12 and year must be valid')
   const inst = c.id.institution!.id
   const key = `${year}-${pad2(month)}`
 
   if (!req.acknowledge_unmarked_attendance) {
-    const gap = await c.db.prepare(`
-      SELECT COUNT(*) AS staff, COALESCE(SUM(MAX(0, ?2 - marked)), 0) AS days FROM (
-        SELECT e.id, (SELECT COUNT(*) FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1) AS marked
-          FROM employees e WHERE e.status = 'active' AND e.user_id IS NOT NULL) t
-       WHERE marked = 0`).bind(key, daysInMonth(year, month)).first<{ staff: number; days: number }>()
-    if (gap && gap.staff > 0) {
+    /* Only people this run would pay: staff with no salary in force are not
+       paid at all, so their empty register is not a question. Each is named,
+       with the pay they would get in full, so the choice is about people. */
+    const gap = (await c.db.prepare(`
+      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name, ss.ctc_paise
+        FROM employees e
+        JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?2 AND (ss.effective_to IS NULL OR ss.effective_to >= ?2)
+       WHERE e.status = 'active' AND e.user_id IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1)
+       ORDER BY e.employee_code`).bind(key, `${key}-01`).all<{ id: string; code: string; name: string; ctc_paise: number }>()).results
+      .filter((g) => !excluded.has(g.id))
+    if (gap.length > 0) {
       throw new HttpError(409,
-        `${gap.staff} staff have no attendance marked for this month. Their days will be paid in full, and loss of pay will deduct nothing. Acknowledge to run anyway.`,
-        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.staff, unmarked_days: gap.days } })
+        `${gap.length} staff have no attendance marked for this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
+        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.length * daysInMonth(year, month),
+          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, monthly_paise: Math.round(Number(g.ctc_paise ?? 0) / 12) })) } })
     }
   }
 
@@ -736,6 +746,7 @@ async function runPayroll(c: Ctx) {
   const stmts: D1PreparedStatement[] = [c.db.prepare(`DELETE FROM payslips WHERE payroll_run_id = ?`).bind(runId)]
   let employees = 0, gross = 0, deduction = 0, net = 0
   for (const e of emps.results) {
+    if (excluded.has(e.id)) continue
     const l = lop.get(e.id) ?? { lop_days: 0, expected_days: 0 }
     let base = nDays
     if (e.divisor > 0) base = e.divisor
@@ -873,7 +884,8 @@ function registerPayrollGroup(r: Router) {
     const rows = await c.db.prepare(`
       SELECT e.employee_code, ${EMP_NAME} AS full_name, CAST(ps.paid_days AS TEXT) AS paid_days, CAST(ps.lop_days AS TEXT) AS lop_days,
              ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup, pr.status AS run_status,
-             pr.published_at IS NOT NULL AS published, e.status <> 'active' AS left_service
+             pr.published_at IS NOT NULL AS published, e.status <> 'active' AS left_service,
+             (COALESCE(e.bank_account,'') <> '' AND COALESCE(e.bank_ifsc,'') <> '') AS bank_ready, e.id AS employee_id
         FROM payslips ps JOIN employees e ON e.id = ps.employee_id JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
        WHERE (?1 IS NULL OR pr.period_month = ?1) AND (?2 IS NULL OR pr.period_year = ?2)
        ORDER BY e.employee_code`).bind(month, year).all()
@@ -881,6 +893,7 @@ function registerPayrollGroup(r: Router) {
       employee_code: v.employee_code, full_name: v.full_name, paid_days: str(v.paid_days), lop_days: str(v.lop_days),
       gross_paise: numOr0(v.gross_paise), deduction_paise: numOr0(v.deduction_paise), net_paise: numOr0(v.net_paise),
       breakup: parseJSON(v.breakup), run_status: v.run_status, published: bool(v.published), left_service: bool(v.left_service),
+      bank_ready: bool(v.bank_ready), employee_id: v.employee_id,
     }))))
   })
   // The Go route also wraps runPayroll in RequireFresh (a recent sign-in); the worker's router has no such gate.

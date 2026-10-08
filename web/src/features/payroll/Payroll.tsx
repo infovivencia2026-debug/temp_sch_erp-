@@ -22,7 +22,11 @@ interface Payslip {
   paid_days: string; lop_days: string
   gross_paise: number; deduction_paise: number; net_paise: number
   breakup: Record<string, number>
+  bank_ready?: boolean
+  employee_id?: string
 }
+interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number }
+interface Unmarked { staff_with_no_marks: number; unmarked_days: number; staff?: UnmarkedStaff[] }
 
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December']
@@ -99,20 +103,24 @@ export default function Payroll() {
    * second is the common case, which is how a school finds out in March that
    * loss of pay has never once deducted. The run stops, says how big the gap
    * is, and goes ahead only when somebody says they know. */
-  const [unmarked, setUnmarked] = useState<{ staff_with_no_marks: number; unmarked_days: number } | null>(null)
+  const [unmarked, setUnmarked] = useState<Unmarked | null>(null)
+  /* Who to leave out of this month: ticked = paid in full, unticked = left out. */
+  const [leaveOut, setLeaveOut] = useState<Set<string>>(new Set())
   const run = useMutation({
     mutationFn: (acknowledge: boolean) =>
       api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
         month: Number(month), year: Number(year),
         acknowledge_unmarked_attendance: acknowledge,
+        exclude_employee_ids: [...leaveOut],
       }),
     onSuccess: () => {
       setUnmarked(null)
+      setLeaveOut(new Set())
       qc.invalidateQueries({ queryKey: ['payslips'] })
     },
     onError: (e: unknown) => {
       const body = (e as ApiError).body as
-        | { unmarked?: { staff_with_no_marks: number; unmarked_days: number } }
+        | { unmarked?: Unmarked }
         | undefined
       if (body?.unmarked) setUnmarked(body.unmarked)
     },
@@ -204,27 +212,42 @@ export default function Payroll() {
         {unmarked && (
           <Card>
             <CardHeader
-              title="Nobody marked the register for this month"
-              description={
-                `${unmarked.staff_with_no_marks} staff have no attendance at all, and ` +
-                `${unmarked.unmarked_days} working days are unaccounted for. Their days will be ` +
-                'paid in full, and loss of pay will deduct nothing. That may be exactly right · ' +
-                'a school that keeps its register on paper still pays people on the 30th, but ' +
-                'it should be a decision, not an accident.'
-              }
+              title={`${unmarked.staff_with_no_marks} ${unmarked.staff_with_no_marks === 1 ? 'person has' : 'people have'} no attendance this month`}
+              description="Nobody marked their register, so they would be paid in full with no loss of pay. Untick anyone who should not be paid this month, or mark their attendance first on Staff register."
             />
-            <div className="px-5 pb-5 pt-4">
-              <label className="flex items-start gap-2 text-[14px]">
-                <input
-                  type="checkbox"
-                  onChange={(e) => { if (e.target.checked) run.mutate(true) }}
-                  className="mt-1"
-                />
-                <span>I acknowledge this, and want to run payroll anyway.</span>
-              </label>
+            {(unmarked.staff ?? []).length > 0 && (
+              <Table head={['Pay this month', 'Code', 'Name', 'Monthly pay']}>
+                {(unmarked.staff ?? []).map((s) => (
+                  <tr key={s.id}>
+                    <Td>
+                      <input type="checkbox" aria-label={`Pay ${s.name} this month`} checked={!leaveOut.has(s.id)}
+                        onChange={(e) => setLeaveOut((cur) => { const n = new Set(cur); if (e.target.checked) n.delete(s.id); else n.add(s.id); return n })} />
+                    </Td>
+                    <Td className="font-mono text-[12px]">{s.code}</Td>
+                    <Td className="font-medium">{s.name}</Td>
+                    <Td className="tabular-nums">{s.monthly_paise ? formatPaise(s.monthly_paise) : '-'}</Td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-5 pt-4">
+              <Button disabled={run.isPending} onClick={() => run.mutate(true)}>
+                {leaveOut.size ? `Run payroll, leaving out ${leaveOut.size}` : 'Run payroll, paying them in full'}
+              </Button>
+              <a href="/hr/attendance/staff_register" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">Mark attendance first</a>
+              <Button variant="ghost" onClick={() => { setUnmarked(null); setLeaveOut(new Set()) }}>Cancel</Button>
             </div>
           </Card>
         )}
+        {(() => {
+          /* The bank file pays by account number and IFSC; a person without
+             them is a blank line the bank will bounce (owner, 2026-10-08). */
+          const noBank = (slips.data?.items ?? []).filter((s) => s.bank_ready === false)
+          if (!noBank.length) return null
+          return (
+            <FormNotice error={new Error(`${noBank.length} of ${(slips.data?.items ?? []).length} staff have no bank account or IFSC, so the bank file cannot pay them: ${noBank.map((s) => s.full_name).join(', ')}. Add them on Staff records → the person → Bank details.`)} />
+          )
+        })()}
         {note && <FormNotice ok={note} />}
         {state.isError && <FormNotice error={state.error} />}
 
