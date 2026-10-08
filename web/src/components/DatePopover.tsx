@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useAnchoredPosition } from './anchored'
 
 /* ONE CALENDAR, EVERYWHERE A DATE IS ASKED FOR.
  *
@@ -50,6 +49,38 @@ export function prettyDate(v: string): string {
   return p ? `${pad(p.d)} ${SHORT[p.m]} ${p.y}` : ''
 }
 
+
+/* ALWAYS BELOW THE FIELD, NEVER ABOVE IT.
+
+   The shared anchor hook flips a panel above its field when there is more
+   room up there. For a menu that is right; for this it is not. A calendar is
+   310px tall, so near the foot of a page it flipped, and the owner saw the
+   same control open downwards on one screen and upwards on the next -- so the
+   day you were reaching for moved depending on where the field happened to
+   sit. One direction, every time: down, shifted sideways only as far as
+   keeping it on screen requires. */
+function below(anchor: RefObject<HTMLElement | null>, width: number): CSSProperties {
+  const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', opacity: 0 })
+  useLayoutEffect(() => {
+    const place = () => {
+      const a = anchor.current
+      if (!a) return
+      const r = a.getBoundingClientRect()
+      const margin = 8
+      const left = Math.min(Math.max(margin, r.left), window.innerWidth - width - margin)
+      setStyle({ position: 'fixed', left, top: r.bottom + 6, opacity: 1 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [anchor, width])
+  return style
+}
+
 export function DatePopover({
   value, onChange, onClose, anchor, min, max,
 }: {
@@ -68,7 +99,7 @@ export function DatePopover({
   }))
   const [months, setMonths] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const pos = useAnchoredPosition(true, anchor, box, { gap: 6, minWidth: 310, maxHeight: 420 })
+  const pos = below(anchor, 310)
 
   /* Escape closes, and so does a press anywhere else. Pointerdown rather than
      click: a click that starts outside and ends inside must not close it. */
@@ -239,7 +270,7 @@ export function MonthField({
   const [shownYear, setShownYear] = useState(year)
   const anchor = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
-  const pos = useAnchoredPosition(open, anchor, box, { gap: 6, minWidth: 280 })
+  const pos = below(anchor, 280)
 
   useEffect(() => { if (open) setShownYear(year) }, [open, year])
   useEffect(() => {

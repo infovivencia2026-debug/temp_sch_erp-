@@ -15,7 +15,7 @@ import { useAnchoredPosition } from './anchored'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
   CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
-  Maximize2, Printer, RefreshCw, X, CalendarDays} from 'lucide-react'
+  Maximize2, Printer, RefreshCw, X} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
@@ -2164,20 +2164,32 @@ export function Input({
   if (type === 'date' && !disabled) {
     return (
       <div ref={dateRef} className={cn('relative', className)}>
+        {/* A DATE BOX IS A DROPDOWN, NOT AN ACTION.
+
+            This first drew as a bordered control with an icon on the right,
+            which is the shape of the Export button beside it -- and the one
+            thing a person must be able to tell at a glance is which controls
+            DO something and which merely open a list. It is the Select's own
+            markup now: the same `field` box, the same round chevron in the
+            same place, turning over when it opens. */}
         <button
           type="button"
           onClick={() => setCal((s) => !s)}
           aria-label={srLabel || 'Choose a date'}
           aria-expanded={cal}
           aria-invalid={ariaInvalid || undefined}
-          className={cn('field flex w-full items-center justify-between gap-2 text-left',
-            '[@media(pointer:coarse)]:text-[16px]')}
+          className={cn('field w-full cursor-text pr-11 text-left [@media(pointer:coarse)]:text-[16px]')}
         >
           <span className={cn(!value && 'text-muted-foreground')}>
             {prettyDate(value) || placeholder || 'Choose a date'}
           </span>
-          <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         </button>
+        <span
+          aria-hidden
+          className="tap-inline pointer-events-none absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground"
+        >
+          <ChevronDown className={cn('h-4 w-4 transition-transform', cal && 'rotate-180')} />
+        </span>
         {cal && (
           <DatePopover
             value={value}

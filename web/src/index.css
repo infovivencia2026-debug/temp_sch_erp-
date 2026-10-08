@@ -4761,3 +4761,30 @@ input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
   transform: translateY(-50%) translateX(0);
   transition-delay: 0ms;
 }
+
+/* THE SPINNER WAS EATING THE NUMBER.
+
+   A number box in a narrow column -- a periods-per-week cell, a mark against
+   a subject, a quantity in a stock row -- is about 44px wide, and Chrome
+   spends 16 of those on a pair of stepper arrows it draws inside the box. The
+   owner sent a screenshot of one: a blue-ringed field showing a bracket and
+   two tiny triangles, with the actual figure pushed out of sight.
+
+   The arrows are not worth that. Nobody sets a mark of 87 by pressing an up
+   arrow 87 times, and every one of these boxes takes the keyboard, the arrow
+   keys and the scroll wheel exactly as before -- only the drawn control goes.
+   196 of them across the product, so this is done once here rather than with
+   a class each screen has to remember.
+
+   Firefox needs the textfield appearance; WebKit needs both pseudo-elements,
+   inner and outer. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
