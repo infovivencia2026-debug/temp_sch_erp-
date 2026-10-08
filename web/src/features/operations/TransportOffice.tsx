@@ -1549,6 +1549,7 @@ interface StopRow {
   longitude?: string
   fare_paise: number
   geofence_m?: number
+  zone?: string
   riders: number
 }
 interface StopForm {
@@ -1564,10 +1565,12 @@ interface StopForm {
      be stuck with: there was nowhere to widen the circle for the one stop on a
      dual carriageway where the bus pulls in fifty metres past the shelter. */
   geofence_m: string
+  /** The locality the stop serves, for the zone-wise report and the daily sheet. */
+  zone: string
 }
 
 const BLANK_STOP: StopForm = {
-  name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '', geofence_m: '',
+  name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '', geofence_m: '', zone: '',
 }
 const BLANK_ROUTE = { name: '', code: '', vehicle_id: '', distance_km: '' }
 
@@ -1618,6 +1621,7 @@ function Routes() {
             // Absent, not zero, when the office left it blank: a zero radius
             // is a stop the bus can never be said to have reached.
             geofence_m: s.geofence_m.trim() === '' ? undefined : Number(s.geofence_m),
+            zone: s.zone.trim() || undefined,
           })),
       }
       return editing
@@ -1687,6 +1691,7 @@ function Routes() {
         // Blank, not "0", when the stop uses the school default: an editor
         // that reads a null back as a zero saves a circle nothing can enter.
         geofence_m: s.geofence_m != null ? String(s.geofence_m) : '',
+        zone: s.zone ?? '',
       })),
       { ...BLANK_STOP },
     ])
@@ -1826,6 +1831,9 @@ function Routes() {
                         onChange={setStop(i, 'geofence_m')}
                         placeholder="120"
                       />
+                    </Field>
+                    <Field label="Zone" hint="The locality, for the zone-wise report.">
+                      <Input value={s.zone} onChange={setStop(i, 'zone')} placeholder="Kukatpally" />
                     </Field>
                   </FormGrid>
 

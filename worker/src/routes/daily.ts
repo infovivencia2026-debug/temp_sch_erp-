@@ -1057,6 +1057,83 @@ function registerWorkflow(r: Router) {
     })) })
   })
   r.post('/workflow/staff-attendance', 'hr.attendance.write', markStaffAttendance)
+
+  /* A member of staff asks for a day's punch to be fixed; HR decides on the
+     Staff register, and an approved request writes the mark. */
+  r.get('/hr/attendance-requests', 'auth', listAttendanceRequests)
+  r.post('/hr/attendance-requests', 'auth', askAttendanceFix)
+  r.post('/hr/attendance-requests/{id}/decide', 'hr.attendance.write', decideAttendanceFix)
+}
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+
+async function listAttendanceRequests(c: Ctx): Promise<Response> {
+  const q = c.url.searchParams
+  const mine = q.get('for') === 'mine' || !can(c.id, 'hr.attendance.write')
+  const status = q.get('status')
+  const rows = await c.db.prepare(`
+    SELECT ar.id, ar.on_date, ar.status_wanted, ar.check_in, ar.check_out, ar.reason, ar.status, ar.decision_note, ar.created_at,
+           ${fullName2('e')} AS full_name, e.employee_code, e.id AS employee_id
+      FROM staff_attendance_requests ar JOIN employees e ON e.id = ar.employee_id
+     WHERE (? IS NULL OR ar.status = ?) AND ${mine ? 'e.user_id = ?' : '1'}
+     ORDER BY ar.status <> 'pending', ar.on_date DESC LIMIT 300`)
+    .bind(status, status, ...(mine ? [c.id.userId] : [])).all<Record<string, unknown>>()
+  return ok({ items: rows.results.map((v) => { for (const k of Object.keys(v)) if (v[k] === null) delete v[k]; return v }) })
+}
+
+async function askAttendanceFix(c: Ctx): Promise<Response> {
+  const req = await readJSON<{ on_date?: string; check_in?: string; check_out?: string; reason?: string; status_wanted?: string }>(c.req)
+  const on = req.on_date ?? ''
+  if (!isDate(on)) throw badRequest('on_date must be YYYY-MM-DD')
+  if (on > today()) throw badRequest('a day that has not happened yet cannot be fixed')
+  const reason = (req.reason ?? '').trim()
+  if (reason.length < 5) throw badRequest('say what happened, in at least a few words')
+  const inAt = (req.check_in ?? '').trim() || null, outAt = (req.check_out ?? '').trim() || null
+  if ((inAt && !HHMM.test(inAt)) || (outAt && !HHMM.test(outAt))) throw badRequest('times are HH:MM')
+  if (inAt && outAt && outAt <= inAt) throw badRequest('leaving before arriving is not a day')
+  const wanted = req.status_wanted ?? 'present'
+  if (!['present', 'half_day', 'wfh'].includes(wanted)) throw badRequest('status_wanted is present, half_day or wfh')
+  const emp = await c.db.prepare(`SELECT id FROM employees WHERE user_id = ? AND status IN ('active','on_leave')`).bind(c.id.userId).first<{ id: string }>()
+  if (!emp) throw badRequest('your account is not on the staff roll')
+  const dup = await c.db.prepare(`SELECT 1 FROM staff_attendance_requests WHERE employee_id = ? AND on_date = ? AND status = 'pending'`).bind(emp.id, on).first()
+  if (dup) throw new HttpError(409, 'a request for that day is already waiting', { code: 'pending' })
+  const id = uuid()
+  await c.db.prepare(`INSERT INTO staff_attendance_requests (id, institution_id, employee_id, on_date, status_wanted, check_in, check_out, reason, status, created_at)
+      VALUES (?,?,?,?,?,?,?,?,'pending',?)`).bind(id, c.id.institution!.id, emp.id, on, wanted, inAt, outAt, reason, now()).run()
+  return created({ id, status: 'pending' })
+}
+
+async function decideAttendanceFix(c: Ctx): Promise<Response> {
+  const id = uuidParam(c.params.id)
+  const req = await readJSON<{ decision?: string; note?: string }>(c.req)
+  const decision = req.decision ?? ''
+  if (decision !== 'approved' && decision !== 'rejected') throw badRequest('decision must be approved or rejected')
+  const note = (req.note ?? '').trim()
+  if (decision === 'rejected' && note === '') throw badRequest('a refusal needs a line the person will read')
+  const ar = await c.db.prepare(`SELECT ar.employee_id, ar.on_date, ar.status_wanted, ar.check_in, ar.check_out, e.user_id
+      FROM staff_attendance_requests ar JOIN employees e ON e.id = ar.employee_id WHERE ar.id = ? AND ar.status = 'pending'`).bind(id)
+    .first<{ employee_id: string; on_date: string; status_wanted: string; check_in: string | null; check_out: string | null; user_id: string | null }>()
+  if (!ar) throw new HttpError(404, 'no pending request with that id', { code: 'not_found' })
+  const t = now()
+  const stmts: D1PreparedStatement[] = [
+    c.db.prepare(`UPDATE staff_attendance_requests SET status = ?, decided_by = ?, decided_at = ?, decision_note = NULLIF(?, '') WHERE id = ?`).bind(decision, c.id.userId, t, note, id),
+  ]
+  if (decision === 'approved') {
+    if (!ar.user_id) throw badRequest('this member of staff has no login, so the register cannot carry their mark; mark the register by hand')
+    await requireOpenMonth(c, ar.on_date)
+    const campus = await ensureCampus(c)
+    const tz = c.id.institution!.timezone
+    stmts.push(c.db.prepare(`
+      INSERT INTO staff_attendance (id, institution_id, campus_id, user_id, on_date, status, check_in, check_out, source, remarks, marked_by, created_at)
+      VALUES (?,?,?,?,?,?,?,?,'manual',?,?,?)
+      ON CONFLICT (user_id, on_date) DO UPDATE SET status = excluded.status, check_in = COALESCE(excluded.check_in, staff_attendance.check_in),
+        check_out = COALESCE(excluded.check_out, staff_attendance.check_out), remarks = excluded.remarks, marked_by = excluded.marked_by`)
+      .bind(uuid(), c.id.institution!.id, campus, ar.user_id, ar.on_date, ar.status_wanted,
+        ar.check_in ? localToUtc(tz, ar.on_date, ar.check_in) : null, ar.check_out ? localToUtc(tz, ar.on_date, ar.check_out) : null,
+        'Fixed on request' + (note ? ': ' + note : ''), c.id.userId, t))
+  }
+  await c.db.batch(stmts)
+  return ok({ id, status: decision })
 }
 
 const leaveSpan = (from: string, to: string, days: unknown) => {

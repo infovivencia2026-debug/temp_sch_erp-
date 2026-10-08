@@ -206,6 +206,8 @@ export default function StaffAttendance() {
 
         <FormNotice error={save.error} ok={note} />
 
+        {mayMark && <PunchRequests />}
+
         <Card>
           <CardHeader
             title="Register"
@@ -286,5 +288,45 @@ export default function StaffAttendance() {
         </Card>
       </PageBody>
     </>
+  )
+}
+
+/* Requests from staff to fix a day's punch. Approving writes the mark the
+   person asked for; refusing needs a line they will read. */
+function PunchRequests() {
+  const qc = useQueryClient()
+  const [notes, setNotes] = useState<Record<string, string>>({})
+  const q = useQuery({
+    queryKey: ['attendance-requests', 'pending'],
+    queryFn: () => api.get<List<{ id: string; on_date: string; check_in?: string; check_out?: string; reason: string; full_name: string; employee_code: string }>>('/api/v1/hr/attendance-requests?status=pending'),
+  })
+  const decide = useMutation({
+    mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) => api.post(`/api/v1/hr/attendance-requests/${v.id}/decide`, { decision: v.decision, note: notes[v.id] ?? '' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance-requests'] }); qc.invalidateQueries({ queryKey: ['staff-register'] }) },
+  })
+  const rows = q.data?.items ?? []
+  if (!rows.length) return null
+  return (
+    <Card>
+      <CardHeader title="Requests to fix a punch" description="Approving writes the mark they asked for into the register." />
+      <Table head={['Person', 'Day', 'Times', 'Reason', '']}>
+        {rows.map((r) => (
+          <tr key={r.id}>
+            <Td className="font-medium">{r.full_name}<span className="block font-mono text-[11.5px] font-normal text-muted-foreground">{r.employee_code}</span></Td>
+            <Td className="text-muted-foreground">{r.on_date}</Td>
+            <Td className="tabular-nums">{[r.check_in, r.check_out].filter(Boolean).join(' to ') || 'present'}</Td>
+            <Td className="text-muted-foreground"><span className="block max-w-[32ch] truncate" title={r.reason}>{r.reason}</span></Td>
+            <Td>
+              <span className="flex flex-wrap items-center gap-2">
+                <Input className="w-40" value={notes[r.id] ?? ''} onChange={(v) => setNotes({ ...notes, [r.id]: v })} placeholder="Note" />
+                <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, decision: 'approved' })}>Approve</Button>
+                <Button size="sm" variant="ghost" tone="danger" disabled={decide.isPending || !(notes[r.id] ?? '').trim()} onClick={() => decide.mutate({ id: r.id, decision: 'rejected' })}>Refuse</Button>
+              </span>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <div className="px-5 pb-4"><FormNotice error={decide.error} /></div>
+    </Card>
   )
 }

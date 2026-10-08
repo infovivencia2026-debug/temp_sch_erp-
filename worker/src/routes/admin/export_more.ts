@@ -234,6 +234,29 @@ export function moreSpecs(today: string): Record<string, Spec> {
           sum(CASE WHEN q.status IN ('admitted','converted','enrolled') AND substr(q.updated_at,1,7) = substr(${t},1,7) THEN 1 ELSE 0 END)
         FROM enquiries q LEFT JOIN users u ON u.id = q.assigned_to GROUP BY u.full_name ORDER BY count(*) DESC` },
 
+    // ---------------------------------------------------------------- transport
+    transport_zone_students: { title: 'Students by transport zone', about: 'Every child on a bus, grouped by the zone of their pickup stop, with the route and the stop.', perm: 'operations.transport.read',
+      header: ['Zone', 'Route', 'Stop', 'Admission No', 'Name', 'Class', 'Guardian', 'Phone', 'Pickup'],
+      query: `SELECT COALESCE(NULLIF(ps.zone,''),'No zone'), r.name, ps.name, st.admission_no, ${name2('st')}, ${cls}, COALESCE(g.full_name,''), COALESCE(g.phone,''), COALESCE(substr(ps.pickup_time,1,5),'')
+        FROM transport_allocations ta JOIN students st ON st.id = ta.student_id ${latestEnrol} ${primaryGuardian}
+        JOIN routes r ON r.id = ta.route_id LEFT JOIN route_stops ps ON ps.id = ta.pickup_stop_id
+        WHERE ta.valid_to IS NULL AND st.status = 'active' ORDER BY 1, r.name, ps.sequence, st.admission_no` },
+    transport_daily_sheet: { title: 'Daily transport sheet', about: 'Today, route by route: the bus, the driver, how many children are allocated, how many boarded this morning and were dropped, and who was marked absent on the bus.', perm: 'operations.transport.read',
+      header: ['Route', 'Bus', 'Driver', 'Allocated', 'Boarded (morning)', 'Dropped (afternoon)', 'Absent on bus', 'Stops'],
+      query: `SELECT r.name, COALESCE(v.registration_no,''), COALESCE(${name2('d')},''),
+          (SELECT count(*) FROM transport_allocations ta WHERE ta.route_id = r.id AND ta.valid_to IS NULL),
+          (SELECT count(*) FROM transport_attendance x WHERE x.route_id = r.id AND x.on_date = ${t} AND x.leg = 'morning' AND x.status = 'boarded'),
+          (SELECT count(*) FROM transport_attendance x WHERE x.route_id = r.id AND x.on_date = ${t} AND x.leg = 'afternoon' AND x.status IN ('boarded','alighted')),
+          (SELECT count(*) FROM transport_attendance x WHERE x.route_id = r.id AND x.on_date = ${t} AND x.status = 'absent'),
+          (SELECT count(*) FROM route_stops rs WHERE rs.route_id = r.id AND rs.is_school = 0)
+        FROM routes r LEFT JOIN vehicles v ON v.id = r.vehicle_id LEFT JOIN employees d ON d.id = v.driver_employee_id
+        WHERE r.is_active = 1 ORDER BY r.name` },
+    vehicle_papers: { title: 'Vehicles and their papers', about: 'Every bus with its capacity, driver, attendant, and when the insurance, fitness, permit and pollution certificates run out.', perm: 'operations.transport.read',
+      header: ['Bus', 'Registration', 'Model', 'Capacity', 'Driver', 'Attendant', 'Insurance to', 'Fitness to', 'Permit to', 'PUC to', 'GPS device', 'Status'],
+      query: `SELECT COALESCE(v.bus_code,''), v.registration_no, COALESCE(v.model,''), COALESCE(CAST(v.capacity AS TEXT),''), COALESCE(${name2('d')},''), COALESCE(${name2('a')},''),
+          COALESCE(${dmy('v.insurance_expiry')},''), COALESCE(${dmy('v.fitness_expiry')},''), COALESCE(${dmy('v.permit_expiry')},''), COALESCE(${dmy('v.puc_expiry')},''), COALESCE(v.gps_device_id,''), v.status
+        FROM vehicles v LEFT JOIN employees d ON d.id = v.driver_employee_id LEFT JOIN employees a ON a.id = v.attendant_employee_id ORDER BY v.bus_code, v.registration_no` },
+
     // ---------------------------------------------------------------- organisation
     roles_menus: { title: 'Menus by role', about: 'For every role in this school, the screens it can open. What MCB calls user-type-wise menus.', perm: 'access.roles.read',
       header: ['Role', 'Screens', 'People holding it', 'Customised'],

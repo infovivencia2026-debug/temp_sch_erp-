@@ -335,6 +335,7 @@ export default function Leave() {
           />
         </CellGrid>
 
+        {selfService && <AttendanceFix />}
         {mayApply && (
         <Card>
           <CardHeader
@@ -598,5 +599,54 @@ export default function Leave() {
         </Card>
       </PageBody>
     </>
+  )
+}
+
+/* A DAY THE MACHINE GOT WRONG.
+
+   Forgot to punch, the reader was down, came in through the other gate: the
+   register says absent and the payslip will cut a day. The person asks here
+   with the times and the reason; HR decides on the Staff register, and an
+   approved request writes the mark. */
+function AttendanceFix() {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ on_date: '', check_in: '', check_out: '', reason: '' })
+  const mine = useQuery({
+    queryKey: ['attendance-requests', 'mine'],
+    queryFn: () => api.get<List<{ id: string; on_date: string; check_in?: string; check_out?: string; reason: string; status: string; decision_note?: string }>>('/api/v1/hr/attendance-requests?for=mine'),
+  })
+  const send = useMutation({
+    mutationFn: () => api.post('/api/v1/hr/attendance-requests', { ...form, check_in: form.check_in || undefined, check_out: form.check_out || undefined }),
+    onSuccess: () => { setForm({ on_date: '', check_in: '', check_out: '', reason: '' }); qc.invalidateQueries({ queryKey: ['attendance-requests'] }) },
+  })
+  const rows = mine.data?.items ?? []
+  return (
+    <Card>
+      <CardHeader title="Fix a day's attendance" description="Forgot to punch, or the reader was down. HR decides; an approved request corrects the register." />
+      <div className="px-5 pb-5">
+        <FormGrid>
+          <Field label="Day" required><Input type="date" value={form.on_date} onChange={(v) => setForm({ ...form, on_date: v })} /></Field>
+          <Field label="Came in"><Input type="time" value={form.check_in} onChange={(v) => setForm({ ...form, check_in: v })} /></Field>
+          <Field label="Left"><Input type="time" value={form.check_out} onChange={(v) => setForm({ ...form, check_out: v })} /></Field>
+        </FormGrid>
+        <Field label="What happened" required><Input value={form.reason} onChange={(v) => setForm({ ...form, reason: v })} placeholder="The reader at the main gate was off; the guard saw me come in at 8:50" /></Field>
+        <FormNotice error={send.error} />
+        <Button className="mt-3" disabled={!form.on_date || form.reason.trim().length < 5 || send.isPending} onClick={() => send.mutate()}>{send.isPending ? 'Sending…' : 'Ask HR to fix it'}</Button>
+        {rows.length > 0 && (
+          <div className="mt-4">
+            <Table head={['Day', 'Times', 'Reason', 'Status']}>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <Td className="text-muted-foreground">{formatDate(r.on_date)}</Td>
+                  <Td className="tabular-nums">{[r.check_in, r.check_out].filter(Boolean).join(' to ') || '-'}</Td>
+                  <Td className="text-muted-foreground"><span className="block max-w-[28ch] truncate" title={r.reason}>{r.reason}</span></Td>
+                  <Td><StatusPill status={r.status} />{r.decision_note && <span className="block text-[11.5px] text-muted-foreground">{r.decision_note}</span>}</Td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        )}
+      </div>
+    </Card>
   )
 }

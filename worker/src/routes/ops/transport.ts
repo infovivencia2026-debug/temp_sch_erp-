@@ -401,7 +401,7 @@ export function registerTransport(r: Router): void {
     const rid = c.params.id
     if (!isUUID(rid)) throw badRequest('invalid route id')
     const rows = await c.db.prepare(`SELECT rs.id, rs.name, rs.sequence, substr(rs.pickup_time,1,5) AS pickup_time, substr(rs.drop_time,1,5) AS drop_time,
-        COALESCE(rs.fare_paise,0) AS fare_paise, rs.geofence_m, rs.latitude, rs.longitude,
+        COALESCE(rs.fare_paise,0) AS fare_paise, rs.geofence_m, rs.latitude, rs.longitude, rs.zone,
         (SELECT count(*) FROM transport_allocations ta WHERE ta.pickup_stop_id = rs.id AND ta.valid_to IS NULL) AS riders
         FROM route_stops rs WHERE rs.route_id = ? ORDER BY rs.sequence`).bind(rid).all<Record<string, unknown>>()
     return ok({ items: rows.results.map((x) => ({ ...x,
@@ -464,16 +464,17 @@ export function registerTransport(r: Router): void {
         const lat = nullable(str(st.latitude).trim()), lon = nullable(str(st.longitude).trim())
         const fare = st.fare_paise === undefined || st.fare_paise === null ? null : Number(st.fare_paise)
         const geo = st.geofence_m === undefined || st.geofence_m === null ? null : Number(st.geofence_m)
+        const zone = nullable(str(st.zone).trim())
         const sid = str(st.id).trim()
         if (isUUID(sid) && existing.has(sid)) {
           stmts.push(c.db.prepare(`UPDATE route_stops SET name = ?, sequence = ?, pickup_time = ?, drop_time = ?, latitude = ?, longitude = ?,
-              fare_paise = COALESCE(?, fare_paise), geofence_m = COALESCE(?, geofence_m) WHERE id = ? AND route_id = ?`)
-            .bind(sname, seq, pickup, drop, lat, lon, fare, geo, sid, rid))
+              fare_paise = COALESCE(?, fare_paise), geofence_m = COALESCE(?, geofence_m), zone = ? WHERE id = ? AND route_id = ?`)
+            .bind(sname, seq, pickup, drop, lat, lon, fare, geo, zone, sid, rid))
           kept.push(sid)
         } else {
           const made = uuid()
-          stmts.push(c.db.prepare(`INSERT INTO route_stops (id, institution_id, route_id, name, sequence, pickup_time, drop_time, latitude, longitude, fare_paise, geofence_m)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(made, inst, rid, sname, seq, pickup, drop, lat, lon, fare, geo))
+          stmts.push(c.db.prepare(`INSERT INTO route_stops (id, institution_id, route_id, name, sequence, pickup_time, drop_time, latitude, longitude, fare_paise, geofence_m, zone)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(made, inst, rid, sname, seq, pickup, drop, lat, lon, fare, geo, zone))
           kept.push(made)
         }
         stopCount++
