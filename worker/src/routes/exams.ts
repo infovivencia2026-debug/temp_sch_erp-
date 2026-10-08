@@ -1227,7 +1227,13 @@ async function getHallTicket(c: Ctx) {
   if (!isUUID(examId)) throw badRequest('exam_id must be a uuid')
   const t = await c.db.prepare(`
     SELECT se.ticket_no, h.name AS hall, se.row_no, se.col_no, ${NAME} AS student_name, st.admission_no,
-           COALESCE(c.name,'') AS class_name, COALESCE(sec.name,'') AS section_name, ex.name AS exam_name, ex.board, i.name AS school
+           COALESCE(c.name,'') AS class_name, COALESCE(sec.name,'') AS section_name, ex.name AS exam_name, ex.board, i.name AS school,
+           st.photo_file_id, i.affiliation_no, i.affiliation_board, i.district, i.state AS school_state,
+           (SELECT ay.name FROM academic_years ay WHERE ay.id = ex.academic_year_id) AS academic_year,
+           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id ORDER BY (lower(COALESCE(g.relation,'')) = 'father') DESC, sg.is_primary DESC LIMIT 1) AS father_name,
+           (SELECT g.relation FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id ORDER BY (lower(COALESCE(g.relation,'')) = 'father') DESC, sg.is_primary DESC LIMIT 1) AS guardian_relation
       FROM exam_seats se
       JOIN exam_halls h ON h.id = se.hall_id
       JOIN students st ON st.id = se.student_id
@@ -1251,6 +1257,9 @@ async function getHallTicket(c: Ctx) {
     ticket_no: t.ticket_no, student_name: t.student_name, admission_no: t.admission_no, class_name: t.class_name,
     section_name: t.section_name, exam_name: t.exam_name, board: t.board ?? undefined, hall: t.hall,
     seat: `Row ${t.row_no}, Seat ${t.col_no}`, school: t.school,
+    photo_file_id: t.photo_file_id ?? undefined, father_name: t.father_name ?? undefined, guardian_relation: t.guardian_relation ?? undefined,
+    academic_year: t.academic_year ?? undefined, affiliation_no: t.affiliation_no ?? undefined, affiliation_board: t.affiliation_board ?? undefined,
+    place: [t.district, t.school_state].filter(Boolean).join(', ') || undefined,
     papers: papers.results.map((p) => ({
       subject: p.subject, date: p.date ?? undefined, starts_at: p.starts_at ?? undefined,
       duration_minutes: p.duration_minutes ?? undefined, max_marks: p.max_marks ?? undefined,
