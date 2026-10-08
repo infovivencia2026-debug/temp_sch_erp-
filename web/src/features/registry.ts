@@ -510,6 +510,21 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.exams.mark_moderation': screen(() => import('./exams/MarkModeration')),
   'institution_admin.exams.mark_moderation': screen(() => import('./exams/MarkModeration')),
   'hod.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'exam_controller.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'librarian.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'transport_manager.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'operations.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'driver.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'nurse.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'counsellor.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'discipline_officer.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'hostel_warden.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'activity_coord.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'finance.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'admissions.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'front_office.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'hr.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'it_admin.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
   /* Two leave queues, deliberately two doors. Your own leave is an employment
      matter that goes to HR and your head of department; a child's leave is a
      note from a parent that the class teacher has to act on before tomorrow's

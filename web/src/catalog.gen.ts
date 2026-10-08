@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 415 features. */
+/** 24 roles, 430 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -635,6 +635,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'exam_controller.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'exam_controller.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'exam_controller.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -805,6 +806,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'librarian.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'librarian.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -866,6 +868,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'transport_manager.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'transport_manager.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -930,6 +933,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'operations.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'operations.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'operations.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -961,6 +965,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'driver.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'driver.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'driver.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1001,6 +1006,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'nurse.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'nurse.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1041,6 +1047,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'counsellor.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'counsellor.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1080,6 +1087,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'discipline_officer.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'discipline_officer.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1122,6 +1130,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'hostel_warden.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'hostel_warden.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1162,6 +1171,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'activity_coord.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'activity_coord.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1235,6 +1245,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'finance.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'finance.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
       {
@@ -1308,6 +1319,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'admissions.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'admissions.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
       {
@@ -1356,6 +1368,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'front_office.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'front_office.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],
@@ -1426,6 +1439,7 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'hr.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'hr.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
       {
@@ -1528,6 +1542,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'it_admin.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'it_admin.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+          { key: 'it_admin.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
     ],

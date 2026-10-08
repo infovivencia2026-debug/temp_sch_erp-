@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 415 features.
+// Roles is the catalog: 24 roles, 430 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -682,6 +682,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "exam_controller.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "exam_controller.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "exam_controller.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -852,6 +853,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "librarian.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "librarian.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -913,6 +915,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "transport_manager.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "transport_manager.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -977,6 +980,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "operations.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "operations.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "operations.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1008,6 +1012,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "driver.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "driver.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "driver.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1048,6 +1053,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "nurse.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "nurse.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1088,6 +1094,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "counsellor.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "counsellor.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1127,6 +1134,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "discipline_officer.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "discipline_officer.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1169,6 +1177,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "hostel_warden.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "hostel_warden.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1209,6 +1218,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "activity_coord.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "activity_coord.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1282,6 +1292,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "finance.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "finance.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 			{
@@ -1355,6 +1366,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "admissions.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "admissions.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 			{
@@ -1403,6 +1415,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "front_office.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "front_office.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
@@ -1473,6 +1486,7 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "hr.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "hr.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 			{
@@ -1575,6 +1589,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "it_admin.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "it_admin.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+					{Key: "it_admin.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
 		},
