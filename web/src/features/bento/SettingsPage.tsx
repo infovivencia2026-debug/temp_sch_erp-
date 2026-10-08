@@ -256,7 +256,7 @@ export default function SettingsPage() {
              scrolled, and scrolled to its end showed the reserve as a grey
              band above the tab bar. It fills what the work area has, and the
              ground below it is painted the same colour (data-page-ground). */
-          'flex-1 border-b-0 sm:flex-none sm:border-b',
+          'settings-screen flex-1 border-b-0 sm:flex-none sm:border-b',
           'sm:rounded-[16px] sm:border-x sm:border-t',
           'bg-[color-mix(in_srgb,hsl(var(--muted))_75%,var(--bento-card,hsl(var(--card))))] sm:bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
@@ -354,7 +354,7 @@ export default function SettingsPage() {
              pane adds none. No bottom padding: the scroller's --page-foot
              clears the bar and the home indicator, once, for every page. */
           tab === null ? (
-            <div className="px-[16px] pt-[8px] pb-[32px]">
+            <div className="px-[16px] pt-[8px] pb-[140px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
               <SignOutButton className="mt-6" />
