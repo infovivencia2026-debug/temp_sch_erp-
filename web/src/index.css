@@ -1631,6 +1631,9 @@
    nothing but unlabelled marks. Opening to the right, since the rail is 58px
    and anything centred under it would be cut off by the panel beside it. */
 .rail-item { position: relative; }
+/* The name is drawn by Shell.tsx on top of the page (the rail clipped it);
+   the pseudo-element stays only for keyboard focus. */
+.rail-item:not(:focus-visible)::after { display: none; }
 .rail-item::after {
   content: attr(data-tip);
   position: absolute;

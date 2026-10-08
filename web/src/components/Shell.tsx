@@ -230,25 +230,42 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
-  /* Touch: show a rail icon's name when it is tapped (no hover on a phone). */
+  /* A rail icon's name, floating on top of the page: on a tap (phones have no
+     hover) and on mouse hover. Drawn in the body, not inside the rail -- the
+     rail scrolls, so a label inside it was clipped to a scrap under the icon
+     and the name never showed (owner, 2026-10-08). */
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') return
-      const el = (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
-      if (!el) return
-      /* A floating label on top of everything: the panel a tap opens covered
-         the rail's own tooltip. */
+    let timer = 0
+    const show = (el: HTMLElement, ms: number) => {
       document.getElementById('rail-tap-tip')?.remove()
+      window.clearTimeout(timer)
       const r = el.getBoundingClientRect()
       const tip = document.createElement('div')
       tip.id = 'rail-tap-tip'
       tip.textContent = el.getAttribute('data-tip') ?? ''
-      tip.style.cssText = `position:fixed;left:${r.right + 8}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
+      tip.style.cssText = `position:fixed;left:${r.right + 10}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
       document.body.appendChild(tip)
-      window.setTimeout(() => tip.remove(), 1500)
+      if (ms) timer = window.setTimeout(() => tip.remove(), ms)
     }
+    const rail = (e: Event) => (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
+    const onDown = (e: PointerEvent) => { const el = rail(e); if (el && e.pointerType !== 'mouse') show(el, 1500) }
+    const onOver = (e: PointerEvent) => { const el = rail(e); if (el && e.pointerType === 'mouse' && el.getAttribute('data-tip')) show(el, 0) }
+    const onOut = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || !rail(e)) return
+      const to = (e.relatedTarget as Element | null)?.closest?.('.rail-item')
+      if (to !== rail(e)) document.getElementById('rail-tap-tip')?.remove()
+    }
+    const hide = () => document.getElementById('rail-tap-tip')?.remove()
     document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    document.addEventListener('pointerover', onOver, true)
+    document.addEventListener('pointerout', onOut, true)
+    window.addEventListener('scroll', hide, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('pointerover', onOver, true)
+      document.removeEventListener('pointerout', onOut, true)
+      window.removeEventListener('scroll', hide, true)
+    }
   }, [])
   const catalog = useCatalog()
   const session = useSession()
