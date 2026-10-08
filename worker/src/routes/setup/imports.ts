@@ -1569,7 +1569,10 @@ export function registerImports(r: Router): void {
 
   r.get('/setup/import/{entity}/fields', 'auth', (c) => {
     const entity = c.params.entity
-    if (entity === 'students') return ok({ fields: studentImportFields() })
+    if (entity === 'students') {
+      if (!can(c.id, 'students.write')) throw new HttpError(403, 'you cannot import students', { code: 'forbidden' })
+      return ok({ fields: studentImportFields() })
+    }
     const spec = importSpecs[entity]
     if (!spec) throw badRequest('nothing can be imported as ' + entity)
     if (!can(c.id, spec.perm)) throw new HttpError(403, 'you cannot import ' + entity, { code: 'forbidden' })

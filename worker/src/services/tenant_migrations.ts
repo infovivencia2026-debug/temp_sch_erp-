@@ -65,4 +65,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 65, name: 'fee_corrections_grant', checksum: 'ee68b0d5f127cae1989000a1cac4494229ca477b5810408ce3e6c3b03b4e25bd' },
   { version: 66, name: 'leave_windows_handbook', checksum: '3205bd674821811c5b507d6e63867b07794e0f27c3fb0c4a546abf3a6a2dde2b' },
   { version: 67, name: 'transport_zones_attendance_requests', checksum: '645b7a6d6790af06914dae59b2dbb2e87e2c93ab38e415eafca46c94430a03da' },
+  { version: 68, name: 'readiness_rules_mcb_move', checksum: '0b0e1e0a54e3eef964d058627168b2d4c2df4bc8331d7a00974d9a3c2ca68ab0' },
 ]

@@ -323,6 +323,90 @@ function registerCompliance(r: Router) {
     }))))
   })
 
+  /* THE RETURNS, MONTHS BEFORE THEY ARE DUE.
+
+     UDISE+, APAAR, RTE and the training return each ask for fields the
+     office fills over the year; the scramble comes from finding out in
+     September what was never captured. One answer counts, per return, what
+     is missing today, and names the screen it is filled on. */
+  r.get('/compliance/readiness', REPORTS_READ, async (c) => {
+    const inst = c.id.institution!.id
+    const st = await c.db.prepare(`
+      SELECT count(*) AS total,
+        sum(CASE WHEN st.date_of_birth IS NULL THEN 1 ELSE 0 END) AS no_dob,
+        sum(CASE WHEN st.gender IS NULL OR st.gender = '' THEN 1 ELSE 0 END) AS no_gender,
+        sum(CASE WHEN st.category IS NULL OR st.category = '' THEN 1 ELSE 0 END) AS no_category,
+        sum(CASE WHEN st.apaar_id IS NULL OR st.apaar_id = '' THEN 1 ELSE 0 END) AS no_apaar,
+        sum(CASE WHEN COALESCE(st.aadhaar_consent, 0) = 0 THEN 1 ELSE 0 END) AS no_aadhaar_consent,
+        sum(CASE WHEN st.medium IS NULL OR st.medium = '' THEN 1 ELSE 0 END) AS no_medium,
+        sum(CASE WHEN st.mother_tongue IS NULL OR st.mother_tongue = '' THEN 1 ELSE 0 END) AS no_mother_tongue,
+        sum(CASE WHEN NOT EXISTS (SELECT 1 FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND g.phone <> '') THEN 1 ELSE 0 END) AS no_guardian_phone,
+        sum(CASE WHEN NOT EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = st.id AND e.status = 'active') THEN 1 ELSE 0 END) AS no_class,
+        sum(CASE WHEN st.is_rte = 1 THEN 1 ELSE 0 END) AS rte,
+        sum(CASE WHEN st.is_cwsn = 1 AND (st.cwsn_type IS NULL OR st.cwsn_type = '') THEN 1 ELSE 0 END) AS cwsn_no_type
+      FROM students st WHERE st.status = 'active'`).first<Record<string, number>>()
+    const sc = await c.db.prepare(`SELECT udise_code, affiliation_board, affiliation_no, affiliation_valid_to, state, district, school_category, management_type FROM institutions WHERE id = ?`).bind(inst).first<Record<string, string | null>>()
+    const campuses = await c.db.prepare(`SELECT count(*) AS n, sum(CASE WHEN udise_code IS NULL OR udise_code = '' THEN 1 ELSE 0 END) AS no_udise FROM campuses WHERE status <> 'closed' OR status IS NULL`).first<{ n: number; no_udise: number }>()
+    const em = await c.db.prepare(`
+      SELECT count(*) AS total,
+        sum(CASE WHEN e.date_of_birth IS NULL THEN 1 ELSE 0 END) AS no_dob,
+        sum(CASE WHEN e.gender IS NULL OR e.gender = '' THEN 1 ELSE 0 END) AS no_gender,
+        sum(CASE WHEN e.qualification IS NULL OR e.qualification = '' THEN 1 ELSE 0 END) AS no_qualification,
+        sum(CASE WHEN e.pan IS NULL OR e.pan = '' THEN 1 ELSE 0 END) AS no_pan,
+        sum(CASE WHEN e.designation_id IS NULL THEN 1 ELSE 0 END) AS no_designation,
+        sum(CASE WHEN e.phone IS NULL OR e.phone = '' THEN 1 ELSE 0 END) AS no_phone
+      FROM employees e WHERE e.status IN ('active','on_leave')`).first<Record<string, number>>()
+    const training = await c.db.prepare(`
+      SELECT COALESCE(des.category, 'all') AS category, count(DISTINCT e.id) AS staff,
+        sum(CASE WHEN COALESCE((SELECT sum(tr.hours_completed) FROM staff_training_records tr JOIN training_programmes p ON p.id = tr.programme_id
+                                 WHERE tr.employee_id = e.id AND tr.status = 'attended' AND p.academic_year_id = ay.id), 0) < req.required_hours THEN 1 ELSE 0 END) AS short,
+        req.required_hours
+      FROM training_requirements req JOIN academic_years ay ON ay.id = req.academic_year_id AND ay.is_current = 1
+      JOIN employees e ON e.status IN ('active','on_leave') AND (req.designation_id IS NULL OR req.designation_id = e.designation_id)
+      LEFT JOIN designations des ON des.id = e.designation_id
+      WHERE req.designation_category IS NULL OR req.designation_category = des.category
+      GROUP BY req.id`).all<Record<string, unknown>>()
+    const n = (v: unknown) => Number(v ?? 0)
+    const s = st ?? {}, e = em ?? {}
+    const item = (key: string, label: string, missing: number, of: number, where: string) => ({ key, label, missing, of, where, ok: missing === 0 })
+    const school = [
+      item('udise_code', 'UDISE code of the school', sc?.udise_code ? 0 : 1, 1, 'School settings'),
+      item('campus_udise', 'UDISE code on every campus', n(campuses?.no_udise), n(campuses?.n), 'Institutions & campuses'),
+      item('affiliation', 'Board affiliation number and validity', sc?.affiliation_board && sc?.affiliation_no && sc?.affiliation_valid_to ? 0 : 1, 1, 'School settings'),
+      item('location', 'State and district', sc?.state && sc?.district ? 0 : 1, 1, 'School settings'),
+      item('management', 'School category and management type', sc?.school_category && sc?.management_type ? 0 : 1, 1, 'School settings'),
+    ]
+    const students = [
+      item('dob', 'Date of birth', n(s.no_dob), n(s.total), 'Student 360'),
+      item('gender', 'Gender', n(s.no_gender), n(s.total), 'Student 360'),
+      item('category', 'Social category', n(s.no_category), n(s.total), 'Student 360'),
+      item('medium', 'Medium of instruction', n(s.no_medium), n(s.total), 'Student 360'),
+      item('mother_tongue', 'Mother tongue', n(s.no_mother_tongue), n(s.total), 'Student 360'),
+      item('apaar', 'APAAR ID', n(s.no_apaar), n(s.total), 'APAAR ID register'),
+      item('aadhaar_consent', 'Aadhaar consent recorded', n(s.no_aadhaar_consent), n(s.total), 'Student 360'),
+      item('guardian_phone', 'A guardian with a phone', n(s.no_guardian_phone), n(s.total), 'Student 360'),
+      item('class', 'Enrolled in a class this year', n(s.no_class), n(s.total), 'Class Setup'),
+      item('cwsn_type', 'CWSN type where CWSN', n(s.cwsn_no_type), n(s.total), 'Student 360'),
+    ]
+    const staff = [
+      item('staff_dob', 'Date of birth', n(e.no_dob), n(e.total), 'Staff 360'),
+      item('staff_gender', 'Gender', n(e.no_gender), n(e.total), 'Staff 360'),
+      item('staff_qualification', 'Qualification', n(e.no_qualification), n(e.total), 'Staff 360'),
+      item('staff_designation', 'Designation', n(e.no_designation), n(e.total), 'Staff 360'),
+      item('staff_pan', 'PAN', n(e.no_pan), n(e.total), 'Staff 360'),
+      item('staff_phone', 'Phone', n(e.no_phone), n(e.total), 'Staff 360'),
+    ]
+    const trainingRows = training.results.map((t) => ({ category: String(t.category), staff: n(t.staff), short: n(t.short), required_hours: n(t.required_hours) }))
+    const groups = [
+      { key: 'udise', title: 'UDISE+ return', items: [...school, ...students.filter((i) => ['dob', 'gender', 'category', 'medium', 'mother_tongue', 'class', 'cwsn_type'].includes(i.key)), ...staff.filter((i) => ['staff_dob', 'staff_gender', 'staff_qualification', 'staff_designation'].includes(i.key))] },
+      { key: 'apaar', title: 'APAAR (One Nation One Student ID)', items: students.filter((i) => ['apaar', 'aadhaar_consent', 'dob', 'guardian_phone'].includes(i.key)) },
+      { key: 'rte', title: 'RTE 25 percent register', items: [item('rte', 'Children flagged RTE', 0, n(s.rte), 'RTE Quota'), ...students.filter((i) => ['category', 'guardian_phone'].includes(i.key))] },
+      { key: 'training', title: 'Staff training hours', items: trainingRows.map((t) => item('training_' + t.category, `${t.category === 'all' ? 'All staff' : t.category}: ${t.required_hours} hours this year`, t.short, t.staff, 'Staff training & development')) },
+    ]
+    const missing = groups.reduce((a, g) => a + g.items.reduce((b, i) => b + i.missing, 0), 0)
+    return ok({ groups, missing_total: missing, students: n(s.total), staff: n(e.total), training_rules: trainingRows.length })
+  })
+
   r.post('/compliance/apaar', STUDENTS_WRITE, async (c) => {
     const req = await readJSON<{ student_id?: string; apaar_id?: string; aadhaar_consent?: boolean }>(c.req)
     const sid = req.student_id ?? ''

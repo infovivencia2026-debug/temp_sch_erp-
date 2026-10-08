@@ -6,6 +6,7 @@ import { facultyCommsKeys } from './faculty/keys'
 import { channelSetupKeys } from './communication/channel-setup-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
 import { staffTasksKeys } from './hr/tasks-keys'
+import { readinessKeys } from './principal/readiness-keys'
 import { parentKeys } from './portal/parent-keys'
 import { familyKeys } from './portal/family-keys'
 import { adminAcademicsKeys } from './academics/admin-keys'
@@ -589,6 +590,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...channelSetupKeys,
   ...hrLifecycleKeys,
   ...staffTasksKeys,
+  ...readinessKeys,
   ...parentKeys,
   ...rollupKeys,
   ...statutoryKeys,

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 412 features. */
+/** 24 roles, 415 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -249,6 +249,8 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'institution_admin.getting_started.school_setup', slug: 'school_setup', name: 'School setup', scope: 'institution', tier: 'core', summary: 'Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks.' },
+          { key: 'institution_admin.getting_started.rules', slug: 'rules', name: 'Rules', scope: 'institution', tier: 'core', summary: 'The things the school decides once and the product does every day: fee reminders before the due date, the daily and weekly digest to the office, quiet hours and the daily message cap. Each one on or off, with its one setting, on one screen.' },
+          { key: 'institution_admin.getting_started.move_from_myclassboard', slug: 'move_from_myclassboard', name: 'Move from MyClassBoard', scope: 'institution', tier: 'core', summary: 'Bring a school across from MyClassBoard in an afternoon: for each of its exports (students with parents, staff, classes and sections, fee receipts, fee structures), which MCB screen to download it from, how its columns map to this product, a dry run that names every row it cannot take, and the import.' },
         ],
       },
       {
@@ -343,6 +345,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.standard.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Core enrollment, attendance, academic, fee and staff reports.' },
           { key: 'institution_admin.standard.attendance_overview', slug: 'attendance_overview', name: 'Attendance Overview', scope: 'institution', tier: 'core', summary: 'School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.' },
           { key: 'institution_admin.standard.fee_collection', slug: 'fee_collection', name: 'Fee Collection', scope: 'institution', tier: 'core', summary: 'Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.' },
+          { key: 'institution_admin.standard.returns_readiness', slug: 'returns_readiness', name: 'Returns readiness', scope: 'institution', tier: 'core', summary: 'What UDISE+, APAAR, the RTE register and the staff training return still need from this school, counted today and named by the screen it is filled on, so nothing is found missing in the month the return is due.' },
           { key: 'institution_admin.standard.scheduled_digests', slug: 'scheduled_digests', name: 'Scheduled digests', scope: 'institution', tier: 'core', summary: 'Turn the daily and weekly report digest on or off, choose which reports it carries, attendance, fees, admissions, staff, and which channels each goes out on. Board members and admins receive it automatically.' },
         ],
       },
