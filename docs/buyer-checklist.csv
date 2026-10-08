@@ -1,0 +1,69 @@
+Stage,What a school owner expects before signing,Status,Where it is today,What to add
+Website,A page that says what the product does for a school in plain words,Have,site/src/pages/EducationERP.tsx,
+Website,A price: per student per month or per school per year with what each plan includes,Missing,"site/src: one 'per month' mention, no pricing page; plans live only in the seller console (CONTROL plans table)",A pricing page fed from the plans table with the three plan names and what each unlocks
+Website,A way to ask for a demo or start a trial from the site without calling anyone,Missing,No public sign-up or trial route; a school is created only from the seller console (worker/src/routes/seller/provisioning.ts),A public request-a-demo form that lands in the seller inbox and a 30-day trial sign-up that provisions a school
+Website,Screenshots or a short walk of the parent app and the fee counter,Partial,site/src/pages/custom and dashboards render mock dashboards,Real screenshots of Fee counter and the parent app at phone size
+Website,Which boards it serves: CBSE ICSE State and whether report cards match,Partial,Report card template upload exists (exams.ts /exams/report-cards/template); boards are not named on the site,A boards line on the site and one sample report card per board
+Website,Who else uses it: references or a count of schools,Missing,Not on the site,A references line once the first schools agree
+Website,The data stays in India and who can see it,Partial,Cloudflare stack documented in docs/cloudflare-stack.md; privacy migration 00341; nothing buyer-facing,A one-page data and privacy note on the site
+Buying,A trial that starts the same day with the school's own name and logo,Have,Seller console provisions a school with trial_days (default 30) and branding,
+Buying,Pay online for the subscription and get a GST invoice,Partial,School billing routes under /school-billing and seller/billing.ts; GST on the subscription invoice not verified,Check the subscription invoice carries GSTIN and HSN
+Buying,Import last year's data from Excel without a consultant,Have,docs/school-setup-templates (17 CSV templates with a guide) and setup/ImportStudents,
+Buying,A setup guide a principal can follow in an afternoon,Have,setup/Wizard reached from the dashboard; docs/school-setup-templates/guide.html,
+Buying,Someone to call when stuck,Have,Help Centre (? key) with 12 articles and a support desk to the vendor (help/desk.ts),Phone number and hours on the Help screen
+First week,Classes sections subjects and the school day set up in one place,Have,setup/Wizard,
+First week,Staff and students loaded and their logins issued in bulk,Have,setup/panels and principal/RosterLogins; logins issued by default,
+First week,Indian holiday calendar and the April to March year ready,Have,scripts/seed_calendar_telangana.sql; year creation now refuses bad or overlapping dates,Holiday calendars for other states as templates
+First week,Leave types grading scales fee heads and certificate types pre-filled with Indian defaults,Partial,Fee heads and structures via templates; leave types and grading scales start empty,A starter pack: CL SL EL leave types; CBSE 9-point and ICSE scales; TC Bonafide Character Conduct certificate types
+First week,Telugu or Hindi on screen for parents and non-teaching staff,Partial,web/src/locales: English and Telugu only,Hindi and one more state language
+Fees,Term and instalment structures per class with concessions for siblings staff RTE and merit,Have,setup/fee-structures; fees/refunds.ts concessions (percent now capped at 100),
+Fees,Raise the term demand for the whole school in one click and not twice,Have,POST /fees/invoices/generate is idempotent per instalment and refuses an overdue due date,
+Fees,Collect cash UPI cheque card at the counter with a gapless serial receipt,Have,finance/FeeCounter; RCPT/FY/sequence numbering; future-dated and left-student receipts now refused,
+Fees,Post-dated cheque register with clear and bounce and a bounce fine,Have,/fees/payments/{id}/clear and /bounce with a configured fine,
+Fees,Late fine rules with grace days applied automatically,Have,finance/fee-engine fine rules and apply,
+Fees,Parents pay online from the app and the receipt lands by itself,Partial,Portal pay exists but is simulated (portalSimulatedPay) unless a gateway is configured; UPI collection migration 00320,Live Razorpay or PayU keys per school and a reconciliation screen checked end to end
+Fees,Defaulter list and reminders by SMS or WhatsApp in one step,Have,Dues and reminders through communication; DLT SMS and WhatsApp connectors,
+Fees,Refunds with approval and a reason the family is told,Have,/fees/refunds request decide process; cannot exceed what was paid,
+Fees,Accountant exports to Tally,Have,Tally connector and export (admin/tally_connector.ts; finance/tally-keys),
+Fees,Day book cash book bank reconciliation and period close,Have,finance/CashBooks banking ledgers period-close,
+Fees,Student wallet for canteen and store with parent top-up,Have,finance/CanteenTerminal wallet routes,
+Admissions,Enquiry to application to admission with a public form parents fill on their phone,Have,public/EnquireForm ApplyForm; admissions pipeline and form builder,
+Admissions,RTE quota seats and waitlist,Have,admissions RTE and waitlist screens,
+Admissions,Admission fee taken at the desk and the child becomes a student with a login,Have,admissions workflow enrol and fee enrolment screen,
+Admissions,Sibling detection and alumni quota,Partial,Catalogued not built (docs/COMING_LATER.md),Build or drop from the catalogue
+Attendance,Mark the register on a phone in under a minute; absent parents told at once,Have,shared/Attendance; absence alerts by app SMS WhatsApp; register now keeps to the section roll,
+Attendance,Biometric or RFID device punches for staff,Have,hr attendance devices and biometric punch import template,
+Attendance,Leave requests from parents and staff with approval and balances,Have,/workflow/leave; overlapping requests now refused,
+Attendance,Monthly shortage report and correction workflow,Have,attendance-workflow corrections and reports,
+Exams,Exam setup marks entry per subject with absent and grace,Have,exams/MarksEntry; marks now need an enrolment in the paper's class,
+Exams,Report cards in the school's own design released to parents after sign-off,Have,generate submit publish return; template upload; parent sees only published cards at /portal/results,
+Exams,Marks locked once the card is out,Have,POST /exams/marks refuses while a published card exists,
+Exams,CBSE ICSE and State report card templates ready to use,Partial,One built-in default template; board designs are uploaded by the school,Ship one template per board in the template picker
+Exams,Holistic Progress Card for the NEP,Have,HolisticCard screen and migration 00014,
+Exams,Hall tickets and seating plans,Have,exams/HallTicket and exam halls,
+Exams,Board exam LOC and registration for Class X and XII,Partial,Screens exist (BoardLOC SSCRegistration) but are not reachable from any menu (web/src/features/reachable.test.ts KNOWN),Give them a catalogue key or remove them
+Students,Full profile with guardians documents photos and custom fields,Have,shared/StudentProfile; students.ts documents and fields,
+Students,Transfer certificate with board numbering and dues check; bonafide and character certificates,Have,lifecycle/Certificates with dues override recorded,
+Students,Promotion to the next year and the price list rolled over,Have,/lifecycle/promote with dues hold; /admin/academic-years/{id}/rollover,
+Students,DigiLocker issue of certificates,Missing,No DigiLocker integration anywhere in worker/src,Decide whether to build; it is a stated requirement in docs/MARKET.md
+Students,UDISE+ and APAAR capture and export,Have,compliance screens and compliance/apaar route,
+Communication,Circulars to classes or the whole school with read receipts,Have,comms/Circulars with acknowledgement,
+Communication,Diary homework and classwork parents see the same day,Have,workflow/Homework; due dates now validated,
+Communication,Chat between parent and class teacher that the school can see,Have,misc/chat parent and staff threads,
+Communication,DLT-registered SMS and WhatsApp Business templates,Have,SMS gateway (Fast2SMS DLT) and WhatsApp connector screens,
+Communication,PTM booking slots,Have,PTM keys in registry (4 entries),
+Parent app,Android app in the Play Store with the school's name,Have,mobile/apps and playstore listing files,Apple App Store listing
+Parent app,Fees attendance homework results bus and messages in one place,Have,portal FeesHub MessagesHub summary results attendance child-bus,
+Parent app,Works on a slow connection and remembers what was typed,Have,offline outbox and cached boot (lib/outbox.ts offline-boot.ts),
+HR and payroll,Salary structures payroll run payslips PF ESI PT and Form 16,Have,payroll.ts statutory.ts; run refuses a month with unmarked attendance unless acknowledged,
+HR and payroll,Staff onboarding with KYC and exit clearance,Have,hr/lifecycle.ts,
+HR and payroll,Appraisal recruitment and training records,Have,hr growth screens,
+Operations,Bus routes stops and live tracking parents can watch,Have,ops/transport; live tracking and geofence screens; driver app,
+Operations,Library issue return fines and a digital library,Have,78 library-related rows in the feature map,
+Operations,Hostel rooms beds mess and infirmary,Have,hostel life and infirmary screens,
+Operations,Inventory purchasing and vendor bills,Have,admin ops purchasing and inventory,
+Operations,Visitor and gate pass,Have,gate and visitor screens (3 rows),
+Trust,Every change traceable to a person,Have,audit_log with by-id lookup (migration 00340),
+Trust,Daily backups the school can restore,Have,backup policies runs and restore screens,
+Trust,Roles the school can tune itself,Have,institution_admin.staff.roles_permissions; built-in roles protected,
+Trust,Passwords locked after repeated failures,Have,login throttle 8 failures per identifier in 5 minutes,
