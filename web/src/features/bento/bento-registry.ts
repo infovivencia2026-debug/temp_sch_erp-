@@ -53,6 +53,9 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      not `institution_admin.home.executive_kpis`, which is not a key this
      catalogue holds. */
   'institution_admin.home.dashboard': screen(() => import('./PrincipalDashboard')),
+  // The trustee opened Focus onto plain tiles because no board was ever
+  // registered here. See TrusteeBoard.
+  'board_member.home.where_the_money_goes': screen(() => import('./TrusteeBoard')),
   'finance.home.dashboard': screen(() => import('./FinanceDashboard')),
 
   /* The back office. Four roles were still landing on the classic screen
