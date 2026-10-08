@@ -820,7 +820,21 @@ async function setPayrollState(c: Ctx) {
     case 'locked': from = ['draft', 'processed']; break
     case 'paid': from = ['locked']; break
     case 'published': from = ['paid', 'locked']; break
-    case 'draft': from = ['locked']; break
+    /* REOPENING A MONTH THAT HAS ALREADY GONE OUT.
+     *
+     * Unlock used to be allowed only from `locked`, so a month that reached
+     * paid or published could never be corrected: the screen offered one
+     * button, Download bank file, and nothing else. A school that published
+     * October with the wrong figures -- which is exactly what happened here,
+     * a month's pay left at the old numbers while the loss-of-pay column beside
+     * it was refreshed -- had no way back through the product at all.
+     *
+     * Permanently wrong pay is worse than a reopened month. It is still a
+     * deliberate act: the screen says what it means, and the published_at
+     * stamp is cleared with it so nobody mistakes the reopened month for one
+     * the staff have been told about. Re-publishing is a separate press, and
+     * it is what sends the notifications again. */
+    case 'draft': from = ['locked', 'paid']; break
     default: throw badRequest('A month can be locked, marked paid, published, or unlocked.')
   }
   const status = to === 'published' ? 'paid' : to

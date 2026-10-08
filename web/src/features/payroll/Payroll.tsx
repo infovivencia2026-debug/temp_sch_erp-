@@ -129,6 +129,29 @@ export default function Payroll() {
   const rows = slips.data?.items ?? []
   const status = rows[0]?.run_status ?? ''
 
+  /* TWO NUMBERS THAT CANNOT BOTH BE TRUE.
+   *
+   * A payslip carries the days paid and the days lost, and they are written
+   * together from one calculation -- so if a row shows three days of loss of
+   * pay beside a full month paid, that row was not produced by the rule the
+   * column headings claim. It happens when a month is run, the attendance
+   * behind it changes, and the month is never re-run: the loss-of-pay figure
+   * is refreshed on screen while the money stays at the old numbers.
+   *
+   * October 2026 on this school was exactly that, published, with every one
+   * of eight people showing loss of pay and a full month's pay, and nothing
+   * anywhere saying the two disagreed. The arithmetic was right; the row was
+   * stale, which no amount of reading the code would have shown.
+   *
+   * Flagged, not silently recomputed: the figures on a published month are
+   * what somebody was paid, and a screen must not quietly redraw history.
+   * Re-running the month is a decision, and it has a button. */
+  const stale = rows.filter((p) => {
+    const lop = Number(p.lop_days) || 0
+    const paid = Number(p.paid_days) || 0
+    return lop > 0 && paid > 0 && paid + lop > 31.5
+  })
+
   /* Whether the staff have been told, asked of the server rather than
      remembered.
 
@@ -248,6 +271,19 @@ export default function Payroll() {
             <FormNotice error={new Error(`${noBank.length} of ${(slips.data?.items ?? []).length} staff have no bank account or IFSC, so the bank file cannot pay them: ${noBank.map((s) => s.full_name).join(', ')}. Add them on Staff records → the person → Bank details.`)} />
           )
         })()}
+        {stale.length > 0 && (
+          <Card className="border-destructive/40 bg-destructive/[0.04] p-4">
+            <p className="text-[14px] font-semibold">
+              These figures are out of date, and the pay below is not what the attendance now says.
+            </p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              {stale.length} {stale.length === 1 ? 'person has' : 'people have'} loss of pay recorded and
+              a full month paid, which the calculation cannot produce. The month was run, the attendance
+              behind it changed, and it was never run again. Reopen the month and run it to settle it —
+              publishing again is a separate press, and only that tells the staff.
+            </p>
+          </Card>
+        )}
         {note && <FormNotice ok={note} />}
         {state.isError && <FormNotice error={state.error} />}
 
@@ -307,6 +343,19 @@ export default function Payroll() {
                   {status === 'paid' && !published && (
                     <Button disabled={state.isPending} onClick={() => state.mutate('published')}>
                       Publish payslips
+                    </Button>
+                  )}
+                  {/* A WAY BACK FROM A MONTH THAT HAS ALREADY GONE OUT.
+                      Once a month reached paid or published the only button
+                      left was Download bank file, so a month published with
+                      the wrong figures could not be corrected at all.
+                      Permanently wrong pay is worse than a reopened month.
+                      Re-publishing is a separate press, and that is what
+                      tells the staff again. */}
+                  {status === 'paid' && (
+                    <Button variant="ghost" disabled={state.isPending}
+                      onClick={() => state.mutate('draft')}>
+                      {published ? 'Reopen this month' : 'Unlock'}
                     </Button>
                   )}
                 </div>
