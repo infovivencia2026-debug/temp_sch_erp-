@@ -1788,6 +1788,11 @@ export const en = {
   'bento.hr.leave': 'Leave to decide',
   'bento.hr.leave_sub': 'Unanswered',
   'bento.hr.leave_note': 'requests waiting',
+  'bento.hr.stat_away': 'On leave today',
+  'bento.hr.stat_absent': 'Absent today',
+  'bento.hr.stat_present': 'Present today',
+  'bento.hr.stat_headcount': 'Headcount',
+  'bento.hr.stat_departments': 'Departments',
   'bento.hr.cue_leave': 'Open leave',
 
   'bento.hr.joiners': 'Joined this month',

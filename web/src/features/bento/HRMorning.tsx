@@ -310,7 +310,7 @@ function AttentionCell({ span, k, href }: { span: CellSpan; k: HRKPIs; href?: st
     joiners is a period count against a level. Neither is a fraction and
     neither is drawn as one. */
 function CountCell({
-  span, title, sub, value, note, href, cue,
+  span, title, sub, value, note, href, cue, rows,
 }: {
   span: CellSpan
   title: string
@@ -319,10 +319,23 @@ function CountCell({
   note: string
   href?: string
   cue: string
+  /* The figures behind the count, in the space under it (owner, 2026-10-08:
+     "there are no stats"). The note moves up beside the figure. */
+  rows?: { label: string; value: ReactNode }[]
 }) {
+  const shown = (rows ?? []).filter((r) => r.label)
   return (
-    <Card span={span} title={title} sub={sub} value={value} to={href} cue={cue}>
-      <Said>{note}</Said>
+    <Card span={span} title={title} sub={sub} value={value} change={note} to={href} cue={cue}>
+      {shown.length ? (
+        <ul className="flex h-full min-h-0 flex-col justify-end gap-1.5 text-[length:var(--card-sub,12px)]">
+          {shown.slice(0, 3).map((r) => (
+            <li key={r.label} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate opacity-75">{r.label}</span>
+              <span className="shrink-0 font-semibold tabular-nums">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </Card>
   )
 }
@@ -375,6 +388,11 @@ export default function HRMorning() {
               sub={t('bento.hr.leave_sub')}
               value={k.leave_pending}
               note={t('bento.hr.leave_note')}
+              rows={[
+                { label: t('bento.hr.stat_away'), value: k.away_today?.length ?? 0 },
+                { label: t('bento.hr.stat_absent'), value: k.absent_today },
+                { label: t('bento.hr.stat_present'), value: k.present_today },
+              ]}
               href={leaveHref}
               cue={t('bento.hr.cue_leave')}
             />
@@ -389,6 +407,10 @@ export default function HRMorning() {
               sub={t('bento.hr.joiners_sub')}
               value={k.new_joiners_30d}
               note={t('bento.hr.joiners_note', { n: k.departments })}
+              rows={[
+                { label: t('bento.hr.stat_headcount'), value: k.headcount },
+                { label: t('bento.hr.stat_departments'), value: k.departments },
+              ]}
               href={recordsHref}
               cue={t('bento.hr.cue_records')}
             />

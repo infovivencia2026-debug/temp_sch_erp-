@@ -835,8 +835,16 @@ export function WidgetLayer({
      window from the hold let a slow lift through, and the card opened under
      its own menu. */
   useEffect(() => {
-    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
-    if (!board || arranging) return
+    /* Listened for on the page, and the board found at the moment of the
+       press: looking for it once, when this ran, found nothing on a board
+       that paints after its data arrives, and a long press did nothing at
+       all (owner, 2026-10-08). */
+    if (arranging) return
+    const board = document
+    const onBoard = (e: Event) => {
+      const mine = markRef.current?.closest('.bento-board')
+      return !!mine && e.target instanceof Node && mine.contains(e.target)
+    }
 
     let timer: number | undefined
     let from: { x: number; y: number } | null = null
@@ -870,6 +878,7 @@ export function WidgetLayer({
     }
 
     const down = (e: PointerEvent) => {
+      if (!onBoard(e)) return
       if (e.pointerType === 'mouse' || !e.isPrimary) return cancel()
       const at = { x: e.clientX, y: e.clientY }
       const pressed = e.target instanceof Element ? e.target : null
@@ -899,18 +908,18 @@ export function WidgetLayer({
       if (Math.abs(e.clientX - from.x) > SLOP || Math.abs(e.clientY - from.y) > SLOP) cancel()
     }
 
-    board.addEventListener('pointerdown', down)
-    board.addEventListener('pointermove', move)
-    board.addEventListener('pointerup', cancel)
+    board.addEventListener('pointerdown', down, true)
+    board.addEventListener('pointermove', move, true)
+    board.addEventListener('pointerup', cancel, true)
     board.addEventListener('pointercancel', cancel)
     board.addEventListener('pointerleave', cancel)
     window.addEventListener('scroll', cancel, true)
 
     return () => {
       cancel()
-      board.removeEventListener('pointerdown', down)
-      board.removeEventListener('pointermove', move)
-      board.removeEventListener('pointerup', cancel)
+      board.removeEventListener('pointerdown', down, true)
+      board.removeEventListener('pointermove', move, true)
+      board.removeEventListener('pointerup', cancel, true)
       board.removeEventListener('pointercancel', cancel)
       board.removeEventListener('pointerleave', cancel)
       window.removeEventListener('scroll', cancel, true)
