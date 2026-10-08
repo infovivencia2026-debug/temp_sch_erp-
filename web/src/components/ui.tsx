@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
+  CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
   Maximize2, Printer, RefreshCw, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -2345,31 +2345,41 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
        entry needs the litres, ..."); shown to a person they read as a log
        line. A capital and a full stop make them a sentence. */
     const raw = error instanceof Error ? error.message.trim() : ''
-    const said = raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
     const status = error instanceof ApiError ? error.status : 0
+    /* A refusal reads as a sentence about the person, never as "Forbidden."
+       or a permission key like hr.payroll.write (owner, 2026-10-08: "looks
+       ugly"). */
+    const refused = status === 403 || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
+    const said = refused ? '' : raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
     const msg = said
       || (status === 401 ? 'Your session has ended. Sign in again.'
-        : status === 403 ? 'You do not have permission to see this.'
-        : status ? `The server refused this (${status}). Try again, or reload the page.`
+        : refused ? 'Your login is not allowed to do this. Ask the school admin if you need it.'
+        : status ? `That did not go through (${status}). Try again, or reload the page.`
         : 'Something went wrong. Try again, or reload the page.')
+    /* A quiet line, not a pink slab: an icon in the colour, the words in the
+       page's own ink, a thin rule on the left. */
     return (
-      <p role="alert" className="mt-3 flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
-        <span className="min-w-0">{msg}</span>
+      <p role="alert" className="mt-3 flex items-start gap-2 border-l-2 border-destructive py-1 pl-3 text-[13px] leading-snug text-foreground">
+        <CircleAlert className="mt-px h-4 w-4 shrink-0 text-destructive" strokeWidth={2} />
+        <span className="min-w-0 flex-1">{msg}</span>
         <CopyRef text={msg} />
       </p>
     )
   }
   if (ok)
     return (
-      <p role="status" className="mt-3 rounded-md border border-success/25 bg-success/5 px-3 py-2 text-[13px] text-success">
-        {ok}
+      <p role="status" className="mt-3 flex items-start gap-2 border-l-2 border-success py-1 pl-3 text-[13px] leading-snug text-foreground">
+        <CircleCheck className="mt-px h-4 w-4 shrink-0 text-success" strokeWidth={2} />
+        <span className="min-w-0 flex-1">{ok}</span>
       </p>
     )
   return null
 }
 
 export function ErrorState({ error }: { error: unknown }) {
-  const msg = error instanceof Error ? error.message : 'Unexpected error'
+  const raw = error instanceof Error ? error.message.trim() : ''
+  const refused = (error instanceof ApiError && error.status === 403) || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
+  const msg = refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.' : raw || 'Something went wrong. Try again, or reload the page.'
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>

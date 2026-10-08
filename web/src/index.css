@@ -4046,6 +4046,26 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   color: var(--tile, hsl(var(--primary))) !important;
   box-shadow: none !important;
 }
+
+/* THE RING GOES INSIDE THE TILE, BECAUSE OUTSIDE IT THERE IS NO ROOM.
+
+   This block turns off the tile's own ring, which left the browser's
+   default focus outline as the only mark of focus -- and that is drawn
+   2px OUTSIDE the element. The rail is a 62px column holding a 44px
+   tile, and between the two sit the column's padding and, between 768
+   and 1023px, a scroll container that clips both axes. So the ring came
+   out as a circle with its sides sliced off.
+
+   Drawn inside instead. `outline-offset: -2px` puts it within the tile's
+   own bounds, where nothing can clip it, and it follows the tile's
+   corner radius rather than reading as a circle around a squircle.
+   Keyboard focus stays as visible as it must be. */
+.rail-tile:focus-visible,
+.rail-foot > button:focus-visible,
+.rail-foot > a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
 .rail-tile svg, .rail-foot svg { stroke-width: 2.4; }
 /* A small button beside a field or a full-size button stood 8px shorter
    than its neighbours, so a toolbar's edges stepped. In a row that holds
