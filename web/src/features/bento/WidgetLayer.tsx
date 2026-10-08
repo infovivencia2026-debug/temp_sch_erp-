@@ -1,3 +1,4 @@
+import { toastBus } from '@/components/Toast'
 import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
@@ -9,7 +10,7 @@ import { Check, ChevronDown, LayoutGrid, ListOrdered, Minus, Pencil, Plus, Rotat
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
+  rowsNeeded, BOARD_ROWS, PRESETS,
   packPhone, centreLoneSmalls, pageCount, phoneKindOf, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
@@ -1587,7 +1588,7 @@ function ArrangedWidget({
 }) {
   const layer = useWidgetLayer()
   const gridCols = PHONE_GRID_COLS
-  const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, remove, recolour, move, swap, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
   const { w, h } = fixed ? DIMS[declaredSize] : dimsOf(layout, id, declaredSize)
@@ -1881,10 +1882,23 @@ function ArrangedWidget({
       el.style.zIndex = ''
     }
     if (commit && f.over) {
-      const at = layer.visible.findIndex((v) => v.id === f.over?.id)
-      if (at >= 0) {
-        move(id, dropIndex(pos, at, f.over.after), layer.visible)
-        if (phone) buzz('snap')
+      const other = f.over.id
+      const at = layer.visible.findIndex((v) => v.id === other)
+      if (at >= 0 && other !== id) {
+        /* Never let a drop push a card off the board: on a desk the board
+           holds three rows, and a swap that needs a fourth is refused with a
+           word rather than hiding somebody's card. */
+        const order = layer.visible.map((v) => v.id)
+        const a = order.indexOf(id)
+        ;[order[a], order[at]] = [order[at], order[a]]
+        const dims = order.map((x) => { const v = layer.visible.find((y) => y.id === x)!; return { w: v.w, h: v.h } })
+        if (!phone && rowsNeeded(dims) > BOARD_ROWS) {
+          toastBus()?.error(t('bento.widgets.no_room_swap'))
+          buzz('warn')
+        } else {
+          swap(id, other, layer.visible)
+          if (phone) buzz('snap')
+        }
       }
     }
   }

@@ -1742,6 +1742,9 @@ export const en = {
 
   'bento.hod.marks_sub': 'Not yet moderated',
   'bento.hod.marks_note': 'papers waiting',
+  'bento.hod.stat_sections': 'Sections',
+  'bento.hod.stat_departments': 'Departments',
+  'bento.hod.stat_uncovered': 'Periods uncovered today',
   'bento.hod.cue_marks': 'Open moderation',
 
   'bento.hod.department': 'Teachers',
@@ -2169,6 +2172,7 @@ export const en = {
   'bento.appearance.title': 'Appearance',
   'bento.widgets.edit': 'Arrange',
   'bento.widgets.done': 'Done',
+  'bento.widgets.no_room_swap': 'No room to swap those two: the board would overflow. Make one smaller first.',
   // The phone pager. Only English needs these: te.ts is a Partial, so an
   // untranslated key falls back rather than failing the build.
   'bento.page.pages': 'Board pages',

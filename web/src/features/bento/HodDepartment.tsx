@@ -138,8 +138,8 @@ function Card({
     middle. */
 function GaugeBox({ value, total, srLabel }: { value: number; total: number; srLabel: string }) {
   return (
-    <div className="gauge-host grid h-full min-h-0 place-items-center">
-      <div className="gauge-fit grid place-items-center">
+    <div className="grid h-full min-h-0 w-full place-items-center overflow-hidden">
+      <div className="grid h-full w-full min-w-0 place-items-center">
         <Gauge value={value} total={total} srLabel={srLabel} />
       </div>
     </div>
@@ -269,9 +269,10 @@ function RegistersCell({ span, d, href }: { span: CellSpan; d: Dash; href?: stri
   )
 }
 
-/** A plain count. Levels, not fractions. */
+/** A count, its one-line caption under the figure, and the few figures
+    behind it in the space below (owner, 2026-10-08: "there are no stats"). */
 function CountCell({
-  span, title, sub, value, note, href, cue,
+  span, title, sub, value, note, href, cue, rows,
 }: {
   span: CellSpan
   title: string
@@ -280,10 +281,21 @@ function CountCell({
   note: string
   href?: string
   cue: string
+  rows?: { label: string; value: ReactNode }[]
 }) {
+  const shown = (rows ?? []).filter((r) => r.label)
   return (
-    <Card span={span} title={title} sub={sub} value={value} to={href} cue={cue}>
-      <Said>{note}</Said>
+    <Card span={span} title={title} sub={sub} value={value} change={note} to={href} cue={cue}>
+      {shown.length ? (
+        <ul className="flex h-full min-h-0 flex-col justify-end gap-1.5 text-[length:var(--card-sub,12px)]">
+          {shown.slice(0, 3).map((r) => (
+            <li key={r.label} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate opacity-75">{r.label}</span>
+              <span className="shrink-0 font-semibold tabular-nums">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </Card>
   )
 }
@@ -338,6 +350,7 @@ export default function HodDepartment() {
               sub={t('bento.hod.absent_sub')}
               value={d.absent_today}
               note={t('bento.hod.absent_note', { n: d.teachers })}
+              rows={(d.absent ?? []).slice(0, 3).map((a) => ({ label: a.name, value: a.uncovered ? `${a.uncovered} uncovered` : (a.reason || 'covered') }))}
               href={leaveHref}
               cue={t('bento.hod.cue_leave')}
             />
@@ -352,6 +365,11 @@ export default function HodDepartment() {
               sub={t('bento.hod.marks_sub')}
               value={d.marks_to_moderate}
               note={t('bento.hod.marks_note')}
+              rows={[
+                { label: t('bento.hod.q_papers'), value: d.papers_to_approve },
+                { label: t('bento.hod.q_leave'), value: d.leave_to_decide },
+                { label: t('bento.hod.q_subs'), value: d.subs_to_approve },
+              ]}
               href={marksHref}
               cue={t('bento.hod.cue_marks')}
             />
@@ -366,6 +384,11 @@ export default function HodDepartment() {
               sub={t('bento.hod.department_sub')}
               value={d.teachers}
               note={t('bento.hod.department_note', { s: d.sections, d: d.departments })}
+              rows={[
+                { label: t('bento.hod.stat_sections'), value: d.sections },
+                { label: t('bento.hod.stat_departments'), value: d.departments },
+                { label: t('bento.hod.stat_uncovered'), value: d.periods_uncovered },
+              ]}
               href={allocationHref}
               cue={t('bento.hod.cue_allocation')}
             />

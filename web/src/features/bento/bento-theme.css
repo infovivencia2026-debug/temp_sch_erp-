@@ -4785,14 +4785,3 @@ html:not([data-layout='bento']) [data-settings-page] {
 /* The assistant covers the board on a phone; its page dots stayed on top of
    the chat (owner, 2026-10-07: "why do I see the dots there"). */
 html[data-assistant-open] .bento-dots { display: none !important; }
-
-/* A GAUGE IS A CIRCLE, WHATEVER SHAPE ITS CARD IS (owner, 2026-10-08: "the
-   circle is cut"). Its box was as tall as the card, so in a narrow phone
-   column it came out wider than the column and lost its left edge. It now
-   takes the smaller of the two sides. Browsers without container units fill
-   the box and the SVG keeps its own aspect, as before. */
-.gauge-host { container-type: size; }
-.gauge-fit { width: 100%; height: 100%; }
-@supports (width: 1cqmin) {
-  .gauge-fit { width: 100cqmin; height: 100cqmin; }
-}

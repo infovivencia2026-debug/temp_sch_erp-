@@ -282,8 +282,8 @@ function Card({
     the row actually has, at every size, with no branch. */
 function GaugeBox({ value, total, srLabel }: { value: number; total: number; srLabel: string }) {
   return (
-    <div className="gauge-host grid h-full min-h-0 place-items-center">
-      <div className="gauge-fit grid place-items-center">
+    <div className="grid h-full min-h-0 w-full place-items-center overflow-hidden">
+      <div className="grid h-full w-full min-w-0 place-items-center">
         <Gauge value={value} total={total} srLabel={srLabel} />
       </div>
     </div>
