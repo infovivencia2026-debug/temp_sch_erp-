@@ -4859,3 +4859,9 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 @media (max-width: 767px) {
   .settings-glass { background: var(--bento-card, hsl(var(--card))) !important; border-color: transparent !important; box-shadow: 0 0.5px 1px rgb(0 0 0 / .05) !important; }
 }
+
+/* The settings window sits in the middle with room above and below it
+   (owner, 2026-10-08: "touching top, looks ugly"). */
+@media (min-width: 640px) {
+  [data-appearance-dialog] { height: min(80vh, 720px) !important; max-height: calc(100vh - 96px) !important; margin-block: auto !important; }
+}

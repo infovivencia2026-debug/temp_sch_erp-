@@ -554,7 +554,7 @@ const LINK_ICON: [RegExp, typeof User, string][] = [
   [/password|sign.?in|session|device/i, KeyRound, '#8e8e93'],
   [/message|sms|whatsapp|email|notice|template/i, MessageSquare, '#34c759'],
   [/notif|alert/i, Bell, '#ff3b30'],
-  [/staff|people|user|login/i, Users, '#af52de'],
+  [/staff|people|user|login|principal|admin|board|trustee|hod|department|faculty|teacher|counsellor|warden|coordinator|officer|nurse|librarian|controller|operations|driver|attendant|manager|finance|admission|front office|hr/i, Users, '#af52de'],
   [/report|document|certificate|form/i, FileText, '#30b0c7'],
 ]
 function linkIcon(name: string) {
@@ -616,8 +616,10 @@ function WorkspaceRows() {
           <NavRow
             key={r.key}
             label={r.name}
-            /* `current` is this component's own word for where you are: a
-               wash and no chevron, because it opens nothing. */
+            icon={linkIcon(r.name)}
+            /* The one you are in says so in words (owner, 2026-10-08: "if one
+               role is active name it"), not only by a tint. */
+            value={here ? <span className="rounded-full bg-[color-mix(in_srgb,#34c759_16%,transparent)] px-2 py-0.5 text-[12px] font-semibold text-[#1f8a3b]">Active now</span> : undefined}
             current={here}
             href={here ? undefined : href}
           />
@@ -894,7 +896,7 @@ export function SettingsNav({
                the whole defect -- see useNarrow above -- and the list replaces
                it rather than sitting beside it, because two navigations for
                one set of pages is how the popover era went wrong. */
-            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 py-3 md:flex', SEAM)}
+            className={cn('hidden shrink-0 flex-wrap gap-1 border-b px-7 py-3 md:flex', SEAM)}
             aria-label="Settings sections"
           >
             {/* Driven by the same list the phone's rows are, so the two
