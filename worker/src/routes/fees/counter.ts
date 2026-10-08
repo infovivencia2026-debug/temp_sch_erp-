@@ -304,6 +304,7 @@ export function registerCounter(r: Router): void {
     if (!VALID_MODES.has(mode)) throw badRequest('unsupported payment mode: ' + mode)
     let paidOn = today()
     if (req.paid_on) { if (!isDate(req.paid_on)) throw badRequest('paid_on must be YYYY-MM-DD'); paidOn = req.paid_on }
+    if (paidOn > today()) throw badRequest('a receipt cannot be dated in the future')
     let chequeDate: string | null = null
     if (req.cheque_date) { if (!isDate(req.cheque_date)) throw badRequest('cheque_date must be YYYY-MM-DD'); chequeDate = req.cheque_date }
     const reference = req.reference_no ?? ''
@@ -311,8 +312,12 @@ export function registerCounter(r: Router): void {
     const invoiceIds: string[] = []
     for (const raw of req.invoice_ids ?? []) { if (!isUUID(raw)) throw badRequest('invoice_ids must be uuids'); invoiceIds.push(raw) }
 
-    const st = await c.db.prepare(`SELECT institution_id, campus_id FROM students WHERE id = ?`).bind(req.student_id).first<{ institution_id: string; campus_id: string }>()
+    const st = await c.db.prepare(`SELECT institution_id, campus_id, status FROM students WHERE id = ?`).bind(req.student_id)
+      .first<{ institution_id: string; campus_id: string; status: string }>()
     if (!st) throw notFound()
+    if (st.status !== 'active' && st.status !== 'suspended') {
+      throw new HttpError(409, `this child has left the school (${st.status}). Money against an old account is settled from the student's record, not the counter.`, { code: 'student_left' })
+    }
     await requireOpenPeriod(c, paidOn)
 
     const pdc = (mode === 'cheque' || mode === 'dd') && chequeDate !== null && chequeDate > paidOn

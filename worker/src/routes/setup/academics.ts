@@ -1,6 +1,6 @@
 import type { Router } from '../../router'
 import type { Ctx } from '../../router'
-import { badRequest, created, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
+import { HttpError, badRequest, created, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, uniqueSubjectCode,
   uniqueUsername, plural, str, todayIndia, isUniqueViolation, batch, changes } from './common'
 
@@ -23,6 +23,11 @@ export function registerAcademics(r: Router): void {
     const req = await readJSON<Record<string, unknown>>(c.req)
     const name = str(req.name), startsOn = str(req.starts_on), endsOn = str(req.ends_on)
     if (name === '' || startsOn === '' || endsOn === '') throw badRequest('name, starts_on and ends_on are required')
+    const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T00:00:00Z'))
+    if (!isYmd(startsOn) || !isYmd(endsOn)) throw badRequest('starts_on and ends_on must be dates like 2026-04-01')
+    if (endsOn <= startsOn) throw badRequest('the year has to end after it starts')
+    const overlap = await c.db.prepare(`SELECT name FROM academic_years WHERE starts_on <= ? AND ends_on >= ? LIMIT 1`).bind(endsOn, startsOn).first<{ name: string }>()
+    if (overlap) throw new HttpError(409, `those dates overlap ${overlap.name}. One day belongs to one academic year; end that year first or start this one after it.`, { code: 'year_overlap' })
     const campus = await ensureCampus(c)
     const id = uuid()
     const isCurrent = req.is_current === true

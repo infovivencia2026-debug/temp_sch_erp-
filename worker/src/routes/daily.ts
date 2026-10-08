@@ -493,6 +493,7 @@ function registerAttendance(r: Router) {
     if (!isUUID(sectionId)) throw badRequest('section_id must be a uuid')
     const onDate = req.on_date || today()
     if (!isDate(onDate)) throw badRequest('on_date must be YYYY-MM-DD')
+    if (onDate > today()) throw badRequest('the register cannot be marked for a day that has not come yet')
     const entries = req.entries ?? []
     if (!entries.length) throw badRequest('entries must not be empty')
     for (const e of entries) if (!attendanceStatuses.has(e.status)) throw badRequest('invalid status: ' + e.status)
@@ -510,7 +511,19 @@ function registerAttendance(r: Router) {
     // The two partial unique indexes (daily / per-period) are not in the
     // SQLite schema, so the upsert is an explicit read-then-write. Only a
     // changed status is written, as the Go `WHERE status IS DISTINCT FROM`.
-    const ids = entries.map((e) => e.student_id)
+    /* Only the section's own roll. A child who is in another section, or who
+       has left, is dropped and named in the answer, never written and never
+       alerted. */
+    const allIds = entries.map((e) => e.student_id)
+    const rl = inList('en.student_id', allIds)
+    const onRoll = await c.db.prepare(`SELECT en.student_id FROM enrollments en JOIN students st ON st.id = en.student_id
+        WHERE en.section_id = ? AND en.status = 'active' AND st.status IN ('active', 'suspended') AND ${rl.sql}`)
+      .bind(sectionId, ...rl.args).all<{ student_id: string }>()
+    const rollSet = new Set(onRoll.results.map((r) => r.student_id))
+    const notInSection = allIds.filter((id) => !rollSet.has(id))
+    const rolled = entries.filter((e) => rollSet.has(e.student_id))
+    if (!rolled.length) throw badRequest("none of these children are on this section's roll")
+    const ids = rolled.map((e) => e.student_id)
     const idl = inList('student_id', ids)
     const existing = await c.db.prepare(`SELECT id, student_id, status FROM student_attendance
         WHERE on_date = ? AND ${idl.sql} AND ${periodId ? 'period_id = ?' : 'period_id IS NULL'}`)
@@ -519,10 +532,13 @@ function registerAttendance(r: Router) {
     const stmts: D1PreparedStatement[] = []
     const nowAbsent: string[] = []
     const ts = now()
-    for (const e of entries) {
+    const onLeave: string[] = []
+    for (const e of rolled) {
       const cur = have.get(e.student_id)
       if (cur) {
         if (cur.status === e.status) continue
+        // Approved leave is a decision already taken; the register does not quietly undo it.
+        if (cur.status === 'leave' && e.status !== 'leave') { onLeave.push(e.student_id); continue }
         stmts.push(c.db.prepare(`UPDATE student_attendance SET status = ?, minutes_late = ?, remarks = ?, corrected_from = ?, corrected_by = ?, corrected_at = ? WHERE id = ?`)
           .bind(e.status, e.minutes_late ?? null, e.remarks ?? null, cur.status, c.id.userId, ts, cur.id))
       } else {
@@ -575,7 +591,7 @@ function registerAttendance(r: Router) {
       await ms.kick()
     }
     return { section_id: sectionId, on_date: onDate, submitted: entries.length, written, newly_absent: nowAbsent.length,
-      parents_told: told, messages_queued: queued, channels }
+      parents_told: told, messages_queued: queued, channels, not_in_section: notInSection, on_leave: onLeave }
   })
 
   // RequireAnyPermission(AttendanceRead, AttendanceReadAll): either grant
@@ -1198,6 +1214,12 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   }
   const kind = studentId ? 'student' : 'staff'
 
+  // The same days asked for twice is one request, not two.
+  const clash = await c.db.prepare(`SELECT id, status FROM leave_requests
+      WHERE status IN ('pending', 'approved') AND ${studentId ? 'student_id = ?' : 'employee_id = ?'} AND from_date <= ? AND to_date >= ? LIMIT 1`)
+    .bind(studentId ?? employeeId, to, from).first<{ id: string; status: string }>()
+  if (clash) throw new HttpError(409, `leave covering these days is already ${clash.status}. Change that request instead of filing another.`, { code: 'leave_overlap', id: clash.id })
+
   // Trigger leave_requests_obey_policy (migrations/00031_hr_lifecycle.sql).
   if (kind === 'staff' && leaveType) {
     const rule = await c.db.prepare('SELECT allow_half_day, max_consecutive_days, notice_days, applies_to_gender FROM leave_policy_rules WHERE leave_type_id = ?')
@@ -1440,6 +1462,10 @@ async function publishHomework(c: Ctx): Promise<Response> {
      parents filter their diary by it, so only those four are accepted. */
   const kind = req.kind || 'homework'
   if (!WORK_KINDS[kind]) throw badRequest('type of work must be one of: homework, classwork, assignment, project')
+  if (trim(req.due_on)) {
+    if (!isDate(req.due_on!)) throw badRequest('due_on must be a date like 2026-04-30')
+    if (req.due_on! < today()) throw badRequest('the due date has already passed; pick today or a later day')
+  }
   const res = await resolveScope(c)
   if (!canMarkSection(res, sectionId)) throw forbidden('missing permission: homework for this section')
   const allow = req.allow_submission ?? true
@@ -1600,6 +1626,11 @@ async function submitHomework(c: Ctx): Promise<Response> {
     target = req.student_id
   }
   const fileId = req.file_id && isUUID(req.file_id) ? req.file_id : null
+  const fit = await c.db.prepare(`SELECT h.allow_submission, h.is_published,
+        EXISTS (SELECT 1 FROM enrollments en WHERE en.student_id = ? AND en.section_id = h.section_id AND en.status = 'active') AS mine
+      FROM homework h WHERE h.id = ?`).bind(target, hid).first<{ allow_submission: number; is_published: number; mine: number }>()
+  if (!fit || !fit.is_published || !fit.mine) throw notFound('resource not found')
+  if (!fit.allow_submission) throw new HttpError(409, 'this work is not turned in through the app; the teacher collects it in class', { code: 'no_submission' })
   const stmts: D1PreparedStatement[] = [
     c.db.prepare(`INSERT INTO homework_submissions (id, institution_id, homework_id, student_id, submitted_at, text_answer, file_id, status, submitted_by)
       VALUES (?,?,?,?,?,?,?,'submitted',?)

@@ -430,7 +430,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                         <span className="min-w-0 flex-1">
                           <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
                           <span className="block text-[15px] text-muted-foreground">
-                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
+                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'Done.' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
                           </span>
                         </span>
                         <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
@@ -519,7 +519,7 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
             {all.length && done === all.length ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : <span className="text-[17px] font-bold">{done}/{all.length}</span>}
           </Ring>
           <div className="min-w-0 flex-1">
-            <p className="text-[18px] font-semibold">{all.length && done === all.length ? 'All done here!' : `${done} of ${all.length} done`}</p>
+            <p className="text-[18px] font-semibold">{all.length && done === all.length ? 'Everything here is done.' : `${done} of ${all.length} done`}</p>
             {m.description && <p className="text-[15px] text-muted-foreground">{m.description}</p>}
             {range && <p className="text-[14px] text-muted-foreground">{range}</p>}
           </div>
@@ -557,7 +557,7 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
                       : <Ring pct={days.length ? (100 * kd) / days.length : 0} size={48} stroke={5} hue={fin ? 'emerald' : 'indigo'} label={`${kd} of ${days.length} done`}>{fin ? <Check className="h-5 w-5 text-success" strokeWidth={2.5} /> : null}</Ring>}
                     <span className="min-w-0 flex-1">
                       <span className="block text-[17px] font-semibold leading-snug [overflow-wrap:anywhere]">{k.title}</span>
-                      <span className="block text-[14px] text-muted-foreground">{locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : fin ? 'All done!' : `${kd} of ${days.length} done`}</span>
+                      <span className="block text-[14px] text-muted-foreground">{locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : fin ? 'Done.' : `${kd} of ${days.length} done`}</span>
                     </span>
                     <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
                   </button>
@@ -629,7 +629,7 @@ function DayPage({ d, m, day, titleOf, open, next, toDay, toBack, backLabel }: {
             {day.state === 'done' ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : day.state === 'locked' ? <Lock className="h-6 w-6 text-muted-foreground" /> : <span className="text-[17px] font-bold">{day.done}/{day.total}</span>}
           </Ring>
           <div className="min-w-0 flex-1">
-            <p className="text-[18px] font-semibold">{day.state === 'locked' ? 'Not open yet' : day.state === 'done' ? 'You did it! Day done.' : `${day.done} of ${day.total} steps done`}</p>
+            <p className="text-[18px] font-semibold">{day.state === 'locked' ? 'Not open yet' : day.state === 'done' ? 'Day done.' : `${day.done} of ${day.total} steps done`}</p>
             <p className="text-[15px] text-muted-foreground">{day.state === 'locked' ? day.reason : m.id === OTHER ? 'Homework and quizzes' : day.state === 'done' ? 'Great work.' : 'Tick off each step, one at a time.'}</p>
           </div>
         </div>
@@ -789,7 +789,7 @@ function AssignmentItem({ a, qkey }: { a: Assignment; qkey: unknown[] }) {
   const canHandIn = a.allow_submission && a.status !== 'graded'
   const submit = useMutation({
     mutationFn: () => api.post<{ late: boolean }>(`/api/v1/portal/lms/assignments/${a.id}/submit`, { text_answer: text, file_id: file?.id ?? a.file_id ?? undefined }),
-    onSuccess: (r) => { setOpen(false); setSent(r.late ? 'Handed in (late). Your teacher will see it.' : 'Handed in! Your teacher will see it.'); qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }); qc.invalidateQueries({ queryKey: ['portal-student-homework'] }) },
+    onSuccess: (r) => { setOpen(false); setSent(r.late ? 'Handed in (late). Your teacher will see it.' : 'Handed in. Your teacher will see it.'); qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }); qc.invalidateQueries({ queryKey: ['portal-student-homework'] }) },
   })
   const handed = !!a.submitted_at && a.status !== 'resubmit'
   return (

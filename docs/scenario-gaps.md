@@ -1,19 +1,65 @@
-# Real-world scenarios: gaps and enhancements
+# Real-world scenarios: gaps found and closed
 
-Date: 2026-10-08. Method: 46 scenarios written as a school office would meet
+Date: 2026-10-08. Method: 68 scenarios written as a school office would meet
 them, run against the real Worker with local D1 through the integration
-harness (`worker/test/integration/real_world_scenarios.test.ts`). Every
-scenario states the rule a school expects; the ones that pass today are
-proof the rule holds, the 15 that fail are the gaps below. They are kept in
-the suite as `it.fails`, so the suite is green now and turns red the day a
-gap is closed, which is the cue to remove the marker.
+harness: 46 day-to-day ones in `real_world_scenarios.test.ts` and 22 across a
+whole academic year in `academic_year.test.ts` (price list and demands, a
+concession, term exam and report cards, a month of payroll, the next year,
+promotion and roll-over). Every scenario states the rule a school expects.
+All 68 pass as of this date: the 15 day-to-day gaps and the 6 year-cycle gaps
+below were fixed the same day, and the tests now hold the rules in place.
+
+## Year-cycle gaps (all fixed)
+
+- **An academic year could end before it started, have no real dates, or
+  overlap another.** `POST /setup/academic-years` now needs two dates, end
+  after start, and refuses an overlap with 409.
+- **A fee demand could be raised already overdue.** `POST /fees/invoices/generate`
+  refuses a due date before today.
+- **Marks could be changed under a published report card.** `POST /exams/marks`
+  refuses with 409 while any of those children has a published card for the
+  exam; return the card first.
+- **Promotion accepted the same section, a section of the wrong year, and
+  moved children with unpaid dues without a word.** `POST /lifecycle/promote`
+  now refuses same-section and same-year moves, checks the target section is in
+  the year given, and holds children with dues unless `allow_dues` is sent.
+- **The register and the counter accepted children who had left** (closed
+  with the day-to-day gaps above).
+- **The family's results page** is `GET /portal/results` and
+  `/portal/results/card?id=`; `GET /exams/report-cards` is a staff route and
+  answers a parent 403. Not a defect, but worth knowing when reading the map.
+
+## UI defects found and fixed the same day
+
+- **The default palette made every destructive label unreadable.** Vivid's
+  accents were the light lime, cyan and pink meant for fills, and
+  `bento-theme.css` paints `.text-destructive` and the good/bad marks with them:
+  1.3:1 to 2.5:1 on a white card. They are now deep inks (5.3:1 to 5.9:1); the
+  bold hues stay in the tints.
+- **Sixteen retired screens were still in the bundle** with no route to them
+  (the alumni, campus-life and gamified-learning features the owner retired in
+  migrations 0032 to 0050). Deleted.
+- **One new feature had no icon and no help answer** (Take attendance, whole
+  school). Added; help answers regenerated from the live catalogue.
+- **Exclamation marks and emoji** in the student course, quiz, home, status,
+  notifications, vehicle map, driver and ops screens, against the copy rule.
+  Rewritten as plain sentences or line icons.
+- **Size-tier tests were stale** against the owner's Tall card decision; the
+  tests now match the shipped five-tier table.
+
+Still open on the UI side, not fixed here: 380 hand-rolled `<button>` and 86
+raw `<input>` elements in `web/src/features` against the shared-component
+rule, and hard-coded hex colours on the student home. Both need a screen-by-
+screen pass in a browser, which this session did not have.
 
 Baseline before this work: 358 of 362 existing integration tests pass. The 4
-failures are query-count budgets in `perf.test.ts` and `status_perf.test.ts`
-(16 tenant statements where 14 are allowed, 18 where 15 are allowed). They
-predate this work and are not functional defects.
+failures predate this work: three query-count budgets in `perf.test.ts` and
+`status_perf.test.ts` (16 tenant statements where 14 are allowed, 18 where 15
+are allowed) and one class-status notification test
+(`class_status_gaps.test.ts`, "a post to a section reaches its subject
+teacher"). After the fixes: 426 of 430 pass, the same four failing.
 
-## Gaps, most serious first
+## Day-to-day gaps, most serious first (all fixed)
 
 ### 1. A new child typed with an existing admission number overwrites that child
 

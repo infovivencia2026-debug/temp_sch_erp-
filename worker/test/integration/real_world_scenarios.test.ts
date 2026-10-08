@@ -1,9 +1,8 @@
 /* Real-world scenarios: what a school office actually does, including the
    mistakes and the edge cases. Each test states the rule a school would
-   expect. The ones marked it.fails are known gaps (docs/scenario-gaps.md):
-   vitest passes them while the gap is open and fails them the day the rule
-   is built, which is the signal to drop the .fails. Money, registers, leave,
-   homework, marks, the roll, and who may see what. */
+   expect; a failure is a gap (docs/scenario-gaps.md records the fifteen
+   found and closed on 2026-10-08). Money, registers, leave, homework, marks,
+   the roll, and who may see what. */
 import { describe, it, expect, beforeAll } from 'vitest'
 import { seed, api, IDS, E, isoDay, signIn, USERS } from './fixture'
 
@@ -18,8 +17,7 @@ describe('money: the fee counter', () => {
     expect((await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: -500, mode: 'cash' })).status).toBe(400)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('refuses a receipt dated in the future', async () => {
+  it('refuses a receipt dated in the future', async () => {
     const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 100, mode: 'cash', paid_on: isoDay(30) })
     expect(r.status, JSON.stringify(r.body)).toBe(400)
   })
@@ -92,8 +90,7 @@ describe('money: the fee counter', () => {
     expect(r.status).toBe(403)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a concession of more than 100 percent is refused', async () => {
+  it('a concession of more than 100 percent is refused', async () => {
     const r = await api('finance', 'POST', '/fees/concessions', { student_id: IDS.child, kind: 'merit', percent: '150', reason: 'typo' })
     expect(r.status, JSON.stringify(r.body)).toBe(400)
   })
@@ -118,14 +115,12 @@ describe('the register', () => {
     expect(b.body.written).toBe(0)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('refuses a date in the future', async () => {
+  it('refuses a date in the future', async () => {
     const r = await mark('teacher', { on_date: isoDay(7) })
     expect(r.status, JSON.stringify(r.body)).toBe(400)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('refuses a child who is not in that section', async () => {
+  it('refuses a child who is not in that section', async () => {
     const stranger = crypto.randomUUID()
     await T().prepare(`INSERT INTO students (id, institution_id, campus_id, admission_no, first_name, last_name, admission_date)
       SELECT ?, institution_id, campus_id, 'A999', 'Zed', 'Stranger', ? FROM students WHERE id = ?`).bind(stranger, isoDay(-10), IDS.child).run()
@@ -156,8 +151,7 @@ describe('leave', () => {
     leaveId = ok.body.id
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('the same leave filed twice is refused as a duplicate', async () => {
+  it('the same leave filed twice is refused as a duplicate', async () => {
     const again = await api('parent', 'POST', '/workflow/leave', { student_id: IDS.child, from_date: isoDay(2), to_date: isoDay(3), reason: 'wedding' })
     expect(again.status, JSON.stringify(again.body)).toBe(409)
   })
@@ -178,8 +172,7 @@ describe('leave', () => {
     expect(rows.results.map((r) => r.status)).toEqual(['leave', 'leave'])
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('marking a child present on a day of approved leave is noticed', async () => {
+  it('marking a child present on a day of approved leave is noticed', async () => {
     const r = await api('teacher', 'POST', '/attendance', { section_id: IDS.section, on_date: isoDay(2), entries: [{ student_id: IDS.child, status: 'absent' }], silent: true })
     // Either refused, or the register is left saying leave. Silently flipping approved leave to absent is the gap.
     const row = await T().prepare('SELECT status FROM student_attendance WHERE student_id = ? AND on_date = ?').bind(IDS.child, isoDay(2)).first<{ status: string }>()
@@ -189,14 +182,12 @@ describe('leave', () => {
 
 describe('homework', () => {
   let hw = ''
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a due date that is not a date is refused', async () => {
+  it('a due date that is not a date is refused', async () => {
     const r = await api('teacher', 'POST', '/homework', { section_id: IDS.section, title: 'Fractions', due_on: 'next tuesday' })
     expect(r.status, JSON.stringify(r.body)).toBe(400)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a due date in the past is refused', async () => {
+  it('a due date in the past is refused', async () => {
     const r = await api('teacher', 'POST', '/homework', { section_id: IDS.section, title: 'Fractions', due_on: isoDay(-30) })
     expect(r.status, JSON.stringify(r.body)).toBe(400)
   })
@@ -207,8 +198,7 @@ describe('homework', () => {
     hw = r.body.id
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a child cannot turn in work that does not take submissions', async () => {
+  it('a child cannot turn in work that does not take submissions', async () => {
     const r = await api('parent', 'POST', `/homework/${hw}/submit`, { text_answer: 'done' })
     expect([400, 403, 409], JSON.stringify(r.body)).toContain(r.status)
   })
@@ -226,8 +216,7 @@ describe('homework', () => {
     expect(row).toBeNull()
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('work set for another section cannot be turned in by this child', async () => {
+  it('work set for another section cannot be turned in by this child', async () => {
     const other = crypto.randomUUID()
     await T().prepare(`INSERT INTO sections (id, institution_id, campus_id, class_id, academic_year_id, name) SELECT ?, institution_id, campus_id, class_id, academic_year_id, 'B' FROM sections WHERE id = ?`).bind(other, IDS.section).run()
     const h = crypto.randomUUID()
@@ -254,8 +243,7 @@ describe('marks', () => {
     expect(r.body.written).toBe(2)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('marks for a child who is not in this class are refused', async () => {
+  it('marks for a child who is not in this class are refused', async () => {
     const stranger = crypto.randomUUID()
     await T().prepare(`INSERT INTO students (id, institution_id, campus_id, admission_no, first_name, last_name, admission_date)
       SELECT ?, institution_id, campus_id, 'A998', 'Yan', 'Elsewhere', ? FROM students WHERE id = ?`).bind(stranger, isoDay(-10), IDS.child).run()
@@ -267,8 +255,7 @@ describe('marks', () => {
 })
 
 describe('the roll', () => {
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a second child with the same admission number is refused, not written over the first', async () => {
+  it('a second child with the same admission number is refused, not written over the first', async () => {
     const r = await api('admin', 'POST', '/students', { admission_no: 'A001', first_name: 'Dup', last_name: 'Licate', date_of_birth: '2015-05-05', gender: 'male' })
     const row = await T().prepare('SELECT first_name FROM students WHERE id = ?').bind(IDS.child).first<{ first_name: string }>()
     expect(row?.first_name, "Chirag's record must survive a clerk typing his admission number for a new child").toBe('Chirag')
@@ -279,15 +266,13 @@ describe('the roll', () => {
     expect((await api('admin', 'POST', `/students/${IDS.otherChild}/exit`, { status: 'transferred', exit_date: isoDay(30) })).status).toBe(400)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('a child with dues is not quietly let go', async () => {
+  it('a child with dues is not quietly let go', async () => {
     // Diya still owes 5,00,000 on INV-2. The office should be told before recording her as left.
     const r = await api('admin', 'POST', `/students/${IDS.otherChild}/exit`, { status: 'transferred', exit_date: isoDay(0), reason: 'moved city' })
     expect(r.status, JSON.stringify(r.body)).toBe(409)
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('after a child leaves, nobody can collect a fee against them', async () => {
+  it('after a child leaves, nobody can collect a fee against them', async () => {
     await T().prepare(`UPDATE students SET status = 'transferred', exit_date = ? WHERE id = ?`).bind(isoDay(0), IDS.otherChild).run()
     await T().prepare(`UPDATE enrollments SET status = 'transferred' WHERE student_id = ?`).bind(IDS.otherChild).run()
     const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.otherChild, amount_paise: 1000, mode: 'cash' })
@@ -296,12 +281,11 @@ describe('the roll', () => {
     await T().prepare(`UPDATE enrollments SET status = 'active' WHERE student_id = ?`).bind(IDS.otherChild).run()
   })
 
-  // GAP (docs/scenario-gaps.md): passes today because the rule is missing; remove .fails when it is built.
-  it.fails('after a child leaves, the register no longer accepts them', async () => {
+  it('after a child leaves, the register no longer accepts them', async () => {
     await T().prepare(`UPDATE students SET status = 'transferred' WHERE id = ?`).bind(IDS.otherChild).run()
     await T().prepare(`UPDATE enrollments SET status = 'transferred' WHERE student_id = ?`).bind(IDS.otherChild).run()
     const r = await api('teacher', 'POST', '/attendance', { section_id: IDS.section, entries: [{ student_id: IDS.otherChild, status: 'present' }], silent: true })
-    expect(r.status === 400 || r.body?.written === 0, JSON.stringify(r.body)).toBe(true)
+    expect(r.status === 400 || (r.body?.written === 0 && r.body?.not_in_section?.includes(IDS.otherChild)), JSON.stringify(r.body)).toBe(true)
     await T().prepare(`UPDATE students SET status = 'active' WHERE id = ?`).bind(IDS.otherChild).run()
     await T().prepare(`UPDATE enrollments SET status = 'active' WHERE student_id = ?`).bind(IDS.otherChild).run()
   })
