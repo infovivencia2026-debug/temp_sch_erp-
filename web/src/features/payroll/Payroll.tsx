@@ -237,6 +237,20 @@ export default function Payroll() {
                     : 'Draft, nobody has approved these figures yet'
               }
               action={
+                /* Only what this login may do. Finance reads payroll to approve it and
+                   was shown HR's Lock button, which answered "Forbidden." (owner, 2026-10-08). */
+                !canRun ? (
+                  locked ? (
+                    <a
+                      className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
+                      href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
+                    >
+                      Download bank file
+                    </a>
+                  ) : (
+                    <span className="text-[13px] text-muted-foreground">HR checks and locks these figures; nothing to do here yet.</span>
+                  )
+                ) : (
                 <div className="flex flex-wrap gap-2">
                   {status !== 'locked' && status !== 'paid' && (
                     <Button disabled={state.isPending} onClick={() => state.mutate('locked')}>
@@ -269,6 +283,7 @@ export default function Payroll() {
                     </Button>
                   )}
                 </div>
+                )
               }
             />
             {/* WHERE THE SENTENCE ACTUALLY GOES.
