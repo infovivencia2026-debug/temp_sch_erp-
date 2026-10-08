@@ -42,10 +42,10 @@ import { useOpenState } from '@/lib/motion'
    as a rounded square with a white glyph -- the way a phone's Settings tells
    its rows apart at a glance. */
 const SECTION_TINT: Record<string, string> = {
-  appearance: '#4f46e5', colour: '#ea580c', dock: '#0891b2', dashboard: '#0d9488',
-  school: '#2563eb', communication: '#16a34a', messaging: '#16a34a',
-  account: '#22a06b', security: '#0284c7', privacy: '#64748b', people: '#7c3aed',
-  access: '#7c3aed', workspace: '#7c3aed', role: '#7c3aed', help: '#f59e0b',
+  appearance: '#5856d6', colour: '#ff9500', dock: '#30b0c7', dashboard: '#30b0c7',
+  school: '#007aff', communication: '#34c759', messaging: '#34c759',
+  account: '#34c759', security: '#007aff', privacy: '#5856d6', people: '#af52de',
+  access: '#af52de', workspace: '#af52de', roles: '#af52de', role: '#af52de', help: '#ff9500',
 }
 export function sectionTint(id: string): string {
   return SECTION_TINT[id] ?? '#64748b'

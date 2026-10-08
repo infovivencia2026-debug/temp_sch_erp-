@@ -257,7 +257,7 @@ export default function SettingsPage() {
              ground below it is painted the same colour (data-page-ground). */
           'flex-1 border-b-0 sm:flex-none sm:border-b',
           'sm:rounded-[16px] sm:border-x sm:border-t',
-          'bg-[var(--bento-card,hsl(var(--card)))]',
+          'bg-[color-mix(in_srgb,hsl(var(--muted))_75%,var(--bento-card,hsl(var(--card))))] sm:bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
           EDGE,
           /* THE PANEL ENDS ABOVE THE DOCK. On a desktop the dock floats over
@@ -286,14 +286,14 @@ export default function SettingsPage() {
               onClick={backToList}
               className={cn(
                 '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-[8px] pl-[6px] pr-[10px]',
-                'text-[15px] transition-colors', INK, WASH, RING,
+                'text-[17px] text-[hsl(var(--primary))] transition-colors', WASH, RING,
               )}
             >
               <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
               {t('bento.settings.label')}
             </button>
           )}
-          <h1 className={cn('text-[26px] font-bold leading-tight tracking-[-0.01em] sm:text-[20px] sm:font-semibold', INK)}>
+          <h1 className={cn('text-[32px] font-bold leading-tight tracking-[-0.02em] sm:text-[20px] sm:font-semibold', INK)}>
             {found && !wide ? found.label : t('bento.settings.label')}
           </h1>
         </header>

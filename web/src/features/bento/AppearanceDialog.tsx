@@ -3,6 +3,7 @@ import { Dialog } from '@/components/ui'
 import {
   Building2, ChevronLeft, LayoutGrid, MessageSquare,
   Palette, ShieldCheck, Sliders, Type, UserCircle,
+  User, CalendarDays, CreditCard, HelpCircle, Home, Lock, MapPin, KeyRound, Bell, Users, FileText, Settings2,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { resetAppearance } from '@/lib/appearance'
@@ -539,8 +540,35 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
    A plain <a> and not a router push. Leaving Settings for a full screen is the
    intent every time one of these is pressed, and a hard navigation guarantees
    the dialog, the overlay and the dock's lifted state all go with it. */
+/* Every link row leads with an iOS-style coloured icon, chosen from what the
+   row is (owner, 2026-10-08: "add icons like iOS"). */
+const LINK_ICON: [RegExp, typeof User, string][] = [
+  [/profile/i, User, '#007aff'],
+  [/leave|self service/i, CalendarDays, '#5856d6'],
+  [/pay|salary|billing|fee/i, CreditCard, '#34c759'],
+  [/help|support/i, HelpCircle, '#ff9500'],
+  [/setup|school/i, Home, '#007aff'],
+  [/privacy/i, Lock, '#5856d6'],
+  [/track|bus|transport|route/i, MapPin, '#ff9500'],
+  [/role|permission|access/i, ShieldCheck, '#0284c7'],
+  [/password|sign.?in|session|device/i, KeyRound, '#8e8e93'],
+  [/message|sms|whatsapp|email|notice|template/i, MessageSquare, '#34c759'],
+  [/notif|alert/i, Bell, '#ff3b30'],
+  [/staff|people|user|login/i, Users, '#af52de'],
+  [/report|document|certificate|form/i, FileText, '#30b0c7'],
+]
+function linkIcon(name: string) {
+  const hit = LINK_ICON.find(([re]) => re.test(name))
+  const Icon = hit?.[1] ?? Settings2
+  return (
+    <span aria-hidden="true" className="grid size-[30px] shrink-0 place-items-center rounded-[8px] text-white [&_svg]:size-[17px] [&_svg]:stroke-[2.1]"
+      style={{ background: hit?.[2] ?? '#8e8e93' }}>
+      <Icon />
+    </span>
+  )
+}
 function LinkRow({ link }: { link: ResolvedLink }) {
-  return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} />
+  return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} icon={linkIcon(link.name)} />
 }
 
 /* THE WORKSPACE SWITCH, WHICH FOCUS HAD TAKEN AWAY.
@@ -604,8 +632,18 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
     <>
       {group.id === 'roles' && <WorkspaceRows />}
       <Rows>
-        {links.map((l) => <LinkRow key={l.href} link={l} />)}
+        {links.filter((l) => !/^sign out$/i.test(l.name)).map((l) => <LinkRow key={l.href} link={l} />)}
       </Rows>
+      {/* Sign out on a card of its own, centred and red, as a phone's
+          settings do it: the one row that ends the session is not a row
+          among others. */}
+      {links.filter((l) => /^sign out$/i.test(l.name)).map((l) => (
+        <Rows key={l.href}>
+          <a href={l.href} className="flex min-h-[48px] items-center justify-center text-[16px] font-medium text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_6%,transparent)]">
+            {l.name}
+          </a>
+        </Rows>
+      ))}
     </>
   )
 }
