@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Info, KeyRound, Lock, ShieldCheck, UserCheck } from 'lucide-react'
+import { Info, KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
@@ -224,7 +224,12 @@ export default function ProfileView() {
         title="Identity and profile"
         hint="What the school has on record, and how it reaches you"
         action={editing ? undefined : (
-          <Button size="sm" variant="secondary" onClick={startEditing}>Edit</Button>
+          /* A pencil in the card's corner, the way a phone shows "edit"
+             (owner, 2026-10-08). The word stays for screen readers. */
+          <button type="button" onClick={startEditing} aria-label="Edit" title="Edit"
+            className="grid size-9 place-items-center rounded-full border bg-[hsl(var(--card))] text-[hsl(var(--primary))] shadow-sm transition-colors hover:bg-muted">
+            <Pencil className="size-4" aria-hidden="true" />
+          </button>
         )}
       >
         {/* WHO THIS IS, before what is recorded about them.
