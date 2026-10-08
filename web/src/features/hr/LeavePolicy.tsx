@@ -39,6 +39,8 @@ interface TypeRule {
   document_required_after_days?: number
   available_during_probation: boolean
   applies_to_gender?: string
+  window_from?: string
+  window_to?: string
 }
 
 interface Policy {
@@ -201,7 +203,7 @@ function RulesTab({
     <Card>
       <CardHeader title="What each type allows"
         description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
-      <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to', '']}>
+      <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to', 'Apply from', 'Apply to', '']}>
         {types.map((t) => (
           <tr key={t.leave_type_id}>
             <Td className="font-medium">{t.name}
@@ -266,6 +268,17 @@ function RulesTab({
                   { value: 'female', label: 'Women only' },
                   { value: 'male', label: 'Men only' },
                 ]} />
+            </Td>
+            {/* The window of the year in which this leave may be applied for,
+                as MM-DD. Earned leave in April and October is the usual case.
+                Blank means any time. */}
+            <Td className="w-24">
+              <Input value={t.window_from ?? ''} placeholder="04-01"
+                onChange={(v) => onChange(t.leave_type_id, { window_from: v || undefined })} />
+            </Td>
+            <Td className="w-24">
+              <Input value={t.window_to ?? ''} placeholder="04-30"
+                onChange={(v) => onChange(t.leave_type_id, { window_to: v || undefined })} />
             </Td>
             {/* A school that accepted the five suggested types was then stuck
                 with all five, including kinds of leave it does not grant. */}

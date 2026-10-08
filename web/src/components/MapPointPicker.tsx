@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type Map as MLMap, type Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Button } from '@/components/ui'
-import { collapseAttribution, selfHostedStyle } from '@/components/FleetMap'
+import { collapseAttribution, fallBackToPublicMap, selfHostedStyle } from '@/components/FleetMap'
 
 /* Putting a stop where it actually is.
 
@@ -63,7 +63,7 @@ export default function MapPointPicker({ value, fallback, onPick, onClose }: Pro
     /* A community tile host with no SLA. An empty grey square reads as "there
        is nothing here", which is a different and much worse statement than
        "the map did not load". */
-    m.on('error', () => setFailed(true))
+    m.on('error', () => { setFailed(true); fallBackToPublicMap(m, 'light') })
     // The credit folds to its ⓘ button; see collapseAttribution in FleetMap.
     m.on('load', () => collapseAttribution(m))
 

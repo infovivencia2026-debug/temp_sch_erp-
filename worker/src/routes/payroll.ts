@@ -96,9 +96,10 @@ function registerCommunication(r: Router) {
     const rows = await c.db.prepare(`
       SELECT a.id, a.title, a.kind, a.audience_role, a.requires_ack, ${dateOf('a.publish_at')} AS published_at,
              ${minuteOf('a.publish_at')} AS published_at_full, COALESCE(u.full_name, '') AS published_by,
-             (SELECT COUNT(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id) AS acknowledgements,
+             (SELECT COUNT(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id) + (SELECT COUNT(*) FROM staff_announcement_acks sk WHERE sk.announcement_id = a.id) AS acknowledgements,
              (SELECT COUNT(*) FROM announcement_sections s2 WHERE s2.announcement_id = a.id) AS sections,
-             EXISTS (SELECT 1 FROM announcement_acks ak WHERE ak.announcement_id = a.id AND ak.user_id = ?1) AS mine,
+             (EXISTS (SELECT 1 FROM announcement_acks ak WHERE ak.announcement_id = a.id AND ak.user_id = ?1)
+              OR EXISTS (SELECT 1 FROM staff_announcement_acks sk WHERE sk.announcement_id = a.id AND sk.user_id = ?1)) AS mine,
              a.body
         FROM announcements a LEFT JOIN users u ON u.id = a.created_by
        WHERE ${where}
@@ -126,13 +127,14 @@ function registerCommunication(r: Router) {
              COALESCE((SELECT TRIM(s2.first_name || ' ' || COALESCE(s2.last_name,'')) FROM student_guardians sg2 JOIN students s2 ON s2.id = sg2.student_id
                         WHERE sg2.guardian_id = g.id ORDER BY s2.first_name LIMIT 1),
                       CASE WHEN st.id IS NOT NULL THEN TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')) END) AS student,
-             CASE WHEN ack.acked_at IS NULL THEN NULL ELSE SUBSTR(ack.acked_at,1,10) || ' ' || SUBSTR(ack.acked_at,12,5) END AS acked_at
+             CASE WHEN COALESCE(ack.acked_at, sak.acked_at) IS NULL THEN NULL ELSE SUBSTR(COALESCE(ack.acked_at, sak.acked_at),1,10) || ' ' || SUBSTR(COALESCE(ack.acked_at, sak.acked_at),12,5) END AS acked_at
         FROM recipients rcp
         JOIN users u ON u.id = rcp.user_id
         LEFT JOIN guardians g ON g.id = (SELECT id FROM guardians WHERE user_id = u.id LIMIT 1)
         LEFT JOIN students st ON st.id = (SELECT id FROM students WHERE user_id = u.id LIMIT 1)
         LEFT JOIN announcement_acks ack ON ack.announcement_id = ?${rc.args.length + 2} AND ack.user_id = u.id
-       ORDER BY (ack.acked_at IS NULL) DESC, 1`).bind(ann.audience_role, ...rc.args, annId).all()
+        LEFT JOIN staff_announcement_acks sak ON sak.announcement_id = ?${rc.args.length + 2} AND sak.user_id = u.id
+       ORDER BY (COALESCE(ack.acked_at, sak.acked_at) IS NULL) DESC, 1`).bind(ann.audience_role, ...rc.args, annId).all()
     let acknowledged = 0
     const list = people.results.map((p) => {
       if (p.acked_at != null) acknowledged++
@@ -157,7 +159,19 @@ function registerCommunication(r: Router) {
     const annId = c.params.id
     if (!isUUID(annId)) throw badRequest('invalid circular id')
     const res = await resolveScope(c)
-    if (res.studentIds.length === 0) throw badRequest('only a student or guardian can acknowledge a circular')
+    /* A member of staff acknowledges for themselves: the handbook is
+       circulars of kind policy sent to staff, and HR reads who has signed. A
+       class teacher also reaches children through scope, so staff is decided
+       first, by the roll, not by what the account can see. */
+    const emp = await c.db.prepare(`SELECT 1 FROM employees WHERE user_id = ? AND status IN ('active','on_leave')`).bind(c.id.userId).first()
+    if (emp || res.studentIds.length === 0) {
+      if (!emp) throw badRequest('only a student, a guardian or a member of staff can acknowledge a circular')
+      const ann = await c.db.prepare(`SELECT 1 AS ok FROM announcements WHERE id = ?`).bind(annId).first()
+      if (!ann) throw notFound('resource not found')
+      await c.db.prepare(`INSERT INTO staff_announcement_acks (announcement_id, user_id, institution_id, acked_at) VALUES (?, ?, ?, ?)
+          ON CONFLICT (announcement_id, user_id) DO UPDATE SET acked_at = excluded.acked_at`).bind(annId, c.id.userId, c.id.institution!.id, now()).run()
+      return ok({ acknowledged: true })
+    }
     let target = res.studentIds[0]
     const q = c.url.searchParams.get('student_id')
     if (q) {

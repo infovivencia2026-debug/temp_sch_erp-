@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 410 features. */
+/** 24 roles, 412 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -747,6 +747,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'assigned_classes', tier: 'core', summary: 'Own profile, password and leave.' },
           { key: 'faculty.my_profile.student_leave_requests', slug: 'student_leave_requests', name: 'Student leave requests', scope: 'assigned_classes', tier: 'core', summary: 'Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department.' },
           { key: 'faculty.my_profile.remarks_about_me', slug: 'remarks_about_me', name: 'Remarks about me', scope: 'self', tier: 'core', summary: 'What your head of department, the principal or a parent has written about you. You are told when one is added.' },
+          { key: 'faculty.my_profile.my_handbook', slug: 'my_handbook', name: 'My handbook', scope: 'self', tier: 'core', summary: 'The school\'s policies you are asked to read and acknowledge, and the ones you already have.' },
           { key: 'faculty.my_profile.my_tasks', slug: 'my_tasks', name: 'My tasks', scope: 'self', tier: 'core', summary: 'The jobs the office or your reporting manager has handed you, due date first. Start one, finish it with a note, and hand jobs to the people who report to you.' },
           { key: 'faculty.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
@@ -1457,6 +1458,14 @@ export const ROLES: Role[] = [
         workspace: 'People',
         features: [
           { key: 'hr.tasks.staff_tasks', slug: 'staff_tasks', name: 'Staff tasks', scope: 'institution', tier: 'core', summary: 'Hand a job to a member of staff with a due date, watch it move from open to done, and read the report of who has what open and overdue. The Reporting managers tab says who each person answers to, which is where their leave request goes first.' },
+        ],
+      },
+      {
+        slug: 'handbook',
+        name: 'Handbook',
+        workspace: 'People',
+        features: [
+          { key: 'hr.handbook.staff_handbook', slug: 'staff_handbook', name: 'Staff handbook', scope: 'institution', tier: 'core', summary: 'The school\'s policies for staff: publish one with the full document attached, every member of staff is asked to read and acknowledge it, and HR sees who has not yet signed.' },
         ],
       },
       {

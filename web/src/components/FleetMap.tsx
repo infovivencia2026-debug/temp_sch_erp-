@@ -60,6 +60,32 @@ const TILES_ORIGIN = /^https?:\/\//i.test(TILES_BASE) ? '' : window.location.ori
 const TILES_ARCHIVE = `${TILES_BASE}/south-india.pmtiles`
 
 let pmtilesRegistered = false
+
+/* THE PUBLIC MAP, WHEN THE SCHOOL'S OWN TILES ARE NOT SERVED.
+
+   The self-hosted archive lives on a box with no SLA; on 2026-10-08 it was
+   not answering and every map in the product was a grey square with a red
+   notice. Positions and stops are this app's data and were drawn, but a
+   bus on a grey square is not a map. So when the archive fails, the map
+   restyles itself onto OpenFreeMap, a public vector basemap of OpenStreetMap
+   data served with no key and no quota (CARTO's rasters were tried first and
+   now answer "API key required"), and says so quietly. Nothing about the
+   school leaves: a tile request carries only the viewport. The archive is
+   still preferred whenever it answers. */
+export function publicStyle(flavor: MapFlavor = 'light'): string {
+  const name = flavor === 'black' ? 'dark' : flavor === 'grayscale' ? 'positron' : 'liberty'
+  return `https://tiles.openfreemap.org/styles/${name}`
+}
+
+/** Swap a map onto the public basemap once, the first time its own tiles fail. */
+export function fallBackToPublicMap(m: MLMap, flavor: MapFlavor, onDone?: () => void): boolean {
+  const tagged = m as MLMap & { __publicFallback?: boolean }
+  if (tagged.__publicFallback) return false
+  tagged.__publicFallback = true
+  m.once('style.load', () => { collapseAttribution(m); onDone?.() })
+  m.setStyle(publicStyle(flavor))
+  return true
+}
 /* The Protomaps flavours this product draws. 'light' is the office's full
    colour street map. The two guidance flavours are the same tiles with the
    colour taken out -- grey roads on a pale ground, or on a near-black one --
@@ -290,6 +316,7 @@ export function FleetMap({
   const lastHeading = useRef<Map<string, number>>(new Map())
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
+  const firstFlavor = useRef(flavor)
   /* Filling the screen is a state of this component, not the browser's.
 
      The Fullscreen API is the obvious answer and the wrong one here: the parent
@@ -344,7 +371,15 @@ export function FleetMap({
     /* A tile host with no SLA will eventually not answer. Say so: a grey
        square with markers floating on it reads as open countryside. */
     m.on('error', (e) => {
-      if (String(e?.error?.message ?? '').match(/style|tile|fetch|load/i)) setTilesFailed(true)
+      if (!String(e?.error?.message ?? '').match(/style|tile|fetch|load/i)) return
+      setTilesFailed(true)
+      /* The style swap throws away every layer this component added, so
+         ready is dropped and raised again once the public map has loaded,
+         which re-runs every effect below exactly as on first load. Only on
+         the swap itself: the old style's sprites and fonts go on failing
+         for a moment after it, and each of those must not drop ready again. */
+      const swapped = fallBackToPublicMap(m, firstFlavor.current, () => setReady(true))
+      if (swapped) setReady(false)
     })
     map.current = m
     return () => {
@@ -366,7 +401,6 @@ export function FleetMap({
      source when the source is missing. The DOM markers survive setStyle on
      their own. Only the guidance tone does this -- the office map never
      changes flavour. */
-  const firstFlavor = useRef(flavor)
   useEffect(() => {
     const m = map.current
     if (!m || tone !== 'guidance' || firstFlavor.current === flavor) return
@@ -801,8 +835,9 @@ export function FleetMap({
            this app's own data and are drawn regardless — so the honest thing
            is to label what is missing and leave the rest working. */
         <div className="pointer-events-none absolute inset-x-0 top-0 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
-          The street map did not load. Positions and stops below are still this
-          school’s own and are drawn correctly.
+          The school’s own map tiles are not being served; this is the public
+          map instead. Positions and stops are this school’s own and are drawn
+          correctly.
         </div>
       )}
     </div>
