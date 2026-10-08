@@ -340,7 +340,10 @@ export function SliderRow({
            the old all-ink track, so the chosen amount is the thing that reads. */
         style={{
           borderRadius: '3px / calc((var(--sband-h, 44px) - 6px) / 2 + 3px)',
-          background: `linear-gradient(to right, var(--sel-strong) ${fill}, color-mix(in srgb, var(--bento-ink) 22%, transparent) ${fill})`,
+          /* backgroundImage, not the background shorthand: on every move React
+             re-set only the shorthand, which reset backgroundClip, and the 6px
+             track became a thick bar (owner, 2026-10-08). */
+          backgroundImage: `linear-gradient(to right, var(--sel-strong) ${fill}, color-mix(in srgb, var(--bento-ink) 22%, transparent) ${fill})`,
           backgroundClip: 'content-box',
         }}
         className={cn(
