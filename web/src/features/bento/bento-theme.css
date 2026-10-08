@@ -4792,21 +4792,27 @@ html[data-assistant-open] .bento-dots { display: none !important; }
    covers the title; the size control is a compact chip in the bottom-right
    corner. Both keep a full fingertip target through ::before. */
 [data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove {
-  top: -9px !important;
-  left: -9px !important;
-  width: 24px !important;
-  height: 24px !important;
+  top: 8px !important;
+  left: auto !important;
+  right: 8px !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
   z-index: 6;
   border: 0 !important;
   background: color-mix(in srgb, var(--bento-ink) 72%, transparent) !important;
   color: var(--bento-pop-bg) !important;
   box-shadow: 0 2px 6px rgb(0 0 0 / .25) !important;
 }
-[data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove svg { width: 14px; height: 14px; }
+[data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove svg { width: 12px; height: 12px; }
 [data-layout='bento'] .bento-widget[data-editing] .bento-sizebtn {
   right: 8px !important;
   bottom: 8px !important;
   height: 24px !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
   padding: 0 6px !important;
   font-size: 11px !important;
   z-index: 6;
