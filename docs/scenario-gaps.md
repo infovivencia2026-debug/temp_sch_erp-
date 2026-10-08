@@ -29,6 +29,34 @@ below were fixed the same day, and the tests now hold the rules in place.
   `/portal/results/card?id=`; `GET /exams/report-cards` is a staff route and
   answers a parent 403. Not a defect, but worth knowing when reading the map.
 
+## LMS, both sides (17 scenarios, `lms_real_world.test.ts`)
+
+Run as the teacher and as two children with their own logins, with the
+parent trying the child's doors. Held up: past-due assignments and
+unanswerable quizzes refused; a lesson done once and un-doable; the parent
+reads but cannot hand in, start a quiz or finish a lesson; a child cannot read
+the gradebook or results or hand in to another section; late work is marked
+late and the teacher sees it; redo then resubmit then sealed once marked; two
+quiz attempts keep the best, nonsense option ids score nothing, the third start
+is refused; a quiz not yet open or closed cannot be started, and closing it
+mid-attempt lets the attempt finish; retiring a unit hides its lessons and
+keeps what was done.
+
+Gaps found and fixed the same day:
+
+- **A teacher could not fix or withdraw an assignment or a quiz.** No edit or
+  delete route existed (the server answered 501), so a typo in a title, a wrong
+  due date or work set by mistake stayed on every child's to-do list. Added
+  `PUT` and `DELETE /lms/assignments/{id}` and `/lms/quizzes/{id}`: title,
+  instructions and dates change any time; the maximum and rubric lock once
+  anything is marked; questions lock once anyone has started; delete is refused
+  with 409 once work is handed in or an attempt exists. Edit and Withdraw
+  controls added to the teacher's Assignments and Quizzes tables.
+- **A child who handed nothing in could be marked.** Grading inserted a
+  `graded` row with no work, which then counted the child as not missing.
+  `POST /lms/assignments/{id}/grade` now refuses with 409 unless the teacher
+  sends `without_submission: true` to record a mark for work not received.
+
 ## UI defects found and fixed the same day
 
 - **The default palette made every destructive label unreadable.** Vivid's

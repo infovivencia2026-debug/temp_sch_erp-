@@ -3,11 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Film, Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, PageBody, PageHead, Select, Table, Td, Textarea,
+  Badge, Button, Card, CardHeader, Dialog, EmptyState, ErrorState, Field, FormNotice, Input, Loading, PageBody, PageHead, Select, Table, Td, Textarea,
 } from '@/components/ui'
 import VideoLibrary from './VideoLibrary'
 import { FilePick, type RubricRow } from '../learning/lms-shared'
-import { CourseProgress, Modules, type CourseDetail, type Tab } from './TeacherModules'
+import { CourseProgress, Modules, type CourseDetail, type Tab, type TAssignment, type TQuiz } from './TeacherModules'
 
 /* THE LMS, FROM THE FRONT OF THE CLASS (worker routes/teaching/lms.ts).
 
@@ -114,6 +114,13 @@ function Assignments({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
   const qc = useQueryClient()
   const [openId, setOpenId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<TAssignment | null>(null)
+  const [withdrawing, setWithdrawing] = useState<TAssignment | null>(null)
+  const refresh = () => qc.invalidateQueries({ queryKey: qkey })
+  const withdraw = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/lms/assignments/${id}`),
+    onSuccess: () => { setWithdrawing(null); refresh() },
+  })
   if (openId) return <GradebookView id={openId} back={() => { setOpenId(null); qc.invalidateQueries({ queryKey: qkey }) }} />
   return (
     <div className="space-y-4">
@@ -129,11 +136,65 @@ function Assignments({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
               <Td>{a.submitted} of {d.roll}</Td>
               <Td>{a.to_mark ? <Badge tone="warning">{a.to_mark}</Badge> : '0'}</Td>
               <Td>{a.returned}</Td>
-              <Td><Button size="sm" variant="secondary" onClick={() => setOpenId(a.id)}>Gradebook</Button></Td>
+              <Td>
+                <span className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setOpenId(a.id)}>Gradebook</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(editing?.id === a.id ? null : a)}>{editing?.id === a.id ? 'Close' : 'Edit'}</Button>
+                  {a.submitted === 0 && <Button size="sm" variant="ghost" onClick={() => setWithdrawing(a)}>Withdraw</Button>}
+                </span>
+              </Td>
             </tr>
           ))}
         </Table>
+        {editing && <EditAssignment a={editing} done={() => { setEditing(null); refresh() }} />}
       </Card>
+      {withdrawing && (
+        <Dialog
+          onClose={() => setWithdrawing(null)}
+          title="Withdraw this assignment?"
+          description={`${withdrawing.title} goes from every child's to-do list and the diary. Nobody has handed anything in, so nothing is lost.`}
+          footer={
+            <>
+              <Button size="sm" variant="secondary" className="mr-auto" onClick={() => setWithdrawing(null)}>Keep it</Button>
+              <Button size="sm" pending={withdraw.isPending} onClick={() => withdraw.mutate(withdrawing.id)}>Withdraw</Button>
+            </>
+          }
+        >
+          <FormNotice error={withdraw.error} />
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
+/** Fix what was set: the title, instructions and due date. The maximum and rubric are locked once anything is marked. */
+function EditAssignment({ a, done }: { a: TAssignment; done: () => void }) {
+  const [title, setTitle] = useState(a.title)
+  const [instr, setInstr] = useState(a.instructions ?? '')
+  const [due, setDue] = useState(a.due_on ?? '')
+  const [max, setMax] = useState(a.max_marks === null || a.max_marks === undefined ? '' : String(a.max_marks))
+  const locked = a.graded > 0
+  const save = useMutation({
+    mutationFn: () => api.put(`/api/v1/lms/assignments/${a.id}`, {
+      title, instructions: instr, due_on: due || null,
+      ...(locked || a.rubric ? {} : { max_marks: max === '' ? null : Number(max) }),
+    }),
+    onSuccess: done,
+  })
+  return (
+    <div className="space-y-3 border-t bg-muted/20 px-[var(--card-pad)] py-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
+        <Field label="Due on"><Input type="date" value={due} onChange={setDue} /></Field>
+        <Field label="Out of" hint={a.rubric ? 'Set by the rubric.' : locked ? 'Locked: work has been marked out of this.' : undefined}>
+          <Input type="number" value={a.rubric ? String(a.rubric.reduce((x, r) => x + (r.max || 0), 0)) : max} onChange={setMax} disabled={locked || !!a.rubric} />
+        </Field>
+      </div>
+      <Field label="Instructions"><Textarea rows={3} value={instr} onChange={setInstr} /></Field>
+      <div className="flex items-center gap-3">
+        <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>Save</Button>
+        <FormNotice error={save.error} />
+      </div>
     </div>
   )
 }
@@ -288,6 +349,12 @@ function Quizzes({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
     mutationFn: (v: { id: string; status: string }) => api.post(`/api/v1/lms/quizzes/${v.id}/status`, { status: v.status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qkey }),
   })
+  const [editing, setEditing] = useState<TQuiz | null>(null)
+  const [withdrawing, setWithdrawing] = useState<TQuiz | null>(null)
+  const withdraw = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/lms/quizzes/${id}`),
+    onSuccess: () => { setWithdrawing(null); qc.invalidateQueries({ queryKey: qkey }) },
+  })
   return (
     <div className="space-y-4">
       <Card>
@@ -305,14 +372,55 @@ function Quizzes({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
               <Td>
                 <span className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setResults(results === z.id ? null : z.id)}>Results</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(editing?.id === z.id ? null : z)}>{editing?.id === z.id ? 'Close' : 'Edit'}</Button>
+                  {z.attempted === 0 && <Button size="sm" variant="ghost" onClick={() => setWithdrawing(z)}>Withdraw</Button>}
                   <Button size="sm" variant="ghost" onClick={() => status.mutate({ id: z.id, status: z.status === 'published' ? 'closed' : 'published' })}>{z.status === 'published' ? 'Close' : 'Open'}</Button>
                 </span>
               </Td>
             </tr>
           ))}
         </Table>
+        {editing && <EditQuiz z={editing} done={() => { setEditing(null); qc.invalidateQueries({ queryKey: qkey }) }} />}
       </Card>
+      {withdrawing && (
+        <Dialog
+          onClose={() => setWithdrawing(null)}
+          title="Withdraw this quiz?"
+          description={`${withdrawing.title} goes from every child's course. Nobody has taken it, so no score is lost.`}
+          footer={
+            <>
+              <Button size="sm" variant="secondary" className="mr-auto" onClick={() => setWithdrawing(null)}>Keep it</Button>
+              <Button size="sm" pending={withdraw.isPending} onClick={() => withdraw.mutate(withdrawing.id)}>Withdraw</Button>
+            </>
+          }
+        >
+          <FormNotice error={withdraw.error} />
+        </Dialog>
+      )}
       {results && <QuizResults id={results} />}
+    </div>
+  )
+}
+
+/** The title and time limit can change any time; the questions only while nobody has started. */
+function EditQuiz({ z, done }: { z: TQuiz; done: () => void }) {
+  const [title, setTitle] = useState(z.title)
+  const [minutes, setMinutes] = useState(z.duration_minutes ? String(z.duration_minutes) : '')
+  const save = useMutation({
+    mutationFn: () => api.put(`/api/v1/lms/quizzes/${z.id}`, { title, duration_minutes: minutes === '' ? null : Number(minutes) }),
+    onSuccess: done,
+  })
+  return (
+    <div className="space-y-3 border-t bg-muted/20 px-[var(--card-pad)] py-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
+        <Field label="Time limit, minutes" hint="Empty: no limit."><Input type="number" value={minutes} onChange={setMinutes} /></Field>
+      </div>
+      {z.attempted > 0 && <p className="text-[13px] text-muted-foreground">{z.attempted} children have taken this quiz, so its questions cannot change. Close it and set a new one if a question is wrong.</p>}
+      <div className="flex items-center gap-3">
+        <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>Save</Button>
+        <FormNotice error={save.error} />
+      </div>
     </div>
   )
 }
