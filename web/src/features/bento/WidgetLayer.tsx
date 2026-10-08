@@ -879,8 +879,12 @@ export function WidgetLayer({
         from = null
         buzz('select')
         swallowNextClick()
+        /* A long press goes straight into Customise, on a card or on empty
+           board alike -- the phone home-screen gesture (owner, 2026-10-08:
+           "when long press they need to come under customise"). The card's
+           own menu stays on a right-click. */
         const card = pressed?.closest<HTMLElement>('.bento-widget[data-more]')
-        if (!card) {
+        if (!card || e.pointerType !== 'mouse') {
           setArranging(true)
           return
         }
