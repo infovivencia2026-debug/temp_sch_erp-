@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { badRequest, bool, created, HttpError, isUUID, now, ok, readJSON, uuid, uuidQuery } from '../../http'
 import { addDays, daysBetween, resolveRange, today } from '../fees/common'
 import { instId } from './common'
+import { istFormat } from '../scheduling/common'
 
 /* Port of internal/api/transport_office.go: drivers and attendants, the
    student allocation, the bus register, fuel and servicing, the pre-trip
@@ -15,8 +16,18 @@ const nul = (v: unknown): string | null => { const s = str(v); return s === '' ?
 const oneOf = (v: string, ...allowed: string[]) => allowed.includes(v)
 /** A date the client sent, or today (COALESCE(NULLIF($n,'')::date, current_date)). */
 const dateOr = (v: unknown): string => nul(v) ?? today()
-const hhmm = (ts: unknown): string | null => { const s = nul(ts); return s ? s.slice(11, 16) : null }
-const minute = (ts: unknown): string | null => { const s = nul(ts); return s ? s.slice(0, 16) : null }
+/* THE CLOCK ON THE WALL, NOT THE ONE IN GREENWICH.
+
+   This sliced the hours and minutes straight out of the stored string, and
+   the store is UTC: a child boarding at 13:08 was shown as 07:38, five and a
+   half hours before anybody was at the stop. Every boarding and alighting
+   time on the register read that way, and a register of times nobody
+   recognises is a register nobody trusts.
+
+   istFormat is what the rest of the product uses for the same job. */
+const hhmm = (ts: unknown): string | null => istFormat(nul(ts), 'hm')
+/* Same fault, same fix: an incident reported at 13:08 read 07:38. */
+const minute = (ts: unknown): string | null => istFormat(nul(ts), 'datetime')
 
 const NAME = (a: string) => `TRIM(COALESCE(${a}.first_name,'') || ' ' || COALESCE(${a}.last_name,''))`
 const LIVE = (a: string) => `(${a}.valid_to IS NULL OR ${a}.valid_to >= ?)`
