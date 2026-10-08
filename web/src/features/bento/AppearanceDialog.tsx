@@ -640,7 +640,7 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
           settings do it: the one row that ends the session is not a row
           among others. */}
       {links.filter((l) => /^sign out$/i.test(l.name)).map((l) => (
-        <div key={l.href} className="mt-4">
+        <div key={l.href} className="mt-4 max-md:mx-4">
           <a href={l.href} role="button"
             className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[12px] bg-[color-mix(in_srgb,#ff3b30_10%,transparent)] text-[16px] font-semibold text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_16%,transparent)] active:bg-[color-mix(in_srgb,#ff3b30_20%,transparent)]">
             {l.name}

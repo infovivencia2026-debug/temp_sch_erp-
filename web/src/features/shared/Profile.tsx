@@ -46,8 +46,8 @@ function Section({
   }[tone]
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-sunken/40 px-5 py-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 border-b bg-surface-sunken/40 px-5 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', tile)}>
             <Icon className="h-4 w-4" />
           </span>

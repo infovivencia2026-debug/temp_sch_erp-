@@ -4865,3 +4865,7 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 @media (min-width: 640px) {
   [data-appearance-dialog] { height: min(80vh, 720px) !important; max-height: calc(100vh - 96px) !important; margin-block: auto !important; }
 }
+/* Phone settings pages: cards sit 16px in from the screen edge, as iOS's do. */
+@media (max-width: 767px) {
+  [data-settings-group] { margin-inline: 16px; }
+}
