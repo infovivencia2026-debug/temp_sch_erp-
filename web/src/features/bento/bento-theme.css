@@ -4869,3 +4869,13 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 @media (max-width: 767px) {
   [data-settings-group] { margin-inline: 16px; }
 }
+/* THE SLIDER IS A LINE AND A KNOB, at every text size (owner, 2026-10-08:
+   at 118% the track became a thick bar). The band is fixed in pixels, so the
+   painted track stays 6px whatever the root font is scaled to. */
+[data-slider-row] > input[type='range'] {
+  height: 28px !important;
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+  border-radius: 3px / 14px !important;
+  margin-top: 0 !important;
+}
