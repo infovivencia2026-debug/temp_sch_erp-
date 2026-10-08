@@ -68,7 +68,7 @@ export function SectionIcon({ id, children }: { id: string; children: ReactNode 
 export function SignOutButton({ className }: { className?: string }) {
   return (
     <a href="/logout" role="button"
-      className={cn('mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] bg-[color-mix(in_srgb,#ff3b30_10%,transparent)] text-[15px] font-medium text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_16%,transparent)]', className)}>
+      className={cn('settings-glass mt-3 flex min-h-[var(--srow-h,44px)] w-full items-center justify-center rounded-[14px] text-[15px] font-normal text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_6%,transparent)]', className)}>
       Sign out
     </a>
   )
@@ -360,7 +360,9 @@ export function SliderRow({
         }}
         className={cn(
           'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none py-[calc((var(--sband-h,44px)-6px)/2)]',
-          SLIDER, RING,
+          /* No ring round the whole track when it has focus: only the knob
+             shows it (owner, 2026-10-08: 'I should not see this'). */
+          SLIDER, 'focus-visible:outline-none',
         )}
       />
     </Row>
