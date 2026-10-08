@@ -593,7 +593,7 @@ export function CardShell({
           </CardZero.Provider>
         </CardNote.Provider>
       )}
-      {plate && (
+      {false && plate && (
         /* See THE EMPTY ROW IS DRAWN, NOT DROPPED above. aria-hidden: the
            sentence has already said it; this is the shape, not a second
            statement. */

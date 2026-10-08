@@ -1337,7 +1337,7 @@ export function AppearanceDialog({
       onClose={handleClose}
       onEscape={onEscape}
       label={t('bento.settings.label')}
-      width="720px"
+      width="920px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
       panelProps={{ 'data-appearance-dialog': '' }}
@@ -1381,20 +1381,29 @@ export function AppearanceDialog({
     >
       {/* The pages, named: one scrolling line of tabs on a desk (SettingsNav
           hides itself below 768px, where the list replaces it). */}
-      <SettingsNav items={listItems} tab={tab} onPick={(id) => setTab(id)} />
-
-      {/* `.scroll-y` draws the bar rather than waiting for the platform to
-          fade one in. See index.css. */}
-      <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
-        {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
-        <SettingsPane
-          tab={tab}
-          onClose={onClose}
-          onPickingChange={onPickingChange}
-          dockRef={dockRef}
-          dashRef={dashRef}
-        />
-      </div>
+      {/* On a desk the window is the Settings page: the section list with its
+          icons on the left, the open section on the right (owner, 2026-10-08:
+          "make the web settings like this, in popup"). A phone keeps the
+          drill-in list. */}
+      {narrow ? (
+        <div className="scroll-y min-h-0 flex-1 px-5 py-5">
+          {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
+          <SettingsPane tab={tab} onClose={onClose} onPickingChange={onPickingChange} dockRef={dockRef} dashRef={dashRef} />
+        </div>
+      ) : (
+        <div
+          className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)] border-t"
+          style={{ ['--srow-h' as string]: '40px', ['--srow-py' as string]: '6px', ['--sband-h' as string]: '32px' }}
+        >
+          <nav aria-label="Settings sections" className="scroll-y min-h-0 border-r p-[10px]">
+            <SettingsSectionList items={listItems} onOpen={(id) => setTab(id as SettingsTab)} current={tab} />
+          </nav>
+          <div className="scroll-y min-h-0 px-5 py-4">
+            <h2 className="px-[4px] pb-[10px] text-[15px] font-semibold">{listItems.find((i) => i.id === tab)?.label}</h2>
+            <SettingsPane tab={tab} onClose={onClose} onPickingChange={onPickingChange} dockRef={dockRef} dashRef={dashRef} />
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

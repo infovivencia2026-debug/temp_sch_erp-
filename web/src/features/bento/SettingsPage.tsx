@@ -280,22 +280,30 @@ export default function SettingsPage() {
               section, the way back sits above the name, labelled with the
               name of the list it returns to. 44px in pixels: `min-h-11` is
               38.5px on this 14px root. */}
-          {tab !== null && !wide && (
-            <button
-              type="button"
-              onClick={backToList}
-              className={cn(
-                '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-[8px] pl-[6px] pr-[10px]',
-                'text-[17px] text-[hsl(var(--primary))] transition-colors', WASH, RING,
-              )}
-            >
-              <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+          {/* Inside a section on a phone: a round back button on the left and
+              the page's name centred, the way a phone's own settings pages are
+              headed (owner, 2026-10-08). */}
+          {tab !== null && !wide ? (
+            <div className="grid min-h-[48px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+              <button
+                type="button"
+                onClick={backToList}
+                aria-label={t('bento.settings.label')}
+                className={cn(
+                  'grid size-[40px] place-items-center rounded-full bg-[var(--bento-card,hsl(var(--card)))] shadow-[0_1px_3px_rgb(0_0_0/0.12)] transition-colors',
+                  INK, WASH, RING,
+                )}
+              >
+                <ChevronLeft className="size-5 shrink-0" aria-hidden="true" />
+              </button>
+              <h1 className={cn('truncate text-center text-[17px] font-semibold', INK)}>{found?.label}</h1>
+              <span aria-hidden="true" />
+            </div>
+          ) : (
+            <h1 className={cn('text-[32px] font-bold leading-tight tracking-[-0.02em] sm:text-[20px] sm:font-semibold', INK)}>
               {t('bento.settings.label')}
-            </button>
+            </h1>
           )}
-          <h1 className={cn('text-[32px] font-bold leading-tight tracking-[-0.02em] sm:text-[20px] sm:font-semibold', INK)}>
-            {found && !wide ? found.label : t('bento.settings.label')}
-          </h1>
         </header>
 
         {/* The wide strip, unchanged and shared with the dialog. It is
@@ -344,7 +352,7 @@ export default function SettingsPage() {
              pane adds none. No bottom padding: the scroller's --page-foot
              clears the bar and the home indicator, once, for every page. */
           tab === null ? (
-            <div className="px-[16px] pt-[8px]">
+            <div className="px-[16px] pt-[8px] pb-[32px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
             </div>
