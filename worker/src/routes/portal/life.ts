@@ -418,12 +418,12 @@ async function getStudentDiary(c: Ctx) {
           UNION ALL
           SELECT es.exam_date, 'exam', ex.name || ' · ' || sub.name,
                  ${cws(' · ', "CASE WHEN es.duration_minutes IS NOT NULL THEN es.duration_minutes || ' min' END", "'max ' || es.max_marks")},
-                 substr(es.starts_at, 1, 5), NULL, es.id, 0
+                 substr(es.starts_at, 12, 5), NULL, es.id, 0
             FROM exam_subjects es
             JOIN exams ex ON ex.id = es.exam_id
             JOIN class_subjects cs ON cs.id = es.class_subject_id
             JOIN subjects sub ON sub.id = cs.subject_id
-           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ?
+           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ? AND EXISTS (SELECT 1 FROM notifications nd WHERE nd.kind = 'date_sheet' AND nd.source_id LIKE ex.id || ':%')
           -- D1 allows at most five terms in one compound SELECT, so the six
           -- sources are two compounds of three.
           ) UNION ALL SELECT * FROM (
