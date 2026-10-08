@@ -78,12 +78,13 @@ export function publicStyle(flavor: MapFlavor = 'light'): string {
 }
 
 /** Swap a map onto the public basemap once, the first time its own tiles fail. */
-export function fallBackToPublicMap(m: MLMap, flavor: MapFlavor, onDone?: () => void): void {
+export function fallBackToPublicMap(m: MLMap, flavor: MapFlavor, onDone?: () => void): boolean {
   const tagged = m as MLMap & { __publicFallback?: boolean }
-  if (tagged.__publicFallback) return
+  if (tagged.__publicFallback) return false
   tagged.__publicFallback = true
   m.once('style.load', () => { collapseAttribution(m); onDone?.() })
   m.setStyle(publicStyle(flavor))
+  return true
 }
 /* The Protomaps flavours this product draws. 'light' is the office's full
    colour street map. The two guidance flavours are the same tiles with the
@@ -374,9 +375,11 @@ export function FleetMap({
       setTilesFailed(true)
       /* The style swap throws away every layer this component added, so
          ready is dropped and raised again once the public map has loaded,
-         which re-runs every effect below exactly as on first load. */
-      setReady(false)
-      fallBackToPublicMap(m, firstFlavor.current, () => setReady(true))
+         which re-runs every effect below exactly as on first load. Only on
+         the swap itself: the old style's sprites and fonts go on failing
+         for a moment after it, and each of those must not drop ready again. */
+      const swapped = fallBackToPublicMap(m, firstFlavor.current, () => setReady(true))
+      if (swapped) setReady(false)
     })
     map.current = m
     return () => {
