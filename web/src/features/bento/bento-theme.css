@@ -4855,3 +4855,7 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   [data-slider-row] > input[type='range']::-webkit-slider-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
   [data-slider-row] > input[type='range']::-moz-range-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
 }
+/* On a phone the cards are plain white on the grey page, as iOS draws them. */
+@media (max-width: 767px) {
+  .settings-glass { background: var(--bento-card, hsl(var(--card))) !important; border-color: transparent !important; box-shadow: 0 0.5px 1px rgb(0 0 0 / .05) !important; }
+}
