@@ -554,7 +554,29 @@ function registerAttendance(r: Router) {
         const title = `${m.name} was marked absent`
         const body = `${m.name} was marked absent on ${date}. If this is wrong, please tell the class teacher.`
         if (m.user_id) {
-          stmts.push(notifyStmt(c, m.user_id, m.student, 'attendance', title, body, '/portal/attendance', 'absence', `${onDate}:${m.student}`))
+          /* ONE ABSENCE, ONE BELL, WHOEVER WROTE IT.
+
+             The dedupe below keys on (user, kind, source_id, student) and
+             ignores source_kind, so two writers using different source ids
+             both insert: a parent's bell held "Aditya Sharma was marked
+             absent" twice, written in the same second, one tagged `absence`
+             and one tagged `attendance`. A family reading two identical
+             lines about one absence does not conclude the software is
+             thorough.
+
+             A second bell for the same child, the same kind and the same day
+             is never right, whichever code path produced the first, so that
+             is the condition -- not the source id, which is exactly what the
+             two writers disagreed about. */
+          stmts.push(c.db.prepare(`INSERT INTO notifications
+                (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+              SELECT ?1, ?2, ?3, ?4, 'attendance', ?5, ?6, '/portal/attendance', 'absence', ?7, ?8
+               WHERE NOT EXISTS (SELECT 1 FROM notifications n
+                                  WHERE n.user_id = ?3 AND n.kind = 'attendance'
+                                    AND COALESCE(n.student_id, '') = COALESCE(?4, '')
+                                    AND substr(n.created_at, 1, 10) = ?9)`)
+            .bind(uuid(), c.id.institution!.id, m.user_id, m.student, title, body,
+              `${onDate}:${m.student}`, now(), onDate))
           told++
         }
         for (const ch of channels) {
