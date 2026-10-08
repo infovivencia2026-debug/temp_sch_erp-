@@ -231,7 +231,11 @@ async function preview(c: Ctx, p: Plan) {
 }
 
 export function registerMessagePlans(r: Router): void {
-  r.get('/admin/messaging/plans', READ, async (c) => {
+  /* The fee office reads the reminder plans from its own screen (Automated
+     fee reminders) and holds the fees right, not the school settings right;
+     the GET answered it 403 and the screen opened on an error card. */
+  r.get('/admin/messaging/plans', 'auth', async (c) => {
+    requireAny(c, READ, 'finance.fees.read')
     const kind = (c.url.searchParams.get('kind') ?? '').trim()
     if (kind !== '' && eventFor(kind) === '') throw badRequest('unknown plan kind')
     const set = await loadProviders(c)
