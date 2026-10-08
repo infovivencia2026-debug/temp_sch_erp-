@@ -18,7 +18,8 @@ export function registerAcademics(r: Router) {
   r.get('/syllabus/coverage', 'auth', getSyllabusCoverage)
   r.get('/syllabus/lesson-plans', 'auth', listLessonPlans)
   r.post('/syllabus/lesson-plans', 'auth', saveLessonPlan)
-  r.post('/syllabus/lesson-plans/{id}/decide', 'academics.write', decideLessonPlan)
+  // 'auth': a teacher marks their own plan taught; approving or returning needs academics.write (checked inside).
+  r.post('/syllabus/lesson-plans/{id}/decide', 'auth', decideLessonPlan)
 
   // --- /academics ---------------------------------------------------------------
   registerAdminAcademics(r)
@@ -160,6 +161,11 @@ async function decideLessonPlan(c: Ctx) {
   const decision = str(req.decision)
   if (!['approved', 'returned', ''].includes(decision)) throw badRequest('decision must be approved or returned')
   if (decision === 'returned' && str(req.remarks).trim() === '') throw badRequest('say why it is being returned. A plan sent back without remarks tells the teacher nothing')
+  if (!can(c, 'academics.write')) {
+    if (decision !== '' || str(req.remarks) !== '') throw forbiddenMsg('missing permission: approving lesson plans')
+    const own = await c.db.prepare(`SELECT 1 FROM lesson_plans WHERE id = ? AND teacher_user_id = ?`).bind(planId, c.id.userId).first()
+    if (!own) throw forbiddenMsg('missing permission: another teacher\'s lesson plan')
+  }
   const res = await c.db.prepare(`
     UPDATE lesson_plans SET status = COALESCE(?, status), remarks = COALESCE(?, remarks), delivered_on = COALESCE(?, delivered_on),
            reviewed_by = CASE WHEN ? <> '' THEN ? ELSE reviewed_by END, reviewed_at = CASE WHEN ? <> '' THEN ? ELSE reviewed_at END, updated_at = ?
