@@ -104,6 +104,11 @@ export default function Payroll() {
    * loss of pay has never once deducted. The run stops, says how big the gap
    * is, and goes ahead only when somebody says they know. */
   const [unmarked, setUnmarked] = useState<Unmarked | null>(null)
+  /* The staff this run would not pay at all, because no salary is in force
+     for them this month. A different question from an unmarked register, and
+     a worse one, so it is asked before it. */
+  const [unpaid, setUnpaid] = useState<{ count: number; staff: { id: string; code: string; name: string }[] } | null>(null)
+  const [okUnpaid, setOkUnpaid] = useState(false)
   /* Who to leave out of this month: ticked = paid in full, unticked = left out. */
   const [leaveOut, setLeaveOut] = useState<Set<string>>(new Set())
   const run = useMutation({
@@ -111,18 +116,22 @@ export default function Payroll() {
       api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
         month: Number(month), year: Number(year),
         acknowledge_unmarked_attendance: acknowledge,
+        acknowledge_unpaid_staff: okUnpaid,
         exclude_employee_ids: [...leaveOut],
       }),
     onSuccess: () => {
       setUnmarked(null)
+      setUnpaid(null)
+      setOkUnpaid(false)
       setLeaveOut(new Set())
       qc.invalidateQueries({ queryKey: ['payslips'] })
     },
     onError: (e: unknown) => {
       const body = (e as ApiError).body as
-        | { unmarked?: Unmarked }
+        | { unmarked?: Unmarked; unpaid?: { count: number; staff: { id: string; code: string; name: string }[] } }
         | undefined
       if (body?.unmarked) setUnmarked(body.unmarked)
+      if (body?.unpaid) setUnpaid(body.unpaid)
     },
   })
 
@@ -232,6 +241,35 @@ export default function Payroll() {
           <Stat label="Net payable" value={formatPaise(net)} />
         </CellGrid>
 
+        {unpaid && (
+          <Card className="border-destructive/40 bg-destructive/[0.04]">
+            <CardHeader title={`${unpaid.count} on the roll would not be paid at all`} />
+            <div className="px-5 pb-2 text-[13px] text-muted-foreground">
+              No salary is in force for them this month, so the run skips them entirely — they get no
+              payslip and no line anywhere. Set a salary, or run the month without them.
+            </div>
+            <ul className="flex flex-wrap gap-x-5 gap-y-1 px-5 pb-4 text-[13px]">
+              {unpaid.staff.map((s2) => (
+                <li key={s2.id}>
+                  <span className="font-mono text-[12px] text-muted-foreground">{s2.code}</span>{' '}
+                  {s2.name}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
+              <Button
+                disabled={run.isPending}
+                onClick={() => { setOkUnpaid(true); setUnpaid(null); setTimeout(() => run.mutate(false), 0) }}
+              >
+                Run without them
+              </Button>
+              <a href="/hr/payroll/salary_setup" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">
+                Set their salary first
+              </a>
+              <Button variant="ghost" onClick={() => setUnpaid(null)}>Cancel</Button>
+            </div>
+          </Card>
+        )}
         {unmarked && (
           <Card>
             <CardHeader

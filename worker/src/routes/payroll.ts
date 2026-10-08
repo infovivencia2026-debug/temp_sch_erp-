@@ -683,7 +683,7 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
 // ------------------------------------------------------------ the run
 
 async function runPayroll(c: Ctx) {
-  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean; exclude_employee_ids?: string[] }>(c.req)
+  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean; acknowledge_unpaid_staff?: boolean; exclude_employee_ids?: string[] }>(c.req)
   /* Staff the person running payroll chose to leave out of this month (owner,
      2026-10-08: "let them deselect him / her"). */
   const excluded = new Set((Array.isArray(req.exclude_employee_ids) ? req.exclude_employee_ids : []).filter((x) => typeof x === 'string'))
@@ -691,6 +691,38 @@ async function runPayroll(c: Ctx) {
   if (month < 1 || month > 12 || year < 2000) throw badRequest('month must be 1-12 and year must be valid')
   const inst = c.id.institution!.id
   const key = `${year}-${pad2(month)}`
+
+  /* AND THE PEOPLE THIS RUN WOULD NOT PAY AT ALL.
+
+     The run joins salary_structures, so anybody without one in force for the
+     month is dropped by the query -- no payslip, no row, no mention. On this
+     school that was twelve of twenty: every driver, every EMP and FB code.
+     Nobody is told, and the month looks complete because the eight who do
+     have a structure all got paid.
+
+     An unmarked register is a question about how much to pay somebody. This
+     is a question about whether they are paid at all, so it is asked first
+     and it names them. Acknowledging runs the month without them, which is
+     sometimes right -- a contractor paid from vendor bills has no salary
+     structure on purpose -- but it should be a decision rather than a
+     silence. */
+  if (!req.acknowledge_unpaid_staff) {
+    const noPay = (await c.db.prepare(`
+      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name
+        FROM employees e
+       WHERE e.status = 'active' AND e.user_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM salary_structures ss
+            WHERE ss.employee_id = e.id AND ss.effective_from <= ?1
+              AND (ss.effective_to IS NULL OR ss.effective_to >= ?1))
+       ORDER BY e.employee_code`).bind(`${key}-01`).all<{ id: string; code: string; name: string }>()).results
+    if (noPay.length > 0) {
+      throw new HttpError(409,
+        `${noPay.length} of the staff on the roll have no salary in force for this month, so this run would not pay them at all. Set a salary for them, or acknowledge to run without them.`,
+        { code: 'no_salary_structure', unpaid: { count: noPay.length,
+          staff: noPay.map((g) => ({ id: g.id, code: g.code, name: g.name })) } })
+    }
+  }
 
   if (!req.acknowledge_unmarked_attendance) {
     /* Only people this run would pay: staff with no salary in force are not
