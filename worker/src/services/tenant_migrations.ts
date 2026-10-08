@@ -61,4 +61,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 61, name: 'retire_transport_route_distance_fee_slabs', checksum: '617efd606bbf0dd231fde78082ec41a50ed6c8c5c8f48943d7c34e8d19f72d0c' },
   { version: 62, name: 'finance_may_read_payroll', checksum: '90df27b52949d32858a2c1eff4a358c26dc254e2d77f1fbc44aaef5844c42637' },
   { version: 63, name: 'mcb_gaps', checksum: '827b3ae31f5995ad25e704bf0c939d9b6dca01ffb8822a8b36be67270b877d52' },
+  { version: 64, name: 'mcb_gaps_grants', checksum: '269ad37351bfec6cb3c85585bc7ba5f88c69490da311fb5890bab92f6c514ec7' },
 ]

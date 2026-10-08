@@ -398,7 +398,9 @@ export default function Notifications() {
   const isStatusNote = (n: Note) => /status/.test(n.kind)
   /* The parents' daily digest belongs to the parent login only (owner,
      2026-10-05): a teacher who is also a parent never sees it at work. */
-  const asParent = activeRole.key === 'parent'
+  /* An account whose roles carry no workspace (a class teacher alone, a
+     school mid-setup) has no active role at all; the bell still has to draw. */
+  const asParent = activeRole?.key === 'parent'
   const inToggles = (n: Note) => (asParent || !/digest/.test(n.kind)) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
