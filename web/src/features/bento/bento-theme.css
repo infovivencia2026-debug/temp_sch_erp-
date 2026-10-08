@@ -4824,3 +4824,30 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 }
 /* The card's frame must not clip the badge that hangs over its corner. */
 [data-layout='bento'] .bento-widget[data-editing] { overflow: visible !important; }
+
+
+/* SETTINGS GLASS. A grouped card that lets the page show through, blurred,
+   the way iOS draws its settings groups; built from the theme's card colour
+   so it follows light, dark and the chosen palette. Browsers without
+   backdrop-filter get the solid card. */
+.settings-glass {
+  background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 9%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 8px 24px -16px rgb(0 0 0 / .18);
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .settings-glass {
+    background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 72%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  [data-appearance-dialog] {
+    background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 80%, transparent) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(28px);
+    backdrop-filter: saturate(180%) blur(28px);
+  }
+}
+[data-appearance-dialog] { border-radius: 20px !important; }
+/* Groups stand apart from each other, as cards on a page, not one long list. */
+[data-settings-group] + [data-settings-group],
+[data-settings-group] + * [data-settings-group] { margin-top: 16px; }

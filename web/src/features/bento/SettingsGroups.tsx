@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import type { ListItem } from './AppearanceDialog'
+import { SectionIcon } from './SettingsRows'
 
 /* THE SETTINGS LIST AS A PHONE SCREEN, NOT AN ADMIN TABLE.
 
@@ -105,9 +106,9 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
       {/* One card, one hairline, rules only BETWEEN rows. A border on every
           row draws a line under the last one as well, which is what makes a
           list look like a table rather than a card. */}
-      <div className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))]">
+      <div className="settings-glass overflow-hidden rounded-[14px]">
         {/* Rules inset past the icon, as a phone list draws them. */}
-        <div className="[&>*+*]:border-t [&>*+*]:[border-image:linear-gradient(to_right,transparent_52px,color-mix(in_srgb,currentColor_14%,transparent)_52px)_1]">{children}</div>
+        <div className="[&>*+*]:border-t [&>*+*]:[border-image:linear-gradient(to_right,transparent_58px,color-mix(in_srgb,currentColor_12%,transparent)_58px)_1]">{children}</div>
       </div>
     </section>
   )
@@ -138,9 +139,7 @@ function Row({ item, value, swatch, onClick }: {
           as the solid-colour tiles that were turned down. The 24px slot keeps
           the left edge the eye runs down. The accent (--sel-strong) is not
           dark-aware outside bento and went near-black on a dark card. */}
-      <span aria-hidden className="grid size-[24px] shrink-0 place-items-center opacity-75">
-        <Icon className="size-[20px]" strokeWidth={1.75} />
-      </span>
+      <SectionIcon id={item.id}><Icon /></SectionIcon>
 
       <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{item.label}</span>
 
@@ -229,7 +228,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-[14px] border bg-[var(--bento-card,hsl(var(--card)))] p-4">
+    <section className="settings-glass overflow-hidden rounded-[14px] p-4">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <button

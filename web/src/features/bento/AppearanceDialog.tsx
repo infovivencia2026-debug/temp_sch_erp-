@@ -29,7 +29,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow, SectionIcon } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useFullScreen } from '@/lib/fullscreen'
@@ -768,7 +768,7 @@ export function SettingsSectionList({ items, onOpen, values, current }: {
             label={item.label}
             value={values?.[item.id]}
             current={current === item.id}
-            icon={<Icon className="size-4" aria-hidden="true" />}
+            icon={<SectionIcon id={item.id}><Icon aria-hidden="true" /></SectionIcon>}
             onClick={() => onOpen(item.id)}
           />
         )
@@ -856,7 +856,7 @@ export function SettingsNav({
                the whole defect -- see useNarrow above -- and the list replaces
                it rather than sitting beside it, because two navigations for
                one set of pages is how the popover era went wrong. */
-            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3 md:flex', SEAM)}
+            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 py-3 md:flex', SEAM)}
             aria-label="Settings sections"
           >
             {/* Driven by the same list the phone's rows are, so the two
@@ -871,10 +871,10 @@ export function SettingsNav({
                 onClick={() => onPick(id as SettingsTab)}
                 aria-current={tab === id}
                 className={cn(
-                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
+                  'min-h-[34px] shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[13px] transition-colors',
                   tab === id
-                    ? 'border-primary font-medium text-foreground'
-                    : cn('border-transparent', INK, WASH),
+                    ? 'bg-[color-mix(in_srgb,hsl(var(--primary))_12%,transparent)] font-semibold text-[hsl(var(--primary))]'
+                    : cn('font-medium', INK, WASH),
                 )}
               >
                 {label}

@@ -37,6 +37,32 @@ import { useOpenState } from '@/lib/motion'
    padding and the slider band's height from three custom properties the
    page sets once (--srow-h, --srow-py, --sband-h); the phone leaves them at
    the 44px defaults. Same component, two densities, no scaled layout. */
+/* SETTINGS, iOS-STYLE (owner, 2026-10-08: "should look like iOS, glassy,
+   neat and clean, within our theme"). Each section has its own colour, drawn
+   as a rounded square with a white glyph -- the way a phone's Settings tells
+   its rows apart at a glance. */
+const SECTION_TINT: Record<string, string> = {
+  appearance: '#4f46e5', colour: '#ea580c', dock: '#0891b2', dashboard: '#0d9488',
+  school: '#2563eb', communication: '#16a34a', messaging: '#16a34a',
+  account: '#22a06b', security: '#0284c7', privacy: '#64748b', people: '#7c3aed',
+  access: '#7c3aed', workspace: '#7c3aed', role: '#7c3aed', help: '#f59e0b',
+}
+export function sectionTint(id: string): string {
+  return SECTION_TINT[id] ?? '#64748b'
+}
+/** The rounded-square icon a settings row leads with. */
+export function SectionIcon({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid size-[30px] shrink-0 place-items-center rounded-[8px] text-white shadow-[0_1px_2px_rgb(0_0_0/0.12)] [&_svg]:size-[17px] [&_svg]:stroke-[2.1]"
+      style={{ background: sectionTint(id) }}
+    >
+      {children}
+    </span>
+  )
+}
+
 export const LABEL = cn('text-[15px] font-medium', INK)
 export const VALUE = cn('text-[15px] font-normal tabular-nums', INK)
 export const HELPER = cn('mt-[2px] block text-[12.5px] font-normal', INK)
@@ -45,8 +71,10 @@ export const HELPER = cn('mt-[2px] block text-[12.5px] font-normal', INK)
 export function Rows({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
+      data-settings-group=""
       className={cn(
-        'divide-y divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+        'settings-glass overflow-hidden rounded-[14px]',
+        '[&>*+*]:border-t [&>*+*]:border-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]',
         className,
       )}
     >
