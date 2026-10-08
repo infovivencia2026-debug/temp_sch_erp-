@@ -6,6 +6,7 @@ import {
   Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
+import DateSheet from './DateSheet'
 
 /* The exam, and the papers everything else hangs off.
  *
@@ -43,6 +44,7 @@ export default function Exams() {
   const [marks, setMarks] = useState('100')
   const [done, setDone] = useState('')
   const [scheduling, setScheduling] = useState(false)
+  const [sheetFor, setSheetFor] = useState('')
 
   const exams = useQuery({
     queryKey: ['exams-list'],
@@ -85,7 +87,7 @@ export default function Exams() {
       <PageHead
         eyebrow="Examinations"
         title="Exams & papers"
-        description="Every exam the school has scheduled, and how many papers it holds. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
+        description="Every exam the school has scheduled, its papers, and the date sheet: when each paper is written. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
       />
       <PageBody>
         {/* Open when there are none, because then it is the only thing to do
@@ -153,6 +155,12 @@ export default function Exams() {
                     {e.is_published ? <Badge tone="success">published</Badge> : '-'}
                   </Td>
                   <Td>
+                    {e.papers > 0 && (
+                      <Button size="sm" variant={sheetFor === e.id ? 'primary' : 'secondary'}
+                        onClick={() => { setSheetFor(sheetFor === e.id ? '' : e.id); window.setTimeout(() => document.getElementById('date-sheet')?.scrollIntoView({ behavior: 'smooth' }), 150) }}>
+                        Date sheet
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={e.papers === 0 ? 'primary' : 'ghost'}
@@ -179,6 +187,8 @@ export default function Exams() {
             </Table>
           )}
         </Card>
+
+        {sheetFor && <div id="date-sheet"><DateSheet key={sheetFor} examId={sheetFor} onClose={() => setSheetFor('')} /></div>}
       </PageBody>
     </>
   )
