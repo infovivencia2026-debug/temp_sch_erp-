@@ -76,7 +76,21 @@ export async function collect(c: Ctx, req: { studentId: string; amount: number; 
   const st = await c.db.prepare(`SELECT institution_id, campus_id FROM students WHERE id = ?`).bind(req.studentId).first<{ institution_id: string; campus_id: string }>()
   if (!st) throw notFound()
   const chequeDate = req.chequeDate ?? null
-  const pdc = (req.mode === 'cheque' || req.mode === 'dd') && chequeDate !== null && chequeDate > req.paidOn
+  /* A CHEQUE IS NOT MONEY UNTIL IT CLEARS.
+   *
+   * This held back only POST-DATED cheques: a cheque written today was
+   * recorded as success the moment it was handed over, so it counted in the
+   * day's collection, left the child's dues, printed a clean receipt, and
+   * never appeared in the Cheques register -- which meant there was no row
+   * anywhere to bounce when the bank returned it. The school's books said
+   * the money had arrived because somebody had handed over a piece of paper.
+   *
+   * Every cheque and demand draft now waits, whatever its date. They land in
+   * the Cheques register, which already lists every pending cheque and
+   * already offers Clear and Bounce, and the money counts when it clears.
+   * The receipt still prints -- a parent needs it -- carrying the status, so
+   * what the paper says and what the ledger says are the same thing. */
+  const pdc = req.mode === 'cheque' || req.mode === 'dd'
   const number = await nextNumber(c, 'receipt', req.paidOn)
   const paymentId = crypto.randomUUID()
   const stmts: D1PreparedStatement[] = [

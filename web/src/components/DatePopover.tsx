@@ -25,6 +25,14 @@ import { cn } from '@/lib/utils'
  * no screen had to be edited to gain this.
  */
 
+/* ABOVE THE DIALOGS, OR IT IS NOT THERE AT ALL.
+   Modals in this product sit at z-index 110 and 200. This panel opened at
+   80, so a date field inside a dialog -- the leave form, a bus's document
+   expiry -- opened its calendar BEHIND the dialog: the field looked dead,
+   and the only way to set a date was to give up. Reported as "the date
+   picker is invisible", which is exactly what it was. */
+const Z_ABOVE_DIALOGS = 240
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 const SHORT = MONTHS.map((m) => m.slice(0, 3))
@@ -144,7 +152,7 @@ export function DatePopover({
       ref={box}
       role="dialog"
       aria-label="Choose a date"
-      style={{ ...pos, zIndex: 80 }}
+      style={{ ...pos, zIndex: Z_ABOVE_DIALOGS }}
       className="w-[310px] select-none rounded-[20px] border bg-popover p-3.5 shadow-[var(--lift-float)]"
     >
       <div className="mb-3 flex items-center justify-between px-1">
@@ -308,7 +316,7 @@ export function MonthField({
           ref={box}
           role="dialog"
           aria-label="Choose a month"
-          style={{ ...pos, zIndex: 80 }}
+          style={{ ...pos, zIndex: Z_ABOVE_DIALOGS }}
           className="w-[280px] select-none rounded-[20px] border bg-popover p-3.5 shadow-[var(--lift-float)]"
         >
           <div className="mb-3 flex items-center justify-between px-1">

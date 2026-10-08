@@ -342,29 +342,50 @@ export default function Payroll() {
                    was shown HR's Lock button, which answered "Forbidden." (owner, 2026-10-08). */
                 !canRun ? (
                   locked ? (
+                    stale.length > 0 ? (
+                      <span className="inline-flex cursor-not-allowed items-center rounded-md border px-3 py-1.5 text-[13px] font-medium opacity-50"
+                        title="These figures are out of date. Run the month first.">
+                        Download bank file
+                      </span>
+                    ) : (
                     <a
                       className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
                       href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
                     >
                       Download bank file
                     </a>
+                    )
                   ) : (
                     <span className="text-[13px] text-muted-foreground">HR checks and locks these figures; nothing to do here yet.</span>
                   )
                 ) : (
                 <div className="flex flex-wrap gap-2">
+                  {/* STALE FIGURES DO NOT GO TO A BANK.
+                      Warning and then allowing it is not a warning. While a
+                      row shows loss of pay beside a full month's pay, the
+                      month cannot be locked and no file can be drawn from
+                      it: those are the two steps that turn these numbers
+                      into money leaving the school. Run the month and both
+                      come back. */}
                   {status !== 'locked' && status !== 'paid' && (
-                    <Button disabled={state.isPending} onClick={() => state.mutate('locked')}>
+                    <Button disabled={state.isPending || stale.length > 0} onClick={() => state.mutate('locked')}>
                       Lock payroll & send to finance
                     </Button>
                   )}
                   {locked && (
+                    stale.length > 0 ? (
+                      <span className="inline-flex cursor-not-allowed items-center rounded-md border px-3 py-1.5 text-[13px] font-medium opacity-50"
+                        title="These figures are out of date. Run the month first.">
+                        Download bank file
+                      </span>
+                    ) : (
                     <a
                       className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
                       href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
                     >
                       Download bank file
                     </a>
+                    )
                   )}
                   {status === 'locked' && (
                     <>
