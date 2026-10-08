@@ -329,7 +329,12 @@ export function registerCounter(r: Router): void {
     if (!st) throw notFound()
     await requireOpenPeriod(c, paidOn)
 
-    const pdc = (mode === 'cheque' || mode === 'dd') && chequeDate !== null && chequeDate > paidOn
+    /* The counter's own copy of the rule above: a cheque waits to clear,
+       whatever its date. Two copies of one rule is how the helper was
+       fixed and the screen people actually use was not -- the cheque
+       still allocated itself and never reached the Cheques register.
+       Found by taking one through the counter rather than by reading. */
+    const pdc = mode === 'cheque' || mode === 'dd'
     const status = pdc ? 'pending' : 'success'
     const number = await nextNumber(c, 'receipt', paidOn)
     const paymentId = crypto.randomUUID()
