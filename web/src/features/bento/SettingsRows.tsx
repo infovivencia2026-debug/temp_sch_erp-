@@ -63,7 +63,19 @@ export function SectionIcon({ id, children }: { id: string; children: ReactNode 
   )
 }
 
-export const LABEL = cn('text-[15px] font-medium', INK)
+/** Sign out, under the list of sections rather than inside Account
+    (owner, 2026-10-08). */
+export function SignOutButton({ className }: { className?: string }) {
+  return (
+    <a href="/logout" role="button"
+      className={cn('mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] bg-[color-mix(in_srgb,#ff3b30_10%,transparent)] text-[15px] font-medium text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_16%,transparent)]', className)}>
+      Sign out
+    </a>
+  )
+}
+
+/* Row labels at the regular weight: medium read as too bold (owner, 2026-10-08). */
+export const LABEL = cn('text-[15px] font-normal', INK)
 export const VALUE = cn('text-[15px] font-normal tabular-nums', INK)
 export const HELPER = cn('mt-[2px] block text-[12.5px] font-normal', INK)
 
@@ -148,7 +160,7 @@ export function NavRow({
     'relative flex min-h-[var(--srow-h,44px)] w-full items-center px-[16px] py-[var(--srow-py,10px)] text-left transition-colors',
     RING,
     current
-      ? cn(SELECTED, 'font-semibold before:absolute before:inset-y-[6px] before:left-0 before:w-[3px] before:rounded-r-full before:bg-[var(--sel-strong)]')
+      ? cn(SELECTED, 'font-medium before:absolute before:inset-y-[6px] before:left-0 before:w-[3px] before:rounded-r-full before:bg-[var(--sel-strong)]')
       : cn(WASH, INK),
     className,
   )

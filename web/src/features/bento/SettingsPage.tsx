@@ -1,3 +1,4 @@
+import { SignOutButton } from './SettingsRows'
 import { useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
@@ -322,6 +323,7 @@ export default function SettingsPage() {
           >
             <nav aria-label="Settings sections" className={cn('overflow-y-auto border-r py-[8px]', SEAM)}>
               <SettingsSectionList items={items} onOpen={open} current={tab} />
+              <div className="px-[8px]"><SignOutButton /></div>
             </nav>
             <div className="min-w-0 overflow-y-auto overscroll-contain px-[8px] py-[8px]">
               <h2 className={cn('px-[16px] pt-[6px] pb-[8px] text-[15px] font-semibold', INK)}>
@@ -355,6 +357,7 @@ export default function SettingsPage() {
             <div className="px-[16px] pt-[8px] pb-[32px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
+              <SignOutButton className="mt-6" />
             </div>
           ) : (
             <div className="pt-[4px]">

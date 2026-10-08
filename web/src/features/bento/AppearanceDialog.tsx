@@ -30,7 +30,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow, SectionIcon } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow, SectionIcon, SignOutButton } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useFullScreen } from '@/lib/fullscreen'
@@ -378,11 +378,6 @@ const LINK_GROUPS: LinkGroup[] = [
         href: '/help',
         name: 'Help',
         note: 'Search help, report a problem with the app, and follow the answers to what you sent.',
-      },
-      {
-        href: '/logout',
-        name: 'Sign out',
-        note: 'End this session on this device. Nothing you have set up is lost.',
       },
     ],
   },
@@ -1397,6 +1392,7 @@ export function AppearanceDialog({
         >
           <nav aria-label="Settings sections" className="scroll-y min-h-0 border-r p-[10px]">
             <SettingsSectionList items={listItems} onOpen={(id) => setTab(id as SettingsTab)} current={tab} />
+            <SignOutButton />
           </nav>
           <div className="scroll-y min-h-0 px-5 py-4">
             <h2 className="px-[4px] pb-[10px] text-[15px] font-semibold">{listItems.find((i) => i.id === tab)?.label}</h2>

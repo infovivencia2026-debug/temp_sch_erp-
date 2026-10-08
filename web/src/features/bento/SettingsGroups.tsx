@@ -141,7 +141,7 @@ function Row({ item, value, swatch, onClick }: {
           dark-aware outside bento and went near-black on a dark card. */}
       <SectionIcon id={item.id}><Icon /></SectionIcon>
 
-      <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate text-[15px] font-normal">{item.label}</span>
 
       {/* The value, muted so the name stays the thing being read. The swatch
           replaces it on Colour, because a colour named in words is the one
