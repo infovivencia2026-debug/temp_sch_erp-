@@ -3,9 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton,
+  Table, Td, Badge, Button, FormNotice, SkeletonTable, ErrorState, ExportButton,
   UnavailableState,
 } from '@/components/ui'
+import { MonthField } from '@/components/DatePopover'
 import { useCan, useSession } from '@/lib/session'
 import { Printer } from 'lucide-react'
 import { printHtml } from '@/features/finance/receipt-print'
@@ -173,12 +174,15 @@ export default function Payroll() {
             <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
-            <Select value={month} onChange={setMonth}
-              options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
-            <Select value={year} onChange={setYear}
-              options={[now.getFullYear() - 1, now.getFullYear()].map((y) => ({
-                value: String(y), label: String(y),
-              }))} />
+            {/* One control, not two lists. "July 2026" was a month dropdown
+                and a year dropdown side by side: two decisions for one
+                answer, and the year list only ever held two entries. */}
+            <MonthField
+              month={Number(month)}
+              year={Number(year)}
+              onPick={(m, y) => { setMonth(String(m)); setYear(String(y)) }}
+              className="w-[190px]"
+            />
             {/* Re-running a locked month would overwrite figures somebody has
                 already signed off, so it is not offered until it is unlocked. */}
             {!locked && canRun && (

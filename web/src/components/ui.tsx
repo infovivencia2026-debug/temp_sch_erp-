@@ -5,6 +5,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
 import { useBundleTitle } from '@/lib/bundle-title'
+import { DatePopover, prettyDate } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
@@ -14,8 +15,7 @@ import { useAnchoredPosition } from './anchored'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
   CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
-  Maximize2, Printer, RefreshCw, X,
-} from 'lucide-react'
+  Maximize2, Printer, RefreshCw, X, CalendarDays} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
@@ -2146,6 +2146,51 @@ export function Input({
    * per box, starts hidden, and is remembered nowhere. */
   const [shown, setShown] = useState(false)
   const isPassword = type === 'password'
+
+  /* EVERY DATE BOX OPENS THE SAME CALENDAR.
+   *
+   * There are 195 of these across 98 screens, and each one used to open
+   * whatever the browser had: Chrome's on Windows, Safari's on a Mac, a
+   * spinning drum on a phone, and on a few older Android builds nothing at
+   * all -- the field degrades to free text there, and a clerk can type "3/4"
+   * into a due date. The same control, four products.
+   *
+   * Done here rather than at 195 call sites, and the value contract does not
+   * change: 'YYYY-MM-DD' in, 'YYYY-MM-DD' out, so no screen needed editing.
+   * The native input stays underneath for form semantics and for anybody
+   * typing rather than pointing. */
+  const dateRef = useRef<HTMLDivElement>(null)
+  const [cal, setCal] = useState(false)
+  if (type === 'date' && !disabled) {
+    return (
+      <div ref={dateRef} className={cn('relative', className)}>
+        <button
+          type="button"
+          onClick={() => setCal((s) => !s)}
+          aria-label={srLabel || 'Choose a date'}
+          aria-expanded={cal}
+          aria-invalid={ariaInvalid || undefined}
+          className={cn('field flex w-full items-center justify-between gap-2 text-left',
+            '[@media(pointer:coarse)]:text-[16px]')}
+        >
+          <span className={cn(!value && 'text-muted-foreground')}>
+            {prettyDate(value) || placeholder || 'Choose a date'}
+          </span>
+          <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+        {cal && (
+          <DatePopover
+            value={value}
+            onChange={onChange}
+            onClose={() => setCal(false)}
+            anchor={dateRef}
+            min={typeof min === 'string' ? min : undefined}
+            max={typeof max === 'string' ? max : undefined}
+          />
+        )}
+      </div>
+    )
+  }
 
   const field = (
     <input
