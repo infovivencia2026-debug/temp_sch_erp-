@@ -1563,6 +1563,7 @@ function registerLifecycle(r: Router) {
   })
 
   r.post('/lifecycle/certificates', STUDENTS_WRITE, issueCertificate)
+  r.post('/lifecycle/certificates/bulk', STUDENTS_WRITE, issueCertificatesBulk)
 
   /* CERTIFICATE DESIGNS (owner, 2026-10-07: "let them add the design of the
      certificate"). Per certificate code: a frame style (classic border or
@@ -1761,7 +1762,8 @@ function dateInWords(iso: string): string {
   return `${ordinalWords(d)} ${MONTH_NAMES[m - 1]} ${numberInWords(y)}`
 }
 const certificateName = (code: string) =>
-  code === 'TC' ? 'Transfer Certificate' : code === 'BONAFIDE' ? 'Bonafide Certificate' : code === 'CONDUCT' ? 'Character Certificate' : code
+  code === 'TC' ? 'Transfer Certificate' : code === 'BONAFIDE' ? 'Bonafide Certificate' : code === 'CONDUCT' ? 'Character Certificate'
+  : code === 'STUDY' ? 'Study Certificate' : code === 'PROMOTION' ? 'Promotion Certificate' : code === 'ACHIEVEMENT' ? 'Achievement Certificate' : code
 const formatPaise = (p: number) => `${p < 0 ? '-' : ''}₹${Math.floor(Math.abs(p) / 100)}.${String(Math.abs(p) % 100).padStart(2, '0')}`
 
 interface TcDetails {
@@ -1821,8 +1823,42 @@ async function tcExtras(c: Ctx, sid: string, d: TcDetails, reason: string): Prom
   return out
 }
 
+type IssueReq = { student_id?: string; type_code?: string; reason?: string; achievement?: string; event?: string; position?: string } & TcDetails
+
 async function issueCertificate(c: Ctx) {
-  const req = await readJSON<{ student_id?: string; type_code?: string; reason?: string } & TcDetails>(c.req)
+  return created(await issueOne(c, await readJSON<IssueReq>(c.req)))
+}
+
+/* Every child of a section (or a list of children) gets the same
+   certificate: the achievement certificates after sports day, the promotion
+   certificates at year end, the transfer certificates for a batch that
+   leaves. A child whose TC is blocked by unpaid fees is skipped and named,
+   never overridden in bulk. */
+async function issueCertificatesBulk(c: Ctx) {
+  const req = await readJSON<IssueReq & { section_id?: string; student_ids?: string[] }>(c.req)
+  const section = req.section_id ?? ''
+  let ids = uuidsOf(req.student_ids)
+  if (section !== '') {
+    if (!isUUID(section)) throw badRequest('section_id must be a uuid')
+    const rows = await c.db.prepare(`SELECT e.student_id FROM enrollments e JOIN students st ON st.id = e.student_id WHERE e.section_id = ? AND e.status = 'active' AND st.status = 'active' ORDER BY e.roll_no`).bind(section).all<{ student_id: string }>()
+    ids = rows.results.map((r) => r.student_id)
+  }
+  if (ids.length === 0) throw badRequest('choose a section with children in it, or list the children')
+  if (ids.length > 300) throw badRequest('at most 300 certificates in one go')
+  const issued: { student_id: string; serial_no: string }[] = []
+  const skipped: { student_id: string; reason: string }[] = []
+  for (const sid of ids) {
+    try {
+      const r = await issueOne(c, { ...req, student_id: sid, override_dues: false })
+      issued.push({ student_id: sid, serial_no: r.serial_no })
+    } catch (e) {
+      skipped.push({ student_id: sid, reason: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return ok({ issued: issued.length, skipped: skipped.length, items: issued, skipped_items: skipped })
+}
+
+async function issueOne(c: Ctx, req: IssueReq): Promise<{ serial_no: string; type: string; student_id: string; dues_paise: number; dues_overridden: boolean }> {
   const sid = req.student_id ?? ''
   if (!isUUID(sid)) throw badRequest('student_id must be a uuid')
   const typeCode = req.type_code || 'TC'
@@ -1845,6 +1881,17 @@ async function issueCertificate(c: Ctx) {
       overridden = true
     }
     extras = await tcExtras(c, sid, req, reason)
+  }
+  if (typeCode === 'ACHIEVEMENT') {
+    const what = (req.achievement ?? '').trim()
+    if (what === '') throw badRequest('say what was achieved: the prize, the event, the position')
+    extras = { achievement: what, event: (req.event ?? '').trim() || null, position: (req.position ?? '').trim() || null }
+  }
+  if (typeCode === 'PROMOTION') {
+    const nx = await c.db.prepare(`SELECT c2.name AS promoted_to FROM enrollments en JOIN classes c1 ON c1.id = en.class_id
+        JOIN classes c2 ON c2.campus_id = c1.campus_id AND c2.level = c1.level + 1
+        WHERE en.student_id = ? AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1`).bind(sid).first<{ promoted_to: string }>()
+    extras = { promoted_to: nx?.promoted_to ?? null, academic_year: (await c.db.prepare(`SELECT name FROM academic_years WHERE is_current = 1`).first<{ name: string }>())?.name ?? null }
   }
   let type = await c.db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(typeCode).first<{ id: string }>()
   if (!type) {
@@ -1882,5 +1929,5 @@ async function issueCertificate(c: Ctx) {
     stmts.push(c.db.prepare(`UPDATE enrollments SET status = 'transferred' WHERE student_id = ? AND status = 'active'`).bind(sid))
   }
   await c.db.batch(stmts)
-  return created({ serial_no: serial, type: typeCode, student_id: sid, dues_paise: duesPaise, dues_overridden: duesPaise > 0 && !!req.override_dues })
+  return { serial_no: serial, type: typeCode, student_id: sid, dues_paise: duesPaise, dues_overridden: duesPaise > 0 && !!req.override_dues }
 }

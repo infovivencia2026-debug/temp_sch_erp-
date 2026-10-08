@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState,
+  Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
@@ -43,6 +43,9 @@ const TYPES = [
   { value: 'BONAFIDE', label: 'Bonafide certificate' },
   { value: 'CONDUCT', label: 'Character certificate' },
   { value: 'TC', label: 'Transfer certificate' },
+  { value: 'STUDY', label: 'Study certificate' },
+  { value: 'PROMOTION', label: 'Promotion certificate' },
+  { value: 'ACHIEVEMENT', label: 'Achievement certificate' },
 ]
 
 /* The prescribed fields a transfer certificate carries that no table holds.
@@ -74,6 +77,9 @@ export default function Certificates() {
   const [answering, setAnswering] = useState<Cert | null>(null)
   const [tc, setTc] = useState<TCForm>(EMPTY_TC)
   const [overrideReason, setOverrideReason] = useState('')
+  const [ach, setAch] = useState({ achievement: '', event: '', position: '' })
+  const [bulkSection, setBulkSection] = useState('')
+  const [bulkDone, setBulkDone] = useState('')
   const [card, setCard] = useState<{ html: string; name?: string } | null>(null)
   const [decision, setDecision] = useState('issued')
   const [note, setNote] = useState('')
@@ -117,6 +123,19 @@ export default function Certificates() {
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
+  const sectionsQ = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<{ items: { id: string; name: string; class_name?: string }[] }>('/api/v1/academics/sections'),
+  })
+  const bulk = useMutation({
+    mutationFn: () => api.post<{ issued: number; skipped: number; skipped_items: { reason: string }[] }>('/api/v1/lifecycle/certificates/bulk', {
+      section_id: bulkSection, type_code: type, reason, ...(type === 'ACHIEVEMENT' ? ach : {}), ...(type === 'TC' ? tc : {}),
+    }),
+    onSuccess: async (r) => {
+      setBulkDone(`${r.issued} issued${r.skipped ? `, ${r.skipped} skipped: ${r.skipped_items.slice(0, 3).map((x) => x.reason).join('; ')}` : ''}.`)
+      await qc.refetchQueries({ queryKey: ['certificates'] })
+    },
+  })
   const list = useQuery({
     queryKey: ['certificates'],
     queryFn: () => api.get<List<Cert>>('/api/v1/lifecycle/certificates'),
@@ -125,6 +144,7 @@ export default function Certificates() {
     mutationFn: (override: boolean) =>
       api.post<{ serial_no: string; dues_overridden?: boolean }>('/api/v1/lifecycle/certificates', {
         student_id: studentId, type_code: type, reason,
+        ...(type === 'ACHIEVEMENT' ? ach : {}),
         ...(type === 'TC'
           ? {
               ...tc,
@@ -261,7 +281,7 @@ export default function Certificates() {
             <div className="flex flex-wrap items-center gap-2.5">
               <SearchBox value={search} onChange={setSearch} placeholder="Student name or admission no." className="min-w-[16rem] flex-1" />
               <div className="w-60"><Select value={type} onChange={(v) => { setType(v); setTcOpen(v === 'TC') }} options={TYPES} /></div>
-              <Button disabled={!studentId || issue.isPending || (type === 'TC' && !reason.trim())} onClick={() => issue.mutate(false)}>
+              <Button disabled={!studentId || issue.isPending || (type === 'TC' && !reason.trim()) || (type === 'ACHIEVEMENT' && !ach.achievement.trim())} onClick={() => issue.mutate(false)}>
                 {issue.isPending ? 'Issuing…' : 'Issue & preview'}
               </Button>
             </div>
@@ -277,6 +297,32 @@ export default function Certificates() {
                     {s.full_name} · {s.admission_no}
                   </button>
                 ))}
+              </div>
+            )}
+            {type === 'ACHIEVEMENT' && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Achievement" required><Input value={ach.achievement} onChange={(v) => setAch({ ...ach, achievement: v })} placeholder="First prize, 100 m sprint" /></Field>
+                <Field label="Event"><Input value={ach.event} onChange={(v) => setAch({ ...ach, event: v })} placeholder="Annual sports day 2026" /></Field>
+                <Field label="Position"><Input value={ach.position} onChange={(v) => setAch({ ...ach, position: v })} placeholder="First" /></Field>
+              </div>
+            )}
+            {/* THE WHOLE SECTION AT ONCE. Promotion certificates at year end,
+                achievement certificates after a sports day, transfer
+                certificates for a batch that leaves: the same certificate for
+                every child in a section, in one press. A child whose TC is
+                blocked by fees is skipped and named. */}
+            {type !== 'BONAFIDE' && type !== 'CONDUCT' && (
+              <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-muted/20 p-4">
+                <Field label="Or every child in a section">
+                  <div className="w-64">
+                    <Select value={bulkSection} onChange={setBulkSection} placeholder="Choose a section"
+                      options={(sectionsQ.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.class_name ?? ''} ${s.name}`.trim() }))} />
+                  </div>
+                </Field>
+                <Button variant="secondary" disabled={!bulkSection || bulk.isPending || (type === 'TC' && !reason.trim()) || (type === 'ACHIEVEMENT' && !ach.achievement.trim())}
+                  onClick={() => bulk.mutate()}>{bulk.isPending ? 'Issuing…' : 'Issue for the whole section'}</Button>
+                {bulkDone && <p className="w-full text-[13px] text-muted-foreground">{bulkDone}</p>}
+                <FormNotice error={bulk.error} />
               </div>
             )}
             {type === 'TC' ? (

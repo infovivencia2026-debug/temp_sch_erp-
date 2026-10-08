@@ -6,4 +6,6 @@ import { screen } from '@/lib/screen'
 export const staffTasksKeys = {
   'hr.tasks.staff_tasks': screen(() => import('./StaffTasks')),
   'faculty.my_profile.my_tasks': screen(() => import('./StaffTasks')),
+  'hr.handbook.staff_handbook': screen(() => import('./StaffHandbook')),
+  'faculty.my_profile.my_handbook': screen(() => import('./StaffHandbook')),
 }

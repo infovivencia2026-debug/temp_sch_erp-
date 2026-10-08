@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 410 features.
+// Roles is the catalog: 24 roles, 412 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -794,6 +794,7 @@ var Roles = []Role{
 					{Key: "faculty.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Own profile, password and leave."},
 					{Key: "faculty.my_profile.student_leave_requests", Slug: "student_leave_requests", Name: "Student leave requests", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Leave a parent has applied for on behalf of a child in your class: who, which days, and why, with approve or decline. Separate from your own leave, which is an employment matter and goes to HR and your head of department."},
 					{Key: "faculty.my_profile.remarks_about_me", Slug: "remarks_about_me", Name: "Remarks about me", Scope: Scope("self"), Tier: Tier("core"), Summary: "What your head of department, the principal or a parent has written about you. You are told when one is added."},
+					{Key: "faculty.my_profile.my_handbook", Slug: "my_handbook", Name: "My handbook", Scope: Scope("self"), Tier: Tier("core"), Summary: "The school's policies you are asked to read and acknowledge, and the ones you already have."},
 					{Key: "faculty.my_profile.my_tasks", Slug: "my_tasks", Name: "My tasks", Scope: Scope("self"), Tier: Tier("core"), Summary: "The jobs the office or your reporting manager has handed you, due date first. Start one, finish it with a note, and hand jobs to the people who report to you."},
 					{Key: "faculty.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
@@ -1504,6 +1505,14 @@ var Roles = []Role{
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.tasks.staff_tasks", Slug: "staff_tasks", Name: "Staff tasks", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Hand a job to a member of staff with a due date, watch it move from open to done, and read the report of who has what open and overdue. The Reporting managers tab says who each person answers to, which is where their leave request goes first."},
+				},
+			},
+			{
+				Slug: "handbook",
+				Name: "Handbook",
+				Workspace: "People",
+				Features: []Feature{
+					{Key: "hr.handbook.staff_handbook", Slug: "staff_handbook", Name: "Staff handbook", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's policies for staff: publish one with the full document attached, every member of staff is asked to read and acknowledge it, and HR sees who has not yet signed."},
 				},
 			},
 			{

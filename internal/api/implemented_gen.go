@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 399 of the catalog's features are implemented.
+// 402 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -88,6 +88,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_classes.student_details":                                  true,
 	"faculty.my_classes.student_progress":                                 true,
 	"faculty.my_profile.leave_self_service":                               true,
+	"faculty.my_profile.my_handbook":                                      true,
 	"faculty.my_profile.my_pay":                                           true,
 	"faculty.my_profile.my_tasks":                                         true,
 	"faculty.my_profile.profile":                                          true,
@@ -113,6 +114,7 @@ var implementedFeatures = map[string]bool{
 	"finance.campus_money.store_catalogue":                                true,
 	"finance.communication.messages":                                      true,
 	"finance.fees.class_transport_fee_setup":                              true,
+	"finance.fees.fee_corrections":                                        true,
 	"finance.fees.online_fee_portal":                                      true,
 	"finance.fees.student_wallets":                                        true,
 	"finance.fees.take_fee_payment":                                       true,
@@ -160,6 +162,7 @@ var implementedFeatures = map[string]bool{
 	"hr.attendance.staff_register":                                        true,
 	"hr.attendance.staff_working_hours":                                   true,
 	"hr.communication.messages":                                           true,
+	"hr.handbook.staff_handbook":                                          true,
 	"hr.hiring_training.staff_hiring":                                     true,
 	"hr.hiring_training.staff_performance_reviews":                        true,
 	"hr.hiring_training.staff_training_development":                       true,

@@ -1213,10 +1213,17 @@ async function applyForLeave(c: Ctx): Promise<Response> {
 
   // Trigger leave_requests_obey_policy (migrations/00031_hr_lifecycle.sql).
   if (kind === 'staff' && leaveType) {
-    const rule = await c.db.prepare('SELECT allow_half_day, max_consecutive_days, notice_days, applies_to_gender FROM leave_policy_rules WHERE leave_type_id = ?')
-      .bind(leaveType).first<{ allow_half_day: number; max_consecutive_days: string | null; notice_days: number; applies_to_gender: string | null }>()
+    const rule = await c.db.prepare('SELECT allow_half_day, max_consecutive_days, notice_days, applies_to_gender, window_from, window_to FROM leave_policy_rules WHERE leave_type_id = ?')
+      .bind(leaveType).first<{ allow_half_day: number; max_consecutive_days: string | null; notice_days: number; applies_to_gender: string | null; window_from: string | null; window_to: string | null }>()
     if (rule) {
       const policy = (m: string) => new HttpError(400, m, { code: 'check_violation' })
+      if (rule.window_from && rule.window_to) {
+        /* The window is a span of the year, MM-DD to MM-DD; it may wrap the
+           year end (12-15 to 01-15). Judged on the day the application is made. */
+        const md = today().slice(5), a = rule.window_from, b = rule.window_to
+        const inside = a <= b ? md >= a && md <= b : md >= a || md <= b
+        if (!inside) throw policy(`applications for this leave type are taken from ${a.slice(3)}/${a.slice(0, 2)} to ${b.slice(3)}/${b.slice(0, 2)}`)
+      }
       if (req.is_half_day && !bool(rule.allow_half_day)) throw policy('this leave type cannot be taken as a half day')
       if (rule.max_consecutive_days !== null && days > Number(rule.max_consecutive_days)) throw policy(`at most ${Number(rule.max_consecutive_days)} consecutive day(s) of this leave may be taken`)
       if (rule.notice_days > 0) {

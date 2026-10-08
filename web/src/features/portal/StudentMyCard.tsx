@@ -1,4 +1,5 @@
 import { printDocument } from '@/lib/print'
+import { Barcode } from '@/lib/barcode'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cake, Droplet, House, Phone, Printer, ShieldCheck, UserRound } from 'lucide-react'
@@ -62,6 +63,7 @@ export default function StudentMyCard() {
                 <p className="mt-2 text-[22px] font-semibold leading-tight">{card.full_name}</p>
                 <p className="text-[14px] text-muted-foreground">{[card.class_name && `${card.class_name} ${card.section_name ?? ''}`.trim(), card.roll_no && `Roll ${card.roll_no}`].filter(Boolean).join(' · ')}</p>
                 <p className="mt-1 font-mono text-[13px] tracking-wide text-muted-foreground">{card.admission_no}</p>
+                <Barcode value={card.admission_no} height={22} label={false} className="mt-2 h-6 w-40 max-w-full" />
               </div>
               <div className="border-t border-dashed px-5 py-4">
                 <p className="flex items-center justify-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-4 w-4 text-success" /> Gate code</p>
