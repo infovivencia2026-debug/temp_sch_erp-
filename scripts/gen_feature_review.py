@@ -143,7 +143,11 @@ def tabs_of(key):
                     break
             j += 1
         txt = txt[i:j + 1]
-    return [unq(l) for _k, l in re.findall(r"\{\s*key: '([a-z0-9_-]+)',\s*label: '((?:[^'\\]|\\.)*)'", txt)]
+    out = []
+    for m in re.finditer(r"\{\s*key: '([a-z0-9_-]+)',\s*label: '((?:[^'\\]|\\.)*)'([^}]*)", txt):
+        note = re.search(r"note: '((?:[^'\\]|\\.)*)'", m.group(3))
+        out.append((unq(m.group(2)), unq(note.group(1)) if note else ''))
+    return out
 
 # Role-wise, so a reviewer can take one role at a time.
 rows.sort(key=lambda r: (r[0], r[1], r[2], r[3]))
@@ -158,10 +162,13 @@ with io.open(out, 'w', encoding='utf-8-sig', newline='') as f:
         w.writerow(list(r[:6]) + [short(r[6]), ''])
         # Then each tab inside it, indented, so a review of the entry is a
         # review of everything behind it.
-        for tab in tabs_of(r[4]):
+        for tab, note in tabs_of(r[4]):
             subs += 1
+            # The tab's own note where it has one. "A tab inside X" said only
+            # what the indent already showed, and a reviewer cannot judge a
+            # screen from its parent's name.
             w.writerow([r[0], r[1], r[2], '    └ ' + tab, r[4], r[5],
-                        'A tab inside ' + r[3], ''])
+                        note or ('One of the screens behind ' + r[3]), ''])
     print('sub-tab rows:', subs)
 
 print('rows:', len(rows))
