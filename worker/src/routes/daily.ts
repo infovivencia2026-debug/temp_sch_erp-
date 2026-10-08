@@ -927,13 +927,16 @@ function registerMeGroup(r: Router) {
   })
 
   r.get('/me/day-code', 'auth', async (c) => {
-    if (c.id.platformAdmin) throw notFound('resource not found')
+    /* Every profile asks; only a teacher has one. Nobody else is an error
+       (it painted a 404 in the console on nine of the twenty-four profile
+       doors), they simply have no code. */
+    if (c.id.platformAdmin) return ok({ enabled: false })
     const row = await c.db.prepare(`
       SELECT EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? AND r.key IN ('faculty','hod')) AS teacher,
              i.teacher_day_code_secret AS secret, i.timezone
         FROM institutions i WHERE i.id = ?`).bind(c.id.userId, c.id.institution!.id)
       .first<{ teacher: number; secret: ArrayBuffer | null; timezone: string }>()
-    if (!row?.teacher) throw notFound('resource not found')
+    if (!row?.teacher) return ok({ enabled: false })
     return ok(await dayCodeState(row.secret, row.timezone))
   })
 

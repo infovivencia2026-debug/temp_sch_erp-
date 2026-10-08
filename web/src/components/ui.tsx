@@ -484,7 +484,8 @@ export function Stat({
           {control}
           {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         </div>
-        <p className="stat">{value}</p>
+        {/* A div, not a p: callers hand the value a Skeleton while loading, and a block inside a paragraph is invalid markup. */}
+        <div className="stat">{value}</div>
       </Head>
       {delta && (
         <p

@@ -22,6 +22,20 @@
  */
 
 export const FEATURE_ICONS: Record<string, string> = {
+  // Screens added 7 and 8 Oct 2026 (the MyClassBoard gaps and what a school needs); names already in the subset.
+  rules: 'rule', // Rules
+  move_from_myclassboard: 'upload_file', // Move from MyClassBoard
+  returns_readiness: 'verified', // Returns readiness
+  my_handbook: 'menu_book', // My handbook
+  staff_handbook: 'menu_book', // Staff handbook
+  my_tasks: 'task_alt', // My tasks
+  staff_tasks: 'checklist', // Staff tasks
+  reading_levels: 'library_books', // Reading levels
+  fee_corrections: 'receipt', // Fee corrections
+  fixed_reports: 'receipt_long', // Fixed reports
+  todays_runs: 'directions_bus', // Today's runs
+  transport_reports: 'description', // Transport reports
+  hall_ticket: 'badge', // Hall ticket (student and parent)
   // Screens added in Sept 2026 without an icon; the test that every feature has one caught them.
   support_team: 'support_agent', // Support Team
   helpdesk: 'contact_support', // Helpdesk (the school's own help requests)
@@ -379,6 +393,8 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  tasks: 'checklist', // Tasks
+  handbook: 'menu_book', // Handbook
   help: 'help',
   lms: 'cast_for_education', // LMS
   store: 'inventory_2', // Store
