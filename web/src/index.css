@@ -4866,3 +4866,9 @@ input[type="number"]::-webkit-inner-spin-button {
               height 0.3s cubic-bezier(0.25, 1, 0.5, 1),
               opacity 0.15s ease;
 }
+
+/* The dock never starts invisible on a phone (owner, 2026-10-09: the bar
+   was missing on iPhone). An entrance paused by Safari could hold it at 0. */
+@media (max-width: 767px) {
+  .bento-dock { animation: none !important; opacity: 1 !important; view-transition-name: none !important; }
+}
