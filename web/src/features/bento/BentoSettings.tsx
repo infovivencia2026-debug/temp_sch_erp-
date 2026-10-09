@@ -88,12 +88,17 @@ export function BentoSettings({
      changes and takes the window over if it is the one now showing. */
   const { layout: frameNow } = useFrameLayout()
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    /* Checked a few times over half a second: the dock slides in, and its
+       gear has no size for the first frames. */
+    let n = 0
+    const t = window.setInterval(() => {
+      n++
       const visible = !!btn.current && btn.current.getBoundingClientRect().width > 0
-      if (visible && wasOpen() && !showAppearance) { setEverOpened(true); setShowAppearance(true) }
-      if (!visible && showAppearance) setShowAppearance(false)
-    }, 60)
-    return () => window.clearTimeout(t)
+      if (visible && wasOpen()) { setEverOpened(true); setShowAppearance(true); window.clearInterval(t) }
+      else if (!visible && n >= 2) setShowAppearance(false)
+      if (n >= 8) window.clearInterval(t)
+    }, 70)
+    return () => window.clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameNow])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
