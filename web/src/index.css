@@ -3884,26 +3884,37 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
    neighbours swell a little, on a springy curve; a sheen passes over it. */
 .rail-tile {
   transform-origin: left center;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 200ms ease, box-shadow 200ms ease !important;
+  /* A 1.56 back-out curve overshoots on purpose: the tile goes past its
+     size and comes back. On one tile that is playful; on a column somebody
+     runs a pointer down, every tile overshoots in turn and the whole rail
+     wobbles (owner, 2026-10-09: "very harsh make it VERYY SMOTHHHHHH").
+     easeOutCubic settles instead of bouncing, and the move is longer on the
+     way back than on the way up, so leaving is the gentle half. */
+  transition: transform 340ms cubic-bezier(.33, 1, .68, 1), filter 260ms ease, box-shadow 260ms ease !important;
   position: relative;
   overflow: visible;
+  will-change: transform;
 }
 .rail-tile::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .45) 50%, transparent 70%);
   background-size: 250% 100%; background-position: 150% 0; opacity: 0;
 }
-.rail-tile:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.1) saturate(1.15); z-index: 5;
+.rail-tile:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.08) saturate(1.1); z-index: 5;
+  transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile, hsl(var(--primary))) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / .3); }
 .rail-tile:hover::before { opacity: 1; animation: rail-sheen 700ms ease forwards; }
+/* The neighbours lift less than they did: at 1.12 beside a 1.28 the two
+   sizes were far enough apart that the pointer crossing a boundary looked
+   like a step rather than a swell. */
 .rail-tile:hover + .rail-tile,
-.rail-tile:has(+ .rail-tile:hover) { transform: scale(1.12) translateX(1px); }
+.rail-tile:has(+ .rail-tile:hover) { transform: scale(1.07) translateX(1px); }
 /* The icon leans while the pointer is on it and comes back when it leaves.
    It used to play a one-shot keyframe on :hover, and a keyframe tied to
    :hover is cancelled the moment the pointer moves off: the icon snapped
    upright from mid-tilt. A transition turns round from wherever it is. */
-.rail-tile svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-.rail-tile:hover svg { transform: scale(1.1) rotate(-5deg); }
+.rail-tile svg { transition: transform 340ms cubic-bezier(.33, 1, .68, 1); }
+.rail-tile:hover svg { transform: scale(1.08) rotate(-4deg); }
 @keyframes rail-sheen { to { background-position: -50% 0; } }
 @media (prefers-reduced-motion: reduce) {
   .rail-tile, .rail-tile:hover, .rail-tile:hover + .rail-tile, .rail-tile:has(+ .rail-tile:hover) { transform: none; }

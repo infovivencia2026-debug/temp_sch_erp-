@@ -1065,6 +1065,9 @@ html.dark[data-skin='focus'] .bento-dock {
    spring that is delightful on the first open is a twitch by the hundredth. */
 [data-layout='bento'] {
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  /* easeOutCubic: no front load, no overshoot. For things that swell and
+     settle under a pointer rather than arrive from somewhere else. */
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   /* Slower, and eased so the slowness reads as weight rather than lag.
 
@@ -1149,15 +1152,35 @@ html.dark[data-skin='focus'] .bento-dock {
    about 1.5; here it is 1.12, because these are 17px glyphs in a bar somebody
    crosses on the way to something else, not a dock they are aiming at. */
 [data-layout='bento'] .bento-dock button {
-  transition: background-color var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-out);
+  /* THE CURVE, AND WHICH HALF OF THE MOVE IT IS ON (owner, 2026-10-09:
+     "when curser moves from them there moving is very harsh make it VERYY
+     SMOTHHHHHH").
+
+     --ease-out here is cubic-bezier(0.32, 0.72, 0, 1), which spends almost
+     all its travel in the first third and then creeps. That is the right
+     curve for a panel arriving from somewhere -- it is the settings window's
+     curve -- and the wrong one for an icon swelling under a pointer: run a
+     cursor along a column of twelve and each one snaps up and snaps back,
+     which is the harshness. A plain ease-out cubic has no such front load
+     and reads as the icons breathing.
+
+     And the return is the half that was really at fault. Both halves shared
+     one 200ms, so leaving was as abrupt as arriving, and crossing the row
+     quickly left a trail of icons all snapping down at once. The base rule
+     is the RETURN, so it is the longer of the two; the hover rule shortens
+     it for the way up. Slower out than in is what makes a thing feel
+     unhurried without feeling slow to respond. */
+  transition: background-color 220ms var(--ease-soft),
+              color 220ms var(--ease-soft),
+              transform 340ms var(--ease-soft);
+  will-change: transform;
 }
 /* Only for a pointer that hovers: on a touchscreen this stuck to the last
    tapped tab. */
 @media (hover: hover) {
   [data-layout='bento'] .bento-dock button:hover {
     transform: scale(1.12);
+    transition-duration: 200ms;
   }
 }
 [data-layout='bento'] .bento-dock button:active {
