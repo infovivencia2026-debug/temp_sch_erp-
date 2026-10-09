@@ -281,7 +281,10 @@ export default function TabStrip() {
               /* Rounded all round (owner, 2026-10-01: "tabs are still sharp
                  bottom side"): the open tab is a soft filled pill, not a hard
                  2px bar along its foot. */
-              `group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
+              /* tab-island__tab: the hairline between one tab and the next
+                 is drawn in the stylesheet, which is the only place that can
+                 see a tab's neighbours. */
+              `tab-island__tab group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
                rounded-[13px] px-3 py-1.5 text-[13px] transition-colors duration-200`,
               /* The white glider is the open tab's fill (owner, 2026-10-09:
                  floating island + spring glider); tabs themselves stay clear. */

@@ -4820,6 +4820,41 @@ input[type="number"]::-webkit-inner-spin-button {
   border: 1px solid hsl(var(--border) / 0.45);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
+/* A HAIRLINE BETWEEN ONE TAB AND THE NEXT (owner, 2026-10-09: "add sutle
+   seperater here").
+
+   Eight titles in a row of flat text, four pixels apart, read as one long
+   sentence -- "Interaction log My pay Logins & access" -- and the eye had
+   nothing to divide them by except the gap. Every browser tab strip draws
+   this line for the same reason.
+
+   Subtle means subtle: one pixel, 16px tall, the row's own ink at 14%, sat
+   in the middle of the existing gap rather than taking any width of its own.
+
+   Three places it is NOT drawn, and each is the same rule -- a separator
+   earns its place only between two plain tabs:
+     the first tab, which has nothing to its left;
+     either side of the open tab, because the white pill is already an edge
+       and a line against it reads as a seam in the pill;
+     either side of the one being hovered, for the same reason as it lights.
+   The fade is what keeps that from flickering as the glider slides past. */
+.tab-island__tab { position: relative; }
+.tab-island__tab + .tab-island__tab::before {
+  content: '';
+  position: absolute;
+  left: -2.5px;
+  top: 50%;
+  height: 16px;
+  width: 1px;
+  transform: translateY(-50%);
+  background: hsl(var(--foreground) / 0.14);
+  transition: opacity 0.2s ease;
+}
+.tab-island__tab[data-on]::before,
+.tab-island__tab[data-on] + .tab-island__tab::before,
+.tab-island__tab:hover::before,
+.tab-island__tab:hover + .tab-island__tab::before { opacity: 0; }
+
 .tab-island__glider {
   border-radius: 13px;
   background: hsl(var(--card));
