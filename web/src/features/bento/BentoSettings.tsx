@@ -73,8 +73,14 @@ export function BentoSettings({
   const location = useLocation()
   const phone = usePhone()
   const btn = useRef<HTMLButtonElement>(null)
-  const [showAppearance, setShowAppearance] = useState(false)
-  const [everOpened, setEverOpened] = useState(false)
+  /* Still open if it was open: switching Work/Focus swaps this button for the
+     other layout's, and the window should stay up without launching again
+     (owner, 2026-10-08). */
+  const wasOpen = () => typeof window !== 'undefined'
+    && !!(window as { __settingsOpen?: boolean }).__settingsOpen
+    && window.matchMedia('(min-width: 768px)').matches
+  const [showAppearance, setShowAppearance] = useState(wasOpen)
+  const [everOpened, setEverOpened] = useState(wasOpen)
   useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
