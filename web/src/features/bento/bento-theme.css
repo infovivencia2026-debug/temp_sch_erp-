@@ -4988,3 +4988,10 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   [data-appearance-dialog], [data-appearance-dialog] > *, .appearance-overlay { animation: none !important; }
 }
+
+/* Leaving Settings for a page: it fades over the page already opening. */
+[data-appearance-dialog][data-fading],
+.appearance-overlay[data-fading] {
+  animation: ios-dim-out 220ms ease both !important;
+  pointer-events: none;
+}

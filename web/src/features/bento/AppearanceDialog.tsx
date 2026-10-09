@@ -1,4 +1,4 @@
-import { markLaunch, playClose, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
+import { markLaunch, playClose, shouldLaunch, endLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/ui'
 import {
@@ -1309,8 +1309,13 @@ export function AppearanceDialog({
       if (url.origin !== location.origin) return
       e.preventDefault()
       e.stopPropagation()
+      /* The page opens at once behind; Settings fades away over it
+         (owner, 2026-10-09). */
+      goNavigate(url.pathname + url.search + url.hash)
       const panel = document.querySelector('[data-appearance-dialog]')
-      playClose(panel, () => { closeNow(); goNavigate(url.pathname + url.search + url.hash) }, scrim)
+      panel?.setAttribute('data-fading', '')
+      scrim.setAttribute('data-fading', '')
+      window.setTimeout(() => { endLaunch(); closeNow() }, 220)
     }
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
