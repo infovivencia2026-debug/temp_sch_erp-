@@ -96,7 +96,23 @@
           if (m.logo && /^data:image\//.test(m.logo)) {
             var i = document.createElement('img')
             i.src = m.logo; i.alt = ''; i.width = 64; i.height = 64
-            i.style.cssText = 'width:64px;height:64px;object-fit:contain;border-radius:14px'
+            // THE LOGO NEEDS A PLATE IN THE DARK (owner, 2026-10-09: "in dark
+            // theme while loading i dont see logo of the schools").
+            //
+            // A school's mark is almost always dark ink on nothing -- a crest,
+            // a monogram, a line drawing with a transparent background. Drawn
+            // straight onto this screen's #08080a ground it is black on black,
+            // so the loading screen showed the school's NAME with an empty
+            // square above it.
+            //
+            // The same square inside the app (Shell.tsx) already sits on
+            // bg-white for this exact reason; this splash is painted before any
+            // of that exists and never got the same treatment. White plate,
+            // contain rather than cover so a wide crest is not cropped to fill
+            // it, and a little padding so the ink is not flush to the corners.
+            // Light theme is unchanged -- a white plate on #eef0f6 is the card
+            // every logo in the product already sits on.
+            i.style.cssText = 'width:64px;height:64px;object-fit:contain;border-radius:14px;background:#fff;padding:6px;box-sizing:border-box'
             w.appendChild(i)
           }
           var n = document.createElement('div')
