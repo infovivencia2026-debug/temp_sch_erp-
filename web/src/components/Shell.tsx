@@ -671,7 +671,10 @@ export function Shell({
         aria-modal={drawerOpen ? true : undefined}
         aria-label={drawerOpen ? 'Navigation' : undefined}
         className={cn(
-          'shrink-0 flex-row bg-sidebar',
+          /* The rail and its panel stay put while only the workspace scrolls,
+             and the rail scrolls itself if the window is short, so the gear
+             at its foot is always reachable (owner, 2026-10-09). */
+          'shrink-0 flex-row bg-sidebar md:sticky md:top-0 md:h-dvh md:self-start',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
           /* The line between the sidebar and the page, at every width. It was
              drawn only below lg, so on a desktop the white sidebar ran into
@@ -750,7 +753,7 @@ export function Shell({
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
         <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-2.5 border-r py-3.5
-                        md:max-lg:overflow-y-auto">
+                        md:overflow-y-auto">
           {railWorkspaces.map((ws, i) => {
             const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
             const on = ws.slug === activeWs?.slug
