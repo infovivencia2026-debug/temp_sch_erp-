@@ -88,7 +88,7 @@ export function BentoSettings({
      changes and takes the window over if it is the one now showing. */
   const { layout: frameNow } = useFrameLayout()
   useEffect(() => {
-    /* Checked a few times over half a second: the dock slides in, and its
+    /* Checked for up to two seconds: the dock slides in, and its
        gear has no size for the first frames. */
     let n = 0
     const t = window.setInterval(() => {
@@ -96,7 +96,7 @@ export function BentoSettings({
       const visible = !!btn.current && btn.current.getBoundingClientRect().width > 0
       if (visible && wasOpen()) { setEverOpened(true); setShowAppearance(true); window.clearInterval(t) }
       else if (!visible && n >= 2) setShowAppearance(false)
-      if (n >= 8) window.clearInterval(t)
+      if (n >= 30) window.clearInterval(t)
     }, 70)
     return () => window.clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

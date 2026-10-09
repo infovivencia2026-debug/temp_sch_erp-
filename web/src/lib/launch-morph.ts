@@ -48,5 +48,5 @@ export function endLaunch(): void {
 export function endLaunchIfGone(): void {
   window.setTimeout(() => {
     if (!document.querySelector('[data-appearance-dialog], .settings-screen')) endLaunch()
-  }, 600)
+  }, 2500)
 }
