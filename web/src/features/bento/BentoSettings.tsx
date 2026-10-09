@@ -12,6 +12,7 @@ const AppearanceDialog = lazy(() =>
   import('./AppearanceDialog').then((m) => ({ default: m.AppearanceDialog })),
 )
 import { cn } from '@/lib/utils'
+import { useLayout as useFrameLayout } from '@/lib/layout'
 import { INK, EDGE, WASH } from './bento-ink'
 import './dock-menus.css'
 
@@ -82,6 +83,23 @@ export function BentoSettings({
   const [showAppearance, setShowAppearance] = useState(wasOpen)
   const [everOpened, setEverOpened] = useState(wasOpen)
   useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])
+  /* A layout switch from inside Settings: the other layout's gear may have
+     been on the page all along (hidden), so it re-checks when the layout
+     changes and takes the window over if it is the one now showing. */
+  const { layout: frameNow } = useFrameLayout()
+  useEffect(() => {
+    /* Checked for up to two seconds: the dock slides in, and its
+       gear has no size for the first frames. */
+    let n = 0
+    const t = window.setInterval(() => {
+      n++
+      const visible = !!btn.current && btn.current.getBoundingClientRect().width > 0
+      if (visible && wasOpen()) { setEverOpened(true); setShowAppearance(true); window.clearInterval(t) }
+      if (n >= 30) window.clearInterval(t)
+    }, 70)
+    return () => window.clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameNow])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
   /* The cog opens Settings, and nothing before it.
