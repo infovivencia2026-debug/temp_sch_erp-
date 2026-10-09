@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -246,13 +247,36 @@ export function DropdownRow<T extends string>({
 }) {
   const [open, setOpen] = useOpenState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  /* ON TOP OF THE PAGE, NOT INSIDE THE CARD (owner, 2026-10-09: the menu was
+     cut off by the rounded card). Fixed to the button, and opening upward
+     when there is not room under it. */
+  const [pos, setPos] = useState<React.CSSProperties | null>(null)
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return }
+    const place = () => {
+      const b = ref.current?.getBoundingClientRect()
+      if (!b) return
+      const need = Math.min(options.length * 46 + 16, window.innerHeight * 0.6)
+      const below = window.innerHeight - b.bottom
+      const right = Math.max(8, window.innerWidth - b.right)
+      setPos(below < need + 12 && b.top > below
+        ? { position: 'fixed', right, bottom: window.innerHeight - b.top + 6 }
+        : { position: 'fixed', right, top: b.bottom + 6 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  }, [open, options.length])
 
   // Close on a click anywhere outside, and on Escape -- the two exits every
   // menu needs, mirrored on what the native picker did for free.
   useEffect(() => {
     if (!open) return
     const onDoc = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', onDoc)
@@ -284,12 +308,14 @@ export function DropdownRow<T extends string>({
             aria-hidden="true"
           />
         </button>
-        {open && (
+        {open && pos && createPortal(
           <ul
+            ref={listRef}
             role="listbox"
             aria-label={label}
+            style={pos}
             className={cn(
-              'absolute right-0 top-[calc(100%+6px)] z-50 min-w-[190px] max-w-[min(260px,80vw)]',
+              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60vh] overflow-y-auto',
               'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
               SEAM, SURFACE,
             )}
@@ -314,7 +340,8 @@ export function DropdownRow<T extends string>({
                 </li>
               )
             })}
-          </ul>
+          </ul>,
+          document.body,
         )}
       </div>
     </Row>
