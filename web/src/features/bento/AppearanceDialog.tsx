@@ -1325,11 +1325,21 @@ export function AppearanceDialog({
       const panel = document.querySelector('[data-appearance-dialog]')
       panel?.setAttribute('data-fading', '')
       scrim.setAttribute('data-fading', '')
-      window.setTimeout(() => { endLaunch(); onClose() }, 220)
+      window.setTimeout(() => {
+        endLaunch(); onClose()
+        panel?.removeAttribute('data-fading'); scrim.removeAttribute('data-fading')
+      }, 220)
     }
     document.addEventListener('pointerdown', onClick, true)
     return () => document.removeEventListener('pointerdown', onClick, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+  /* Every open starts clean of any leftover closing/fading mark. */
+  useEffect(() => {
+    if (!open) return
+    for (const el of document.querySelectorAll('[data-appearance-dialog], .appearance-overlay')) {
+      el.removeAttribute('data-closing'); el.removeAttribute('data-fading')
+    }
   }, [open])
   const handleClose = () => {
     const panel = typeof document !== 'undefined' ? document.querySelector('[data-appearance-dialog]') : null
