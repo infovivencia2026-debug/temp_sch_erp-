@@ -105,3 +105,11 @@ export function endLaunchIfGone(ms = 2500): void {
     if (!document.querySelector('[data-appearance-dialog], .settings-screen')) endLaunch()
   }, ms)
 }
+
+/** Leave the phone Settings screen the way it opened: shrink back into the
+    gear, then go. Anywhere else, just go. (owner, 2026-10-09) */
+export function leaveSettings(go: () => void): void {
+  const screen = typeof document !== 'undefined' ? document.querySelector('.settings-screen') : null
+  if (!screen || screen.hasAttribute('data-closing') || window.matchMedia('(min-width: 768px)').matches) { go(); return }
+  playClose(screen, go)
+}

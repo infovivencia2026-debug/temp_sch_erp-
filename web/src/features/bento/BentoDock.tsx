@@ -1,3 +1,4 @@
+import { leaveSettings } from '@/lib/launch-morph'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, House } from 'lucide-react'
@@ -479,7 +480,7 @@ export function BentoDock() {
               if (location.pathname === homeHref) {
                 window.location.reload()
               } else {
-                navigate(homeHref)
+                leaveSettings(() => navigate(homeHref))
               }
             }}
             className={cn(item, tab)}
@@ -582,7 +583,7 @@ export function BentoDock() {
               <button
                 key={c.name}
                 type="button"
-                onClick={() => navigate(c.href)}
+                onClick={() => leaveSettings(() => navigate(c.href))}
                 data-tip={c.name}
                 aria-label={c.name}
                 className={item}
