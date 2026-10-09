@@ -17,6 +17,10 @@ export function markLaunch(): void {
   const cs = getComputedStyle(root)
   root.style.setProperty('--launch-x', cs.getPropertyValue('--tap-x').trim() || '50vw')
   root.style.setProperty('--launch-y', cs.getPropertyValue('--tap-y').trim() || '50vh')
+  /* Start at the gear's own size (owner's sample, 2026-10-09): gear width
+     over the window's width, the window being 920px or the viewport. */
+  const panel = Math.min(920, window.innerWidth * 0.92)
+  root.style.setProperty('--launch-scale', String(Math.max(0.03, 40 / panel).toFixed(4)))
 }
 
 export function playClose(el: Element | null | undefined, then: () => void, extra?: Element | null): void {
@@ -26,8 +30,9 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   if (!el || reduced) { finish(); return }
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')
-  el.addEventListener('animationend', finish, { once: true })
-  window.setTimeout(finish, 380)
+  const onEnd = (e: Event) => { if (e.target === el) { el.removeEventListener('animationend', onEnd); finish() } }
+  el.addEventListener('animationend', onEnd)
+  window.setTimeout(finish, 500)
 }
 
 /* ONLY WHEN SETTINGS IS OPENED (owner, 2026-10-08: switching Work/Focus, or
