@@ -4946,9 +4946,16 @@ html[data-assistant-open] .bento-dots { display: none !important; }
    deceleration back into the gear. Start/end is the gear's own centre and
    size (lib/launch-morph.ts). Desktop only. */
 @media (min-width: 768px) {
-  @keyframes sw-t-in  { from { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08)); } to { transform: translate3d(0, 0, 0) scale(1); } }
-  @keyframes sw-t-out { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08)); } }
-  @keyframes sw-o-in  { from { opacity: 0; } to { opacity: 1; } }
+  /* scale(sx, sy), each axis against its own measurement, so the window
+     starts as the gear's own 40x40 square rather than a letterboxed sliver
+     (owner's sample: btnRect.width / winRect.width, btnRect.height /
+     winRect.height). */
+  @keyframes sw-t-in  { from { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-sx, 0.05), var(--launch-sy, 0.07)); } to { transform: translate3d(0, 0, 0) scale(1, 1); } }
+  @keyframes sw-t-out { from { transform: translate3d(0, 0, 0) scale(1, 1); } to { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-sx, 0.05), var(--launch-sy, 0.07)); } }
+  /* 0.2, not 0 (owner's sample). A window that starts invisible appears out
+     of nothing a few frames in; one that starts faint is the gear itself
+     growing, and there is no moment where nothing is on screen. */
+  @keyframes sw-o-in  { from { opacity: 0.2; } to { opacity: 1; } }
   @keyframes sw-o-out { from { opacity: 1; } to { opacity: 0; } }
   @keyframes sw-r-in  { from { border-radius: 48px; } }
   @keyframes sw-r-out { to { border-radius: 48px; } }
@@ -4958,9 +4965,9 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   @keyframes sw-d-out { from { opacity: 1; } to { opacity: 0; } }
   [data-appearance-dialog][data-launching] {
     animation:
-      sw-t-in 0.48s cubic-bezier(0.28, 0.8, 0.25, 1) both,
-      sw-o-in 0.28s ease both,
-      sw-r-in 0.44s cubic-bezier(0.28, 0.8, 0.25, 1) both !important;
+      sw-t-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both,
+      sw-o-in 0.26s ease both,
+      sw-r-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both !important;
     transform-origin: center center;
     will-change: transform, opacity;
   }
@@ -4970,9 +4977,9 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   }
   [data-appearance-dialog][data-closing] {
     animation:
-      sw-t-out 0.46s cubic-bezier(0.25, 1, 0.5, 1) both,
-      sw-o-out 0.42s cubic-bezier(0.35, 0, 0.65, 1) both,
-      sw-r-out 0.44s cubic-bezier(0.25, 1, 0.5, 1) both !important;
+      sw-t-out 0.4s cubic-bezier(0.25, 1, 0.5, 1) both,
+      sw-o-out 0.4s cubic-bezier(0.35, 0, 0.65, 1) both,
+      sw-r-out 0.4s cubic-bezier(0.25, 1, 0.5, 1) both !important;
     will-change: transform, opacity;
     pointer-events: none;
   }
@@ -4990,6 +4997,29 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 .appearance-overlay[data-fading] {
   animation: ios-dim-out 220ms ease both !important;
   pointer-events: none;
+}
+
+/* THE BLURB UNDER "SETTINGS" IS ONE LINE (owner, 2026-10-09: "make the
+   context below the setting only in one line some are 2 lines that reflects
+   on screen and the screen moves").
+
+   Each section writes its own sentence under the title and they are not the
+   same length: Messaging's runs to two lines where Appearance's fits on one.
+   The header is part of the window's layout, so a section with the longer
+   sentence made the whole window taller and everything under it -- the nav,
+   the rows, the sign-out at the foot -- jumped as you moved between
+   sections. A window that changes size when you look at a different page of
+   it is the thing being complained about, not the wrapping.
+
+   One line, clipped with an ellipsis, so the header is the same height on
+   every section and nothing below it moves. The sentence is an explanation
+   of a screen whose rows name themselves; the part that is lost is the tail
+   of a sentence nobody navigates by. Scoped to this dialog -- other dialogs
+   carry real instructions in that line and keep both. */
+[data-appearance-dialog] h2 + p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* An empty settings group drew as a stray 2px line (owner, 2026-10-09). */

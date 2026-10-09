@@ -11,24 +11,47 @@
    calls `then` -- the real close or navigation. Guarded so `then` runs once
    whether the animation ends, is skipped (reduced motion), or never starts. */
 
-export function markLaunch(): void {
-  if (typeof document === 'undefined') return
+/* TWO SCALES, NOT ONE (owner's sample, 2026-10-09: `scale(sx, sy)` from
+   btnRect.width / winRect.width and btnRect.height / winRect.height).
+
+   One number for both axes was the thing that still did not feel like the
+   sample. The gear is a 40x40 square and the window is 920x760, so a single
+   gear-width-over-panel-width scale of 0.043 starts the window as a 40px
+   wide, 33px tall sliver: a letterbox unfolding, not an icon opening. Each
+   axis against its own measurement starts it as the gear's own square and
+   the whole motion reads as the one object growing.
+
+   Measured against the real panel when there is one on screen -- on the way
+   out there always is -- and against what the panel is about to be when
+   there is not: 920px or 92vw across, and the min(88vh, 760px) its own class
+   sets. */
+function setVectors(panel?: DOMRect | null): void {
   const root = document.documentElement
   const cs = getComputedStyle(root)
   root.style.setProperty('--launch-x', cs.getPropertyValue('--tap-x').trim() || '50vw')
   root.style.setProperty('--launch-y', cs.getPropertyValue('--tap-y').trim() || '50vh')
-  /* Start at the gear's own size (owner's sample, 2026-10-09): gear width
-     over the window's width, the window being 920px or the viewport. */
-  const panel = Math.min(920, window.innerWidth * 0.92)
-  /* The gear itself, when it can be found: its centre and its width. */
+  const pw = panel?.width || Math.min(920, window.innerWidth * 0.92)
+  const ph = panel?.height || Math.min(window.innerHeight * 0.88, 760)
+  /* The gear itself, when it can be found: its centre and its size. */
   const gear = [...document.querySelectorAll<HTMLElement>('button[aria-label="Settings"]')].find((b) => b.getBoundingClientRect().width > 0)
-  const gw = gear ? gear.getBoundingClientRect().width : 40
-  if (gear) {
-    const b = gear.getBoundingClientRect()
-    root.style.setProperty('--launch-x', `${b.left + b.width / 2}px`)
-    root.style.setProperty('--launch-y', `${b.top + b.height / 2}px`)
+  const g = gear?.getBoundingClientRect()
+  if (g) {
+    root.style.setProperty('--launch-x', `${g.left + g.width / 2}px`)
+    root.style.setProperty('--launch-y', `${g.top + g.height / 2}px`)
   }
-  root.style.setProperty('--launch-scale', String(Math.max(0.03, gw / panel).toFixed(4)))
+  const gw = g?.width || 40
+  const gh = g?.height || 40
+  const sx = Math.max(0.02, gw / pw)
+  const sy = Math.max(0.02, gh / ph)
+  root.style.setProperty('--launch-sx', sx.toFixed(4))
+  root.style.setProperty('--launch-sy', sy.toFixed(4))
+  /* Kept for anything still reading the single-axis name. */
+  root.style.setProperty('--launch-scale', sx.toFixed(4))
+}
+
+export function markLaunch(): void {
+  if (typeof document === 'undefined') return
+  setVectors(document.querySelector('[data-appearance-dialog]')?.getBoundingClientRect())
 }
 
 export function playClose(el: Element | null | undefined, then: () => void, extra?: Element | null): void {
@@ -36,6 +59,10 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   const finish = () => { if (done) return; done = true; endLaunch(); then() }
   const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   if (!el || reduced) { finish(); return }
+  /* Re-measured against the panel as it actually stands: the window may
+     have been resized, and the dock the gear sits in moves between layouts.
+     The sample reads the same geometry afresh on both halves of the trip. */
+  if (typeof document !== 'undefined') setVectors(el.getBoundingClientRect())
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')
   const onEnd = (e: Event) => { if (e.target === el && /t-out|close/.test((e as AnimationEvent).animationName)) { el.removeEventListener('animationend', onEnd); finish() } }
