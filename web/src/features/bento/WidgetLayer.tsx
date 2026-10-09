@@ -1,5 +1,5 @@
 import { toastBus } from '@/components/Toast'
-import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
@@ -714,7 +714,9 @@ export function WidgetLayer({
      ancestor board below. Read after mount rather than from a prop because
      only the DOM knows the shape of the tree this layer was dropped into. */
   const [inBoard, setInBoard] = useState(false)
-  useEffect(() => {
+  /* Before paint (owner, 2026-10-09): one painted frame without the pager
+     drew the cards crushed into 0px columns, then they flew into place. */
+  useLayoutEffect(() => {
     setInBoard(!!markRef.current?.closest('.bento-board'))
   })
 
@@ -762,7 +764,7 @@ export function WidgetLayer({
      told how many rows a page has — the stylesheet's repeat() reads
      `--pager-rows` so the two cannot disagree. `data-arranging` lets the
      stylesheet dress the cards for the mode. */
-  useEffect(() => {
+  useLayoutEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !paged) return
     board.setAttribute('data-pager', '')

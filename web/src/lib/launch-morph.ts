@@ -32,7 +32,7 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   extra?.setAttribute('data-closing', '')
   const onEnd = (e: Event) => { if (e.target === el) { el.removeEventListener('animationend', onEnd); finish() } }
   el.addEventListener('animationend', onEnd)
-  window.setTimeout(finish, 500)
+  window.setTimeout(finish, 420)
 }
 
 /* ONLY WHEN SETTINGS IS OPENED (owner, 2026-10-08: switching Work/Focus, or

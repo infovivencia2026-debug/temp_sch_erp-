@@ -4954,12 +4954,14 @@ html[data-assistant-open] .bento-dots { display: none !important; }
     58% { opacity: 1; }
     to { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
   }
+  /* Only transform and opacity: the corner and inner fades repainted a
+     920px panel every frame and stuttered (owner, 2026-10-09). */
   @keyframes ios-web-close {
     from { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+    60% { opacity: 1; }
     to {
       transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08));
       opacity: 0;
-      border-radius: 48px;
     }
   }
   @keyframes ios-web-inner { from { opacity: 0.15; } to { opacity: 1; } }
@@ -4976,13 +4978,11 @@ html[data-assistant-open] .bento-dots { display: none !important; }
     animation: ios-web-dim-in 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
   }
   [data-appearance-dialog][data-closing] {
-    animation: ios-web-close 460ms cubic-bezier(0.25, 1, 0.5, 1) both !important;
-  }
-  [data-appearance-dialog][data-closing] > * {
-    animation: ios-web-inner-out 250ms ease both;
+    animation: ios-web-close 360ms cubic-bezier(0.4, 0, 0.2, 1) both !important;
+    will-change: transform, opacity;
   }
   .appearance-overlay[data-closing] {
-    animation: ios-dim-out 440ms cubic-bezier(0.25, 1, 0.5, 1) both;
+    animation: ios-dim-out 360ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 }
 @media (prefers-reduced-motion: reduce) {
