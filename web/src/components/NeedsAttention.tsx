@@ -536,7 +536,8 @@ function RoleNote({ roleName }: { roleName?: string }) {
       setGone(false)
     }
   }, [])
-  if (gone) return null
+  // Not shown (owner, 2026-10-09: "no need of that red box").
+  if (gone || true) return null
   return (
     <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-2.5">
       <Info className="mt-px h-4 w-4 shrink-0 text-primary" aria-hidden />

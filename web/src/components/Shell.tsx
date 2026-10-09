@@ -1397,8 +1397,8 @@ function useScopeLine() {
   const { scope } = useCatalog()
   const bits: string[] = []
   if (scope.platform_admin) bits.push('platform')
-  else if (scope.all_campuses) bits.push('all campuses')
-  else if (scope.campuses) bits.push(count(scope.campuses, 'campus', 'campuses'))
+  // "all campuses" is not said (owner, 2026-10-09); a single campus still is.
+  else if (scope.campuses && !scope.all_campuses) bits.push(count(scope.campuses, 'campus', 'campuses'))
   if (scope.departments) bits.push(`${scope.departments} dept`)
   // "1 students" under a parent's name, who has one child.
   if (scope.sections) bits.push(count(scope.sections, 'section', 'sections'))
