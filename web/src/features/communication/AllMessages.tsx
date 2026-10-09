@@ -237,14 +237,31 @@ export default function AllMessages() {
         <div
           className={cn(
             'space-y-4',
-            /* items-stretch, not items-start (owner, 2026-10-08: "this
-               should be even"). Each column used to take its own height, so
-               a feed of three conversations ended halfway up a reading pane
-               held open at 60vh and the two cards finished at different
-               places down the page with a step of empty ground between
-               them. Stretched, the pane is exactly as tall as the feed
-               beside it, capped at 82vh and sticky past that. */
-            open && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-stretch lg:gap-4 lg:space-y-0',
+            /* BOTH COLUMNS ARE ONE SCREEN TALL (owner, 2026-10-08, twice:
+               "this should be even").
+
+               Stretching the row was not enough and could not be. The feed
+               is as tall as its contents -- 7,344px for the 37 conversations
+               on the live desk -- while the reading pane is a sticky card
+               capped at 82vh, so the two columns ended 6,600px apart and no
+               amount of aligning the row would bring them together; against
+               a short feed the pane's old 60vh floor held it open below the
+               last card instead. Two different-shaped columns cannot finish
+               level while one of them is free to grow.
+
+               So neither grows. Each column is 82vh, the same 82vh, and each
+               scrolls inside itself: the feed on the left, the thread on the
+               right, bottoms level at every length of either. This is what a
+               mail client does, and it is the layout the pane was already
+               half-built for -- it was sticky precisely because the feed ran
+               away from it. The page itself no longer scrolls behind them,
+               which also means the filters above stay put.
+
+               Only on a desk and only with something open. The one-column
+               feed keeps the page's own scroll, and a phone opens the thread
+               as a screen of its own. */
+            open && `lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-stretch lg:gap-4 lg:space-y-0
+                     lg:h-[82vh] lg:overflow-hidden`,
           )}
         >
         {inbox.isLoading ? (
@@ -267,7 +284,9 @@ export default function AllMessages() {
             />
           </Card>
         ) : (
-          <section className="space-y-4">
+          /* The feed's own scroller, the height of the row it shares with
+             the pane. pr-1 keeps the cards' right edge off the scrollbar. */
+          <section className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <h2 className="flex items-center gap-2 text-[15px] font-bold text-foreground/80">
               {channel ? CHANNEL_LABEL[channel] : 'Every channel'}
               <span className="text-[12.5px] font-normal text-muted-foreground">
@@ -815,9 +834,11 @@ function ThreadPane({
     )
   }
   return (
-    /* min-h is what held this open below a short feed; on a desk the row's
-       own height is the measure instead, so the two columns end level. */
-    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4 lg:h-full lg:min-h-0">
+    /* On a desk the row sets the height and both columns take all of it, so
+       the feed and the thread end level. The phone branch above never gets
+       here. min-h-[60vh] is what used to hold this open below a short feed;
+       it stays for the in-between widths that are neither phone nor grid. */
+    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:h-full lg:max-h-none lg:min-h-0">
       <CardHeader
         title={title}
         description={subtitle}
