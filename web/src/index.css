@@ -3944,21 +3944,25 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background: var(--tile) !important; color: #fff !important;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 2px 6px -2px color-mix(in srgb, var(--tile) 60%, transparent);
   transform-origin: left center;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 200ms ease, box-shadow 200ms ease;
+  /* Same curve, same complaint, same remedy as the dock above: settle
+     rather than overshoot, and take longer coming back than going up. */
+  transition: transform 360ms cubic-bezier(.33, 1, .68, 1), filter 260ms ease, box-shadow 260ms ease;
+  will-change: transform;
 }
 .rail-foot > div > button:first-child { --tile: hsl(var(--primary)); }
-.rail-foot > div > button:first-child:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.12); }
-.rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-.rail-foot > div > button:first-child:hover svg { transform: scale(1.1) rotate(-5deg); }
+.rail-foot > div > button:first-child:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.1); transition-duration: 220ms, 200ms, 200ms; }
+.rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 360ms cubic-bezier(.33, 1, .68, 1); }
+.rail-foot > div > button:first-child:hover svg { transform: scale(1.08) rotate(-4deg); }
 .rail-foot > div > button:first-child svg { width: 20px; height: 20px; }
 .rail-foot > button svg, .rail-foot > a svg { width: 20px; height: 20px; }
 .rail-foot > button:hover, .rail-foot > a:hover {
-  transform: scale(1.28) translateX(3px); filter: brightness(1.12) saturate(1.15); z-index: 5;
+  transform: scale(1.18) translateX(2px); filter: brightness(1.1) saturate(1.1); z-index: 5;
+  transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile) 75%, transparent);
 }
-.rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.1) rotate(-5deg); }
+.rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.08) rotate(-4deg); }
 .rail-foot > :is(button, a):hover + :is(button, a),
-.rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.12) translateX(1px); }
+.rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.07) translateX(1px); }
 .rail-foot > button[aria-label*="otification" i], .rail-foot > button[aria-label*="lert" i] { --tile: var(--dom-warning, hsl(var(--warning))); }
 .rail-foot > button[aria-label^="Row height"] { --tile: var(--dom-attendance, hsl(var(--primary))); }
 .rail-foot > a[href="/account"] { --tile: var(--dom-staff, hsl(var(--primary))); }
@@ -3969,20 +3973,44 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 }
 
 /* The Focus dock magnifies like the Mac dock: the icon under the pointer
-   swells and rises, its neighbours rise a little, on a springy curve. */
+   swells and rises, its neighbours rise a little.
+
+   SETTLING, NOT SPRINGING (owner, 2026-10-09: "when curser moves from them
+   there moving is very harsh make it VERYY SMOTHHHHHH").
+
+   Three things made this harsh, and the curve was only one of them.
+
+   cubic-bezier(.34, 1.56, .64, 1) is a back-out: it carries the icon PAST
+   its target size and lets it fall back. One icon pressed on purpose can
+   take that. A pointer crossing a dock of twelve sets off a dozen
+   overshoots in a row, each one arriving while the last is still coming
+   back, and the bar visibly wobbles.
+
+   1.45 was too far to travel. Against neighbours at 1.2 and 1.07, each
+   boundary the pointer crossed was a jump of a quarter of the icon's size
+   -- the steps are what the eye reads as harshness, not the speed.
+
+   And both halves shared one 280ms, so leaving snapped exactly as hard as
+   arriving. Sweeping across the dock left a trail of icons all dropping at
+   once. The base rule is now the RETURN and is the longer of the two;
+   hover shortens it on the way up. Slower out than in is the whole trick.
+
+   easeOutCubic, a shorter trip (1.28), and neighbours closer to it so the
+   row rises as one surface rather than as a staircase. */
 @media (hover: hover) and (min-width: 640px) {
   .bento-dock .dock-mag {
     transform-origin: 50% 100%;
-    transition: transform 280ms cubic-bezier(.34, 1.56, .64, 1), background-color 160ms ease !important;
+    transition: transform 360ms cubic-bezier(.33, 1, .68, 1), background-color 200ms ease !important;
     position: relative;
+    will-change: transform;
   }
-  html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-8px) scale(1.45) !important; z-index: 5; }
-  .bento-dock .dock-mag svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-  .bento-dock .dock-mag:hover svg { transform: scale(1.1) rotate(-5deg); }
+  html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-6px) scale(1.28) !important; z-index: 5; transition-duration: 220ms, 200ms !important; }
+  .bento-dock .dock-mag svg { transition: transform 360ms cubic-bezier(.33, 1, .68, 1); }
+  .bento-dock .dock-mag:hover svg { transform: scale(1.08) rotate(-4deg); }
   .bento-dock .dock-mag:hover + .dock-mag,
-  .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-4px) scale(1.2); }
+  .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-3px) scale(1.14); }
   .bento-dock .dock-mag:hover + .dock-mag + .dock-mag,
-  .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.07); }
+  .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.05); }
 }
 @media (prefers-reduced-motion: reduce) {
   .bento-dock .dock-mag:hover svg { transform: none; }
