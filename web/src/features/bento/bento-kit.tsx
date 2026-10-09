@@ -850,10 +850,10 @@ export function Cue({
       onClick={(e) => {
         openTab(to, label, here)
         if (still || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-        const cell = e.currentTarget.closest('.bento-cell')
-        if (!cell) return
-        e.preventDefault()
-        containerTransform(cell, () => navigate(to, { flushSync: true }), () => document.querySelector('main'))
+        /* No card-to-screen morph any more: the card flew in from the
+           bottom bar and the board flashed colour on the way (owner,
+           2026-10-09). The link navigates on its own. */
+        void containerTransform; void navigate
       }}
       className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >

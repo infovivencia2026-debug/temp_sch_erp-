@@ -192,13 +192,13 @@ export default function TabStrip() {
          read as clutter when several screens were open. The row still scrolls
          on the wheel (above) and auto-scrolls the active tab into view; the bar
          itself is hidden the way browser tab strips hide theirs. */
-      className="relative hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex
+      className="tab-island relative hidden shrink-0 items-stretch gap-1 overflow-x-auto lg:flex
                  [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
       {/* The open tab's pill slides to the tab you pick instead of
           repainting there. */}
       <SlidingIndicator listRef={stripRef} active={here + tabs.length} pick={pickOn}
-        className="rounded-[10px] bg-accent shadow-[0_1px_2px_rgba(0,0,0,.06)]" />
+        className="tab-island__glider" />
       {tabs.map((t) => {
         const active = t.path === here
         // A tab showing in some other pane is open in front of somebody even
@@ -282,12 +282,11 @@ export default function TabStrip() {
                  bottom side"): the open tab is a soft filled pill, not a hard
                  2px bar along its foot. */
               `group flex min-w-[132px] max-w-[220px] shrink-0 items-center gap-1.5
-               rounded-[10px] px-3 py-1.5 my-1 text-[12.5px] transition-colors`,
-              shown
-                ? 'bg-accent text-foreground shadow-[0_1px_2px_rgba(0,0,0,.06)]'
-                : 'text-muted-foreground hover:bg-accent/60',
-              active && 'font-medium',
-              shown && !active && 'bg-accent/50',
+               rounded-[13px] px-3 py-1.5 text-[13px] transition-colors duration-200`,
+              /* The white glider is the open tab's fill (owner, 2026-10-09:
+                 floating island + spring glider); tabs themselves stay clear. */
+              active ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground',
+              shown && !active && 'text-foreground',
             )}
           >
             <button

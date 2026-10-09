@@ -148,7 +148,7 @@ export default function SettingsPage() {
      dashboard section, which wants the settings surface out of the way so the
      board underneath can be dragged. In the dialog that closes the window; the
      same intent on a route is going back to the screen you came from. */
-  const [launching] = useState(() => shouldLaunch())
+  const [launching] = useState(() => { const l = shouldLaunch(); if (l) markLaunch(); return l })
   const done = useCallback(() => {
     playClose(document.querySelector('.settings-screen'), () => navigate(-1))
   }, [navigate])

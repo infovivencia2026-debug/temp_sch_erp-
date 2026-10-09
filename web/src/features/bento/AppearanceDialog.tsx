@@ -1287,7 +1287,7 @@ export function AppearanceDialog({
   }, [open, initialTab])
 
   const launchRef = useRef<boolean | null>(null)
-  if (open && launchRef.current === null) launchRef.current = shouldLaunch()
+  if (open && launchRef.current === null) { launchRef.current = shouldLaunch(); if (launchRef.current) markLaunch() }
   if (!open) launchRef.current = null
   useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
   const handleClose = () => {
