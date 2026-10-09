@@ -1292,7 +1292,16 @@ export function Shell({
             outer container — so scrolling a long register scrolled the SIDEBAR
             with it. Introduced when this wrapper was added for the tab strip. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <TabStrip />
+          {/* WORK ONLY (owner, 2026-10-09: "top bar ONLY IN THE WORK
+              MODE NOT IN FOCUS MODE").
+
+              Focus is the one layout whose whole argument is that there is
+              nothing around the board -- no sidebar, no header, the dock and
+              the board and nothing else -- and a strip of eight open screens
+              pinned over the top of it is the chrome Focus exists to put
+              away. The tabs are not lost: switching to Work shows the same
+              strip with the same screens still open in it. */}
+          {!chromeless && <TabStrip />}
           {/* Split or whole, decided one level in.
 
               PaneArea renders `children` untouched when nothing is split, so
