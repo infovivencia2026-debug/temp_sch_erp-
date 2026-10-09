@@ -1297,7 +1297,9 @@ export function AppearanceDialog({
   const goNavigate = useNavigate()
   useEffect(() => {
     if (!open) return
-    const onClick = (e: MouseEvent) => {
+    /* On the press, not the click: the dim closes itself on pointerdown, and
+       its history step would undo the navigation. */
+    const onClick = (e: PointerEvent) => {
       const scrim = e.target as HTMLElement | null
       if (!scrim || !scrim.classList?.contains('appearance-overlay') || e.button !== 0) return
       scrim.style.pointerEvents = 'none'
@@ -1325,8 +1327,8 @@ export function AppearanceDialog({
       scrim.setAttribute('data-fading', '')
       window.setTimeout(() => { endLaunch(); onClose() }, 220)
     }
-    document.addEventListener('click', onClick, true)
-    return () => document.removeEventListener('click', onClick, true)
+    document.addEventListener('pointerdown', onClick, true)
+    return () => document.removeEventListener('pointerdown', onClick, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   const handleClose = () => {
