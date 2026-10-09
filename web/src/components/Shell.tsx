@@ -753,7 +753,7 @@ export function Shell({
             -- marks, focus rings and the labels that escape it -- above the
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
-        <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-2.5 border-r py-3.5
+        <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-1 border-r py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
                         md:overflow-y-auto">
           {railWorkspaces.map((ws, i) => {
             const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
@@ -808,7 +808,7 @@ export function Shell({
           {/* The header's controls, in the Work layout: the header keeps only
               the search. Stacked, one per row, at the rail's own size. */}
           {layout !== 'bento' && (
-            <div className="rail-foot hidden flex-col items-center gap-2.5 pb-2.5 md:flex">
+            <div className="rail-foot hidden flex-col items-center gap-1 pb-2 md:flex">
               <Notifications />
               <button
                 onClick={cycleDensity}
