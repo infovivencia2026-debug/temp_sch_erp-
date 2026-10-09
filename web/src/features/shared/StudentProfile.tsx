@@ -1936,7 +1936,15 @@ export default function StudentProfile() {
               className="absolute inset-0 h-full w-full object-cover" />
           )}
         </span>
-        {p.status === 'active' && <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card bg-[hsl(var(--sys-green))]" />}
+        {/* No green dot (owner, 2026-10-09: "in student 360 there is active
+            than there is no need of green dot on proflie").
+
+            The header already carries the status beside the name, in words,
+            and the dot said the same thing again in a vocabulary borrowed
+            from chat apps where a green dot means "online now". On a school
+            record it reads as presence -- in the building, at a desk -- which
+            is not what enrolment status means, and the record of a child who
+            is enrolled but away today would have shown it anyway. */}
         </span>
       }
       subtitle={`${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''} · ${p.admission_no}`}

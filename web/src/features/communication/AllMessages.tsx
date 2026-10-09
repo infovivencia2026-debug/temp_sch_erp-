@@ -177,7 +177,12 @@ export default function AllMessages() {
         }
       />
       <PageBody>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {/* THE TILES ARE CARDS TOO (owner, 2026-10-09: "still i see
+            the boxes"). A .cell gets its corner from CellGrid, which clips
+            its children against one rounded container; these five sit in a
+            plain gapped grid, so each one drew its own square edge next to
+            the rounded cards under it. Rounded here, where the grid is. */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 [&>*]:overflow-hidden [&>*]:rounded-[14px]">
           <Stat label="Parent → teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
             active={channel === 'parent_teacher'} onClick={tile('parent_teacher')} />
           <Stat label="Staff → parent unread" value={counts?.staff_parent ?? '–'} icon={Send}

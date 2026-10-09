@@ -125,11 +125,24 @@ function daysUntil(iso: string) {
   )
 }
 
-/* The Bento layout's student home is the same easy home as the sidebar's
-   (portal/StudentHome.tsx): the owner asked for one simple "what do I need
-   today" page for students, not a board of charts to swipe through. The
-   cells below stay exported for any board that still places them. */
-export { default } from '@/features/portal/StudentHome'
+/* THE STUDENT GETS CELLS AGAIN (owner, 2026-10-09: "there are no bento
+   cells for studnet").
+
+   This file used to re-export portal/StudentHome, on an earlier reading that
+   a student wants one simple "what do I need today" page rather than a board
+   of charts. The effect was that the student was the one role whose Focus
+   opened onto a plain column of panels while every other role -- trustee,
+   principal, faculty, parent, nurse -- opened onto a board, which is what the
+   owner is pointing at.
+
+   The board was never deleted, only unplugged: StudentDayBoard below is the
+   whole thing and is what Focus renders now.
+
+   THE SIMPLE PAGE IS NOT LOST. registry.ts still binds student.home.my_day to
+   portal/StudentHome, so the Work layout opens exactly the page it did
+   before. One role, two layouts, a different home in each -- which is the
+   arrangement every other role already has. */
+export default StudentDayBoard
 
 export function StudentDayBoard() {
   const t = useT()
