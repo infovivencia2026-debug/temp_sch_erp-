@@ -1917,7 +1917,7 @@ export function BentoPage({
   // editing index.css, which this experiment may not do. When motion is
   // reduced the cells are simply already there — no transition is armed at
   // all, so there is nothing for a preference to have to cancel.
-  const [shown, setShown] = useState(still)
+  const [, setShown] = useState(still)
   useEffect(() => {
     if (still) {
       setShown(true)
@@ -1957,8 +1957,8 @@ export function BentoPage({
            the measuring hook the dock's 56px was held back three times over,
            leaving 130px of black between the last card and the dock. */
         'bento-surface h-full w-full text-[var(--bento-ink)] flex flex-col',
-        still ? '' : 'transition-opacity duration-300',
-        shown ? 'opacity-100' : 'opacity-0',
+        /* No fade-in (owner, 2026-10-09): the cards washed pale and back on
+           every return to Home. The board is simply there. */
       )}
     >
       {/* The heading is read, not seen.
