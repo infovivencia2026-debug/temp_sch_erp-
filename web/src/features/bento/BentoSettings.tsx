@@ -73,36 +73,16 @@ export function BentoSettings({
   const location = useLocation()
   const phone = usePhone()
   const btn = useRef<HTMLButtonElement>(null)
-  const [showAppearance, setShowAppearance] = useState(false)
-  const [everOpened, setEverOpened] = useState(false)
+  /* Still open if it was open: switching Work/Focus swaps this button for the
+     other layout's, and the window should stay up without launching again
+     (owner, 2026-10-08). */
+  const wasOpen = () => typeof window !== 'undefined'
+    && !!(window as { __settingsOpen?: boolean }).__settingsOpen
+    && window.matchMedia('(min-width: 768px)').matches
+  const [showAppearance, setShowAppearance] = useState(wasOpen)
+  const [everOpened, setEverOpened] = useState(wasOpen)
   useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
-  /* WHERE THE WINDOW COMES FROM (owner, 2026-10-08: "in web taht setting
-     popup should come from setting icon to center and also closing should be
-     same").
-
-     The dialog faded up in the middle of the screen like every other modal,
-     so nothing connected it to the cog that had just been pressed -- on a
-     dock of twelve buttons the window simply appeared and the eye had to
-     find its way back afterwards. Settings is the one window in the product
-     that is always opened from one fixed, visible control, which is exactly
-     the case a zoom belongs to.
-
-     The offset is measured at the moment of the press, not stored: the dock
-     moves between layouts, it can be at the bottom, the side or the top, and
-     a remembered position would fling the window out of a corner the cog is
-     no longer in. Held as two pixel lengths from the centre of the screen,
-     because the panel is centred and translating it by that much puts it
-     exactly over the button. */
-  const [from, setFrom] = useState<{ dx: number; dy: number } | null>(null)
-  const markOrigin = () => {
-    const r = btn.current?.getBoundingClientRect()
-    if (!r) { setFrom(null); return }
-    setFrom({
-      dx: Math.round(r.left + r.width / 2 - window.innerWidth / 2),
-      dy: Math.round(r.top + r.height / 2 - window.innerHeight / 2),
-    })
-  }
 
   /* The cog opens Settings, and nothing before it.
 
@@ -117,7 +97,6 @@ export function BentoSettings({
       navigate('/settings')
       return
     }
-    markOrigin()
     setAppearanceTab('appearance')
     setShowAppearance(true)
   }
@@ -142,14 +121,8 @@ export function BentoSettings({
       navigate(`/settings/${wanted.page}`)
       return
     }
-    /* Asked for from somewhere else -- a tab menu offering to add a widget.
-       The cog is still the window's home on screen, so it still flies from
-       there; if this instance's cog is hidden there is no offset and the
-       window simply fades up where it always did. */
-    markOrigin()
     setAppearanceTab(wanted.page)
     setShowAppearance(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted.seq, wanted.page, placement, phone, navigate])
 
   /* The dock draws this as the current tab the same way it draws Home and
@@ -222,7 +195,6 @@ export function BentoSettings({
         open={showAppearance}
         onClose={() => setShowAppearance(false)}
         initialTab={appearanceTab}
-        from={from}
       />
       </Suspense>
       )}

@@ -1,5 +1,6 @@
+import { markLaunch, playClose, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { SignOutButton } from './SettingsRows'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
@@ -147,9 +148,30 @@ export default function SettingsPage() {
      dashboard section, which wants the settings surface out of the way so the
      board underneath can be dragged. In the dialog that closes the window; the
      same intent on a route is going back to the screen you came from. */
+  const [launching] = useState(() => shouldLaunch())
   const done = useCallback(() => {
-    navigate(-1)
+    playClose(document.querySelector('.settings-screen'), () => navigate(-1))
   }, [navigate])
+  /* The launch, both ways: remember where Settings was opened from, and when
+     a link elsewhere on the screen (the dock) is followed, shrink back into
+     that point first, then go. */
+  useEffect(() => {
+    if (launching) markLaunch()
+    if (wide) return () => endLaunchIfGone()
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      const screen = document.querySelector('.settings-screen')
+      if (!a || !screen || screen.contains(a) || a.target === '_blank') return
+      const url = new URL(a.href, location.href)
+      if (url.origin !== location.origin || url.pathname.startsWith('/settings')) return
+      e.preventDefault()
+      e.stopPropagation()
+      playClose(screen, () => navigate(url.pathname + url.search + url.hash))
+    }
+    document.addEventListener('click', onClick, true)
+    return () => { document.removeEventListener('click', onClick, true); endLaunchIfGone() }
+  }, [navigate, wide, launching])
 
   return (
     /* THE PAGE SITS ON A CARD, AND THAT IS A CONTRAST DECISION.
@@ -256,7 +278,7 @@ export default function SettingsPage() {
              scrolled, and scrolled to its end showed the reserve as a grey
              band above the tab bar. It fills what the work area has, and the
              ground below it is painted the same colour (data-page-ground). */
-          'settings-screen flex-1 border-b-0 sm:flex-none sm:border-b',
+          launching && 'settings-launch', 'settings-screen flex-1 border-b-0 sm:flex-none sm:border-b',
           'sm:rounded-[16px] sm:border-x sm:border-t',
           'bg-[color-mix(in_srgb,hsl(var(--muted))_75%,var(--bento-card,hsl(var(--card))))] sm:bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',

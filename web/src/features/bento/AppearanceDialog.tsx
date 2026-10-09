@@ -1,3 +1,4 @@
+import { markLaunch, playClose, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/ui'
 import {
@@ -1135,18 +1136,10 @@ export function AppearanceDialog({
   open,
   onClose,
   initialTab = 'appearance',
-  from,
 }: {
   open: boolean
   onClose: () => void
   initialTab?: 'appearance' | 'dock' | 'dashboard'
-  /** Where on screen the cog was when it was pressed, as pixels from the
-      centre of the window. The panel flies out of that point and shrinks
-      back into it (owner, 2026-10-08: "in web taht setting popup should come
-      from setting icon to center and also closing should be same"). Absent
-      -- no cog on screen, reduced motion -- and the window simply fades up
-      in the middle, which is what every other dialog does. */
-  from?: { dx: number; dy: number } | null
 }) {
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
@@ -1293,7 +1286,15 @@ export function AppearanceDialog({
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }, [open, initialTab])
 
+  const launchRef = useRef<boolean | null>(null)
+  if (open && launchRef.current === null) launchRef.current = shouldLaunch()
+  if (!open) launchRef.current = null
+  useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
   const handleClose = () => {
+    const panel = typeof document !== 'undefined' ? document.querySelector('[data-appearance-dialog]') : null
+    playClose(panel, closeNow, panel?.closest('.appearance-overlay') ?? document.querySelector('.appearance-overlay'))
+  }
+  const closeNow = () => {
     if (typeof document !== 'undefined' && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
@@ -1346,19 +1347,7 @@ export function AppearanceDialog({
       width="920px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
-      panelProps={{
-        'data-appearance-dialog': '',
-        /* data-pop is what the stylesheet matches on; the two lengths are
-           what it translates by at the start of the way in and the end of
-           the way out. Set as custom properties rather than as a
-           transform-origin: the panel is 920px wide and centred, and an
-           origin on its own corner still grows it from the middle of the
-           screen. */
-        ...(from ? { 'data-pop': '' } : {}),
-        style: from
-          ? { ['--pop-dx' as string]: from.dx + 'px', ['--pop-dy' as string]: from.dy + 'px' }
-          : undefined,
-      }}
+      panelProps={{ 'data-appearance-dialog': '', ...(launchRef.current ? { 'data-launching': '' } : {}) }}
       className={cn(
         'appearance-panel pop-down sm:h-[min(88vh,760px)]',
         SURFACE, EDGE,

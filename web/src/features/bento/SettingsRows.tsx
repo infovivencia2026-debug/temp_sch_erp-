@@ -379,7 +379,9 @@ export function SliderRow({
         }}
         className={cn(
           'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none py-[calc((var(--sband-h,44px)-6px)/2)]',
-          SLIDER, RING,
+          /* No ring round the whole track when it has focus: only the knob
+             shows it (owner, 2026-10-08: 'I should not see this'). */
+          SLIDER, 'focus-visible:outline-none',
         )}
       />
     </Row>

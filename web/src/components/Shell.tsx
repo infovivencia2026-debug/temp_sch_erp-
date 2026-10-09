@@ -231,6 +231,17 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
+  /* Where the last press landed, for the iOS-style launch: Settings grows out
+     of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
+  useEffect(() => {
+    const root = document.documentElement
+    const at = (e: PointerEvent) => {
+      root.style.setProperty('--tap-x', e.clientX + 'px')
+      root.style.setProperty('--tap-y', e.clientY + 'px')
+    }
+    document.addEventListener('pointerdown', at, true)
+    return () => document.removeEventListener('pointerdown', at, true)
+  }, [])
   /* A rail icon's name, floating on top of the page: on a tap (phones have no
      hover) and on mouse hover. Drawn in the body, not inside the rail -- the
      rail scrolls, so a label inside it was clipped to a scrap under the icon
