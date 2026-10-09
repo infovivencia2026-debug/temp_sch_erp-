@@ -515,6 +515,13 @@ export function Shell({
      with it, which is why BentoEscape exists and why it renders before this is
      allowed to hide anything. */
   const { layout } = useLayout()
+  /* Work pages arrive softly (owner, 2026-10-09: "opening hard"): a short
+     fade, no movement, so nothing appears to jump. */
+  useEffect(() => {
+    if (layout === 'bento' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const el = document.querySelector('main[data-app-scroll] > :first-child') as HTMLElement | null
+    el?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' })
+  }, [location.pathname, layout])
   const chromeless = layout === 'bento'
   useRootReduceMotion()
 
