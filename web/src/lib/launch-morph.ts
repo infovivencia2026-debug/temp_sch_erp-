@@ -27,7 +27,7 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')
   el.addEventListener('animationend', finish, { once: true })
-  window.setTimeout(finish, 420)
+  window.setTimeout(finish, 260)
 }
 
 /* ONLY WHEN SETTINGS IS OPENED (owner, 2026-10-08: switching Work/Focus, or
