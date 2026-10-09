@@ -323,7 +323,7 @@ export default function SettingsPage() {
           >
             <nav aria-label="Settings sections" className={cn('overflow-y-auto border-r py-[8px]', SEAM)}>
               <SettingsSectionList items={items} onOpen={open} current={tab} />
-              <div className="px-[8px]"><SignOutButton /></div>
+              <div className="px-[8px]"><SignOutButton className="mt-3" /></div>
             </nav>
             <div className="min-w-0 overflow-y-auto overscroll-contain px-[8px] py-[8px]">
               <h2 className={cn('px-[16px] pt-[6px] pb-[8px] text-[15px] font-semibold', INK)}>

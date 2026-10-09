@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
-import { Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
 import { useOpenState } from '@/lib/motion'
@@ -46,6 +46,8 @@ const SECTION_TINT: Record<string, string> = {
   school: '#007aff', communication: '#34c759', messaging: '#34c759',
   account: '#34c759', security: '#007aff', privacy: '#5856d6', people: '#af52de',
   access: '#af52de', workspace: '#af52de', roles: '#af52de', role: '#af52de', help: '#ff9500',
+  /* The one destructive row on the screen. */
+  signout: '#ff3b30',
 }
 export function sectionTint(id: string): string {
   return SECTION_TINT[id] ?? '#64748b'
@@ -64,13 +66,30 @@ export function SectionIcon({ id, children }: { id: string; children: ReactNode 
 }
 
 /** Sign out, under the list of sections rather than inside Account
-    (owner, 2026-10-08). */
-export function SignOutButton({ className }: { className?: string }) {
+    (owner, 2026-10-08).
+
+    It is one of the rows, not a button pinned under them (owner, 2026-10-08:
+    "sign out button should match those all settings in phone also"). It was a
+    centred red pill in a screen made entirely of left-aligned rows that lead
+    with a tinted rounded square -- the one object on Settings that did not
+    look like Settings. Now it is the same row: the same glass card, the same
+    50px, the same icon box and the same left edge the eye runs down, with red
+    as the only thing marking it apart, which is how a phone draws the one
+    destructive row in a list. No chevron: it does not open a screen. */
+export function SignOutButton({ className, href = '/logout' }: { className?: string; href?: string }) {
   return (
-    <a href="/logout" role="button"
-      className={cn('mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] bg-[color-mix(in_srgb,#ff3b30_10%,transparent)] text-[15px] font-medium text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_16%,transparent)]', className)}>
-      Sign out
-    </a>
+    <div className={cn('settings-glass overflow-hidden rounded-[14px]', className)}>
+      <a
+        href={href}
+        role="button"
+        className="flex min-h-[var(--srow-h,50px)] w-full items-center gap-3 px-4 text-left transition-colors active:bg-muted"
+      >
+        <SectionIcon id="signout"><LogOut /></SectionIcon>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-normal text-[#ff3b30]">
+          Sign out
+        </span>
+      </a>
+    </div>
   )
 }
 

@@ -417,9 +417,19 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {!attentionFirst && summary.length > 0 && (
         <section>
           <p className="eyebrow mb-2.5">Today</p>
-          <div className={cn('tint-grid grid gap-4 sm:grid-cols-2',
-            /* One row on a desk, however many figures this role has. */
-            ({ 1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5')}>
+          <div className={cn('tint-grid grid gap-4',
+            /* One row on a desk, however many figures this role has -- but a
+               role with a single figure gets a card, not a banner. Asking a
+               one-column grid to fill the page stretched the board's
+               "Collected today" across the full 946px, label and number
+               marooned together at the far left with nothing but emptiness
+               to their right. A lone figure keeps a card's width and the row
+               stays open beside it, which is what every other short row in
+               the product does. */
+            summary.length === 1
+              ? 'grid-cols-1 sm:max-w-[22rem]'
+              : cn('sm:grid-cols-2',
+                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5'))}>
             {summary.map((s) => {
               const { icon: Mark, tint } = markFor(s.label)
               return (

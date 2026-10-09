@@ -5,6 +5,7 @@ import {
   Palette, ShieldCheck, Sliders, Type, UserCircle,
   User, CalendarDays, CreditCard, HelpCircle, Home, Lock, MapPin, KeyRound, Bell, Users, FileText, Settings2,
 } from 'lucide-react'
+import { RoleTile, roleFace } from '@/lib/role-face'
 import { api } from '@/lib/api'
 import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
@@ -552,6 +553,11 @@ const LINK_ICON: [RegExp, typeof User, string][] = [
   [/staff|people|user|login|principal|admin|board|trustee|hod|department|faculty|teacher|counsellor|warden|coordinator|officer|nurse|librarian|controller|operations|driver|attendant|manager|finance|admission|front office|hr/i, Users, '#af52de'],
   [/report|document|certificate|form/i, FileText, '#30b0c7'],
 ]
+/* A role's own face, from the shared table; a key that table does not
+   list keeps the name matching below. */
+function roleIcon(key: string, name: string) {
+  return roleFace(key) ? <RoleTile roleKey={key} /> : linkIcon(name)
+}
 function linkIcon(name: string) {
   const hit = LINK_ICON.find(([re]) => re.test(name))
   const Icon = hit?.[1] ?? Settings2
@@ -611,7 +617,7 @@ function WorkspaceRows() {
           <NavRow
             key={r.key}
             label={r.name}
-            icon={linkIcon(r.name)}
+            icon={roleIcon(r.key, r.name)}
             /* The one you are in says so in words (owner, 2026-10-08: "if one
                role is active name it"), not only by a tint. */
             value={here ? <span className="rounded-full bg-[color-mix(in_srgb,#34c759_16%,transparent)] px-2 py-0.5 text-[12px] font-semibold text-[#1f8a3b]">Active now</span> : undefined}
@@ -631,16 +637,13 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
       <Rows>
         {links.filter((l) => !/^sign out$/i.test(l.name)).map((l) => <LinkRow key={l.href} link={l} />)}
       </Rows>
-      {/* Sign out on a card of its own, centred and red, as a phone's
-          settings do it: the one row that ends the session is not a row
-          among others. */}
+      {/* Sign out on a card of its own -- but drawn as a row, like
+          everything else on this screen (owner, 2026-10-08: "sign out button
+          should match those all settings in phone also"). It was a centred
+          red pill here as well as in the phone page, so fixing only the
+          other one would have left the two screens disagreeing. */}
       {links.filter((l) => /^sign out$/i.test(l.name)).map((l) => (
-        <div key={l.href} className="mt-4 max-md:mx-4">
-          <a href={l.href} role="button"
-            className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[12px] bg-[color-mix(in_srgb,#ff3b30_10%,transparent)] text-[16px] font-semibold text-[#ff3b30] transition-colors hover:bg-[color-mix(in_srgb,#ff3b30_16%,transparent)] active:bg-[color-mix(in_srgb,#ff3b30_20%,transparent)]">
-            {l.name}
-          </a>
-        </div>
+        <SignOutButton key={l.href} href={l.href} className="mt-4 max-md:mx-4" />
       ))}
     </>
   )
@@ -1132,10 +1135,18 @@ export function AppearanceDialog({
   open,
   onClose,
   initialTab = 'appearance',
+  from,
 }: {
   open: boolean
   onClose: () => void
   initialTab?: 'appearance' | 'dock' | 'dashboard'
+  /** Where on screen the cog was when it was pressed, as pixels from the
+      centre of the window. The panel flies out of that point and shrinks
+      back into it (owner, 2026-10-08: "in web taht setting popup should come
+      from setting icon to center and also closing should be same"). Absent
+      -- no cog on screen, reduced motion -- and the window simply fades up
+      in the middle, which is what every other dialog does. */
+  from?: { dx: number; dy: number } | null
 }) {
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
@@ -1335,7 +1346,19 @@ export function AppearanceDialog({
       width="920px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
-      panelProps={{ 'data-appearance-dialog': '' }}
+      panelProps={{
+        'data-appearance-dialog': '',
+        /* data-pop is what the stylesheet matches on; the two lengths are
+           what it translates by at the start of the way in and the end of
+           the way out. Set as custom properties rather than as a
+           transform-origin: the panel is 920px wide and centred, and an
+           origin on its own corner still grows it from the middle of the
+           screen. */
+        ...(from ? { 'data-pop': '' } : {}),
+        style: from
+          ? { ['--pop-dx' as string]: from.dx + 'px', ['--pop-dy' as string]: from.dy + 'px' }
+          : undefined,
+      }}
       className={cn(
         'appearance-panel pop-down sm:h-[min(88vh,760px)]',
         SURFACE, EDGE,
@@ -1392,7 +1415,7 @@ export function AppearanceDialog({
         >
           <nav aria-label="Settings sections" className="scroll-y min-h-0 border-r p-[10px]">
             <SettingsSectionList items={listItems} onOpen={(id) => setTab(id as SettingsTab)} current={tab} />
-            <SignOutButton />
+            <SignOutButton className="mt-3" />
           </nav>
           <div className="scroll-y min-h-0 px-5 py-4">
             <h2 className="px-[4px] pb-[10px] text-[15px] font-semibold">{listItems.find((i) => i.id === tab)?.label}</h2>

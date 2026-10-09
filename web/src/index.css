@@ -3382,6 +3382,22 @@ body[data-scroll-lock] {
   html .text-\[34px\] { font-size: calc(32px * var(--font-scale)); }
   html .text-\[40px\] { font-size: calc(40px * var(--font-scale)); }
 
+  /* A COUNT ON A GLYPH IS NOT TEXT (owner, 2026-10-08: "this is increasing
+     and decreasing with app text size make a fixed one for this").
+
+     The rule above lifts every small utility onto the type scale, which is
+     right for anything somebody reads a line of and wrong for the number
+     pinned to the bell. That pill is 17px across with 5px of padding, all of
+     it an optical constant like the hairlines, icon boxes and dock buttons
+     this block already exempts -- only its type was being scaled, so at
+     Larger the "9+" grew inside a circle that did not and pushed the plus
+     out over the red edge, which is the screenshot the owner sent.
+
+     Fixed in px at every text size. Reading it is not the problem the text
+     setting solves: the badge says "there is something", and the panel it
+     opens is where the words are. */
+  html .count-pill { font-size: 10.5px; line-height: 1; }
+
 /* ONE SET OF CORNERS (2026-09-29). Hand-written radii -- 6, 7, 8, 10, 12, 13,
    14 and 16px -- sat beside the four tokens, did not follow the Corners
    setting, and gave a card 10px on one screen and 14px on the next. Each lands
@@ -4546,6 +4562,60 @@ html[data-fade='in'] #root { opacity: 1; transition-duration: 180ms; }
   /* The dim stays for as long as the sheet takes to go, so they leave together. */
   .scrim[data-closing] { animation-duration: var(--motion-exit-sheet); }
   .scrim[data-closing] > [role='dialog'] { animation: sheet-out var(--motion-exit-sheet) var(--motion-ease) both; }
+}
+
+/* A WINDOW THAT COMES OUT OF THE BUTTON THAT OPENED IT (owner, 2026-10-08:
+   "in web taht setting popup should come from setting icon to center and
+   also closing should be same").
+
+   Settings is the one window in the product always opened from a single
+   fixed, visible control, and it faded up in the middle of the screen like
+   any other modal -- nothing tied it to the cog just pressed, and on a dock
+   of twelve buttons the eye had to hunt for the way back afterwards.
+
+   The trigger measures its own centre at the moment of the press and hands
+   it over as two lengths from the centre of the window; the panel starts
+   there, small, and grows into place. Closing is the same path backwards, so
+   the window is put back where it came from rather than dissolved.
+
+   Translate plus scale, not transform-origin: the panel is 920px wide and
+   centred, and an origin on its own corner still grows it from the middle of
+   the screen rather than from the dock. 0.16 rather than 0 at the small end
+   -- a panel that starts at nothing reads as a flash, and at a sixth of its
+   size the eye can still see what is moving.
+
+   Specificity: [data-pop] puts these at (0,4,0) against the (0,3,0) of the
+   general dialog rules above, so they win on weight rather than on where
+   they happen to sit in the file. */
+.scrim > [role='dialog'][data-pop] {
+  animation: pop-from var(--motion-enter) var(--motion-ease) both;
+}
+.scrim[data-closing] > [role='dialog'][data-pop],
+.scrim[data-ghost] > [role='dialog'][data-pop] {
+  animation: pop-back var(--motion-exit) var(--motion-ease) both !important;
+}
+@keyframes pop-from {
+  from { opacity: 0; transform: translate(var(--pop-dx, 0px), var(--pop-dy, 0px)) scale(0.16); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes pop-back {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translate(var(--pop-dx, 0px), var(--pop-dy, 0px)) scale(0.16); }
+}
+
+/* A phone's Settings is a route, not this dialog, and a sheet rising from the
+   bottom edge is already the right gesture there. */
+@media (max-width: 639px) {
+  .scrim > [role='dialog'][data-pop],
+  .scrim[data-closing] > [role='dialog'][data-pop],
+  .scrim[data-ghost] > [role='dialog'][data-pop] { animation: none !important; }
+}
+
+/* Somebody who asked for less motion gets the fade, not the flight. */
+@media (prefers-reduced-motion: reduce) {
+  .scrim > [role='dialog'][data-pop] { animation-name: scrim-in; }
+  .scrim[data-closing] > [role='dialog'][data-pop],
+  .scrim[data-ghost] > [role='dialog'][data-pop] { animation-name: scrim-out !important; }
 }
 
 /* REDUCED MOTION: everything above is instant. The system setting stops this

@@ -451,9 +451,12 @@ export default function Notifications() {
                little taller, type a little smaller, padding that grows with
                the content, and nowrap so it can never break across two lines
                inside a 17px circle. */
-            className="absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
+            /* count-pill: the figure stays 10.5px at every app text size.
+               The pill around it is an optical constant in px, so scaling
+               only the type burst it open at Larger. */
+            className="count-pill absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
                        place-items-center whitespace-nowrap rounded-full bg-destructive px-[5px]
-                       text-[10.5px] font-semibold leading-none tracking-tight text-destructive-foreground
+                       font-semibold leading-none tracking-tight text-destructive-foreground
                        tabular-nums"
             aria-hidden
           >

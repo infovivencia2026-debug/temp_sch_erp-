@@ -40,6 +40,7 @@ const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { RoleGlyph } from '@/lib/role-face'
 import { buzz } from '@/lib/haptics'
 /* The layout switch and its routing seam. Both are new files; nothing the
    classic layout renders is changed by their presence, and with the switch
@@ -967,6 +968,10 @@ export function Shell({
                         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     )}
                   >
+                    {/* The role's own face, so a list of six workspaces is
+                        six different rows rather than six lines of text
+                        (owner, 2026-10-08). */}
+                    <RoleGlyph roleKey={r.key} />
                     <span className="truncate">{r.name}</span>
                     {r.key === role?.key && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
                   </button>

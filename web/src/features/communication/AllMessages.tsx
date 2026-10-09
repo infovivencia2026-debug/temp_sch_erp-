@@ -84,10 +84,21 @@ export default function AllMessages() {
   const [channel, setChannel] = useState<'' | Channel>('')
   const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('all')
   const [q, setQ] = useState('')
+  /* ONE CONVERSATION IS OPEN AT A TIME (owner, 2026-10-08: "in all mesage
+     only should open one taht too whne click any chat or circular will open
+     on ONLY ON RIGHT NOW IT OPENED MULTPLE PAGES").
+
+     There were four separate pieces of state here -- parent thread, staff
+     thread, concern, circular -- and nothing cleared any of the others. Open
+     a chat and then a circular and both panes rendered, stacked down the
+     right-hand column, each with its own header and close button and neither
+     of them the one just clicked. Four opens meant four panes on screen.
+
+     A reading pane is a place, not a pile: one selection, and the channel of
+     whatever is selected decides which pane is drawn in it. Clicking a
+     second card replaces the first, which is what the single column on the
+     right was always meant to be. */
   const [open, setOpen] = useOpenState<Item | null>(null)
-  const [openStaff, setOpenStaff] = useState<Item | null>(null)
-  const [openConcern, setOpenConcern] = useState<Item | null>(null)
-  const [openCircular, setOpenCircular] = useState<Item | null>(null)
   /* Smaller questions of a big desk: what came in this week, what is one
      class saying, what has one teacher been dealing with. The tiles keep
      counting the whole school either way, so a filter cannot make the school
@@ -226,7 +237,7 @@ export default function AllMessages() {
         <div
           className={cn(
             'space-y-4',
-            (open || openStaff || openConcern || openCircular) && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
+            open && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
           )}
         >
         {inbox.isLoading ? (
@@ -262,15 +273,7 @@ export default function AllMessages() {
                 <MessageCard
                   key={it.channel + it.key}
                   it={it}
-                  onOpen={
-                    it.channel === 'parent_teacher' || it.channel === 'staff_parent'
-                      ? () => setOpen(it)
-                      : it.channel === 'staff'
-                        ? () => setOpenStaff(it)
-                        : it.channel === 'concern'
-                          ? () => setOpenConcern(it)
-                          : () => setOpenCircular(it)
-                  }
+                  onOpen={() => setOpen(it)}
                   /* Every channel opens on the desk now. The screens that act
                      on these -- the grievance desk, circulars -- are offered
                      inside the pane rather than instead of it. */
@@ -280,13 +283,18 @@ export default function AllMessages() {
           </section>
         )}
 
-        {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
-        {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} deskHref={toStaff} />}
-        {openConcern && (
-          <ConcernPane item={openConcern} onClose={() => setOpenConcern(null)} deskHref={toGrievances} />
+        {/* The one pane, drawn for whatever kind of thing is selected. */}
+        {open && (open.channel === 'parent_teacher' || open.channel === 'staff_parent') && (
+          <ParentThread item={open} onClose={() => setOpen(null)} />
         )}
-        {openCircular && (
-          <CircularPane item={openCircular} onClose={() => setOpenCircular(null)} deskHref={toCirculars} />
+        {open && open.channel === 'staff' && (
+          <StaffThread item={open} onClose={() => setOpen(null)} deskHref={toStaff} />
+        )}
+        {open && open.channel === 'concern' && (
+          <ConcernPane item={open} onClose={() => setOpen(null)} deskHref={toGrievances} />
+        )}
+        {open && !['parent_teacher', 'staff_parent', 'staff', 'concern'].includes(open.channel) && (
+          <CircularPane item={open} onClose={() => setOpen(null)} deskHref={toCirculars} />
         )}
         </div>
       </PageBody>
