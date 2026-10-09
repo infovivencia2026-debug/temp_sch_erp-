@@ -1319,7 +1319,7 @@ export function AppearanceDialog({
       if (n > 0) {
         window.addEventListener('popstate', () => window.setTimeout(() => goNavigate(to), 0), { once: true })
         window.history.go(-n)
-      } else goNavigate(to)
+      } else goNavigate(to, { replace: !!window.history.state?.erpOverlay })
       const panel = document.querySelector('[data-appearance-dialog]')
       panel?.setAttribute('data-fading', '')
       scrim.setAttribute('data-fading', '')
