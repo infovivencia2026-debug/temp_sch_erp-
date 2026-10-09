@@ -4881,7 +4881,9 @@ html[data-assistant-open] .bento-dots { display: none !important; }
    2026-10-08: the page went plain white under the last card). The panel
    fills the screen, and the page under it is painted the same grey. */
 @media (max-width: 767px) {
-  .settings-screen { min-height: calc(100dvh - var(--page-foot, 0px)); }
+  .settings-screen { min-height: 0; }
+  /* No rubber-band on a Settings screen that has nothing to scroll (iOS). */
+  main:has(.settings-screen), html:has(.settings-screen), body:has(.settings-screen) { overscroll-behavior-y: none; }
   .settings-screen ~ *, main:has(.settings-screen), body:has(.settings-screen) {
     background: color-mix(in srgb, hsl(var(--muted)) 75%, var(--bento-card, hsl(var(--card)))) !important;
   }
