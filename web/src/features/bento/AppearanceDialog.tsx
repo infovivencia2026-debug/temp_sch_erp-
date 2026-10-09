@@ -1311,11 +1311,19 @@ export function AppearanceDialog({
       e.stopPropagation()
       /* The page opens at once behind; Settings fades away over it
          (owner, 2026-10-09). */
-      goNavigate(url.pathname + url.search + url.hash)
+      /* Hand back the dialog's own history entries FIRST, then go: going
+         back after the navigation undid it. */
+      const to = url.pathname + url.search + url.hash
+      const n = owned.current
+      owned.current = 0
+      if (n > 0) {
+        window.addEventListener('popstate', () => window.setTimeout(() => goNavigate(to), 0), { once: true })
+        window.history.go(-n)
+      } else goNavigate(to)
       const panel = document.querySelector('[data-appearance-dialog]')
       panel?.setAttribute('data-fading', '')
       scrim.setAttribute('data-fading', '')
-      window.setTimeout(() => { endLaunch(); closeNow() }, 220)
+      window.setTimeout(() => { endLaunch(); onClose() }, 220)
     }
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
