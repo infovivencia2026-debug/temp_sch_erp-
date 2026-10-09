@@ -25,13 +25,24 @@
    out there always is -- and against what the panel is about to be when
    there is not: 920px or 92vw across, and the min(88vh, 760px) its own class
    sets. */
-function setVectors(panel?: DOMRect | null): void {
+function setVectors(panel?: { width: number; height: number } | null): void {
   const root = document.documentElement
   const cs = getComputedStyle(root)
   root.style.setProperty('--launch-x', cs.getPropertyValue('--tap-x').trim() || '50vw')
   root.style.setProperty('--launch-y', cs.getPropertyValue('--tap-y').trim() || '50vh')
-  const pw = panel?.width || Math.min(920, window.innerWidth * 0.92)
-  const ph = panel?.height || Math.min(window.innerHeight * 0.88, 760)
+  /* offsetWidth/offsetHeight, never getBoundingClientRect: the rect is the
+     element's VISUAL box and includes the transform, so measuring the panel
+     a frame into its own launch returned the 35px it was scaled down to and
+     the next scale came out at 1.0 -- a window that starts at full size and
+     only slides. Measured live: sx 1.0092. The layout size is what the
+     ratio needs and it is what these two properties report.
+
+     A panel narrower than 200px is one being measured mid-flight anyway;
+     the estimate below is better than a number that would make the motion
+     disappear. */
+  const measured = panel && panel.width > 200 && panel.height > 200 ? panel : null
+  const pw = measured?.width || Math.min(920, window.innerWidth * 0.92)
+  const ph = measured?.height || Math.min(window.innerHeight * 0.88, 760)
   /* The gear itself, when it can be found: its centre and its size. */
   const gear = [...document.querySelectorAll<HTMLElement>('button[aria-label="Settings"]')].find((b) => b.getBoundingClientRect().width > 0)
   const g = gear?.getBoundingClientRect()
@@ -51,7 +62,8 @@ function setVectors(panel?: DOMRect | null): void {
 
 export function markLaunch(): void {
   if (typeof document === 'undefined') return
-  setVectors(document.querySelector('[data-appearance-dialog]')?.getBoundingClientRect())
+  const open = document.querySelector<HTMLElement>('[data-appearance-dialog]')
+  setVectors(open ? { width: open.offsetWidth, height: open.offsetHeight } : null)
 }
 
 export function playClose(el: Element | null | undefined, then: () => void, extra?: Element | null): void {
@@ -62,7 +74,10 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   /* Re-measured against the panel as it actually stands: the window may
      have been resized, and the dock the gear sits in moves between layouts.
      The sample reads the same geometry afresh on both halves of the trip. */
-  if (typeof document !== 'undefined') setVectors(el.getBoundingClientRect())
+  if (typeof document !== 'undefined') {
+    const h = el as HTMLElement
+    setVectors(h.offsetWidth ? { width: h.offsetWidth, height: h.offsetHeight } : null)
+  }
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')
   const onEnd = (e: Event) => { if (e.target === el && /t-out|close/.test((e as AnimationEvent).animationName)) { el.removeEventListener('animationend', onEnd); finish() } }
