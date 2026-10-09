@@ -2977,9 +2977,8 @@ body[data-scroll-lock] {
     from { opacity: 0; transform: translate3d(0, 8px, 0); }
     to   { opacity: 1; transform: none; }
   }
-  .bento-ground > * {
-    animation: phone-screen-in var(--dur-phone) var(--ease-phone) both;
-  }
+  /* Off (owner, 2026-10-09): cards rose from the dock and faded through
+     colour on every section switch. Screens now simply appear. */
 }
 
 /* Somebody who has asked their phone to stop moving things has asked this
@@ -4806,4 +4805,29 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
+}
+
+/* WORK TAB STRIP: A FLOATING ISLAND (owner, 2026-10-09, from their own
+   sample). A soft translucent bar with a white pill that springs to the tab
+   you pick. */
+.tab-island {
+  margin: 8px 12px 4px;
+  padding: 5px;
+  border-radius: 18px;
+  background: hsl(var(--muted) / 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid hsl(var(--border) / 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.tab-island__glider {
+  border-radius: 13px;
+  background: hsl(var(--card));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.tab-island__glider.slide-thumb[data-ready] {
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              height 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              opacity 0.15s ease;
 }

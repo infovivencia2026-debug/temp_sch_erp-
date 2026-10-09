@@ -4898,37 +4898,39 @@ html[data-assistant-open] .bento-dots { display: none !important; }
    at open (lib/launch-morph.ts). */
 @keyframes ios-launch {
   from {
-    transform: translate(calc((var(--launch-x, 50vw) - 50vw) * 0.35), calc((var(--launch-y, 50vh) - 50vh) * 0.35)) scale(0.86);
+    transform: translate(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh)) scale(0.06);
     opacity: 0;
   }
+  25% { opacity: 1; }
   to { transform: none; opacity: 1; }
 }
 @keyframes ios-close {
   from { transform: none; opacity: 1; }
+  75% { opacity: 1; }
   to {
-    transform: translate(calc((var(--launch-x, 50vw) - 50vw) * 0.35), calc((var(--launch-y, 50vh) - 50vh) * 0.35)) scale(0.86);
+    transform: translate(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh)) scale(0.06);
     opacity: 0;
   }
 }
 @keyframes ios-dim-out { to { opacity: 0; } }
 [data-appearance-dialog][data-launching] {
-  animation: ios-launch 300ms cubic-bezier(0.2, 0.9, 0.3, 1) both !important;
+  animation: ios-launch 440ms cubic-bezier(0.32, 0.72, 0, 1) both !important;
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
 [data-appearance-dialog][data-closing] {
-  animation: ios-close 220ms cubic-bezier(0.4, 0, 1, 1) both !important;
+  animation: ios-close 340ms cubic-bezier(0.32, 0.72, 0, 1) both !important;
   pointer-events: none;
 }
-.appearance-overlay[data-closing] { animation: ios-dim-out 220ms ease both; }
+.appearance-overlay[data-closing] { animation: ios-dim-out 340ms ease both; }
 @media (max-width: 767px) {
   .settings-screen.settings-launch {
-    animation: ios-launch 300ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation: ios-launch 440ms cubic-bezier(0.32, 0.72, 0, 1) both;
     will-change: transform, opacity;
     backface-visibility: hidden;
   }
   .settings-screen[data-closing] {
-    animation: ios-close 220ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: ios-close 340ms cubic-bezier(0.32, 0.72, 0, 1) both;
     pointer-events: none;
   }
 }
