@@ -379,7 +379,7 @@ export default function SettingsPage() {
              pane adds none. No bottom padding: the scroller's --page-foot
              clears the bar and the home indicator, once, for every page. */
           tab === null ? (
-            <div className="px-[16px] pt-[8px] pb-[140px]">
+            <div className="px-[16px] pt-[8px] pb-[16px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
               <SignOutButton className="mt-6" />

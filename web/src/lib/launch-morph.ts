@@ -20,7 +20,15 @@ export function markLaunch(): void {
   /* Start at the gear's own size (owner's sample, 2026-10-09): gear width
      over the window's width, the window being 920px or the viewport. */
   const panel = Math.min(920, window.innerWidth * 0.92)
-  root.style.setProperty('--launch-scale', String(Math.max(0.03, 40 / panel).toFixed(4)))
+  /* The gear itself, when it can be found: its centre and its width. */
+  const gear = [...document.querySelectorAll<HTMLElement>('button[aria-label="Settings"]')].find((b) => b.getBoundingClientRect().width > 0)
+  const gw = gear ? gear.getBoundingClientRect().width : 40
+  if (gear) {
+    const b = gear.getBoundingClientRect()
+    root.style.setProperty('--launch-x', `${b.left + b.width / 2}px`)
+    root.style.setProperty('--launch-y', `${b.top + b.height / 2}px`)
+  }
+  root.style.setProperty('--launch-scale', String(Math.max(0.03, gw / panel).toFixed(4)))
 }
 
 export function playClose(el: Element | null | undefined, then: () => void, extra?: Element | null): void {
@@ -30,9 +38,9 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
   if (!el || reduced) { finish(); return }
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')
-  const onEnd = (e: Event) => { if (e.target === el) { el.removeEventListener('animationend', onEnd); finish() } }
+  const onEnd = (e: Event) => { if (e.target === el && /t-out|close/.test((e as AnimationEvent).animationName)) { el.removeEventListener('animationend', onEnd); finish() } }
   el.addEventListener('animationend', onEnd)
-  window.setTimeout(finish, 420)
+  window.setTimeout(finish, 520)
 }
 
 /* ONLY WHEN SETTINGS IS OPENED (owner, 2026-10-08: switching Work/Focus, or

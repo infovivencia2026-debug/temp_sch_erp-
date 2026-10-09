@@ -4940,49 +4940,45 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   .settings-screen header + * { padding-top: 14px; }
 }
 
-/* WEB SETTINGS OPEN / CLOSE, TO THE OWNER'S SAMPLE (2026-10-09). The window
-   grows from the gear at the gear's own size, corners easing 48px -> its
-   own, content fading in just after; the close is a cushioned deceleration
-   back into the gear. Desktop only; the phone keeps its own. */
+/* WEB SETTINGS OPEN / CLOSE -- THE OWNER'S SAMPLE, PROPERTY FOR PROPERTY
+   (2026-10-09). Each property has its own duration and curve, exactly as the
+   sample's transitions: open = snappy springboard expand, close = cushioned
+   deceleration back into the gear. Start/end is the gear's own centre and
+   size (lib/launch-morph.ts). Desktop only. */
 @media (min-width: 768px) {
-  @keyframes ios-web-open {
-    from {
-      transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08));
-      opacity: 0;
-      border-radius: 48px;
-    }
-    58% { opacity: 1; }
-    to { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-  }
-  /* Only transform and opacity: the corner and inner fades repainted a
-     920px panel every frame and stuttered (owner, 2026-10-09). */
-  @keyframes ios-web-close {
-    from { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-    60% { opacity: 1; }
-    to {
-      transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08));
-      opacity: 0;
-    }
-  }
-  @keyframes ios-web-inner { from { opacity: 0.15; } to { opacity: 1; } }
-  @keyframes ios-web-inner-out { to { opacity: 0.15; } }
-  @keyframes ios-web-dim-in { from { opacity: 0; } }
+  @keyframes sw-t-in  { from { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08)); } to { transform: translate3d(0, 0, 0) scale(1); } }
+  @keyframes sw-t-out { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-scale, 0.08)); } }
+  @keyframes sw-o-in  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sw-o-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sw-r-in  { from { border-radius: 48px; } }
+  @keyframes sw-r-out { to { border-radius: 48px; } }
+  @keyframes sw-i-in  { from { opacity: 0.15; } to { opacity: 1; } }
+  @keyframes sw-i-out { from { opacity: 1; } to { opacity: 0.15; } }
+  @keyframes sw-d-in  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sw-d-out { from { opacity: 1; } to { opacity: 0; } }
   [data-appearance-dialog][data-launching] {
-    animation: ios-web-open 480ms cubic-bezier(0.28, 0.8, 0.25, 1) both !important;
-    will-change: transform, opacity, border-radius;
-  }
-  [data-appearance-dialog][data-launching] > * {
-    animation: ios-web-inner 350ms ease 80ms both;
-  }
-  .appearance-overlay:has([data-appearance-dialog][data-launching]:not([data-closing])) {
-    animation: ios-web-dim-in 420ms cubic-bezier(0.25, 1, 0.5, 1) both;
-  }
-  [data-appearance-dialog][data-closing] {
-    animation: ios-web-close 360ms cubic-bezier(0.4, 0, 0.2, 1) both !important;
+    animation:
+      sw-t-in 0.48s cubic-bezier(0.28, 0.8, 0.25, 1) both,
+      sw-o-in 0.28s ease both,
+      sw-r-in 0.44s cubic-bezier(0.28, 0.8, 0.25, 1) both !important;
+    transform-origin: center center;
     will-change: transform, opacity;
   }
+  [data-appearance-dialog][data-launching] > * { animation: sw-i-in 0.35s ease 0.08s both; }
+  .appearance-overlay:has([data-appearance-dialog][data-launching]:not([data-closing])) {
+    animation: sw-d-in 0.42s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+  [data-appearance-dialog][data-closing] {
+    animation:
+      sw-t-out 0.46s cubic-bezier(0.25, 1, 0.5, 1) both,
+      sw-o-out 0.42s cubic-bezier(0.35, 0, 0.65, 1) both,
+      sw-r-out 0.44s cubic-bezier(0.25, 1, 0.5, 1) both !important;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+  [data-appearance-dialog][data-closing] > * { animation: sw-i-out 0.25s ease both; }
   .appearance-overlay[data-closing] {
-    animation: ios-dim-out 360ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: sw-d-out 0.44s cubic-bezier(0.25, 1, 0.5, 1) both !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
