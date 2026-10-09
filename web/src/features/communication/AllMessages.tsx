@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send, X } from 'lucide-react'
+import { MessageSquare, ShieldAlert, Users, Megaphone, Send, X } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
@@ -221,14 +221,17 @@ export default function AllMessages() {
             </Button>
           )}
         </div>
-        <p className="text-[12px] text-muted-foreground">
-          Each tile counts what is still waiting for a reply, across the whole school,
-          pressing one filters the list below without changing the counts.
-        </p>
-        <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          <HeartHandshake className="h-4 w-4" />
-          {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open, private; counted here, never read.
-        </p>
+        {/* ONE LINE, NOT THREE (owner, 2026-10-09: "remove this in all
+            messages thats all unessary right only one line abt is enough").
+
+            A sentence explaining that a tile counts things and that pressing
+            one filters the list is a sentence about how a list works, which
+            the tiles demonstrate the moment anybody presses one. The
+            counselling line was a second paragraph carrying one number that
+            is already a tile.
+
+            The counsellor's figure keeps its place in the tiles above; what
+            goes is the prose around it. */}
 
         {/* On a desk the conversation opens BESIDE the list, the way the web
             chat does: the feed narrows to the left, the thread sits on the
@@ -495,7 +498,11 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
         ? 'Staff'
         : CHANNEL_LABEL[it.channel]
   const body = (
-    <article className="rounded-xl border bg-card shadow-sm transition-colors hover:border-primary/40">
+    /* rounded-2xl (owner, 2026-10-09: "in that screen make the cards
+       round"). The feed is a column of cards on a tinted ground and a 12px
+       corner on a card this wide reads as a box; 16px reads as a card, and
+       it is the radius the reading pane beside it already uses. */
+    <article className="rounded-2xl border bg-card shadow-sm transition-colors hover:border-primary/40">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-dashed px-5 py-3 text-[13px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2">
           <span>To:</span>
