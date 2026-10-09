@@ -3658,11 +3658,9 @@ html:not(.dark)[data-layout='bento'] {
    (bento-kit.tsx), so nothing here has to out-rank an inline declaration.
    A colour a person PICKED is not touched: the widget wrapper repoints
    --bento-card and --bento-ink to that colour, and these resolve to it. */
-[data-layout='bento'] .bento-cell[data-domain]:has([data-card][data-quiet]) {
-  --quiet-bg: var(--bento-card);
-  --quiet-ink: var(--bento-ink);
-  --quiet-line: var(--bento-line);
-}
+/* Off (owner, 2026-10-09): a zero card drew in colour, then flipped to
+   white once its drawing reported, which read as a colour flash. Cards keep
+   their colour. */
 
 
 /* ═════════════════════════════════════════════════════════════════════════
