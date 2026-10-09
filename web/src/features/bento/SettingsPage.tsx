@@ -1,4 +1,4 @@
-import { markLaunch, playClose, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
+import { markLaunch, leaveSettings, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { SignOutButton } from './SettingsRows'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -151,7 +151,7 @@ export default function SettingsPage() {
   const [launching] = useState(() => { const l = shouldLaunch(); if (l) markLaunch(); return l })
   const done = useCallback(() => {
     // Closes the way it opened, back into the gear (owner, 2026-10-09).
-    playClose(document.querySelector('.settings-screen'), () => navigate(-1))
+    leaveSettings(() => navigate(-1))
   }, [navigate])
   /* The launch, both ways: remember where Settings was opened from, and when
      a link elsewhere on the screen (the dock) is followed, shrink back into
@@ -169,7 +169,7 @@ export default function SettingsPage() {
       // Leaving by the dock: shrink back into the gear, then go.
       e.preventDefault()
       e.stopPropagation()
-      playClose(document.querySelector('.settings-screen'), () => navigate(url.pathname + url.search + url.hash))
+      leaveSettings(() => navigate(url.pathname + url.search + url.hash))
     }
     document.addEventListener('click', onClick, true)
     /* Short on a phone (owner, 2026-10-09: only the first open launched): the

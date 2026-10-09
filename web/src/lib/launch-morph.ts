@@ -106,10 +106,28 @@ export function endLaunchIfGone(ms = 2500): void {
   }, ms)
 }
 
-/** Leave the phone Settings screen the way it opened: shrink back into the
-    gear, then go. Anywhere else, just go. (owner, 2026-10-09) */
+/** Leave the phone Settings screen the way it opened, back into the gear.
+    The destination is opened AT ONCE underneath (owner, 2026-10-09: a white
+    second before Home appeared): a still copy of the Settings screen shrinks
+    on top while the real page loads behind it. Anywhere else, just go. */
 export function leaveSettings(go: () => void): void {
-  const screen = typeof document !== 'undefined' ? document.querySelector('.settings-screen') : null
-  if (!screen || screen.hasAttribute('data-closing') || window.matchMedia('(min-width: 768px)').matches) { go(); return }
-  playClose(screen, go)
+  const screen = typeof document !== 'undefined' ? document.querySelector<HTMLElement>('.settings-screen') : null
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  if (!screen || reduced || window.matchMedia('(min-width: 768px)').matches) { endLaunch(); go(); return }
+  const r = screen.getBoundingClientRect()
+  const ghost = screen.cloneNode(true) as HTMLElement
+  ghost.classList.remove('settings-launch')
+  ghost.setAttribute('aria-hidden', 'true')
+  Object.assign(ghost.style, {
+    position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px',
+    margin: '0', zIndex: '45', pointerEvents: 'none', overflow: 'hidden',
+    background: getComputedStyle(screen).backgroundColor || 'var(--bento-card)',
+  })
+  document.body.appendChild(ghost)
+  endLaunch()
+  go()
+  requestAnimationFrame(() => ghost.setAttribute('data-closing', ''))
+  const done = () => ghost.remove()
+  ghost.addEventListener('animationend', done, { once: true })
+  window.setTimeout(done, 600)
 }
