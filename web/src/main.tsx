@@ -195,48 +195,34 @@ try {
        either theme, which is the whole reason the mock-up chose one.
        Margin rather than flex `gap` between the buttons: the tablets in
        these schools are old enough to lay a gap out as nothing at all. */
+    /* THE OWNER'S iOS SIGN-OUT ALERT (2026-10-09), phone and web alike:
+       a frosted backdrop, a 275px squircle card, a red circle with the exit
+       glyph, "Sign Out" / "Are you sure you want to sign out?", and the
+       hairline Cancel | Sign Out footer. Same behaviour as before: Escape
+       and a tap outside cancel, Cancel has focus first. */
     const style = document.createElement('style')
-    style.textContent =
-      '@keyframes erp-signout-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}' +
-      '@media (prefers-reduced-motion:reduce){.erp-signout-box{animation:none!important}}'
+    style.textContent = "@keyframes erp-so-in{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}@keyframes erp-so-dim{from{opacity:0}to{opacity:1}}.erp-so-back{position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.22);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);animation:erp-so-dim .2s ease both}.erp-signout-box{width:275px;max-width:100%;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border-radius:28px;overflow:hidden;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.16),0 4px 12px rgba(0,0,0,.08),inset 0 0 0 1px rgba(255,255,255,.7);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased;animation:erp-so-in .2s cubic-bezier(.16,1,.3,1) both}.erp-so-body{padding:24px 20px 20px;display:flex;flex-direction:column;align-items:center}.erp-so-icon{width:60px;height:60px;border-radius:50%;background:#c95151;display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 0 0 6px rgba(201,81,81,.08),0 4px 12px rgba(201,81,81,.22)}.erp-so-icon svg{width:26px;height:26px;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}.erp-so-title{margin:0 0 6px;font-size:17px;font-weight:600;color:#111827;letter-spacing:-.2px}.erp-so-desc{margin:0;font-size:13px;line-height:1.35;color:#4b5563;padding:0 4px}.erp-so-actions{display:flex;border-top:.5px solid rgba(0,0,0,.1)}.erp-so-btn{flex:1;border:0;background:transparent;padding:13px 0;font-size:16px;font-family:inherit;cursor:pointer;outline:none;transition:background .15s ease}.erp-so-btn:active{background:rgba(0,0,0,.04)}.erp-so-btn:focus-visible{background:rgba(0,0,0,.05)}.erp-so-btn+.erp-so-btn{border-left:.5px solid rgba(0,0,0,.1)}.erp-so-no{font-weight:400;color:#007aff}.erp-so-yes{font-weight:500;color:#e03838}html.dark .erp-signout-box{background:rgba(44,44,46,.94);box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.08)}html.dark .erp-so-title{color:#f5f5f7}html.dark .erp-so-desc{color:#aeaeb2}html.dark .erp-so-actions,html.dark .erp-so-btn+.erp-so-btn{border-color:rgba(255,255,255,.12)}html.dark .erp-so-no{color:#0a84ff}html.dark .erp-so-yes{color:#ff453a}@media (prefers-reduced-motion:reduce){.erp-signout-box,.erp-so-back{animation:none!important}}"
     const back = document.createElement('div')
     back.setAttribute('role', 'presentation')
-    back.style.cssText =
-      'position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;' +
-      'padding:20px;background:rgba(11,20,26,.42)'
+    back.className = 'erp-so-back'
     const box = document.createElement('div')
     box.className = 'erp-signout-box'
     box.setAttribute('role', 'alertdialog')
     box.setAttribute('aria-modal', 'true')
     box.setAttribute('aria-labelledby', 'signout-q')
     box.setAttribute('aria-describedby', 'signout-d')
-    box.style.cssText =
-      'width:100%;max-width:360px;border-radius:12px;padding:32px;text-align:center;' +
-      'background:hsl(var(--card,0 0% 100%));color:hsl(var(--card-foreground,215 8% 25%));' +
-      'border:1px solid hsl(var(--border,214 16% 90%));' +
-      'box-shadow:0 12px 32px rgba(95,99,104,.16),0 2px 8px rgba(95,99,104,.08);' +
-      'font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;' +
-      'animation:erp-signout-in .4s ease-out both'
     box.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;' +
-      'margin:0 auto 20px;border-radius:50%;background:hsl(var(--muted,220 14% 96%));' +
-      'color:hsl(var(--muted-foreground,220 6% 46%))">' +
-      '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" ' +
-      'stroke-width="1.5" stroke="currentColor" aria-hidden="true">' +
-      '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 ' +
-      '2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"/>' +
+      '<div class="erp-so-body">' +
+      '<div class="erp-so-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' +
+      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>' +
+      '<polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>' +
       '</svg></div>' +
-      '<p id="signout-q" style="margin:0;font-size:18px;font-weight:500">Ready to leave?</p>' +
-      '<p id="signout-d" style="margin:12px 0 32px;font-size:14.5px;line-height:1.5;' +
-      'color:hsl(var(--muted-foreground,220 6% 46%))">If you sign out now, any unsaved work will be ' +
-      'lost. Make sure you have saved everything you need.</p>' +
-      '<div style="display:flex">' +
-      '<button type="button" data-no style="flex:1;min-height:44px;padding:12px 16px;border-radius:8px;' +
-      'cursor:pointer;border:0;background:hsl(var(--muted,220 14% 96%));color:inherit;font:inherit;' +
-      'font-weight:500">Stay here</button>' +
-      '<button type="button" data-yes style="flex:1;min-height:44px;margin-left:12px;padding:12px 16px;' +
-      'border-radius:8px;cursor:pointer;border:0;background:#5f6368;' +
-      'color:#fff;font:inherit;font-weight:500">Sign out</button>' +
+      '<h3 id="signout-q" class="erp-so-title">Sign Out</h3>' +
+      '<p id="signout-d" class="erp-so-desc">Are you sure you want to sign out?</p>' +
+      '</div>' +
+      '<div class="erp-so-actions">' +
+      '<button type="button" data-no class="erp-so-btn erp-so-no">Cancel</button>' +
+      '<button type="button" data-yes class="erp-so-btn erp-so-yes">Sign Out</button>' +
       '</div>'
     back.appendChild(style)
     back.appendChild(box)
