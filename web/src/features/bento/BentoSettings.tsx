@@ -95,7 +95,6 @@ export function BentoSettings({
       n++
       const visible = !!btn.current && btn.current.getBoundingClientRect().width > 0
       if (visible && wasOpen()) { setEverOpened(true); setShowAppearance(true); window.clearInterval(t) }
-      else if (!visible && n >= 2) setShowAppearance(false)
       if (n >= 30) window.clearInterval(t)
     }, 70)
     return () => window.clearInterval(t)
