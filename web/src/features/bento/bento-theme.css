@@ -4991,3 +4991,7 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   animation: ios-dim-out 220ms ease both !important;
   pointer-events: none;
 }
+
+/* An empty settings group drew as a stray 2px line (owner, 2026-10-09). */
+.settings-glass:empty { display: none; }
+.settings-glass:not(:has(*)) { display: none; }
