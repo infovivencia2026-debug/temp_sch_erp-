@@ -1290,6 +1290,32 @@ export function AppearanceDialog({
   if (open && launchRef.current === null) { launchRef.current = shouldLaunch(); if (launchRef.current) markLaunch() }
   if (!open) launchRef.current = null
   useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
+  /* A press on the page behind (owner, 2026-10-09: in Work, picking a
+     feature with Settings open only closed it, then the page snapped in on
+     the second press). The press that lands on the dim goes through: Settings
+     shrinks into the gear, then the link under the finger is followed. */
+  const goNavigate = useNavigate()
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      const scrim = e.target as HTMLElement | null
+      if (!scrim || !scrim.classList?.contains('appearance-overlay') || e.button !== 0) return
+      scrim.style.pointerEvents = 'none'
+      const under = document.elementFromPoint(e.clientX, e.clientY)
+      scrim.style.pointerEvents = ''
+      const a = under?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || a.target === '_blank') return
+      const url = new URL(a.href, location.href)
+      if (url.origin !== location.origin) return
+      e.preventDefault()
+      e.stopPropagation()
+      const panel = document.querySelector('[data-appearance-dialog]')
+      playClose(panel, () => { closeNow(); goNavigate(url.pathname + url.search + url.hash) }, scrim)
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const handleClose = () => {
     const panel = typeof document !== 'undefined' ? document.querySelector('[data-appearance-dialog]') : null
     playClose(panel, closeNow, panel?.closest('.appearance-overlay') ?? document.querySelector('.appearance-overlay'))

@@ -45,8 +45,8 @@ export function endLaunch(): void {
 }
 /** Lower the flag a moment after a surface goes away, if no settings surface
     replaced it (the phone's back gesture closes without playClose). */
-export function endLaunchIfGone(): void {
+export function endLaunchIfGone(ms = 2500): void {
   window.setTimeout(() => {
     if (!document.querySelector('[data-appearance-dialog], .settings-screen')) endLaunch()
-  }, 2500)
+  }, ms)
 }

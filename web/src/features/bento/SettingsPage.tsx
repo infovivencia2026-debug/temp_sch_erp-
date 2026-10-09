@@ -170,7 +170,9 @@ export default function SettingsPage() {
       playClose(screen, () => navigate(url.pathname + url.search + url.hash))
     }
     document.addEventListener('click', onClick, true)
-    return () => { document.removeEventListener('click', onClick, true); endLaunchIfGone() }
+    /* Short on a phone (owner, 2026-10-09: only the first open launched): the
+       flag must be down before the next press of the gear. */
+    return () => { document.removeEventListener('click', onClick, true); endLaunchIfGone(250) }
   }, [navigate, wide, launching])
 
   return (
