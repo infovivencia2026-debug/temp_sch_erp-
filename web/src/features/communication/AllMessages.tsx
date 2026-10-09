@@ -237,7 +237,14 @@ export default function AllMessages() {
         <div
           className={cn(
             'space-y-4',
-            open && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
+            /* items-stretch, not items-start (owner, 2026-10-08: "this
+               should be even"). Each column used to take its own height, so
+               a feed of three conversations ended halfway up a reading pane
+               held open at 60vh and the two cards finished at different
+               places down the page with a step of empty ground between
+               them. Stretched, the pane is exactly as tall as the feed
+               beside it, capped at 82vh and sticky past that. */
+            open && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-stretch lg:gap-4 lg:space-y-0',
           )}
         >
         {inbox.isLoading ? (
@@ -808,7 +815,9 @@ function ThreadPane({
     )
   }
   return (
-    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4">
+    /* min-h is what held this open below a short feed; on a desk the row's
+       own height is the measure instead, so the two columns end level. */
+    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4 lg:h-full lg:min-h-0">
       <CardHeader
         title={title}
         description={subtitle}
