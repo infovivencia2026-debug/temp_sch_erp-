@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
-import { ExternalLink, Maximize, Pause, Play, RotateCcw, Undo2 } from 'lucide-react'
+import { ExternalLink, Maximize, Minimize, Pause, Play, RotateCcw, Undo2 } from 'lucide-react'
 
 /* A YOUTUBE VIDEO OR PLAYLIST, EMBEDDED THE WAY YOUTUBE ASKS FOR.
  *
@@ -132,15 +132,59 @@ export function watchUrl(videoId?: string | null, listId?: string | null): strin
    player's own controls are off -- and these buttons instead: play/pause,
    back 10 seconds, start again, full screen. Nothing here moves forward. Once
    the video is finished the ordinary controls come back. */
-export function LockedControls({ playing, toggle, back, restart, full, extra }: { playing: boolean; toggle: () => void; back: () => void; restart: () => void; full: () => void; extra?: React.ReactNode }) {
-  const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium hover:bg-muted'
+export function LockedFrame({ locked, playing, toggle, back, restart, children }: { locked: boolean; playing: boolean; toggle: () => void; back: () => void; restart: () => void; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [full, setFull] = useState(false)
+  const fns = useRef({ toggle, back, restart })
+  fns.current = { toggle, back, restart }
+  const flip = () => {
+    if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {})
+    else void box.current?.requestFullscreen?.().catch(() => {})
+  }
+  useEffect(() => {
+    const on = () => setFull(document.fullscreenElement === box.current)
+    document.addEventListener('fullscreenchange', on)
+    return () => document.removeEventListener('fullscreenchange', on)
+  }, [])
+  /* THE KEYBOARD SAYS THE SAME AS THE BUTTONS: space or K plays and pauses,
+     left or J goes back 10 seconds, Home or 0 starts again, F is full screen.
+     Right, L and End do nothing -- they are swallowed, not passed on. */
+  useEffect(() => {
+    if (!locked) return
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const k = e.key.toLowerCase()
+      const act: Record<string, () => void> = {
+        ' ': () => fns.current.toggle(), k: () => fns.current.toggle(),
+        arrowleft: () => fns.current.back(), j: () => fns.current.back(),
+        home: () => fns.current.restart(), '0': () => fns.current.restart(),
+        f: flip, arrowright: () => {}, l: () => {}, end: () => {},
+      }
+      if (!act[k]) return
+      if (t && t.tagName === 'BUTTON' && k === ' ') return // a focused button presses itself
+      e.preventDefault(); act[k]()
+    }
+    document.addEventListener('keydown', key)
+    return () => document.removeEventListener('keydown', key)
+  }, [locked])
+  if (!locked) return <>{children}</>
+  const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium text-foreground hover:bg-muted'
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
-      <button type="button" className={b} onClick={toggle}>{playing ? <><Pause className="size-4" aria-hidden /> Pause</> : <><Play className="size-4" aria-hidden /> Play</>}</button>
-      <button type="button" className={b} onClick={back}><Undo2 className="size-4" aria-hidden /> Back 10s</button>
-      <button type="button" className={b} onClick={restart}><RotateCcw className="size-4" aria-hidden /> Start again</button>
-      <button type="button" className={b} onClick={full}><Maximize className="size-4" aria-hidden /> Full screen</button>
-      {extra}
+    <div ref={box} className={full ? 'flex h-full w-full flex-col items-center justify-center gap-3 bg-black p-3' : 'space-y-2'}>
+      <div className="relative w-full" style={full ? { width: 'min(100%, calc((100vh - 88px) * 16 / 9))' } : undefined}>
+        {children}
+        {/* Over the player: a click plays or pauses, and the player itself never
+            takes focus, so its own keys never see a press. */}
+        <button type="button" aria-label={playing ? 'Pause' : 'Play'} tabIndex={-1} onClick={toggle} className="absolute inset-0 h-full w-full cursor-pointer bg-transparent" />
+      </div>
+      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-2 sm:justify-start">
+        <button type="button" className={b} onClick={toggle}>{playing ? <><Pause className="size-4" aria-hidden /> Pause</> : <><Play className="size-4" aria-hidden /> Play</>}</button>
+        <button type="button" className={b} onClick={back}><Undo2 className="size-4" aria-hidden /> Back 10s</button>
+        <button type="button" className={b} onClick={restart}><RotateCcw className="size-4" aria-hidden /> Start again</button>
+        <button type="button" className={b} onClick={flip}>{full ? <><Minimize className="size-4" aria-hidden /> Exit full screen</> : <><Maximize className="size-4" aria-hidden /> Full screen</>}</button>
+      </div>
     </div>
   )
 }
@@ -171,7 +215,7 @@ export function YouTubeLesson({
   cb.current = onPlayer
   const [percent, setPercent] = useState<number | null>(null)
   const [skipped, setSkipped] = useState(false)
-  /* Locked: the child's own lesson, not yet finished (see LockedControls). */
+  /* Locked: the child's own lesson, not yet finished (see LockedFrame). */
   const locked = !!track && !track.done
   const [playing, setPlaying] = useState(false)
   const pl = useRef<YTPlayer | null>(null)
@@ -349,19 +393,17 @@ export function YouTubeLesson({
           <p className="mt-2 text-[12px] text-muted-foreground">Shown once. You will not be asked again.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[14px] border bg-black">
-          {/* 16:9, and max-w-full so it never pushes a phone sideways. */}
-          <div className="relative w-full max-w-full" style={{ aspectRatio: '16 / 9' }}>
-            <div ref={host} className="absolute inset-0 h-full w-full" />
-          </div>
-        </div>
-      )}
-      {locked && agreed && !failed && (
-        <LockedControls playing={playing}
+        <LockedFrame locked={locked} playing={playing}
           toggle={() => { const p = pl.current; if (!p) return; if (playing) p.pauseVideo?.(); else p.playVideo?.() }}
           back={() => { const p = pl.current; if (p) p.seekTo(Math.max(0, p.getCurrentTime() - 10), true) }}
-          restart={() => { const p = pl.current; if (p) p.seekTo(0, true) }}
-          full={() => { const f = pl.current?.getIframe?.() ?? host.current?.querySelector('iframe'); void f?.requestFullscreen?.().catch(() => {}) }} />
+          restart={() => { const p = pl.current; if (p) p.seekTo(0, true) }}>
+          <div className="overflow-hidden rounded-[14px] border bg-black">
+            {/* 16:9, and max-w-full so it never pushes a phone sideways. */}
+            <div className="relative w-full max-w-full" style={{ aspectRatio: '16 / 9' }}>
+              <div ref={host} className="absolute inset-0 h-full w-full" />
+            </div>
+          </div>
+        </LockedFrame>
       )}
       {/* Attribution and the way out to the source, always on the page. */}
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">

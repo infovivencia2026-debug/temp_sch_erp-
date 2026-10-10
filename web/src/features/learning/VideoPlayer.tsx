@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
 import type { Lesson } from './lms-shared'
-import { LockedControls } from './YouTubeLesson'
+import { LockedFrame } from './YouTubeLesson'
 
 /* A lesson's library video (worker routes/teaching/videos.ts).
 
@@ -116,7 +116,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
   }
   const [blocked, setBlocked] = useState(false)
 
-  /* Unfinished and the child's own: no seek bar (LockedControls in YouTubeLesson.tsx). */
+  /* Unfinished and the child's own: no seek bar (LockedFrame in YouTubeLesson.tsx). */
   const locked = !!track && !(lesson?.done || st.current.done)
   const [playing, setPlaying] = useState(false)
   void percent
@@ -124,6 +124,10 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
   if (!id) return null
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2">
+      <LockedFrame locked={locked} playing={playing}
+        toggle={() => { const v = ref.current; if (!v) return; if (v.paused) void v.play(); else v.pause() }}
+        back={() => { const v = ref.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10) }}
+        restart={() => { const v = ref.current; if (v) v.currentTime = 0 }}>
       <div className="overflow-hidden rounded-lg border bg-black shadow-sm">
         <video
           ref={ref}
@@ -146,13 +150,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
           onRateChange={() => setSpeed(ref.current?.playbackRate ?? 1)}
         />
       </div>
-      {locked && (
-        <LockedControls playing={playing}
-          toggle={() => { const v = ref.current; if (!v) return; if (v.paused) void v.play(); else v.pause() }}
-          back={() => { const v = ref.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10) }}
-          restart={() => { const v = ref.current; if (v) v.currentTime = 0 }}
-          full={() => { void ref.current?.parentElement?.requestFullscreen?.().catch(() => {}) }} />
-      )}
+      </LockedFrame>
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
         <span className="hidden text-muted-foreground sm:inline">Speed</span>
         <div className="inline-flex overflow-hidden rounded-md border" role="group" aria-label="Playback speed">
