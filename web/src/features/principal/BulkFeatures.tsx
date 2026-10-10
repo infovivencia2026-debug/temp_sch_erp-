@@ -4,6 +4,7 @@ import { Check, Search } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button, Dialog, FormNotice } from '@/components/ui'
+import { toastBus } from '@/components/Toast'
 
 /* FEATURES OFF IN BULK (owner, 2026-10-10: "let them choose to remove for a
    single person, whole school or class wise ... filter for feature, not to
@@ -56,11 +57,15 @@ export function BulkFeatures({
       : who === 'here' && here
         ? { portal, keys: [...keys], scope: here.scope, target_ids: [here.id] }
         : { portal, keys: [...keys], scope: 'school' }),
-    onSuccess: () => { setKeys(new Set()); void qc.invalidateQueries({ queryKey: ['feature-blocks'] }) },
+    /* Said out loud (owner, 2026-10-10: 'after this show saved popup'). */
+    onSuccess: () => {
+      toastBus()?.ok(`Saved. ${keys.size} feature${keys.size === 1 ? '' : 's'} turned off for ${whoLabel}.`)
+      setKeys(new Set()); void qc.invalidateQueries({ queryKey: ['feature-blocks'] })
+    },
   })
   const remove = useMutation({
     mutationFn: (ids: string[]) => api.post('/api/v1/admin/feature-blocks/remove', { ids }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['feature-blocks'] }),
+    onSuccess: (_r, ids) => { toastBus()?.ok(`Saved. ${ids.length === 1 ? 'Turned back on' : ids.length + ' turned back on'}.`); void qc.invalidateQueries({ queryKey: ['feature-blocks'] }) },
   })
 
   const off = (blocks.data?.items ?? []).filter((b) => b.portal === portal)
