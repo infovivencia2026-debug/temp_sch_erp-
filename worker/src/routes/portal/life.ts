@@ -461,6 +461,33 @@ async function getStudentDiary(c: Ctx) {
   })
 }
 
+/* MY PLANNER (owner, 2026-10-10). The student's own items with their
+   priority and when each was ticked, and the streak: days in a row, ending
+   today (or yesterday, so a streak is not lost before today's first tick),
+   on which at least one item was ticked off. Parent or child, as for adding. */
+const dayBefore = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10)
+async function plannerItems(c: Ctx) {
+  const q = c.url.searchParams
+  const { studentId } = await portalChild(c, q.get('student_id') ?? '')
+  const from = optionalDate(q.get('from'), 'from must be YYYY-MM-DD')
+  const to = optionalDate(q.get('to'), 'to must be YYYY-MM-DD')
+  const rows = await c.db.prepare(`
+      SELECT id, on_date, kind, body, COALESCE(priority, 'normal') AS priority, ${ist('done_at')} AS done_at
+        FROM student_diary_notes
+       WHERE student_id = ? AND (? IS NULL OR on_date >= ?) AND (? IS NULL OR on_date <= ?)
+       ORDER BY on_date, created_at
+       LIMIT 500`).bind(studentId, from, from, to, to).all<{ id: string; on_date: string; kind: string; body: string; priority: string; done_at: string | null }>()
+  const days = await c.db.prepare(`
+      SELECT DISTINCT ${ist('done_at', '%Y-%m-%d')} AS d FROM student_diary_notes
+       WHERE student_id = ? AND done_at IS NOT NULL ORDER BY d DESC LIMIT 400`).bind(studentId).all<{ d: string }>()
+  const have = new Set(days.results.map((x) => x.d))
+  let cursor = todayIST()
+  if (!have.has(cursor)) cursor = dayBefore(cursor)
+  let streak = 0
+  while (have.has(cursor)) { streak++; cursor = dayBefore(cursor) }
+  return ok({ items: rows.results, streak })
+}
+
 async function listDiaryNotes(c: Ctx) {
   const room = await myClassroom(c)
   const q = c.url.searchParams
@@ -495,10 +522,11 @@ async function createDiaryNote(c: Ctx) {
   const kind = s(req.kind).trim() || 'note'
   if (!DIARY_KINDS.includes(kind)) throw badRequest(`kind must be one of ${DIARY_KINDS.join(', ')}`)
   const remind = remindAt(on, s(req.remind_at).trim())
+  const priority = s(req.priority).trim() === 'urgent' ? 'urgent' : 'normal'
   const id = uuid(), t = now()
-  await c.db.prepare(`INSERT INTO student_diary_notes (id, institution_id, student_id, author_user_id, on_date, kind, body, remind_at, created_at, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(id, institutionId(c), student, c.id.userId, on, kind, body, remind, t, t).run()
+  await c.db.prepare(`INSERT INTO student_diary_notes (id, institution_id, student_id, author_user_id, on_date, kind, body, remind_at, created_at, updated_at, priority)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(id, institutionId(c), student, c.id.userId, on, kind, body, remind, t, t, priority).run()
   return created({ id })
 }
 
@@ -512,6 +540,7 @@ async function updateDiaryNote(c: Ctx) {
   const kind = s(req.kind).trim()
   if (kind !== '' && !DIARY_KINDS.includes(kind)) throw badRequest(`kind must be one of ${DIARY_KINDS.join(', ')}`)
   const done = req.done === true ? 1 : req.done === false ? 0 : null
+  const pri = req.priority === 'urgent' || req.priority === 'normal' ? req.priority : null
   const own = inList('student_id', sc.studentIds)
   const t = now()
   const out = await c.db.prepare(`
@@ -520,9 +549,10 @@ async function updateDiaryNote(c: Ctx) {
              kind = COALESCE(nullif(?, ''), kind),
              on_date = COALESCE(?, on_date),
              done_at = CASE WHEN ? IS NULL THEN done_at WHEN ? = 1 THEN COALESCE(done_at, ?) ELSE NULL END,
+             priority = COALESCE(?, priority),
              updated_at = ?
        WHERE id = ? AND ${own.sql}
-      RETURNING id`).bind(body, kind, on, done, done, t, t, noteID, ...own.args).first<{ id: string }>()
+      RETURNING id`).bind(body, kind, on, done, done, t, pri, t, noteID, ...own.args).first<{ id: string }>()
   if (!out) throw notFound('resource not found')
   return ok({ id: out.id })
 }
@@ -800,6 +830,7 @@ export function registerPortalLife(r: Router): void {
   // diary
   r.get('/portal/diary', PERM, getStudentDiary)
   r.get('/portal/diary/notes', PERM, listDiaryNotes)
+  r.get('/portal/planner', PERM, plannerItems)
   r.post('/portal/diary/notes', PERM, createDiaryNote)
   r.post('/portal/diary/notes/{id}', PERM, updateDiaryNote)
   r.del('/portal/diary/notes/{id}', PERM, deleteDiaryNote)
