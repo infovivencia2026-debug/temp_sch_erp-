@@ -75,6 +75,37 @@ function loadApi(): Promise<YTApi> {
   return apiPromise
 }
 
+/* THE DISCLAIMER, ONCE (owner, 2026-10-10: "let them agree that they are
+   watching yt vd ... let them accept that before watching vd and only show
+   for the first time and make it a disclamer").
+
+   A child opening a lesson should know whose video they are about to play
+   and whose player is about to run. The school is not the publisher here,
+   and saying so once -- plainly, before the first frame -- is both fair to
+   the family and the thing that answers a complaint later.
+
+   WHY NOTHING LOADS UNTIL THEY AGREE. The point is not the wording, it is
+   that the iframe is not created yet. Until the button is pressed no
+   request has gone to YouTube at all: no player script, no embed, nothing
+   for anyone to log. An agreement that appears over a video already
+   playing agrees to something that has happened.
+
+   REMEMBERED PER DEVICE, in localStorage. A disclaimer is a notice, not a
+   consent record the school must produce later, so it does not need a row
+   in the database; if it ever does, this is the one place to change. Every
+   read and write is wrapped, because a private window or blocked site data
+   throws rather than returning empty -- and when it does, the notice simply
+   shows again, which is the safe way to fail.
+
+   The teacher's own preview is not a child and is not asked. */
+const SEEN_KEY = 'erp.ytNoticeSeen'
+function noticeSeen(): boolean {
+  try { return window.localStorage.getItem(SEEN_KEY) === '1' } catch { return false }
+}
+function rememberNotice(): void {
+  try { window.localStorage.setItem(SEEN_KEY, '1') } catch { /* shown again next time, which is fine */ }
+}
+
 /** mm:ss, or h:mm:ss past an hour. */
 export function stamp(seconds: number): string {
   const t = Math.max(0, Math.floor(seconds))
@@ -105,6 +136,9 @@ export function YouTubeLesson({
 }) {
   const host = useRef<HTMLDivElement>(null)
   const [failed, setFailed] = useState<string | null>(null)
+  /* Read once, on mount: a child who agreed last week never sees it again,
+     and one who has not gets the notice instead of the player. */
+  const [agreed, setAgreed] = useState(() => noticeSeen())
   const cb = useRef(onPlayer)
   cb.current = onPlayer
 
@@ -112,7 +146,8 @@ export function YouTubeLesson({
     let dead = false
     let player: YTPlayer | null = null
     const el = host.current
-    if (!el || (!videoId && !listId)) return
+    /* Not before they agree: no script, no iframe, no request to YouTube. */
+    if (!agreed || !el || (!videoId && !listId)) return
     loadApi().then((YT) => {
       if (dead || !host.current) return
       player = new YT.Player(host.current, {
@@ -145,7 +180,7 @@ export function YouTubeLesson({
       cb.current?.(null)
       try { player?.destroy?.() } catch { /* the iframe is going anyway */ }
     }
-  }, [videoId, listId])
+  }, [videoId, listId, agreed])
 
   const href = watchUrl(videoId, listId)
 
@@ -161,6 +196,23 @@ export function YouTubeLesson({
              className="mt-1 inline-flex items-center gap-1.5 text-[14px] font-medium text-primary underline">
             Watch it on YouTube <ExternalLink className="size-3.5" />
           </a>
+        </div>
+      ) : !agreed ? (
+        <div className="rounded-[14px] border bg-muted/30 p-4" style={{ minHeight: 180 }}>
+          <h3 className="text-[15px] font-semibold">This video is on YouTube</h3>
+          <p className="mt-1.5 max-w-prose text-[13.5px] text-muted-foreground">
+            Your school did not make it and does not host it. Pressing play loads YouTube’s own
+            player, and from then on YouTube can see that the video was watched, the same as
+            opening it on their site. Your notes stay here and are private to you.
+          </p>
+          <button
+            type="button"
+            onClick={() => { rememberNotice(); setAgreed(true) }}
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground"
+          >
+            I understand — play the video
+          </button>
+          <p className="mt-2 text-[12px] text-muted-foreground">Shown once. You will not be asked again.</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-[14px] border bg-black">

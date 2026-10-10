@@ -334,7 +334,19 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
   const yt = l.yt_video_id || l.yt_playlist_id ? { v: l.yt_video_id, list: l.yt_playlist_id } : null
   const [player, setPlayer] = useState<YTPlayer | null>(null)
   const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
-  const note = l.kind !== 'text' && l.body ? <NotesView text={l.body} /> : null
+  /* THE BODY BOX UNDER A LESSON IS GONE (owner, 2026-10-10: "remove notes
+     in lms").
+
+     A non-text lesson could carry a `body` as well as its file or its
+     video, and it was drawn as a grey box underneath -- a second piece of
+     writing with no heading, easily mistaken for the child's own notes now
+     that those sit on the same screen. Two things called notes on one
+     lesson is one too many.
+
+     The column is untouched: nothing is deleted, and a lesson that has text
+     in it still has text in it. This stops drawing it, which is reversible
+     in one line if the school wants it back. For a text lesson the body IS
+     the lesson and is still shown, by the branch below. */
   /* A VIDEO LESSON IS TWO COLUMNS ON A DESK (owner, 2026-10-10: "in web let
      notes be right side of the vd").
 
@@ -354,7 +366,6 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
         <div className="space-y-4">
           <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
           {l.key_points ? <KeyPoints text={l.key_points} /> : null}
-          {note && <div className="rounded-lg border bg-muted/20 p-3">{note}</div>}
         </div>
         {/* mt-4 on a phone where this falls under the player, none on a desk
             where the grid's own gap already separates the columns. */}
@@ -407,7 +418,6 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
           <Download className="h-4 w-4" /> Download {l.file_name ?? 'the file'}{l.file_size ? ` (${fmtSize(l.file_size)})` : ''}
         </a>
       )}
-      {note && <div className="rounded-lg border bg-muted/20 p-3">{note}</div>}
       {/* `track` is this product's existing word for "the child's own login",
           which is exactly who may keep private notes: a parent reading the
           course sees the lesson and the teacher's key points, not their
