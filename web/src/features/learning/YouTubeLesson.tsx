@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
-import { ExternalLink, Maximize, Minimize, Pause, Play, RotateCcw, Undo2 } from 'lucide-react'
+import { ChevronLeft, ExternalLink, Maximize, Pause, Play, RotateCcw, Undo2 } from 'lucide-react'
 
 /* A YOUTUBE VIDEO OR PLAYLIST, EMBEDDED THE WAY YOUTUBE ASKS FOR.
  *
@@ -134,21 +134,38 @@ export function watchUrl(videoId?: string | null, listId?: string | null): strin
    the video is finished the ordinary controls come back. */
 export function LockedFrame({ locked, playing, toggle, back, restart, children }: { locked: boolean; playing: boolean; toggle: () => void; back: () => void; restart: () => void; children: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null)
-  const [full, setFull] = useState(false)
+  /* Full screen is the browser's where it can be had, and where it cannot
+     (an iPhone will not put a page element full screen; some Android
+     browsers refuse inside an app) the frame covers the screen itself. */
+  const [full, setFull] = useState<'real' | 'fake' | null>(null)
+  const [hint, setHint] = useState(false)
   const fns = useRef({ toggle, back, restart })
   fns.current = { toggle, back, restart }
-  const flip = () => {
+  const exit = () => {
+    try { (screen.orientation as { unlock?: () => void } | undefined)?.unlock?.() } catch { /* fine */ }
     if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {})
-    else void box.current?.requestFullscreen?.().catch(() => {})
+    setFull(null)
   }
+  const enter = () => {
+    const el = box.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null
+    const landscape = () => { try { void (screen.orientation as { lock?: (o: string) => Promise<void> } | undefined)?.lock?.('landscape')?.catch(() => {}) } catch { /* fine */ } }
+    if (el?.requestFullscreen) {
+      el.requestFullscreen().then(() => { setFull('real'); landscape() }).catch(() => setFull('fake'))
+    } else if (el?.webkitRequestFullscreen) {
+      try { el.webkitRequestFullscreen(); setFull('real'); landscape() } catch { setFull('fake') }
+    } else setFull('fake')
+  }
+  const fullRef = useRef(full)
+  fullRef.current = full
   useEffect(() => {
-    const on = () => setFull(document.fullscreenElement === box.current)
+    /* Leaving the browser's full screen (Esc, the phone's back) ends ours. */
+    const on = () => { if (!document.fullscreenElement && fullRef.current === 'real') setFull(null) }
     document.addEventListener('fullscreenchange', on)
     return () => document.removeEventListener('fullscreenchange', on)
   }, [])
   /* THE KEYBOARD SAYS THE SAME AS THE BUTTONS: space or K plays and pauses,
-     left or J goes back 10 seconds, Home or 0 starts again, F is full screen.
-     Right, L and End do nothing -- they are swallowed, not passed on. */
+     left or J goes back 10 seconds, Home or 0 starts again, F is full screen,
+     Esc leaves it. Right, L and End are swallowed: nothing goes forward. */
   useEffect(() => {
     if (!locked) return
     const key = (e: KeyboardEvent) => {
@@ -156,11 +173,12 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children }
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
       const k = e.key.toLowerCase()
+      if (k === 'escape') { if (fullRef.current === 'fake') setFull(null); return }
       const act: Record<string, () => void> = {
         ' ': () => fns.current.toggle(), k: () => fns.current.toggle(),
         arrowleft: () => fns.current.back(), j: () => fns.current.back(),
         home: () => fns.current.restart(), '0': () => fns.current.restart(),
-        f: flip, arrowright: () => {}, l: () => {}, end: () => {},
+        f: () => (fullRef.current ? exit() : enter()), arrowright: () => {}, l: () => {}, end: () => {},
       }
       if (!act[k]) return
       if (t && t.tagName === 'BUTTON' && k === ' ') return // a focused button presses itself
@@ -168,23 +186,49 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children }
     }
     document.addEventListener('keydown', key)
     return () => document.removeEventListener('keydown', key)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked])
+  /* A TAP PLAYS OR PAUSES; TWO QUICK TAPS GO BACK 10 SECONDS, as phone
+     players do. The single tap waits a moment to be sure it was not the
+     first of two. */
+  const tap = useRef<{ at: number; timer: number }>({ at: 0, timer: 0 })
+  const onTap = () => {
+    const now = Date.now(), t = tap.current
+    if (now - t.at < 300) {
+      window.clearTimeout(t.timer); t.at = 0
+      fns.current.back(); setHint(true); window.setTimeout(() => setHint(false), 700)
+      return
+    }
+    t.at = now
+    t.timer = window.setTimeout(() => fns.current.toggle(), 260)
+  }
   if (!locked) return <>{children}</>
   const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium text-foreground hover:bg-muted'
   return (
-    <div ref={box} className={full ? 'flex h-full w-full flex-col items-center justify-center gap-3 bg-black p-3' : 'space-y-2'}>
-      <div className="relative w-full" style={full ? { width: 'min(100%, calc((100vh - 88px) * 16 / 9))' } : undefined}>
+    <div ref={box} className={full ? 'fixed inset-0 z-[1000] flex items-center justify-center bg-black' : 'space-y-2'}>
+      <div className="relative w-full" style={full ? { width: 'min(100vw, calc(100dvh * 16 / 9))' } : undefined}>
         {children}
-        {/* Over the player: a click plays or pauses, and the player itself never
-            takes focus, so its own keys never see a press. */}
-        <button type="button" aria-label={playing ? 'Pause' : 'Play'} tabIndex={-1} onClick={toggle} className="absolute inset-0 h-full w-full cursor-pointer bg-transparent" />
+        {/* Over the player: taps come here, and the player itself never takes
+            focus, so its own controls and keys never see a press. */}
+        <button type="button" aria-label={playing ? 'Pause (double tap: back 10 seconds)' : 'Play (double tap: back 10 seconds)'} tabIndex={-1} onClick={onTap}
+          className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation bg-transparent [-webkit-tap-highlight-color:transparent]" />
+        {hint && <span aria-hidden className="pointer-events-none absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 px-3 py-2 text-[14px] font-semibold text-white"><Undo2 className="mr-1 inline size-4" />10s</span>}
       </div>
-      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-2 sm:justify-start">
-        <button type="button" className={b} onClick={toggle}>{playing ? <><Pause className="size-4" aria-hidden /> Pause</> : <><Play className="size-4" aria-hidden /> Play</>}</button>
-        <button type="button" className={b} onClick={back}><Undo2 className="size-4" aria-hidden /> Back 10s</button>
-        <button type="button" className={b} onClick={restart}><RotateCcw className="size-4" aria-hidden /> Start again</button>
-        <button type="button" className={b} onClick={flip}>{full ? <><Minimize className="size-4" aria-hidden /> Exit full screen</> : <><Maximize className="size-4" aria-hidden /> Full screen</>}</button>
-      </div>
+      {/* In full screen: the way back out, and nothing else. */}
+      {full && (
+        <button type="button" onClick={exit} aria-label="Exit full screen"
+          className="absolute left-3 top-3 z-10 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/60 px-4 text-[15px] font-medium text-white">
+          <ChevronLeft className="size-5" aria-hidden /> Back
+        </button>
+      )}
+      {!full && (
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-2 sm:justify-start">
+          <button type="button" className={b} onClick={toggle}>{playing ? <><Pause className="size-4" aria-hidden /> Pause</> : <><Play className="size-4" aria-hidden /> Play</>}</button>
+          <button type="button" className={b} onClick={back}><Undo2 className="size-4" aria-hidden /> Back 10s</button>
+          <button type="button" className={b} onClick={restart}><RotateCcw className="size-4" aria-hidden /> Start again</button>
+          <button type="button" className={b} onClick={enter}><Maximize className="size-4" aria-hidden /> Full screen</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -370,10 +414,10 @@ export function YouTubeLesson({
            an ordinary state rather than an error. */
         <div className="rounded-[14px] border bg-muted/40 p-4">
           <p className="text-[14px]">{failed}.</p>
-          <a href={href} target="_blank" rel="noreferrer"
+          {!track && <a href={href} target="_blank" rel="noreferrer"
              className="mt-1 inline-flex items-center gap-1.5 text-[14px] font-medium text-primary underline">
             Watch it on YouTube <ExternalLink className="size-3.5" />
-          </a>
+          </a>}
         </div>
       ) : !agreed ? (
         <div className="rounded-[14px] border bg-muted/30 p-4" style={{ minHeight: 180 }}>
@@ -405,14 +449,15 @@ export function YouTubeLesson({
           </div>
         </LockedFrame>
       )}
-      {/* Attribution and the way out to the source, always on the page. */}
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
+      {/* Attribution and the way out to the source -- for staff only. A student
+          sees the video and nothing that leads off to YouTube (owner, 2026-10-10). */}
+      {!track && <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
         {channel ? <span>On YouTube by <span className="font-medium text-foreground">{channel}</span></span> : <span>Hosted on YouTube</span>}
         <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">
           {listId && !videoId ? 'Open the playlist' : 'Watch on YouTube'} <ExternalLink className="size-3" />
         </a>
         {title ? <span className="sr-only">{title}</span> : null}
-      </p>
+      </p>}
     </div>
   )
 }
