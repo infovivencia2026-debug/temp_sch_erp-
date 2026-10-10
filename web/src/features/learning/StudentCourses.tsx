@@ -92,25 +92,26 @@ function Stars({ pct, label }: { pct: number; label: string }) {
 function ArrowBar({ children, label }: { children: ReactNode; label: string }) {
   return (
     <nav aria-label={label}
-      className="sticky bottom-[calc(var(--dock-reserve,env(safe-area-inset-bottom,0px))+8px)] z-20 -mx-1 mt-2 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 rounded-2xl border bg-card/95 p-1.5 shadow-lg backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+      className="sticky bottom-[calc(var(--dock-reserve,env(safe-area-inset-bottom,0px))+8px)] z-20 -mx-1 mt-3 flex items-center justify-between gap-2 rounded-full border bg-card/95 p-1.5 shadow-lg backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
       {children}
     </nav>
   )
 }
-const ARROW = 'h-auto min-h-[56px] w-full gap-2 whitespace-normal rounded-xl px-3 py-2 text-[17px] font-semibold'
+/* Compact pills, not full-width slabs (owner, 2026-10-10: "long big buttons look ugly"). */
+const ARROW = 'h-auto min-h-[44px] w-auto max-w-full gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-[15px] font-semibold'
 function BackBtn({ onClick, sub }: { onClick: () => void; sub?: string }) {
   return (
     <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'justify-start text-left')}>
-      <ArrowLeft className="h-6 w-6 shrink-0" aria-hidden />
-      <span className="min-w-0"><span className="block">Back</span>{sub && <span className="block truncate text-[13px] font-normal text-muted-foreground">{sub}</span>}</span>
+      <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden />
+      <span className="min-w-0"><span className="block">Back</span>{sub && <span className="block truncate text-[12px] font-normal text-muted-foreground">{sub}</span>}</span>
     </Button>
   )
 }
 const NextBtn = ({ onClick, label, sub, locked, hot, btnRef }: { onClick: () => void; label: string; sub?: string; locked?: boolean; hot?: boolean; btnRef?: Ref<HTMLSpanElement> }) => (
-  <span ref={btnRef} className="block min-w-0"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
-    className={cn(ARROW, 'justify-end text-right', hot && !locked && 'ring-4 ring-primary/25')}>
-    <span className="min-w-0"><span className="block">{label}</span>{sub && <span className={cn('block truncate text-[13px] font-normal', hot && !locked ? 'opacity-85' : 'text-muted-foreground')}>{sub}</span>}</span>
-    {locked ? <Lock className="h-6 w-6 shrink-0" aria-hidden /> : <ArrowRight className="h-6 w-6 shrink-0" aria-hidden />}
+  <span ref={btnRef} className="ml-auto block min-w-0 max-w-[60%]"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
+    className={cn(ARROW, 'justify-end text-right', hot && !locked && 'ring-2 ring-primary/20')}>
+    <span className="min-w-0"><span className="block">{label}</span>{sub && <span className={cn('block truncate text-[12px] font-normal', hot && !locked ? 'opacity-85' : 'text-muted-foreground')}>{sub}</span>}</span>
+    {locked ? <Lock className="h-5 w-5 shrink-0" aria-hidden /> : <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />}
   </Button></span>
 )
 
