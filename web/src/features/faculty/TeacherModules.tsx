@@ -584,6 +584,24 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   const [publish, setPublish] = useState<'now' | 'draft' | 'schedule'>(lesson ? (!lesson.is_published ? 'draft' : lesson.publish_at && lesson.publish_at > nowIso() ? 'schedule' : 'now') : 'now')
   const [when, setWhen] = useState(toLocal(lesson?.publish_at))
   const [onlyHere, setOnlyHere] = useState(false)
+  /* THE TEACHER'S OWN WORDS ABOUT THE VIDEO, and who made it.
+
+     key_points is what the class should take away, written by the teacher.
+     It is deliberately not generated: a summary derived from somebody
+     else's recording, or from its captions, is derived from their work, and
+     this product does not make one. The child writes their own notes under
+     the player; this is the other half of that pair.
+
+     yt_channel is attribution. The server stores the video id and nothing
+     else -- no title, no thumbnail, no description, because YouTube's terms
+     cap how long its metadata may be cached -- so the uploader's name is
+     typed here once and shown beside the player. */
+  const [keyPoints, setKeyPoints] = useState(lesson?.key_points ?? '')
+  const [channel, setChannel] = useState(lesson?.yt_channel ?? '')
+  /* Only a YouTube address grows the two extra boxes. Matched loosely on
+     purpose: the server decides what is really a YouTube id, this only
+     decides whether to offer the fields. */
+  const isYouTube = /(?:youtube\.com|youtu\.be)\//i.test(url)
   const fileKind = kind === 'pdf' || kind === 'file' || kind === 'image' || kind === 'audio' || kind === 'doc'
   const lib = kind === 'video' && vsrc !== 'link'
   const save = useMutation({
@@ -592,12 +610,28 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
         unit_id: u.id, title, kind, body, url: lib ? '' : fileKind && file ? '' : url, video_id: lib ? video : undefined, file_id: fileKind ? file?.id ?? null : null,
         duration_minutes: mins ? Number(mins) : null, is_published: publish !== 'draft', publish_at: publish === 'schedule' && when ? new Date(when).toISOString() : null,
         day: day ? Number(day) : null, section, is_optional: optional,
+        /* Always sent, so clearing the box clears the field. The server
+           only replaces key_points when the key is present, which keeps a
+           screen that has no such box from wiping what was written here. */
+        key_points: keyPoints, yt_channel: channel,
       }
       return lesson ? api.put(`/api/v1/lms/lessons/${lesson.id}`, b) : api.post('/api/v1/lms/lessons', { ...b, section_id: onlyHere ? d.course.section_id : undefined })
     },
     onSuccess: done,
   })
   const ready = title.trim() && (kind === 'text' ? body.trim() : kind === 'link' ? url.trim() : kind === 'video' ? (lib ? video : url.trim()) : file || url.trim())
+  /* Rendered by the form below, kept here so the markup stays one line of
+     intent rather than twenty of layout. */
+  const youTubeFields = isYouTube ? (
+    <>
+      <Field label="Whose channel is it?" hint="Shown under the player so the uploader is credited. The school stores only the video's id, never its title or thumbnail.">
+        <Input value={channel} onChange={setChannel} placeholder="e.g. Khan Academy India" />
+      </Field>
+      <Field label="Key points" hint="Your own words — what this class should take from the video. Not a summary of it.">
+        <Textarea value={keyPoints} onChange={setKeyPoints} rows={4} placeholder="Three or four things to watch for…" />
+      </Field>
+    </>
+  ) : null
   return (
     <div className="space-y-4 p-3 sm:p-4">
       <p className="text-[14px] font-semibold">{lesson ? `Edit: ${lesson.title}` : ADD_TITLE[kind]}</p>
@@ -624,6 +658,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
         </div>
       )}
       {kind !== 'text' && <Field label="A note for the class" hint="Optional. Shown with the source."><Textarea rows={2} value={body} onChange={setBody} /></Field>}
+      {youTubeFields}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Day"><Select value={day} onChange={setDay} options={dayOptions(d, u)} /></Field>
         <Field label="Section"><Select value={section} onChange={setSection} options={sectionOptions} /></Field>

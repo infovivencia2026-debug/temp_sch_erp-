@@ -142,6 +142,7 @@ export function registerPortalLMS(r: Router) {
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
       c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
           l.url, l.sequence, l.day, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.publish_at, p.completed_at, vw.last_at AS viewed_at, max(COALESCE(l.publish_at, l.created_at), l.created_at) AS released_at,
+          l.yt_video_id, l.yt_playlist_id, l.yt_channel, l.key_points,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           vp.position_seconds AS video_position, vp.percent AS video_percent, vp.watched AS video_watched, vp.bucket_seconds AS video_bucket
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
@@ -283,6 +284,90 @@ export function registerPortalLMS(r: Router) {
     await c.db.prepare(`INSERT INTO lms_lesson_views (institution_id, lesson_id, student_id, first_at, last_at) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (lesson_id, student_id) DO UPDATE SET last_at = excluded.last_at`).bind(institutionId(c), l.id, own.id, t, t).run()
     return ok({ recorded: true })
+  })
+
+  /* A CHILD'S OWN NOTES ON A LESSON.
+
+     Private by construction. Every statement below filters on
+     `user_id = c.id.userId` as well as the lesson, so there is no shape of
+     request -- not another child's id, not a parent's -- that returns
+     somebody else's writing. A parent reading their child's course can see
+     the lesson; these are the child's own words and they cannot.
+
+     The lesson is checked for visibility the same way as /view and
+     /complete before anything is read or written: a note against a lesson
+     this account cannot open would be a way to confirm that lesson exists.
+
+     at_seconds pins a note to the second of the video it was taken at. It
+     is optional, because a note about the whole lesson is as real as one
+     about 4:12, and it is clamped to a sane range rather than trusted. */
+  const noteLesson = async (c: Ctx) => {
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const own = await c.db.prepare(`SELECT id FROM students WHERE user_id = ? AND status = 'active'`)
+      .bind(c.id.userId).first<{ id: string }>()
+    if (!own) throw notFound()
+    const k = await classroom(c, own.id)
+    const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
+    if (!l) throw notFound()
+    return l.id
+  }
+  /** Whole seconds inside a day, or nothing. */
+  const atSeconds = (v: unknown): number | null => {
+    if (v === null || v === undefined || v === '') return null
+    const n = Math.floor(Number(v))
+    return Number.isFinite(n) && n >= 0 && n < 86_400 ? n : null
+  }
+  const noteBody = (v: unknown): string => {
+    const t = typeof v === 'string' ? v.trim() : ''
+    if (!t) throw badRequest('a note needs something in it')
+    // Long enough for a paragraph a child actually writes, short enough that
+    // the column is not a dumping ground.
+    return t.slice(0, 4000)
+  }
+
+  r.get('/portal/lms/lessons/{id}/notes', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const rows = await c.db.prepare(`SELECT id, at_seconds, body, created_at, updated_at
+        FROM lms_lesson_notes WHERE lesson_id = ? AND user_id = ?
+        ORDER BY at_seconds IS NULL, at_seconds, created_at`)
+      .bind(lessonId, c.id.userId).all()
+    return ok({ items: rows.results })
+  })
+
+  r.post('/portal/lms/lessons/{id}/notes', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const b = await readJSON<Body>(c.req)
+    const id = uuid()
+    const t = now()
+    await c.db.prepare(`INSERT INTO lms_lesson_notes (id, institution_id, lesson_id, user_id, at_seconds, body, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), lessonId, c.id.userId, atSeconds(b.at_seconds), noteBody(b.body), t, t).run()
+    return ok({ id, at_seconds: atSeconds(b.at_seconds), body: noteBody(b.body), created_at: t, updated_at: t })
+  })
+
+  r.patch('/portal/lms/lessons/{id}/notes/{noteId}', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const noteId = str(c.params.noteId)
+    if (!isUUID(noteId)) throw notFound()
+    const b = await readJSON<Body>(c.req)
+    const t = now()
+    const res = await c.db.prepare(`UPDATE lms_lesson_notes SET body = ?, updated_at = ?
+        WHERE id = ? AND lesson_id = ? AND user_id = ?`)
+      .bind(noteBody(b.body), t, noteId, lessonId, c.id.userId).run()
+    if (!res.meta.changes) throw notFound()
+    return ok({ id: noteId, updated_at: t })
+  })
+
+  r.del('/portal/lms/lessons/{id}/notes/{noteId}', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const noteId = str(c.params.noteId)
+    if (!isUUID(noteId)) throw notFound()
+    const res = await c.db.prepare(`DELETE FROM lms_lesson_notes WHERE id = ? AND lesson_id = ? AND user_id = ?`)
+      .bind(noteId, lessonId, c.id.userId).run()
+    if (!res.meta.changes) throw notFound()
+    return ok({ deleted: true })
   })
 
   r.post('/portal/lms/lessons/{id}/complete', PERM, async (c) => {

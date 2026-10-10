@@ -5,6 +5,8 @@ import {
   BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
 } from 'lucide-react'
 import { VideoPlayer, fmtDur } from './VideoPlayer'
+import { YouTubeLesson, type YTPlayer } from './YouTubeLesson'
+import { LessonNotes, KeyPoints } from './LessonNotes'
 
 /* Pieces both sides of the LMS use: the teacher's (faculty/TeacherLMS.tsx,
    faculty/TeacherModules.tsx) and the child's (learning/StudentCourses.tsx).
@@ -32,6 +34,10 @@ export interface Lesson {
   section?: Section; is_optional?: boolean
   /* The child's view: on a locked day, or not out yet (no content either way). */
   locked?: boolean; scheduled?: boolean
+  /* A YouTube video or playlist, kept as ids and nothing else (migration
+     0072). The teacher's own key points sit beside them; nothing here is
+     generated from the video. */
+  yt_video_id?: string | null; yt_playlist_id?: string | null; yt_channel?: string | null; key_points?: string | null
   /* A library video (worker routes/teaching/videos.ts) instead of a link. */
   video_id?: string | null; video_title?: string | null; video_duration?: number | null; video_thumb?: number | boolean | null; video_type?: string | null
   video_position?: number | null; video_percent?: number | null; video_watched?: string | null; video_bucket?: number | null
@@ -318,10 +324,25 @@ function DownloadCard({ l, label = 'Download' }: { l: Lesson; label?: string }) 
 /** The body of a source: the player, the inline PDF, the reader, the picture, or a download.
     `track` saves the child's place in a library video (their own login only). */
 export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boolean; onFinished?: () => void }) {
-  const embed = l.kind === 'video' && l.url ? embedOf(l.url) : null
+  /* YOUTUBE GOES THROUGH THE REAL PLAYER, NOT A BARE IFRAME.
+
+     embedOf still exists for Vimeo and for lessons saved before migration
+     0072 wrote the ids down. Where we have an id, YouTubeLesson is used
+     instead: same nocookie host, but it also loads YouTube's own API, which
+     is the only sanctioned way to read the playhead -- and reading the
+     playhead is what makes a note say 4:12 instead of nothing. */
+  const yt = l.yt_video_id || l.yt_playlist_id ? { v: l.yt_video_id, list: l.yt_playlist_id } : null
+  const [player, setPlayer] = useState<YTPlayer | null>(null)
+  const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
   const note = l.kind !== 'text' && l.body ? <NotesView text={l.body} /> : null
   return (
     <div className="space-y-4 text-[14px]">
+      {yt && (
+        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
+      )}
+      {/* The teacher's words, above the child's. Shown to anybody who can see
+          the lesson, including a parent reading over a shoulder. */}
+      {l.key_points ? <KeyPoints text={l.key_points} /> : null}
       {l.kind === 'text' && (l.body ? <NotesView text={l.body} /> : <p className="text-muted-foreground">These notes are empty.</p>)}
       {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
       {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this source has been removed from the library.</p>}
@@ -366,6 +387,12 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
         </a>
       )}
       {note && <div className="rounded-lg border bg-muted/20 p-3">{note}</div>}
+      {/* `track` is this product's existing word for "the child's own login",
+          which is exactly who may keep private notes: a parent reading the
+          course sees the lesson and the teacher's key points, not their
+          child's notebook, and a teacher previewing their own lesson is not
+          a student of it. */}
+      {track && <LessonNotes lessonId={l.id} player={player} />}
     </div>
   )
 }

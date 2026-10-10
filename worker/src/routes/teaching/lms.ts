@@ -204,6 +204,7 @@ export function registerLMS(r: Router) {
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
           l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional,
+          l.yt_video_id, l.yt_playlist_id, l.yt_channel, l.key_points,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           (SELECT count(*) FROM lms_lesson_progress p JOIN enrollments e ON e.student_id = p.student_id AND e.section_id = ? AND e.status = 'active' WHERE p.lesson_id = l.id) AS completed
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id LEFT JOIN lms_videos v ON v.id = l.video_id
@@ -370,11 +371,64 @@ export function registerLMS(r: Router) {
     return ok({ id: u.id, retired: true })
   })
 
+  /* YOUTUBE, FROM WHATEVER THE TEACHER PASTED.
+
+     A teacher copies the address out of the browser bar, and that address
+     comes in five shapes: youtu.be/ID, /watch?v=ID, /watch?v=ID&list=PL,
+     /playlist?list=PL, /embed/ID and /shorts/ID. All of them are the same
+     two facts -- a video id, a playlist id, or both -- and the player needs
+     only those.
+
+     The ID IS ALL THAT IS KEPT. Not the title, not the thumbnail, not the
+     duration: YouTube's terms cap how long its metadata may be cached, and
+     a school database quietly mirroring somebody's catalogue is what those
+     terms exist to stop. The lesson keeps the teacher's own title, as it
+     always has, and the player fetches the rest from YouTube at the moment
+     of watching.
+
+     Ids are checked against their own alphabet rather than trusted. A video
+     id is eleven characters of [A-Za-z0-9_-]; a playlist id is longer and
+     from the same set. Anything else and this is not a YouTube link, and
+     the lesson stays the plain link it already was -- no error, because a
+     teacher pasting a Khan Academy page has done nothing wrong. */
+  const YT_ID = /^[A-Za-z0-9_-]{11}$/
+  const YT_LIST = /^[A-Za-z0-9_-]{12,64}$/
+  const parseYouTube = (url: string | null): { video: string | null; list: string | null } => {
+    if (!url) return { video: null, list: null }
+    let u: URL
+    try { u = new URL(url) } catch { return { video: null, list: null } }
+    const host = u.hostname.replace(/^www\./, '').toLowerCase()
+    const isYT = host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com' || host === 'youtu.be'
+    if (!isYT) return { video: null, list: null }
+    let video: string | null = null
+    if (host === 'youtu.be') video = u.pathname.slice(1).split('/')[0] || null
+    else if (u.pathname === '/watch') video = u.searchParams.get('v')
+    else {
+      const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([^/?#]+)/)
+      if (m) video = m[2]
+    }
+    const list = u.searchParams.get('list')
+    return {
+      video: video && YT_ID.test(video) ? video : null,
+      list: list && YT_LIST.test(list) ? list : null,
+    }
+  }
+
   const lessonFields = (b: Body) => {
     const kind = str(b.kind) || 'text'
     if (!LESSON_KINDS.has(kind)) throw badRequest('kind must be text, file, pdf, video, link, image, audio or doc')
     const url = optStr(b.url)
     if (url && !/^https?:\/\//i.test(url)) throw badRequest('a link must start with http:// or https://')
+    const yt = parseYouTube(url)
+    /* Attribution, not metadata: the channel's name is shown beside the
+       player so the uploader is credited. The teacher types it; nothing
+       scrapes it, and it is allowed to be empty. */
+    const ytChannel = (optStr(b.yt_channel) ?? '').slice(0, 120) || null
+    /* THE TEACHER'S OWN WORDS. Not a summary of the video -- a summary
+       derived from somebody else's recording, or from its captions, is
+       derived from their work. This is what the teacher wants their class
+       to take away, written by the teacher. */
+    const keyPoints = (optStr(b.key_points) ?? '').slice(0, 4000) || null
     const fileId = optStr(b.file_id)
     if (fileId && !isUUID(fileId)) throw badRequest('file_id must be a uuid')
     const videoId = kind === 'video' ? optStr(b.video_id) : null
@@ -401,7 +455,11 @@ export function registerLMS(r: Router) {
     }
     if (b.section !== undefined && b.section !== null && b.section !== '' && !asSection(b.section)) throw badRequest('section must be prereq, resources, tools or assessment')
     return { kind, url: videoId ? null : url, fileId, videoId: videoId ? videoId.toLowerCase() : null, day, publishAt, minutes, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null,
-      section: asSection(b.section) ?? 'resources', optional: b.is_optional === true ? 1 : 0 }
+      section: asSection(b.section) ?? 'resources', optional: b.is_optional === true ? 1 : 0,
+      /* Null when the library video wins: a lesson is one thing to watch,
+         and a lesson carrying both a file in our own library and somebody
+         else's embed is two lessons wearing one title. */
+      ytVideo: videoId ? null : yt.video, ytList: videoId ? null : yt.list, ytChannel, keyPoints }
   }
 
   r.post('/lms/lessons', P, async (c) => {
@@ -422,10 +480,11 @@ export function registerLMS(r: Router) {
     const published = b.is_published === false ? 0 : 1
     const id = uuid(), t = now()
     /* At the end of the module, after its sources, assignments and quizzes. */
-    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id, duration_minutes, section, is_optional)
+    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id, duration_minutes, section, is_optional, yt_video_id, yt_playlist_id, yt_channel, key_points)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(COALESCE((SELECT max(sequence) FROM lms_lessons WHERE unit_id = ?), 0), COALESCE((SELECT max(lms_sequence) FROM homework WHERE lms_unit_id = ?), 0),
-          COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, u.id, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId, f.minutes, f.section, f.optional)]
+          COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, u.id, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId, f.minutes, f.section, f.optional,
+        f.ytVideo, f.ytList, f.ytChannel, f.keyPoints)]
     /* A scheduled lesson is announced by nobody: the child finds it on the day. */
     if (published && (!f.publishAt || f.publishAt <= t)) {
       const secs = sectionId ? [sectionId] : (await c.db.prepare(`SELECT id FROM sections WHERE class_id = ?`).bind(u.class_id).all<{ id: string }>()).results.map((x) => x.id)
@@ -458,9 +517,15 @@ export function registerLMS(r: Router) {
     const had = await c.db.prepare(`SELECT video_id FROM lms_lessons WHERE id = ?`).bind(l.id).first<{ video_id: string | null }>()
     if (f.videoId && f.videoId !== had?.video_id) f.videoId = await checkLessonVideo(c, f.videoId)
     await c.db.prepare(`UPDATE lms_lessons SET title = ?, kind = ?, body = ?, file_id = ?, url = ?, video_id = ?, day = ?, publish_at = ?, is_published = COALESCE(?, is_published),
-        sequence = COALESCE(?, sequence), duration_minutes = ?, section = COALESCE(?, section), is_optional = COALESCE(?, is_optional), updated_at = ? WHERE id = ?`)
+        sequence = COALESCE(?, sequence), duration_minutes = ?, section = COALESCE(?, section), is_optional = COALESCE(?, is_optional),
+        yt_video_id = ?, yt_playlist_id = ?, yt_channel = ?,
+        /* Key points are only replaced when the editor sent the field.
+           A screen that saves a lesson without the notes box on it must not
+           wipe what the teacher wrote on another screen. */
+        key_points = CASE WHEN ? THEN ? ELSE key_points END, updated_at = ? WHERE id = ?`)
       .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.videoId, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
-        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, b.section === undefined ? null : f.section, typeof b.is_optional === 'boolean' ? f.optional : null, now(), l.id).run()
+        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, b.section === undefined ? null : f.section, typeof b.is_optional === 'boolean' ? f.optional : null,
+        f.ytVideo, f.ytList, f.ytChannel, b.key_points === undefined ? 0 : 1, f.keyPoints, now(), l.id).run()
     return ok({ id: l.id })
   })
 
