@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
+  Play,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Textarea } from '@/components/ui'
@@ -692,22 +694,74 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   )
 }
 
-/** One video or source: who in the section has finished it, and who has not. */
-function WhoDone({ d, id }: { d: CourseDetail; id: string }) {
+/** One video or source: who in the section has finished it, and who has not.
+
+    THE OWNER'S TRACKER (2026-10-10, "Task Tracker" design): a header with
+    the source and a progress bar, Pending / Completed tabs, and one row per
+    child -- initials, name, class and section, and a status badge. No
+    reminders from here ("no need of remind"). */
+function WhoDone({ d, id, title, meta }: { d: CourseDetail; id: string; title: string; meta: string }) {
   const q = useQuery({
     queryKey: ['lms-lesson-progress', id, d.course.section_id],
     queryFn: () => api.get<{ items: { student_id: string; full_name: string; roll_no?: number | null; completed_at?: string | null }[] }>(`/api/v1/lms/lessons/${id}/progress?section_id=${d.course.section_id}`),
   })
+  const [tab, setTab] = useState<'pending' | 'done'>('pending')
   if (q.error) return <div className="px-[var(--card-pad)] pb-2"><ErrorState error={q.error} /></div>
   if (!q.data) return <Loading />
-  const done = q.data.items.filter((x) => x.completed_at), left = q.data.items.filter((x) => !x.completed_at)
-  const list = (xs: typeof done, when: boolean) => xs.length ? (
-    <ul className="space-y-1">{xs.map((x) => <li key={x.student_id} className="flex justify-between gap-2 text-[14px]"><span>{x.roll_no ? `${x.roll_no}. ` : ''}{x.full_name}</span>{when && x.completed_at && <span className="text-[13px] text-muted-foreground">{fmtWhen(x.completed_at)}</span>}</li>)}</ul>
-  ) : <p className="text-[13px] text-muted-foreground">Nobody.</p>
+  const all = q.data.items
+  const done = all.filter((x) => x.completed_at), left = all.filter((x) => !x.completed_at)
+  const pct = all.length ? Math.round((100 * done.length) / all.length) : 0
+  const cls = [d.course.class_name, d.course.section_name].filter(Boolean).join(' · ')
+  const rows = tab === 'done' ? done : left
+  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?'
   return (
-    <div className="mx-[var(--card-pad)] mb-2 grid gap-4 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2">
-      <div><p className="mb-1 text-[13px] font-medium">Finished ({done.length})</p>{list(done, true)}</div>
-      <div><p className="mb-1 text-[13px] font-medium">Not yet ({left.length})</p>{list(left, false)}</div>
+    <div className="mx-[var(--card-pad)] mb-3 overflow-hidden rounded-xl border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#fee2e2] text-[#ef4444]"><Play className="size-4 fill-current" aria-hidden /></span>
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold">{title}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{meta}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-200" title={`${pct}% completed`}>
+            <div className="h-full rounded-full bg-[#16a34a]" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-[13px] font-semibold text-muted-foreground">{done.length} / {all.length} completed</span>
+        </div>
+      </div>
+      <div className="flex gap-2 border-b bg-[#fafafa] px-5 py-3 dark:bg-muted/30">
+        {(['pending', 'done'] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t}
+            className={cn('rounded-md border px-3 py-1.5 text-[13px] font-medium transition-colors',
+              tab === t ? 'border-border bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {t === 'pending' ? `Pending (${left.length})` : `Completed (${done.length})`}
+          </button>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-5 py-6 text-center text-[13.5px] text-muted-foreground">{tab === 'pending' ? 'Everyone has finished this.' : 'Nobody has finished this yet.'}</p>
+      ) : (
+        <ul className="max-h-[420px] overflow-y-auto">
+          {rows.map((x) => (
+            <li key={x.student_id} className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 transition-colors last:border-b-0 hover:bg-slate-50 dark:border-border dark:hover:bg-muted/30">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e0e7ff] text-[12px] font-semibold text-[#4338ca]">{initials(x.full_name)}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-medium">{x.full_name}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{cls}{x.roll_no ? ` · Roll ${x.roll_no}` : ''}</p>
+                </div>
+              </div>
+              {x.completed_at ? (
+                <span className="shrink-0 rounded px-2 py-0.5 text-[12px] font-medium text-[#166534] bg-[#dcfce7]" title={fmtWhen(x.completed_at)}>Completed · {fmtWhen(x.completed_at)}</span>
+              ) : (
+                <span className="shrink-0 rounded bg-[#fef3c7] px-2 py-0.5 text-[12px] font-medium text-[#92400e]">Pending</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -749,7 +803,7 @@ function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Uni
         </button>
         {arrows}
       </div>
-      {open === 'who' && <WhoDone d={d} id={it.id} />}
+      {open === 'who' && <WhoDone d={d} id={it.id} title={it.title} meta={it.type === 'lesson' && it.lesson ? sourceMeta(it.lesson) : ''} />}
       {open === 'menu' && <ItemActions d={d} u={u} it={it} refresh={refresh} onTab={onTab} onEdit={() => setOpen('edit')} close={() => setOpen(null)} />}
       {open === 'edit' && it.lesson && <div className="mx-[var(--card-pad)] mb-2 rounded-lg border bg-muted/20"><SourceForm kind={it.lesson.kind} u={u} d={d} day={it.day} section={it.section} lesson={it.lesson} done={() => { setOpen(null); refresh() }} /></div>}
       {open === 'preview' && (
