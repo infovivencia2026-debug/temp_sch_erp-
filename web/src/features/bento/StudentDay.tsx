@@ -172,7 +172,7 @@ export function StudentDayBoard() {
     queryKey: ['portal-lms-home', 'self'],
     queryFn: () => api.get<LmsHome>('/api/v1/portal/lms/home'),
   })
-  const toCourses = useFeatureHref('student.learning.courses_subjects')
+  const toCourses = useFeatureHref('student.learning.e_learning_resource_hub')
   const toResults = useFeatureHref('student.exams_results.exams_grades')
   if (children.isLoading || summary.isLoading || register.isLoading) {
     return <BentoLoading message={t('bento.student_day.loading')} />

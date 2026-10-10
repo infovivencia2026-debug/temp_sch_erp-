@@ -58,7 +58,7 @@ export default function StudentHome() {
   const qc = useQueryClient()
   const toTimetable = useFeatureHref('student.timetable.timetable')
   const toHomework = useFeatureHref('student.homework.homework_assignments')
-  const toCourses = useFeatureHref('student.learning.courses_subjects')
+  const toCourses = useFeatureHref('student.learning.e_learning_resource_hub')
   const toAttendance = useFeatureHref('student.attendance.attendance')
   const toResults = useFeatureHref('student.exams_results.exams_grades')
 
