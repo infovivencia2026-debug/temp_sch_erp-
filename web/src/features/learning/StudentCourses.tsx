@@ -507,13 +507,15 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                 )}
                 {mySharedItems.length > 0 && (
                   <li className="relative flex gap-3">
-                    <span className="relative z-[1] grid h-14 w-14 shrink-0 place-items-center rounded-full border-2 border-primary/40 bg-card text-primary"><Share2 className="h-6 w-6" aria-hidden /></span>
+                    <span className={cn('relative z-[1] grid shrink-0 place-items-center rounded-full border-2 border-primary/40 bg-card text-primary', DOT_W)}><Share2 className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden /></span>
                     <button type="button" onClick={() => toModule(SHARED)} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
                       <span className="min-w-0 flex-1">
                         <span className="block text-[18px] font-semibold">Shared by your teacher</span>
                         <span className="block text-[15px] text-muted-foreground">{mySharedItems.length} thing{mySharedItems.length === 1 ? '' : 's'}{mySharedItems.some((r) => !r.seen) ? ` · ${mySharedItems.filter((r) => !r.seen).length} new` : ''}</span>
                       </span>
-                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                      {/* The last row on the path was still a bare arrow
+                          while every row above it had grown a word. */}
+                      <StepGo state={mySharedItems.some((r) => !r.seen) ? 'current' : 'open'} />
                     </button>
                   </li>
                 )}
@@ -613,7 +615,7 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
                       <span className="block text-[17px] font-semibold leading-snug [overflow-wrap:anywhere]">{k.title}</span>
                       <span className="block text-[14px] text-muted-foreground">{locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : fin ? 'All done!' : `${kd} of ${days.length} done`}</span>
                     </span>
-                    <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                    <StepGo state={fin ? 'done' : locked ? 'locked' : isHere(k) ? 'current' : 'open'} />
                   </button>
                 </li>
               )
