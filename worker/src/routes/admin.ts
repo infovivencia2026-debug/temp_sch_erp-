@@ -18,11 +18,13 @@ import { registerIntegrationsIndex } from './admin/integrations_index'
 import { registerLoose } from './admin/loose'
 import { registerSessionActivity } from './admin/session_activity'
 import { registerStudentLogins } from './admin/student_logins'
+import { registerFeatureBlocks } from './admin/feature_blocks'
 
 /* /admin and /admin/inbox of internal/api/api.go, composed from the
    modules under admin/. Platform-level reads go to CONTROL. */
 export function registerAdmin(r: Router): void {
   registerAdminUsers(r)
+  registerFeatureBlocks(r)
   registerAdminSecurity(r)
   registerPlatformConfig(r)
   registerAdminInbox(r)

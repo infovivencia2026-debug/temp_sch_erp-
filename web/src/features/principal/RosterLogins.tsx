@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { downloadLogins, printSlips } from './StudentLoginsCard'
 import { PortalFeatures } from './Logins'
+import { BulkFeatures } from './BulkFeatures'
 
 /* THE CLASS AS IT STANDS, NOT THE ACCOUNTS THAT HAPPEN TO EXIST.
  *
@@ -89,6 +90,7 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
   const [picked, setPicked] = useState<Record<string, true>>({})
   /* Whose portal features are being chosen, if any. */
   const [featuresFor, setFeaturesFor] = useState<Row | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
   /* What was issued in this sitting, by person id. The server will not say it
      twice and the page cannot ask again. */
   const [issued, setIssued] = useState<Record<string, { signIn: string; password: string }>>({})
@@ -435,6 +437,13 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
           <KeyRound className="h-3.5 w-3.5" />
           {issue.isPending ? 'Issuing…' : 'Issue selected' + (chosen.length ? ' (' + chosen.length + ')' : '')}
         </Button>
+        {/* Features off in bulk: the ticked ones, this class, or the school. */}
+        {kind !== 'staff' && (
+          <Button variant="secondary" onClick={() => setBulkOpen(true)} title="Turn features off for many at once">
+            <Sliders className="h-3.5 w-3.5" />
+            Features{chosen.length ? ' (' + chosen.length + ')' : ''}
+          </Button>
+        )}
       </div>
 
       {/* Narrow the list, and take it away. */}
@@ -718,6 +727,23 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
         })}
       </Table>
     </Card>
+    {bulkOpen && kind !== 'staff' && (
+      <BulkFeatures
+        portal={kind === 'students' ? 'student' : 'parent'}
+        selected={chosen.map((c) => ({ id: c.id, name: c.name }))}
+        here={(() => {
+          if (!target) return null
+          const sec = sections.data?.items ?? []
+          if (scope === 'section') {
+            const x = sec.find((v) => v.id === id)
+            return { scope: 'section' as const, id, name: x ? x.class_name + ' ' + x.name : 'this section' }
+          }
+          const x = sec.find((v) => v.class_id === id)
+          return { scope: 'class' as const, id, name: x ? x.class_name : 'this class' }
+        })()}
+        onClose={() => setBulkOpen(false)}
+      />
+    )}
     {featuresFor && (
       <ResolveLogin
         row={featuresFor}
