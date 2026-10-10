@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
+  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
   Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -958,62 +958,114 @@ export function CourseProgress({ d }: { d: CourseDetail }) {
   const step = new Map(g.steps.map((s, i) => [s.key, { ...s, i }]))
   const mods: { unit_id: string; module: string; n: number }[] = []
   for (const s of g.steps) { const last = mods[mods.length - 1]; if (last && last.unit_id === s.unit_id) last.n++; else mods.push({ unit_id: s.unit_id, module: s.module, n: 1 }) }
-  const short = (s: { day: number | null }) => (s.day === null ? '•' : `D${s.day}`)
+  const short = (s: { day: number | null }) => (s.day === null ? '•' : `Day ${s.day}`)
+  /* THE COHORT TRACKER, TO THE OWNER'S MOCKUP (2026-10-10, their own HTML).
+
+     WHAT WENT. A matrix: every child down the side, every day across the
+     top, a 28px box in each cell. On a three-day course that is nine boxes
+     saying "0/1" and a column headed D1, D2, D3 that only means anything
+     once you have read the legend. Every row then repeated the same
+     sentence in "Where they are", and the same "Open D2" button beside it.
+     Wide, repetitive, and hard to read a single child out of.
+
+     WHAT CAME. One line per child, read left to right: who they are and
+     how far they have got, then the days as a row of pills joined by a
+     line -- finished, the one they are on, the ones still shut -- then the
+     single thing a teacher can actually do about it, which is open the
+     next day early.
+
+     The line between two pills is green only where the day before it is
+     finished, so a glance down the column shows how far the class has
+     come without reading a number.
+
+     WHAT IS KEPT FROM OURS. Days opened early stay marked and stay
+     revocable: the mockup has no such state, but a teacher who opened a
+     day for one child needs to see that they did and be able to take it
+     back. They are the amber pills with a cross. */
+  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const modNames = [...new Set(g.steps.map((x) => x.module))]
   return (
     <Card>
-      <CardHeader title={`Where everyone is · ${g.steps.length} day${g.steps.length === 1 ? '' : 's'}`} action={<span className="text-[13px] text-muted-foreground">{g.gating === 'open' ? 'Open course: nothing is locked.' : 'One by one: a day opens when the one before is done.'}</span>} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 border-b px-[var(--card-pad)] py-2 text-[12px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-success text-white"><Check className="h-3 w-3" /></span> Done</span>
-        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-primary bg-primary/10" /> Open: done of required</span>
-        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-warning bg-warning/10" /> Opened early</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-muted"><Lock className="h-2.5 w-2.5" /></span> Locked</span>
-      </div>
+      <CardHeader
+        title={modNames.length === 1 ? `Module: ${modNames[0]}` : `${modNames.length} parts`}
+        description={`${g.steps.length}-day sequence · ${g.gating === 'open' ? 'open course, nothing is locked' : 'a day opens when the one before is done'}`}
+        action={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Done</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warning" /> In progress</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> Locked</span>
+          </div>
+        }
+      />
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13px]">
+        <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="border-b">
-              <th rowSpan={2} className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2 text-left font-medium">Student</th>
-              {mods.map((m, i) => <th key={m.unit_id + i} colSpan={m.n} className="border-l px-1 py-1.5 text-left text-[12px] font-medium text-muted-foreground"><span className="block max-w-[10rem] truncate">{m.module}</span></th>)}
-              <th rowSpan={2} className="border-l px-3 py-2 text-left font-medium">Where they are</th>
-            </tr>
-            <tr className="border-b">
-              {g.steps.map((s) => <th key={s.key} title={`${s.module} · ${s.label}`} className="px-1 py-1 text-center text-[11px] font-medium text-muted-foreground">{short(s)}</th>)}
+            <tr className="border-b bg-muted/40">
+              <th className="px-[var(--card-pad)] py-3 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Student</th>
+              <th className="px-3 py-3 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Progress</th>
+              <th className="px-[var(--card-pad)] py-3 text-right text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                {g.gating === 'open' ? '' : 'Open early'}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {g.students.map((r) => {
-              const at = r.at ? step.get(r.at) : null
               const firstLocked = r.states.findIndex((x) => x.state === 'locked')
               const nextKey = firstLocked >= 0 ? g.steps[firstLocked].key : null
+              const early = r.unlocks.filter((k) => step.has(k))
               return (
-                <tr key={r.student_id}>
-                  <td className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2">
-                    <span className="block max-w-[9rem] truncate font-medium sm:max-w-[14rem]">{r.full_name}</span>
-                    <span className="block text-[12px] text-muted-foreground">{r.days_done} of {g.steps.length} done</span>
+                <tr key={r.student_id} className="transition-colors hover:bg-muted/30">
+                  <td className="px-[var(--card-pad)] py-4">
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
+                        {initials(r.full_name)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block max-w-[11rem] truncate text-[14px] font-semibold sm:max-w-[16rem]">{r.full_name}</span>
+                        <span className="block text-[12px] text-muted-foreground">{r.days_done} of {g.steps.length} finished</span>
+                      </span>
+                    </div>
                   </td>
-                  {r.states.map((x, i) => {
-                    const s = g.steps[i]
-                    const early = r.unlocks.includes(s.key)
-                    return (
-                      <td key={s.key} className="px-1 py-2 text-center" title={`${s.module} · ${s.label}: ${x.state === 'done' ? 'done' : x.state === 'open' ? `${x.done} of ${x.total} done` : 'locked'}${early ? ' (opened early)' : ''}`}>
-                        {x.state === 'done' ? <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-success text-white"><Check className="h-3.5 w-3.5" /></span>
-                          : x.state === 'open' ? <span className={`inline-flex h-7 w-7 items-center justify-center rounded border-2 text-[10px] font-semibold tabular-nums ${early ? 'border-warning bg-warning/10' : 'border-primary bg-primary/10'}`}>{x.total ? `${x.done}/${x.total}` : ''}</span>
-                            : <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-muted text-muted-foreground"><Lock className="h-3 w-3" /></span>}
-                      </td>
-                    )
-                  })}
-                  <td className="border-l px-3 py-2">
-                    <div className="flex min-w-[14rem] flex-wrap items-center gap-2">
-                      <span className="min-w-0 flex-1">{!at ? <Badge tone="success">Finished</Badge> : <><span className="block text-[12px] text-muted-foreground">{at.module}</span><span className="block">{at.label}</span></>}</span>
+                  <td className="px-3 py-4">
+                    <div className="inline-flex items-center">
+                      {r.states.map((x, i) => {
+                        const st = g.steps[i]
+                        const wasEarly = r.unlocks.includes(st.key)
+                        const label = short(st)
+                        return (
+                          <span key={st.key} className="inline-flex items-center">
+                            {i > 0 && (
+                              <span aria-hidden className={cn('h-0.5 w-6', r.states[i - 1].state === 'done' ? 'bg-success' : 'bg-border')} />
+                            )}
+                            <span
+                              title={`${st.module} · ${st.label}: ${x.state === 'done' ? 'done' : x.state === 'open' ? `${x.done} of ${x.total} done` : 'locked'}${wasEarly ? ' (opened early)' : ''}`}
+                              className={cn('inline-flex min-w-[52px] items-center justify-center whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-semibold',
+                                x.state === 'done' ? 'border-success/40 bg-success/10 text-success'
+                                  : x.state === 'open' ? (wasEarly ? 'border-warning/50 bg-warning/10 text-warning' : 'border-warning/50 bg-warning/10 text-warning')
+                                    : 'border-border bg-muted text-muted-foreground')}>
+                              {label}{x.state === 'done' ? ' ✓' : ''}
+                            </span>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-[var(--card-pad)] py-4 text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!nextKey && <Badge tone="success">Finished</Badge>}
                       {g.gating !== 'open' && nextKey && (
-                        <Button size="sm" variant="secondary" pending={unlock.isPending && unlock.variables?.student_id === r.student_id} onClick={() => unlock.mutate({ student_id: r.student_id, key: nextKey, on: true })}>
-                          <Unlock className="h-3.5 w-3.5" /> Open {short(step.get(nextKey)!)}
+                        <Button size="sm" variant="secondary"
+                          pending={unlock.isPending && unlock.variables?.student_id === r.student_id}
+                          onClick={() => unlock.mutate({ student_id: r.student_id, key: nextKey, on: true })}>
+                          <Unlock className="h-3.5 w-3.5" /> Unlock {short(step.get(nextKey)!)}
                         </Button>
                       )}
-                      {r.unlocks.filter((k) => step.has(k)).map((k) => (
-                        <button key={k} type="button" className="inline-flex min-h-8 items-center gap-1 rounded-md bg-warning/10 px-2 text-[12px] text-warning" title="Opened early by a teacher. Press to take it back."
+                      {early.map((k) => (
+                        <button key={k} type="button"
+                          className="inline-flex min-h-8 items-center gap-1 rounded-md bg-warning/10 px-2 text-[12px] text-warning"
+                          title="Opened early by a teacher. Press to take it back."
                           onClick={() => unlock.mutate({ student_id: r.student_id, key: k, on: false })}>
-                          {short(step.get(k)!)} opened early <X className="h-3 w-3" />
+                          {short(step.get(k)!)} early <X className="h-3 w-3" />
                         </button>
                       ))}
                     </div>
