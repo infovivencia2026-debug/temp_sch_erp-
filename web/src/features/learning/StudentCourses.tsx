@@ -582,7 +582,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     return (
                       <details key={m.id} open={here || !!find.trim()}
                         className={cn('group card overflow-hidden', here && 'border-2 border-[hsl(var(--paint-buttons-bg,var(--primary))/0.6)]', locked && 'opacity-75')}>
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 transition-colors hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 transition-opacity hover:opacity-80 [&::-webkit-details-marker]:hidden">
                           <span className="flex min-w-0 items-center gap-3">
                             <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[13px] font-bold',
                               finished ? 'bg-success/15 text-success' : locked ? 'bg-muted text-muted-foreground' : here ? GO : 'bg-primary/10 text-primary')}>
@@ -1080,11 +1080,11 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
       )}
       <ArrowBar label="Back and next">
         {prev ? <BackBtn onClick={() => open(prev)} sub={prev.d !== stop.d ? shortDay(prev.d) : titleOf(prev.it)} />
-          : <BackBtn onClick={() => toDay(stop.d.key)} sub={shortDay(stop.d)} />}
+          : <BackBtn onClick={() => toDay(stop.d.key)} sub={stop.m.title} />}
         {next ? (
           <NextBtn btnRef={nextRef} hot={it.done || !it.required} locked={next.it.locked} onClick={() => open(next)}
             label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? `${shortDay(next.d)} is not open yet`) : titleOf(next.it)} />
-        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${shortDay(stop.d)}`} />}
+        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${stop.m.title}`} />}
       </ArrowBar>
     </div>
   )
