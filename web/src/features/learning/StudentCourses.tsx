@@ -518,7 +518,11 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     <div className="flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 text-[13px] font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {(() => {
-                          const all = stops.concat(looseStops)
+                          /* Only what this page lists. The loose homework
+                             and quizzes are no longer shown here (see
+                             below), so counting them would advertise work
+                             the chips cannot take anybody to. */
+                          const all = stops
                           const counts = {
                             all: all.length,
                             doing: all.filter((x) => !x.it.done && canOpen(x.it)).length,
@@ -624,22 +628,24 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     )
                   })}
 
-                  {/* Homework and quizzes on no day, and anything the teacher
-                      shared outside a unit: the two rows that were at the
-                      foot of the old path, in the new clothes. */}
-                  {loose.length > 0 && filter === 'all' && !find.trim() && (
-                    <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })}
-                      className="card flex w-full items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 text-left transition-colors hover:bg-accent/40">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-[13px] font-bold text-primary">+</span>
-                        <span className="min-w-0">
-                          <span className="block text-[16px] font-bold leading-tight">More to do</span>
-                          <span className="block text-[13px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
-                        </span>
-                      </span>
-                      <StepGo state={loose.every((x) => x.done) ? 'done' : 'open'} />
-                    </button>
-                  )}
+                  {/* NO "MORE TO DO" HERE (owner, 2026-10-10: "no need of more
+                      to do in lms ONLY VDS").
+
+                      That row collected the homework and quizzes a teacher
+                      set against no particular day and parked them at the
+                      foot of the course. It made the LMS a second inbox for
+                      work that already has its own screens -- Homework has a
+                      tab in the dock, a quiz arrives as its own notice -- and
+                      it is not what this page is for.
+
+                      WHAT IS NOT REMOVED, and why. A quiz or an assignment
+                      that a teacher placed ON a day stays inside its unit.
+                      Those are `required` in lms_progress: the day is not done
+                      until they are, and in a sequential course the next day
+                      opens only when the day is done. Hiding them would be a
+                      course that can never be finished, which is the same
+                      trap as hiding the Done tick. Only the dayless pile
+                      goes. */}
                   {mySharedItems.length > 0 && filter === 'all' && !find.trim() && (
                     <button type="button" onClick={() => toModule(SHARED)}
                       className="card flex w-full items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 text-left transition-colors hover:bg-accent/40">
