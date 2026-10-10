@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
+  Archive, ArchiveRestore, CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
   Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -97,13 +97,11 @@ function useDragOrder(ids: string[], commit: (ids: string[]) => void) {
   return { props, handle, up: (id: string) => move(id, ids.indexOf(id) - 1), down: (id: string) => move(id, ids.indexOf(id) + 1) }
 }
 
-function Arrows({ first, last, up, down, label }: { first: boolean; last: boolean; up: () => void; down: () => void; label: string }) {
-  return (
-    <span className="inline-flex shrink-0">
-      <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-30" disabled={first} onClick={up} aria-label={`Move ${label} up`} title="Move up"><ArrowUp className="h-4 w-4" /></button>
-      <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-30" disabled={last} onClick={down} aria-label={`Move ${label} down`} title="Move down"><ArrowDown className="h-4 w-4" /></button>
-    </span>
-  )
+/* No up/down arrows (owner, 2026-10-10: "remove this"). Order is set by
+   dragging the grip; the props stay so the call sites need not change. */
+function Arrows(_: { first: boolean; last: boolean; up: () => void; down: () => void; label: string }) {
+  void _
+  return null
 }
 const seg = (on: boolean) => `min-h-10 rounded px-3.5 text-[14px] font-medium ${on ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`
 
