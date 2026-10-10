@@ -4,9 +4,7 @@ import { useOverlayHistory } from '@/lib/overlay-history'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import {
-  ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
-} from 'lucide-react'
+import { ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X, Images, ChevronRight } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import SchoolGallery from '@/features/comms/status/SchoolGallery'
 import StatusComposer from '@/features/comms/status/StatusComposer'
@@ -538,8 +536,16 @@ export default function Notifications() {
               onCompose={(next) => { setComposeReq(next); dismiss() }} />}
             {shownType === 'activity' && (
               <button type="button" onClick={() => { dismiss(); window.setTimeout(() => setGallery(true), 300) }}
-                className="mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl border bg-card px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-muted/50">
-                <span>📸 School gallery</span><span className="text-muted-foreground">→</span>
+                /* iOS row, like Settings (owner, 2026-10-10: "change the gallery button"). */
+                className="mx-4 mt-3 flex min-h-[52px] shrink-0 items-center gap-3 rounded-[14px] border bg-card px-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-colors hover:bg-muted/40 active:bg-muted/60">
+                <span className="grid size-[32px] shrink-0 place-items-center rounded-[9px] bg-gradient-to-br from-[#ff9f0a] via-[#ff375f] to-[#bf5af2] text-white shadow-[0_1px_3px_rgba(0,0,0,.15)]">
+                  <Images className="size-[17px]" strokeWidth={2} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-normal">School gallery</span>
+                  <span className="block truncate text-[12px] text-muted-foreground">Photos from across the school</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
               </button>
             )}
 
