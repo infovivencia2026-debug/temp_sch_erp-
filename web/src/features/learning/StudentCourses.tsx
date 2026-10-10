@@ -133,7 +133,7 @@ const NextBtn = ({ onClick, label, sub, locked, hot, btnRef }: { onClick: () => 
 /* One skeleton the shape of the page, then the page: the to-do and the
    subjects arrive together, so nothing is pushed down when the second lands. */
 function List({ onOpen }: { onOpen: (cs: string) => void }) {
-  const q = useQuery({ queryKey: ['my-courses'], queryFn: () => api.get<{ class_name: string; section_name: string; items: CourseRow[] }>('/api/v1/portal/lms/courses') })
+  const q = useQuery({ queryKey: ['my-courses'], staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: true, queryFn: () => api.get<{ class_name: string; section_name: string; items: CourseRow[] }>('/api/v1/portal/lms/courses') })
   const todo = useQuery({ queryKey: ['my-lms-todo'], queryFn: () => api.get<Todo>('/api/v1/portal/lms/todo') })
   const t = todo.data
   /* The "To do" list this built is gone from the page (owner, 2026-10-10:
@@ -146,7 +146,10 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   /* Only courses the LMS Admin has added to this section (Add course) that
      have lessons in them: homework alone is not a course (owner, 2026-10-10),
      and a course taken off the admin's list goes from here too. */
-  const withContent = (q.data?.items ?? []).filter((c) => !!c.added && c.lessons > 0)
+  /* A course shows the moment the LMS admin adds it, lessons or not (owner,
+     2026-10-10: "when I add a new course I need to see it in the student login
+     immediately"). */
+  const withContent = (q.data?.items ?? []).filter((c) => !!c.added)
   const names = new Set((q.data?.items ?? []).map((c) => c.subject))
   const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
