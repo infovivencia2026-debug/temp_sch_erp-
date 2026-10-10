@@ -1073,7 +1073,7 @@ function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toD
             <div ref={btn} className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
               {autoVideo ? (l.done
                 ? <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-success"><DoneCheck done pop={pop} size={20} /> Watched</span>
-                : <p className="text-[15px] text-muted-foreground">Watch the whole video to the end and it ticks itself. Skipping ahead does not count.</p>) : (
+                : <p className="text-[15px] text-muted-foreground">Watch the whole video to the end and it ticks itself. It carries on from where you left it.</p>) : (
                 l.done ? (
                   /* Smaller (owner, 2026-10-10: "decreases the size of the
                      done"). A 40px tick and 18px type announced the finish of

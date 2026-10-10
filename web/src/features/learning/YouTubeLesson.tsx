@@ -149,6 +149,7 @@ export function YouTubeLesson({
   const cb = useRef(onPlayer)
   cb.current = onPlayer
   const [percent, setPercent] = useState<number | null>(null)
+  const [skipped, setSkipped] = useState(false)
   const tr = useRef(track)
   tr.current = track
 
@@ -194,7 +195,8 @@ export function YouTubeLesson({
     let timer = 0
     function watch(p: YTPlayer) {
       const key = `yt-watched:${tr.current!.lessonId}`
-      let map: number[] = [], bucket = 5, last = -1, sending = false, finished = false
+      let map: number[] = [], bucket = 5, last = -1, sending = false, finished = false, resumed = false
+      const posKey = `yt-pos:${tr.current!.lessonId}`
       const send = async (dur: number) => {
         if (sending || finished) return
         sending = true
@@ -220,7 +222,21 @@ export function YouTubeLesson({
           try { saved = localStorage.getItem(key) ?? '' } catch { /* private window */ }
           map = Array.from({ length: Math.ceil(dur / bucket) }, (_, i) => (saved[i] === '1' ? 1 : 0))
         }
-        const t = p.getCurrentTime(), playing = p.getPlayerState?.() === 1, rate = p.getPlaybackRate?.() ?? 1
+        /* Continue where it was left: the place saved in this browser. */
+        if (!resumed) {
+          resumed = true
+          let pos = 0
+          try { pos = Number(localStorage.getItem(posKey) ?? 0) } catch { /* fine */ }
+          if (pos > 5 && pos < dur - 5) { p.seekTo(pos, true); last = -1; return }
+        }
+        let t = p.getCurrentTime()
+        const playing = p.getPlayerState?.() === 1, rate = p.getPlaybackRate?.() ?? 1
+        /* No skipping ahead: a jump past the first stretch not yet watched
+           (and past where they were) is put back there. Back is always fine. */
+        const gap = map.indexOf(0)
+        const max = Math.max(gap < 0 ? dur : gap * bucket, last)
+        if (t > max + 2) { p.seekTo(max, true); setSkipped(true); t = max; last = -1; return }
+        try { if (t > 0) localStorage.setItem(posKey, String(Math.floor(t))) } catch { /* fine */ }
         if (playing && last >= 0 && t >= last && t - last <= 1.6 * Math.max(1, rate)) {
           let changed = false
           for (let i = Math.floor(last / bucket); i <= Math.min(map.length - 1, Math.floor(t / bucket)); i++) if (!map[i]) { map[i] = 1; changed = true }
@@ -248,7 +264,7 @@ export function YouTubeLesson({
       {track && !track.done && percent !== null && (
         <div className="mx-auto w-full max-w-3xl" aria-label={`${percent}% watched`}>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success transition-[width]" style={{ width: `${percent}%` }} /></div>
-          <p className="mt-1 text-[13px] text-muted-foreground">{percent}% watched</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">{percent}% watched{skipped ? " · you can't skip ahead" : ''}</p>
         </div>
       )}
       {failed ? (
