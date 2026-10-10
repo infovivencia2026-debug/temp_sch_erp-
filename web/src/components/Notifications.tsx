@@ -543,8 +543,25 @@ export default function Notifications() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-normal">School gallery</span>
-                  <span className="block truncate text-[12px] text-muted-foreground">Photos from across the school</span>
+                  <span className="block truncate text-[12px] text-muted-foreground">
+                    {(() => { const n = (statusFeed.data?.gallery ?? []).filter((p) => p.media_kind !== 'text').length; return n === 1 ? '1 photo' : n ? `${n} photos & videos` : 'Photos from across the school' })()}
+                  </span>
                 </span>
+                {/* The newest pictures, fanned like a stack of prints (owner, 2026-10-10:
+                    "add something, it looks ugly"). */}
+                {(() => {
+                  const pics = (statusFeed.data?.gallery ?? []).filter((p) => p.media_kind !== 'text' && (p.thumb || p.url)).slice(0, 3)
+                  if (!pics.length) return null
+                  return (
+                    <span className="relative mr-1 flex h-[40px] shrink-0 items-center" aria-hidden="true">
+                      {pics.map((p, i) => (
+                        <img key={p.id} src={p.thumb ?? p.url} alt="" loading="lazy"
+                          style={{ marginLeft: i ? -14 : 0, zIndex: 3 - i, transform: `rotate(${[-6, 3, 8][i]}deg)` }}
+                          className="size-[38px] rounded-[9px] border-2 border-card object-cover shadow-[0_2px_6px_rgba(0,0,0,.18)]" />
+                      ))}
+                    </span>
+                  )
+                })()}
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
               </button>
             )}
