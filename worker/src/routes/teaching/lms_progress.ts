@@ -34,6 +34,9 @@ export interface PItem {
   /* A lesson that is a video (library or YouTube): in a one-by-one course,
      what comes after it stays locked until it is watched to the end. */
   video?: boolean
+  /* Unlocked now by the teacher: never held back by the one-by-one rule or a
+     closed day (lms_lessons.open_now). */
+  openNow?: boolean
 }
 export interface PStep { key: string; unit_id: string; day: number | null; label: string; items: PItem[] }
 export interface PStructure { gating: 'sequential' | 'open'; units: PUnit[]; steps: PStep[]; labels: Map<string, string> }
@@ -62,7 +65,7 @@ export async function loadStructure(c: Ctx, sectionId: string, csId: string, stu
     c.db.prepare(`SELECT gating FROM lms_course_settings WHERE section_id = ? AND class_subject_id = ?`).bind(sectionId, csId),
     c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(csId),
     c.db.prepare(`SELECT d.unit_id, d.day, d.label FROM lms_unit_days d JOIN syllabus_units su ON su.id = d.unit_id WHERE su.class_subject_id = ?`).bind(csId),
-    c.db.prepare(`SELECT l.id, l.unit_id, l.day, l.section, l.sequence, l.is_optional, l.is_published, l.publish_at, l.kind, l.video_id, l.yt_video_id, l.url FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id
+    c.db.prepare(`SELECT l.id, l.unit_id, l.day, l.section, l.sequence, l.is_optional, l.is_published, l.publish_at, l.kind, l.video_id, l.yt_video_id, l.url, l.open_now FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id
         WHERE su.class_subject_id = ? AND (l.section_id IS NULL OR l.section_id = ?) ${studentView ? 'AND l.is_published = 1' : ''}`).bind(csId, sectionId),
     c.db.prepare(`SELECT id, lms_unit_id AS unit_id, lms_day AS day, lms_sequence AS seq, lms_pass_percent AS pass, CAST(max_marks AS REAL) AS max_marks, allow_submission
         FROM homework WHERE section_id = ? AND class_subject_id = ? AND lms_unit_id IS NOT NULL AND is_published = 1`).bind(sectionId, csId),
@@ -87,10 +90,11 @@ export async function loadStructure(c: Ctx, sectionId: string, csId: string, stu
   for (const u of all.filter((x) => !x.parent_unit_id)) walk(u)
   const t = now()
   const items: PItem[] = []
-  for (const l of lessons.results as { id: string; unit_id: string; day: number | null; section: string | null; sequence: number; is_optional: number; is_published: number; publish_at: string | null; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }[]) {
+  for (const l of lessons.results as { id: string; unit_id: string; day: number | null; section: string | null; sequence: number; is_optional: number; is_published: number; publish_at: string | null; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null; open_now?: number | null }[]) {
     items.push({ type: 'lesson', id: l.id, unit_id: l.unit_id, day: l.day ?? null, section: asSection(l.section) ?? 'resources', seq: l.sequence ?? 0,
       required: !!l.is_published && !l.is_optional, opens_at: l.publish_at && l.publish_at > t ? l.publish_at : null, pass_percent: null, max_marks: null,
-      video: l.kind === 'video' || !!l.video_id || !!l.yt_video_id || /(^|\/\/)(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(l.url ?? '') })
+      video: l.kind === 'video' || !!l.video_id || !!l.yt_video_id || /(^|\/\/)(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(l.url ?? ''),
+      openNow: !!l.open_now })
   }
   for (const h of hw.results as { id: string; unit_id: string; day: number | null; seq: number | null; pass: number | null; max_marks: number | null; allow_submission: number }[]) {
     items.push({ type: 'assignment', id: h.id, unit_id: h.unit_id, day: h.day ?? null, section: 'assessment', seq: h.seq ?? 9999, required: !!h.allow_submission,
@@ -206,7 +210,7 @@ export function lockedItems(s: PStructure, states: PStepState[], p: PProgress): 
     if (states[k].state === 'locked' || p.unlocks.has(st.key)) return
     let blocked = false
     for (const i of st.items) {
-      if (blocked) out.add(`${i.type}:${i.id}`)
+      if (blocked && !i.openNow) out.add(`${i.type}:${i.id}`)
       else if (i.video && i.required && !satisfied(i, p)) blocked = true
     }
   })
@@ -218,6 +222,7 @@ export function assertOpen(s: PStructure, states: PStepState[], type: PItem['typ
   const k = s.steps.findIndex((st) => st.items.some((i) => i.type === type && i.id === id))
   if (k < 0) return
   const st = states[k]
+  if (s.steps[k].items.find((i) => i.type === type && i.id === id)?.openNow) return
   if (st.state === 'locked') throw new HttpError(403, `${st.reason ?? 'This is locked'}.`, { code: 'locked' })
   if (p && lockedItems(s, states, p).has(`${type}:${id}`)) throw new HttpError(403, 'Watch the video before this one to the end to unlock it.', { code: 'locked' })
 }

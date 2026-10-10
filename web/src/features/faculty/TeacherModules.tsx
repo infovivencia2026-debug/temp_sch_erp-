@@ -592,6 +592,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   const [day, setDay] = useState(lesson ? (lesson.day ? String(lesson.day) : '') : day0 === null ? '' : String(day0))
   const [section, setSection] = useState<string>(lesson?.section ?? section0)
   const [optional, setOptional] = useState(!!lesson?.is_optional)
+  const [openNow, setOpenNow] = useState(!!lesson?.open_now)
   const [publish, setPublish] = useState<'now' | 'draft' | 'schedule'>(lesson ? (!lesson.is_published ? 'draft' : lesson.publish_at && lesson.publish_at > nowIso() ? 'schedule' : 'now') : 'now')
   const [when, setWhen] = useState(toLocal(lesson?.publish_at))
   const [onlyHere, setOnlyHere] = useState(false)
@@ -620,7 +621,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
       const b = {
         unit_id: u.id, title, kind, body, url: lib ? '' : fileKind && file ? '' : url, video_id: lib ? video : undefined, file_id: fileKind ? file?.id ?? null : null,
         duration_minutes: mins ? Number(mins) : null, is_published: publish !== 'draft', publish_at: publish === 'schedule' && when ? new Date(when).toISOString() : null,
-        day: day ? Number(day) : null, section, is_optional: optional,
+        day: day ? Number(day) : null, section, is_optional: optional, open_now: openNow,
         /* Always sent, so clearing the box clears the field. The server
            only replaces key_points when the key is present, which keeps a
            screen that has no such box from wiping what was written here. */
@@ -681,6 +682,14 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
         </Field>
         {publish === 'schedule' && <Field label="Opens at" hint="The class sees it from this moment."><Input type="datetime-local" value={when} onChange={setWhen} /></Field>}
       </div>
+      {/* WHEN CAN STUDENTS OPEN IT (owner, 2026-10-10: "unlock this now, or
+          wait till the other videos are completed"). */}
+      <Field label="When can students open it?">
+        <Select value={openNow ? 'now' : 'after'} onChange={(v) => setOpenNow(v === 'now')} options={[
+          { value: 'after', label: 'After the videos before it are watched' },
+          { value: 'now', label: 'Unlocked now: open straight away' },
+        ]} />
+      </Field>
       <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={optional} onChange={(e) => setOptional(e.target.checked)} /> Optional: the next day can open without it</label>
       {!lesson && <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> Only this section (otherwise every section of the class)</label>}
       <div className="flex flex-wrap items-center gap-2">

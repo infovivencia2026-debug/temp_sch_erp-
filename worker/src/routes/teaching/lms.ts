@@ -334,7 +334,7 @@ export function registerLMS(r: Router) {
     const [units, lessons, hw, quizzes, roll, days, gate, lay] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
-          l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional,
+          l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.open_now,
           l.yt_video_id, l.yt_playlist_id, l.yt_channel, l.key_points,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           (SELECT count(*) FROM lms_lesson_progress p JOIN enrollments e ON e.student_id = p.student_id AND e.section_id = ? AND e.status = 'active' WHERE p.lesson_id = l.id) AS completed
@@ -362,7 +362,7 @@ export function registerLMS(r: Router) {
       days: days.results,
       layout: (lay.results[0] as { layout?: string } | undefined)?.layout ?? 'topic_day',
       /* Archived modules come too (is_active false), so they can be brought back. */
-      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published, is_optional: !!l.is_optional })) })),
+      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published, is_optional: !!l.is_optional, open_now: !!l.open_now })) })),
       assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, rubric: parseRubric(h.rubric), allow_submission: !!h.allow_submission })),
       quizzes: quizzes.results,
     })
@@ -627,6 +627,7 @@ export function registerLMS(r: Router) {
       stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'lms_lesson', `New lesson in ${subj?.name ?? 'your course'}`, title, '/go/e_learning_resource_hub', 'lms_lesson', id))
     }
     await c.db.batch(stmts)
+    if (b.open_now === true) await c.db.prepare(`UPDATE lms_lessons SET open_now = 1 WHERE id = ?`).bind(id).run()
     return ok({ id })
   })
 
@@ -659,6 +660,7 @@ export function registerLMS(r: Router) {
       .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.videoId, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
         typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, b.section === undefined ? null : f.section, typeof b.is_optional === 'boolean' ? f.optional : null,
         f.ytVideo, f.ytList, f.ytChannel, b.key_points === undefined ? 0 : 1, f.keyPoints, now(), l.id).run()
+    if (typeof b.open_now === 'boolean') await c.db.prepare(`UPDATE lms_lessons SET open_now = ? WHERE id = ?`).bind(b.open_now ? 1 : 0, l.id).run()
     return ok({ id: l.id })
   })
 

@@ -34,6 +34,8 @@ export interface Lesson {
   released_at?: string
   is_published?: boolean; completed?: number; done?: boolean; is_new?: boolean; viewed_at?: string | null
   section?: Section; is_optional?: boolean
+  /* Unlocked now by the teacher, whatever comes before it (migration 0078). */
+  open_now?: boolean
   /* The child's view: on a locked day, or not out yet (no content either way). */
   locked?: boolean; scheduled?: boolean
   /* A YouTube video or playlist, kept as ids and nothing else (migration

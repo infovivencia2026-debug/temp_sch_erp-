@@ -141,7 +141,7 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
     const pr = (await loadProgress(c, st, [sid])).get(sid)!
     const states = computeSteps(st, pr)
     const behind = lockedItems(st, states, pr)
-    st.steps.forEach((x, i) => { for (const it of x.items) if (it.type === 'lesson' && (states[i].state === 'locked' || behind.has(`lesson:${it.id}`))) hidden.add(it.id) })
+    st.steps.forEach((x, i) => { for (const it of x.items) if (it.type === 'lesson' && !it.openNow && (states[i].state === 'locked' || behind.has(`lesson:${it.id}`))) hidden.add(it.id) })
   }
   return {
     assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, overdue: !!h.overdue })),
@@ -216,7 +216,8 @@ export function registerPortalLMS(r: Router) {
     const stepOf = new Map<string, number>()
     st.steps.forEach((x, i) => x.items.forEach((it) => stepOf.set(`${it.type}:${it.id}`, i)))
     const behind = lockedItems(st, states, prog)
-    const lockedOf = (type: string, id: string) => { const i = stepOf.get(`${type}:${id}`); return (i !== undefined && states[i].state === 'locked') || behind.has(`${type}:${id}`) }
+    const openNow = new Set(st.steps.flatMap((x) => x.items.filter((it) => it.openNow).map((it) => `${it.type}:${it.id}`)))
+    const lockedOf = (type: string, id: string) => { if (openNow.has(`${type}:${id}`)) return false; const i = stepOf.get(`${type}:${id}`); return (i !== undefined && states[i].state === 'locked') || behind.has(`${type}:${id}`) }
     /* "New": out in the last week and not opened yet. */
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
     const lessonRows = new Map<string, Record<string, unknown>>((lessons.results as Record<string, unknown>[]).map((l) => {
@@ -242,7 +243,7 @@ export function registerPortalLMS(r: Router) {
         open: !locked && (!q.opens_at || String(q.opens_at) <= t) && (!q.closes_at || String(q.closes_at) > t) && Number(q.attempts) < Number(q.max_attempts) }]
     }))
     const itemOut = (i: PItem, state: string) => ({ type: i.type, id: i.id, section: i.section, required: i.required, done: satisfied(i, prog),
-      pass_percent: i.pass_percent, locked: state === 'locked' || behind.has(`${i.type}:${i.id}`),
+      pass_percent: i.pass_percent, locked: !i.openNow && (state === 'locked' || behind.has(`${i.type}:${i.id}`)),
       ...(i.type === 'lesson' ? { lesson: lessonRows.get(i.id) ?? null } : {}) })
     let modules = st.units.map((u) => {
       const idx = st.steps.map((x, i) => (x.unit_id === u.id ? i : -1)).filter((i) => i >= 0)
