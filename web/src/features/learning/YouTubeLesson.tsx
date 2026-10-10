@@ -211,7 +211,7 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children }
         {/* Over the player: taps come here, and the player itself never takes
             focus, so its own controls and keys never see a press. */}
         <button type="button" aria-label={playing ? 'Pause (double tap: back 10 seconds)' : 'Play (double tap: back 10 seconds)'} tabIndex={-1} onClick={onTap}
-          className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation bg-transparent [-webkit-tap-highlight-color:transparent]" />
+          className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation bg-transparent outline-none ring-0 [-webkit-tap-highlight-color:transparent] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" style={{ boxShadow: "none" }} onMouseDown={(e) => e.preventDefault()} />
         {hint && <span aria-hidden className="pointer-events-none absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 px-3 py-2 text-[14px] font-semibold text-white"><Undo2 className="mr-1 inline size-4" />10s</span>}
       </div>
       {/* In full screen: the way back out, and nothing else. */}
