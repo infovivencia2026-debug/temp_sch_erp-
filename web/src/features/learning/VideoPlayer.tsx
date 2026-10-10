@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
 import type { Lesson } from './lms-shared'
+import { LockedControls } from './YouTubeLesson'
 
 /* A lesson's library video (worker routes/teaching/videos.ts).
 
@@ -115,6 +116,11 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
   }
   const [blocked, setBlocked] = useState(false)
 
+  /* Unfinished and the child's own: no seek bar (LockedControls in YouTubeLesson.tsx). */
+  const locked = !!track && !(lesson?.done || st.current.done)
+  const [playing, setPlaying] = useState(false)
+  void percent
+
   if (!id) return null
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2">
@@ -124,7 +130,9 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
           className="aspect-video w-full bg-black"
           src={`/api/v1/lms/videos/${id}/stream`}
           poster={lesson?.video_thumb ? `/api/v1/lms/videos/${id}/thumbnail` : undefined}
-          controls
+          controls={!locked}
+          onPlay={() => setPlaying(true)}
+          onPause={() => { setPlaying(false); void send() }}
           playsInline
           preload="metadata"
           controlsList="nodownload"
@@ -133,12 +141,18 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
           onTimeUpdate={onTime}
           onSeeking={onSeeking}
           onSeeked={() => { st.current.last = ref.current?.currentTime ?? -1 }}
-          onPause={() => void send()}
           onEnded={() => void send()}
           onError={() => setFailed(true)}
           onRateChange={() => setSpeed(ref.current?.playbackRate ?? 1)}
         />
       </div>
+      {locked && (
+        <LockedControls playing={playing}
+          toggle={() => { const v = ref.current; if (!v) return; if (v.paused) void v.play(); else v.pause() }}
+          back={() => { const v = ref.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10) }}
+          restart={() => { const v = ref.current; if (v) v.currentTime = 0 }}
+          full={() => { void ref.current?.parentElement?.requestFullscreen?.().catch(() => {}) }} />
+      )}
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
         <span className="hidden text-muted-foreground sm:inline">Speed</span>
         <div className="inline-flex overflow-hidden rounded-md border" role="group" aria-label="Playback speed">
@@ -148,7 +162,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
               onClick={() => { if (ref.current) ref.current.playbackRate = x; setSpeed(x) }}>{x}×</button>
           ))}
         </div>
-        {track && <span className="w-full text-muted-foreground sm:ml-auto sm:w-auto">{percent ? `${percent}% watched` : 'Not started'}{lesson?.done || st.current.done ? ' · finished' : ' · watch to the end to finish'}</span>}
+        {track && (lesson?.done || st.current.done) && <span className="w-full text-muted-foreground sm:ml-auto sm:w-auto">Finished</span>}
       </div>
       {blocked && track && !st.current.done && <p className="text-[13px] text-muted-foreground">You can't skip ahead. Carry on from where you are, or go back.</p>}
       {resumed !== null && (

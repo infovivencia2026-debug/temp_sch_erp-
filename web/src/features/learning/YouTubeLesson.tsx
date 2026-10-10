@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Maximize, Pause, Play, RotateCcw, Undo2 } from 'lucide-react'
 
 /* A YOUTUBE VIDEO OR PLAYLIST, EMBEDDED THE WAY YOUTUBE ASKS FOR.
  *
@@ -40,6 +40,8 @@ interface YTPlayer {
   getPlayerState?(): number
   getPlaybackRate?(): number
   seekTo(seconds: number, allowSeekAhead: boolean): void
+  playVideo?(): void
+  pauseVideo?(): void
   destroy?(): void
   getIframe?(): HTMLIFrameElement
 }
@@ -124,6 +126,25 @@ export function watchUrl(videoId?: string | null, listId?: string | null): strin
   return `https://www.youtube.com/playlist?list=${listId ?? ''}`
 }
 
+/* NO WAY FORWARD UNTIL IT IS WATCHED (owner, 2026-10-10: "no forwarding
+   the video but they can go backward, and don't show how much is done while
+   it plays"). A child's unfinished video has no seek bar at all -- the
+   player's own controls are off -- and these buttons instead: play/pause,
+   back 10 seconds, start again, full screen. Nothing here moves forward. Once
+   the video is finished the ordinary controls come back. */
+export function LockedControls({ playing, toggle, back, restart, full, extra }: { playing: boolean; toggle: () => void; back: () => void; restart: () => void; full: () => void; extra?: React.ReactNode }) {
+  const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium hover:bg-muted'
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
+      <button type="button" className={b} onClick={toggle}>{playing ? <><Pause className="size-4" aria-hidden /> Pause</> : <><Play className="size-4" aria-hidden /> Play</>}</button>
+      <button type="button" className={b} onClick={back}><Undo2 className="size-4" aria-hidden /> Back 10s</button>
+      <button type="button" className={b} onClick={restart}><RotateCcw className="size-4" aria-hidden /> Start again</button>
+      <button type="button" className={b} onClick={full}><Maximize className="size-4" aria-hidden /> Full screen</button>
+      {extra}
+    </div>
+  )
+}
+
 export function YouTubeLesson({
   videoId,
   listId,
@@ -150,6 +171,11 @@ export function YouTubeLesson({
   cb.current = onPlayer
   const [percent, setPercent] = useState<number | null>(null)
   const [skipped, setSkipped] = useState(false)
+  /* Locked: the child's own lesson, not yet finished (see LockedControls). */
+  const locked = !!track && !track.done
+  const [playing, setPlaying] = useState(false)
+  const pl = useRef<YTPlayer | null>(null)
+  void percent; void skipped
   const tr = useRef(track)
   tr.current = track
 
@@ -178,7 +204,8 @@ export function YouTubeLesson({
         videoId: videoId ?? undefined,
         playerVars: {
           autoplay: 0,          // never, least of all for a child
-          controls: 1,          // theirs, not ours
+          controls: locked ? 0 : 1, // none while it must be watched through: no seek bar to drag
+          disablekb: locked ? 1 : 0, // nor the arrow keys
           modestbranding: 1,
           rel: 0,               // end screen stays on the same channel
           playsinline: 1,
@@ -193,7 +220,7 @@ export function YouTubeLesson({
           /* 0 is ENDED. Reported at once rather than waiting for the next
              tick of the loop, which on the last frame may never come: the
              video has stopped, so nothing moves forward to mark. */
-          onStateChange: (e: { data: number }) => { if (e.data === 0) report.current?.() },
+          onStateChange: (e: { data: number }) => { setPlaying(e.data === 1); if (e.data === 0) report.current?.() },
         },
       })
       try {
@@ -201,6 +228,7 @@ export function YouTubeLesson({
         if (f) f.referrerPolicy = 'strict-origin-when-cross-origin'
       } catch { /* the player still works without it */ }
       cb.current?.(player)
+      pl.current = player
       if (tr.current && !tr.current.done) watch(player)
     }).catch((e: Error) => { if (!dead) setFailed(e.message) })
     /* WATCHED TO THE END, STRETCH BY STRETCH. Once a second, while it plays,
@@ -292,12 +320,6 @@ export function YouTubeLesson({
 
   return (
     <div className="space-y-2">
-      {track && !track.done && percent !== null && (
-        <div className="mx-auto w-full max-w-3xl" aria-label={`${percent}% watched`}>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success transition-[width]" style={{ width: `${percent}%` }} /></div>
-          <p className="mt-1 text-[13px] text-muted-foreground">{percent}% watched{skipped ? " · you can't skip ahead" : ''}</p>
-        </div>
-      )}
       {failed ? (
         /* A blocked or missing player is a link, not a dead rectangle. A
            school network that filters YouTube is common enough that this is
@@ -333,6 +355,13 @@ export function YouTubeLesson({
             <div ref={host} className="absolute inset-0 h-full w-full" />
           </div>
         </div>
+      )}
+      {locked && agreed && !failed && (
+        <LockedControls playing={playing}
+          toggle={() => { const p = pl.current; if (!p) return; if (playing) p.pauseVideo?.(); else p.playVideo?.() }}
+          back={() => { const p = pl.current; if (p) p.seekTo(Math.max(0, p.getCurrentTime() - 10), true) }}
+          restart={() => { const p = pl.current; if (p) p.seekTo(0, true) }}
+          full={() => { const f = pl.current?.getIframe?.() ?? host.current?.querySelector('iframe'); void f?.requestFullscreen?.().catch(() => {}) }} />
       )}
       {/* Attribution and the way out to the source, always on the page. */}
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
