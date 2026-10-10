@@ -37,6 +37,7 @@ interface YTPlayer {
   getCurrentTime(): number
   seekTo(seconds: number, allowSeekAhead: boolean): void
   destroy?(): void
+  getIframe?(): HTMLIFrameElement
 }
 interface YTApi {
   Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer
@@ -126,9 +127,17 @@ export function YouTubeLesson({
           rel: 0,               // end screen stays on the same channel
           playsinline: 1,
           origin: window.location.origin,
+          /* "Error 153: video player configuration error" is YouTube refusing
+             an embed it cannot attribute to a site (owner, 2026-10-10). Say
+             which page it is on, and make sure the iframe sends our origin. */
+          widget_referrer: window.location.href,
           ...(listId ? { list: listId, listType: 'playlist' } : {}),
         },
       })
+      try {
+        const f = player.getIframe?.() ?? host.current?.querySelector('iframe') ?? null
+        if (f) f.referrerPolicy = 'strict-origin-when-cross-origin'
+      } catch { /* the player still works without it */ }
       cb.current?.(player)
     }).catch((e: Error) => { if (!dead) setFailed(e.message) })
     return () => {
