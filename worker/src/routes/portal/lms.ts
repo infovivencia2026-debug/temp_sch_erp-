@@ -3,7 +3,7 @@ import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, 
 import { fullName, institutionId, resolveScope, todayIST } from '../teaching/common'
 import { notifyMany, parseRubric } from '../teaching/lms'
 import { bucketFor, mergeWatched } from '../teaching/videos'
-import { assertOpen, computeSteps, dayName, loadProgress, loadStructure, satisfied, type PItem } from '../teaching/lms_progress'
+import { assertOpen, computeSteps, dayName, loadProgress, loadStructure, lockedItems, satisfied, type PItem } from '../teaching/lms_progress'
 
 /* The child's side of the LMS (the teacher's is teaching/lms.ts).
 
@@ -75,7 +75,7 @@ async function gate(c: Ctx, sid: string, section: string, type: PItem['type'], i
   if (!row?.cs) return
   const st = await loadStructure(c, section, row.cs, true)
   const p = (await loadProgress(c, st, [sid])).get(sid)!
-  assertOpen(st, computeSteps(st, p), type, id)
+  assertOpen(st, computeSteps(st, p), type, id, p)
 }
 
 async function todo(c: Ctx, sid: string, section: string, classId: string) {
@@ -109,8 +109,10 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
   const hidden = new Set<string>()
   for (const cs of new Set(ls.map((l) => l.class_subject_id))) {
     const st = await loadStructure(c, section, cs, true)
-    const states = computeSteps(st, (await loadProgress(c, st, [sid])).get(sid)!)
-    st.steps.forEach((x, i) => { if (states[i].state === 'locked') for (const it of x.items) if (it.type === 'lesson') hidden.add(it.id) })
+    const pr = (await loadProgress(c, st, [sid])).get(sid)!
+    const states = computeSteps(st, pr)
+    const behind = lockedItems(st, states, pr)
+    st.steps.forEach((x, i) => { for (const it of x.items) if (it.type === 'lesson' && (states[i].state === 'locked' || behind.has(`lesson:${it.id}`))) hidden.add(it.id) })
   }
   return {
     assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, overdue: !!h.overdue })),
@@ -184,7 +186,8 @@ export function registerPortalLMS(r: Router) {
     const states = computeSteps(st, prog)
     const stepOf = new Map<string, number>()
     st.steps.forEach((x, i) => x.items.forEach((it) => stepOf.set(`${it.type}:${it.id}`, i)))
-    const lockedOf = (type: string, id: string) => { const i = stepOf.get(`${type}:${id}`); return i !== undefined && states[i].state === 'locked' }
+    const behind = lockedItems(st, states, prog)
+    const lockedOf = (type: string, id: string) => { const i = stepOf.get(`${type}:${id}`); return (i !== undefined && states[i].state === 'locked') || behind.has(`${type}:${id}`) }
     /* "New": out in the last week and not opened yet. */
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
     const lessonRows = new Map<string, Record<string, unknown>>((lessons.results as Record<string, unknown>[]).map((l) => {
@@ -210,7 +213,7 @@ export function registerPortalLMS(r: Router) {
         open: !locked && (!q.opens_at || String(q.opens_at) <= t) && (!q.closes_at || String(q.closes_at) > t) && Number(q.attempts) < Number(q.max_attempts) }]
     }))
     const itemOut = (i: PItem, state: string) => ({ type: i.type, id: i.id, section: i.section, required: i.required, done: satisfied(i, prog),
-      pass_percent: i.pass_percent, locked: state === 'locked',
+      pass_percent: i.pass_percent, locked: state === 'locked' || behind.has(`${i.type}:${i.id}`),
       ...(i.type === 'lesson' ? { lesson: lessonRows.get(i.id) ?? null } : {}) })
     let modules = st.units.map((u) => {
       const idx = st.steps.map((x, i) => (x.unit_id === u.id ? i : -1)).filter((i) => i >= 0)

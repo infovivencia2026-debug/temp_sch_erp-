@@ -1118,7 +1118,7 @@ function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toD
           : <BackBtn onClick={() => toDay(stop.d.key)} sub={backLabel} />}
         {next ? (
           <NextBtn btnRef={nextRef} hot={it.done || !it.required} locked={next.it.locked} onClick={() => open(next)}
-            label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? `${shortDay(next.d)} is not open yet`) : titleOf(next.it)} />
+            label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? (next.d === stop.d ? 'Watch this video to the end first' : `${shortDay(next.d)} is not open yet`)) : titleOf(next.it)} />
         ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${backLabel}`} />}
       </ArrowBar>
     </div>
