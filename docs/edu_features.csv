@@ -153,7 +153,6 @@ Student,Home,Home,My planner,"Track personal study schedules, project deadlines,
 Student,Academics,Timetable,Timetable,Daily/weekly class timetable and exam timetable.,Self only,Must-Have,core
 Student,Academics,Attendance,Attendance,"Overall, subject-wise and date-wise attendance; leave/correction request if institution allows.",Self only,Must-Have,core
 Student,Academics,Homework,Homework & assignments,View due/overdue/submitted work; submit files/text where enabled.,Self only,Must-Have,core
-Student,Academics,Learning,Courses / subjects,"Current enrolled courses/subjects, teacher and learning resources.",Self only,Must-Have,core
 Student,Academics,Learning,LMS,"Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.",Specific student,Must-Have,core
 Student,Academics,Learning,AI Personal Learning Companion,"Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.",Specific student,Nice-to-Have,core
 Student,Academics,Exams & Results,Exams & grades,"Exam schedule, marks, grades, published results and report cards.",Self only,Must-Have,core

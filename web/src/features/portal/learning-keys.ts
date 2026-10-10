@@ -14,7 +14,7 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs `make
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const learningKeys = {
-  'student.learning.courses_subjects': screen(() => import('../learning/SubjectsSyllabus')), // the year's subjects and their syllabus (owner, 2026-10-10)
+ // the year's subjects and their syllabus (owner, 2026-10-10)
   /* The LMS is the courses: Subjects > Modules (with modules inside them) >
      content. Both menu entries open the same screen; what used to be the
      flat "Shared with you" list (learning/Resources.tsx) now shows inside

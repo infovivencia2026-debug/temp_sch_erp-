@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 430 features. */
+/** 24 roles, 429 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1603,7 +1603,6 @@ export const ROLES: Role[] = [
         name: 'Learning',
         workspace: 'Academics',
         features: [
-          { key: 'student.learning.courses_subjects', slug: 'courses_subjects', name: 'Courses / subjects', scope: 'self', tier: 'core', summary: 'Current enrolled courses/subjects, teacher and learning resources.' },
           { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'LMS', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
           { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: 'Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
         ],
