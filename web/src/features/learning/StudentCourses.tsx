@@ -145,7 +145,9 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   const shared = useShared()
   /* Only courses the LMS admin has put something in (owner, 2026-10-10: "until
      they add any, show nothing"). The year's subjects are on Courses / subjects. */
-  const withContent = (q.data?.items ?? []).filter((c) => c.lessons > 0 || c.quizzes_open > 0 || c.to_do > 0)
+  /* Only subjects with lessons in them (owner, 2026-10-10: "remove the
+     remaining subjects except Robotics" -- homework alone is not a course). */
+  const withContent = (q.data?.items ?? []).filter((c) => c.lessons > 0)
   const names = new Set((q.data?.items ?? []).map((c) => c.subject))
   const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
@@ -382,8 +384,10 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
      those two are enough"). The topic shows its days as cards and a card
      opens the lesson, so back from a lesson is the topic itself. */
   const toDay = (k: string) => {
-    const hit = stops.find((s) => s.d.key === k)
-    toModule(hit?.m.id ?? null)
+    /* Back from a video goes to the course itself, not a topic page (owner,
+       2026-10-10: 'why do I see this after the back button'). */
+    void k
+    toModule(null)
   }
   /* A day card opens that day's next step, or its first once all are done. */
   const openDayDirect = (m: SModule, k: string) => {
@@ -456,7 +460,8 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     </Ring>
                     <div className="min-w-0 flex-1">
                       <p className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Your teacher</p>
-                      <p className="truncate text-[17px] font-bold leading-tight">{d.course.teacher || d.course.subject}</p>
+                      {/* No teacher assigned: say so, not the subject's name in the teacher's place. */}
+                      <p className={cn('truncate text-[17px] font-bold leading-tight', !d.course.teacher && 'text-muted-foreground')}>{d.course.teacher || 'Not set yet'}</p>
                       {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
                     </div>
                   </div>
@@ -1083,11 +1088,11 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
       )}
       <ArrowBar label="Back and next">
         {prev ? <BackBtn onClick={() => open(prev)} sub={prev.d !== stop.d ? shortDay(prev.d) : titleOf(prev.it)} />
-          : <BackBtn onClick={() => toDay(stop.d.key)} sub={stop.m.title} />}
+          : <BackBtn onClick={() => toDay(stop.d.key)} sub={d.course.subject} />}
         {next ? (
           <NextBtn btnRef={nextRef} hot={it.done || !it.required} locked={next.it.locked} onClick={() => open(next)}
             label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? `${shortDay(next.d)} is not open yet`) : titleOf(next.it)} />
-        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${stop.m.title}`} />}
+        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${d.course.subject}`} />}
       </ArrowBar>
     </div>
   )
