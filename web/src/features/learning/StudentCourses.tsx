@@ -676,6 +676,28 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
   const l = it.type === 'lesson' ? it.lesson ?? null : null
   const qc = useQueryClient()
   const [pop, setPop] = useState(false)
+  /* THE RECEIPT SHOWS ITSELF, THEN GETS OUT OF THE WAY (owner, 2026-10-10:
+     "show done and undo only few se[c]onds").
+
+     Marking a step done put a green bar across the foot of the card and
+     left it there for as long as the child stayed on the page -- on a step
+     they finished last week it was the loudest thing on screen, announcing
+     news from a fortnight ago. It is a receipt: it belongs for the moment
+     after the press, and then it should be a quiet mark.
+
+     Six seconds, and only after a press in this sitting. Opening a step
+     that was already done shows the quiet mark straight away, because
+     nothing just happened.
+
+     The quiet mark is still the way back: it is the Undo control, with its
+     own label, so nothing is taken away by the shrinking -- a child who
+     ticked the wrong row can always untick it. */
+  const [justDone, setJustDone] = useState(false)
+  useEffect(() => {
+    if (!justDone) return
+    const t = window.setTimeout(() => setJustDone(false), 6000)
+    return () => window.clearTimeout(t)
+  }, [justDone])
   const btn = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLSpanElement>(null)
   /* Finishing a step: the tick pops, a little confetti, and the Next arrow
@@ -764,17 +786,35 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
             <div ref={btn} className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
               {autoVideo && !l.done ? <p className="text-[15px] text-muted-foreground">Watch the video to the end and it ticks itself.</p> : (
                 l.done ? (
-                  <span className="inline-flex items-center gap-3">
-                    {/* Smaller (owner, 2026-10-10: "decreases the size of the
-                      done"). A 40px tick and 18px type announced the finish
-                      of a two-minute video like the end of an exam. It is a
-                      receipt, not a trophy: it says the thing was recorded
-                      and gets out of the way of the next step. */}
-                  <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-success"><DoneCheck done pop={pop} size={24} /> Done</span>
-                    <Button variant="ghost" size="sm" onClick={() => { setPop(false); done.mutate(false) }}>Undo</Button>
-                  </span>
+                  /* Smaller (owner, 2026-10-10: "decreases the size of the
+                     done"). A 40px tick and 18px type announced the finish of
+                     a two-minute video like the end of an exam.
+
+                     And it only says it for a moment. The full receipt --
+                     tick, the word, and Undo spelled out -- belongs to the
+                     six seconds after the press. After that, and on a step
+                     that was already done when the child opened it, the same
+                     control shrinks to a quiet tick that is still the Undo
+                     button: nothing is taken away by the shrinking, so a
+                     child who ticked the wrong row can always untick it. */
+                  justDone ? (
+                    <span className="inline-flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-success"><DoneCheck done pop={pop} size={24} /> Done</span>
+                      <Button variant="ghost" size="sm" onClick={() => { setPop(false); setJustDone(false); done.mutate(false) }}>Undo</Button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      title="Done — press to undo"
+                      aria-label="Done. Press to mark this as not finished."
+                      onClick={() => { setPop(false); done.mutate(false) }}
+                      className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[13px] font-medium text-success transition-colors hover:bg-success/10"
+                    >
+                      <DoneCheck done pop={false} size={18} /> Done
+                    </button>
+                  )
                 ) : (
-                  <Button className="min-h-[56px] w-full px-6 text-[17px] sm:w-auto" onClick={() => done.mutate(true)}>
+                  <Button className="min-h-[56px] w-full px-6 text-[17px] sm:w-auto" onClick={() => { setJustDone(true); done.mutate(true) }}>
                     <Check className="h-6 w-6" strokeWidth={2.5} /> I finished this
                   </Button>
                 )
