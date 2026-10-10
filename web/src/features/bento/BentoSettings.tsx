@@ -8,9 +8,16 @@ import { useT } from '@/lib/i18n'
    source plus the colour wheel and the rows behind it, and it sat in the
    main bundle for every visitor of every role, most of whom never open it.
    The button is here; the window arrives on the first press. */
-const AppearanceDialog = lazy(() =>
-  import('./AppearanceDialog').then((m) => ({ default: m.AppearanceDialog })),
-)
+const loadDialog = () => import('./AppearanceDialog')
+const AppearanceDialog = lazy(() => loadDialog().then((m) => ({ default: m.AppearanceDialog })))
+/* Fetched once the page is idle, so the first press of the gear opens at once
+   instead of waiting on the download (owner, 2026-10-10: "no waiting"). */
+if (typeof window !== 'undefined') {
+  const warm = () => { void loadDialog().catch(() => {}) }
+  const ric = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+  if (ric) ric(warm, { timeout: 4000 })
+  else window.setTimeout(warm, 2500)
+}
 import { cn } from '@/lib/utils'
 import { useLayout as useFrameLayout } from '@/lib/layout'
 import { INK, EDGE, WASH } from './bento-ink'

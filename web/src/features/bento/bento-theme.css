@@ -4991,24 +4991,20 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   [data-appearance-dialog][data-launching] {
     animation:
       sw-t-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both,
-      sw-o-in 0.26s ease both,
-      sw-r-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both !important;
+      sw-o-in 0.26s ease both !important;
     transform-origin: center center;
     will-change: transform, opacity;
   }
-  [data-appearance-dialog][data-launching] > * { animation: sw-i-in 0.35s ease 0.08s both; }
   .appearance-overlay:has([data-appearance-dialog][data-launching]:not([data-closing])) {
     animation: sw-d-in 0.42s cubic-bezier(0.25, 1, 0.5, 1) both;
   }
   [data-appearance-dialog][data-closing] {
     animation:
       sw-t-out 0.4s cubic-bezier(0.25, 1, 0.5, 1) both,
-      sw-o-out 0.4s cubic-bezier(0.35, 0, 0.65, 1) both,
-      sw-r-out 0.4s cubic-bezier(0.25, 1, 0.5, 1) both !important;
+      sw-o-out 0.4s cubic-bezier(0.35, 0, 0.65, 1) both !important;
     will-change: transform, opacity;
     pointer-events: none;
   }
-  [data-appearance-dialog][data-closing] > * { animation: sw-i-out 0.25s ease both; }
   .appearance-overlay[data-closing] {
     animation: sw-d-out 0.44s cubic-bezier(0.25, 1, 0.5, 1) both !important;
   }
@@ -5057,5 +5053,14 @@ html[data-assistant-open] .bento-dots { display: none !important; }
     animation: ios-close 380ms cubic-bezier(0.4, 0, 0.2, 1) both !important;
     will-change: transform, opacity;
     pointer-events: none;
+  }
+}
+
+/* SMOOTH ABOVE ALL (owner, 2026-10-10: "stuck"). Only transform and opacity
+   animate on the Settings window; the corner and inner fades repainted the
+   whole panel every frame. */
+@media (min-width: 768px) {
+  [data-appearance-dialog][data-launching], [data-appearance-dialog][data-closing] {
+    backface-visibility: hidden;
   }
 }
