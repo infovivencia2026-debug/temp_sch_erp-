@@ -747,18 +747,29 @@ function ResolveLogin({ row, portal, onClose }: {
   portal: 'student' | 'parent'
   onClose: () => void
 }) {
-  const who = row.signIn || row.loginCode
+  /* SEARCHED BY NAME, CHOSEN BY SIGN-IN.
+
+     The first cut searched q= with the text they sign in as and found
+     nothing every time: the endpoint's filter is full_name, email and phone
+     (worker admin/users.ts, USER_FILTER) and a child signs in with a
+     username, which that clause does not touch. Live check: "Their login
+     could not be matched" on every row.
+
+     So the query is the name, which q= does match, and the sign-in text is
+     what picks between the results -- names repeat at a school and two
+     children called the same thing must not be a coin toss. Only if exactly
+     one account carries that name is it taken on the name alone. */
   const found = useQuery({
-    queryKey: ['login-for-roster', who],
-    enabled: Boolean(who),
+    queryKey: ['login-for-roster', row.id, row.signIn],
+    enabled: Boolean(row.name),
     queryFn: async () => {
       const page = await api.get<List<{ id: string; full_name: string; sign_in_as?: string; login_code?: string }>>(
-        `/api/v1/admin/users?q=${encodeURIComponent(who)}`,
+        `/api/v1/admin/users?q=${encodeURIComponent(row.name)}`,
       )
       const items = page.items ?? []
       return (
-        items.find((u) => u.sign_in_as && u.sign_in_as === row.signIn) ??
-        items.find((u) => u.login_code && u.login_code === row.loginCode) ??
+        (row.signIn ? items.find((u) => u.sign_in_as === row.signIn) : undefined) ??
+        (row.loginCode ? items.find((u) => u.login_code === row.loginCode) : undefined) ??
         (items.length === 1 ? items[0] : undefined)
       )
     },
@@ -776,8 +787,8 @@ function ResolveLogin({ row, portal, onClose }: {
       <Dialog open onClose={onClose} title={row.name} description="Their login could not be matched">
         <FormNotice error={found.error} />
         <p className="text-[13px] text-muted-foreground">
-          No account on this school matches “{who}”. Issue or reset their login first, then try
-          again.
+          No account on this school matches “{row.name}”. Issue or reset their login first, then
+          try again.
         </p>
       </Dialog>
     )

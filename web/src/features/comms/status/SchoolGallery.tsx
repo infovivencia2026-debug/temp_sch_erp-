@@ -67,8 +67,21 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
      for a family with one child it is simply the child's name, which is the
      thing they came to look for. Staff see nothing here: it is not about one
      child for them. */
+  /* A CHILD IS NOT A PARENT (owner, 2026-10-09: "why student see parent of
+     and my childs class and remove that").
+
+     `staff` is false for a parent AND for a student, so everything written
+     for the family side was being shown to both -- a child opened the
+     gallery and was told "Parent of Aditya Sharma (Grade 6-B)", which is
+     their own name with somebody else's relationship to it, beside a filter
+     called "My child's class" for a child who has no child.
+
+     A student is told about their own class in their own words, and the
+     pill that names whose parent you are belongs only to a parent. */
+  const roles = session.user?.roles ?? []
+  const isParent = roles.includes('parent')
   const kids = useChildren()
-  const kid = staff ? null : kids.child
+  const kid = staff || !isParent ? null : kids.child
   const shown = items
     .filter((p) => !scope || (scope === 'school' ? p.scope === 'school' : scope === 'class' ? p.scope === 'class' : p.scope === 'class' && (p.for_kids ?? []).includes(scope)))
     .filter((p) => !kind || p.media_kind === kind)
@@ -115,7 +128,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
         {!kid && <span className="mr-auto" />}
         {/* Nothing here for staff: the owner asked for no filters on their
             side, and Class Status already filters by class and by poster. */}
-        {!staff && <FamilyScope value={scope} onChange={setScope} />}
+        {!staff && <FamilyScope value={scope} onChange={setScope} isParent={isParent} />}
         {/* Photos, videos, or everything. */}
         <div className="flex items-center gap-1 rounded-full bg-muted p-1">
           {([['', 'All'], ['photo', 'Photos'], ['video', 'Videos']] as const).map(([v, label]) => (
@@ -248,11 +261,19 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
 }
 
 /* All, Whole school, then each child's class by name (one child: "My child's
-   class"). Owner: "no my child switching". */
-function FamilyScope({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+   class"). Owner: "no my child switching".
+
+   A STUDENT GETS THE SAME FILTER IN THEIR OWN WORDS. The scope is the same
+   one -- posts for the class this account belongs to -- so the control
+   stays; only the label was written for the wrong reader. A child picking
+   "My class" and a parent picking "My child's class" ask the server for
+   exactly the same thing, and a child never sees a sibling-by-name list,
+   which is a parent's way of having more than one class to choose from. */
+function FamilyScope({ value, onChange, isParent }: { value: string; onChange: (v: string) => void; isParent: boolean }) {
   const { children } = useChildren()
   const opts: [string, string][] = [['', 'All'], ['school', 'Whole school']]
-  if (children.length > 1) for (const ch of children) opts.push([ch.student_id, `${ch.full_name.split(' ')[0]}'s class`])
+  if (!isParent) opts.push(['class', 'My class'])
+  else if (children.length > 1) for (const ch of children) opts.push([ch.student_id, `${ch.full_name.split(' ')[0]}'s class`])
   else opts.push(['class', "My child's class"])
   return (
     <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1">
