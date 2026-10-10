@@ -87,9 +87,40 @@ export default function Diary() {
     mutationFn: () => api.post('/api/v1/portal/diary/notes', { student_id: studentId || undefined, on_date: date, kind, body: body.trim(), priority }),
     onSuccess: () => { setBody(''); setPriority('normal'); refresh() },
   })
+  /* THE BOX FILLS WITH THE PAPER, NOT AFTER IT (owner, 2026-10-10: "the
+     paper popup is fast and the tick box is late").
+
+     The confetti fired the instant the card was pressed, while the tick
+     itself waited for the POST and then for the refetch behind it -- two
+     network round trips on a school's line. So the celebration arrived
+     first and the thing being celebrated a half second later, which reads
+     as two unrelated events and makes the tick feel broken.
+
+     The row is flipped in the cache on the press, in the same frame as the
+     confetti, and the server is told afterwards. If the server refuses, the
+     cache is put back exactly as it was and the row un-ticks -- which is
+     the honest outcome, and visible, rather than a tick that quietly
+     disagrees with what was saved.
+
+     Not refetched on success: the row already shows the right thing, and
+     pulling the whole planner back only to redraw the same state is what
+     made this slow. The next natural invalidation (adding or deleting an
+     item) brings the list up to date. */
   const tick = useMutation({
     mutationFn: (v: { id: string; done: boolean }) => api.post(`/api/v1/portal/diary/notes/${v.id}`, { done: v.done }),
-    onSuccess: refresh,
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ['planner'] })
+      const before = qc.getQueriesData<PlannerResponse>({ queryKey: ['planner'] })
+      const at = new Date().toISOString()
+      qc.setQueriesData<PlannerResponse>({ queryKey: ['planner'] }, (old) => old && {
+        ...old,
+        items: old.items.map((x) => (x.id === v.id ? { ...x, done_at: v.done ? at : null } : x)),
+      })
+      return { before }
+    },
+    onError: (_e, _v, ctx) => {
+      for (const [key, data] of ctx?.before ?? []) qc.setQueryData(key, data)
+    },
   })
   const drop = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/portal/diary/notes/${id}`),
@@ -259,29 +290,38 @@ export default function Diary() {
                     <div key={e.id} role="button" tabIndex={0} aria-pressed={e.done}
                       onClick={() => toggle(e)}
                       onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(e) } }}
-                      className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:rounded-xl lg:border lg:p-3.5',
+                      /* BIGGER ON A DESK (owner, 2026-10-10: "make the
+                         cards big"). The list sits in half a 1900px screen
+                         and the cards were phone-sized inside it: a 26px
+                         tick, 14px type and 14px of padding, three of them
+                         adrift in a column of empty white. A card in a
+                         column that wide can afford the room, and the thing
+                         being pressed is the whole card, so a bigger card is
+                         also an easier target. The phone keeps its own
+                         sizes -- there the cards already fill the screen. */
+                      className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:gap-4 lg:rounded-2xl lg:border lg:px-5 lg:py-[18px]',
                         e.done ? 'border-[#bbf7d0] bg-[#f0fdf4] lg:border-emerald-200 lg:bg-emerald-50/60' : 'bg-card lg:border-slate-200 lg:hover:border-slate-300')}>
                       <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-6',
+                        <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-8',
                           e.done ? 'border-[#16a34a] bg-[#16a34a] text-white lg:border-emerald-500 lg:bg-emerald-500' : 'border-[#cbd5e1] bg-card text-transparent',
                           popped === e.id && 'animate-[planner-pop_.45s_ease]')}>
-                          <Check className="size-3.5" strokeWidth={3.5} aria-hidden="true" />
+                          <Check className="size-3.5 lg:size-[18px]" strokeWidth={3.5} aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
                           <div className="mb-0.5 flex items-center gap-1.5 lg:gap-2">
-                            <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase lg:px-2 lg:py-0.5 lg:tracking-wider', k.badge)}>{k.label}</span>
-                            <span className="text-[11px] text-muted-foreground lg:text-[12px] lg:font-medium">{formatDate(e.on_date)}</span>
+                            <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase lg:rounded-md lg:px-2 lg:py-0.5 lg:text-[11px] lg:tracking-wider', k.badge)}>{k.label}</span>
+                            <span className="text-[11px] text-muted-foreground lg:text-[13px] lg:font-medium">{formatDate(e.on_date)}</span>
                             {e.priority === 'urgent'
                               ? <span className="text-[10px] font-semibold text-rose-600">🔥 Urgent</span>
                               : <span className="size-1.5 rounded-full bg-[#16a34a] lg:hidden" title="Normal" aria-label="Normal" />}
                           </div>
-                          <p className={cn('text-[13.5px] font-medium leading-snug lg:text-[14px] lg:font-semibold lg:text-slate-800', e.done && 'text-muted-foreground line-through lg:opacity-75')}>{e.body}</p>
+                          <p className={cn('text-[13.5px] font-medium leading-snug lg:text-[16px] lg:font-semibold lg:text-slate-800', e.done && 'text-muted-foreground line-through lg:opacity-75')}>{e.body}</p>
                         </div>
                       </div>
                       <button type="button" aria-label="Delete" title="Delete" disabled={drop.isPending}
                         onClick={(ev) => { ev.stopPropagation(); drop.mutate(e.id) }}
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-rose-500 lg:rounded-lg">
-                        <X className="size-4" aria-hidden="true" />
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-rose-500 lg:size-10 lg:rounded-xl">
+                        <X className="size-4 lg:size-[18px]" aria-hidden="true" />
                       </button>
                     </div>
                   )
