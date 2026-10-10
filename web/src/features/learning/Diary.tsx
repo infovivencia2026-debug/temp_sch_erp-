@@ -109,146 +109,186 @@ export default function Diary() {
   const done = items.filter((e) => e.done).length
   const pct = items.length ? Math.round((done / items.length) * 100) : 0
 
-  const toggle = (e: { id: string; done: boolean }, el: Element | null) => {
+  /* The paper bursts from the middle of the screen, in every view (owner,
+     2026-10-10: "paper popup should be center in all views"). */
+  const toggle = (e: { id: string; done: boolean }) => {
     if (!e.done) {
       setPopped(e.id)
       window.setTimeout(() => setPopped(null), 450)
-      const b = el?.getBoundingClientRect()
-      if (b) confetti(b.left + b.width / 2, b.top + b.height / 2)
+      confetti(window.innerWidth / 2, window.innerHeight / 2)
     }
     tick.mutate({ id: e.id, done: !e.done })
   }
 
-  const card = 'rounded-[14px] border bg-card px-4 py-3.5 shadow-[0_2px_8px_rgba(15,23,42,0.04)]'
-  const field = 'min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5]'
-  const chips = '-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:overflow-visible'
+  /* Phone: the Student Task Hub design (compact cards, one column).
+     Computer (lg): the owner's Planner Dashboard design (2026-10-10) -- a
+     header with the progress box on the right, then Add item (5/12) beside
+     the list (7/12), with labels, wrapped chips and dark pill tabs. */
+  const card = 'rounded-[14px] border bg-card px-4 py-3.5 shadow-[0_2px_8px_rgba(15,23,42,0.04)] lg:rounded-2xl lg:border-slate-200/80 lg:p-6 lg:shadow-sm'
+  const field = 'min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5] lg:min-h-[42px] lg:rounded-xl lg:border lg:bg-slate-50 lg:px-3.5 lg:text-[14px] lg:focus:ring-2 lg:focus:ring-indigo-500/20'
+  const chips = '-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0'
+  const label = 'hidden text-[12px] font-semibold text-slate-600 lg:mb-1 lg:block'
+  const streakChip = streak > 0 ? (
+    <span className="rounded-full border border-[#fde68a] bg-[#fef3c7] px-2.5 py-1 text-[11px] font-bold text-[#b45309] lg:py-0.5 lg:text-[12px] lg:font-semibold">
+      🔥 {streak}-day streak
+    </span>
+  ) : items.length > 0 && done === items.length ? (
+    <span className="rounded-full border border-[#bbf7d0] bg-[#dcfce7] px-2.5 py-1 text-[11px] font-bold text-[#15803d] lg:py-0.5 lg:text-[12px]">🎉 All done</span>
+  ) : (
+    <span className="rounded-full border bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground lg:py-0.5 lg:text-[12px] lg:font-semibold">Tick one to start a streak</span>
+  )
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-3 pb-6 pt-3 sm:px-4 lg:max-w-[1100px] lg:px-6 lg:pt-6">
+    <div className="mx-auto w-full max-w-[560px] px-3 pb-6 pt-3 sm:px-4 lg:max-w-6xl lg:px-6 lg:pt-8">
       <ChildBar kids={children} value={chosen} onChange={setChosen} />
       {!ready ? (
         <ChooseChild title="Choose a child" body="Each child has their own planner." />
       ) : (
-        /* On a computer two columns: progress and adding on the left, the list
-           on the right (owner, 2026-10-10: "I see the phone view on the web"). */
-        <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start lg:gap-6">
-          <div className="flex flex-col gap-3.5 lg:sticky lg:top-4">
-            {/* Header, streak and progress */}
-            <header className={card}>
-              <div className="flex items-center justify-between gap-3">
-                <h1 className="text-[17px] font-extrabold lg:text-[20px]">My planner</h1>
-                {streak > 0 ? (
-                  <span className="rounded-full border border-[#fde68a] bg-[#fef3c7] px-2.5 py-1 text-[11px] font-bold text-[#b45309]">
-                    🔥 {streak}-day streak
-                  </span>
-                ) : items.length > 0 && done === items.length ? (
-                  <span className="rounded-full border border-[#bbf7d0] bg-[#dcfce7] px-2.5 py-1 text-[11px] font-bold text-[#15803d]">🎉 All done</span>
-                ) : (
-                  <span className="rounded-full border bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">Tick one to start a streak</span>
-                )}
+        <div className="flex flex-col gap-3.5 lg:gap-6">
+          {/* Header: compact on a phone; icon, title, streak and a progress box on a computer. */}
+          <header className={cn(card, 'lg:flex lg:items-center lg:justify-between lg:gap-5')}>
+            <div className="flex items-center justify-between gap-3 lg:justify-start lg:gap-4">
+              <div className="hidden size-12 shrink-0 place-items-center rounded-2xl border border-indigo-100/80 bg-indigo-50 text-xl lg:grid" aria-hidden="true">📅</div>
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-3 lg:block">
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-[17px] font-extrabold lg:text-[20px] lg:font-bold lg:tracking-tight">My planner</h1>
+                  <span className="hidden lg:inline-flex">{streakChip}</span>
+                </div>
+                <p className="mt-0.5 hidden text-[12px] text-slate-500 lg:block">Manage tasks, deadlines, and study priorities</p>
+                <span className="lg:hidden">{streakChip}</span>
               </div>
-              <div className="mt-2.5 flex justify-between text-[11.5px] font-semibold text-muted-foreground">
-                <span>{done} of {items.length} done</span>
-                <span>{pct}%</span>
+            </div>
+            {/* Progress: a bar under the title on a phone, a box on the right on a computer. */}
+            <div className="mt-2.5 lg:mt-0 lg:flex lg:shrink-0 lg:items-center lg:gap-4 lg:rounded-xl lg:border lg:border-slate-200/60 lg:bg-slate-50 lg:px-4 lg:py-3">
+              <div className="flex justify-between text-[11.5px] font-semibold text-muted-foreground lg:block lg:text-right">
+                <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-slate-400 lg:block">Today&apos;s progress</span>
+                <span className="lg:text-[14px] lg:font-bold lg:text-slate-800">{done} of {items.length} done</span>
+                <span className="lg:hidden">{pct}%</span>
               </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-[#16a34a] transition-[width] duration-300" style={{ width: `${pct}%` }} />
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted lg:mt-0 lg:h-2 lg:w-28 lg:bg-slate-200/70">
+                <div className="h-full rounded-full bg-[#16a34a] transition-[width] duration-300 lg:bg-emerald-500" style={{ width: `${pct}%` }} />
               </div>
-            </header>
+              <span className="hidden rounded-md bg-emerald-100/80 px-2 py-0.5 font-mono text-[12px] font-bold text-emerald-700 lg:inline">{pct}%</span>
+            </div>
+          </header>
 
-            {/* Quick add */}
-            <section className={cn(card, 'flex flex-col gap-3')}>
-              <div className={chips} role="radiogroup" aria-label="Kind">
-                {KINDS.map((k) => (
-                  <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} onClick={() => setKind(k.value)}
-                    className={cn('shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors',
-                      kind === k.value ? 'border-[#4f46e5] bg-[#eef2ff] text-[#4f46e5]' : 'bg-card text-muted-foreground')}>
-                    {k.emoji} {k.label}
-                  </button>
-                ))}
+          <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
+            {/* Add item */}
+            <section className={cn(card, 'flex flex-col gap-3 lg:col-span-5 lg:gap-5')}>
+              <div className="hidden items-center justify-between border-b border-slate-100 pb-3 lg:flex">
+                <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-400">Add item</h2>
+                <span className="text-[11px] font-medium text-slate-400">Quick entry</span>
               </div>
-              <div className={chips}>
-                {PRESETS.map((p) => (
-                  <button key={p} type="button" onClick={() => setBody(p)}
-                    className="shrink-0 rounded-md border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80">{p}</button>
-                ))}
+              <div>
+                <span className={label}>Category</span>
+                <div className={chips} role="radiogroup" aria-label="Category">
+                  {KINDS.map((k) => (
+                    <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} onClick={() => setKind(k.value)}
+                      className={cn('shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors lg:rounded-lg lg:font-medium',
+                        kind === k.value ? 'border-[#4f46e5] bg-[#eef2ff] text-[#4f46e5] lg:border-indigo-200 lg:bg-indigo-50 lg:text-indigo-700' : 'bg-card text-muted-foreground lg:text-slate-600 lg:hover:bg-slate-50')}>
+                      {k.emoji} {k.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); if (body.trim()) write.mutate() }}>
-                <input value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="What needs to be done?" className={field} />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" className={field} />
-                  <div className="flex rounded-lg border-[1.5px] p-[3px]" role="radiogroup" aria-label="Priority">
-                    {(['normal', 'urgent'] as const).map((p) => (
-                      <button key={p} type="button" role="radio" aria-checked={priority === p} onClick={() => setPriority(p)}
-                        className={cn('flex-1 rounded-md text-[12.5px] font-semibold transition-colors',
-                          priority === p ? (p === 'urgent' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#dcfce7] text-[#15803d]') : 'text-muted-foreground')}>
-                        {p === 'urgent' ? '🔥 Urgent' : 'Normal'}
-                      </button>
-                    ))}
+              <div>
+                <span className={label}>Suggestions</span>
+                <div className={chips}>
+                  {PRESETS.map((p) => (
+                    <button key={p} type="button" onClick={() => setBody(p)}
+                      className="shrink-0 rounded-md border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80 lg:border-0 lg:bg-slate-100 lg:text-[12px] lg:text-slate-600 lg:hover:bg-slate-200">{p}</button>
+                  ))}
+                </div>
+              </div>
+              <form className="flex flex-col gap-2 lg:gap-4" onSubmit={(e) => { e.preventDefault(); if (body.trim()) write.mutate() }}>
+                <div>
+                  <span className={label}>Title</span>
+                  <input value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="What needs to be done?" aria-label="Title" className={field} />
+                </div>
+                <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                  <div>
+                    <span className={label}>Date</span>
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" className={field} />
+                  </div>
+                  <div>
+                    <span className={label}>Priority</span>
+                    <div className="flex min-h-[44px] rounded-lg border-[1.5px] p-[3px] lg:min-h-[42px] lg:gap-1.5 lg:border-0 lg:p-0" role="radiogroup" aria-label="Priority">
+                      {(['normal', 'urgent'] as const).map((p) => (
+                        <button key={p} type="button" role="radio" aria-checked={priority === p} onClick={() => setPriority(p)}
+                          className={cn('flex-1 rounded-md text-[12.5px] font-semibold transition-colors lg:rounded-xl lg:border',
+                            priority === p
+                              ? (p === 'urgent' ? 'bg-[#fee2e2] text-[#b91c1c] lg:border-rose-200' : 'bg-[#dcfce7] text-[#15803d] lg:border-emerald-200')
+                              : 'text-muted-foreground lg:border-slate-200 lg:bg-white lg:text-slate-600')}>
+                          {p === 'urgent' ? '🔥 Urgent' : 'Normal'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <button type="submit" disabled={!body.trim() || write.isPending}
-                  className="min-h-[44px] w-full rounded-lg bg-[#4f46e5] text-[13.5px] font-bold text-white transition-opacity disabled:opacity-50">
+                  className="min-h-[44px] w-full rounded-lg bg-[#4f46e5] text-[13.5px] font-bold text-white transition-opacity disabled:opacity-50 lg:rounded-xl lg:bg-indigo-500 lg:text-[14px] lg:font-semibold lg:hover:bg-indigo-600">
                   {write.isPending ? 'Adding…' : '+ Add item'}
                 </button>
               </form>
               <FormNotice error={write.error} />
             </section>
-          </div>
 
-          <div className="flex flex-col gap-3.5">
-            {/* All / Pending / Done */}
-            <div className="flex gap-1 rounded-lg bg-muted p-[3px]" role="tablist" aria-label="Show">
-              {(['all', 'pending', 'done'] as const).map((f) => (
-                <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
-                  className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors',
-                    filter === f ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.06)]' : 'text-muted-foreground')}>
-                  {f === 'done' ? `Done (${done})` : f === 'pending' ? `Pending (${items.length - done})` : `All (${items.length})`}
-                </button>
-              ))}
-            </div>
+            {/* The list */}
+            <section className="flex flex-col gap-3.5 lg:col-span-7 lg:gap-4 lg:rounded-2xl lg:border lg:border-slate-200/80 lg:bg-card lg:p-6 lg:shadow-sm">
+              <div className="flex gap-1 rounded-lg bg-muted p-[3px] lg:gap-1.5 lg:rounded-none lg:border-b lg:border-slate-100 lg:bg-transparent lg:p-0 lg:pb-3" role="tablist" aria-label="Show">
+                {(['all', 'pending', 'done'] as const).map((f) => (
+                  <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+                    className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors lg:flex-none lg:rounded-lg lg:px-3',
+                      filter === f
+                        ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.06)] lg:bg-slate-900 lg:text-white lg:shadow-none'
+                        : 'text-muted-foreground lg:text-slate-600 lg:hover:bg-slate-100')}>
+                    {f === 'done' ? `Done (${done})` : f === 'pending' ? `Pending (${items.length - done})` : `All (${items.length})`}
+                  </button>
+                ))}
+              </div>
 
-            {/* The items */}
-            <div className="flex flex-col gap-2">
-              {shown.length === 0 && (
-                <p className="rounded-lg border border-dashed bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
-                  {items.length === 0 ? 'Nothing planned yet. Add your first item.' : filter === 'done' ? 'Nothing ticked off yet.' : 'All done. Nice work!'}
-                </p>
-              )}
-              {shown.map((e) => {
-                const k = kindOf(e.kind)
-                return (
-                  <div key={e.id} role="button" tabIndex={0} aria-pressed={e.done}
-                    onClick={(ev) => toggle(e, ev.currentTarget.querySelector('[data-tick]'))}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(e, ev.currentTarget.querySelector('[data-tick]')) } }}
-                    className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98]',
-                      e.done ? 'border-[#bbf7d0] bg-[#f0fdf4]' : 'bg-card')}>
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <span data-tick className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors',
-                        e.done ? 'border-[#16a34a] bg-[#16a34a] text-white' : 'border-[#cbd5e1] bg-card text-transparent',
-                        popped === e.id && 'animate-[planner-pop_.45s_ease]')}>
-                        <Check className="size-3.5" strokeWidth={3.5} aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="mb-0.5 flex items-center gap-1.5">
-                          <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase', k.badge)}>{k.label}</span>
-                          <span className={cn('size-1.5 rounded-full', e.priority === 'urgent' ? 'bg-[#ef4444]' : 'bg-[#16a34a]')}
-                            title={e.priority === 'urgent' ? 'Urgent' : 'Normal'} aria-label={e.priority === 'urgent' ? 'Urgent' : 'Normal'} />
-                          <span className="text-[11px] text-muted-foreground">{formatDate(e.on_date)}</span>
+              <div className="flex flex-col gap-2 lg:min-h-[360px] lg:gap-2.5">
+                {shown.length === 0 && (
+                  <p className="rounded-lg border border-dashed bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
+                    {items.length === 0 ? 'Nothing planned yet. Add your first item.' : filter === 'done' ? 'Nothing ticked off yet.' : 'All done. Nice work!'}
+                  </p>
+                )}
+                {shown.map((e) => {
+                  const k = kindOf(e.kind)
+                  return (
+                    <div key={e.id} role="button" tabIndex={0} aria-pressed={e.done}
+                      onClick={() => toggle(e)}
+                      onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(e) } }}
+                      className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:rounded-xl lg:border lg:p-3.5',
+                        e.done ? 'border-[#bbf7d0] bg-[#f0fdf4] lg:border-emerald-200 lg:bg-emerald-50/60' : 'bg-card lg:border-slate-200 lg:hover:border-slate-300')}>
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-6',
+                          e.done ? 'border-[#16a34a] bg-[#16a34a] text-white lg:border-emerald-500 lg:bg-emerald-500' : 'border-[#cbd5e1] bg-card text-transparent',
+                          popped === e.id && 'animate-[planner-pop_.45s_ease]')}>
+                          <Check className="size-3.5" strokeWidth={3.5} aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="mb-0.5 flex items-center gap-1.5 lg:gap-2">
+                            <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase lg:px-2 lg:py-0.5 lg:tracking-wider', k.badge)}>{k.label}</span>
+                            <span className="text-[11px] text-muted-foreground lg:text-[12px] lg:font-medium">{formatDate(e.on_date)}</span>
+                            {e.priority === 'urgent'
+                              ? <span className="text-[10px] font-semibold text-rose-600">🔥 Urgent</span>
+                              : <span className="size-1.5 rounded-full bg-[#16a34a] lg:hidden" title="Normal" aria-label="Normal" />}
+                          </div>
+                          <p className={cn('text-[13.5px] font-medium leading-snug lg:text-[14px] lg:font-semibold lg:text-slate-800', e.done && 'text-muted-foreground line-through lg:opacity-75')}>{e.body}</p>
                         </div>
-                        <p className={cn('text-[13.5px] font-medium leading-snug', e.done && 'text-muted-foreground line-through')}>{e.body}</p>
                       </div>
+                      <button type="button" aria-label="Delete" title="Delete" disabled={drop.isPending}
+                        onClick={(ev) => { ev.stopPropagation(); drop.mutate(e.id) }}
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-rose-500 lg:rounded-lg">
+                        <X className="size-4" aria-hidden="true" />
+                      </button>
                     </div>
-                    <button type="button" aria-label="Delete" disabled={drop.isPending}
-                      onClick={(ev) => { ev.stopPropagation(); drop.mutate(e.id) }}
-                      className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-foreground">
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                )
-              })}
-              <FormNotice error={tick.error ?? drop.error} />
-            </div>
+                  )
+                })}
+                <FormNotice error={tick.error ?? drop.error} />
+              </div>
+            </section>
           </div>
         </div>
       )}
