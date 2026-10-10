@@ -278,7 +278,7 @@ export default function Diary() {
                 ))}
               </div>
 
-              <div className="flex flex-col gap-2 lg:min-h-[360px] lg:gap-2.5">
+              <div className="flex flex-col gap-2 lg:min-h-[360px] lg:gap-3.5">
                 {shown.length === 0 && (
                   <p className="rounded-lg border border-dashed bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
                     {items.length === 0 ? 'Nothing planned yet. Add your first item.' : filter === 'done' ? 'Nothing ticked off yet.' : 'All done. Nice work!'}
@@ -299,29 +299,29 @@ export default function Diary() {
                          being pressed is the whole card, so a bigger card is
                          also an easier target. The phone keeps its own
                          sizes -- there the cards already fill the screen. */
-                      className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:gap-4 lg:rounded-2xl lg:border lg:px-5 lg:py-[18px]',
+                      className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:gap-5 lg:rounded-2xl lg:border lg:px-6 lg:py-6',
                         e.done ? 'border-[#bbf7d0] bg-[#f0fdf4] lg:border-emerald-200 lg:bg-emerald-50/60' : 'bg-card lg:border-slate-200 lg:hover:border-slate-300')}>
                       <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-8',
+                        <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-9',
                           e.done ? 'border-[#16a34a] bg-[#16a34a] text-white lg:border-emerald-500 lg:bg-emerald-500' : 'border-[#cbd5e1] bg-card text-transparent',
                           popped === e.id && 'animate-[planner-pop_.45s_ease]')}>
-                          <Check className="size-3.5 lg:size-[18px]" strokeWidth={3.5} aria-hidden="true" />
+                          <Check className="size-3.5 lg:size-5" strokeWidth={3.5} aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
                           <div className="mb-0.5 flex items-center gap-1.5 lg:gap-2">
-                            <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase lg:rounded-md lg:px-2 lg:py-0.5 lg:text-[11px] lg:tracking-wider', k.badge)}>{k.label}</span>
-                            <span className="text-[11px] text-muted-foreground lg:text-[13px] lg:font-medium">{formatDate(e.on_date)}</span>
+                            <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase lg:rounded-md lg:px-2.5 lg:py-1 lg:text-[12px] lg:tracking-wider', k.badge)}>{k.label}</span>
+                            <span className="text-[11px] text-muted-foreground lg:text-[13.5px] lg:font-medium">{formatDate(e.on_date)}</span>
                             {e.priority === 'urgent'
                               ? <span className="text-[10px] font-semibold text-rose-600">🔥 Urgent</span>
                               : <span className="size-1.5 rounded-full bg-[#16a34a] lg:hidden" title="Normal" aria-label="Normal" />}
                           </div>
-                          <p className={cn('text-[13.5px] font-medium leading-snug lg:text-[16px] lg:font-semibold lg:text-slate-800', e.done && 'text-muted-foreground line-through lg:opacity-75')}>{e.body}</p>
+                          <p className={cn('text-[13.5px] font-medium leading-snug lg:text-[17px] lg:font-semibold lg:text-slate-800', e.done && 'text-muted-foreground line-through lg:opacity-75')}>{e.body}</p>
                         </div>
                       </div>
                       <button type="button" aria-label="Delete" title="Delete" disabled={drop.isPending}
                         onClick={(ev) => { ev.stopPropagation(); drop.mutate(e.id) }}
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-rose-500 lg:size-10 lg:rounded-xl">
-                        <X className="size-4 lg:size-[18px]" aria-hidden="true" />
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-rose-500 lg:size-11 lg:rounded-xl">
+                        <X className="size-4 lg:size-5" aria-hidden="true" />
                       </button>
                     </div>
                   )

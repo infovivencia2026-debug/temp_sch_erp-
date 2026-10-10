@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { VideoPlayer, fmtDur } from './VideoPlayer'
 import { YouTubeLesson, type YTPlayer } from './YouTubeLesson'
-import { LessonNotes, KeyPoints } from './LessonNotes'
+import { KeyPoints } from './LessonNotes'
 
 /* Pieces both sides of the LMS use: the teacher's (faculty/TeacherLMS.tsx,
    faculty/TeacherModules.tsx) and the child's (learning/StudentCourses.tsx).
@@ -378,7 +378,9 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
   const ytV = l.yt_video_id ?? fallback.video
   const ytL = l.yt_playlist_id ?? fallback.list
   const yt = ytV || ytL ? { v: ytV, list: ytL } : null
-  const [player, setPlayer] = useState<YTPlayer | null>(null)
+  /* Held only so the player is not garbage between renders; nothing reads
+     the playhead now that the notebook has gone. */
+  const [, setPlayer] = useState<YTPlayer | null>(null)
   const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
   /* THE BODY BOX UNDER A LESSON IS GONE (owner, 2026-10-10: "remove notes
      in lms").
@@ -393,34 +395,28 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
      in it still has text in it. This stops drawing it, which is reversible
      in one line if the school wants it back. For a text lesson the body IS
      the lesson and is still shown, by the branch below. */
-  /* A VIDEO LESSON IS TWO COLUMNS ON A DESK (owner, 2026-10-10: "in web let
-     notes be right side of the vd").
+  /* NO NOTEBOOK IN THE LESSON (owner, 2026-10-10: "i said no my notes in
+     lms").
 
-     Notes under the player meant watching with the notebook off the bottom
-     of the screen: write a line, scroll up, find your place, scroll down.
-     Beside it, the video stays in view while the note is typed, which is
-     the whole point of a note that remembers the second it was taken at.
+     This briefly laid the player and a notes panel out in two columns. The
+     notes are gone from the LMS: a lesson shows the video, the teacher's
+     key points, and nothing of the child's own. My planner is where a
+     student writes things down, and one place for that is better than two.
 
-     Only where there is room -- one column on a phone, notes under the
-     player, because a 390px screen cannot hold both and the video is what
-     came first. And only for a YouTube lesson: this layout exists to pair a
-     player with a notebook, and a PDF or a reading has no clock to pin a
-     note to. */
-  if (yt) {
-    return (
-      <div className="text-[14px] lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
-        <div className="space-y-4">
-          <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
-          {l.key_points ? <KeyPoints text={l.key_points} /> : null}
-        </div>
-        {/* mt-4 on a phone where this falls under the player, none on a desk
-            where the grid's own gap already separates the columns. */}
-        {track && <div className="mt-4 lg:mt-0"><LessonNotes lessonId={l.id} player={player} /></div>}
-      </div>
-    )
-  }
+     The endpoints and the table behind the notes are left alone rather
+     than dropped in the same breath -- no screen calls them now, and
+     deleting a child's writing is not something to do as a side effect of
+     a layout change. Say the word and they go.
+
+     Key points stay: they belong to the lesson, not to the screen around
+     it, and a teacher previewing their own lesson should see them. */
   return (
     <div className="space-y-4 text-[14px]">
+      {yt && (
+        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
+      )}
+      {/* The teacher's own words about the video, above the lesson. */}
+      {l.key_points ? <KeyPoints text={l.key_points} /> : null}
       {l.kind === 'text' && (l.body ? <NotesView text={l.body} /> : <p className="text-muted-foreground">These notes are empty.</p>)}
       {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
       {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this source has been removed from the library.</p>}
@@ -464,12 +460,6 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
           <Download className="h-4 w-4" /> Download {l.file_name ?? 'the file'}{l.file_size ? ` (${fmtSize(l.file_size)})` : ''}
         </a>
       )}
-      {/* `track` is this product's existing word for "the child's own login",
-          which is exactly who may keep private notes: a parent reading the
-          course sees the lesson and the teacher's key points, not their
-          child's notebook, and a teacher previewing their own lesson is not
-          a student of it. */}
-      {track && <LessonNotes lessonId={l.id} player={player} />}
     </div>
   )
 }

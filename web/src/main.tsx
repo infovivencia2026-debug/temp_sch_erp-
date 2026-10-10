@@ -167,114 +167,23 @@ try {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void check() })
 })()
 
-/* SIGNING OUT ASKS ONCE.
+/* SIGNING OUT IS JUST SIGNING OUT (owner, 2026-10-10: "i dont want this
+   thing direct sign out no need of all this").
 
-   The door out sits in the header beside the account and theme buttons, and
-   in Settings, and a slip of the pointer ended the session -- with a half-typed
-   register or a fee half-collected on screen. Every link or form that goes to
-   /logout, wherever it is in the product and whichever is added later, is
-   caught here, in the capture phase before the browser follows it, and asked
-   about once. Drawn in plain DOM so it works before React, and in the app's
-   own tokens so it themes with everything else. */
-;(() => {
-  if (typeof document === 'undefined') return
-  let asking = false
-  const ask = (go: () => void) => {
-    if (asking) return
-    asking = true
-    /* The question, drawn to the product's own soft-grey sheet: an icon, the
-       question, the consequence, and two answers of equal weight. Not the red
-       of a destructive button -- signing out destroys nothing, and dressing it
-       as deletion teaches people to ignore the colour that means deletion.
+   What stood here: every link and form pointing at /logout was caught in
+   the capture phase and answered with an alert -- "Are you sure you want
+   to sign out?" -- and on Yes the page was painted over with "Signing
+   out…" until the sign-in page arrived. Two extra screens between pressing
+   the door and going through it.
 
-       Tokens, not the mock-up's fixed greys, so it follows the theme; the
-       greys are the fallbacks, which is what a browser without the tokens
-       gets. The one colour that is NOT a token is this button's grey: the
-       --foreground token is near-black, and a black slab reads as a warning
-       rather than as the way out. A mid-grey sits correctly on the card in
-       either theme, which is the whole reason the mock-up chose one.
-       Margin rather than flex `gap` between the buttons: the tablets in
-       these schools are old enough to lay a gap out as nothing at all. */
-    /* THE OWNER'S iOS SIGN-OUT ALERT (2026-10-09), phone and web alike:
-       a frosted backdrop, a 275px squircle card, a red circle with the exit
-       glyph, "Sign Out" / "Are you sure you want to sign out?", and the
-       hairline Cancel | Sign Out footer. Same behaviour as before: Escape
-       and a tap outside cancel, Cancel has focus first. */
-    const style = document.createElement('style')
-    style.textContent = "@keyframes erp-so-in{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}@keyframes erp-so-dim{from{opacity:0}to{opacity:1}}.erp-so-back{position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.22);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);animation:erp-so-dim .2s ease both}.erp-signout-box{width:275px;max-width:100%;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border-radius:28px;overflow:hidden;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.16),0 4px 12px rgba(0,0,0,.08),inset 0 0 0 1px rgba(255,255,255,.7);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased;animation:erp-so-in .2s cubic-bezier(.16,1,.3,1) both}.erp-so-body{padding:24px 20px 20px;display:flex;flex-direction:column;align-items:center}.erp-so-icon{width:60px;height:60px;border-radius:50%;background:#c95151;display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 0 0 6px rgba(201,81,81,.08),0 4px 12px rgba(201,81,81,.22)}.erp-so-icon svg{width:26px;height:26px;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}.erp-so-title{margin:0 0 6px;font-size:17px;font-weight:600;color:#111827;letter-spacing:-.2px}.erp-so-desc{margin:0;font-size:13px;line-height:1.35;color:#4b5563;padding:0 4px}.erp-so-actions{display:flex;border-top:.5px solid rgba(0,0,0,.1)}.erp-so-btn{flex:1;border:0;background:transparent;padding:13px 0;font-size:16px;font-family:inherit;cursor:pointer;outline:none;transition:background .15s ease}.erp-so-btn:active{background:rgba(0,0,0,.04)}.erp-so-btn+.erp-so-btn{border-left:.5px solid rgba(0,0,0,.1)}.erp-so-no{font-weight:400;color:#007aff}.erp-so-yes{font-weight:500;color:#e03838}html.dark .erp-signout-box{background:rgba(44,44,46,.94);box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.08)}html.dark .erp-so-title{color:#f5f5f7}html.dark .erp-so-desc{color:#aeaeb2}html.dark .erp-so-actions,html.dark .erp-so-btn+.erp-so-btn{border-color:rgba(255,255,255,.12)}html.dark .erp-so-no{color:#0a84ff}html.dark .erp-so-yes{color:#ff453a}@media (prefers-reduced-motion:reduce){.erp-signout-box,.erp-so-back{animation:none!important}}"
-    const back = document.createElement('div')
-    back.setAttribute('role', 'presentation')
-    back.className = 'erp-so-back'
-    const box = document.createElement('div')
-    box.className = 'erp-signout-box'
-    box.setAttribute('role', 'alertdialog')
-    box.setAttribute('aria-modal', 'true')
-    box.setAttribute('aria-labelledby', 'signout-q')
-    box.setAttribute('aria-describedby', 'signout-d')
-    box.innerHTML =
-      '<div class="erp-so-body">' +
-      '<div class="erp-so-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' +
-      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>' +
-      '<polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>' +
-      '</svg></div>' +
-      '<h3 id="signout-q" class="erp-so-title">Sign Out</h3>' +
-      '<p id="signout-d" class="erp-so-desc">Are you sure you want to sign out?</p>' +
-      '</div>' +
-      '<div class="erp-so-actions">' +
-      '<button type="button" data-no class="erp-so-btn erp-so-no">Cancel</button>' +
-      '<button type="button" data-yes class="erp-so-btn erp-so-yes">Sign Out</button>' +
-      '</div>'
-    back.appendChild(style)
-    back.appendChild(box)
-    const close = () => {
-      asking = false
-      back.remove()
-      document.removeEventListener('keydown', onKey, true)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); close() }
-    }
-    back.addEventListener('click', (e) => { if (e.target === back) close() })
-    box.querySelector<HTMLButtonElement>('[data-no]')?.addEventListener('click', close)
-    /* Straight out (owner, 2026-10-10: "it is full blur when I click Sign Out,
-       again I see the page, and then sign out"). The alert does not close
-       back onto the page: the screen turns plain with "Signing out…" and
-       stays that way until the sign-in page replaces it. */
-    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', () => {
-      document.removeEventListener('keydown', onKey, true)
-      back.style.cssText = 'position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;' +
-        'background:hsl(var(--background,0 0% 100%));color:hsl(var(--muted-foreground,220 6% 46%));' +
-        "font:15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif"
-      back.className = ''
-      back.textContent = 'Signing out…'
-      go()
-    })
-    document.addEventListener('keydown', onKey, true)
-    document.body.appendChild(back)
-    // Focus the safe answer, so Enter on a stray keypress keeps the session.
-    box.querySelector<HTMLButtonElement>('[data-no]')?.focus()
-  }
-  const isLogout = (href: string | null) => {
-    if (!href) return false
-    try { return new URL(href, location.href).pathname === '/logout' } catch { return false }
-  }
-  document.addEventListener('click', (e) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-    const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
-    if (!a || !isLogout(a.getAttribute('href'))) return
-    e.preventDefault()
-    e.stopPropagation()
-    ask(() => { location.href = a.href })
-  }, true)
-  document.addEventListener('submit', (e) => {
-    const f = e.target as HTMLFormElement | null
-    if (!f || !isLogout(f.getAttribute('action'))) return
-    if (f.dataset.confirmed === '1') return
-    e.preventDefault()
-    e.stopPropagation()
-    ask(() => { f.dataset.confirmed = '1'; f.submit() })
-  }, true)
-})()
+   It was put there to stop a slip of the pointer ending a session with a
+   half-typed register on screen. The owner's call is that the cost is not
+   worth it: signing out destroys nothing, signing back in takes seconds,
+   and the control is not somewhere a pointer lands by accident -- it is
+   the last row of Settings and a labelled button in the header.
+
+   So /logout is an ordinary link again. No interception, no alert, no
+   interstitial: the browser follows it and the server ends the session. */
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
