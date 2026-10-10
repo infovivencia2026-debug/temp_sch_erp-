@@ -4,7 +4,7 @@ import { useOverlayHistory } from '@/lib/overlay-history'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X, Images, ChevronRight } from 'lucide-react'
+import { ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X, Images, ChevronRight, Video } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import SchoolGallery from '@/features/comms/status/SchoolGallery'
 import StatusComposer from '@/features/comms/status/StatusComposer'
@@ -551,7 +551,25 @@ export default function Notifications() {
                     "add something, it looks ugly"). */}
                 {(() => {
                   const pics = (statusFeed.data?.gallery ?? []).filter((p) => p.media_kind !== 'text' && (p.thumb || p.url)).slice(0, 3)
-                  if (!pics.length) return null
+                  if (!pics.length) {
+                    /* No pictures yet: three soft tiles in the same fan, so the card still
+                       reads as a photo album rather than a bare row. */
+                    const tiles = [
+                      { Icon: Images, bg: 'linear-gradient(135deg,#5ac8fa,#007aff)' },
+                      { Icon: Camera, bg: 'linear-gradient(135deg,#ffcc00,#ff9500)' },
+                      { Icon: Video, bg: 'linear-gradient(135deg,#ff6482,#ff2d55)' },
+                    ]
+                    return (
+                      <span className="relative mr-1 flex h-[40px] shrink-0 items-center" aria-hidden="true">
+                        {tiles.map(({ Icon, bg }, i) => (
+                          <span key={i} style={{ marginLeft: i ? -12 : 0, zIndex: 3 - i, transform: `rotate(${[-6, 3, 8][i]}deg)`, background: bg }}
+                            className="grid size-[36px] place-items-center rounded-[9px] border-2 border-card text-white shadow-[0_2px_6px_rgba(0,0,0,.16)]">
+                            <Icon className="size-[16px]" strokeWidth={2.2} />
+                          </span>
+                        ))}
+                      </span>
+                    )
+                  }
                   return (
                     <span className="relative mr-1 flex h-[40px] shrink-0 items-center" aria-hidden="true">
                       {pics.map((p, i) => (

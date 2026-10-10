@@ -541,6 +541,31 @@ export function registerClassStatus(r: Router): void {
     return ok({ unseen: n?.n ?? 0 })
   })
 
+  /* MORE STORAGE (owner, 2026-10-10). How full the gallery is, and whether a
+     request is already in; the request itself is recorded for the payment
+     step that comes later. Only someone who may post to the whole school
+     (the administration) may ask. */
+  r.get('/status/storage', 'auth', async (c) => {
+    const used = await mediaUsed(c.db)
+    const open = await c.db.prepare(`SELECT id, extra_gb, utr, status, created_at FROM storage_requests
+        WHERE status = 'requested' ORDER BY created_at DESC LIMIT 1`).first<{ id: string; extra_gb: number; utr: string | null; status: string; created_at: string }>().catch(() => null)
+    return ok({ used_bytes: used, quota_bytes: MEDIA_QUOTA, can_request: can(c.id, SCHOOL), pending: open ?? null })
+  })
+  r.post('/status/storage-request', 'auth', async (c) => {
+    if (!can(c.id, SCHOOL)) throw forbidden()
+    const body = await readJSON<{ extra_gb?: number; note?: string; utr?: string }>(c.req)
+    const gb = Number(body.extra_gb)
+    if (![5, 20, 50, 100].includes(gb)) throw badRequest('choose 5, 20, 50 or 100 GB')
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 500) : ''
+    /* The bank reference of the payment: 12 digits for UPI/IMPS, up to 22 letters and digits for NEFT/RTGS. */
+    const utr = String(body.utr ?? '').replace(/s+/g, '').toUpperCase()
+    if (!/^[A-Z0-9]{12,22}$/.test(utr)) throw badRequest('enter the UTR number from your payment (12 to 22 letters or digits)', { code: 'bad_utr' })
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO storage_requests (id, requested_by, extra_gb, note, utr, used_bytes, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'requested', ?)`).bind(id, c.id.userId, gb, note || null, utr, await mediaUsed(c.db), now()).run()
+    return ok({ id, extra_gb: gb, utr, status: 'requested' })
+  })
+
   /* What the composer may offer: the sections and classes this poster may reach. */
   r.get('/status/audiences', 'auth', async (c) => {
     /* Whoever runs Class Status needs this list to retarget somebody else's
