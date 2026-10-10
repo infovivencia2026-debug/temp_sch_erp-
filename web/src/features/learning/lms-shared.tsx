@@ -335,14 +335,35 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
   const [player, setPlayer] = useState<YTPlayer | null>(null)
   const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
   const note = l.kind !== 'text' && l.body ? <NotesView text={l.body} /> : null
+  /* A VIDEO LESSON IS TWO COLUMNS ON A DESK (owner, 2026-10-10: "in web let
+     notes be right side of the vd").
+
+     Notes under the player meant watching with the notebook off the bottom
+     of the screen: write a line, scroll up, find your place, scroll down.
+     Beside it, the video stays in view while the note is typed, which is
+     the whole point of a note that remembers the second it was taken at.
+
+     Only where there is room -- one column on a phone, notes under the
+     player, because a 390px screen cannot hold both and the video is what
+     came first. And only for a YouTube lesson: this layout exists to pair a
+     player with a notebook, and a PDF or a reading has no clock to pin a
+     note to. */
+  if (yt) {
+    return (
+      <div className="text-[14px] lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
+        <div className="space-y-4">
+          <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
+          {l.key_points ? <KeyPoints text={l.key_points} /> : null}
+          {note && <div className="rounded-lg border bg-muted/20 p-3">{note}</div>}
+        </div>
+        {/* mt-4 on a phone where this falls under the player, none on a desk
+            where the grid's own gap already separates the columns. */}
+        {track && <div className="mt-4 lg:mt-0"><LessonNotes lessonId={l.id} player={player} /></div>}
+      </div>
+    )
+  }
   return (
     <div className="space-y-4 text-[14px]">
-      {yt && (
-        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
-      )}
-      {/* The teacher's words, above the child's. Shown to anybody who can see
-          the lesson, including a parent reading over a shoulder. */}
-      {l.key_points ? <KeyPoints text={l.key_points} /> : null}
       {l.kind === 'text' && (l.body ? <NotesView text={l.body} /> : <p className="text-muted-foreground">These notes are empty.</p>)}
       {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
       {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this source has been removed from the library.</p>}

@@ -99,17 +99,27 @@ function ArrowBar({ children, label }: { children: ReactNode; label: string }) {
 }
 /* Compact pills, not full-width slabs (owner, 2026-10-10: "long big buttons look ugly"). */
 const ARROW = 'h-auto min-h-[44px] w-auto max-w-full gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-[15px] font-semibold'
+/* THE TWO ARROWS ARE ONE SIZE (owner, 2026-10-10: "back and all done
+   button should be in same size").
+
+   They shared a height already and nothing else: Back took the width of the
+   word "Back" and Next took up to 60% of the bar, so a row meant to read as
+   one control forward and one back was a small button and a large one. Each
+   takes half now -- flex-1 from a zero basis, so the longer label does not
+   win the extra space -- and the pair is symmetrical whatever the labels
+   under them say. */
 function BackBtn({ onClick, sub }: { onClick: () => void; sub?: string }) {
   return (
-    <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'justify-start text-left')}>
+    <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'w-full flex-1 basis-0 justify-start text-left')}>
       <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden />
       <span className="min-w-0"><span className="block">Back</span>{sub && <span className="block truncate text-[12px] font-normal text-muted-foreground">{sub}</span>}</span>
     </Button>
   )
 }
+/* Both arrows are flex children of ArrowBar, which is already a flex row. */
 const NextBtn = ({ onClick, label, sub, locked, hot, btnRef }: { onClick: () => void; label: string; sub?: string; locked?: boolean; hot?: boolean; btnRef?: Ref<HTMLSpanElement> }) => (
-  <span ref={btnRef} className="ml-auto block min-w-0 max-w-[60%]"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
-    className={cn(ARROW, 'justify-end text-right', hot && !locked && 'ring-2 ring-primary/20')}>
+  <span ref={btnRef} className="block min-w-0 flex-1 basis-0"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
+    className={cn(ARROW, 'w-full justify-end text-right', hot && !locked && 'ring-2 ring-primary/20')}>
     <span className="min-w-0"><span className="block">{label}</span>{sub && <span className={cn('block truncate text-[12px] font-normal', hot && !locked ? 'opacity-85' : 'text-muted-foreground')}>{sub}</span>}</span>
     {locked ? <Lock className="h-5 w-5 shrink-0" aria-hidden /> : <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />}
   </Button></span>
@@ -755,7 +765,12 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
               {autoVideo && !l.done ? <p className="text-[15px] text-muted-foreground">Watch the video to the end and it ticks itself.</p> : (
                 l.done ? (
                   <span className="inline-flex items-center gap-3">
-                    <span className="inline-flex items-center gap-2 text-[18px] font-bold text-success"><DoneCheck done pop={pop} size={40} /> Done!</span>
+                    {/* Smaller (owner, 2026-10-10: "decreases the size of the
+                      done"). A 40px tick and 18px type announced the finish
+                      of a two-minute video like the end of an exam. It is a
+                      receipt, not a trophy: it says the thing was recorded
+                      and gets out of the way of the next step. */}
+                  <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-success"><DoneCheck done pop={pop} size={24} /> Done</span>
                     <Button variant="ghost" size="sm" onClick={() => { setPop(false); done.mutate(false) }}>Undo</Button>
                   </span>
                 ) : (
