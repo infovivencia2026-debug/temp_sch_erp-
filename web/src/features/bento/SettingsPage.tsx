@@ -150,8 +150,10 @@ export default function SettingsPage() {
      same intent on a route is going back to the screen you came from. */
   const [launching] = useState(() => { const l = shouldLaunch(); if (l) markLaunch(); return l })
   const done = useCallback(() => {
-    // Closes the way it opened, back into the gear (owner, 2026-10-09).
-    leaveSettings(() => navigate(-1))
+    /* Inside Settings (a section back to the list) it just goes back; only
+       leaving Settings shrinks into the gear (owner, 2026-10-10). */
+    if (window.location.pathname.startsWith('/settings/')) navigate(-1)
+    else leaveSettings(() => navigate(-1))
   }, [navigate])
   /* The launch, both ways: remember where Settings was opened from, and when
      a link elsewhere on the screen (the dock) is followed, shrink back into

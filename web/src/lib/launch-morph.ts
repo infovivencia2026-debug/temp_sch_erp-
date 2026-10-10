@@ -114,6 +114,15 @@ export function leaveSettings(go: () => void): void {
   const screen = typeof document !== 'undefined' ? document.querySelector<HTMLElement>('.settings-screen') : null
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   if (!screen || reduced || window.matchMedia('(min-width: 768px)').matches) { endLaunch(); go(); return }
+  /* Always into the gear on the bar, wherever Settings was entered from:
+     the last tap inside Settings is not where it lives (owner, 2026-10-10). */
+  const gear = [...document.querySelectorAll<HTMLElement>('.bento-dock button[aria-label="Settings"], .bento-dock a[aria-label="Settings"], button[aria-label="Settings"]')]
+    .find((b) => b.getBoundingClientRect().width > 0)
+  if (gear) {
+    const g = gear.getBoundingClientRect()
+    document.documentElement.style.setProperty('--launch-x', `${g.left + g.width / 2}px`)
+    document.documentElement.style.setProperty('--launch-y', `${g.top + g.height / 2}px`)
+  }
   const r = screen.getBoundingClientRect()
   const ghost = screen.cloneNode(true) as HTMLElement
   ghost.classList.remove('settings-launch')
@@ -126,8 +135,17 @@ export function leaveSettings(go: () => void): void {
   document.body.appendChild(ghost)
   endLaunch()
   go()
-  requestAnimationFrame(() => ghost.setAttribute('data-closing', ''))
+  /* Measured, not assumed: from the screen's own centre to the gear's. */
+  const g = gear?.getBoundingClientRect()
+  const tx = g ? g.left + g.width / 2 - (r.left + r.width / 2) : 0
+  const ty = g ? g.top + g.height / 2 - (r.top + r.height / 2) : r.height / 2
+  const sc = g ? Math.max(0.04, g.width / r.width) : 0.06
+  const anim = ghost.animate?.([
+    { transform: 'translate3d(0,0,0) scale(1)', opacity: 1, borderRadius: '0px' },
+    { opacity: 1, offset: 0.7 },
+    { transform: `translate3d(${tx}px,${ty}px,0) scale(${sc})`, opacity: 0, borderRadius: '48px' },
+  ], { duration: 380, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' })
   const done = () => ghost.remove()
-  ghost.addEventListener('animationend', done, { once: true })
+  if (anim) anim.onfinish = done
   window.setTimeout(done, 600)
 }
