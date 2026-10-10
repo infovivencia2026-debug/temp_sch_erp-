@@ -1,7 +1,7 @@
 import { ProgressRing } from '../../components/ProgressRing'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw } from 'lucide-react'
+import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw, Settings2 } from 'lucide-react'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { cn } from '@/lib/utils'
 import { SlidingIndicator } from '@/components/SlidingIndicator'
@@ -293,6 +293,31 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
        lifted clear of the home indicator (--dock-lift), fully rounded, glass
        with a solid fallback (styles/page-foot.css). The page scrolls under
        it; --page-foot is what keeps the last row above it. */
+    <>
+    {/* THE WAY TO SETTINGS, WHICH A STUDENT ON A PHONE DID NOT HAVE (owner,
+        2026-10-10: "there is no setting icon in focus for phones student
+        login").
+
+        This bar hides the dock outright -- the stylesheet above says
+        `html[data-student-tabs] .bento-dock{display:none!important}` -- and the
+        dock is where the cog lives, in a cell of its own on a phone and in
+        the bottom-left corner on a desk. So hiding the dock took the cog
+        with it, and the launcher behind More has no Settings entry either:
+        a child on a phone could not reach their own appearance, their
+        account or the door out.
+
+        The cog goes back where the desk keeps it, bottom-left, lifted clear
+        of this bar. Only in Focus: in the sidebar layout More opens the
+        drawer, which has Settings in it already, and a second cog floating
+        over the page there would be the one piece of the other layout left
+        behind. */}
+    {!onMore && (
+      <a href="/settings" aria-label="Settings" title="Settings"
+        className="student-tabbar-cog fixed left-3 z-40 grid size-11 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm md:hidden"
+        style={{ bottom: 'calc(var(--dock-lift,10px) + var(--tabbar-h,64px) + 10px)' }}>
+        <Settings2 className="size-5" aria-hidden />
+      </a>
+    )}
     <nav aria-label="Main" className="student-tabbar fixed inset-x-[12px] bottom-[var(--dock-lift,10px)] z-40 mx-auto box-border h-[var(--tabbar-h,64px)] max-w-md rounded-full border px-[6px] py-[4px] md:hidden">
       <div ref={barRef} className="relative flex h-full items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
@@ -317,6 +342,7 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
         </button>
       </div>
     </nav>
+    </>
   )
 }
 
