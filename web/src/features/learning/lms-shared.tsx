@@ -100,6 +100,47 @@ export function FilePick({ purpose, onDone, label = 'Attach a file', accept, cap
 }
 
 /** A YouTube or Vimeo address as an embeddable player address (inline on iPhone), or null. */
+/* YOUTUBE IDS FROM A URL, ON THIS SIDE TOO.
+
+   The server writes yt_video_id when a lesson is saved, but only since
+   migration 0072: every YouTube lesson a school made before that has a
+   perfectly good address and a null id, and it was falling through to the
+   old bare <iframe> -- no disclaimer, no notes, none of the things the id
+   path gives. Found on the live school: "test video", kind video,
+   youtube.com/watch?v=VyolWjrz3bQ, yt_video_id null.
+
+   Deriving it here fixes every one of those the moment the page renders,
+   without a data migration and without waiting for somebody to re-save a
+   lesson they are happy with. The server stays the source of truth where
+   it has an answer; this only fills the gap where it has none.
+
+   Deliberately the same shapes and the same alphabet as the server's
+   parser (worker routes/teaching/lms.ts). Two parsers is one too many, but
+   the alternative is shipping worker code to the browser, and the rule
+   -- eleven characters for a video, twelve or more for a list -- is small
+   enough to state twice and be sure. */
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/
+const YT_LIST_RE = /^[A-Za-z0-9_-]{12,64}$/
+export function youTubeIds(url?: string | null): { video: string | null; list: string | null } {
+  if (!url) return { video: null, list: null }
+  let u: URL
+  try { u = new URL(url) } catch { return { video: null, list: null } }
+  const host = u.hostname.replace(/^www\./, '').toLowerCase()
+  if (!['youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'youtu.be'].includes(host)) return { video: null, list: null }
+  let video: string | null = null
+  if (host === 'youtu.be') video = u.pathname.slice(1).split('/')[0] || null
+  else if (u.pathname === '/watch') video = u.searchParams.get('v')
+  else {
+    const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([^/?#]+)/)
+    if (m) video = m[2]
+  }
+  const list = u.searchParams.get('list')
+  return {
+    video: video && YT_ID_RE.test(video) ? video : null,
+    list: list && YT_LIST_RE.test(list) ? list : null,
+  }
+}
+
 export function embedOf(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{6,})/)
   if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}?playsinline=1&rel=0`
@@ -331,7 +372,12 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
      instead: same nocookie host, but it also loads YouTube's own API, which
      is the only sanctioned way to read the playhead -- and reading the
      playhead is what makes a note say 4:12 instead of nothing. */
-  const yt = l.yt_video_id || l.yt_playlist_id ? { v: l.yt_video_id, list: l.yt_playlist_id } : null
+  /* The stored ids where the server has them, the address where it does
+     not -- which is every lesson made before migration 0072. */
+  const fallback = youTubeIds(l.url)
+  const ytV = l.yt_video_id ?? fallback.video
+  const ytL = l.yt_playlist_id ?? fallback.list
+  const yt = ytV || ytL ? { v: ytV, list: ytL } : null
   const [player, setPlayer] = useState<YTPlayer | null>(null)
   const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
   /* THE BODY BOX UNDER A LESSON IS GONE (owner, 2026-10-10: "remove notes
