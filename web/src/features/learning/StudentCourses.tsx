@@ -167,7 +167,8 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                   const all = c.lessons > 0 && c.completed >= c.lessons
                   return (
                     <button key={c.class_subject_id} type="button" onClick={() => onOpen(c.class_subject_id)}
-                      className="card flex min-h-[184px] flex-col items-center justify-start gap-2 p-4 text-center transition active:scale-[.98] hover:bg-muted/30">
+                      className="card relative flex min-h-[184px] flex-col items-center justify-start gap-2 p-4 text-center transition active:scale-[.98] hover:bg-muted/30"
+                      aria-label={`${c.subject}${c.lessons > c.completed ? `, ${c.lessons - c.completed} to watch` : ''}`}>
                       <Ring pct={pct} size={84} stroke={7} hue={hue} label={`${c.completed} of ${c.lessons} done`}>
                         <span className={cn('grid h-[58px] w-[58px] place-items-center rounded-full', HUE[hue].bg, HUE[hue].fg)}>
                           {all ? <Check className="h-8 w-8" strokeWidth={2.25} aria-hidden /> : <Icon className="h-8 w-8" strokeWidth={1.6} aria-hidden />}
@@ -194,9 +195,10 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                       <span className="block text-[13.5px] text-muted-foreground">
                         {c.lessons ? `${c.lessons} video${c.lessons === 1 ? '' : 's'}` : 'Nothing yet'}
                       </span>
+                      {/* The count sits on the card's corner, as the bell's does (owner, 2026-10-10). */}
                       {c.lessons > c.completed && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-1 text-[12.5px] font-semibold text-destructive-foreground">
-                          {c.lessons - c.completed} to watch
+                        <span aria-hidden className="absolute right-2 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-destructive px-1.5 text-[12.5px] font-bold leading-none text-destructive-foreground shadow-sm ring-2 ring-background">
+                          {c.lessons - c.completed > 99 ? '99+' : c.lessons - c.completed}
                         </span>
                       )}
                     </button>
