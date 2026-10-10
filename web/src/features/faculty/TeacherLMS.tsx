@@ -248,7 +248,8 @@ function CourseView({ k, back }: { k: { section_id: string; class_subject_id: st
         {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : (
           <div className="space-y-4">
             <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="tablist">
-              {(['modules', 'progress', 'assignments', 'quizzes'] as const).map((t) => (
+              {/* Videos and progress only (owner, 2026-10-10: 'no need of quiz and assignments'). */}
+              {(['modules', 'progress'] as const).map((t) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`min-h-10 shrink-0 whitespace-nowrap rounded px-3.5 text-[14px] font-medium ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                   {t === 'modules' ? `Modules (${d.units.filter((u) => u.is_active !== false && !u.parent_unit_id).length})` : t === 'progress' ? 'Progress' : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}
