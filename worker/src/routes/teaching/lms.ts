@@ -337,7 +337,7 @@ export function registerLMS(r: Router) {
     const ls = lessons.results as Record<string, unknown>[]
     return ok({
       course: co, roll: (roll.results[0] as { n: number }).n, today: todayIST(),
-      gating: (gate.results[0] as { gating?: string } | undefined)?.gating === 'open' ? 'open' : 'sequential',
+      gating: (void gate, 'sequential'), // always one by one (lms_progress.ts)
       days: days.results,
       layout: (lay.results[0] as { layout?: string } | undefined)?.layout ?? 'topic_day',
       /* Archived modules come too (is_active false), so they can be brought back. */
@@ -1037,7 +1037,7 @@ export function registerLMS(r: Router) {
       if (b.gating === undefined) return ok({ layout: layoutOf(b.layout) })
     }
     const gating = str(b.gating)
-    if (gating !== 'sequential' && gating !== 'open') throw badRequest('gating must be sequential or open')
+    if (gating !== 'sequential') throw badRequest('every course is one by one: the next video opens when the one before it is watched')
     await c.db.prepare(`INSERT INTO lms_course_settings (institution_id, section_id, class_subject_id, gating, updated_at) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (section_id, class_subject_id) DO UPDATE SET gating = excluded.gating, updated_at = excluded.updated_at`)
       .bind(institutionId(c), co.section_id, co.class_subject_id, gating, now()).run()

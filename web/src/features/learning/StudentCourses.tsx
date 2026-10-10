@@ -463,9 +463,9 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                       <look.Icon className={cn('h-6 w-6', HUE[look.hue].fg)} strokeWidth={1.6} aria-hidden />
                     </Ring>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Your teacher</p>
-                      {/* No teacher assigned: say so, not the subject's name in the teacher's place. */}
-                      <p className={cn('truncate text-[17px] font-bold leading-tight', !d.course.teacher && 'text-muted-foreground')}>{d.course.teacher || 'Not set yet'}</p>
+                      {/* Only when a teacher is set (owner, 2026-10-10: "don't show that"). */}
+                      {d.course.teacher && <><p className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Your teacher</p>
+                      <p className="truncate text-[17px] font-bold leading-tight">{d.course.teacher}</p></>}
                       {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
                     </div>
                   </div>
