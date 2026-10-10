@@ -99,7 +99,7 @@
 .lch-section {
   margin-bottom: 0.9rem;
   padding: 0.95rem 1rem 1.05rem;
-  border-radius: 18px;
+  border-radius: var(--radius-dialog, 18px);
   border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   background: color-mix(in srgb, currentColor 3%, transparent);
 }
@@ -167,7 +167,7 @@
   min-width: 0;
   padding: 8px 2px 6px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-card, 16px);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -482,8 +482,10 @@
    Every search on a phone fills from the top: the first and best answer at the
    top edge where the eye starts, the list growing downward, the field at the
    foot under the thumb. The pill keeps the auto margin so it stays at the foot
-   however short the list is. */
-.lch-list--up { margin-top: 0; }
+   however short the list is. */
+
+.lch-list--up { margin-top: 0; }
+
 .lch-list--up ~ .lch-searchbar { margin-top: auto; }
 
 /* Nothing matched: say so, offer words that do, and offer the assistant. */

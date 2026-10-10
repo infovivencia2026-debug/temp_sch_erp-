@@ -60,10 +60,10 @@ export function LayoutSwitch() {
       role="group"
       aria-label={t('shell.layout.group')}
       ref={groupRef}
-      className="relative flex items-center gap-0.5 rounded-[7px] bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
+      className="relative flex items-center gap-0.5 rounded-sm bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
     >
       <SlidingIndicator listRef={groupRef} active={layout}
-        className="rounded-[6px] bg-primary shadow-[var(--elev-1)]" />
+        className="rounded-sm bg-primary shadow-[var(--elev-1)]" />
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
@@ -76,7 +76,7 @@ export function LayoutSwitch() {
             aria-pressed={active}
             title={t(LABEL[value])}
             className={cn(
-              'h-8 rounded-[6px] px-2.5 text-[12.5px] transition-colors duration-100',
+              'h-8 rounded-sm px-2.5 text-[12.5px] transition-colors duration-100',
               active
                 ? 'bg-primary font-medium text-primary-foreground shadow-[var(--elev-1)]'
                 : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',

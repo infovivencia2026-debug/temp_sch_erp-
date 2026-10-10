@@ -441,7 +441,7 @@ function FullScreenOffer() {
   /* Two rows, not a card with a paragraph: the offer and the way to decline
      it, each a 44px target, each saying what it does in its own words. */
   return (
-    <Rows className={cn('mb-[24px] overflow-hidden rounded-[14px] border', SEAM)}>
+    <Rows className={cn('mb-[24px] overflow-hidden rounded-xl border', SEAM)}>
       <NavRow
         label="Use the whole screen"
         helper="The browser keeps about an eighth of the screen for its bar."

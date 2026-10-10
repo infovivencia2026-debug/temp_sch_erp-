@@ -31,7 +31,7 @@ export function YearSwitch() {
       }))}
     >
       <span
-        className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
+        className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-sm bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
         title="The academic year you are working in. Admissions, sections, fee structures and timetable drafts go into this year."
       >
         <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />

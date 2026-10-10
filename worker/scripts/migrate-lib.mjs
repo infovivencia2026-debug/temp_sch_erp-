@@ -92,7 +92,12 @@ export async function sqliteTarget(file, label = file) {
 /** A database wrangler knows (a binding in wrangler.jsonc), --remote or --local. */
 export function wranglerTarget(dbName, mode, label = dbName) {
   const run = (args) => {
-    const r = spawnSync('npx', ['wrangler', 'd1', 'execute', dbName, `--${mode}`, ...args], { cwd: WORKER, encoding: 'utf8', maxBuffer: 256 << 20 })
+    /* The installed wrangler, run by this very node, not `npx`: on Windows npx
+       is npx.cmd, which Node will not spawn without a shell, and a shell
+       re-splits the SQL in --command. Same binary either way. */
+    const wranglerJs = join(WORKER, 'node_modules', 'wrangler', 'bin', 'wrangler.js')
+    const r = spawnSync(process.execPath, [wranglerJs, 'd1', 'execute', dbName, `--${mode}`, ...args],
+      { cwd: WORKER, encoding: 'utf8', maxBuffer: 256 << 20 })
     if (r.status !== 0) throw new Error(`wrangler d1 execute ${dbName}: ${(r.stderr || r.stdout || '').trim().slice(-2000)}`)
     return r.stdout
   }

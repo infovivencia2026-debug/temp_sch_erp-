@@ -352,7 +352,7 @@ export function BentoDock() {
      tops, ten pixels apart. Contents cannot produce a common baseline; a row
      of identical cells can, so the phone rules own the grid and this leaves
      only the corner radius and the hit area's own padding. */
-  const tab = phone ? 'h-auto w-auto rounded-[8px]' : ''
+  const tab = phone ? 'h-auto w-auto rounded-md' : ''
   /* ICONS ONLY ON THE PHONE. The owner asked for the dock to be five glyphs
      and no words, on both apps. The name is still there for a screen reader
      and for the tooltip a long press shows, but it is not painted: five
