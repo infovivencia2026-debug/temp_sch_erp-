@@ -624,7 +624,7 @@ export function registerLMS(r: Router) {
       const kids: string[] = []
       for (const sec of secs) if (reachesSection(s, sec)) kids.push(...await sectionRoll(c, sec))
       const subj = await c.db.prepare(`SELECT sub.name FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.id = ?`).bind(u.class_subject_id).first<{ name: string }>()
-      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'lms_lesson', `New lesson in ${subj?.name ?? 'your course'}`, title, '/go/courses_subjects', 'lms_lesson', id))
+      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'lms_lesson', `New lesson in ${subj?.name ?? 'your course'}`, title, '/go/e_learning_resource_hub', 'lms_lesson', id))
     }
     await c.db.batch(stmts)
     return ok({ id })
@@ -748,7 +748,7 @@ export function registerLMS(r: Router) {
     }
     const kids = await sectionRoll(c, co.section_id)
     const label = kind === 'classwork' ? 'Classwork' : 'Assignment'
-    stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/courses_subjects', 'homework', id))
+    stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/e_learning_resource_hub', 'homework', id))
     stmts.push(...notifyMany(c, await recipients(c, kids, 'parents'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/homework', 'homework', id))
     await c.db.batch(stmts)
     return ok({ id, told: kids.length })
@@ -824,7 +824,7 @@ export function registerLMS(r: Router) {
     if (give) {
       const title = status === 'resubmit' ? `Please redo: ${h.title}` : `Marked: ${h.title}`
       const body = marksVal !== null ? `${marksVal}${max !== null ? ` / ${max}` : ''}${optStr(b.feedback) ? `. ${str(b.feedback)}` : ''}` : (str(b.feedback) || 'Your teacher has looked at your work.')
-      stmts.push(...notifyMany(c, await recipients(c, [sid], 'students'), 'homework_graded', title, body, '/go/courses_subjects', 'homework_graded', h.id))
+      stmts.push(...notifyMany(c, await recipients(c, [sid], 'students'), 'homework_graded', title, body, '/go/e_learning_resource_hub', 'homework_graded', h.id))
       stmts.push(...notifyMany(c, await recipients(c, [sid], 'parents'), 'homework_graded', `${title} (${onRoll.name})`, body, '/go/homework', 'homework_graded', h.id))
     }
     await c.db.batch(stmts)
@@ -841,7 +841,7 @@ export function registerLMS(r: Router) {
     const t = now()
     const ids = rows.results.map((x) => x.student_id)
     const stmts: D1PreparedStatement[] = [c.db.prepare(`UPDATE homework_submissions SET returned_at = ? WHERE homework_id = ? AND status = 'graded' AND returned_at IS NULL`).bind(t, h.id)]
-    stmts.push(...notifyMany(c, await recipients(c, ids, 'students'), 'homework_graded', `Marked: ${h.title}`, 'Your marked work and your teacher\'s comments are ready.', '/go/courses_subjects', 'homework_graded', h.id))
+    stmts.push(...notifyMany(c, await recipients(c, ids, 'students'), 'homework_graded', `Marked: ${h.title}`, 'Your marked work and your teacher\'s comments are ready.', '/go/e_learning_resource_hub', 'homework_graded', h.id))
     stmts.push(...notifyMany(c, await recipients(c, ids, 'parents'), 'homework_graded', `Marked: ${h.title}`, 'Marked work and the teacher\'s comments are ready.', '/go/homework', 'homework_graded', h.id))
     await c.db.batch(stmts)
     return ok({ returned: ids.length })
@@ -861,7 +861,7 @@ export function registerLMS(r: Router) {
     const ids = missing.results.map((x) => x.student_id)
     const who = await recipients(c, ids, to)
     const msg = str(b.message) || `${h.title}${h.subject ? ` (${h.subject})` : ''} has not been handed in yet${h.due_on ? `; it was due ${h.due_on}` : ''}.`
-    const stmts = notifyMany(c, who, 'homework_nudge', 'Reminder: work not handed in', msg.slice(0, 400), '/go/courses_subjects', 'homework_nudge', h.id)
+    const stmts = notifyMany(c, who, 'homework_nudge', 'Reminder: work not handed in', msg.slice(0, 400), '/go/e_learning_resource_hub', 'homework_nudge', h.id)
     if (stmts.length) await c.db.batch(stmts)
     const reached = new Set(who.map((w) => w.student))
     return ok({ missing: ids.length, told: who.length, unreachable: ids.filter((i) => !reached.has(i)).length })
@@ -911,7 +911,7 @@ export function registerLMS(r: Router) {
     })
     if (publish) {
       const kids = await sectionRoll(c, co.section_id)
-      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'quiz', `New quiz in ${co.subject}`, `${title}${dur ? `, ${dur} minutes` : ''}`, '/go/courses_subjects', 'quiz', testId))
+      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'quiz', `New quiz in ${co.subject}`, `${title}${dur ? `, ${dur} minutes` : ''}`, '/go/e_learning_resource_hub', 'quiz', testId))
     }
     await c.db.batch(stmts)
     return ok({ id: testId, questions: qs.length })
