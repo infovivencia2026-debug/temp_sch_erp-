@@ -430,7 +430,7 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
           <iframe src={embed} title={l.title} className="h-full w-full" allowFullScreen allow="encrypted-media; picture-in-picture; fullscreen" />
         </div>
       )}
-      {l.kind === 'video' && l.url && !embed && (/\.(mp4|webm|m4v)($|\?)/i.test(l.url)
+      {l.kind === 'video' && l.url && !embed && !yt && (/\.(mp4|webm|m4v)($|\?)/i.test(l.url)
         ? <video src={l.url} controls playsInline preload="metadata" className="mx-auto block aspect-video w-full max-w-3xl rounded-lg border bg-black" />
         : <DownloadCard l={l} />)}
       {(l.kind === 'pdf' || (l.kind === 'doc' && isPdf(l))) && (l.file_id || l.url) && (

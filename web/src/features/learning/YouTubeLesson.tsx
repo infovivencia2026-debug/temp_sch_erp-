@@ -132,8 +132,42 @@ export function watchUrl(videoId?: string | null, listId?: string | null): strin
    player's own controls are off -- and these buttons instead: play/pause,
    back 10 seconds, start again, full screen. Nothing here moves forward. Once
    the video is finished the ordinary controls come back. */
-export function LockedFrame({ locked, playing, toggle, back, restart, children }: { locked: boolean; playing: boolean; toggle: () => void; back: () => void; restart: () => void; children: React.ReactNode }) {
+export function LockedFrame({ locked, playing, toggle, back, restart, children, time, seek, resume }: {
+  locked: boolean; playing: boolean; toggle: () => void; back: () => void; restart: () => void; children: React.ReactNode
+  /** The clock, and a way to put it back: the guard below reads and corrects it. */
+  time: () => number | null; seek: (t: number) => void
+  /** Where "carry on" will jump to: the one forward move that is allowed. */
+  resume?: React.MutableRefObject<number | null>
+}) {
   const box = useRef<HTMLDivElement>(null)
+  /* NOTHING GOES FORWARD, BY ANY ROUTE (owner, 2026-10-10: "double tap on
+     the right side moved it forward -- nothing should work"). Four times a
+     second the clock is read; if it is further on than playing alone could
+     have taken it, it is put back where it was. That catches a phone's own
+     double tap, a seek bar, a key, anything. Going back is never touched. */
+  const tm = useRef({ time, seek })
+  tm.current = { time, seek }
+  useEffect(() => {
+    if (!locked) return
+    let last = -1
+    const id = window.setInterval(() => {
+      const t = tm.current.time()
+      if (t === null || !Number.isFinite(t)) return
+      const r = resume?.current
+      if (r !== null && r !== undefined && Math.abs(t - r) < 3) { resume!.current = null; last = t; return }
+      if (last >= 0 && t > last + 1.6) { tm.current.seek(last); return }
+      last = t
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [locked, resume])
+  /* Landscape full screen is covered edge to edge (a little of the top and
+     bottom is cut rather than black bars at the sides); upright, it fits. */
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
+  useEffect(() => {
+    const on = () => setWide(window.innerWidth > window.innerHeight)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
   /* Full screen is the browser's where it can be had, and where it cannot
      (an iPhone will not put a page element full screen; some Android
      browsers refuse inside an app) the frame covers the screen itself. */
@@ -205,8 +239,9 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children }
   if (!locked) return <>{children}</>
   const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium text-foreground hover:bg-muted'
   return (
-    <div ref={box} className={full ? 'fixed inset-0 z-[1000] flex items-center justify-center bg-black' : 'space-y-2'}>
-      <div className="relative w-full" style={full ? { width: 'min(100vw, calc(100dvh * 16 / 9))' } : undefined}>
+    <div ref={box} className={full ? 'fixed inset-0 z-[1000] flex items-center justify-center overflow-hidden bg-black' : 'space-y-2'}>
+      <div className={full ? 'relative shrink-0 [&_*]:!rounded-none [&_*]:!border-0' : 'relative w-full'}
+        style={full ? { width: wide ? 'max(100vw, calc(100dvh * 16 / 9))' : '100vw' } : undefined}>
         {children}
         {/* Over the player: taps come here, and the player itself never takes
             focus, so its own controls and keys never see a press. */}
@@ -260,7 +295,10 @@ export function YouTubeLesson({
   const [percent, setPercent] = useState<number | null>(null)
   const [skipped, setSkipped] = useState(false)
   /* Locked: the child's own lesson, not yet finished (see LockedFrame). */
-  const locked = !!track && !track.done
+  /* Every student video (finished or not) is guarded against going forward;
+     only an unfinished one counts towards finishing (watch, below). */
+  const locked = !!track
+  const resumeAt = useRef<number | null>(null)
   const [playing, setPlaying] = useState(false)
   const pl = useRef<YTPlayer | null>(null)
   void percent; void skipped
@@ -373,7 +411,7 @@ export function YouTubeLesson({
           resumed = true
           let pos = 0
           try { pos = Number(localStorage.getItem(posKey) ?? 0) } catch { /* fine */ }
-          if (pos > 5 && pos < dur - 5) { p.seekTo(pos, true); last = -1; return }
+          if (pos > 5 && pos < dur - 5) { resumeAt.current = pos; p.seekTo(pos, true); last = -1; return }
         }
         let t = p.getCurrentTime()
         const playing = p.getPlayerState?.() === 1, rate = p.getPlaybackRate?.() ?? 1
@@ -437,7 +475,8 @@ export function YouTubeLesson({
           <p className="mt-2 text-[12px] text-muted-foreground">Shown once. You will not be asked again.</p>
         </div>
       ) : (
-        <LockedFrame locked={locked} playing={playing}
+        <LockedFrame locked={locked} playing={playing} resume={resumeAt}
+          time={() => pl.current?.getCurrentTime?.() ?? null} seek={(t) => pl.current?.seekTo(t, true)}
           toggle={() => { const p = pl.current; if (!p) return; if (playing) p.pauseVideo?.(); else p.playVideo?.() }}
           back={() => { const p = pl.current; if (p) p.seekTo(Math.max(0, p.getCurrentTime() - 10), true) }}
           restart={() => { const p = pl.current; if (p) p.seekTo(0, true) }}>

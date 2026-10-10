@@ -1081,6 +1081,14 @@ function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toD
       ) : (
         <Card>
           <div className="px-[var(--card-pad)] py-4 text-[17px]">
+            {/* Above every video not yet finished: what it unlocks (owner, 2026-10-10). */}
+            {l && autoVideo && !l.done && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[14px] text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                <Lock className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">Complete this entire video to unlock {next ? <b>{titleOf(next.it)}</b> : <b>the end of {backLabel}</b>}</span>
+                <span className="rounded-md bg-amber-200/70 px-2 py-0.5 text-[11.5px] font-bold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">Sequential progression</span>
+              </div>
+            )}
             {l && <LessonContent l={l} track onFinished={refresh} />}
             {asg && <ul className="-mx-[var(--card-pad)] -my-3"><AssignmentItem a={asg} qkey={qkey} /></ul>}
             {quiz && (

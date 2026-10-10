@@ -83,7 +83,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
     s.watched = Array.from({ length: n }, (_, i) => (w[i] === '1' ? 1 : 0))
     const pos = saved.position ?? 0
     s.sentPos = pos
-    if (track && pos > 5 && pos < v.duration - 5 && v.currentTime < 1 && v.paused) { v.currentTime = pos; setResumed(pos) }
+    if (track && pos > 5 && pos < v.duration - 5 && v.currentTime < 1 && v.paused) { resumeAt.current = pos; v.currentTime = pos; setResumed(pos) }
     s.last = v.currentTime
   }
   const onTime = () => {
@@ -117,14 +117,17 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
   const [blocked, setBlocked] = useState(false)
 
   /* Unfinished and the child's own: no seek bar (LockedFrame in YouTubeLesson.tsx). */
-  const locked = !!track && !(lesson?.done || st.current.done)
+  /* Every student video is guarded against going forward (LockedFrame). */
+  const locked = !!track
+  const resumeAt = useRef<number | null>(null)
   const [playing, setPlaying] = useState(false)
   void percent
 
   if (!id) return null
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2">
-      <LockedFrame locked={locked} playing={playing}
+      <LockedFrame locked={locked} playing={playing} resume={resumeAt}
+        time={() => ref.current?.currentTime ?? null} seek={(t) => { if (ref.current) ref.current.currentTime = t }}
         toggle={() => { const v = ref.current; if (!v) return; if (v.paused) void v.play(); else v.pause() }}
         back={() => { const v = ref.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10) }}
         restart={() => { const v = ref.current; if (v) v.currentTime = 0 }}>
