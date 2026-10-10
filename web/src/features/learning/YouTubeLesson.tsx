@@ -172,7 +172,6 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
      (an iPhone will not put a page element full screen; some Android
      browsers refuse inside an app) the frame covers the screen itself. */
   const [full, setFull] = useState<'real' | 'fake' | null>(null)
-  const [hint, setHint] = useState(false)
   const fns = useRef({ toggle, back, restart })
   fns.current = { toggle, back, restart }
   const exit = () => {
@@ -222,15 +221,15 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
     return () => document.removeEventListener('keydown', key)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked])
-  /* A TAP PLAYS OR PAUSES; TWO QUICK TAPS GO BACK 10 SECONDS, as phone
-     players do. The single tap waits a moment to be sure it was not the
-     first of two. */
+  /* A TAP PLAYS OR PAUSES; TWO QUICK TAPS DO NOTHING. The single tap waits a
+     moment to be sure it was not the first of two. */
   const tap = useRef<{ at: number; timer: number }>({ at: 0, timer: 0 })
   const onTap = () => {
     const now = Date.now(), t = tap.current
     if (now - t.at < 300) {
+      /* A double tap does nothing at all (owner, 2026-10-10): not back, not
+         forward, not even the pause the first tap was about to do. */
       window.clearTimeout(t.timer); t.at = 0
-      fns.current.back(); setHint(true); window.setTimeout(() => setHint(false), 700)
       return
     }
     t.at = now
@@ -245,9 +244,8 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
         {children}
         {/* Over the player: taps come here, and the player itself never takes
             focus, so its own controls and keys never see a press. */}
-        <button type="button" aria-label={playing ? 'Pause (double tap: back 10 seconds)' : 'Play (double tap: back 10 seconds)'} tabIndex={-1} onClick={onTap}
+        <button type="button" aria-label={playing ? 'Pause' : 'Play'} tabIndex={-1} onClick={onTap}
           className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation bg-transparent outline-none ring-0 [-webkit-tap-highlight-color:transparent] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" style={{ boxShadow: "none" }} onMouseDown={(e) => e.preventDefault()} />
-        {hint && <span aria-hidden className="pointer-events-none absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 px-3 py-2 text-[14px] font-semibold text-white"><Undo2 className="mr-1 inline size-4" />10s</span>}
       </div>
       {/* In full screen: the way back out, and nothing else. */}
       {full && (
