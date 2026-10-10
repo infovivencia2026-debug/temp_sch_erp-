@@ -107,10 +107,15 @@ const ARROW = 'h-auto min-h-[44px] w-auto max-w-full gap-2 whitespace-nowrap rou
    one control forward and one back was a small button and a large one. Each
    takes half now -- flex-1 from a zero basis, so the longer label does not
    win the extra space -- and the pair is symmetrical whatever the labels
-   under them say. */
+   under them say.
+
+   ONE SIZE, AND SMALL (owner, 2026-10-10: "that looks ugly, back and all
+   done, long big buttons"). Halves of the bar were wide slabs on a desktop;
+   both are now the same fixed width (up to 200px), Back at the left and
+   Next at the right. */
 function BackBtn({ onClick, sub }: { onClick: () => void; sub?: string }) {
   return (
-    <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'w-full flex-1 basis-0 justify-start text-left')}>
+    <Button variant="secondary" onClick={onClick} className={cn(ARROW, 'w-[min(46vw,200px)] justify-start text-left')}>
       <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden />
       <span className="min-w-0"><span className="block">Back</span>{sub && <span className="block truncate text-[12px] font-normal text-muted-foreground">{sub}</span>}</span>
     </Button>
@@ -118,7 +123,7 @@ function BackBtn({ onClick, sub }: { onClick: () => void; sub?: string }) {
 }
 /* Both arrows are flex children of ArrowBar, which is already a flex row. */
 const NextBtn = ({ onClick, label, sub, locked, hot, btnRef }: { onClick: () => void; label: string; sub?: string; locked?: boolean; hot?: boolean; btnRef?: Ref<HTMLSpanElement> }) => (
-  <span ref={btnRef} className="block min-w-0 flex-1 basis-0"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
+  <span ref={btnRef} className="ml-auto block w-[min(46vw,200px)] min-w-0"><Button variant={hot && !locked ? 'primary' : 'secondary'} disabled={locked} onClick={onClick}
     className={cn(ARROW, 'w-full justify-end text-right', hot && !locked && 'ring-2 ring-primary/20')}>
     <span className="min-w-0"><span className="block">{label}</span>{sub && <span className={cn('block truncate text-[12px] font-normal', hot && !locked ? 'opacity-85' : 'text-muted-foreground')}>{sub}</span>}</span>
     {locked ? <Lock className="h-5 w-5 shrink-0" aria-hidden /> : <ArrowRight className="h-5 w-5 shrink-0" aria-hidden />}
