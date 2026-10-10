@@ -116,8 +116,12 @@ export function leaveSettings(go: () => void): void {
   if (!screen || reduced || window.matchMedia('(min-width: 768px)').matches) { endLaunch(); go(); return }
   /* Always into the gear on the bar, wherever Settings was entered from:
      the last tap inside Settings is not where it lives (owner, 2026-10-10). */
-  const gear = [...document.querySelectorAll<HTMLElement>('.bento-dock button[aria-label="Settings"], .bento-dock a[aria-label="Settings"], button[aria-label="Settings"]')]
-    .find((b) => b.getBoundingClientRect().width > 0)
+  /* The bar's gear first; document order put a corner gear ahead of it,
+     and Settings shrank into the top-left (owner, 2026-10-10). */
+  const seen = (b: HTMLElement) => b.getBoundingClientRect().width > 0
+  const gear = [...document.querySelectorAll<HTMLElement>('.bento-dock [aria-label="Settings"]')].find(seen)
+    ?? [...document.querySelectorAll<HTMLElement>('[aria-label="Settings"]')].filter(seen)
+      .sort((x, y) => y.getBoundingClientRect().top - x.getBoundingClientRect().top)[0]
   if (gear) {
     const g = gear.getBoundingClientRect()
     document.documentElement.style.setProperty('--launch-x', `${g.left + g.width / 2}px`)
