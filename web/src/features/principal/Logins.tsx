@@ -2,13 +2,13 @@ import { Skeleton } from '@/components/Skeleton'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
+  Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, Sliders, UserCheck, UserPlus, UserX, X,
 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
-  Field, FormGrid, FormNotice,
+  Field, FormGrid, FormNotice, Dialog,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
@@ -245,6 +245,10 @@ export default function Logins() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [devicesFor, setDevicesFor] = useState<AdminUser | null>(null)
+  /* The family-side features editor: which of their own portal's screens
+     this child or parent may open. Holds the account and which portal it
+     is, because the row knows and the dialog should not have to guess. */
+  const [featuresFor, setFeaturesFor] = useState<{ user: AdminUser; portal: 'student' | 'parent' } | null>(null)
   /* The new password exists for one moment. It is shown until dismissed rather
      than in a toast that takes it away again while somebody is writing it on a
      slip of paper. */
@@ -504,6 +508,13 @@ export default function Logins() {
         {devicesFor && (
           <Devices user={devicesFor} onClose={() => setDevicesFor(null)} />
         )}
+        {featuresFor && (
+          <PortalFeatures
+            user={featuresFor.user}
+            portal={featuresFor.portal}
+            onClose={() => setFeaturesFor(null)}
+          />
+        )}
 
         {issued && (
           <Card className="p-5">
@@ -699,7 +710,7 @@ export default function Logins() {
                     {/* A child has one role and a parent has one role, and neither
                         is a thing the office changes from here. The button opened a
                         drawer of permission switches over somebody who has none. */}
-                    {!simple && (
+                    {!simple ? (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -707,6 +718,24 @@ export default function Logins() {
                         onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Roles
+                      </Button>
+                    ) : (
+                      /* A child has one role and a parent has one role, so
+                         there is nothing to choose between -- but WHICH of
+                         their own portal's screens they get is a real choice,
+                         and the office had no way to make it (owner,
+                         2026-10-09). Roles is the staff door; this is the
+                         family one, and it opens onto their portal only. */
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Choose which screens they can open"
+                        onClick={() => {
+                          setCreating(false); setDevicesFor(null); setEditing(null)
+                          setFeaturesFor({ user: u, portal: record === 'student' ? 'student' : 'parent' })
+                        }}
+                      >
+                        <Sliders className="h-3.5 w-3.5" /> Features
                       </Button>
                     )}
                     {u.status === 'active' ? (
@@ -1331,6 +1360,197 @@ function AccountForm({
       </div>
     </Card>
     </div>
+  )
+}
+
+/* WHICH OF THEIR OWN SCREENS A CHILD OR A PARENT MAY OPEN (owner,
+   2026-10-09: "in login and access add features or roles like button like
+   staff but show all the features they have only STUDNET AND PARENT
+   FEATURES only and let pricipal choose what to give in that").
+
+   Staff rows have had a Roles button since this screen was written. Family
+   rows had nothing: a child has one role and a parent has one role, so the
+   roles editor was hidden for them -- correctly, because there is nothing to
+   choose between -- and with it went the only way to say what the family may
+   actually see. Fees but not marks; the diary but not the bus map. The
+   school had no door to that at all.
+
+   WHY THIS IS NOT THE STAFF EDITOR WITH A FILTER. The staff editor opens on
+   the whole catalogue, every module of it, because a staff account can in
+   principle hold anything. Pointing that at a seven-year-old's login is how
+   somebody grants a child the fee counter by misreading a row. This dialog
+   can only ever show one portal's own features -- student.* for a child,
+   parent.* for a guardian -- and the filter is applied to the catalogue
+   before anything is drawn, not offered as a tab somebody can leave.
+
+   WHAT THE TICKS MEAN. Their role already carries a core set: 23 of the 84
+   student features on the live school, 43 of 105 for a parent. Those are
+   ticked and locked and say so, because taking one away means editing the
+   role for every child at the school and not this one login. The rest are
+   this screen's business: a direct grant to this account, unioned with the
+   role's keys at sign-in. That is the same mechanism and the same endpoint
+   the staff editor has always used -- PUT /admin/users/:id/permissions --
+   so nothing new had to be trusted on the server.
+
+   WHAT IT WILL NOT DO. It cannot take away a key the role grants. A deny
+   list is a different thing to build and a riskier one to own; the honest
+   version of this screen says so on its face rather than offering a switch
+   that silently does nothing. */
+function PortalFeatures({
+  user,
+  portal,
+  onClose,
+}: {
+  user: AdminUser
+  portal: 'student' | 'parent'
+  onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const features = useQuery({
+    queryKey: ['feature-catalog'],
+    queryFn: () => api.get<List<FeatureItem>>('/api/v1/admin/features'),
+  })
+  const current = useQuery({
+    queryKey: ['user-permissions', user.id],
+    queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${user.id}/permissions`),
+  })
+  const [search, setSearch] = useState('')
+  const [direct, setDirect] = useState<string[] | null>(null)
+  const loaded = current.data?.direct_keys
+  if (direct === null && loaded) setDirect(loaded)
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/admin/users/${user.id}/permissions`, { permission_keys: direct ?? [] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['user-permissions', user.id] })
+      qc.invalidateQueries({ queryKey: ['school-logins'] })
+      onClose()
+    },
+  })
+
+  const ns = portal + '.'
+  const roleKeys = new Set(current.data?.role_keys ?? [])
+  const picked = new Set(direct ?? [])
+
+  /* Only this portal's own features, decided here rather than by the person
+     reading the list. A feature reaches the list if any of its variant keys
+     belongs to the namespace; the key we grant is that variant, never the
+     catalogue's canonical one, which may belong to a staff workspace that
+     happens to share the feature's name. */
+  const all = (features.data?.items ?? [])
+    .map((f) => ({ f, grant: f.keys.find((k) => k.startsWith(ns)) }))
+    .filter((x): x is { f: FeatureItem; grant: string } => Boolean(x.grant))
+
+  const q = search.trim().toLowerCase()
+  const shown = q
+    ? all.filter((x) => x.f.name.toLowerCase().includes(q) || x.f.summary.toLowerCase().includes(q))
+    : all
+
+  // From the role, from this screen, or not at all.
+  const held = (x: { f: FeatureItem; grant: string }) =>
+    x.f.keys.some((k) => k.startsWith(ns) && roleKeys.has(k))
+  const granted = (x: { f: FeatureItem; grant: string }) =>
+    x.f.keys.some((k) => k.startsWith(ns) && picked.has(k))
+
+  const toggle = (x: { f: FeatureItem; grant: string }) =>
+    setDirect((prev) => {
+      const set = new Set(prev ?? [])
+      if (granted(x)) {
+        // Off clears every variant in THIS portal, so a feature granted under
+        // an older key does not survive as a half-revoked grant.
+        for (const k of x.f.keys) if (k.startsWith(ns)) set.delete(k)
+      } else {
+        set.add(x.grant)
+      }
+      return [...set]
+    })
+
+  const extra = (direct ?? []).filter((k) => k.startsWith(ns) && !roleKeys.has(k)).length
+  const who = portal === 'student' ? 'this child' : 'this parent'
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`What ${user.full_name} can open`}
+      description={`The ${portal === 'student' ? 'student' : 'parent'} portal only. ${extra} chosen beyond their role.`}
+      size="lg"
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending || !direct}>
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      }
+    >
+      <FormNotice error={features.error ?? current.error ?? save.error} />
+      {features.isLoading || current.isLoading ? (
+        <p className="text-[13px] text-muted-foreground">Loading their portal’s features…</p>
+      ) : all.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">
+          This school’s catalogue carries no {portal} features.
+        </p>
+      ) : (
+        <>
+          <p className="mb-3 text-[13px] text-muted-foreground">
+            Everything {who}’s own portal can show. Ticked and locked is what their role already
+            gives every {portal} at the school — change that by editing the role. The rest is this
+            account alone.
+          </p>
+          <Input
+            value={search}
+            onChange={setSearch}
+            placeholder="Search their features"
+            className="mb-3"
+          />
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {shown.map((x) => {
+              const fromRole = held(x)
+              const on = fromRole || granted(x)
+              return (
+                <button
+                  key={x.grant}
+                  type="button"
+                  disabled={fromRole}
+                  onClick={() => !fromRole && toggle(x)}
+                  className={cn(
+                    'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                    fromRole
+                      ? 'cursor-default border-border bg-muted/50'
+                      : on
+                        ? 'border-primary/40 bg-accent'
+                        : 'hover:bg-accent/60',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
+                      on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                    )}
+                  >
+                    {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[14px]">{x.f.name}</span>
+                    {x.f.summary && (
+                      <span className="block text-[12.5px] text-muted-foreground">{x.f.summary}</span>
+                    )}
+                    {fromRole && (
+                      <span className="block text-[12px] text-muted-foreground">from their role</span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          {shown.length === 0 && (
+            <p className="mt-2 text-[13px] text-muted-foreground">Nothing matches that.</p>
+          )}
+        </>
+      )}
+    </Dialog>
   )
 }
 
