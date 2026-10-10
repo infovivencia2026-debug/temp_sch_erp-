@@ -194,35 +194,6 @@ function SubTree({ d, u, onOpen }: { d: CourseDetail; u: Unit; onOpen: (id: stri
 
 /* ─── The list of modules ──────────────────────────────────────────── */
 
-function GatingSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
-  /* Flips on press (lib/optimistic): the switch is the change, so it is
-     drawn first and put back with Retry if the server refuses. */
-  const set = useOptimisticMutation<CourseDetail['gating']>({
-    mutationFn: (gating) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, gating }),
-    queryKeys: [qkey],
-    invalidate: [qkey, ['lms-course-progress']],
-    apply: (old, gating) => ({ ...(old as CourseDetail), gating }),
-    failure: "Couldn't change how the class moves through the course",
-  })
-  return (
-    <Card>
-      <div className="flex flex-wrap items-center gap-3 px-[var(--card-pad)] py-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium">How the class moves through the course</p>
-          <p className="text-[13px] text-muted-foreground">{d.gating === 'open' ? 'Open: every published day can be opened in any order.' : 'One by one: a day opens when the one before it is finished.'}</p>
-        </div>
-        <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="radiogroup" aria-label="Progression">
-          {([['sequential', 'One by one'], ['open', 'Open']] as const).map(([v, label]) => (
-            <button key={v} type="button" role="radio" aria-checked={d.gating === v} onClick={() => d.gating !== v && set.mutate(v)} className={seg(d.gating === v)}>
-              {v === 'sequential' ? <Lock className="mr-1.5 inline h-3.5 w-3.5" /> : <Unlock className="mr-1.5 inline h-3.5 w-3.5" />}{label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 /** The course with its units in the order `ids` gives; anything not named keeps its place at the end. */
 function unitsInOrder(d: CourseDetail, ids: string[]): CourseDetail {
   const rank = new Map(ids.map((id, i) => [id, i]))
@@ -253,7 +224,7 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
   const byId = new Map(tops.map((u) => [u.id, u]))
   return (
     <div className="space-y-3">
-      <GatingSwitch d={d} qkey={qkey} />
+      <p className="text-[13px] text-muted-foreground">One by one: each video opens when the one before it has been watched to the end.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[14px] text-muted-foreground">{tops.length ? `${tops.length} module${tops.length === 1 ? '' : 's'}, in the order the class takes them.` : 'No modules yet.'}</p>
         <Button onClick={() => setAdding(!adding)}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> New module</>}</Button>

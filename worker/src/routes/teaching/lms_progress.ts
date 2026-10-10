@@ -69,7 +69,10 @@ export async function loadStructure(c: Ctx, sectionId: string, csId: string, stu
     c.db.prepare(`SELECT id, lms_unit_id AS unit_id, lms_day AS day, lms_sequence AS seq, lms_pass_percent AS pass FROM online_tests
         WHERE section_id = ? AND class_subject_id = ? AND lms_unit_id IS NOT NULL AND status IN ('published','closed')`).bind(sectionId, csId),
   ])
-  const gating = (set.results[0] as { gating?: string } | undefined)?.gating === 'open' ? 'open' : 'sequential'
+  /* Always one by one (owner, 2026-10-10: "for all it should apply"): a
+     course once set to 'open' is ignored, so no video can be skipped. */
+  void set
+  const gating = 'sequential' as const
   const all = units.results as PUnit[]
   /* Modules in the order they are taken: each module, then what is inside
      it (depth first, at any depth). A sub-module of an archived module is
