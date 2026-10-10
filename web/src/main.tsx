@@ -236,7 +236,19 @@ try {
     }
     back.addEventListener('click', (e) => { if (e.target === back) close() })
     box.querySelector<HTMLButtonElement>('[data-no]')?.addEventListener('click', close)
-    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', () => { close(); go() })
+    /* Straight out (owner, 2026-10-10: "it is full blur when I click Sign Out,
+       again I see the page, and then sign out"). The alert does not close
+       back onto the page: the screen turns plain with "Signing out…" and
+       stays that way until the sign-in page replaces it. */
+    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', () => {
+      document.removeEventListener('keydown', onKey, true)
+      back.style.cssText = 'position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;' +
+        'background:hsl(var(--background,0 0% 100%));color:hsl(var(--muted-foreground,220 6% 46%));' +
+        "font:15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif"
+      back.className = ''
+      back.textContent = 'Signing out…'
+      go()
+    })
     document.addEventListener('keydown', onKey, true)
     document.body.appendChild(back)
     // Focus the safe answer, so Enter on a stray keypress keeps the session.
