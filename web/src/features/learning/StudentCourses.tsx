@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { Badge, Button, Card, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import {
-  FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KIND_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta,
+  FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KIND_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta, youTubeIds,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
 import { Bone, DoneCheck, DueChip, HUE, Ring, confetti, reducedMotion, rememberPlace, type Hue } from '../portal/student-kit'
@@ -1011,7 +1011,9 @@ function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toD
   }, [l?.id])
   const k = l ? l.kind : it.type
   const meta = itemMeta(d, it)
-  const autoVideo = !!l && l.kind === 'video' && !!l.video_id
+  /* Any video, library or YouTube, finishes only by being watched to the end
+     (owner, 2026-10-10): no "I finished this", and no Undo once it is done. */
+  const autoVideo = !!l && (l.kind === 'video' || !!l.video_id || !!l.yt_video_id || !!youTubeIds(l.url).video)
   const quiz = it.type === 'quiz' ? d.quizzes.find((z) => z.id === it.id) : null
   const asg = it.type === 'assignment' ? d.assignments.find((a) => a.id === it.id) : null
   const inDay = stop.d.items
@@ -1050,7 +1052,9 @@ function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toD
           </div>
           {l && (
             <div ref={btn} className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
-              {autoVideo && !l.done ? <p className="text-[15px] text-muted-foreground">Watch the video to the end and it ticks itself.</p> : (
+              {autoVideo ? (l.done
+                ? <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-success"><DoneCheck done pop={pop} size={20} /> Watched</span>
+                : <p className="text-[15px] text-muted-foreground">Watch the whole video to the end and it ticks itself. Skipping ahead does not count.</p>) : (
                 l.done ? (
                   /* Smaller (owner, 2026-10-10: "decreases the size of the
                      done"). A 40px tick and 18px type announced the finish of

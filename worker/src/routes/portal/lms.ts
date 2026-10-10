@@ -46,6 +46,15 @@ async function classroom(c: Ctx, studentId: string) {
   return r
 }
 
+/** A lesson that is a video: from the library, or YouTube (by id or by its address). */
+function isVideoLesson(l: { kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }): boolean {
+  return l.kind === 'video' || !!l.video_id || !!l.yt_video_id || /(^|\/\/)(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(l.url ?? '')
+}
+/** Every stretch played; the last one may be short of the end (players stop a moment early). */
+function fullyWatched(w: string): boolean {
+  return w.length > 0 && !w.slice(0, -1).includes('0')
+}
+
 const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
   AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 
@@ -377,9 +386,14 @@ export function registerPortalLMS(r: Router) {
     const k = await classroom(c, me.id)
     const id = str(c.params.id)
     if (!isUUID(id)) throw notFound()
-    const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
-        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
+    const l = await c.db.prepare(`SELECT l.id, l.kind, l.video_id, l.yt_video_id, l.url FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }>()
     if (!l) throw notFound()
+    /* A VIDEO IS FINISHED BY WATCHING IT, NOT BY A BUTTON (owner, 2026-10-10:
+       "complete only when they watch the full video, not by clicking done").
+       Library videos finish through video-progress, YouTube ones through
+       youtube-watched; neither can be ticked or unticked by hand. */
+    if (isVideoLesson(l)) throw badRequest('a video counts as done once it has been watched to the end')
     await gate(c, me.id, k.section_id, 'lesson', l.id)
     const b = await readJSON<Body>(c.req).catch(() => ({} as Body))
     if (b.done === false) {
@@ -429,10 +443,38 @@ export function registerPortalLMS(r: Router) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (lesson_id, student_id) DO UPDATE SET video_id = excluded.video_id, position_seconds = excluded.position_seconds,
           bucket_seconds = excluded.bucket_seconds, watched = excluded.watched, percent = excluded.percent, updated_at = excluded.updated_at`)
       .bind(inst, l.id, me.id, l.video_id, pos, bucket, watched, percent, t)]
-    const done = percent >= 90
+    const done = fullyWatched(watched)
     if (done) stmts.push(c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`).bind(inst, l.id, me.id, t))
     await c.db.batch(stmts)
     return ok({ id: l.id, position: pos, percent, bucket_seconds: bucket, watched, done })
+  })
+
+  /* A YouTube lesson, watched to the end. The player (YouTubeLesson.tsx) sends
+     which stretches were actually played, in the same buckets as a library
+     video; every one of them must be there, and the child must have opened
+     the lesson at least half the video's length ago (2x is the fastest
+     YouTube plays), so a forged map from a fresh page does not count. */
+  r.post('/portal/lms/lessons/{id}/youtube-watched', PERM, async (c) => {
+    const me = await self(c)
+    const k = await classroom(c, me.id)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const l = await c.db.prepare(`SELECT l.id, l.kind, l.video_id, l.yt_video_id, l.url FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }>()
+    if (!l || l.video_id || !isVideoLesson(l)) throw notFound()
+    await gate(c, me.id, k.section_id, 'lesson', l.id)
+    const b = await readJSON<Body>(c.req)
+    const dur = Number(b.duration)
+    if (!(dur > 0) || dur > 6 * 3600) throw badRequest('duration is required')
+    const bucket = bucketFor(dur), n = Math.ceil(dur / bucket)
+    const watched = typeof b.watched === 'string' ? b.watched.slice(0, n).replace(/[^01]/g, '0').padEnd(n, '0') : ''.padEnd(n, '0')
+    const percent = Math.min(100, Math.round((100 * [...watched].filter((x) => x === '1').length) / n))
+    if (!fullyWatched(watched)) return ok({ id: l.id, percent, done: false })
+    const seen = await c.db.prepare(`SELECT first_at FROM lms_lesson_views WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id).first<{ first_at: string }>()
+    if (!seen || Date.now() - Date.parse(seen.first_at) < (dur / 2) * 1000) return ok({ id: l.id, percent, done: false })
+    await c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`)
+      .bind(institutionId(c), l.id, me.id, now()).run()
+    return ok({ id: l.id, percent, done: true })
   })
 
   /* Hand in: text, a file, or both. Late when handed in after the due date. */

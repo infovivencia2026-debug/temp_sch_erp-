@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { actingInstitution } from '@/lib/api'
 import { ExternalLink } from 'lucide-react'
 
 /* A YOUTUBE VIDEO OR PLAYLIST, EMBEDDED THE WAY YOUTUBE ASKS FOR.
@@ -35,6 +36,9 @@ import { ExternalLink } from 'lucide-react'
 /** YouTube's player, as much of it as this file uses. */
 interface YTPlayer {
   getCurrentTime(): number
+  getDuration?(): number
+  getPlayerState?(): number
+  getPlaybackRate?(): number
   seekTo(seconds: number, allowSeekAhead: boolean): void
   destroy?(): void
   getIframe?(): HTMLIFrameElement
@@ -126,6 +130,7 @@ export function YouTubeLesson({
   channel,
   title,
   onPlayer,
+  track,
 }: {
   videoId?: string | null
   listId?: string | null
@@ -133,6 +138,8 @@ export function YouTubeLesson({
   title?: string
   /** Handed the player once it exists, so a notes panel can read the clock. */
   onPlayer?: (p: YTPlayer | null) => void
+  /** The child's own lesson: track what is played and report it when the whole video has been. */
+  track?: { lessonId: string; done: boolean; onFinished?: () => void }
 }) {
   const host = useRef<HTMLDivElement>(null)
   const [failed, setFailed] = useState<string | null>(null)
@@ -141,6 +148,9 @@ export function YouTubeLesson({
   const [agreed, setAgreed] = useState(() => noticeSeen())
   const cb = useRef(onPlayer)
   cb.current = onPlayer
+  const [percent, setPercent] = useState<number | null>(null)
+  const tr = useRef(track)
+  tr.current = track
 
   useEffect(() => {
     let dead = false
@@ -174,9 +184,58 @@ export function YouTubeLesson({
         if (f) f.referrerPolicy = 'strict-origin-when-cross-origin'
       } catch { /* the player still works without it */ }
       cb.current?.(player)
+      if (tr.current && !tr.current.done) watch(player)
     }).catch((e: Error) => { if (!dead) setFailed(e.message) })
+    /* WATCHED TO THE END, STRETCH BY STRETCH. Once a second, while it plays,
+       the stretch between the last reading and this one is marked played --
+       only when it moved forward by about a second's worth, so a jump ahead
+       marks nothing. Kept in this browser between visits; sent when every
+       stretch is in, and the server decides. */
+    let timer = 0
+    function watch(p: YTPlayer) {
+      const key = `yt-watched:${tr.current!.lessonId}`
+      let map: number[] = [], bucket = 5, last = -1, sending = false, finished = false
+      const send = async (dur: number) => {
+        if (sending || finished) return
+        sending = true
+        try {
+          const acting = actingInstitution()
+          const res = await fetch(`/api/v1/portal/lms/lessons/${tr.current!.lessonId}/youtube-watched`, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
+            body: JSON.stringify({ duration: dur, watched: map.map((x) => (x ? '1' : '0')).join('') }),
+          })
+          if (!res.ok) return
+          const r = await res.json() as { done: boolean }
+          if (r.done) { finished = true; window.clearInterval(timer); tr.current?.onFinished?.() }
+        } catch { /* tried again on the next tick */ } finally { sending = false }
+      }
+      timer = window.setInterval(() => {
+        if (dead) return
+        const dur = p.getDuration?.() ?? 0
+        if (!(dur > 0)) return
+        if (!map.length) {
+          bucket = Math.max(5, Math.ceil(dur / 2000))
+          let saved = ''
+          try { saved = localStorage.getItem(key) ?? '' } catch { /* private window */ }
+          map = Array.from({ length: Math.ceil(dur / bucket) }, (_, i) => (saved[i] === '1' ? 1 : 0))
+        }
+        const t = p.getCurrentTime(), playing = p.getPlayerState?.() === 1, rate = p.getPlaybackRate?.() ?? 1
+        if (playing && last >= 0 && t >= last && t - last <= 1.6 * Math.max(1, rate)) {
+          let changed = false
+          for (let i = Math.floor(last / bucket); i <= Math.min(map.length - 1, Math.floor(t / bucket)); i++) if (!map[i]) { map[i] = 1; changed = true }
+          if (changed) {
+            try { localStorage.setItem(key, map.map((x) => (x ? '1' : '0')).join('')) } catch { /* fine */ }
+            setPercent(Math.round((100 * map.filter(Boolean).length) / map.length))
+          }
+        }
+        last = playing ? t : -1
+        if (map.length && !map.slice(0, -1).includes(0)) void send(dur)
+      }, 1000)
+    }
     return () => {
       dead = true
+      window.clearInterval(timer)
       cb.current?.(null)
       try { player?.destroy?.() } catch { /* the iframe is going anyway */ }
     }
@@ -186,6 +245,12 @@ export function YouTubeLesson({
 
   return (
     <div className="space-y-2">
+      {track && !track.done && percent !== null && (
+        <div className="mx-auto w-full max-w-3xl" aria-label={`${percent}% watched`}>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success transition-[width]" style={{ width: `${percent}%` }} /></div>
+          <p className="mt-1 text-[13px] text-muted-foreground">{percent}% watched</p>
+        </div>
+      )}
       {failed ? (
         /* A blocked or missing player is a link, not a dead rectangle. A
            school network that filters YouTube is common enough that this is

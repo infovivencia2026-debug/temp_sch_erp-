@@ -413,7 +413,8 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
   return (
     <div className="space-y-4 text-[14px]">
       {yt && (
-        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer} />
+        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer}
+          track={track && yt.v ? { lessonId: l.id, done: !!l.done, onFinished } : undefined} />
       )}
       {/* The teacher's own words about the video, above the lesson. */}
       {l.key_points ? <KeyPoints text={l.key_points} /> : null}
