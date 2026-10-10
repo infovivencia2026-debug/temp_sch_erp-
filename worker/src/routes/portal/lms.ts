@@ -50,9 +50,38 @@ async function classroom(c: Ctx, studentId: string) {
 function isVideoLesson(l: { kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }): boolean {
   return l.kind === 'video' || !!l.video_id || !!l.yt_video_id || /(^|\/\/)(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(l.url ?? '')
 }
-/** Every stretch played; the last one may be short of the end (players stop a moment early). */
+/** Watched to the end, with room for the gaps a real watch leaves.
+ *
+ * ONE DROPPED SECOND USED TO COST THE WHOLE LESSON (tester, 2026-10-10:
+ * played a video to its end, "no tick, course still shows 0 of 3 done").
+ *
+ * The rule was EVERY stretch but the last. The player marks a stretch only
+ * when its once-a-second reading moved forward by about a second's worth, so
+ * a tab switch, a buffer, a locked phone or a slow frame leaves a permanent
+ * hole -- and a hole could never be filled, because going back over it is
+ * allowed but the clock only marks what plays. A child who watched the whole
+ * thing was left on a lesson that could not be finished, in front of a
+ * sentence promising it would tick itself, with no button to say otherwise.
+ * A gated course then locks for good: the next day never opens.
+ *
+ * So: nearly all of it, and the end of it. Ninety per cent of the stretches
+ * -- which is the rule this file has claimed in prose all along -- plus the
+ * last few actually played, so somebody who stops halfway cannot pass by
+ * scrubbing about. The protection against a forged map is not this rule: it
+ * is the check that the lesson was opened at least half the video's length
+ * ago, which no amount of skipping can shorten. */
 function fullyWatched(w: string): boolean {
-  return w.length > 0 && !w.slice(0, -1).includes('0')
+  if (!w.length) return false
+  /* The last stretch is left out of the reckoning entirely, as it always was:
+     players stop a moment early, so it is routinely never played. */
+  const body = w.slice(0, -1)
+  if (!body.length) return w === '1'
+  const seen = [...body].filter((x) => x === '1').length
+  if (seen < Math.ceil(body.length * 0.9)) return false
+  /* And the end has to have been reached: the last two stretches before that
+     final one were played. Ninety per cent on its own would pass somebody who
+     watched the opening and scrubbed off. */
+  return !body.slice(-2).includes('0')
 }
 
 const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)

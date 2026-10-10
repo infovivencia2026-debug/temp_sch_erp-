@@ -594,10 +594,30 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                       work without scrolling to the bottom. A unit with
                       nothing datable in it keeps its syllabus place under
                       the rest. */}
+                  {/* IT WAS SORTING ON A FIELD THAT NEVER ARRIVED
+                      (tester, 2026-10-10: "the most recently uploaded part is
+                      at the bottom, not the top").
+
+                      The comparison read lesson.created_at, which the portal's
+                      lesson query does not select -- so every unit compared
+                      equal, the sort was a no-op, and the newest-first order
+                      the owner asked for has never once happened. It failed
+                      silently, which is the worst way for an ordering to fail:
+                      the screen looks deliberate.
+
+                      The field to use was already there. released_at is the
+                      later of publish_at and created_at -- when the class
+                      could first SEE it, which is what "recent" means to a
+                      student, not when a teacher first saved a draft.
+
+                      Numbered days are left alone. Day 3 cannot be offered
+                      above Day 1 in a sequence where Day 1 opens Day 2: the
+                      order is the lesson. Only units reorder, and only when
+                      something in them is datable. */}
                   {[...tops].sort((a, b) => {
                     const latest = (m: SModule) => stops
                       .filter((x) => subtree(m).includes(x.m))
-                      .reduce((t, x) => { const at = x.it.lesson?.created_at ?? ''; return at > t ? at : t }, '')
+                      .reduce((t, x) => { const at = x.it.lesson?.released_at ?? x.it.lesson?.created_at ?? ''; return at > t ? at : t }, '')
                     return latest(b).localeCompare(latest(a))
                   }).map((m, i) => {
                     const mine = stops.filter((x) => subtree(m).includes(x.m))

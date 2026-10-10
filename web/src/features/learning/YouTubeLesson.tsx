@@ -153,6 +153,16 @@ export function YouTubeLesson({
   const tr = useRef(track)
   tr.current = track
 
+  /* THE END OF THE VIDEO HAS TO BE HEARD (tester, 2026-10-10: played a video
+     to its end, "player went black", nothing ticked).
+
+     The player was given no events at all, so the only thing that ever
+     reported was the once-a-second loop, and it reports only when the whole
+     map is in. Reaching the end -- the single moment that matters, and the
+     one the child is waiting on -- went unnoticed. Now the reporter is held
+     here so the ENDED state can call it the instant it arrives. */
+  const report = useRef<(() => void) | null>(null)
+
   useEffect(() => {
     let dead = false
     let player: YTPlayer | null = null
@@ -178,6 +188,12 @@ export function YouTubeLesson({
              which page it is on, and make sure the iframe sends our origin. */
           widget_referrer: window.location.href,
           ...(listId ? { list: listId, listType: 'playlist' } : {}),
+        },
+        events: {
+          /* 0 is ENDED. Reported at once rather than waiting for the next
+             tick of the loop, which on the last frame may never come: the
+             video has stopped, so nothing moves forward to mark. */
+          onStateChange: (e: { data: number }) => { if (e.data === 0) report.current?.() },
         },
       })
       try {
@@ -211,6 +227,20 @@ export function YouTubeLesson({
           const r = await res.json() as { done: boolean }
           if (r.done) { finished = true; window.clearInterval(timer); tr.current?.onFinished?.() }
         } catch { /* tried again on the next tick */ } finally { sending = false }
+      }
+      /* Asked for by the ENDED event. The last stretches are marked here:
+         the video stopped on them, which is the strongest evidence there is
+         that they were watched, and the loop cannot mark them because
+         marking needs the clock to move and it has stopped. */
+      report.current = () => {
+        const dur = p.getDuration?.() ?? 0
+        if (!(dur > 0) || !map.length) return
+        for (let i = Math.max(0, map.length - 3); i < map.length; i++) map[i] = 1
+        try { localStorage.setItem(key, map.map((x) => (x ? '1' : '0')).join('')) } catch { /* fine */ }
+        setPercent(Math.round((100 * map.filter(Boolean).length) / map.length))
+        /* Done with it: next time it is opened it starts at the beginning. */
+        try { localStorage.removeItem(posKey) } catch { /* fine */ }
+        void send(dur)
       }
       timer = window.setInterval(() => {
         if (dead) return
@@ -251,6 +281,7 @@ export function YouTubeLesson({
     }
     return () => {
       dead = true
+      report.current = null
       window.clearInterval(timer)
       cb.current?.(null)
       try { player?.destroy?.() } catch { /* the iframe is going anyway */ }

@@ -30,6 +30,8 @@ export interface Lesson {
   id: string; unit_id: string; title: string; kind: SourceKind
   body?: string | null; file_id?: string | null; file_name?: string | null; file_size?: number | null; file_type?: string | null; url?: string | null
   sequence: number; day?: number | null; publish_at?: string | null; duration_minutes?: number | null; created_at?: string
+  /** When the class could first see it: the later of publish_at and created_at. Sent by the portal. */
+  released_at?: string
   is_published?: boolean; completed?: number; done?: boolean; is_new?: boolean; viewed_at?: string | null
   section?: Section; is_optional?: boolean
   /* The child's view: on a locked day, or not out yet (no content either way). */

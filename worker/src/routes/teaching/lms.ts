@@ -250,9 +250,30 @@ export function registerLMS(r: Router) {
     if (b.class_subject_id) {
       cs = needUUID(b.class_subject_id, 'class_subject_id')
     } else if (typed) {
-      const cls = await c.db.prepare(`SELECT DISTINCT class_id FROM sections WHERE id IN (${marks()})`).bind(js(ids)).all<{ class_id: string }>()
-      if (cls.results.length !== 1) throw badRequest('pick sections from one class when naming a new course')
-      const classId = cls.results[0].class_id
+      /* THE CLASS THE FORM NAMED, CHECKED AGAINST THE SECTIONS
+         (tester, 2026-10-10: picked Grade 6, named "Chess", got
+         "Chess · Nursery").
+
+         The class used to be worked out here by looking up the sections, and
+         an inference can disagree with what the person set on screen. It did,
+         and the course was created under another class with no warning.
+
+         The form sends the class now. The sections are checked against it,
+         and a pair that does not agree is refused rather than quietly
+         resolved one way: a course lands where the form said or nowhere.
+         Falling back to the lookup only when no class was sent, so an older
+         page or a script keeps working. */
+      let classId: string
+      if (b.class_id) {
+        classId = needUUID(b.class_id, 'class_id')
+        const belong = await c.db.prepare(`SELECT count(*) AS n FROM sections WHERE class_id = ? AND id IN (${marks()})`)
+          .bind(classId, js(ids)).first<{ n: number }>()
+        if (!belong || belong.n !== new Set(ids).size) throw badRequest('those sections are not all in the class picked')
+      } else {
+        const cls = await c.db.prepare(`SELECT DISTINCT class_id FROM sections WHERE id IN (${marks()})`).bind(js(ids)).all<{ class_id: string }>()
+        if (cls.results.length !== 1) throw badRequest('pick sections from one class when naming a new course')
+        classId = cls.results[0].class_id
+      }
       const inst0 = institutionId(c)
       const camp = await c.db.prepare(`SELECT campus_id FROM classes WHERE id = ?`).bind(classId).first<{ campus_id: string }>()
       if (!camp) throw badRequest('that class is not on this school')

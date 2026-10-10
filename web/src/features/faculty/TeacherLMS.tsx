@@ -183,8 +183,21 @@ function AddCourse({ o, cls: cls0, sec: sec0, done }: { o: Options; cls: string;
   const sections = o.sections.filter((x) => x.class_id === cls)
   const subjects = o.subjects.filter((x) => x.class_id === cls)
   const save = useMutation({
+    /* THE CLASS IS THE ONE ON SCREEN, NOT ONE WORKED OUT AFTERWARDS
+       (tester, 2026-10-10: picked Grade 6, named "Chess", and got
+       "Chess · Nursery").
+
+       A named course sent only the name and the sections and left the server
+       to find the class by looking the sections up. That is an inference, and
+       an inference can disagree with the field the person actually set --
+       which is exactly what happened: the form said Grade 6 and the course
+       was created under another class, with nothing on screen to warn them.
+
+       The class now travels with the request. The server checks the sections
+       belong to it and refuses the pair outright if they do not, so a course
+       either lands in the class the form named or does not land at all. */
     mutationFn: () => api.post('/api/v1/lms/courses', newCourse
-      ? { subject_name: named.trim(), section_ids: secs, layout }
+      ? { subject_name: named.trim(), class_id: cls, section_ids: secs, layout }
       : { class_subject_id: subject, section_ids: secs, layout }),
     onSuccess: done,
   })
@@ -195,7 +208,10 @@ function AddCourse({ o, cls: cls0, sec: sec0, done }: { o: Options; cls: string;
         <Field label="Class" required><Select value={cls} onChange={(v) => { setCls(v); setSecs([]); setSubject('') }} placeholder="Choose a class" options={o.classes.map((c) => ({ value: c.id, label: c.name }))} /></Field>
         <Field label={newCourse ? 'New course' : 'Subject'} required
           hint={newCourse
-            ? 'Any name — Robotics, AI, Chess. It is added to this class as a course, not a timetabled subject.'
+            /* Naming the class in the hint: the field above holds it, but a
+               person typing a course name is looking at this box, and this is
+               where the mistake was made. */
+            ? `Any name — Robotics, AI, Chess. Added to ${o.classes.find((c) => c.id === cls)?.name ?? 'this class'} as a course, not a timetabled subject.`
             : undefined}>
           {newCourse
             ? <Input value={named} onChange={setNamed} placeholder="Name the course" />
