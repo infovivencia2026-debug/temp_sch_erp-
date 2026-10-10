@@ -71,25 +71,86 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
               : <EmptyState title="No courses yet" body="A course appears for every subject you teach in a section. Ask the office to allocate your subjects." />
           ) : (
             <Card>
-              <CardHeader title={`${items.length} course${items.length === 1 ? '' : 's'}`} action={<div className="flex flex-wrap gap-2">
+              <CardHeader title={(() => {
+                /* Courses, not section copies: the number above the table
+                   has to agree with the rows under it. */
+                const n = new Set(items.map((c) => c.class_subject_id)).size
+                return `${n} course${n === 1 ? '' : 's'}`
+              })()} action={<div className="flex flex-wrap gap-2">
                 <div className="w-44"><Select value={cls} onChange={(v) => { setCls(v); setSec('') }} placeholder="Every class" options={[{ value: '', label: 'Every class' }, ...classes.map(([id, name]) => ({ value: id, label: name }))]} /></div>
                 {cls && <div className="w-36"><Select value={sec} onChange={setSec} placeholder="Every section" options={[{ value: '', label: 'Every section' }, ...sections.map(([id, name]) => ({ value: id, label: `Section ${name}` }))]} /></div>}
               </div>} />
-              <Table head={['Course', 'Teacher', 'Layout', '']} empty={!items.length} emptyLabel="No course in this class or section yet.">
-                {items.map((c) => (
-                  <tr key={c.section_id + c.class_subject_id}>
-                    <Td><button type="button" className="font-medium text-primary hover:underline" onClick={() => onOpen(c)}>{c.subject} · {c.class_name} {c.section_name}</button></Td>
-                    <Td>{c.teacher ?? '—'}</Td>
-                    <Td>{LAYOUTS.find((l) => l.value === c.layout)?.label ?? LAYOUTS[0].label}</Td>
-                    <Td>
-                      <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="secondary" onClick={() => onOpen(c)}>Open</Button>
-                        {admin && <Button size="sm" variant="ghost" pending={remove.isPending && remove.variables === c} onClick={() => { if (window.confirm(`Take ${c.subject} · ${c.class_name} ${c.section_name} off the list? Nothing in it is deleted; adding it again brings it back.`)) remove.mutate(c) }}>Remove</Button>}
-                      </div>
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
+              {/* ONE COURSE, ONE ROW (owner, 2026-10-10: "let them apply
+                  once why twice ?").
+
+                  A course is stored per section, because that is what it
+                  is: Grade 6 A and Grade 6 B each have their own copy of
+                  the progress, the roll and the order. The LIST was showing
+                  that storage -- "Robotics · Grade 6 A", "Robotics · Grade
+                  6 B" -- so adding one course to two sections read as
+                  having added it twice.
+
+                  The rows are grouped by subject and class now, and the
+                  sections appear under the name. Add once, see one row,
+                  which is what the Add form already promised by letting
+                  several sections be ticked at a time.
+
+                  Layout is per section underneath, so a course where two
+                  sections were set up differently says "Mixed" rather than
+                  quietly showing one of them. Open goes to the first
+                  section; Remove takes the whole course off, naming the
+                  sections in the question so nobody removes two by
+                  pressing once. */}
+              {(() => {
+                const groups = new Map<string, { key: string; subject: string; className: string; teacher: string | null; rows: typeof items }>()
+                for (const c of items) {
+                  const key = c.class_subject_id
+                  const g = groups.get(key)
+                  if (g) g.rows.push(c)
+                  else groups.set(key, { key, subject: c.subject, className: c.class_name, teacher: c.teacher ?? null, rows: [c] })
+                }
+                const list = [...groups.values()]
+                return (
+                  <Table head={['Course', 'Teacher', 'Layout', '']} empty={!list.length} emptyLabel="No course in this class or section yet.">
+                    {list.map((g) => {
+                      const first = g.rows[0]
+                      const layouts = new Set(g.rows.map((r) => r.layout))
+                      const label = layouts.size > 1
+                        ? 'Mixed'
+                        : LAYOUTS.find((l) => l.value === first.layout)?.label ?? LAYOUTS[0].label
+                      const secNames = g.rows.map((r) => r.section_name).join(', ')
+                      return (
+                        <tr key={g.key}>
+                          <Td>
+                            <button type="button" className="font-medium text-primary hover:underline" onClick={() => onOpen(first)}>{g.subject} · {g.className}</button>
+                            <span className="block text-[12.5px] text-muted-foreground">
+                              {g.rows.length === 1 ? `Section ${secNames}` : `${g.rows.length} sections · ${secNames}`}
+                            </span>
+                          </Td>
+                          <Td>{g.teacher ?? '—'}</Td>
+                          <Td>{label}</Td>
+                          <Td>
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="secondary" onClick={() => onOpen(first)}>Open</Button>
+                              {admin && (
+                                <Button size="sm" variant="ghost" pending={remove.isPending}
+                                  onClick={() => {
+                                    const q = g.rows.length === 1
+                                      ? `Take ${g.subject} · ${g.className} ${secNames} off the list?`
+                                      : `Take ${g.subject} · ${g.className} off the list for all ${g.rows.length} sections (${secNames})?`
+                                    if (window.confirm(`${q} Nothing in it is deleted; adding it again brings it back.`)) {
+                                      for (const r of g.rows) remove.mutate(r)
+                                    }
+                                  }}>Remove</Button>
+                              )}
+                            </div>
+                          </Td>
+                        </tr>
+                      )
+                    })}
+                  </Table>
+                )
+              })()}
               <FormNotice error={remove.error} />
             </Card>
           )}
