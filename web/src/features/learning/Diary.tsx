@@ -269,7 +269,13 @@ export default function Diary() {
               <div className="flex gap-1 rounded-lg bg-muted p-[3px] lg:gap-1.5 lg:rounded-none lg:border-b lg:border-slate-100 lg:bg-transparent lg:p-0 lg:pb-3" role="tablist" aria-label="Show">
                 {(['all', 'pending', 'done'] as const).map((f) => (
                   <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
-                    className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors lg:flex-none lg:rounded-lg lg:px-3',
+                    /* The tabs grew with the cards under them (owner,
+                       2026-10-10). 12px type over 24px-padded cards read as
+                       a leftover from the phone layout that had been left
+                       behind; the row somebody uses to choose what they are
+                       looking at should not be the smallest thing on the
+                       screen. Phone sizes unchanged. */
+                    className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors lg:flex-none lg:rounded-xl lg:px-4 lg:py-2 lg:text-[14px]',
                       filter === f
                         ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.06)] lg:bg-slate-900 lg:text-white lg:shadow-none'
                         : 'text-muted-foreground lg:text-slate-600 lg:hover:bg-slate-100')}>
