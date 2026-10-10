@@ -88,8 +88,9 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
         ORDER BY t.closes_at IS NULL, t.closes_at LIMIT 20`).bind(section, now(), now(), sid, sid),
     c.db.prepare(`SELECT l.id, l.title, l.kind, sub.name AS subject, su.class_subject_id, su.title AS unit
         FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
-        WHERE cs.class_id = ? AND ${lessonVisible} AND NOT EXISTS (SELECT 1 FROM lms_lesson_progress p WHERE p.lesson_id = l.id AND p.student_id = ?)
-        ORDER BY su.sequence, l.day IS NULL, l.day, l.sequence LIMIT 8`).bind(classId, section, sid),
+        WHERE cs.class_id = ? AND ${lessonVisible} AND EXISTS (SELECT 1 FROM lms_courses lc WHERE lc.section_id = ? AND lc.class_subject_id = cs.id)
+          AND NOT EXISTS (SELECT 1 FROM lms_lesson_progress p WHERE p.lesson_id = l.id AND p.student_id = ?)
+        ORDER BY su.sequence, l.day IS NULL, l.day, l.sequence LIMIT 8`).bind(classId, section, section, sid),
     c.db.prepare(`SELECT h.id, h.title, sub.name AS subject, h.class_subject_id, CAST(hs.marks AS REAL) AS marks, CAST(h.max_marks AS REAL) AS max_marks, hs.feedback, hs.status, hs.returned_at
         FROM homework_submissions hs JOIN homework h ON h.id = hs.homework_id LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
         WHERE hs.student_id = ? AND hs.returned_at IS NOT NULL ORDER BY hs.returned_at DESC LIMIT 5`).bind(sid),
@@ -114,6 +115,7 @@ export function registerPortalLMS(r: Router) {
     const sid = await child(c)
     const k = await classroom(c, sid)
     const rows = await c.db.prepare(`SELECT cs.id AS class_subject_id, sub.name AS subject, sub.code,
+        EXISTS (SELECT 1 FROM lms_courses lc WHERE lc.section_id = ? AND lc.class_subject_id = cs.id) AS added,
         (SELECT u.full_name FROM section_subject_teachers t JOIN users u ON u.id = t.teacher_user_id WHERE t.section_id = ? AND t.class_subject_id = cs.id LIMIT 1) AS teacher,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id WHERE su.class_subject_id = cs.id AND ${lessonVisible}) AS lessons,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ?
@@ -124,7 +126,7 @@ export function registerPortalLMS(r: Router) {
         (SELECT count(*) FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = cs.id AND t.status = 'published'
             AND (t.closes_at IS NULL OR t.closes_at > ?) AND NOT EXISTS (SELECT 1 FROM online_test_attempts a WHERE a.test_id = t.id AND a.student_id = ? AND a.status <> 'in_progress')) AS quizzes_open
         FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? ORDER BY sub.name`)
-      .bind(k.section_id, k.section_id, sid, k.section_id, sid, k.section_id, k.section_id, now(), sid, k.class_id).all()
+      .bind(k.section_id, k.section_id, k.section_id, sid, k.section_id, sid, k.section_id, k.section_id, now(), sid, k.class_id).all()
     return ok({ student_id: sid, class_name: k.class_name, section_name: k.section_name, items: rows.results })
   })
 

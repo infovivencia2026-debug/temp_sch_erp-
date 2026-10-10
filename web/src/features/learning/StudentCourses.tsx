@@ -30,7 +30,7 @@ import { StudentQuiz } from './StudentQuiz'
    and comments; quizzes are taken here against the clock. A parent opening
    this reads it; only the child's own login does the work. */
 
-interface CourseRow { class_subject_id: string; subject: string; teacher?: string | null; lessons: number; completed: number; to_do: number; quizzes_open: number }
+interface CourseRow { class_subject_id: string; subject: string; teacher?: string | null; added?: number | boolean; lessons: number; completed: number; to_do: number; quizzes_open: number }
 interface Assignment {
   id: string; title: string; instructions?: string | null; due_on?: string | null; max_marks?: number | null; rubric: RubricRow[] | null
   allow_submission: boolean; status: string; submitted_at?: string | null; text_answer?: string | null; file_id?: string | null; file_name?: string | null
@@ -145,7 +145,9 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   const shared = useShared()
   /* Only courses the LMS admin has put something in (owner, 2026-10-10: "until
      they add any, show nothing"). The year's subjects are on Courses / subjects. */
-  const withContent = (q.data?.items ?? []).filter((c) => c.lessons > 0 || c.quizzes_open > 0 || c.to_do > 0)
+  /* And only what the LMS Admin has added to this section (Add course): a
+     course taken off the admin's list goes from here too. */
+  const withContent = (q.data?.items ?? []).filter((c) => !!c.added && (c.lessons > 0 || c.quizzes_open > 0 || c.to_do > 0))
   const names = new Set((q.data?.items ?? []).map((c) => c.subject))
   const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
