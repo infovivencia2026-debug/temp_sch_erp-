@@ -267,7 +267,7 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
   const tabs = [
     { to: useFeatureHref('student.home.my_day'), label: 'Home', icon: Home },
     { to: useFeatureHref('student.timetable.timetable'), label: 'Timetable', icon: CalendarClock },
-    { to: useFeatureHref('student.learning.courses_subjects'), label: 'Learn', icon: BookOpen },
+    { to: useFeatureHref('student.learning.e_learning_resource_hub'), label: 'Learn', icon: BookOpen },
     { to: useFeatureHref('student.homework.homework_assignments'), label: 'Homework', icon: NotebookPen },
   ].filter((t): t is { to: string; label: string; icon: typeof Home } => !!t.to)
   useEffect(() => {

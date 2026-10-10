@@ -143,11 +143,14 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   ] : []
   const ready = !!q.data && (!!t || !!todo.error)
   const shared = useShared()
+  /* Only courses the LMS admin has put something in (owner, 2026-10-10: "until
+     they add any, show nothing"). The year's subjects are on Courses / subjects. */
+  const withContent = (q.data?.items ?? []).filter((c) => c.lessons > 0 || c.quizzes_open > 0 || c.to_do > 0)
   const names = new Set((q.data?.items ?? []).map((c) => c.subject))
   const unfiled = (shared.data?.items ?? []).filter((r) => !r.subject || !names.has(r.subject))
   return (
     <>
-      <PageHead eyebrow="Learning" title="My subjects" />
+      <PageHead eyebrow="Learning" title="LMS" description="Your courses, day by day or topic by topic, with their videos" />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !ready ? (
           <div className="space-y-4" aria-busy>
@@ -155,9 +158,9 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
           </div>
         ) : (
           <div className="space-y-6">
-            {!q.data!.items.length ? <EmptyState title="No subjects yet" body="Your class has no subjects set up yet." /> : (
+            {!withContent.length ? <EmptyState title="No courses yet" body="Courses appear here once your school adds them." /> : (
               <section aria-label="Subjects" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {q.data!.items.map((c) => {
+                {withContent.map((c) => {
                   const pct = c.lessons ? Math.round((100 * c.completed) / c.lessons) : 0
                   const { Icon, hue } = subjectLook(c.subject)
                   const all = c.lessons > 0 && c.completed >= c.lessons
