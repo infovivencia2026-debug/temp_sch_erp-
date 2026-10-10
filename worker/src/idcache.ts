@@ -130,7 +130,7 @@ export async function bumpVersion(env: Env, scope: string): Promise<void> {
 
 /* --- noticing writes that change who may do what ----------------------------------- */
 
-const AUTH_WRITE = /\b(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`]?(?:users|user_roles|roles|role_permissions|user_permissions)["`]?(?:\s|\(|$)/i
+const AUTH_WRITE = /\b(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`]?(?:users|user_roles|roles|role_permissions|user_permissions|feature_blocks)["`]?(?:\s|\(|$)/i
 
 export const touchesAuth = (sql: string) => AUTH_WRITE.test(sql)
 

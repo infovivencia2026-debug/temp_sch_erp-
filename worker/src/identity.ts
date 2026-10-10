@@ -150,7 +150,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
   }
   const db = tenantDb(env, institution)
   const homeDb = institution === home ? db : tenantDb(env, home)
-  const [u, roles, perms, direct] = await Promise.all([
+  const [u, roles, perms, direct, blocked] = await Promise.all([
     homeDb.prepare(`SELECT full_name, must_change_password FROM users WHERE id = ? AND status = 'active'`).bind(s.user_id)
       .first<{ full_name: string; must_change_password: number }>(),
     db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(s.user_id).all<{ key: string }>(),
@@ -160,13 +160,28 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
        at home too. The port skipped them at home, so an access given on
        Logins & access or Roles never reached the person's feature list. */
     db.prepare(`SELECT DISTINCT permission_key AS key FROM user_permissions WHERE user_id = ?`).bind(s.user_id).all<{ key: string }>(),
+    /* Features the school switched OFF for this student or parent: for the
+       whole school, their (child's) class or section, or them alone
+       (routes/admin/feature_blocks.ts). Only student.* / parent.* keys are
+       ever stored. Empty until the table exists. */
+    db.prepare(`SELECT DISTINCT fb.feature_key AS key FROM feature_blocks fb WHERE
+        (fb.scope = 'person' AND fb.target_id = ?1)
+        OR (fb.portal = 'student' AND EXISTS (SELECT 1 FROM students st WHERE st.user_id = ?1 AND (fb.scope = 'school'
+          OR EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = st.id AND e.status = 'active'
+            AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))
+        OR (fb.portal = 'parent' AND EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = ?1 AND (fb.scope = 'school'
+          OR EXISTS (SELECT 1 FROM student_guardians sg JOIN enrollments e ON e.student_id = sg.student_id AND e.status = 'active'
+            WHERE sg.guardian_id = g.id
+            AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))`)
+      .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
   ])
   if (!u) return null
   /* platform.* keys belong to the vendor. A school role can come to hold one (a copy of a platform
      role, a stray grant in the school's copy of role_permissions); in Go it bought nothing because
      the seller's handlers ran AsPlatform only for platform identities. Here CONTROL is one call
      away, so the key itself is refused to every school account. */
-  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.'))
+  const off = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('student.') || k.startsWith('parent.')))
+  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k))
   return { sessionId: s.id, userId: s.user_id, fullName: u.full_name, platformAdmin: false, restricted: false, institution,
     homeInstitutionId: home.id, permissions: new Set(granted), roles: roles.results.map((r) => r.key),
     mustChangePassword: !!u.must_change_password }
