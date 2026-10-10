@@ -307,17 +307,24 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
         account or the door out.
 
         The cog goes back where the desk keeps it, bottom-left, lifted clear
-        of this bar. Only in Focus: in the sidebar layout More opens the
-        drawer, which has Settings in it already, and a second cog floating
-        over the page there would be the one piece of the other layout left
-        behind. */}
-    {!onMore && (
-      <a href="/settings" aria-label="Settings" title="Settings"
-        className="student-tabbar-cog fixed left-3 z-40 grid size-11 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm md:hidden"
-        style={{ bottom: 'calc(var(--dock-lift,10px) + var(--tabbar-h,64px) + 10px)' }}>
-        <Settings2 className="size-5" aria-hidden />
-      </a>
-    )}
+        of this bar.
+
+        IN BOTH LAYOUTS (owner, 2026-10-10, a second time: "I DONT SEE
+        SETTING ICON IN STUDNET LOGIN IN PHONE"). It was drawn only in
+        Focus, on the argument that the sidebar layout's More opens a drawer
+        with Settings in it. That argument is about where the control
+        technically exists, not about whether a child finds it -- and the
+        owner looked twice and did not. A visible cog in the same corner in
+        both layouts costs one small button and removes the question.
+
+        Not muted, either: it was card-on-card grey, which on a pale phone
+        screen is a button that is present and still invisible. It wears the
+        page's own ink now. */}
+    <a href="/settings" aria-label="Settings" title="Settings"
+      className="student-tabbar-cog fixed left-3 z-40 grid size-11 place-items-center rounded-full border bg-card text-foreground shadow-[var(--elev-2,0_2px_8px_rgba(15,23,42,0.12))] md:hidden"
+      style={{ bottom: 'calc(var(--dock-lift,10px) + var(--tabbar-h,64px) + 10px)' }}>
+      <Settings2 className="size-5" aria-hidden />
+    </a>
     <nav aria-label="Main" className="student-tabbar fixed inset-x-[12px] bottom-[var(--dock-lift,10px)] z-40 mx-auto box-border h-[var(--tabbar-h,64px)] max-w-md rounded-full border px-[6px] py-[4px] md:hidden">
       <div ref={barRef} className="relative flex h-full items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}

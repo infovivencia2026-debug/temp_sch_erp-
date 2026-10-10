@@ -103,16 +103,48 @@ function AddCourse({ o, cls: cls0, sec: sec0, done }: { o: Options; cls: string;
   const [cls, setCls] = useState(cls0)
   const [secs, setSecs] = useState<string[]>(sec0 ? [sec0] : [])
   const [subject, setSubject] = useState('')
+  /* A COURSE THE SCHOOL DOES NOT TEACH (owner, 2026-10-10: "let them choose
+     any course make it editable").
+
+     The picker offered the class's own subjects and nothing else, so typing
+     "AI" answered "Nothing matches that. This list only takes one of its
+     own" -- on the screen whose whole purpose is courses that are NOT
+     taught in class. Robotics had to be put into the database by hand for
+     exactly that reason.
+
+     Two ways in now, and only one of them is on screen at a time: pick one
+     of the class's subjects, or name a new one. The server creates the
+     subject against the class as an elective with no periods, so a course
+     cannot start claiming periods in the timetable. */
+  const [named, setNamed] = useState('')
+  const [newCourse, setNewCourse] = useState(false)
   const [layout, setLayout] = useState<Layout>('topic_day')
   const sections = o.sections.filter((x) => x.class_id === cls)
   const subjects = o.subjects.filter((x) => x.class_id === cls)
-  const save = useMutation({ mutationFn: () => api.post('/api/v1/lms/courses', { class_subject_id: subject, section_ids: secs, layout }), onSuccess: done })
+  const save = useMutation({
+    mutationFn: () => api.post('/api/v1/lms/courses', newCourse
+      ? { subject_name: named.trim(), section_ids: secs, layout }
+      : { class_subject_id: subject, section_ids: secs, layout }),
+    onSuccess: done,
+  })
   const toggle = (id: string) => setSecs(secs.includes(id) ? secs.filter((x) => x !== id) : [...secs, id])
   return (
     <div className="space-y-4 px-[var(--card-pad)] py-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Class" required><Select value={cls} onChange={(v) => { setCls(v); setSecs([]); setSubject('') }} placeholder="Choose a class" options={o.classes.map((c) => ({ value: c.id, label: c.name }))} /></Field>
-        <Field label="Subject" required><Select value={subject} onChange={setSubject} placeholder={cls ? 'Choose a subject' : 'Choose a class first'} options={subjects.map((x) => ({ value: x.id, label: x.name }))} /></Field>
+        <Field label={newCourse ? 'New course' : 'Subject'} required
+          hint={newCourse
+            ? 'Any name — Robotics, AI, Chess. It is added to this class as a course, not a timetabled subject.'
+            : undefined}>
+          {newCourse
+            ? <Input value={named} onChange={setNamed} placeholder="Name the course" />
+            : <Select value={subject} onChange={setSubject} placeholder={cls ? 'Choose a subject' : 'Choose a class first'} options={subjects.map((x) => ({ value: x.id, label: x.name }))} />}
+          <button type="button"
+            onClick={() => { setNewCourse(!newCourse); setSubject(''); setNamed('') }}
+            className="mt-1.5 text-[13px] font-medium text-primary underline-offset-2 hover:underline">
+            {newCourse ? 'Pick one of this class\u2019s subjects instead' : 'Not in the list? Name a new course'}
+          </button>
+        </Field>
       </div>
       {cls && (
         <Field label="Sections" hint="One section, a few, or all of them.">
@@ -134,7 +166,7 @@ function AddCourse({ o, cls: cls0, sec: sec0, done }: { o: Options; cls: string;
         </div>
       </Field>
       <FormNotice error={save.error} />
-      <Button disabled={!subject || !secs.length} pending={save.isPending} onClick={() => save.mutate()}>Add course{secs.length > 1 ? ` to ${secs.length} sections` : ''}</Button>
+      <Button disabled={(newCourse ? !named.trim() : !subject) || !secs.length} pending={save.isPending} onClick={() => save.mutate()}>Add course{secs.length > 1 ? ` to ${secs.length} sections` : ''}</Button>
     </div>
   )
 }

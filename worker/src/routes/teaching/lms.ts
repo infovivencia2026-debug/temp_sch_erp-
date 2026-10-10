@@ -221,13 +221,74 @@ export function registerLMS(r: Router) {
     const s = await resolveScope(c)
     if (!s.allStudents) throw forbidden('only the LMS Admin adds courses')
     const b = await readJSON<Body>(c.req)
-    const cs = needUUID(b.class_subject_id, 'class_subject_id')
     const layout = layoutOf(b.layout)
     const ids = Array.isArray(b.section_ids) ? b.section_ids.map((x) => needUUID(x, 'section_ids')) : []
     if (!ids.length) throw badRequest('pick at least one section')
+
+    /* A COURSE THE SCHOOL DOES NOT TEACH (owner, 2026-10-10: "let them
+       choose any course make it editable").
+
+       The picker offered the class's own subjects and nothing else, so an
+       LMS admin typing "AI" was told "Nothing matches that. This list only
+       takes one of its own" -- on the one screen whose whole purpose, by
+       the owner's own description, is courses that are NOT taught in
+       class. Robotics had to be put in by hand through the database for
+       exactly this reason.
+
+       So a name may be sent instead of an id. The subject is created if the
+       school has not got one by that name, and attached to the class of the
+       sections picked, as an elective with no periods: it is a course, not
+       a timetabled lesson, and it must not start claiming periods in the
+       timetable or marks in the report card.
+
+       Matched case-insensitively on the name so a second "AI" does not
+       appear beside the first, and the code is derived from the name and
+       made unique, because the table demands one and nobody typing a course
+       name is thinking about subject codes. */
+    let cs: string
+    const typed = typeof b.subject_name === 'string' ? b.subject_name.trim().slice(0, 60) : ''
+    if (b.class_subject_id) {
+      cs = needUUID(b.class_subject_id, 'class_subject_id')
+    } else if (typed) {
+      const cls = await c.db.prepare(`SELECT DISTINCT class_id FROM sections WHERE id IN (${marks()})`).bind(js(ids)).all<{ class_id: string }>()
+      if (cls.results.length !== 1) throw badRequest('pick sections from one class when naming a new course')
+      const classId = cls.results[0].class_id
+      const inst0 = institutionId(c)
+      const camp = await c.db.prepare(`SELECT campus_id FROM classes WHERE id = ?`).bind(classId).first<{ campus_id: string }>()
+      if (!camp) throw badRequest('that class is not on this school')
+      let sub = await c.db.prepare(`SELECT id FROM subjects WHERE institution_id = ? AND campus_id = ? AND lower(name) = lower(?)`)
+        .bind(inst0, camp.campus_id, typed).first<{ id: string }>()
+      if (!sub) {
+        /* A code the UNIQUE (institution, campus, code) will accept: the
+           name's letters, then a number if that is taken. */
+        const base = (typed.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'CRS')
+        let code = base
+        for (let i = 2; i < 60; i++) {
+          const clash = await c.db.prepare(`SELECT 1 AS x FROM subjects WHERE institution_id = ? AND campus_id = ? AND code = ?`)
+            .bind(inst0, camp.campus_id, code).first()
+          if (!clash) break
+          code = `${base}${i}`
+        }
+        const sid = uuid()
+        await c.db.prepare(`INSERT INTO subjects (id, institution_id, campus_id, name, code, is_scholastic, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)`)
+          .bind(sid, inst0, camp.campus_id, typed, code, now()).run()
+        sub = { id: sid }
+      }
+      const link = await c.db.prepare(`SELECT id FROM class_subjects WHERE class_id = ? AND subject_id = ?`)
+        .bind(classId, sub.id).first<{ id: string }>()
+      if (link) cs = link.id
+      else {
+        const lid = uuid()
+        await c.db.prepare(`INSERT INTO class_subjects (id, institution_id, class_id, subject_id, is_elective, periods_per_week) VALUES (?, ?, ?, ?, 1, 0)`)
+          .bind(lid, inst0, classId, sub.id).run()
+        cs = lid
+      }
+    } else {
+      throw badRequest('pick a subject, or type a name for a new course')
+    }
     const ok1 = await c.db.prepare(`SELECT count(*) AS n FROM sections sec JOIN class_subjects cs ON cs.class_id = sec.class_id WHERE cs.id = ? AND sec.id IN (${marks()})`)
       .bind(cs, js(ids)).first<{ n: number }>()
-    if (!ok1 || ok1.n !== new Set(ids).size) throw badRequest('that subject is not taught in every section picked')
+    if (!ok1 || ok1.n !== new Set(ids).size) throw badRequest('that course does not belong to every section picked')
     const t = now(), inst = institutionId(c)
     await c.db.batch(ids.map((sec) => c.db.prepare(`INSERT INTO lms_courses (institution_id, section_id, class_subject_id, layout, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT (section_id, class_subject_id) DO UPDATE SET layout = excluded.layout`).bind(inst, sec, cs, layout, s.userId, t)))

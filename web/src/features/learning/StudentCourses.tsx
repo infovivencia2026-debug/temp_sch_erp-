@@ -566,7 +566,26 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                       than state of our own: it is open-by-default on the unit
                       the child is in, it survives a re-render, and the
                       keyboard and the screen reader already know what it is. */}
-                  {tops.map((m, i) => {
+                  {/* NEWEST FIRST (owner, 2026-10-10: "recent uplaoding
+                      should be first").
+
+                      The part whose content went up most recently sits at
+                      the top. On a course still being built, the video added
+                      this morning is what a student came back for, and
+                      Part 1 is the one they finished a fortnight ago.
+
+                      The UNITS reorder; the lessons inside one do not. A
+                      topic read back to front is not a topic, and nobody
+                      asked for that -- what they asked for is to see new
+                      work without scrolling to the bottom. A unit with
+                      nothing datable in it keeps its syllabus place under
+                      the rest. */}
+                  {[...tops].sort((a, b) => {
+                    const latest = (m: SModule) => stops
+                      .filter((x) => subtree(m).includes(x.m))
+                      .reduce((t, x) => { const at = x.it.lesson?.created_at ?? ''; return at > t ? at : t }, '')
+                    return latest(b).localeCompare(latest(a))
+                  }).map((m, i) => {
                     const mine = stops.filter((x) => subtree(m).includes(x.m))
                     const shown = mine.filter((x) => {
                       if (find.trim() && !titleOf(x.it).toLowerCase().includes(find.trim().toLowerCase())) return false
