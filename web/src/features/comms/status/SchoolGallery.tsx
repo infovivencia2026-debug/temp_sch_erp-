@@ -1,3 +1,4 @@
+import { MoreStorageButton } from './MoreStorage'
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
@@ -149,7 +150,10 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
         {feed.data?.storage_warning && (
-          <p role="status" className="mb-4 rounded-lg bg-[#fef3c7] px-3 py-2 text-[13px] font-medium text-[#92400e]">{feed.data.storage_warning}</p>
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-[#fef3c7] px-3 py-2.5 text-[13px] font-medium text-[#92400e]">
+            <span className="min-w-0 flex-1 basis-[220px]">{feed.data.storage_warning}</span>
+            <MoreStorageButton />
+          </div>
         )}
         {feed.isLoading ? (
           <p className="py-20 text-center text-[14px] text-muted-foreground">Loading the gallery…</p>

@@ -1,3 +1,4 @@
+import { MoreStorageButton } from './MoreStorage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -320,7 +321,10 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
         </p>
       )}
       {aud.data?.storage_warning && (
-        <p role="status" className="rounded-lg bg-[#fef3c7] px-3 py-2 text-[13px] font-medium text-[#92400e]">{aud.data?.storage_warning}</p>
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-[#fef3c7] px-3 py-2.5 text-[13px] font-medium text-[#92400e]">
+          <span className="min-w-0 flex-1 basis-[220px]">{aud.data?.storage_warning}</span>
+          <MoreStorageButton />
+        </div>
       )}
       {aud.data?.needs_approval && (
         <p className="text-[11.5px] text-muted-foreground">
