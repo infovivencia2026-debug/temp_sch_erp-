@@ -1195,8 +1195,8 @@ export function Button({
           : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]',
         level === 'primary' &&
           (tone === 'danger'
-            ? 'bg-destructive text-white hover:bg-destructive/90'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'),
+            ? 'bg-gradient-to-b from-destructive/90 to-destructive text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] hover:from-destructive hover:to-destructive/90 hover:shadow-sm hover:-translate-y-[0.5px] transition-all duration-200 ease-out active:scale-[0.98]'
+            : 'bg-gradient-to-b from-primary/90 to-primary text-primary-foreground shadow-[0_1px_2px_rgba(0,0,0,0.12)] hover:from-primary hover:to-primary/90 hover:shadow-sm hover:-translate-y-[0.5px] transition-all duration-200 ease-out active:scale-[0.98]'),
         level === 'secondary' &&
           cn(
             /* text-card-foreground, not inherited.
@@ -1208,7 +1208,7 @@ export function Button({
                as faint outlines. bg-card and text-card-foreground are a pair;
                using half of a pair is what makes a control invisible in one
                theme and fine in the other. */
-            'border bg-card text-card-foreground hover:bg-accent',
+            'border bg-gradient-to-b from-card to-secondary/20 text-card-foreground shadow-sm hover:bg-accent hover:-translate-y-[0.5px] transition-all duration-200 ease-out active:scale-[0.98]',
             tone === 'danger' && 'border-destructive/30 text-destructive hover:bg-destructive/5',
           ),
         level === 'ghost' &&
@@ -2016,9 +2016,33 @@ export {
  * that admits printing is a first-class action in a school rather than
  * something the browser menu handles. Hidden from the printout itself.
  */
-export function PrintButton({ label = 'Print' }: { label?: string }) {
+export function PrintButton({
+  label = 'Print',
+  source,
+  title,
+  landscape,
+}: {
+  label?: string
+  /* WHAT TO PRINT, WHEN THE SCREEN IS NOT THE DOCUMENT.
+
+     Left out, this prints the whole <main>, which is right for a report: the
+     cash book, the register, the payroll sheet ARE the screen. It is wrong
+     everywhere the screen is a workbench that produces a document. Pressing
+     "Print 5" on the ID cards printed the template settings, then the entire
+     staff roster with its checkboxes, and only then the five cards -- three
+     pages of workbench in front of the thing the person asked for. Point this
+     at the document and the workbench stays on screen where it belongs. */
+  source?: React.RefObject<HTMLElement | null>
+  title?: string
+  landscape?: boolean
+}) {
   return (
-    <Button variant="secondary" size="sm" onClick={() => printDocument()} className="no-print">
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => printDocument({ source: source?.current, title, landscape })}
+      className="no-print"
+    >
       <Printer className="h-3.5 w-3.5" />
       {label}
     </Button>

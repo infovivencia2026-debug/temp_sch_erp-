@@ -119,12 +119,21 @@ export default defineConfig({
     port: 5173,
     // Mirrors the nginx locations, so `npm run dev` hits the same URLs the
     // production bundle does and no code needs a base-URL switch.
-    proxy: {
-      '/api': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
-      '/login': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
-      '/logout': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
-      '/healthz': { target: 'https://temperp.187-127-178-100.sslip.io', changeOrigin: true, secure: false },
-    },
+    /* THE BOX THIS POINTED AT IS GONE.
+
+       The sslip.io VPS was decommissioned when the school moved to Cloud Run
+       behind Pages, and these four entries went on naming it -- so `npm run
+       dev` proxied every call into a host that no longer resolves and the
+       whole app came up unable to log in. DEV_API moves it without an edit:
+       point it at a local server when you are running one.
+
+         DEV_API=http://localhost:8080 npm run dev
+    */
+    proxy: (() => {
+      const target = process.env.DEV_API || 'https://school-erp-cqj.pages.dev'
+      const to = { target, changeOrigin: true, secure: false }
+      return { '/api': to, '/login': to, '/logout': to, '/healthz': to }
+    })(),
   },
   build: {
     // A broad baseline for the MODERN bundle: the transpiler lowers anything

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -85,6 +85,8 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
   // Nobody selected to begin with. Opening the tab and finding two hundred
   // cards queued is one misplaced click away from two hundred sheets of card.
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  /* The cards, and nothing round them: see PrintButton's note. */
+  const cards = useRef<HTMLDivElement>(null)
 
   // The school's own name on the card. Falls back to nothing rather than to a
   // placeholder: a card that says "School Name" is not one you hand to a
@@ -190,7 +192,13 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
               >
                 {picked.size === staff.length ? 'Clear all' : 'Select everybody'}
               </Button>
-              {picked.size > 0 && <PrintButton label={`Print ${picked.size}`} />}
+              {picked.size > 0 && (
+                <PrintButton
+                  label={`Print ${picked.size}`}
+                  source={cards}
+                  title={`Staff ID cards · ${picked.size}`}
+                />
+              )}
             </div>
           }
         />
@@ -208,6 +216,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
         </div>
       </Card>
 
+      <div ref={cards} className="flex flex-col gap-3">
       {chosen.length > 0 && (
         <div className="flex flex-wrap gap-3">
           {chosen.map((e) => (
@@ -278,6 +287,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
           ))}
         </div>
       )}
+      </div>
     </>
   )
 }

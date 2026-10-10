@@ -30,7 +30,11 @@ import urllib.parse
 import urllib.request
 from http.cookiejar import CookieJar
 
-BASE = os.environ.get("BASE", "https://temperp.187-127-178-100.sslip.io").rstrip("/")
+# The sslip.io box this used to point at is gone; the school is served from
+# Cloudflare Pages in front of Cloud Run. A stale default made every single
+# sign-in fail, which this script reports as "could not sign in" -- correct,
+# and completely misleading about why.
+BASE = os.environ.get("BASE", "https://school-erp-cqj.pages.dev").rstrip("/")
 PASSWORD = os.environ.get("DEMO_PASSWORD", "SuperAdmin#2026")
 
 # Who we sign in as. Roles, not people: the point is what the role can reach.
@@ -43,7 +47,28 @@ WHO = {
     "finance":    "girish.p@jsm.test",
     "admissions": "nadia.k@jsm.test",
     "reception":  "riya@test.in",
+    # The two that matter most were the two that were missing. A child and a
+    # family were read from environment variables nobody set, so the three
+    # checks that need them -- does the homework arrive, can a child read the
+    # roll, can a parent read somebody else's child -- reported skip every
+    # time this ran. Three skips look like three passes at a glance, and the
+    # one relationship the whole product turns on was never tested.
+    "student":    "student@vivencia.test",
+    "parent":     "parent@vivencia.test",
 }
+
+# The seeded demo accounts and the hand-made jsm.test people do not share a
+# password. Hard-coding one meant the other half silently failed to sign in --
+# which, again, reads as a skip rather than as a problem. Per-account, falling
+# back to the general one.
+SEEDED_PASSWORD = os.environ.get("SEEDED_PASSWORD", "Demo@2026pass")
+PASSWORDS = {
+    "student@vivencia.test": SEEDED_PASSWORD,
+    "parent@vivencia.test":  SEEDED_PASSWORD,
+}
+
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
 results: list[tuple[str, str, str, str]] = []   # relation, check, verdict, detail
@@ -63,6 +88,10 @@ class Session:
         self.jar = CookieJar()
         self.opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(self.jar))
+        # Cloudflare sits in front of the school and refuses urllib's own
+        # User-Agent with a 403 before the request ever reaches the app --
+        # indistinguishable, from here, from the login being down.
+        self.opener.addheaders = [("User-Agent", UA)]
         self.ok = self._login()
 
     def _login(self) -> bool:
@@ -76,7 +105,9 @@ class Session:
             print("    no csrf token on the login page", file=sys.stderr)
             return False
         body = urllib.parse.urlencode({
-            "identifier": self.email, "password": PASSWORD, "csrf_token": m.group(1),
+            "identifier": self.email,
+            "password": PASSWORDS.get(self.email, PASSWORD),
+            "csrf_token": m.group(1),
         }).encode()
         req = urllib.request.Request(f"{BASE}/login", data=body, method="POST")
         try:
@@ -288,20 +319,14 @@ def main() -> int:
               file=sys.stderr)
         return 2
 
-    # A student and a parent are found from the roll rather than hard-coded, so
-    # this keeps working when the demo data is rebuilt.
-    student = parent = None
-    _, roll = sessions["principal"].get("/api/v1/students?limit=1")
-    if items(roll):
-        pass  # portal logins are per-child and not derivable from here
-
-    for env, holder in (("STUDENT_EMAIL", "student"), ("PARENT_EMAIL", "parent")):
-        if os.environ.get(env):
-            s = Session(os.environ[env])
-            if holder == "student":
-                student = s
-            else:
-                parent = s
+    # The child and the family are signed in with everybody else now. An
+    # address given in the environment still wins, for testing against a
+    # particular family rather than the seeded one.
+    student, parent = sessions.get("student"), sessions.get("parent")
+    if os.environ.get("STUDENT_EMAIL"):
+        student = Session(os.environ["STUDENT_EMAIL"])
+    if os.environ.get("PARENT_EMAIL"):
+        parent = Session(os.environ["PARENT_EMAIL"])
 
     t, other = sessions["teacher"], sessions["other_teacher"]
     check_teacher_scope(t, other)

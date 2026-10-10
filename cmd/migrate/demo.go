@@ -230,6 +230,19 @@ func pickInstitution(ctx context.Context, tx pgx.Tx, want string) (uuid.UUID, er
 var staffRoles = map[string]bool{
 	"institution_admin": true, "hod": true, "faculty": true, "finance": true,
 	"admissions": true, "hr": true, "operations": true,
+	/* THE REST OF THE PAYROLL.
+	   These were left out, and the omission stayed invisible until somebody
+	   signed in as the librarian to test her. A role without an employees row
+	   is not a lesser account: leave, the staff register, the duty roster and
+	   My pay all key off that row, so she could not apply for a day off and her
+	   payslip screen came up empty -- not because payroll is broken but because
+	   the school, as far as the database was concerned, did not employ her.
+	   Every one of these is a person the school pays. board_member is
+	   deliberately absent: a trustee is not staff and has no payslip. */
+	"librarian": true, "nurse": true, "counsellor": true, "discipline_officer": true,
+	"hostel_warden": true, "activity_coord": true, "exam_controller": true,
+	"transport_manager": true, "front_office": true, "it_admin": true,
+	"driver": true,
 }
 
 // wireScope gives the scope-narrowed roles something inside their boundary.
@@ -374,6 +387,26 @@ func wireScope(ctx context.Context, tx pgx.Tx, roleKey string, inst, campus, use
 			    WHERE st.institution_id = $1
 			    ORDER BY st.admission_no LIMIT 2)`, inst, userID)
 		return err
+
+	case "driver":
+		/* A DRIVER WITH NO BUS SEES NOTHING.
+		   His whole portal -- the route, the children to scan on, the trip
+		   check -- hangs off transport_staff, and the employees row above is
+		   not enough: nothing joins a user to a vehicle except this. Without
+		   it the account signs in perfectly well and lands on an empty screen,
+		   which reads as a broken feature rather than as missing data. */
+		var empID uuid.UUID
+		if err := tx.QueryRow(ctx,
+			`SELECT id FROM employees WHERE institution_id = $1 AND user_id = $2`,
+			inst, userID).Scan(&empID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO transport_staff (institution_id, employee_id, role, is_active)
+			VALUES ($1,$2,'driver',true)
+			ON CONFLICT DO NOTHING`, inst, empID); err != nil {
+			return err
+		}
 
 	case "operations", "finance", "admissions", "hr", "institution_admin":
 		// Institution-wide roles need an employee row so HR views and workload

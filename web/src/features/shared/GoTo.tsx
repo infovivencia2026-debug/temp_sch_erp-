@@ -97,12 +97,20 @@ export default function GoTo() {
       staff_records: ['staff_groups_lists', 'staff_360', 'staff_overview'],
       homework: ['homework_academics', 'homework_classwork', 'homework_assignments'],
     }
+    /* A parent's Messages screen is a hub of tabs and opens on Circulars. A
+       link to a teacher conversation, written before the hub existed, must
+       open the Message teacher tab — otherwise the tap on "Message from Mr
+       Rao" lands on the school's notices with the message nowhere in sight. */
+    let legacySearch = search
+    if (want === 'direct_teacher_messaging' && !/[?&]tab=/.test(search)) {
+      legacySearch = (search ? search + '&' : '?') + 'tab=teacher'
+    }
     for (const alt of LEGACY[want] ?? []) {
       for (const role of catalog.roles) {
         for (const section of role.sections) {
           const f = section.features.find((x) => usable(x) && x.slug === alt)
           if (f) {
-            navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
+            navigate(`/${role.key}/${section.slug}/${f.slug}${legacySearch}`, { replace: true })
             return
           }
         }

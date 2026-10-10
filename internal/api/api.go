@@ -988,6 +988,9 @@ func (s *Server) Routes() http.Handler {
 				r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/letters", s.issueStaffLetter)
 				r.Post("/letters/printed", s.logLetterPrinted)
 				r.Get("/letters/prints", s.listLetterPrints)
+				// One letter, by its serial, so the thing being printed can be
+				// the letter rather than the screen it was opened from.
+				r.Get("/letters/{serial}", s.getStaffLetter)
 
 				r.Get("/id-card-template", s.getIDCardTemplate)
 				r.With(httpx.RequirePermission(rbac.EmployeesWrite)).

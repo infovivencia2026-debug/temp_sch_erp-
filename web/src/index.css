@@ -3296,4 +3296,34 @@ html.theme-anim *::after {
   .flex.gap-y-1\.5 > * { margin-top: 0.1875rem; margin-bottom: 0.1875rem; }
   .flex.gap-y-2 > * { margin-top: 0.25rem; margin-bottom: 0.25rem; }
   .flex.gap-y-3 > * { margin-top: 0.375rem; margin-bottom: 0.375rem; }
+
+  /* POLISH: Glassmorphism and Micro-animations */
+  .glass-panel {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+  .dark .glass-panel {
+    background: hsl(var(--card) / 0.5);
+    border: 1px solid hsl(var(--border) / 0.2);
+  }
+  .hover-lift {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease-out;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-2);
+  }
+
+  /* POLISH: Dialog and Popover Animations */
+  [role="dialog"], [role="menu"], .popover {
+    animation: fade-in-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  @keyframes fade-in-up {
+    0% { opacity: 0; transform: translateY(6px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
 }
+

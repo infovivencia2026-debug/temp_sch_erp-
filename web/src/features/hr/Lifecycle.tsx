@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, DoorOpen, FileSignature, Route, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -600,6 +600,37 @@ function LettersTab() {
   const [kind, setKind] = useState('APPOINTMENT')
   const [body, setBody] = useState('')
   const [done, setDone] = useState('')
+  /* THE LETTER, SO THERE IS A LETTER TO PRINT.
+
+     Print used to call printDocument() with a title and no source, which
+     prints the page: this whole tab -- joinings, exits, clearances -- came out
+     under the heading "Experience Letter - EXP-0012". It could not have done
+     otherwise, because the letter was never on the page. The facts were frozen
+     into the certificate's snapshot the day it was issued and nothing could
+     read them back until now. Fetched on demand rather than with the list: a
+     tab showing forty letters does not need forty snapshots to draw a table. */
+  const [letter, setLetter] = useState<StaffLetter | null>(null)
+  const [failed, setFailed] = useState('')
+  const sheet = useRef<HTMLDivElement>(null)
+
+  async function printLetter(serial: string) {
+    try {
+      setFailed('')
+      const l = await api.get<StaffLetter>(`/api/v1/hr/letters/${encodeURIComponent(serial)}`)
+      setLetter(l)
+      printed.mutate(serial)
+      // A tick, so the sheet below is on the page before it is copied.
+      requestAnimationFrame(() =>
+        printDocument({ source: sheet.current, title: `${l.letter_name} · ${l.serial_no}` }),
+      )
+    } catch {
+      /* Say so. Swallowing this left the button doing nothing at all, which
+         reads as a broken button rather than as a letter that could not be
+         fetched -- and the clerk presses it again. */
+      setLetter(null)
+      setFailed(`Could not open letter ${serial}. Nothing was printed.`)
+    }
+  }
 
   const letters = useQuery({
     queryKey: ['hr', 'certificates'],
@@ -643,6 +674,7 @@ function LettersTab() {
         description="Appointment, a confirmed raise, a written warning, or a service certificate. Each gets a permanent serial and is kept exactly as it read on the day."
       />
       {done && <FormNotice ok={done} />}
+      {failed && <FormNotice error={failed} />}
       {issue.error && <FormNotice error={issue.error} />}
       <FormGrid>
         <Field label="Who it is for" required>
@@ -688,7 +720,7 @@ function LettersTab() {
             <Td><Badge tone="success">{c.status}</Badge></Td>
             <Td>
               <Button size="sm" variant="ghost"
-                onClick={() => { printed.mutate(c.serial_no); printDocument({ title: `${c.type} · ${c.serial_no}` }) }}>
+                onClick={() => printLetter(c.serial_no)}>
                 Print
               </Button>
             </Td>
@@ -697,6 +729,15 @@ function LettersTab() {
       </Table>
 
     </Card>
+
+    {/* THE LETTER. Off screen until one is asked for, and never on screen at
+        all: this exists to be the thing printDocument copies. The wording is
+        deliberately thin -- the facts are the school's, frozen in the snapshot
+        on the day of issue, and this states them rather than composing prose
+        around them. */}
+    <div ref={sheet} className="hidden">
+      {letter && <LetterSheet letter={letter} />}
+    </div>
 
     {(prints.data?.items.length ?? 0) > 0 && (
       <Card className="no-print">
@@ -831,5 +872,69 @@ function PostingsTab() {
         </Table>
       </Card>
     </>
+  )
+}
+
+/* What the school froze on the day it issued the letter. Only the fields the
+   snapshot is built with (hr_lifecycle.go, issueStaffCertificate); anything
+   else would be this file inventing a fact about somebody's career. */
+interface StaffLetter {
+  serial_no: string
+  kind: string
+  letter_name: string
+  employee: string
+  employee_code: string
+  issued_on: string
+  status: string
+  snapshot: {
+    name?: string
+    employee_code?: string
+    designation?: string
+    department?: string
+    joined_on?: string
+    relieved_on?: string
+    years_of_service?: number
+    qualifications?: string[]
+    conduct?: string
+    remarks?: string | null
+    issued_at?: string
+  }
+}
+
+function LetterSheet({ letter }: { letter: StaffLetter }) {
+  const s = letter.snapshot ?? {}
+  const rows: [string, string][] = [
+    ['Name', s.name || letter.employee],
+    ['Staff code', s.employee_code || letter.employee_code],
+    ['Designation', s.designation || '—'],
+    ['Department', s.department || '—'],
+    ['Joined on', s.joined_on || '—'],
+    ['Served until', s.relieved_on || '—'],
+    ['Years of service', s.years_of_service == null ? '—' : String(s.years_of_service)],
+    ['Conduct', s.conduct || '—'],
+  ]
+  return (
+    <article className="space-y-4 text-[13px]">
+      <header>
+        <h2 className="text-[16px] font-semibold">{letter.letter_name}</h2>
+        <p className="text-muted-foreground">
+          Serial {letter.serial_no} · issued {letter.issued_on}
+        </p>
+      </header>
+      <table className="w-full">
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}>
+              <th className="w-48 py-1 text-left font-medium align-top">{k}</th>
+              <td className="py-1">{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {(s.qualifications?.length ?? 0) > 0 && (
+        <p><strong>Qualifications:</strong> {s.qualifications!.join(', ')}</p>
+      )}
+      {s.remarks && <p>{s.remarks}</p>}
+    </article>
   )
 }
