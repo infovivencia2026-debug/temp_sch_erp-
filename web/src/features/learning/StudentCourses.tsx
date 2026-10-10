@@ -375,10 +375,20 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   const toModule = (id: string | null) => setWhere({ mod: id, day: null, item: null })
   /* Back from a day (or from a step with no day to go back to): the day's
      page, or for the part of a module with no day, the module itself. */
+  /* NO DAY PAGE (owner, 2026-10-10: "so many pages to view an LMS video,
+     those two are enough"). The topic shows its days as cards and a card
+     opens the lesson, so back from a lesson is the topic itself. */
   const toDay = (k: string) => {
     const hit = stops.find((s) => s.d.key === k)
-    if (hit && hit.d.day === null) toModule(hit.m.id)
-    else setWhere({ mod: hit?.m.id ?? null, day: k, item: null })
+    toModule(hit?.m.id ?? null)
+  }
+  /* A day card opens that day's next step, or its first once all are done. */
+  const openDayDirect = (m: SModule, k: string) => {
+    const day = m.days.find((x) => x.key === k)
+    if (!day || day.state === 'locked') return
+    const steps = SECTIONS.flatMap((sec) => day.items.filter((i) => i.section === sec)).filter(canOpen)
+    const it = steps.find((i) => !i.done) ?? steps[0]
+    if (it) open({ m, d: day, it })
   }
   /* The day the child is on: the resume's, else the first open one not done. */
   const hereDay = d?.resume?.day_key ?? allDays.find((x) => x.state === 'open')?.key ?? null
@@ -408,7 +418,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
           </div>
         ) : mod ? (
           <ModulePage d={d} m={mod} kids={kids(mod.id)} subtree={subtree} here={hereDay} isHere={isHere} titleOf={titleOf}
-            openItem={(it, day) => open({ m: mod, d: day, it })} openDay={(k) => setWhere({ mod: mod.id, day: k, item: null })} openModule={toModule}
+            openItem={(it, day) => open({ m: mod, d: day, it })} openDay={(k) => openDayDirect(mod, k)} openModule={toModule}
             next={firstTodoIn(mod)} openStop={open} back={() => toModule(parentOf(mod)?.id ?? null)} backLabel={parentOf(mod)?.title ?? 'All parts'} />
         ) : (
           /* THE SUBJECT, AS THE OWNER DREW IT (2026-10-10, three mockups:
@@ -704,23 +714,66 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
   const range = dateRange(m.starts_on, m.ends_on)
   return (
     <div className="space-y-4">
-      <Card>
-        <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
-          <Ring pct={all.length ? Math.round((100 * done) / all.length) : 0} size={64} stroke={7} hue={all.length && done === all.length ? 'emerald' : 'indigo'} label={`${done} of ${all.length} done`}>
-            {all.length && done === all.length ? <Check className="h-7 w-7 text-success" strokeWidth={2.5} /> : <span className="text-[17px] font-bold">{done}/{all.length}</span>}
-          </Ring>
-          <div className="min-w-0 flex-1">
-            <p className="text-[18px] font-semibold">{all.length && done === all.length ? 'All done here!' : `${done} of ${all.length} done`}</p>
-            {m.description && <p className="text-[15px] text-muted-foreground">{m.description}</p>}
-            {range && <p className="text-[14px] text-muted-foreground">{range}</p>}
-          </div>
-        </div>
-      </Card>
+      {/* THE TOPIC, AS THE OWNER DREW IT (2026-10-10, "Topic Completed").
+          A hero that celebrates when everything is done, with the progress
+          on the right; then the days as cards that open their lesson. */}
+      {(() => {
+        const fin = all.length > 0 && done === all.length
+        const pct = all.length ? Math.round((100 * done) / all.length) : 0
+        return (
+          <section className={cn('relative overflow-hidden rounded-3xl border bg-card/90 p-5 shadow-xl backdrop-blur-xl sm:p-8',
+            fin ? 'border-emerald-100 shadow-emerald-950/5' : 'border-indigo-100 shadow-indigo-950/5')}>
+            <div aria-hidden className={cn('pointer-events-none absolute -bottom-10 -right-10 size-64 rounded-full blur-3xl', fin ? 'bg-emerald-100/60' : 'bg-indigo-100/50')} />
+            <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div className={cn('grid size-14 shrink-0 place-items-center rounded-2xl text-white shadow-lg sm:size-16',
+                  fin ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-emerald-500/30' : 'bg-gradient-to-tr from-indigo-500 to-violet-400 shadow-indigo-500/30')}>
+                  {fin ? <Check className="size-8" strokeWidth={3} aria-hidden /> : <span className="text-[18px] font-extrabold">{done}/{all.length}</span>}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-[20px] font-extrabold tracking-tight sm:text-[24px]">{fin ? 'All done here!' : all.length ? 'Keep going' : 'Nothing here yet'}</h2>
+                    {all.length > 0 && (
+                      <span className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider',
+                        fin ? 'border-emerald-200 bg-emerald-100 text-emerald-800' : 'border-indigo-200 bg-indigo-50 text-indigo-700')}>{pct}% complete</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[14px] text-muted-foreground">
+                    {fin ? <>Outstanding work! You have finished every day in <strong className="font-semibold text-foreground">{m.title}</strong>.</> : m.description || `${done} of ${all.length} days done in ${m.title}.`}
+                  </p>
+                  {range && <p className="text-[13px] text-muted-foreground">{range}</p>}
+                </div>
+              </div>
+              {all.length > 0 && (
+                <div className="flex shrink-0 items-center gap-4 self-start rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 sm:self-auto">
+                  <div className="px-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Progress</span>
+                    <span className={cn('font-mono text-[18px] font-bold', fin ? 'text-emerald-600' : 'text-indigo-600')}>{pct}%</span>
+                  </div>
+                  <div className="h-8 w-px bg-slate-200" />
+                  <div className="px-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Days</span>
+                    <span className="font-mono text-[16px] font-bold text-amber-500">{done}/{all.length}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })()}
       {numbered.length > 0 && (
-        <Card>
-          <h3 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">Days</h3>
-          <div className="px-[var(--card-pad)] py-3"><DayBubbles days={numbered} here={here} onOpen={openDay} /></div>
-        </Card>
+        <section className="space-y-4 rounded-3xl border bg-card p-5 shadow-sm sm:p-7">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-[15px] font-bold">Daily study track</h3>
+              <p className="text-[12px] text-muted-foreground">Tap a day to open its lesson</p>
+            </div>
+            <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-700">
+              {numbered.filter((x) => x.state === 'done').length} of {numbered.length} days done
+            </span>
+          </div>
+          <DayCards d={d} days={numbered} here={here} titleOf={titleOf} onOpen={openDay} />
+        </section>
       )}
       {loose && looseItems.length > 0 && (
         <Card>
@@ -768,27 +821,42 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
   )
 }
 
-/** A module's days as big numbered bubbles: a tick when done, a lock (and why) when shut. */
-function DayBubbles({ days, here, onOpen }: { days: SDay[]; here: string | null; onOpen: (key: string) => void }) {
-  if (!days.length) return <p className="py-2 text-[16px] text-muted-foreground">Nothing here yet.</p>
+/** The days as cards (owner, 2026-10-10): the day, a tick or lock, what the
+    first step is, what kinds of steps it holds, and one button that opens
+    the lesson directly -- Review when done, Start or Continue otherwise. */
+function DayCards({ d, days, here, titleOf, onOpen }: { d: Detail; days: SDay[]; here: string | null; titleOf: (it: SItem) => string; onOpen: (key: string) => void }) {
   return (
-    <ol className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-x-2 gap-y-3">
+    <ol className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 lg:grid-cols-5">
       {days.map((x) => {
+        const locked = x.state === 'locked'
+        const fin = x.state === 'done'
         const isHere = x.key === here && x.state === 'open'
-        const sub = x.state === 'locked' ? (x.reason ?? 'Not open yet') : x.state === 'done' ? 'Done' : `${x.done} of ${x.total}`
+        const first = SECTIONS.flatMap((sec) => x.items.filter((i) => i.section === sec))[0]
+        const kinds = [...new Set(x.items.map((i) => KID_KIND_LABEL[kindOf(i)] ?? KIND_LABEL[kindOf(i)] ?? 'Step'))].slice(0, 2).join(' & ')
+        void d
         return (
           <li key={x.key}>
-            <button type="button" disabled={x.state === 'locked'} onClick={() => onOpen(x.key)} aria-label={`${x.name}: ${sub}`}
-              className="flex w-full flex-col items-center gap-1 rounded-xl p-1 text-center enabled:active:scale-95 disabled:cursor-not-allowed">
-              <span className={cn('relative grid h-16 w-16 place-items-center rounded-full border-2 text-[22px] font-bold',
-                x.state === 'done' ? 'border-success bg-success text-white'
-                  : x.state === 'locked' ? 'border-border bg-muted text-muted-foreground'
-                    : isHere ? GO
-                      : 'border-primary/40 bg-card text-primary')}>
-                {x.state === 'done' ? <Check className="h-8 w-8" strokeWidth={2.5} aria-hidden /> : x.state === 'locked' ? <Lock className="h-6 w-6" aria-hidden /> : x.day ?? '•'}
+            <button type="button" disabled={locked} onClick={() => onOpen(x.key)}
+              className={cn('group flex h-full w-full flex-col justify-between gap-3 rounded-2xl border p-4 text-left transition-all',
+                locked ? 'cursor-not-allowed border-slate-200/80 bg-muted/50 opacity-70'
+                  : isHere ? 'border-indigo-300 bg-white shadow-md ring-2 ring-indigo-200/60'
+                    : 'border-slate-200/80 bg-slate-50/70 hover:border-emerald-300 hover:bg-white hover:shadow-md')}>
+              <span className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-slate-700">{shortDay(x)}</span>
+                {fin ? <span className="grid size-5 place-items-center rounded-full bg-emerald-500 text-white"><Check className="size-3" strokeWidth={3.5} aria-hidden /></span>
+                  : locked ? <Lock className="size-4 text-muted-foreground" aria-hidden />
+                    : <span className="text-[11px] font-semibold text-muted-foreground">{x.done}/{x.total}</span>}
               </span>
-              <span className="text-[15px] font-semibold leading-tight">{shortDay(x)}</span>
-              <span className="line-clamp-2 text-[13px] leading-tight text-muted-foreground">{sub}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-semibold text-slate-900">{first ? titleOf(first) : x.name}</span>
+                <span className="block truncate text-[11px] text-slate-500">{locked ? (x.reason ?? 'Not open yet') : kinds || 'Nothing yet'}</span>
+              </span>
+              <span className={cn('w-full rounded-xl border py-1.5 text-center text-[12px] font-semibold transition-colors',
+                locked ? 'border-slate-200 bg-white text-muted-foreground'
+                  : fin ? 'border-slate-200 bg-white text-slate-700 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                    : 'border-indigo-500 bg-indigo-500 text-white group-hover:bg-indigo-600')}>
+                {locked ? 'Locked' : fin ? 'Review' : x.done ? 'Continue' : 'Start'}
+              </span>
             </button>
           </li>
         )
