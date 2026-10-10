@@ -315,6 +315,11 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   const q = useQuery({ queryKey: key, queryFn: () => api.get<Detail>(`/api/v1/portal/lms/course?class_subject_id=${cs}`) })
   const shared = useShared()
   const [where, setWhere] = useState<Where>(initial)
+  /* The page a lesson was opened from: the subject, or a topic. Back from the
+     lesson returns there, one step at a time (owner, 2026-10-10: "make it a
+     proper pipeline"). Moving lesson to lesson does not change it. */
+  const lastPage = useRef<Where>({ mod: null, day: null, item: null })
+  useEffect(() => { if (!where.item) lastPage.current = where }, [where])
   const [, setParams] = useSearchParams()
   const [quiz, setQuiz] = useState<string | null>(null)
   /* The subject page's own two controls (owner's design, 2026-10-10). Local
@@ -384,10 +389,8 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
      those two are enough"). The topic shows its days as cards and a card
      opens the lesson, so back from a lesson is the topic itself. */
   const toDay = (k: string) => {
-    /* Back from a video goes to the course itself, not a topic page (owner,
-       2026-10-10: 'why do I see this after the back button'). */
     void k
-    toModule(null)
+    setWhere(lastPage.current)
   }
   /* A day card opens that day's next step, or its first once all are done. */
   const openDayDirect = (m: SModule, k: string) => {
@@ -413,7 +416,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
         actions={!item && !cur && !mod ? <Button variant="secondary" className="min-h-[48px] text-[16px]" onClick={back}><ArrowLeft className="h-5 w-5" /> All subjects</Button> : undefined} />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !d ? <CourseSkeleton /> : item ? (
-          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => (k === OTHER ? setWhere({ mod: null, day: OTHER, item: null }) : toDay(k))} onQuiz={setQuiz} />
+          <ItemPage backLabel={lastPage.current.mod && lastPage.current.mod !== SHARED ? byId.get(lastPage.current.mod)?.title ?? d.course.subject : d.course.subject} d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => (k === OTHER ? setWhere({ mod: null, day: OTHER, item: null }) : toDay(k))} onQuiz={setQuiz} />
         ) : cur ? (
           <DayPage d={d} m={cur.m} day={cur.d} titleOf={titleOf} open={(it) => open({ m: cur.m, d: cur.d, it })}
             next={(() => { const sib = cur.m.days.filter((x) => x.day !== null); return sib[sib.indexOf(cur.d) + 1] ?? null })()}
@@ -926,8 +929,8 @@ function DayPage({ d, m, day, titleOf, open, next, toDay, toBack, backLabel }: {
   )
 }
 
-function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz }: {
-  d: Detail; qkey: unknown[]; stop: Stop; stops: Stop[]; titleOf: (it: SItem) => string; refresh: () => void; open: (s: Stop) => void; toDay: (k: string) => void; onQuiz: (id: string) => void
+function ItemPage({ backLabel, d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz }: {
+  backLabel: string; d: Detail; qkey: unknown[]; stop: Stop; stops: Stop[]; titleOf: (it: SItem) => string; refresh: () => void; open: (s: Stop) => void; toDay: (k: string) => void; onQuiz: (id: string) => void
 }) {
   const it = stop.it
   /* Previous and next skip what cannot be opened yet (scheduled); a locked day ends the way forward. */
@@ -1088,11 +1091,11 @@ function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz 
       )}
       <ArrowBar label="Back and next">
         {prev ? <BackBtn onClick={() => open(prev)} sub={prev.d !== stop.d ? shortDay(prev.d) : titleOf(prev.it)} />
-          : <BackBtn onClick={() => toDay(stop.d.key)} sub={d.course.subject} />}
+          : <BackBtn onClick={() => toDay(stop.d.key)} sub={backLabel} />}
         {next ? (
           <NextBtn btnRef={nextRef} hot={it.done || !it.required} locked={next.it.locked} onClick={() => open(next)}
             label={next.it.locked ? 'Finish this first' : next.d !== stop.d ? `Next: ${shortDay(next.d)}` : 'Next'} sub={next.it.locked ? (next.d.reason ?? `${shortDay(next.d)} is not open yet`) : titleOf(next.it)} />
-        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${d.course.subject}`} />}
+        ) : <NextBtn btnRef={nextRef} hot={it.done} onClick={() => toDay(stop.d.key)} label="All done" sub={`Back to ${backLabel}`} />}
       </ArrowBar>
     </div>
   )
