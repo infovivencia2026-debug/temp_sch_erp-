@@ -1,12 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, NotebookPen, ClipboardList } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button,
-  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+import { SkeletonTiles, ErrorState, FormNotice } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
@@ -31,283 +27,189 @@ interface DiaryResponse {
   items: Entry[]
 }
 
-/* The kind as a colour rather than a word.
+/* MY PLANNER, PHONE FIRST (owner, 2026-10-10: "change my planner like this,
+   for phone view", from their own Student Task Hub design). A progress card,
+   a quick-add card with the kind as chips and ready-made suggestions, All /
+   Pending / Done, and one card per item that is ticked by tapping it.
 
-   The word was telling a reader what the line already says — "Period 1 ·
-   English" is a lesson — while the chip carrying it ran into the title. The
-   dot keeps kind readable at a glance and gives the title its line back; the
-   word survives as the dot's tooltip and its accessible name, so nothing is
-   lost to somebody who cannot see colour. */
-const DOT: Record<string, string> = {
-  period: 'bg-info',
-  homework: 'bg-warning',
-  exam: 'bg-destructive',
-  note: 'bg-muted-foreground',
-  reminder: 'bg-primary',
-  revision: 'bg-success',
-  personal: 'bg-muted-foreground',
-}
+   Only what the student wrote themselves: lessons, homework, tests and
+   school events are on My day, Homework, Timetable and the Calendar already.
+   The notes stay private -- no teacher screen reads them. */
 
-const KIND_LABEL: Record<string, string> = {
-  period: 'Lesson',
-  homework: 'Due',
-  exam: 'Test',
-  note: 'Your note',
-  club_event: 'Club',
-  holiday: 'Closed',
-  vacation: 'Holiday',
-  ptm: 'Parents’ evening',
-  event: 'Event',
-  working_day: 'Working day',
-}
-const NOTE_KINDS = [
-  { value: 'note', label: 'Note' },
-  { value: 'reminder', label: 'Reminder' },
-  { value: 'homework', label: 'Homework' },
-  { value: 'revision', label: 'Revision' },
-  { value: 'personal', label: 'Personal' },
-]
+const KINDS = [
+  { value: 'homework', label: 'Homework', emoji: '📚', badge: 'bg-[#e0e7ff] text-[#4338ca]' },
+  { value: 'reminder', label: 'Reminder', emoji: '🔔', badge: 'bg-[#fef3c7] text-[#b45309]' },
+  { value: 'revision', label: 'Exam prep', emoji: '🎯', badge: 'bg-[#fee2e2] text-[#b91c1c]' },
+  { value: 'note', label: 'Note', emoji: '📝', badge: 'bg-[#f1f5f9] text-[#475569]' },
+  { value: 'personal', label: 'Personal', emoji: '⭐', badge: 'bg-[#dcfce7] text-[#15803d]' },
+] as const
+const kindOf = (k?: string) => KINDS.find((x) => x.value === k) ?? KINDS[3]
+const PRESETS = ['Pack PE kit', 'Finish maths homework', 'Get diary signed', 'Revise for the test', 'Return library book']
 
-const today = () => new Date().toISOString().slice(0, 10)
+const iso = (d: Date) => d.toISOString().slice(0, 10)
+const shift = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return iso(d) }
 
-/* The child's own day, and the week in front of it.
+type Filter = 'all' | 'pending' | 'done'
 
-   Everything but the notes is read from where it already lives — the
-   timetable, the homework set for this section, the papers this class sits,
-   the closures. None of it is copied here, so the day the office moves a
-   period the diary moves with it rather than quietly disagreeing.
-
-   The notes are the only thing this screen stores, and they are private. No
-   teacher screen reads them, deliberately: a diary somebody else can read is
-   not a diary, and a child who works that out stops writing anything true in
-   it, which is the only thing it was for. */
 export default function Diary() {
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen } = useChildren()
   const ready = readyFor(children, studentId)
 
-  const [from, setFrom] = useState(today())
-  const [days, setDays] = useState('7')
-  const [noteDate, setNoteDate] = useState(today())
-  const [noteKind, setNoteKind] = useState('note')
-  const [noteBody, setNoteBody] = useState('')
+  const [kind, setKind] = useState<string>('homework')
+  const [body, setBody] = useState('')
+  const [date, setDate] = useState(iso(new Date()))
+  const [filter, setFilter] = useState<Filter>('all')
+  const [popped, setPopped] = useState<string | null>(null)
 
-  const to = (() => {
-    const d = new Date(from)
-    d.setDate(d.getDate() + (Number(days) - 1))
-    return d.toISOString().slice(0, 10)
-  })()
-
+  // A week back (so what is still undone is not lost) to a month ahead.
+  const from = shift(-7)
+  const to = shift(30)
   const diary = useQuery({
     queryKey: ['diary', studentId, from, to],
-    queryFn: () =>
-      api.get<DiaryResponse>(
-        `/api/v1/portal/diary${studentQuery(studentId, `from=${from}`, `to=${to}`)}`,
-      ),
+    queryFn: () => api.get<DiaryResponse>(`/api/v1/portal/diary${studentQuery(studentId, `from=${from}`, `to=${to}`)}`),
     enabled: ready,
   })
-
   const refresh = () => qc.invalidateQueries({ queryKey: ['diary'] })
 
   const write = useMutation({
-    mutationFn: () =>
-      api.post('/api/v1/portal/diary/notes', {
-        student_id: studentId || undefined,
-        on_date: noteDate,
-        kind: noteKind,
-        body: noteBody,
-      }),
-    onSuccess: () => {
-      setNoteBody('')
-      refresh()
-    },
+    mutationFn: () => api.post('/api/v1/portal/diary/notes', { student_id: studentId || undefined, on_date: date, kind, body: body.trim() }),
+    onSuccess: () => { setBody(''); refresh() },
   })
-
   const tick = useMutation({
-    mutationFn: (v: { id: string; done: boolean }) =>
-      api.post(`/api/v1/portal/diary/notes/${v.id}`, { done: v.done }),
+    mutationFn: (v: { id: string; done: boolean }) => api.post(`/api/v1/portal/diary/notes/${v.id}`, { done: v.done }),
     onSuccess: refresh,
   })
-
   const drop = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/portal/diary/notes/${id}`),
     onSuccess: refresh,
   })
 
-  if (diary.isLoading && ready) return <SkeletonTiles count={3} label="Reading your week…" />
+  if (diary.isLoading && ready) return <SkeletonTiles count={3} label="Reading your planner…" />
   if (diary.error) return <ErrorState error={diary.error} />
 
-  /* MY PLANNER: only what the student wrote themselves. Lessons, homework,
-     tests and school events are on My day, Homework, Timetable and the
-     Calendar already; repeating them here made this page a duplicate. */
-  const items = (diary.data?.items ?? []).filter((e) => e.kind === 'note')
-  const byDay = items.reduce<Record<string, Entry[]>>((acc, e) => {
-    ;(acc[e.on_date] ??= []).push(e)
-    return acc
-  }, {})
-  const dueSoon = items.filter((e) => e.kind === 'homework').length
-  const tests = items.filter((e) => e.kind === 'exam').length
-  const openNotes = items.filter((e) => e.kind === 'note' && !e.done).length
+  const items = (diary.data?.items ?? []).filter((e) => e.kind === 'note' && e.ref_id)
+  // Pending first, soonest first; done ones sink.
+  const sorted = [...items].sort((a, b) => Number(a.done) - Number(b.done) || a.on_date.localeCompare(b.on_date))
+  const shown = sorted.filter((e) => (filter === 'all' ? true : filter === 'done' ? e.done : !e.done))
+  const done = items.filter((e) => e.done).length
+  const pct = items.length ? Math.round((done / items.length) * 100) : 0
+
+  const toggle = (e: Entry) => {
+    if (!e.done) { setPopped(e.ref_id!); window.setTimeout(() => setPopped(null), 450) }
+    tick.mutate({ id: e.ref_id!, done: !e.done })
+  }
 
   return (
-    <>
-      <PageHead
-        eyebrow="Home"
-        title="Diary and schedule"
-        description="Your lessons, what is due, what is coming, and whatever you write down yourself."
-      />
-      <PageBody>
-        <ChildBar kids={children} value={chosen} onChange={setChosen} />
+    <div className="mx-auto w-full max-w-[560px] px-3 pb-6 pt-3 sm:px-4">
+      <ChildBar kids={children} value={chosen} onChange={setChosen} />
+      {!ready ? (
+        <ChooseChild title="Choose a child" body="Each child has their own planner." />
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          {/* Header and progress */}
+          <header className="rounded-[14px] border bg-card px-4 py-3.5 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-[17px] font-extrabold">My planner</h1>
+              {items.length > 0 && done === items.length ? (
+                <span className="rounded-full border border-[#bbf7d0] bg-[#dcfce7] px-2.5 py-1 text-[11px] font-bold text-[#15803d]">🎉 All done</span>
+              ) : (
+                <span className="rounded-full border border-[#fde68a] bg-[#fef3c7] px-2.5 py-1 text-[11px] font-bold text-[#b45309]">
+                  🔥 {items.length - done} to do
+                </span>
+              )}
+            </div>
+            <div className="mt-2.5 flex justify-between text-[11.5px] font-semibold text-muted-foreground">
+              <span>{done} of {items.length} done</span>
+              <span>{pct}%</span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-[#16a34a] transition-[width] duration-300" style={{ width: `${pct}%` }} />
+            </div>
+          </header>
 
-        {!ready ? (
-          <ChooseChild title="Choose a child" body="Each child has their own day." />
-        ) : (
-          <>
-            <CellGrid cols={3}>
-              <Stat label="Due in this window" value={dueSoon} icon={ClipboardList} />
-              <Stat label="Tests coming" value={tests} icon={CalendarDays} />
-              <Stat label="Notes not ticked off" value={openNotes} icon={NotebookPen} />
-            </CellGrid>
+          {/* Quick add */}
+          <section className="flex flex-col gap-3 rounded-[14px] border bg-card px-4 py-3.5 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="radiogroup" aria-label="Kind">
+              {KINDS.map((k) => (
+                <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} onClick={() => setKind(k.value)}
+                  className={cn('shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors',
+                    kind === k.value ? 'border-[#4f46e5] bg-[#eef2ff] text-[#4f46e5]' : 'bg-card text-muted-foreground')}>
+                  {k.emoji} {k.label}
+                </button>
+              ))}
+            </div>
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {PRESETS.map((p) => (
+                <button key={p} type="button" onClick={() => setBody(p)}
+                  className="shrink-0 rounded-md border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80">{p}</button>
+              ))}
+            </div>
+            <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); if (body.trim()) write.mutate() }}>
+              <input value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="What needs to be done?"
+                className="min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5]" />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5]" />
+              <button type="submit" disabled={!body.trim() || write.isPending}
+                className="min-h-[44px] w-full rounded-lg bg-[#4f46e5] text-[13.5px] font-bold text-white transition-opacity disabled:opacity-50">
+                {write.isPending ? 'Adding…' : '+ Add item'}
+              </button>
+            </form>
+            <FormNotice error={write.error} />
+          </section>
 
-            <Card>
-              <CardHeader
-                title="Write a note"
-                description="Only you can read these."
-              />
-              <div className="space-y-5 p-5">
-                <FormGrid>
-                  <Field label="Against which day" required>
-                    <Input value={noteDate} onChange={setNoteDate} type="date" />
-                  </Field>
-                  <Field label="What kind">
-                    <Select value={noteKind} onChange={setNoteKind} options={NOTE_KINDS} />
-                  </Field>
-                  <Field label="What" wide required>
-                    <Textarea
-                      value={noteBody}
-                      onChange={setNoteBody}
-                      rows={2}
-                      placeholder="Pack the PE kit. Finish question 7 before the lesson."
-                    />
-                  </Field>
-                </FormGrid>
-                <FormNotice error={write.error} ok={write.isSuccess ? 'Written down.' : undefined} />
-                <Button
-                  onClick={() => write.mutate()}
-                  disabled={!noteBody.trim() || write.isPending}
-                >
-                  {write.isPending ? 'Saving…' : 'Add it'}
-                </Button>
-              </div>
-            </Card>
+          {/* All / Pending / Done */}
+          <div className="flex gap-1 rounded-lg bg-muted p-[3px]" role="tablist" aria-label="Show">
+            {(['all', 'pending', 'done'] as const).map((f) => (
+              <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+                className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold capitalize transition-colors',
+                  filter === f ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.06)]' : 'text-muted-foreground')}>
+                {f === 'done' ? 'Done' : f === 'pending' ? 'Pending' : 'All'}
+              </button>
+            ))}
+          </div>
 
-            <Card>
-              <CardHeader
-                title="Your days"
-                description={`${diary.data?.class_name ?? ''}-${diary.data?.section_name ?? ''}`}
-                action={
-                  <div className="flex flex-wrap gap-3">
-                    <div className="w-40">
-                      <Field label="From">
-                        <Input value={from} onChange={setFrom} type="date" />
-                      </Field>
-                    </div>
-                    <div className="w-40">
-                      <Field label="How long">
-                        <Select
-                          value={days}
-                          onChange={setDays}
-                          options={[
-                            { value: '1', label: 'Just today' },
-                            { value: '7', label: 'A week' },
-                            { value: '14', label: 'A fortnight' },
-                          ]}
-                        />
-                      </Field>
+          {/* The items */}
+          <div className="flex flex-col gap-2">
+            {shown.length === 0 && (
+              <p className="rounded-lg border border-dashed bg-card px-4 py-6 text-center text-[13px] text-muted-foreground">
+                {items.length === 0 ? 'Nothing planned yet. Add your first item above.' : filter === 'done' ? 'Nothing ticked off yet.' : 'All done. Nice work!'}
+              </p>
+            )}
+            {shown.map((e) => {
+              const k = kindOf(e.detail)
+              return (
+                <div key={e.ref_id} role="button" tabIndex={0} aria-pressed={e.done}
+                  onClick={() => toggle(e)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(e) } }}
+                  className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98]',
+                    e.done ? 'border-[#bbf7d0] bg-[#f0fdf4]' : 'bg-card')}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors',
+                      e.done ? 'border-[#16a34a] bg-[#16a34a] text-white' : 'border-[#cbd5e1] bg-card text-transparent',
+                      popped === e.ref_id && 'animate-[planner-pop_.45s_ease]')}>
+                      <Check className="size-3.5" strokeWidth={3.5} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="mb-0.5 flex items-center gap-1.5">
+                        <span className={cn('rounded px-1.5 py-px text-[10px] font-bold uppercase', k.badge)}>{k.label}</span>
+                        <span className="text-[11px] text-muted-foreground">{formatDate(e.on_date)}</span>
+                      </div>
+                      <p className={cn('text-[13.5px] font-medium leading-snug', e.done && 'text-muted-foreground line-through')}>{e.title}</p>
                     </div>
                   </div>
-                }
-              />
-              {items.length === 0 ? (
-                <EmptyState
-                  title="Nothing in this window"
-                  body="No lessons, work or events fall in these days."
-                />
-              ) : (
-                <div className="divide-y">
-                  {Object.entries(byDay).map(([date, entries]) => (
-                    <div key={date} className="px-5 py-4">
-                      <p className="text-[13px] font-medium text-secondary-foreground">
-                        {formatDate(date)}
-                      </p>
-                      <ul className="mt-2 space-y-2">
-                        {entries.map((e, i) => (
-                          <li
-                            key={`${date}-${i}`}
-                            className="flex flex-wrap items-start justify-between gap-3"
-                          >
-                            <div className="min-w-0">
-                              {/* The word, not a chip jammed against the title.
-
-                                  A Badge and a span with nothing between them
-                                  rendered "LessonPeriod 1 · English" and
-                                  "DueQA chain-3 test…". And the word was
-                                  telling somebody what they could already see:
-                                  "Period 1 · English" is a lesson, and a title
-                                  with a subject under it is homework. A
-                                  coloured dot keeps the kind readable at a
-                                  glance without spending a word on it. */}
-                              <p className="flex items-baseline gap-2 text-[14px]">
-                                <span
-                                  className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', DOT[e.kind] ?? 'bg-muted-foreground')}
-                                  title={KIND_LABEL[e.kind] ?? e.kind}
-                                  aria-label={KIND_LABEL[e.kind] ?? e.kind}
-                                />
-                                <span className={e.done ? 'line-through opacity-60' : ''}>
-                                  {e.title}
-                                </span>
-                              </p>
-                              <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                                {[e.starts_at, e.ends_at].filter(Boolean).join('–')}
-                                {e.detail ? ` ${e.starts_at ? '· ' : ''}${e.detail}` : ''}
-                              </p>
-                            </div>
-                            {e.kind === 'note' && e.ref_id && (
-                              <div className="flex shrink-0 items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={tick.isPending}
-                                  onClick={() =>
-                                    tick.mutate({ id: e.ref_id as string, done: !e.done })
-                                  }
-                                >
-                                  {e.done ? 'Undo' : 'Done'}
-                                </Button>
-                                <ConfirmButton
-                                  question="Delete this note?"
-                                  confirmLabel="Delete"
-                                  tone="danger"
-                                  onConfirm={() => drop.mutate(e.ref_id as string)}
-                                >
-                                  Delete
-                                </ConfirmButton>
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                  <button type="button" aria-label="Delete" disabled={drop.isPending}
+                    onClick={(ev) => { ev.stopPropagation(); drop.mutate(e.ref_id!) }}
+                    className="grid size-8 shrink-0 place-items-center rounded-full text-[#94a3b8] hover:bg-muted hover:text-foreground">
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
                 </div>
-              )}
-              <div className="border-t px-5 py-3">
-                <FormNotice error={tick.error ?? drop.error} />
-              </div>
-            </Card>
-          </>
-        )}
-      </PageBody>
-    </>
+              )
+            })}
+            <FormNotice error={tick.error ?? drop.error} />
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes planner-pop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}`}</style>
+    </div>
   )
 }
