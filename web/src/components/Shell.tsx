@@ -1362,7 +1362,10 @@ export function Shell({
             )}
             <BentoDock />
           </main>
-          {role?.key === 'student' && viewport === 'phone' && (
+          {/* Focus gives a student the same dock as everyone else, with its
+              Settings gear (owner, 2026-10-10: 'the bottom bar is completely
+              different for student logins'). The student bar stays for Work. */}
+          {role?.key === 'student' && viewport === 'phone' && !chromeless && (
             <Suspense fallback={null}><StudentTabBar onMore={chromeless ? undefined : () => setNavOpen(true)} /></Suspense>
           )}
           {/* A small corner tab, not a screen. A question is nearly always about

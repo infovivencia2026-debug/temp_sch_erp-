@@ -1,7 +1,7 @@
 import { ProgressRing } from '../../components/ProgressRing'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw, Settings2 } from 'lucide-react'
+import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw, Settings as SettingsGear } from 'lucide-react'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { cn } from '@/lib/utils'
 import { SlidingIndicator } from '@/components/SlidingIndicator'
@@ -269,6 +269,11 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
     { to: useFeatureHref('student.timetable.timetable'), label: 'Timetable', icon: CalendarClock },
     { to: useFeatureHref('student.learning.e_learning_resource_hub'), label: 'Learn', icon: BookOpen },
     { to: useFeatureHref('student.homework.homework_assignments'), label: 'Homework', icon: NotebookPen },
+    /* A TAB, WITH A GEAR (owner, 2026-10-10, a third time: "I don't see the
+       setting icon in Focus on phone of student logins"). The floating
+       round button above the bar wore a sliders glyph and sat over the
+       cards; nobody read it as Settings. It is now a tab like the others. */
+    { to: '/settings', label: 'Settings', icon: SettingsGear },
   ].filter((t): t is { to: string; label: string; icon: typeof Home } => !!t.to)
   useEffect(() => {
     const root = document.documentElement
@@ -320,11 +325,6 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
         Not muted, either: it was card-on-card grey, which on a pale phone
         screen is a button that is present and still invisible. It wears the
         page's own ink now. */}
-    <a href="/settings" aria-label="Settings" title="Settings"
-      className="student-tabbar-cog fixed left-3 z-40 grid size-11 place-items-center rounded-full border bg-card text-foreground shadow-[var(--elev-2,0_2px_8px_rgba(15,23,42,0.12))] md:hidden"
-      style={{ bottom: 'calc(var(--dock-lift,10px) + var(--tabbar-h,64px) + 10px)' }}>
-      <Settings2 className="size-5" aria-hidden />
-    </a>
     <nav aria-label="Main" className="student-tabbar fixed inset-x-[12px] bottom-[var(--dock-lift,10px)] z-40 mx-auto box-border h-[var(--tabbar-h,64px)] max-w-md rounded-full border px-[6px] py-[4px] md:hidden">
       <div ref={barRef} className="relative flex h-full items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
@@ -336,7 +336,7 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
           return (
             <Link key={t.label} to={t.to} aria-current={on ? 'page' : undefined}
               className={cn(item, on ? 'text-primary' : 'text-muted-foreground')}>
-              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[hsl(var(--primary)/0.12)]')}>
+              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-11 items-center justify-center rounded-full transition-colors', on && 'bg-[hsl(var(--primary)/0.12)]')}>
                 <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2 : 1.6} />
               </span>
               {t.label}
