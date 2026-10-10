@@ -154,6 +154,12 @@ function dayOf(v: unknown): number | null {
   if (!Number.isFinite(d) || d < 1 || d > 366) throw badRequest('day must be a whole number from 1')
   return d
 }
+/** How a course is built: topics with days (the default), days only, or topics only. */
+function layoutOf(v: unknown): 'topic_day' | 'day' | 'topic' {
+  const x = str(v) || 'topic_day'
+  if (x !== 'topic_day' && x !== 'day' && x !== 'topic') throw badRequest('layout must be topic_day, day or topic')
+  return x
+}
 /** A pass mark as a percentage (1-100) or null. */
 function passOf(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
@@ -178,7 +184,8 @@ export function registerLMS(r: Router) {
     const mineOnly = !s.allStudents || c.url.searchParams.get('mine') === '1'
     /* A teacher sees the subjects they are allocated; a class teacher also every subject of their own section. */
     const rows = await c.db.prepare(`
-      SELECT sec.id AS section_id, sec.name AS section_name, cl.name AS class_name, cl.level, cs.id AS class_subject_id, sub.name AS subject,
+      SELECT sec.id AS section_id, sec.name AS section_name, cl.id AS class_id, cl.name AS class_name, cl.level, cs.id AS class_subject_id, sub.name AS subject,
+        COALESCE(lc.layout, 'topic_day') AS layout,
         (SELECT u.full_name FROM section_subject_teachers t JOIN users u ON u.id = t.teacher_user_id WHERE t.section_id = sec.id AND t.class_subject_id = cs.id LIMIT 1) AS teacher,
         (SELECT count(*) FROM syllabus_units su WHERE su.class_subject_id = cs.id AND su.is_active = 1) AS units,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id WHERE su.class_subject_id = cs.id AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = sec.id)) AS lessons,
@@ -187,6 +194,7 @@ export function registerLMS(r: Router) {
         (SELECT count(*) FROM online_tests t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id) AS quizzes,
         (SELECT count(*) FROM enrollments e WHERE e.section_id = sec.id AND e.status = 'active') AS roll
       FROM sections sec JOIN classes cl ON cl.id = sec.class_id JOIN class_subjects cs ON cs.class_id = cl.id JOIN subjects sub ON sub.id = cs.subject_id
+      ${mineOnly ? 'LEFT ' : ''}JOIN lms_courses lc ON lc.section_id = sec.id AND lc.class_subject_id = cs.id
       WHERE ${mineOnly ? `(EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)
                  OR sec.class_teacher_id = ? ${s.allStudents ? '' : `OR (sec.id IN (${marks()}) AND NOT EXISTS (SELECT 1 FROM section_subject_teachers t2 WHERE t2.teacher_user_id = ?))`})` : '1'}
       ORDER BY cl.level, cl.name, sec.name, sub.name LIMIT 400`)
@@ -195,12 +203,53 @@ export function registerLMS(r: Router) {
     return ok({ items: rows.results })
   })
 
+  /* What a course can be added to: every class with its sections and subjects (the LMS Admin). */
+  r.get('/lms/courses/options', P, async (c) => {
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin adds courses')
+    const [cls, secs, subs] = await c.db.batch([
+      c.db.prepare(`SELECT id, name FROM classes ORDER BY level, name`),
+      c.db.prepare(`SELECT id, class_id, name FROM sections ORDER BY name`),
+      c.db.prepare(`SELECT cs.id, cs.class_id, sub.name FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id ORDER BY sub.name`),
+    ])
+    return ok({ classes: cls.results, sections: secs.results, subjects: subs.results })
+  })
+
+  /* Add a subject as a course to one or more sections of its class. */
+  r.post('/lms/courses', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin adds courses')
+    const b = await readJSON<Body>(c.req)
+    const cs = needUUID(b.class_subject_id, 'class_subject_id')
+    const layout = layoutOf(b.layout)
+    const ids = Array.isArray(b.section_ids) ? b.section_ids.map((x) => needUUID(x, 'section_ids')) : []
+    if (!ids.length) throw badRequest('pick at least one section')
+    const ok1 = await c.db.prepare(`SELECT count(*) AS n FROM sections sec JOIN class_subjects cs ON cs.class_id = sec.class_id WHERE cs.id = ? AND sec.id IN (${marks()})`)
+      .bind(cs, js(ids)).first<{ n: number }>()
+    if (!ok1 || ok1.n !== new Set(ids).size) throw badRequest('that subject is not taught in every section picked')
+    const t = now(), inst = institutionId(c)
+    await c.db.batch(ids.map((sec) => c.db.prepare(`INSERT INTO lms_courses (institution_id, section_id, class_subject_id, layout, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (section_id, class_subject_id) DO UPDATE SET layout = excluded.layout`).bind(inst, sec, cs, layout, s.userId, t)))
+    return ok({ added: ids.length })
+  })
+
+  /* Take a course off the list. Nothing in it is deleted; adding it again brings it all back. */
+  r.del('/lms/courses', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin removes courses')
+    const q = c.url.searchParams
+    await c.db.prepare(`DELETE FROM lms_courses WHERE section_id = ? AND class_subject_id = ?`).bind(needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id')).run()
+    return ok({ removed: true })
+  })
+
   /* One course: units and lessons with completion, assignments and quizzes. */
   r.get('/lms/course', P, async (c) => {
     const s = await resolveScope(c)
     const q = c.url.searchParams
     const co = await course(c, s, needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id'))
-    const [units, lessons, hw, quizzes, roll, days, gate] = await c.db.batch([
+    const [units, lessons, hw, quizzes, roll, days, gate, lay] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
           l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional,
@@ -222,12 +271,14 @@ export function registerLMS(r: Router) {
       c.db.prepare(`SELECT count(*) AS n FROM enrollments WHERE section_id = ? AND status = 'active'`).bind(co.section_id),
       c.db.prepare(`SELECT d.unit_id, d.day, d.label FROM lms_unit_days d JOIN syllabus_units su ON su.id = d.unit_id WHERE su.class_subject_id = ? ORDER BY d.unit_id, d.day`).bind(co.class_subject_id),
       c.db.prepare(`SELECT gating FROM lms_course_settings WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
+      c.db.prepare(`SELECT layout FROM lms_courses WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
     ])
     const ls = lessons.results as Record<string, unknown>[]
     return ok({
       course: co, roll: (roll.results[0] as { n: number }).n, today: todayIST(),
       gating: (gate.results[0] as { gating?: string } | undefined)?.gating === 'open' ? 'open' : 'sequential',
       days: days.results,
+      layout: (lay.results[0] as { layout?: string } | undefined)?.layout ?? 'topic_day',
       /* Archived modules come too (is_active false), so they can be brought back. */
       units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published, is_optional: !!l.is_optional })) })),
       assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, rubric: parseRubric(h.rubric), allow_submission: !!h.allow_submission })),
@@ -919,6 +970,11 @@ export function registerLMS(r: Router) {
     const b = await readJSON<Body>(c.req)
     const s = await resolveScope(c)
     const co = await course(c, s, needUUID(b.section_id, 'section_id'), needUUID(b.class_subject_id, 'class_subject_id'))
+    if (b.layout !== undefined) {
+      await c.db.prepare(`INSERT INTO lms_courses (institution_id, section_id, class_subject_id, layout, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT (section_id, class_subject_id) DO UPDATE SET layout = excluded.layout`).bind(institutionId(c), co.section_id, co.class_subject_id, layoutOf(b.layout), s.userId, now()).run()
+      if (b.gating === undefined) return ok({ layout: layoutOf(b.layout) })
+    }
     const gating = str(b.gating)
     if (gating !== 'sequential' && gating !== 'open') throw badRequest('gating must be sequential or open')
     await c.db.prepare(`INSERT INTO lms_course_settings (institution_id, section_id, class_subject_id, gating, updated_at) VALUES (?, ?, ?, ?, ?)

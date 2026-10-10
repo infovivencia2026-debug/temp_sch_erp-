@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, X,
+  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
@@ -11,7 +11,7 @@ import {
   FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, NotesEditor, ProgressRing, SECTIONS, SECTION_LABEL, TypeCounts, dateRange, dayTitle, fmtWhen, moduleItems, sourceMeta,
   type ItemType, type Lesson, type Placed, type RubricRow, type Section, type SourceKind, type Unit,
 } from '../learning/lms-shared'
-import { AssignmentForm, QuizForm } from './TeacherLMS'
+import { AssignmentForm, LAYOUTS, QuizForm, type Layout } from './TeacherLMS'
 
 /* A COURSE, MODULE FIRST AND ONE DAY AT A TIME (worker routes/teaching/lms.ts,
    lms_progress.ts; migrations 0011, 0012).
@@ -33,6 +33,7 @@ export interface CourseDetail {
   course: { section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string }
   roll: number; today: string; units: Unit[]; assignments: TAssignment[]; quizzes: TQuiz[]
   gating: 'sequential' | 'open'; days: { unit_id: string; day: number; label: string }[]
+  layout?: 'topic_day' | 'day' | 'topic'
 }
 export type Tab = 'modules' | 'assignments' | 'quizzes' | 'progress'
 
@@ -106,10 +107,47 @@ const seg = (on: boolean) => `min-h-10 rounded px-3.5 text-[14px] font-medium ${
 
 export function Modules({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; onTab: (t: Tab) => void }) {
   const [open, setOpen] = useState<string | null>(null)
+  const layout = d.layout ?? 'topic_day'
   const active = d.units.filter((u) => u.is_active !== false)
   const unit = active.find((u) => u.id === open)
-  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} back={() => setOpen(unit.parent_unit_id && active.some((x) => x.id === unit.parent_unit_id) ? unit.parent_unit_id : null)} onOpen={setOpen} onTab={onTab} />
-  return <ModuleList d={d} qkey={qkey} onOpen={setOpen} />
+  if (layout === 'day') return <><LayoutSwitch d={d} qkey={qkey} /><DaysOnly d={d} qkey={qkey} onTab={onTab} /></>
+  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} noDays={layout === 'topic'} back={() => setOpen(unit.parent_unit_id && active.some((x) => x.id === unit.parent_unit_id) ? unit.parent_unit_id : null)} onOpen={setOpen} onTab={onTab} />
+  return <><LayoutSwitch d={d} qkey={qkey} /><ModuleList d={d} qkey={qkey} onOpen={setOpen} /></>
+}
+
+/** How the course is built: topics with days, days only, or topics only. */
+function LayoutSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
+  const set = useOptimisticMutation<Layout>({
+    mutationFn: (layout) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, layout }),
+    queryKeys: [qkey],
+    invalidate: [qkey, ['lms-courses']],
+    apply: (old, layout) => ({ ...(old as CourseDetail), layout }),
+    failure: "Couldn't change the layout",
+  })
+  const now = d.layout ?? 'topic_day'
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <span className="text-[14px] text-muted-foreground">Layout</span>
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="radiogroup" aria-label="Layout">
+        {LAYOUTS.map((l) => (
+          <button key={l.value} type="button" role="radio" aria-checked={now === l.value} title={l.hint} onClick={() => now !== l.value && set.mutate(l.value)} className={seg(now === l.value)}>{l.label}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* Days only: the course keeps one module behind the scenes and shows its days. */
+function DaysOnly({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; onTab: (t: Tab) => void }) {
+  const qc = useQueryClient()
+  const unit = d.units.find((u) => u.is_active !== false && !u.parent_unit_id)
+  const make = useMutation({
+    mutationFn: () => api.post('/api/v1/lms/units', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title: d.course.subject }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qkey }),
+  })
+  useEffect(() => { if (!unit && make.isIdle) make.mutate() }, [unit, make])
+  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} bare back={() => {}} onOpen={() => {}} onTab={onTab} />
+  return make.error ? <FormNotice error={make.error} /> : <Loading />
 }
 
 /* Modules nest up to this many levels (the worker's MAX_DEPTH). */
@@ -336,7 +374,7 @@ function ModuleForm({ d, u, parent, done }: { d: CourseDetail; u?: Unit; parent?
 
 interface Adding { day: number | null; section: Section; type: ItemType | 'pick' | 'attach' }
 
-function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: Unit; qkey: unknown[]; back: () => void; onOpen: (id: string) => void; onTab: (t: Tab) => void }) {
+function ModuleView({ d, u, qkey, back, onOpen, onTab, bare, noDays }: { d: CourseDetail; u: Unit; qkey: unknown[]; back: () => void; onOpen: (id: string) => void; onTab: (t: Tab) => void; bare?: boolean; noDays?: boolean }) {
   const qc = useQueryClient()
   const [view, setView] = useState<'days' | 'progress'>('days')
   const [editing, setEditing] = useState<'module' | 'sub' | null>(null)
@@ -348,7 +386,9 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   const parent = d.units.find((x) => x.id === u.parent_unit_id)
   const items = itemsOf(d, u)
   /* "Not on a day" is always there: content can go straight in the module, days or not. */
-  const days = (() => { const x = daysOf(d, u, items); return x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
+  /* Topics only: everything sits in the module, no days. Days only: just the days. */
+  const days = noDays ? [{ day: null, label: 'Videos and content' }]
+    : (() => { const x = daysOf(d, u, items); return bare ? x.filter((y) => y.day !== null) : x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
   // Silent and at once, like the drag above (lib/optimistic).
   const orderSubs = useOptimisticMutation<[string, string]>({
     mutationFn: (pair) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: swapOrder(d, pair[0], pair[1]) }),
@@ -367,8 +407,8 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   }
   return (
     <div className="space-y-4">
-      <div><Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> {parent ? parent.title : 'All modules'}</Button></div>
-      <Card>
+      {!bare && <div><Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> {parent ? parent.title : 'All modules'}</Button></div>}
+      {!bare && <Card>
         {editing === 'module' ? <ModuleForm d={d} u={u} done={() => { setEditing(null); refresh() }} /> : (
           <div className="flex flex-wrap items-start gap-3 px-[var(--card-pad)] py-4">
             <div className="min-w-0 flex-1 space-y-1">
@@ -385,8 +425,8 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
         )}
         {editing === 'sub' && <div className="border-t"><ModuleForm d={d} parent={u} done={() => { setEditing(null); refresh() }} /></div>}
         <FormNotice error={archive.error} />
-      </Card>
-      {subs.length > 0 && (
+      </Card>}
+      {!bare && subs.length > 0 && (
         <div className="space-y-2">
           <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's own content</p>
           {subs.map((sx, i) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)}
@@ -396,10 +436,10 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="tablist">
           {(['days', 'progress'] as const).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)} className={seg(view === t)}>{t === 'days' ? 'Days' : 'Who has finished'}</button>
+            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)} className={seg(view === t)}>{t === 'days' ? (noDays ? 'Content' : 'Days') : 'Who has finished'}</button>
           ))}
         </div>
-        {view === 'days' && <Button pending={addDay.isPending} onClick={() => addDay.mutate()}><Plus className="h-4 w-4" /> Add day</Button>}
+        {view === 'days' && !noDays && <Button pending={addDay.isPending} onClick={() => addDay.mutate()}><Plus className="h-4 w-4" /> Add day</Button>}
       </div>
       <FormNotice error={addDay.error ?? orderDays.error} />
       {view === 'progress' ? <ModuleProgressView d={d} u={u} /> : !days.length ? (
@@ -407,7 +447,7 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       ) : (
         <div className="space-y-4">
           {days.map((x) => (
-            <DayCard key={String(x.day)} d={d} u={u} qkey={qkey} day={x.day} label={x.label} items={items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
+            <DayCard key={String(x.day)} d={d} u={u} qkey={qkey} day={x.day} label={x.label} items={noDays ? items : items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
               arrows={x.day === null ? null : <Arrows first={numbered.indexOf(x.day) === 0} last={numbered.indexOf(x.day) === numbered.length - 1} up={() => moveDay(x.day!, -1)} down={() => moveDay(x.day!, 1)} label={`Day ${x.day}`} />} />
           ))}
         </div>
@@ -454,7 +494,7 @@ function DayCard({ d, u, qkey, day, label, items, arrows, refresh, onTab }: { d:
           </div>
         ) : (
           <>
-            <h3 className="min-w-0 flex-1 text-[16px] font-semibold">{dayTitle(day, label)}</h3>
+            <h3 className="min-w-0 flex-1 text-[16px] font-semibold">{day === null && label ? label : dayTitle(day, label)}</h3>
             <span className="text-[13px] text-muted-foreground">{items.length} item{items.length === 1 ? '' : 's'}</span>
             {day !== null && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Rename Day ${day}`} title="Rename" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /></button>}
             {day !== null && !items.length && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Remove Day ${day}`} title="Remove this empty day" onClick={() => del.mutate()}><Trash2 className="h-4 w-4" /></button>}
@@ -681,8 +721,28 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   )
 }
 
+/** One video or source: who in the section has finished it, and who has not. */
+function WhoDone({ d, id }: { d: CourseDetail; id: string }) {
+  const q = useQuery({
+    queryKey: ['lms-lesson-progress', id, d.course.section_id],
+    queryFn: () => api.get<{ items: { student_id: string; full_name: string; roll_no?: number | null; completed_at?: string | null }[] }>(`/api/v1/lms/lessons/${id}/progress?section_id=${d.course.section_id}`),
+  })
+  if (q.error) return <div className="px-[var(--card-pad)] pb-2"><ErrorState error={q.error} /></div>
+  if (!q.data) return <Loading />
+  const done = q.data.items.filter((x) => x.completed_at), left = q.data.items.filter((x) => !x.completed_at)
+  const list = (xs: typeof done, when: boolean) => xs.length ? (
+    <ul className="space-y-1">{xs.map((x) => <li key={x.student_id} className="flex justify-between gap-2 text-[14px]"><span>{x.roll_no ? `${x.roll_no}. ` : ''}{x.full_name}</span>{when && x.completed_at && <span className="text-[13px] text-muted-foreground">{fmtWhen(x.completed_at)}</span>}</li>)}</ul>
+  ) : <p className="text-[13px] text-muted-foreground">Nobody.</p>
+  return (
+    <div className="mx-[var(--card-pad)] mb-2 grid gap-4 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2">
+      <div><p className="mb-1 text-[13px] font-medium">Finished ({done.length})</p>{list(done, true)}</div>
+      <div><p className="mb-1 text-[13px] font-medium">Not yet ({left.length})</p>{list(left, false)}</div>
+    </div>
+  )
+}
+
 function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; it: TItem; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
-  const [open, setOpen] = useState<'preview' | 'menu' | 'edit' | null>(null)
+  const [open, setOpen] = useState<'preview' | 'menu' | 'edit' | 'who' | null>(null)
   const kind = kindOf(it)
   let meta: React.ReactNode = null, right: React.ReactNode = null
   if (it.type === 'lesson') {
@@ -710,11 +770,15 @@ function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Uni
           </span>
           <span className="hidden shrink-0 flex-wrap items-center justify-end gap-2 sm:flex">{right}</span>
         </button>
+        {it.type === 'lesson' && <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Who has finished ${it.title}`} title="Who has finished" aria-expanded={open === 'who'} onClick={() => setOpen(open === 'who' ? null : 'who')}>
+          <Users className="h-4 w-4" />
+        </button>}
         <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Actions for ${it.title}`} aria-expanded={open === 'menu'} onClick={() => setOpen(open === 'menu' ? null : 'menu')}>
           <MoreHorizontal className="h-4 w-4" />
         </button>
         {arrows}
       </div>
+      {open === 'who' && <WhoDone d={d} id={it.id} />}
       {open === 'menu' && <ItemActions d={d} u={u} it={it} refresh={refresh} onTab={onTab} onEdit={() => setOpen('edit')} close={() => setOpen(null)} />}
       {open === 'edit' && it.lesson && <div className="mx-[var(--card-pad)] mb-2 rounded-lg border bg-muted/20"><SourceForm kind={it.lesson.kind} u={u} d={d} day={it.day} section={it.section} lesson={it.lesson} done={() => { setOpen(null); refresh() }} /></div>}
       {open === 'preview' && (
