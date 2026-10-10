@@ -11,7 +11,7 @@ import {
   FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KIND_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta, youTubeIds,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
-import { Bone, DoneCheck, DueChip, HUE, Ring, confetti, reducedMotion, rememberPlace, type Hue } from '../portal/student-kit'
+import { Bone, DoneCheck, HUE, Ring, confetti, reducedMotion, rememberPlace, type Hue } from '../portal/student-kit'
 import { StudentQuiz } from './StudentQuiz'
 
 /* THE CHILD'S COURSES (worker routes/portal/lms.ts).
@@ -136,11 +136,9 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   const q = useQuery({ queryKey: ['my-courses'], queryFn: () => api.get<{ class_name: string; section_name: string; items: CourseRow[] }>('/api/v1/portal/lms/courses') })
   const todo = useQuery({ queryKey: ['my-lms-todo'], queryFn: () => api.get<Todo>('/api/v1/portal/lms/todo') })
   const t = todo.data
-  const rows = t ? [
-    ...t.assignments.map((a) => ({ id: a.id, cs: a.class_subject_id, kind: 'assignment', chip: <DueChip due={a.due_on} />, title: a.title, meta: `${a.subject ?? 'Homework'}${a.status === 'resubmit' ? ' · your teacher asked you to try again' : ''}` })),
-    ...t.quizzes.map((z) => ({ id: z.id, cs: z.class_subject_id, kind: 'quiz', chip: <Badge tone="info">Quiz</Badge>, title: z.title, meta: `${z.subject}${z.duration_minutes ? ` · ${z.duration_minutes} min` : ''}` })),
-    ...t.lessons.slice(0, 3).map((l) => ({ id: l.id, cs: l.class_subject_id, kind: 'text', chip: <Badge>Up next</Badge>, title: l.title, meta: `${l.subject} · ${l.unit}` })),
-  ] : []
+  /* The "To do" list this built is gone from the page (owner, 2026-10-10:
+     "no need of this here"); the todo read stays because `ready` waits on
+     it and the course cards' counts come from the same request. */
   const ready = !!q.data && (!!t || !!todo.error)
   const shared = useShared()
   /* Only courses the LMS admin has put something in (owner, 2026-10-10: "until
@@ -176,11 +174,29 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                         </span>
                       </Ring>
                       <span className="block text-[18px] font-semibold leading-tight [overflow-wrap:anywhere]">{c.subject}</span>
-                      {c.lessons ? <Stars pct={pct} label={`${c.completed} of ${c.lessons} done`} /> : <span className="text-[14px] text-muted-foreground">Nothing yet</span>}
-                      {(c.to_do > 0 || c.quizzes_open > 0) && (
-                        <span className="flex flex-wrap justify-center gap-1.5">
-                          {c.to_do > 0 && <Badge tone="warning">{c.to_do} homework</Badge>}
-                          {c.quizzes_open > 0 && <Badge tone="info">{c.quizzes_open} quiz</Badge>}
+                      {/* WHAT IS IN IT, AND WHAT IS LEFT (owner, 2026-10-10:
+                          "show like this how many vds are there and text show
+                          that there is a vd should complete").
+
+                          Five stars said how far along the course was as a
+                          proportion, which on a three-video course is a
+                          shape nobody can read back into a number: four
+                          stars out of five for two of three. The two
+                          questions a student actually has are how much is
+                          in here and how much is left, and both are counts.
+
+                          So: the total, plainly, and under it the one to
+                          watch next as a badge -- the same red count the
+                          bell uses, because it means the same thing, there
+                          is something waiting for you. Nothing left and the
+                          badge goes; the tick in the ring above already
+                          says the course is finished. */}
+                      <span className="block text-[13.5px] text-muted-foreground">
+                        {c.lessons ? `${c.lessons} video${c.lessons === 1 ? '' : 's'}` : 'Nothing yet'}
+                      </span>
+                      {c.lessons > c.completed && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-1 text-[12.5px] font-semibold text-destructive-foreground">
+                          {c.lessons - c.completed} to watch
                         </span>
                       )}
                     </button>
@@ -194,27 +210,11 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                 <SharedRows items={unfiled} />
               </Card>
             )}
-            {rows.length > 0 && (
-              <Card>
-                <h2 className="border-b px-[var(--card-pad)] py-3 text-[17px] font-semibold">To do ({rows.length})</h2>
-                <ul className="divide-y">
-                  {rows.map((r) => (
-                    <li key={r.id}>
-                      <button type="button" onClick={() => r.cs && onOpen(r.cs)}
-                        className="flex min-h-[68px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left hover:bg-muted/40">
-                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/[0.07] text-primary"><KindIcon kind={r.kind} className="h-6 w-6" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[17px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
-                          <span className="block text-[14px] text-muted-foreground">{r.meta}</span>
-                        </span>
-                        {r.chip}
-                        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
+            {/* NO SECOND LIST (owner, 2026-10-10: "no need of this
+                here"). A "To do" list under the courses repeated, in another
+                shape, the one thing each card above already says: this
+                course has videos waiting. One place to look. */}
+
           </div>
         )}
       </PageBody>
