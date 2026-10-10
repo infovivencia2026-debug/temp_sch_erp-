@@ -36,7 +36,6 @@ function useAfterFirstScreen(): boolean {
   return ready
 }
 // A student's phone gets a five-tab bar (features/portal/student-kit.tsx).
-const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m) => ({ default: m.StudentTabBar })))
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -1362,12 +1361,9 @@ export function Shell({
             )}
             <BentoDock />
           </main>
-          {/* Focus gives a student the same dock as everyone else, with its
-              Settings gear (owner, 2026-10-10: 'the bottom bar is completely
-              different for student logins'). The student bar stays for Work. */}
-          {role?.key === 'student' && viewport === 'phone' && !chromeless && (
-            <Suspense fallback={null}><StudentTabBar onMore={chromeless ? undefined : () => setNavOpen(true)} /></Suspense>
-          )}
+          {/* No separate student bar, in Focus or in Work (owner, 2026-10-10:
+              "why the bottom bar in Work mode for student login"). A student's
+              phone looks like everyone else's: the dock in Focus, the menu in Work. */}
           {/* A small corner tab, not a screen. A question is nearly always about
               what is already on screen, so an assistant that covers it makes
               somebody leave the thing they wanted to ask about. Mounted outside
