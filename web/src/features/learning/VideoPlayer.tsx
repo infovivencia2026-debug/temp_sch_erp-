@@ -99,7 +99,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
 
   if (!id) return null
   return (
-    <div className="w-full max-w-3xl space-y-2">
+    <div className="mx-auto w-full max-w-3xl space-y-2">
       <div className="overflow-hidden rounded-lg border bg-black shadow-sm">
         <video
           ref={ref}

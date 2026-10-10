@@ -326,16 +326,16 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
       {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
       {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this source has been removed from the library.</p>}
       {embed && (
-        <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-lg border bg-black">
+        <div className="mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-lg border bg-black">
           <iframe src={embed} title={l.title} className="h-full w-full" allowFullScreen allow="encrypted-media; picture-in-picture; fullscreen" />
         </div>
       )}
       {l.kind === 'video' && l.url && !embed && (/\.(mp4|webm|m4v)($|\?)/i.test(l.url)
-        ? <video src={l.url} controls playsInline preload="metadata" className="aspect-video w-full max-w-3xl rounded-lg border bg-black" />
+        ? <video src={l.url} controls playsInline preload="metadata" className="mx-auto block aspect-video w-full max-w-3xl rounded-lg border bg-black" />
         : <DownloadCard l={l} />)}
       {(l.kind === 'pdf' || (l.kind === 'doc' && isPdf(l))) && (l.file_id || l.url) && (
         <>
-          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
+          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="mx-auto block h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
           <div className="flex flex-wrap gap-x-5">
             <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
               <ExternalLink className="h-4 w-4" /> Open the PDF full screen
