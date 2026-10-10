@@ -231,16 +231,51 @@ const canOpen = (it: SItem) => !it.locked && !(it.type === 'lesson' && it.lesson
 const GO = 'border-[hsl(var(--paint-buttons-bg,var(--primary)))] bg-[hsl(var(--paint-buttons-bg,var(--primary)))] text-[hsl(var(--paint-buttons-text,var(--primary-foreground)))] shadow-[0_0_0_6px_hsl(var(--paint-buttons-bg,var(--primary))/0.18)]'
 
 /** A stop on the module path: tick when done, lock when shut, glowing when it is where the child is. */
+/* THE PATH'S DOT. 40px on a phone, 56px from a tablet up (owner,
+   2026-10-10: "see phone and pad view also"). At 56px it took 68px of a
+   390px screen before the card began, which is a sixth of the width spent
+   on a bullet; the title then wrapped to three lines and the row stopped
+   looking like one step.
+
+   DOT_W and RAIL keep the circle and the line that joins them in step: the
+   rail must sit on the dot's centre, and two hand-written offsets drift
+   apart the first time either changes. */
+const DOT_W = 'h-10 w-10 sm:h-14 sm:w-14'
+/** The connector, centred on the dot at both sizes. */
+const RAIL = 'absolute bottom-0 left-[19px] top-11 w-1 rounded-full sm:left-[26px] sm:top-14'
 function PathDot({ n, state }: { n: number | string; state: 'done' | 'current' | 'open' | 'locked' }) {
   return (
-    <span className="relative z-[1] grid h-14 w-14 shrink-0 place-items-center">
+    <span className={cn('relative z-[1] grid shrink-0 place-items-center', DOT_W)}>
       {state === 'current' && <span aria-hidden className="absolute inset-0 rounded-full bg-[hsl(var(--paint-buttons-bg,var(--primary))/0.25)] motion-safe:animate-ping [animation-duration:2.2s]" />}
-      <span className={cn('relative grid h-14 w-14 place-items-center rounded-full border-2 text-[20px] font-bold',
+      <span className={cn('relative grid place-items-center rounded-full border-2 text-[16px] font-bold sm:text-[20px]', DOT_W,
         state === 'done' ? 'border-success bg-success text-white'
           : state === 'current' ? GO
             : state === 'locked' ? 'border-border bg-muted text-muted-foreground' : 'border-primary/40 bg-card text-primary')}>
-        {state === 'done' ? <Check className="h-7 w-7" strokeWidth={2.5} aria-hidden /> : state === 'locked' ? <Lock className="h-6 w-6" aria-hidden /> : n}
+        {state === 'done' ? <Check className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.5} aria-hidden /> : state === 'locked' ? <Lock className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden /> : n}
       </span>
+    </span>
+  )
+}
+
+/* THE WORD ON THE BUTTON (owner, 2026-10-10: "dont know where the button
+   is and what is button is").
+
+   Every row on the path was a card with a grey arrow at its far right and
+   no verb anywhere. On a wide screen that arrow sits a thousand pixels from
+   the title it belongs to, and an arrow does not say whether a step is new,
+   half-finished, shut, or already passed. One word does, and it is the same
+   word in the same place on every row. */
+function StepGo({ state }: { state: 'done' | 'current' | 'open' | 'locked' }) {
+  const word = state === 'locked' ? 'Locked' : state === 'done' ? 'Review' : state === 'current' ? 'Continue' : 'Open'
+  return (
+    <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold sm:text-[14px]',
+      state === 'locked' ? 'text-muted-foreground'
+        : state === 'current' ? 'bg-[hsl(var(--paint-buttons-bg,var(--primary))/0.12)] text-[hsl(var(--paint-buttons-bg,var(--primary)))]'
+          : 'text-primary')}>
+      {word}
+      {state === 'locked'
+        ? <Lock className="h-4 w-4 shrink-0" aria-hidden />
+        : <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />}
     </span>
   )
 }
@@ -428,7 +463,10 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
               <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished everything. Well done!</p></div></Card>
             ) : null}
             {!modules.length && !loose.length && !mySharedItems.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
-              <ol className="relative" aria-label="Your path">
+              /* A path reads as a path at a readable width. Full-bleed on a
+                 1800px desk put the step's name at one end of the screen and
+                 its button at the other. */
+              <ol className="relative mx-auto w-full max-w-3xl" aria-label="Your path">
                 {tops.map((m, i) => {
                   const days = subtree(m).flatMap((x) => x.days)
                   const done = days.filter((x) => x.state === 'done').length
@@ -439,7 +477,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                   const last = i === tops.length - 1 && !loose.length && !mySharedItems.length
                   return (
                     <li key={m.id} className="relative flex gap-3 pb-5">
-                      {!last && <span aria-hidden className={cn('absolute bottom-0 left-[26px] top-14 w-1 rounded-full', finished ? 'bg-success' : 'bg-border')} />}
+                      {!last && <span aria-hidden className={cn(RAIL, finished ? 'bg-success' : 'bg-border')} />}
                       <PathDot n={i + 1} state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
                       <button type="button" onClick={() => toModule(m.id)}
                         className={cn('card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left', here && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
@@ -449,21 +487,21 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                             {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
                           </span>
                         </span>
-                        <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                        <StepGo state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
                       </button>
                     </li>
                   )
                 })}
                 {loose.length > 0 && (
                   <li className={cn('relative flex gap-3', mySharedItems.length > 0 && 'pb-5')}>
-                    {mySharedItems.length > 0 && <span aria-hidden className="absolute bottom-0 left-[26px] top-14 w-1 rounded-full bg-border" />}
+                    {mySharedItems.length > 0 && <span aria-hidden className={cn(RAIL, 'bg-border')} />}
                     <PathDot n="+" state={loose.every((x) => x.done) ? 'done' : 'open'} />
                     <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
                       <span className="min-w-0 flex-1">
                         <span className="block text-[18px] font-semibold">More to do</span>
                         <span className="block text-[15px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
                       </span>
-                      <ArrowRight className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
+                      <StepGo state={loose.every((x) => x.done) ? 'done' : 'open'} />
                     </button>
                   </li>
                 )}
