@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, ArrowRight, BookOpen, ExternalLink, Share2, Calculator, Check, Clock, FlaskConical, Globe2, Languages, Lock, Monitor, Music, Palette, Play, Sparkles, Star, Trophy,
+  ArrowLeft, ArrowRight, BookOpen, ChevronDown, ExternalLink, Share2, Calculator, Check, Clock, FlaskConical, Globe2, Languages, Lock, Monitor, Music, Palette, Play, Search, Sparkles, Star, Trophy,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, EmptyState, ErrorState, Field, FormNotice, PageBody, PageHead, Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import {
-  FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta,
+  FilePick, KID_KIND_LABEL, KID_SECTION_LABEL, KIND_LABEL, KindIcon, LessonContent, SECTIONS, dateRange, fmtWhen, sourceMeta,
   type Lesson, type RubricRow, type Section,
 } from './lms-shared'
 import { Bone, DoneCheck, DueChip, HUE, Ring, confetti, reducedMotion, rememberPlace, type Hue } from '../portal/student-kit'
@@ -231,32 +231,6 @@ const canOpen = (it: SItem) => !it.locked && !(it.type === 'lesson' && it.lesson
 const GO = 'border-[hsl(var(--paint-buttons-bg,var(--primary)))] bg-[hsl(var(--paint-buttons-bg,var(--primary)))] text-[hsl(var(--paint-buttons-text,var(--primary-foreground)))] shadow-[0_0_0_6px_hsl(var(--paint-buttons-bg,var(--primary))/0.18)]'
 
 /** A stop on the module path: tick when done, lock when shut, glowing when it is where the child is. */
-/* THE PATH'S DOT. 40px on a phone, 56px from a tablet up (owner,
-   2026-10-10: "see phone and pad view also"). At 56px it took 68px of a
-   390px screen before the card began, which is a sixth of the width spent
-   on a bullet; the title then wrapped to three lines and the row stopped
-   looking like one step.
-
-   DOT_W and RAIL keep the circle and the line that joins them in step: the
-   rail must sit on the dot's centre, and two hand-written offsets drift
-   apart the first time either changes. */
-const DOT_W = 'h-10 w-10 sm:h-14 sm:w-14'
-/** The connector, centred on the dot at both sizes. */
-const RAIL = 'absolute bottom-0 left-[19px] top-11 w-1 rounded-full sm:left-[26px] sm:top-14'
-function PathDot({ n, state }: { n: number | string; state: 'done' | 'current' | 'open' | 'locked' }) {
-  return (
-    <span className={cn('relative z-[1] grid shrink-0 place-items-center', DOT_W)}>
-      {state === 'current' && <span aria-hidden className="absolute inset-0 rounded-full bg-[hsl(var(--paint-buttons-bg,var(--primary))/0.25)] motion-safe:animate-ping [animation-duration:2.2s]" />}
-      <span className={cn('relative grid place-items-center rounded-full border-2 text-[16px] font-bold sm:text-[20px]', DOT_W,
-        state === 'done' ? 'border-success bg-success text-white'
-          : state === 'current' ? GO
-            : state === 'locked' ? 'border-border bg-muted text-muted-foreground' : 'border-primary/40 bg-card text-primary')}>
-        {state === 'done' ? <Check className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.5} aria-hidden /> : state === 'locked' ? <Lock className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden /> : n}
-      </span>
-    </span>
-  )
-}
-
 /* THE WORD ON THE BUTTON (owner, 2026-10-10: "dont know where the button
    is and what is button is").
 
@@ -338,6 +312,11 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
   const [where, setWhere] = useState<Where>(initial)
   const [, setParams] = useSearchParams()
   const [quiz, setQuiz] = useState<string | null>(null)
+  /* The subject page's own two controls (owner's design, 2026-10-10). Local
+     to the page: a filter somebody set last week is not something they
+     asked to still be in force today. */
+  const [filter, setFilter] = useState<'all' | 'doing' | 'done' | 'locked'>('all')
+  const [find, setFind] = useState('')
   const top = useRef<HTMLDivElement>(null)
   const first = useRef(true)
   useEffect(() => {
@@ -432,95 +411,251 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
             openItem={(it, day) => open({ m: mod, d: day, it })} openDay={(k) => setWhere({ mod: mod.id, day: k, item: null })} openModule={toModule}
             next={firstTodoIn(mod)} openStop={open} back={() => toModule(parentOf(mod)?.id ?? null)} backLabel={parentOf(mod)?.title ?? 'All parts'} />
         ) : (
-          <div className="space-y-5">
-            <Card>
-              <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
-                <Ring pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={72} stroke={7} hue={look.hue} label={`${daysDone} of ${allDays.length} parts done`}>
-                  <look.Icon className={cn('h-8 w-8', HUE[look.hue].fg)} strokeWidth={1.6} aria-hidden />
-                </Ring>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[18px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} done` : 'Nothing to do yet'}</p>
-                  {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
-                  {d.course.teacher && <p className="text-[15px] text-muted-foreground">Your teacher: {d.course.teacher}</p>}
+          /* THE SUBJECT, AS THE OWNER DREW IT (2026-10-10, three mockups:
+             web, pad and phone).
+
+             WHAT WENT. A vertical path of big numbered bubbles joined by a
+             rail. It showed the modules and nothing inside them, so finding
+             one lesson meant opening a module, then a day, then the step --
+             three screens to reach a thing the child could already name. The
+             owner's word for it was that the pipeline is hard and you cannot
+             tell where the button is.
+
+             WHAT CAME. The curriculum itself, open on the page: a unit is a
+             row you can expand, and the lessons are listed under it with
+             their own state and their own action. Nothing is nested out of
+             sight, and every row says what pressing it will do.
+
+             THE SHAPE AT EACH WIDTH, from the mockups. On a desk, two
+             columns: the teacher and the progress stay still on the left
+             while the curriculum scrolls on the right. On a pad and a phone
+             the same pieces in one column, the progress card compact at the
+             top. One component, two layouts, because they are the same
+             information and a phone is not a different product. */
+          <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
+            <aside className="space-y-4 lg:col-span-4 lg:sticky lg:top-4">
+              <Card>
+                <div className="space-y-4 px-[var(--card-pad)] py-4">
+                  {/* Who teaches it, and how far in they are. */}
+                  <div className="flex items-center gap-3">
+                    <Ring pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={56} stroke={6} hue={look.hue} label={`${daysDone} of ${allDays.length} parts done`}>
+                      <look.Icon className={cn('h-6 w-6', HUE[look.hue].fg)} strokeWidth={1.6} aria-hidden />
+                    </Ring>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Your teacher</p>
+                      <p className="truncate text-[17px] font-bold leading-tight">{d.course.teacher || d.course.subject}</p>
+                      {allDays.length > 0 && <Stars pct={(100 * daysDone) / allDays.length} label={`${daysDone} of ${allDays.length} done`} />}
+                    </div>
+                  </div>
+
+                  {/* The bar the mockup leads with: one number, one line. */}
+                  <div>
+                    <div className="mb-1.5 flex items-baseline justify-between">
+                      <span className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Finished</span>
+                      <span className="text-[15px] font-bold text-success">{allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0}%</span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="h-2.5 rounded-full bg-success transition-[width] duration-500" style={{ width: `${allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0}%` }} />
+                    </div>
+                    <p className="mt-1.5 text-[13px] text-muted-foreground">{daysDone} of {allDays.length} parts done</p>
+                  </div>
+
+                  {/* Three counts, from what this page already holds -- no
+                      invented figures: parts, quizzes set, and the best mark
+                      the child has where any quiz has been marked. */}
+                  <div className="grid grid-cols-3 gap-2 border-t pt-3 text-center">
+                    {([
+                      ['Parts', String(allDays.length)],
+                      ['Quizzes', String(d.quizzes.length)],
+                      ['Best', (() => {
+                        const marked = d.quizzes.filter((z) => z.best !== null && z.best !== undefined && z.max_score)
+                        if (!marked.length) return '–'
+                        const pct = Math.round(100 * marked.reduce((a, z) => a + (z.best ?? 0) / (z.max_score || 1), 0) / marked.length)
+                        return `${pct}%`
+                      })()],
+                    ] as [string, string][]).map(([k, v]) => (
+                      <div key={k} className="rounded-xl border bg-muted/40 px-1 py-2">
+                        <span className="block text-[11px] text-muted-foreground">{k}</span>
+                        <span className="block text-[16px] font-bold">{v}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Card>
-            {d.resume ? (() => {
-              const r = d.resume!
-              const s = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
-              if (!s) return null
-              return (
-                <Button onClick={() => open(s)} className="h-auto min-h-[84px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left shadow-sm">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/15"><Play className="h-6 w-6 fill-current" aria-hidden /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[20px] font-bold leading-tight">{r.started ? 'Keep going' : 'Start here'}</span>
-                    <span className="block text-[15px] leading-snug opacity-90 [overflow-wrap:anywhere]">{s.d.day === null ? s.m.title : shortDay(s.d)} · {KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
-                  </span>
-                  <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
-                </Button>
-              )
-            })() : allDays.length > 0 && daysDone === allDays.length ? (
-              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished everything. Well done!</p></div></Card>
-            ) : null}
-            {!modules.length && !loose.length && !mySharedItems.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
-              /* A path reads as a path at a readable width. Full-bleed on a
-                 1800px desk put the step's name at one end of the screen and
-                 its button at the other. */
-              <ol className="relative mx-auto w-full max-w-3xl" aria-label="Your path">
-                {tops.map((m, i) => {
-                  const days = subtree(m).flatMap((x) => x.days)
-                  const done = days.filter((x) => x.state === 'done').length
-                  const locked = days.length > 0 && days.every((x) => x.state === 'locked')
-                  const finished = days.length > 0 && done === days.length
-                  const here = isHere(m) && !finished && !locked
-                  const range = dateRange(m.starts_on, m.ends_on)
-                  const last = i === tops.length - 1 && !loose.length && !mySharedItems.length
-                  return (
-                    <li key={m.id} className="relative flex gap-3 pb-5">
-                      {!last && <span aria-hidden className={cn(RAIL, finished ? 'bg-success' : 'bg-border')} />}
-                      <PathDot n={i + 1} state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
-                      <button type="button" onClick={() => toModule(m.id)}
-                        className={cn('card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left', here && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
-                          <span className="block text-[15px] text-muted-foreground">
-                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'All done!' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
+              </Card>
+
+              {/* The one big button, kept from before: it is the thing most
+                  children press and the mockup's "Start" in another skin. */}
+              {d.resume ? (() => {
+                const r = d.resume!
+                const st = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
+                if (!st) return null
+                return (
+                  <Button onClick={() => open(st)} className="h-auto min-h-[72px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left shadow-sm">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15"><Play className="h-5 w-5 fill-current" aria-hidden /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[18px] font-bold leading-tight">{r.started ? 'Keep going' : 'Start here'}</span>
+                      <span className="block text-[14px] leading-snug opacity-90 [overflow-wrap:anywhere]">{KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
+                    </span>
+                    <ArrowRight className="h-7 w-7 shrink-0" aria-hidden />
+                  </Button>
+                )
+              })() : allDays.length > 0 && daysDone === allDays.length ? (
+                <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-10 w-10 place-items-center rounded-full bg-success text-white"><Sparkles className="h-5 w-5" /></span><p className="text-[16px] font-semibold">You finished everything. Well done!</p></div></Card>
+              ) : null}
+            </aside>
+
+            <main className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">
+              {!modules.length && !loose.length && !mySharedItems.length ? (
+                <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." />
+              ) : (
+                <>
+                  {/* FOUR CHIPS AND A SEARCH. A course of twenty steps is a
+                      page you scan, not read; the chips answer "what is left"
+                      and the box answers "where is that one lesson". Counts
+                      are on the chips because a chip that might be empty is a
+                      press somebody has to spend to find out. */}
+                  <Card>
+                    <div className="flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 text-[13px] font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {(() => {
+                          const all = stops.concat(looseStops)
+                          const counts = {
+                            all: all.length,
+                            doing: all.filter((x) => !x.it.done && canOpen(x.it)).length,
+                            done: all.filter((x) => x.it.done).length,
+                            locked: all.filter((x) => !canOpen(x.it)).length,
+                          }
+                          return ([
+                            ['all', 'All'], ['doing', 'To do'], ['done', 'Done'], ['locked', 'Locked'],
+                          ] as const).map(([k, label]) => (
+                            <button key={k} type="button" onClick={() => setFilter(k)}
+                              className={cn('shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 transition-colors',
+                                filter === k ? 'bg-foreground text-background' : 'border bg-card text-muted-foreground hover:text-foreground')}>
+                              {label} ({counts[k]})
+                            </button>
+                          ))
+                        })()}
+                      </div>
+                      <div className="relative shrink-0 sm:w-56">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                        <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a lesson"
+                          aria-label="Find a lesson"
+                          className="h-10 w-full rounded-xl border bg-muted/40 pl-8 pr-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* THE UNITS, EACH ONE OPENABLE IN PLACE. <details> rather
+                      than state of our own: it is open-by-default on the unit
+                      the child is in, it survives a re-render, and the
+                      keyboard and the screen reader already know what it is. */}
+                  {tops.map((m, i) => {
+                    const mine = stops.filter((x) => subtree(m).includes(x.m))
+                    const shown = mine.filter((x) => {
+                      if (find.trim() && !titleOf(x.it).toLowerCase().includes(find.trim().toLowerCase())) return false
+                      if (filter === 'done') return x.it.done
+                      if (filter === 'doing') return !x.it.done && canOpen(x.it)
+                      if (filter === 'locked') return !canOpen(x.it)
+                      return true
+                    })
+                    const doneN = mine.filter((x) => x.it.done).length
+                    const locked = mine.length > 0 && mine.every((x) => !canOpen(x.it))
+                    const finished = mine.length > 0 && doneN === mine.length
+                    const here = isHere(m) && !finished && !locked
+                    /* A filter that empties a unit hides the unit: a row that
+                       says "0 of 0" under a filter is noise. */
+                    if ((find.trim() || filter !== 'all') && !shown.length) return null
+                    return (
+                      <details key={m.id} open={here || !!find.trim()}
+                        className={cn('group card overflow-hidden', here && 'border-2 border-[hsl(var(--paint-buttons-bg,var(--primary))/0.6)]', locked && 'opacity-75')}>
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 transition-colors hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[13px] font-bold',
+                              finished ? 'bg-success/15 text-success' : locked ? 'bg-muted text-muted-foreground' : here ? GO : 'bg-primary/10 text-primary')}>
+                              {finished ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden /> : locked ? <Lock className="h-4 w-4" aria-hidden /> : i + 1}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-[16px] font-bold leading-tight">{m.title}</span>
+                              <span className="block text-[13px] text-muted-foreground">
+                                {locked ? (m.days.find((x) => x.reason)?.reason ?? 'Not open yet') : `${doneN} of ${mine.length} done`}
+                              </span>
+                            </span>
                           </span>
+                          <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                        </summary>
+                        <ul className="border-t">
+                          {shown.length === 0 ? (
+                            <li className="px-[var(--card-pad)] py-3 text-[13.5px] text-muted-foreground">Nothing in this part yet.</li>
+                          ) : shown.map((x) => {
+                            const can = canOpen(x.it)
+                            const quizOf = x.it.type === 'quiz' ? d.quizzes.find((z) => z.id === x.it.id) : null
+                            const scored = quizOf && quizOf.best !== null && quizOf.best !== undefined && quizOf.max_score
+                            const isNext = !x.it.done && can && mine.find((y) => !y.it.done && canOpen(y.it)) === x
+                            return (
+                              <li key={`${x.it.type}:${x.it.id}`} className={cn('border-t first:border-t-0', isNext && 'bg-success/[0.06]', !can && 'opacity-60')}>
+                                <button type="button" disabled={!can} onClick={() => open(x)}
+                                  className="flex w-full items-center justify-between gap-3 px-[var(--card-pad)] py-3 text-left transition-colors enabled:hover:bg-accent/40">
+                                  <span className="flex min-w-0 items-center gap-2.5">
+                                    <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full',
+                                      x.it.done ? 'bg-success' : isNext ? 'bg-warning motion-safe:animate-pulse' : can ? 'bg-primary/40' : 'bg-muted-foreground/30')} />
+                                    <span className="min-w-0">
+                                      <span className={cn('block truncate text-[14.5px]', isNext ? 'font-bold' : 'font-medium')}>{titleOf(x.it)}</span>
+                                      <span className="block text-[12px] text-muted-foreground">
+                                        {KID_KIND_LABEL[kindOf(x.it)] ?? KIND_LABEL[kindOf(x.it)] ?? 'Step'}
+                                        {x.d.day !== null ? ` · ${shortDay(x.d)}` : ''}
+                                      </span>
+                                    </span>
+                                  </span>
+                                  {scored ? (
+                                    <span className="shrink-0 rounded-md bg-success/15 px-2 py-0.5 text-[12px] font-bold text-success">{Math.round((100 * (quizOf!.best ?? 0)) / (quizOf!.max_score || 1))}%</span>
+                                  ) : !can ? (
+                                    <span className="shrink-0 text-[12.5px] text-muted-foreground">Locked</span>
+                                  ) : isNext ? (
+                                    <span className="shrink-0 rounded-lg bg-[hsl(var(--paint-buttons-bg,var(--primary)))] px-3 py-1.5 text-[13px] font-semibold text-[hsl(var(--paint-buttons-text,var(--primary-foreground)))]">Start</span>
+                                  ) : (
+                                    <span className="shrink-0 rounded-lg bg-muted px-2.5 py-1 text-[12.5px] font-semibold text-muted-foreground">{x.it.done ? 'Review' : 'Open'}</span>
+                                  )}
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </details>
+                    )
+                  })}
+
+                  {/* Homework and quizzes on no day, and anything the teacher
+                      shared outside a unit: the two rows that were at the
+                      foot of the old path, in the new clothes. */}
+                  {loose.length > 0 && filter === 'all' && !find.trim() && (
+                    <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })}
+                      className="card flex w-full items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 text-left transition-colors hover:bg-accent/40">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-[13px] font-bold text-primary">+</span>
+                        <span className="min-w-0">
+                          <span className="block text-[16px] font-bold leading-tight">More to do</span>
+                          <span className="block text-[13px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
                         </span>
-                        <StepGo state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
-                      </button>
-                    </li>
-                  )
-                })}
-                {loose.length > 0 && (
-                  <li className={cn('relative flex gap-3', mySharedItems.length > 0 && 'pb-5')}>
-                    {mySharedItems.length > 0 && <span aria-hidden className={cn(RAIL, 'bg-border')} />}
-                    <PathDot n="+" state={loose.every((x) => x.done) ? 'done' : 'open'} />
-                    <button type="button" onClick={() => setWhere({ mod: null, day: OTHER, item: null })} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[18px] font-semibold">More to do</span>
-                        <span className="block text-[15px] text-muted-foreground">Homework and quizzes · {loose.filter((x) => x.done).length} of {loose.length} done</span>
                       </span>
                       <StepGo state={loose.every((x) => x.done) ? 'done' : 'open'} />
                     </button>
-                  </li>
-                )}
-                {mySharedItems.length > 0 && (
-                  <li className="relative flex gap-3">
-                    <span className={cn('relative z-[1] grid shrink-0 place-items-center rounded-full border-2 border-primary/40 bg-card text-primary', DOT_W)}><Share2 className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden /></span>
-                    <button type="button" onClick={() => toModule(SHARED)} className="card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left">
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[18px] font-semibold">Shared by your teacher</span>
-                        <span className="block text-[15px] text-muted-foreground">{mySharedItems.length} thing{mySharedItems.length === 1 ? '' : 's'}{mySharedItems.some((r) => !r.seen) ? ` · ${mySharedItems.filter((r) => !r.seen).length} new` : ''}</span>
+                  )}
+                  {mySharedItems.length > 0 && filter === 'all' && !find.trim() && (
+                    <button type="button" onClick={() => toModule(SHARED)}
+                      className="card flex w-full items-center justify-between gap-3 px-[var(--card-pad)] py-3.5 text-left transition-colors hover:bg-accent/40">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-primary"><Share2 className="h-4 w-4" aria-hidden /></span>
+                        <span className="min-w-0">
+                          <span className="block text-[16px] font-bold leading-tight">Shared by your teacher</span>
+                          <span className="block text-[13px] text-muted-foreground">{mySharedItems.length} thing{mySharedItems.length === 1 ? '' : 's'}{mySharedItems.some((r) => !r.seen) ? ` · ${mySharedItems.filter((r) => !r.seen).length} new` : ''}</span>
+                        </span>
                       </span>
-                      {/* The last row on the path was still a bare arrow
-                          while every row above it had grown a word. */}
                       <StepGo state={mySharedItems.some((r) => !r.seen) ? 'current' : 'open'} />
                     </button>
-                  </li>
-                )}
-              </ol>
-            )}
+                  )}
+                </>
+              )}
+            </main>
           </div>
         )}
       </PageBody>
