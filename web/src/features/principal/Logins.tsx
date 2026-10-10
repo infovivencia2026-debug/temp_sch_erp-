@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, Sliders, UserCheck, UserPlus, UserX, X,
+  Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -245,10 +245,7 @@ export default function Logins() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [devicesFor, setDevicesFor] = useState<AdminUser | null>(null)
-  /* The family-side features editor: which of their own portal's screens
-     this child or parent may open. Holds the account and which portal it
-     is, because the row knows and the dialog should not have to guess. */
-  const [featuresFor, setFeaturesFor] = useState<{ user: AdminUser; portal: 'student' | 'parent' } | null>(null)
+
   /* The new password exists for one moment. It is shown until dismissed rather
      than in a toast that takes it away again while somebody is writing it on a
      slip of paper. */
@@ -508,13 +505,7 @@ export default function Logins() {
         {devicesFor && (
           <Devices user={devicesFor} onClose={() => setDevicesFor(null)} />
         )}
-        {featuresFor && (
-          <PortalFeatures
-            user={featuresFor.user}
-            portal={featuresFor.portal}
-            onClose={() => setFeaturesFor(null)}
-          />
-        )}
+
 
         {issued && (
           <Card className="p-5">
@@ -719,25 +710,7 @@ export default function Logins() {
                       >
                         <Pencil className="h-3.5 w-3.5" /> Roles
                       </Button>
-                    ) : (
-                      /* A child has one role and a parent has one role, so
-                         there is nothing to choose between -- but WHICH of
-                         their own portal's screens they get is a real choice,
-                         and the office had no way to make it (owner,
-                         2026-10-09). Roles is the staff door; this is the
-                         family one, and it opens onto their portal only. */
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        title="Choose which screens they can open"
-                        onClick={() => {
-                          setCreating(false); setDevicesFor(null); setEditing(null)
-                          setFeaturesFor({ user: u, portal: record === 'student' ? 'student' : 'parent' })
-                        }}
-                      >
-                        <Sliders className="h-3.5 w-3.5" /> Features
-                      </Button>
-                    )}
+                    ) : null}
                     {u.status === 'active' ? (
                       /* Deactivating signs the person out of every device in
                          the same transaction on the server. It is still a real
@@ -1396,12 +1369,15 @@ function AccountForm({
    list is a different thing to build and a riskier one to own; the honest
    version of this screen says so on its face rather than offering a switch
    that silently does nothing. */
-function PortalFeatures({
-  user,
+export function PortalFeatures({
+  userId,
+  fullName,
   portal,
   onClose,
 }: {
-  user: AdminUser
+  /** The LOGIN's id, not the child's or the guardian's record id. */
+  userId: string
+  fullName: string
   portal: 'student' | 'parent'
   onClose: () => void
 }) {
@@ -1411,8 +1387,8 @@ function PortalFeatures({
     queryFn: () => api.get<List<FeatureItem>>('/api/v1/admin/features'),
   })
   const current = useQuery({
-    queryKey: ['user-permissions', user.id],
-    queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${user.id}/permissions`),
+    queryKey: ['user-permissions', userId],
+    queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${userId}/permissions`),
   })
   const [search, setSearch] = useState('')
   const [direct, setDirect] = useState<string[] | null>(null)
@@ -1421,9 +1397,9 @@ function PortalFeatures({
 
   const save = useMutation({
     mutationFn: () =>
-      api.put(`/api/v1/admin/users/${user.id}/permissions`, { permission_keys: direct ?? [] }),
+      api.put(`/api/v1/admin/users/${userId}/permissions`, { permission_keys: direct ?? [] }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['user-permissions', user.id] })
+      qc.invalidateQueries({ queryKey: ['user-permissions', userId] })
       qc.invalidateQueries({ queryKey: ['school-logins'] })
       onClose()
     },
@@ -1473,7 +1449,7 @@ function PortalFeatures({
     <Dialog
       open
       onClose={onClose}
-      title={`What ${user.full_name} can open`}
+      title={`What ${fullName} can open`}
       description={`The ${portal === 'student' ? 'student' : 'parent'} portal only. ${extra} chosen beyond their role.`}
       size="lg"
       footer={

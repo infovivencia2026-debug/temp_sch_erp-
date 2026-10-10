@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, Printer, RotateCcw, X } from 'lucide-react'
-import { api } from '@/lib/api'
+import { Copy, KeyRound, Printer, RotateCcw, Sliders, X } from 'lucide-react'
+import { api, type List } from '@/lib/api'
 import {
-  Badge, Button, Card, CardHeader, CellGrid, Checkbox, Field, FormNotice, Input, Select, Stat, Table, Td,
+  Badge, Button, Card, CardHeader, CellGrid, Checkbox, Dialog, Field, FormNotice, Input, Select, Stat, Table, Td,
 } from '@/components/ui'
 import { downloadLogins, printSlips } from './StudentLoginsCard'
+import { PortalFeatures } from './Logins'
 
 /* THE CLASS AS IT STANDS, NOT THE ACCOUNTS THAT HAPPEN TO EXIST.
  *
@@ -86,6 +87,8 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
   const [needle, setNeedle] = useState('')
   const [status, setStatus] = useState(initialStatus)
   const [picked, setPicked] = useState<Record<string, true>>({})
+  /* Whose portal features are being chosen, if any. */
+  const [featuresFor, setFeaturesFor] = useState<Row | null>(null)
   /* What was issued in this sitting, by person id. The server will not say it
      twice and the page cannot ask again. */
   const [issued, setIssued] = useState<Record<string, { signIn: string; password: string }>>({})
@@ -675,20 +678,116 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
               </Td>
               <Td className="text-[12.5px] text-muted-foreground">{r.context}</Td>
               <Td className="whitespace-nowrap">
-                <Button
-                  size="sm"
-                  variant={r.hasLogin ? 'secondary' : 'primary'}
-                  disabled={issue.isPending}
-                  onClick={() => issue.mutate({ ids: [r.id], reset: r.hasLogin })}
-                >
-                  {r.hasLogin ? 'Reset' : 'Issue now'}
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant={r.hasLogin ? 'secondary' : 'primary'}
+                    disabled={issue.isPending}
+                    onClick={() => issue.mutate({ ids: [r.id], reset: r.hasLogin })}
+                  >
+                    {r.hasLogin ? 'Reset' : 'Issue now'}
+                  </Button>
+                  {/* WHAT THIS FAMILY MAY OPEN (owner, 2026-10-09: "add
+                      features or roles like button like staff ... only
+                      STUDNET AND PARENT FEATURES only and let pricipal
+                      choose what to give in that").
+
+                      Staff get a Roles button on their own table. This is
+                      the family equivalent and it sits here, on the roster,
+                      because this is the table the Students and Parents tabs
+                      actually draw -- the other one is the staff table and a
+                      child's row never reaches it.
+
+                      Only once they have a login: there is nothing to grant
+                      to an account that does not exist yet, and the button
+                      beside it is the one that makes it. */}
+                  {kind !== 'staff' && r.hasLogin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Choose which screens they can open"
+                      onClick={() => setFeaturesFor(r)}
+                    >
+                      <Sliders className="h-3.5 w-3.5" /> Features
+                    </Button>
+                  )}
+                </div>
               </Td>
             </tr>
           )
         })}
       </Table>
     </Card>
+    {featuresFor && (
+      <ResolveLogin
+        row={featuresFor}
+        portal={kind === 'students' ? 'student' : 'parent'}
+        onClose={() => setFeaturesFor(null)}
+      />
+    )}
     </>
+  )
+}
+
+/* THE ROSTER KNOWS THE PERSON, THE EDITOR NEEDS THE LOGIN.
+
+   A roster row carries the child's or the guardian's record id. Permissions
+   hang off the USER -- the account they sign in with -- and the roster
+   payload has never carried that id, because nothing on this screen needed
+   it before.
+
+   Rather than widen the roster endpoint and redeploy the Worker for one
+   field, the account is looked up by the thing both sides already hold: the
+   text the person signs in as, which is unique per account and is already on
+   the row. One request, filtered server-side by the same q= the logins table
+   uses. If it comes back empty the dialog says so instead of opening onto
+   somebody else's permissions. */
+function ResolveLogin({ row, portal, onClose }: {
+  row: Row
+  portal: 'student' | 'parent'
+  onClose: () => void
+}) {
+  const who = row.signIn || row.loginCode
+  const found = useQuery({
+    queryKey: ['login-for-roster', who],
+    enabled: Boolean(who),
+    queryFn: async () => {
+      const page = await api.get<List<{ id: string; full_name: string; sign_in_as?: string; login_code?: string }>>(
+        `/api/v1/admin/users?q=${encodeURIComponent(who)}`,
+      )
+      const items = page.items ?? []
+      return (
+        items.find((u) => u.sign_in_as && u.sign_in_as === row.signIn) ??
+        items.find((u) => u.login_code && u.login_code === row.loginCode) ??
+        (items.length === 1 ? items[0] : undefined)
+      )
+    },
+  })
+
+  if (found.isLoading) {
+    return (
+      <Dialog open onClose={onClose} title={row.name} description="Finding their login…">
+        <p className="text-[13px] text-muted-foreground">One moment.</p>
+      </Dialog>
+    )
+  }
+  if (found.error || !found.data) {
+    return (
+      <Dialog open onClose={onClose} title={row.name} description="Their login could not be matched">
+        <FormNotice error={found.error} />
+        <p className="text-[13px] text-muted-foreground">
+          No account on this school matches “{who}”. Issue or reset their login first, then try
+          again.
+        </p>
+      </Dialog>
+    )
+  }
+  return (
+    <PortalFeatures
+      userId={found.data.id}
+      fullName={found.data.full_name || row.name}
+      portal={portal}
+      onClose={onClose}
+    />
   )
 }
