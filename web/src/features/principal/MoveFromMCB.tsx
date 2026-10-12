@@ -107,7 +107,7 @@ export default function MoveFromMCB() {
               each carrying its own state, the open one marked. */}
           <Card>
             <CardHeader title="Five files, in this order" description="Download each from MyClassBoard as Excel, save it as CSV, and bring it here. A dry run writes nothing." />
-            <ol className="px-[var(--card-pad)] pb-[var(--card-pad)]">
+            <ol className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
               {STEPS.map((x, i) => {
                 const st = stateOf(x.entity)
                 const here = x.entity === open
@@ -147,7 +147,7 @@ export default function MoveFromMCB() {
                 <Button variant="secondary" size="sm">Our template</Button>
               </a>
             } />
-            <div className="space-y-5 px-[var(--card-pad)] pb-[var(--card-pad)]">
+            <div className="space-y-5 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
               {/* Where it comes from belongs with the step you are on, not in
                   a column repeated five times down a table. */}
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
