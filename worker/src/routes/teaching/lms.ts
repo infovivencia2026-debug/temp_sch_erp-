@@ -331,7 +331,7 @@ export function registerLMS(r: Router) {
     const s = await resolveScope(c)
     const q = c.url.searchParams
     const co = await course(c, s, needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id'))
-    const [units, lessons, hw, quizzes, roll, days, gate, lay] = await c.db.batch([
+    const [units, lessons, hw, quizzes, roll, days, lay] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
           l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.open_now,
@@ -352,13 +352,12 @@ export function registerLMS(r: Router) {
           FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = ? ORDER BY t.created_at DESC`).bind(co.section_id, co.class_subject_id),
       c.db.prepare(`SELECT count(*) AS n FROM enrollments WHERE section_id = ? AND status = 'active'`).bind(co.section_id),
       c.db.prepare(`SELECT d.unit_id, d.day, d.label FROM lms_unit_days d JOIN syllabus_units su ON su.id = d.unit_id WHERE su.class_subject_id = ? ORDER BY d.unit_id, d.day`).bind(co.class_subject_id),
-      c.db.prepare(`SELECT gating FROM lms_course_settings WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
       c.db.prepare(`SELECT layout FROM lms_courses WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
     ])
     const ls = lessons.results as Record<string, unknown>[]
     return ok({
       course: co, roll: (roll.results[0] as { n: number }).n, today: todayIST(),
-      gating: (void gate, 'sequential'), // always one by one (lms_progress.ts)
+      gating: 'sequential', // always one by one (lms_progress.ts)
       days: days.results,
       layout: (lay.results[0] as { layout?: string } | undefined)?.layout ?? 'topic_day',
       /* Archived modules come too (is_active false), so they can be brought back. */

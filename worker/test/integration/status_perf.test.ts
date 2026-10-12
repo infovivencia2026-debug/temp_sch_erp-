@@ -15,7 +15,8 @@ import { seed, api, call, as, IDS, E } from './fixture'
    cache is off, as it is in tests (4: the user, roles, permissions, direct
    grants). In production these are cached and the figures below are the
    whole cost. */
-const SIGN_IN = 4
+// 5 since sign-in also reads feature_blocks, the bulk features-off list (fe4104ab, 2026-10-10).
+const SIGN_IN = 5
 const SHOW = false
 const log: string[] = []
 const wrap = (db: D1Database) => {

@@ -111,7 +111,7 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
                 }
                 const list = [...groups.values()]
                 return (
-                  <Table head={['Course', 'Teacher', 'Layout', '']} empty={!list.length} emptyLabel="No course in this class or section yet.">
+                  <Table head={['Course', 'Layout', '']} empty={!list.length} emptyLabel="No course in this class or section yet.">
                     {list.map((g) => {
                       const first = g.rows[0]
                       const layouts = new Set(g.rows.map((r) => r.layout))
@@ -127,7 +127,7 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
                               {g.rows.length === 1 ? `Section ${secNames}` : `${g.rows.length} sections · ${secNames}`}
                             </span>
                           </Td>
-                          <Td>{g.teacher ?? '—'}</Td>
+                          {/* No teacher column: the LMS is the school's extra courses, run by the office, not a teacher's (owner, 2026-10-12). */}
                           <Td>{label}</Td>
                           <Td>
                             <div className="flex justify-end gap-2">

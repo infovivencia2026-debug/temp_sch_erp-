@@ -148,6 +148,8 @@ describe('the LMS', () => {
   let unit = '', lesson = '', hw = '', quiz = ''
 
   it('a teacher builds a course: a unit and a lesson', async () => {
+    // A teacher sees their school subjects; the admin adds it to the LMS list for students.
+    expect((await api('admin', 'POST', '/lms/courses', { class_subject_id: IDS.classSubject, section_ids: [IDS.section], layout: 'topic_day' })).status).toBe(200)
     const list = await api('teacher', 'GET', '/lms/courses')
     expect(list.status).toBe(200)
     expect(list.body.items.some((x: { class_subject_id: string }) => x.class_subject_id === IDS.classSubject)).toBe(true)
@@ -307,8 +309,11 @@ describe('scheduled lessons and the LMS Admin role', () => {
     const rid = (await T().prepare(`SELECT id FROM roles WHERE key = 'lms_admin'`).first<{ id: string }>())!.id
     await T().prepare(`INSERT INTO user_roles (id, institution_id, user_id, role_id, created_at) VALUES (?, ?, ?, ?, ?)`)
       .bind(crypto.randomUUID(), IDS.school, IDS.finance, rid, new Date().toISOString()).run()
+    // The LMS Admin's list holds only the courses added (owner, 2026-10-10): the
+    // one the admin added above, and adding it again changes its layout.
+    expect((await api('finance', 'POST', '/lms/courses', { class_subject_id: IDS.classSubject, section_ids: [IDS.section], layout: 'day' })).status).toBe(200)
     const list = await api('finance', 'GET', '/lms/courses')
-    expect(list.body.items.length).toBeGreaterThan(0)
+    expect(list.body.items.map((x: { class_subject_id: string; layout: string }) => [x.class_subject_id, x.layout])).toEqual([[IDS.classSubject, 'day']])
     const u = await api('finance', 'POST', '/lms/units', { section_id: IDS.section, class_subject_id: IDS.classSubject, title: 'Decimals' })
     expect(u.status).toBe(200)
     const perms = await T().prepare(`SELECT permission_key FROM role_permissions WHERE role_id = ?`).bind(rid).all<{ permission_key: string }>()
