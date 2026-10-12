@@ -125,7 +125,7 @@ function baseSpecs(today: string): Record<string, Spec> {
     fee_sheet: { title: 'Fee sheet, class-wise',
       about: 'This year: one row per child, class by class. Total fee, concession, net, then Term 1/2/3, Books, Uniform and Transport fee·paid·due, and the total paid and due.',
       perm: 'finance.fees.read',
-      header: ['Class', 'Admission No', 'Student', 'Father / Guardian', 'Mobile', 'Total Fee', 'Concession', 'Net Fee',
+      header: ['Class', 'Section', 'Admission No', 'Student', 'Father / Guardian', 'Mobile', 'Total Fee', 'Concession', 'Net Fee',
         'Term 1 Fee', 'Term 1 Paid', 'Term 1 Due', 'Term 2 Fee', 'Term 2 Paid', 'Term 2 Due', 'Term 3 Fee', 'Term 3 Paid', 'Term 3 Due',
         'Books Fee', 'Books Paid', 'Books Due', 'Uniform Fee', 'Uniform Paid', 'Uniform Due', 'Transport Fee', 'Transport Paid', 'Transport Due',
         'Other Fee', 'Other Paid', 'Other Due', 'Total Paid', 'Total Due'],
@@ -142,13 +142,13 @@ function baseSpecs(today: string): Record<string, Spec> {
             FROM (SELECT i2.*, ${heads('i2.id')} AS hd FROM invoices i2 WHERE i2.status <> 'cancelled'
                     AND i2.academic_year_id = (SELECT ay.id FROM academic_years ay WHERE ${t} BETWEEN ay.starts_on AND ay.ends_on ORDER BY ay.starts_on DESC LIMIT 1)) inv
            GROUP BY inv.student_id)
-        SELECT COALESCE(c.name,''), st.admission_no, ${name3('st')}, COALESCE(g.full_name,''), COALESCE(g.phone,''),
+        SELECT COALESCE(c.name,''), COALESCE(sec.name,''), st.admission_no, ${name3('st')}, COALESCE(g.full_name,''), COALESCE(g.phone,''),
           ${rs('COALESCE(iv.gross,0)')}, ${rs('COALESCE(iv.disc,0)')}, ${rs('COALESCE(iv.net,0)')},
           ${rs('COALESCE(iv.t1_bill,0)')}, ${rs('COALESCE(iv.t1_paid,0)')}, ${rs('COALESCE(iv.t1_bill,0)-COALESCE(iv.t1_paid,0)')}, ${rs('COALESCE(iv.t2_bill,0)')}, ${rs('COALESCE(iv.t2_paid,0)')}, ${rs('COALESCE(iv.t2_bill,0)-COALESCE(iv.t2_paid,0)')}, ${rs('COALESCE(iv.t3_bill,0)')}, ${rs('COALESCE(iv.t3_paid,0)')}, ${rs('COALESCE(iv.t3_bill,0)-COALESCE(iv.t3_paid,0)')}, ${rs('COALESCE(iv.bk_bill,0)')}, ${rs('COALESCE(iv.bk_paid,0)')}, ${rs('COALESCE(iv.bk_bill,0)-COALESCE(iv.bk_paid,0)')}, ${rs('COALESCE(iv.un_bill,0)')}, ${rs('COALESCE(iv.un_paid,0)')}, ${rs('COALESCE(iv.un_bill,0)-COALESCE(iv.un_paid,0)')}, ${rs('COALESCE(iv.tr_bill,0)')}, ${rs('COALESCE(iv.tr_paid,0)')}, ${rs('COALESCE(iv.tr_bill,0)-COALESCE(iv.tr_paid,0)')}, ${rs('COALESCE(iv.ot_bill,0)')}, ${rs('COALESCE(iv.ot_paid,0)')}, ${rs('COALESCE(iv.ot_bill,0)-COALESCE(iv.ot_paid,0)')},
           ${rs('COALESCE(iv.paid,0)')}, ${rs('COALESCE(iv.net,0)-COALESCE(iv.paid,0)')}
         FROM students st JOIN iv ON iv.sid = st.id ${latestEnrol} ${primaryGuardian}
-        WHERE st.status = 'active' AND (?1 = '' OR c.id = ?1)
-        ORDER BY c.level NULLS LAST, c.name, ${name3('st')}`, params: ['class'] },
+        WHERE st.status = 'active' AND (?1 = '' OR c.id = ?1) AND (?2 = '' OR sec.id = ?2)
+        ORDER BY c.level NULLS LAST, c.name, sec.name, ${name3('st')}`, params: ['class', 'section'] },
     absentee_followups: { title: 'Absentee follow-ups',
       about: 'Every absence follow-up by date: child, section, the numbers called, whether they were reached, the reason and who followed up.',
       perm: 'academics.attendance.read.all',
