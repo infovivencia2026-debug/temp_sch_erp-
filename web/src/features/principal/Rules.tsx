@@ -50,7 +50,7 @@ export default function Rules() {
             <Card>
               <CardHeader title="Remind families before a fee is due" action={r ? <Badge tone={r.active ? 'success' : 'neutral'}>{r.active ? 'On' : 'Off'}</Badge> : undefined} />
               {reminder.error ? <div className="px-5 pb-5"><ErrorState error={reminder.error} /></div> : r && (
-                <div className="space-y-3 px-5 pb-5">
+                <div className="space-y-3 px-5 pb-5 pt-4">
                   <Checkbox checked={r.active} onChange={(v) => setRem({ ...r, active: v })} label="Send a reminder on its own, without anyone pressing Send" />
                   <FormGrid>
                     <Field label="Days before the due date"><Input type="number" value={String(r.days_before)} onChange={(v) => setRem({ ...r, days_before: Number(v || 0) })} /></Field>
@@ -73,9 +73,12 @@ export default function Rules() {
               <CardHeader title="Send the office the day's figures" description={digest.data ? `${digest.data.recipient_count} ${digest.data.recipient_count === 1 ? 'person receives' : 'people receive'} it: the principal, the board and whoever holds the reports right.` : undefined}
                 action={dg ? <Badge tone={dg.daily || dg.weekly ? 'success' : 'neutral'}>{dg.daily || dg.weekly ? 'On' : 'Off'}</Badge> : undefined} />
               {digest.error ? <div className="px-5 pb-5"><ErrorState error={digest.error} /></div> : dg && (
-                <div className="space-y-3 px-5 pb-5">
+                <div className="space-y-3 px-5 pb-5 pt-4">
+                  {/* One under the other (owner, 2026-10-12: the two ran together). */}
+                  <div className="flex flex-col items-start gap-2.5">
                   <Checkbox checked={dg.daily} onChange={(v) => setDig({ ...dg, daily: v })} label="Every evening: attendance, fees collected and dues, admissions, staff attendance and leave" />
                   <Checkbox checked={dg.weekly} onChange={(v) => setDig({ ...dg, weekly: v })} label="Every week: the same, for the week" />
+                  </div>
                   <p className="text-[12.5px] text-muted-foreground">Which reports and on which channels is chosen under Reports, Scheduled digests.</p>
                   <FormNotice error={saveDigest.error} />
                   <Button disabled={!dig || saveDigest.isPending} onClick={() => saveDigest.mutate(dg)}>Save</Button>
@@ -86,7 +89,7 @@ export default function Rules() {
             <Card>
               <CardHeader title="Do not message families at night" action={ms ? <Badge tone={ms.quiet_from && ms.quiet_to ? 'success' : 'neutral'}>{ms.quiet_from && ms.quiet_to ? 'On' : 'Off'}</Badge> : undefined} />
               {messaging.error ? <div className="px-5 pb-5"><ErrorState error={messaging.error} /></div> : ms && (
-                <div className="space-y-3 px-5 pb-5">
+                <div className="space-y-3 px-5 pb-5 pt-4">
                   <FormGrid>
                     <Field label="Quiet from" hint="Blank on both means no quiet hours."><Input type="time" value={ms.quiet_from} onChange={(v) => setMsg({ ...ms, quiet_from: v })} /></Field>
                     <Field label="Quiet to"><Input type="time" value={ms.quiet_to} onChange={(v) => setMsg({ ...ms, quiet_to: v })} /></Field>
@@ -101,7 +104,7 @@ export default function Rules() {
 
             <Card>
               <CardHeader title="Always on, nothing to set" />
-              <ul className="space-y-2 px-5 pb-5 text-[13.5px] text-muted-foreground">
+              <ul className="space-y-2 px-5 pb-5 pt-4 text-[13.5px] text-muted-foreground">
                 <li>A parent is told the same morning when their child is marked absent.</li>
                 <li>A receipt reaches the family the moment a fee is taken.</li>
                 <li>The class teacher sees a child's leave in the register the day it is approved.</li>
