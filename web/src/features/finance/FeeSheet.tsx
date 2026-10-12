@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageBody, Card, Select, ExportButton } from '@/components/ui'
+import { PageBody, Card, CardHeader, Select, ExportButton } from '@/components/ui'
 
 interface Klass { id: string; name: string; level?: number }
 
@@ -17,13 +17,11 @@ export default function FeeSheet() {
     .map((c) => ({ value: c.id, label: c.name }))
   return (
     <PageBody>
-      <Card className="p-4 space-y-3">
-        <div className="text-[15px] font-semibold">Download the fee sheet</div>
-        <p className="text-[13px] text-muted-foreground">
-          One row per child, class by class. For each child: total fee, concession and net fee, then Term 1, Term 2,
-          Term 3, Books, Uniform and Transport (fee, paid and due), and the total paid and due. This year only.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
+      <Card>
+        {/* The card's own header and padding, so title, text and controls share one left edge. */}
+        <CardHeader title="Download the fee sheet"
+          description="One row per child, class by class. For each child: total fee, concession and net fee, then Term 1, Term 2, Term 3, Books, Uniform and Transport (fee, paid and due), and the total paid and due. This year only." />
+        <div className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] pb-4">
           <div className="w-full sm:w-64">
             <Select value={klass} onChange={setKlass} options={[{ value: '', label: 'Whole school' }, ...options]} placeholder="Whole school" />
           </div>

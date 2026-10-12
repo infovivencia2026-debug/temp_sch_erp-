@@ -184,7 +184,7 @@ export default function SalarySetup() {
               title="Pay components"
               description="The lines every payslip is built from."
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 px-[var(--card-pad)] py-3">
               {components.map((c) => (
                 <span key={c.id} className="inline-flex items-center gap-1">
                   <Badge tone={c.kind === 'earning' ? 'success' : 'neutral'}>

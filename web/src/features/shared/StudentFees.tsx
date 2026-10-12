@@ -110,13 +110,13 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
       />
 
       {q?.has_structure ? (
-        <div className="border-b px-5 py-3 text-[13px]">
+        <div className="border-b px-[var(--card-pad)] py-3 text-[13px]">
           <span className="font-medium">{q.structure}</span> · {' '}
           <span className="tabular-nums">{formatPaise(q.total_paise)}</span> for the
           year, {q.instalments} instalment{q.instalments === 1 ? '' : 's'}.
         </div>
       ) : (
-        <div className="border-b px-5 py-3 text-[13px] text-muted-foreground">
+        <div className="border-b px-[var(--card-pad)] py-3 text-[13px] text-muted-foreground">
           {q?.draft_structure
             ? `${q.draft_structure} exists for this class but has no priced heads, so nothing can be billed from it.`
             : 'No fee structure covers this class yet.'}
