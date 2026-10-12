@@ -189,6 +189,13 @@ export default function LeadPanel({ id, onClose, onOpen }: { id: string; onClose
   const [follow, setFollow] = useState(ymdIn(2))
   const [msg, setMsg] = useState('')
   const [losing, setLosing] = useState(false)
+  /* A VISIT HAS A DATE (2026-10-12, found testing: "Visit booked" set the
+     stage and nobody knew when the family was coming). Booking asks for the
+     day and the time; the day becomes the next follow-up, so the lead is in
+     "Due today" on the morning of the visit, and the note says when. */
+  const [booking, setBooking] = useState(false)
+  const [visitDay, setVisitDay] = useState('')
+  const [visitTime, setVisitTime] = useState('')
   const [ok, setOk] = useState('')
 
   const refresh = () => {
@@ -204,6 +211,16 @@ export default function LeadPanel({ id, onClose, onOpen }: { id: string; onClose
   const stage = useMutation({
     mutationFn: (status: string) => api.put(`/api/v1/admissions/workflow/enquiries/${id}`, { status }),
     onSuccess: () => { setOk('Stage changed.'); refresh() },
+  })
+  const bookVisit = useMutation({
+    mutationFn: () => {
+      const day = new Date(visitDay + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      return api.put(`/api/v1/admissions/workflow/enquiries/${id}`, {
+        status: 'visit_scheduled', next_follow_up: visitDay,
+        notes: `Visit on ${day}${visitTime ? ` at ${visitTime}` : ''}`,
+      })
+    },
+    onSuccess: () => { setOk('Visit booked.'); setBooking(false); setVisitDay(''); setVisitTime(''); refresh() },
   })
   const reopen = useMutation({
     mutationFn: () => api.post(`/api/v1/admissions/leads/${id}/reopen`),
@@ -291,9 +308,29 @@ export default function LeadPanel({ id, onClose, onOpen }: { id: string; onClose
               <div className={SEG_BAR} role="group" aria-label="Stage">
                 {STAGES.filter((s) => s.value !== 'applied' && s.value !== 'lost').map((s) => (
                   <button key={s.value} type="button" className={segClass(e.status === s.value)} disabled={stage.isPending}
-                    onClick={() => e.status !== s.value && stage.mutate(s.value)}>{s.label}</button>
+                    onClick={() => {
+                      if (s.value === 'visit_scheduled') { setBooking((v) => !v); return }
+                      if (e.status !== s.value) stage.mutate(s.value)
+                    }}>{s.label}</button>
                 ))}
               </div>
+              {booking && (
+                <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    <span className="text-muted-foreground">Visit date</span>
+                    <Input type="date" value={visitDay} onChange={setVisitDay} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    <span className="text-muted-foreground">Time (optional)</span>
+                    <Input type="time" value={visitTime} onChange={setVisitTime} />
+                  </label>
+                  <Button disabled={!visitDay || bookVisit.isPending} onClick={() => bookVisit.mutate()}>
+                    {bookVisit.isPending ? 'Booking…' : 'Book visit'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setBooking(false)}>Cancel</Button>
+                  <FormNotice error={bookVisit.error} />
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => nav(convertHref({ ...e }))}>Convert to application</Button>
                 <ApplyLink id={id} phone={e.phone} />

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge, PrintButton,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge, PrintButton, ConfirmButton,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -770,9 +770,12 @@ export default function Applications() {
                   <div className="border-t pt-5">
                     <p className="eyebrow mb-2">Decision</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button disabled={decide.isPending} onClick={() => decide.mutate({ decision: 'offered' })}>
+                      {/* Asked once (2026-10-12): one click offered a seat to the family. */}
+                      <ConfirmButton variant="primary" size="md" disabled={decide.isPending} confirmLabel="Offer the place"
+                        question={`Offer ${open.name} a place in ${open.class_sought ?? 'this class'}? They move to Fee & enrolment.`}
+                        onConfirm={() => decide.mutate({ decision: 'offered' })}>
                         Offer a place
-                      </Button>
+                      </ConfirmButton>
                       <Button variant="secondary" disabled={decide.isPending}
                         onClick={() => decide.mutate({ decision: 'waitlisted' })}>
                         Waitlist

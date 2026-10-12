@@ -96,6 +96,7 @@ export default {
         let tx: TenantSession | null = null
         let watch: ReturnType<typeof watchAuthWrites> | null = null
         const ctx = { req, env, url, params: hit.params, id,
+          later: ectx ? (p: Promise<unknown>) => ectx.waitUntil(p.catch(() => undefined)) : undefined,
           get db() { if (!tx) { if (!id.institution) throw forbidden('no school in scope'); tx = tenantSession(env, id.institution, req); watch = watchAuthWrites(tx.db) } return watch!.db } }
         // Go's Idempotent middleware sits after the gates, around the handler.
         const res = await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })

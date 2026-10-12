@@ -331,12 +331,21 @@ export function registerAdmissionsWorkflow(r: Router) {
     await c.db.batch(stmts)
     // Go: notifyApplicant(admissions.application_received, stage:submitted). The parent login is not ported.
     let acknowledged = false, ackNote = ''
-    const facts = await loadApplicantFacts(c, appID)
-    if (facts) {
-      const r = await notifyApplicant(c, appID, 'admissions.application_received', facts, null, 'stage:submitted')
-      if (r.ok) acknowledged = true
-      else if (r.noEmail) ackNote = 'No email address on the application, so no acknowledgement was sent.'
-      else ackNote = 'The acknowledgement could not be queued: ' + r.error
+    /* The parent's acknowledgement is sent after the reply (2026-10-12: filing
+       waited on the mail service, 3-4 seconds of 'Filing…' at the desk). */
+    const ack = async () => {
+      const facts = await loadApplicantFacts(c, appID)
+      return facts ? notifyApplicant(c, appID, 'admissions.application_received', facts, null, 'stage:submitted') : null
+    }
+    if (c.later) {
+      c.later(ack())
+      acknowledged = !!nz(req.parent_email)
+      if (!acknowledged) ackNote = 'No email address on the application, so no acknowledgement was sent.'
+    } else {
+      const r = await ack()
+      if (r?.ok) acknowledged = true
+      else if (r?.noEmail) ackNote = 'No email address on the application, so no acknowledgement was sent.'
+      else if (r) ackNote = 'The acknowledgement could not be queued: ' + r.error
     }
     const out: Record<string, unknown> = { id: appID, application_no: appNo, status: 'submitted', acknowledged }
     if (ackNote !== '') out.note = ackNote

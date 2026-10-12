@@ -1802,10 +1802,21 @@ export function Select({
   // Closing on an outside click rather than on blur: blur fires before the
   // click that chose an option, so a blur-closed menu is a menu you cannot
   // click anything in.
+  /* TYPED, NOT CLICKED (2026-10-12, found testing the enquiry form: "Grade 6"
+     typed into Class sought and the suggestion not clicked saved nothing).
+     Leaving the box -- a click elsewhere or Tab -- keeps the typed text when
+     it names exactly one option. A partial word still picks nothing. */
+  const exactRef = useRef<{ value: string } | undefined>(undefined)
+  const pickRef = useRef(onChange)
+  pickRef.current = onChange
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) { setOpen(false); setQuery(''); setTyped(false) }
+      if (box.current && !box.current.contains(e.target as Node)) {
+        const m = exactRef.current
+        if (m) pickRef.current(m.value)
+        setOpen(false); setQuery(''); setTyped(false)
+      }
     }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
@@ -1882,6 +1893,7 @@ export function Select({
   const selected = all.find((o) => o.value === value)
   const q = query.trim().toLowerCase()
   const shown = q ? all.filter((o) => o.label.toLowerCase().includes(q)) : all
+  exactRef.current = typed && q ? (() => { const hits = all.filter((o) => o.label.toLowerCase() === q); return hits.length === 1 ? hits[0] : undefined })() : undefined
   /* OFFERED ONLY TO SOMEBODY WHO MAY DO IT.
 
      Adding to a vocabulary writes a row every form in the school then reads,
@@ -1994,6 +2006,11 @@ export function Select({
             else if (canUseTyped && active === shown.length) choose(query.trim())
             else if (shown[active]) choose(shown[active].value)
           } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
+          else if (e.key === 'Tab') {
+            const m = exactRef.current
+            if (m) onChange(m.value)
+            setOpen(false); setQuery(''); setTyped(false)
+          }
         }}
       />
       {/* A real button, not a decoration: the owner asked that every
