@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, ErrorState, Button,
+  Table, Td, Badge, SkeletonTable, ErrorState, Button, Select,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { Printer } from 'lucide-react'
@@ -50,10 +51,26 @@ function ageTone(bucket: string): 'success' | 'warning' | 'danger' | 'neutral' {
   return 'warning'
 }
 
+interface Year { id: string; name: string; is_current?: boolean }
+
 export default function FeeOverview() {
+  /* A YEAR AT A TIME, AND THE YEAR IS A CHOICE (owner, 2026-10-12: "add year
+     dropdown and show that years cards").
+
+     The four figures were always the current year's and said so in small
+     print, which answers a trustee asking about this year and nobody asking
+     about last. The endpoint already took ?year=; nothing on the screen ever
+     sent one. Empty means the school's current year, so the page opens where
+     it always did. */
+  const [year, setYear] = useState('')
+  const years = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: () => api.get<List<Year>>('/api/v1/academics/years'),
+  })
+  const yq = year ? `?year=${encodeURIComponent(year)}` : ''
   const overview = useQuery({
-    queryKey: ['rollup-fee-overview'],
-    queryFn: () => api.get<Overview>(OVERVIEW),
+    queryKey: ['rollup-fee-overview', year],
+    queryFn: () => api.get<Overview>(OVERVIEW + yq),
   })
   const ageing = useQuery({
     queryKey: ['rollup-fee-ageing'],
@@ -88,7 +105,14 @@ export default function FeeOverview() {
         description={`Collection, outstanding and concessions for ${d.academic_year}. Detailed accounting stays with Finance.`}
         actions={
           <div className="flex gap-2">
-            <CsvButton href={OVERVIEW} label="Export by class" />
+            {(years.data?.items?.length ?? 0) > 1 && (
+              <div className="w-40 shrink-0">
+                <Select value={year} onChange={setYear}
+                  options={(years.data?.items ?? []).map((y) => ({ value: y.id, label: y.name + (y.is_current ? ' · current' : '') }))}
+                  placeholder="This year" />
+              </div>
+            )}
+            <CsvButton href={OVERVIEW + yq} label="Export by class" />
             <Button variant="secondary" onClick={printOverview} disabled={!overview.data}><Printer className="h-4 w-4" /> Print</Button>
           </div>
         }

@@ -188,9 +188,23 @@ export function FeesYear({ invoices, payments, outstanding, breakdown }: {
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
           <h3 className="text-[15px] font-semibold">Receipts</h3>
-          <div className="w-36">
-            <Select value={year} onChange={setYear} options={years.map((y) => ({ value: y, label: y }))} />
-          </div>
+          {/* A PICKER WITH ONE CHOICE IS A BROKEN BUTTON (owner, 2026-10-12:
+              "when i cliikc that dropdown nothing is working").
+
+              The list is built from the years this child actually has
+              receipts and bills in. For most children that is one year, so
+              the control opened a menu holding the year already showing and
+              closed again having changed nothing -- which is exactly what a
+              broken control looks like. It appears only when there is
+              somewhere else to go; otherwise the year is printed, because
+              the heading still has to say which year the table is. */}
+          {years.length > 1 ? (
+            <div className="w-36">
+              <Select value={year} onChange={setYear} options={years.map((y) => ({ value: y, label: y }))} />
+            </div>
+          ) : (
+            <span className="text-[13px] text-muted-foreground">{year}</span>
+          )}
         </div>
         <Table head={['Receipt', 'Date', 'Amount', 'Mode of payment', 'Reference', '']} empty={pay.length === 0}
           emptyLabel={`No payments in ${year}.`}>
