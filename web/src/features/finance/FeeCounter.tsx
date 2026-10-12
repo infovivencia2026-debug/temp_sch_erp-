@@ -181,6 +181,8 @@ export default function FeeCounter() {
         ? (owedPaise > 0 ? `That is more than is owed. The most you can collect is ₹${(owedPaise / 100).toFixed(2)}.` : 'Nothing is owed on this account.')
       : isCheque && reference.trim() === ''
         ? 'A cheque needs its number before it can be collected.'
+      : mode === 'upi' && reference.trim() === ''
+        ? 'A UPI payment needs its UTR before it can be collected.'
         : ''
   const canCollect = blocker === ''
 
@@ -445,12 +447,21 @@ export default function FeeCounter() {
                       parent types the amount. This one carries the amount the
                       clerk just typed and the admission number, so the parent
                       types nothing and the bank narration says whose money it
-                      was. The UTR is optional: a receipt must never wait on
-                      it, but it is what reconciliation matches on. */}
+                      was.
+
+                      THE UTR IS REQUIRED (owner, 2026-10-12: "utr is not a
+                      optional in take fee payment"). It was optional, so that
+                      a receipt never waited on a parent reading a number off
+                      their phone. The cost of that was UPI receipts with
+                      nothing to match in the bank statement -- reconciliation
+                      keys on the UTR -- leaving the clerk to pair them by
+                      hand, by amount and date, against every other payment of
+                      the same amount that day. It is asked for here the same
+                      way a cheque number is. */}
                   {mode === 'upi' && (
                     <>
                       <label className="block">
-                        <span className="text-[13px] text-muted-foreground">UPI reference (UTR), optional</span>
+                        <span className="text-[13px] text-muted-foreground">UPI reference (UTR) <span className="text-destructive">*</span></span>
                         <Input value={reference} onChange={setReference} placeholder="The 12-digit UTR from the parent's app" className="mt-1 w-full" />
                       </label>
                       {!upiVpa ? (

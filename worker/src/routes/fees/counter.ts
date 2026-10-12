@@ -320,8 +320,22 @@ export function registerCounter(r: Router): void {
     if (req.paid_on) { if (!isDate(req.paid_on)) throw badRequest('paid_on must be YYYY-MM-DD'); paidOn = req.paid_on }
     let chequeDate: string | null = null
     if (req.cheque_date) { if (!isDate(req.cheque_date)) throw badRequest('cheque_date must be YYYY-MM-DD'); chequeDate = req.cheque_date }
-    const reference = req.reference_no ?? ''
+    const reference = (req.reference_no ?? '').trim()
     if ((mode === 'cheque' || mode === 'dd') && reference === '') throw badRequest('reference_no (instrument number) is required for cheque or DD')
+    /* A UPI RECEIPT CARRIES ITS UTR (owner, 2026-10-12: "utr is not a
+       optional in take fee payment").
+
+       It used to be optional here and on the counter screen, on the reasoning
+       that a receipt must never wait on the parent reading a number off their
+       phone. What that produced was UPI receipts with nothing to match in the
+       bank statement: reconciliation keys on the UTR, so a payment without
+       one can only ever be matched by hand, by amount and date, against every
+       other payment of the same amount that day.
+
+       So it is required now, exactly as a cheque number is. The rule lives
+       here as well as on the screen because the counter is not the only way
+       in -- the assistant posts to this same endpoint. */
+    if (mode === 'upi' && reference === '') throw badRequest('a UPI payment needs its UTR: it is what the bank statement is matched on')
     const invoiceIds: string[] = []
     for (const raw of req.invoice_ids ?? []) { if (!isUUID(raw)) throw badRequest('invoice_ids must be uuids'); invoiceIds.push(raw) }
 
