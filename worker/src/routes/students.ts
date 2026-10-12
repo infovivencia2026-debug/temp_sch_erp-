@@ -663,17 +663,11 @@ export function assembleFeeHeads(lines: Record<string, unknown>[]): { head: stri
     share.sort((a, b) => b.rest - a.rest || b.x.line - a.x.line)
     share.forEach((sh, i) => { sh.x.got = sh.whole + (i < left ? 1 : 0) })
   }
-  /* KEPT APART BY YEAR (owner, 2026-10-12: "dont show pervious years show
-     this year and add dropdown for pervious years also").
-
-     A child carrying a balance from an earlier year had it added into this
-     year's heads, so the child's breakdown disagreed with the Fee overview,
-     which counts this year only. The rows come back per head PER YEAR and
-     the screen picks the year. */
+  // One row per head per academic year: the screen shows a year at a time.
   const heads = new Map<string, { head: string; year: string; charged: number; paid: number }>()
   for (const list of byInvoice.values()) {
     for (const x of list) {
-      const k = x.year + ' ' + x.head
+      const k = x.year + '\u0000' + x.head
       const h = heads.get(k) ?? { head: x.head, year: x.year, charged: 0, paid: 0 }
       h.charged += x.line; h.paid += x.got
       heads.set(k, h)
@@ -796,12 +790,11 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
        in assembleFeeHeads below, where the remainder can go somewhere. */
     c.db.prepare(`SELECT CASE WHEN inv.instalment_no IN (1,2,3) THEN 'Term ' || inv.instalment_no || COALESCE(' · ' || fh.name, '')
                               ELSE COALESCE(fh.name, il.description, 'Other') END AS head, il.invoice_id,
-                         COALESCE(ay.name, substr(inv.issued_on, 1, 4)) AS year,
-                         (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise
-                    FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id
-                    LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
+                         (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise,
+                         COALESCE(ay.name, '') AS year
+                    FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
                     LEFT JOIN academic_years ay ON ay.id = inv.academic_year_id
-                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY year DESC, head`).bind(id),
+                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),
     c.db.prepare(`SELECT COALESCE(pm.receipt_no,'') AS receipt_no, pm.paid_on, CAST(pm.amount_paise AS TEXT) AS amount_paise, pm.mode,
                          COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference, pm.status
                     FROM payments pm WHERE pm.student_id = ? ORDER BY pm.paid_on DESC, pm.created_at DESC LIMIT 100`).bind(id),
