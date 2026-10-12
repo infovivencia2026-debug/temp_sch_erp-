@@ -1537,6 +1537,15 @@ export default function StudentProfile() {
             seconds and is then gone — so for every child admitted before
             today there was nowhere to see whether a concession had been asked
             for, and nowhere to ask for one. */}
+        {/* WHAT THEY OWE, BEFORE HOW IT WAS BILLED (owner, 2026-10-12:
+            "i dont see uniform and transport fee and others eca").
+
+            It was there all along -- under the figures, the receipts, the
+            invoices and the concessions, four cards down a tab nobody
+            scrolls to the end of. The question the tab is opened with is
+            what this child owes and for what, so that is the first thing
+            on it; the receipts and the invoices behind it are the workings. */}
+        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         <StudentFees
           studentID={p.id}
           classID={detail.data?.class_id ?? undefined}
@@ -1546,7 +1555,6 @@ export default function StudentProfile() {
             qc.invalidateQueries({ queryKey: ['student-profile', selected] })
           }}
         />
-        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         </>
       ),
     },

@@ -628,6 +628,54 @@ async function admissionFeePreview(c: Ctx) {
   })
 }
 
+/* A BILL IS SETTLED, NOT A LINE OF IT.
+
+   A payment lands on an invoice; this works out how much of it each head on
+   that invoice got. Every line takes its whole-paise share, and the paise
+   left over by the division go to the largest lines first, so the shares add
+   up to exactly what was paid. One head on the invoice -- which is every
+   invoice this product raises today -- means the head simply takes all of
+   it, and a settled bill shows a zero balance instead of two paise. */
+export function assembleFeeHeads(lines: Record<string, unknown>[]): { head: string; charged_paise: string; paid_paise: string }[] {
+  const byInvoice = new Map<string, { head: string; line: number; got: number }[]>()
+  for (const r of lines) {
+    const inv = String(r.invoice_id)
+    const list = byInvoice.get(inv) ?? []
+    list.push({ head: String(r.head), line: Number(r.line_paise) || 0, got: 0 })
+    byInvoice.set(inv, list)
+  }
+  for (const r of lines) {
+    const list = byInvoice.get(String(r.invoice_id))!
+    if (list.some((x) => x.got !== 0)) continue
+    const paid = Math.max(0, Number(r.paid_paise) || 0)
+    const total = list.reduce((a, x) => a + x.line, 0)
+    if (total <= 0 || paid <= 0) continue
+    /* Never hand out more than the bill came to: an overpayment sits as a
+       credit on the account, it does not make a head more than paid. */
+    const pot = Math.min(paid, total)
+    let left = pot
+    const share = list.map((x) => {
+      const exact = (x.line * pot) / total
+      const whole = Math.floor(exact)
+      left -= whole
+      return { x, whole, rest: exact - whole }
+    })
+    share.sort((a, b) => b.rest - a.rest || b.x.line - a.x.line)
+    share.forEach((sh, i) => { sh.x.got = sh.whole + (i < left ? 1 : 0) })
+  }
+  const heads = new Map<string, { charged: number; paid: number }>()
+  for (const list of byInvoice.values()) {
+    for (const x of list) {
+      const h = heads.get(x.head) ?? { charged: 0, paid: 0 }
+      h.charged += x.line; h.paid += x.got
+      heads.set(x.head, h)
+    }
+  }
+  return [...heads.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([head, v]) => ({ head, charged_paise: String(v.charged), paid_paise: String(v.paid) }))
+}
+
 // --- the 360 view ------------------------------------------------------------------------------------
 
 async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
@@ -729,11 +777,19 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams e ON e.id = es.exam_id
                     JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
                    WHERE m.student_id = ? ORDER BY e.starts_on DESC, sub.name`).bind(id),
-    c.db.prepare(`SELECT COALESCE(fh.name, il.description, 'Other') AS head,
-                         CAST(SUM(il.amount_paise - il.discount_paise) AS TEXT) AS charged_paise,
-                         CAST(SUM(CAST(ROUND((il.amount_paise - il.discount_paise) * CASE WHEN inv.net_paise > 0 THEN inv.paid_paise * 1.0 / inv.net_paise ELSE 0 END) AS INTEGER)) AS TEXT) AS paid_paise
+    /* WHAT THE FEES ARE FOR, TO THE LAST PAISA.
+
+       The split used to be done in SQL, one line at a time: each line took
+       ROUND(line * paid / net) of the payment. Round five lines separately
+       and they do not add back up to what was paid -- a fully settled bill
+       came out of this screen as Transport 2 paise short, Uniform 1 paise
+       short, every head "part paid", which is the kind of thing a parent
+       rings about. The rows come back raw now and the paise are handed out
+       in assembleFeeHeads below, where the remainder can go somewhere. */
+    c.db.prepare(`SELECT COALESCE(fh.name, il.description, 'Other') AS head, il.invoice_id,
+                         (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise
                     FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
-                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' GROUP BY head ORDER BY head`).bind(id),
+                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),
     c.db.prepare(`SELECT COALESCE(pm.receipt_no,'') AS receipt_no, pm.paid_on, CAST(pm.amount_paise AS TEXT) AS amount_paise, pm.mode,
                          COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference, pm.status
                     FROM payments pm WHERE pm.student_id = ? ORDER BY pm.paid_on DESC, pm.created_at DESC LIMIT 100`).bind(id),
@@ -784,7 +840,7 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
   const as = <T>(r: D1Result) => r.results as T
   return {
     subject_marks: rows(marks).map((m) => ({ ...(m as unknown as D['subject_marks'][number]), absent: bool(m.absent), approved: bool(m.approved) })),
-    fee_heads: as<D['fee_heads']>(feeHeads),
+    fee_heads: assembleFeeHeads(rows(feeHeads)) as D['fee_heads'],
     payments: as<D['payments']>(payments),
     documents: rows(documents).map((d) => ({ ...(d as unknown as D['documents'][number]), verified: bool(d.verified) })),
     leave: as<D['leave']>(leave),

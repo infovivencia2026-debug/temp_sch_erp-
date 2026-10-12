@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { Field } from '@/components/RecordShell'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
-import { formatPaise, formatDate } from '@/lib/utils'
+import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 /* The depth behind Student 360's tabs.
 
@@ -129,6 +129,14 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
         title="What the fees are for"
         description="Paid is spread across an invoice's heads in proportion, a payment settles a bill, not a particular line of it."
       />
+      {/* A TOTAL AT THE FOOT (owner, 2026-10-12: "like this it should be
+          breakdown of every student", with a Total row under the heads).
+
+          Five heads and no sum is a column of numbers the reader has to add
+          up to answer the only question they came with, which is what this
+          child owes altogether. The foot carries it, and it is the same
+          arithmetic as the Outstanding figure at the top of the tab, so the
+          two cannot disagree. */}
       <Table head={['Fee head', 'Charged', 'Paid', 'Balance', 'Status']} empty={false}>
         {heads.map((h) => {
           const charged = Number(h.charged_paise ?? 0)
@@ -148,6 +156,20 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
             </tr>
           )
         })}
+        {(() => {
+          const charged = heads.reduce((a, h) => a + Number(h.charged_paise ?? 0), 0)
+          const paid = heads.reduce((a, h) => a + Number(h.paid_paise ?? 0), 0)
+          const due = charged - paid
+          return (
+            <tr className="border-t-2 bg-muted/40 font-semibold">
+              <Td className="font-semibold">Total</Td>
+              <Td className="tabular-nums font-semibold">{formatPaise(charged)}</Td>
+              <Td className="tabular-nums font-semibold">{formatPaise(paid)}</Td>
+              <Td className={cn('tabular-nums font-semibold', due > 0 && 'text-destructive')}>{formatPaise(due)}</Td>
+              <Td>{due <= 0 ? <Badge tone="success">nothing due</Badge> : <Badge tone="warning">outstanding</Badge>}</Td>
+            </tr>
+          )
+        })()}
       </Table>
     </Card>
     )}
