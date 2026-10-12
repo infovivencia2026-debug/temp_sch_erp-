@@ -1530,7 +1530,8 @@ export default function StudentProfile() {
       key: 'fees', label: 'Fees', badge: overdue || undefined,
       render: () => (
         <>
-        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise} />
+        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise}
+          breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />} />
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety
@@ -1545,7 +1546,6 @@ export default function StudentProfile() {
             scrolls to the end of. The question the tab is opened with is
             what this child owes and for what, so that is the first thing
             on it; the receipts and the invoices behind it are the workings. */}
-        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         <StudentFees
           studentID={p.id}
           classID={detail.data?.class_id ?? undefined}

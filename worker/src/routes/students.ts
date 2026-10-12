@@ -786,7 +786,8 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
        short, every head "part paid", which is the kind of thing a parent
        rings about. The rows come back raw now and the paise are handed out
        in assembleFeeHeads below, where the remainder can go somewhere. */
-    c.db.prepare(`SELECT COALESCE(fh.name, il.description, 'Other') AS head, il.invoice_id,
+    c.db.prepare(`SELECT CASE WHEN inv.instalment_no IN (1,2,3) THEN 'Term ' || inv.instalment_no || COALESCE(' · ' || fh.name, '')
+                              ELSE COALESCE(fh.name, il.description, 'Other') END AS head, il.invoice_id,
                          (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise
                     FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
                    WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),

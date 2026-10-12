@@ -160,10 +160,14 @@ export function AcademicsYear({ results, marks, loading, attendancePercent, figu
 }
 
 /* FEES: the year's bills and the year's receipts, with how each was paid. */
-export function FeesYear({ invoices, payments, outstanding }: {
+export function FeesYear({ invoices, payments, outstanding, breakdown }: {
   invoices: StudentProfile['invoices']
   payments: StudentFullDetail['payments']
   outstanding: number
+  /* What the fees are for, by head. Straight under the four figures
+     (owner, 2026-10-12, looking at a Yajur child: "i dont see" -- it was the
+     fourth card, under the receipts and the invoices). */
+  breakdown?: import('react').ReactNode
 }) {
   const years = yearsOf([...invoices.map((x) => x.date), ...payments.map((x) => x.paid_on)])
   const [year, setYear] = useState(academicYear())
@@ -180,6 +184,7 @@ export function FeesYear({ invoices, payments, outstanding }: {
         <Kpi label="Outstanding" value={formatPaise(outstanding)} small="All years" tone={outstanding ? 'text-destructive' : undefined} />
         <Kpi label="Invoices" value={String(inv.length)} small={year} />
       </div>
+      {breakdown}
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
           <h3 className="text-[15px] font-semibold">Receipts</h3>
