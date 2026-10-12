@@ -235,8 +235,9 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
       if (e.clientX < r.left + r.width / 2) fns.current.back()
       return
     }
+    /* A single tap does nothing (owner, 2026-10-12): pausing is the pause
+       button's job, in the corner of the video and in the row below it. */
     t.at = now
-    t.timer = window.setTimeout(() => fns.current.toggle(), 260)
   }
   if (!locked) return <>{children}</>
   const b = 'inline-flex min-h-11 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] font-medium text-foreground hover:bg-muted'
@@ -247,8 +248,12 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
         {children}
         {/* Over the player: taps come here, and the player itself never takes
             focus, so its own controls and keys never see a press. */}
-        <button type="button" aria-label={playing ? 'Pause' : 'Play'} tabIndex={-1} onClick={onTap}
-          className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation bg-transparent outline-none ring-0 [-webkit-tap-highlight-color:transparent] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" style={{ boxShadow: "none" }} onMouseDown={(e) => e.preventDefault()} />
+        <button type="button" aria-hidden tabIndex={-1} onClick={onTap}
+          className="absolute inset-0 h-full w-full cursor-default touch-manipulation bg-transparent outline-none ring-0 [-webkit-tap-highlight-color:transparent] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" style={{ boxShadow: "none" }} onMouseDown={(e) => e.preventDefault()} />
+        <button type="button" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}
+          className={`${full ? "fixed bottom-5 left-5" : "absolute bottom-3 left-3"} z-10 grid size-11 place-items-center rounded-full bg-black/60 text-white [-webkit-tap-highlight-color:transparent]`}>
+          {playing ? <Pause className="size-5" aria-hidden /> : <Play className="size-5" aria-hidden />}
+        </button>
       </div>
       {/* In full screen: the way back out, and nothing else. */}
       {full && (

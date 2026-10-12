@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Card, CardHeader, Table, Td, Input, Button, Loading, ErrorState, Badge } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Input, Button, Loading, ErrorState, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 /* MOVE FROM MYCLASSBOARD IN AN AFTERNOON.
@@ -80,62 +80,140 @@ export default function MoveFromMCB() {
   }
 
   const result = results[open]
+  const idx = STEPS.findIndex((x) => x.entity === open)
+  /* Turn an import field's name into something a person reads: the API
+     sends them as they are stored (admission_no, father_phone), and the
+     screen was printing them in monospace with a red asterisk, which is
+     what a database tool looks like, not this product. */
+  const words = (n: string) => n.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+  const stateOf = (e: string) => {
+    const r = results[e]
+    return !r ? 'todo' : r.dry_run ? 'checked' : 'done'
+  }
+
   return (
     <>
       <PageHead eyebrow="Getting started" title="Move from MyClassBoard" />
       <PageBody>
-        <div className="space-y-4">
+        <div className="space-y-4 pb-24">
+          {/* THE FIVE FILES AS STEPS, NOT AS A TABLE (owner, 2026-10-12:
+              "nothing in that feature matches our theme").
+
+              They were drawn with the shared data Table, which gave a list
+              of five instructions a row count and an Export button -- there
+              is nothing to export from a set of instructions -- and no sign
+              of which one you were on beyond a faint row tint. They are a
+              sequence, so they are drawn as one: numbered, joined by a line,
+              each carrying its own state, the open one marked. */}
           <Card>
             <CardHeader title="Five files, in this order" description="Download each from MyClassBoard as Excel, save it as CSV, and bring it here. A dry run writes nothing." />
-            <Table head={['Step', 'What', 'Where in MyClassBoard', 'Status']}>
-              {STEPS.map((s, i) => {
-                const r = results[s.entity]
+            <ol className="px-[var(--card-pad)] pb-[var(--card-pad)]">
+              {STEPS.map((x, i) => {
+                const st = stateOf(x.entity)
+                const here = x.entity === open
                 return (
-                  <tr key={s.entity} className={cn('cursor-pointer', open === s.entity && 'bg-surface-hover')} onClick={() => setOpen(s.entity)}>
-                    <Td className="tabular-nums text-muted-foreground">{i + 1}</Td>
-                    <Td className="font-medium">{s.title}</Td>
-                    <Td className="text-muted-foreground"><span className="block max-w-[40ch] whitespace-normal">{s.mcb}</span></Td>
-                    <Td>{r ? (r.dry_run ? <Badge tone="info">Dry run: {r.valid} of {r.total} ok</Badge> : <Badge tone="success">{r.imported} imported</Badge>) : <span className="text-muted-foreground">Not started</span>}</Td>
-                  </tr>
+                  <li key={x.entity} className="relative flex gap-3">
+                    {i < STEPS.length - 1 && (
+                      <span aria-hidden className={cn('absolute left-[15px] top-9 h-[calc(100%-1.5rem)] w-px', st === 'done' ? 'bg-success' : 'bg-border')} />
+                    )}
+                    <span aria-hidden className={cn('relative z-10 mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[13px] font-semibold',
+                      st === 'done' ? 'border-success bg-success text-success-foreground'
+                        : here ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-muted-foreground')}>
+                      {st === 'done' ? '\u2713' : i + 1}
+                    </span>
+                    <button type="button" onClick={() => setOpen(x.entity)}
+                      className={cn('mb-1 flex min-h-11 w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-3 py-2 text-left transition-colors',
+                        here ? 'bg-muted' : 'hover:bg-muted/50')}>
+                      <span className="min-w-0">
+                        <span className="block text-[14.5px] font-semibold">{x.title}</span>
+                        <span className="block text-[12.5px] text-muted-foreground">{x.note}</span>
+                      </span>
+                      {st === 'done'
+                        ? <Badge tone="success">{results[x.entity]!.imported} imported</Badge>
+                        : st === 'checked'
+                          ? <Badge tone="info">Checked: {results[x.entity]!.valid} of {results[x.entity]!.total} ok</Badge>
+                          : <span className="text-[12.5px] text-muted-foreground">Not started</span>}
+                    </button>
+                  </li>
                 )
               })}
-            </Table>
+            </ol>
           </Card>
 
           <Card>
-            <CardHeader title={step.title} description={step.note} action={
-              <a className="text-[13px] underline-offset-2 hover:underline" href={templateUrl(step.entity)}>Our template</a>
+            <CardHeader title={`Step ${idx + 1} \u00b7 ${step.title}`} description={step.note} action={
+              <a href={templateUrl(step.entity)} className="shrink-0">
+                <Button variant="secondary" size="sm">Our template</Button>
+              </a>
             } />
-            <div className="space-y-4 px-5 pb-5">
-              {fields.isLoading ? <Loading shape="inline" /> : fields.error ? <ErrorState error={fields.error} /> : (
-                <Table head={['Our column', 'MyClassBoard column', 'Example']}>
-                  {(fields.data?.fields ?? []).map((f) => (
-                    <tr key={f.name}>
-                      <Td className="font-mono text-[12.5px]">{f.name}{f.required && <span className="text-destructive"> *</span>}</Td>
-                      <Td>
-                        <Input className="w-56" value={maps[step.entity][f.name] ?? ''} placeholder="Leave blank if MCB has no such column"
-                          onChange={(v) => setMaps({ ...maps, [step.entity]: { ...maps[step.entity], [f.name]: v } })} />
-                      </Td>
-                      <Td className="text-muted-foreground">{f.example ?? ''}</Td>
-                    </tr>
-                  ))}
-                </Table>
-              )}
-              <div className="flex flex-wrap items-center gap-3">
-                <input type="file" accept=".csv,text/csv" className="text-[13px]" onChange={(e) => { setFiles({ ...files, [step.entity]: e.target.files?.[0] ?? null }); setResults({ ...results, [step.entity]: null }) }} />
-                <Button variant="secondary" disabled={!files[step.entity] || busy !== ''} onClick={() => run(step.entity, false)}>{busy === step.entity + ':dry' ? 'Checking…' : 'Dry run'}</Button>
-                <Button disabled={!result || !result.dry_run || result.valid === 0 || busy !== ''} onClick={() => run(step.entity, true)}>{busy === step.entity + ':commit' ? 'Importing…' : `Import ${result?.valid ?? 0} rows`}</Button>
+            <div className="space-y-5 px-[var(--card-pad)] pb-[var(--card-pad)]">
+              {/* Where it comes from belongs with the step you are on, not in
+                  a column repeated five times down a table. */}
+              <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
+                <span className="block text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Where to find it in MyClassBoard</span>
+                <span className="mt-0.5 block text-[13.5px]">{step.mcb}</span>
               </div>
+
+              <div>
+                <h3 className="text-[14px] font-semibold">Match the columns</h3>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">MyClassBoard&rsquo;s own column names are filled in already. Change one only where that school&rsquo;s export differs; leave it empty if there is no such column.</p>
+                {fields.isLoading ? <Loading shape="inline" /> : fields.error ? <ErrorState error={fields.error} /> : (
+                  <div className="mt-3 divide-y rounded-lg border">
+                    {(fields.data?.fields ?? []).map((f) => (
+                      <div key={f.name} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5">
+                        <span className="min-w-[9rem] flex-1">
+                          <span className="text-[13.5px] font-medium">{words(f.name)}</span>
+                          {f.required && <Badge tone="warning" className="ml-2">Required</Badge>}
+                          {f.example && <span className="block text-[12px] text-muted-foreground">e.g. {f.example}</span>}
+                        </span>
+                        <Input className="w-full sm:w-64" value={maps[step.entity][f.name] ?? ''} placeholder="No such column"
+                          onChange={(v) => setMaps({ ...maps, [step.entity]: { ...maps[step.entity], [f.name]: v } })} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-[14px] font-semibold">Choose the file</h3>
+                {/* A bare <input type="file"> was the one unstyled control on
+                    the page, and on Windows it reads "No file chosen" in the
+                    browser's own grey. The input is still the input -- it is
+                    inside the label, so the keyboard and the screen reader
+                    get the real control -- it is simply not drawn. */}
+                <label className="mt-2 flex min-h-11 cursor-pointer flex-wrap items-center gap-3 rounded-lg border border-dashed px-3 py-3 transition-colors hover:bg-muted/40">
+                  <input type="file" accept=".csv,text/csv" className="sr-only"
+                    onChange={(e) => { setFiles({ ...files, [step.entity]: e.target.files?.[0] ?? null }); setResults({ ...results, [step.entity]: null }) }} />
+                  <span className="rounded-md border bg-card px-3 py-1.5 text-[13px] font-medium">Choose a CSV</span>
+                  <span className="text-[13.5px] text-muted-foreground">{files[step.entity]?.name ?? 'No file chosen yet'}</span>
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="secondary" disabled={!files[step.entity] || busy !== ''} onClick={() => run(step.entity, false)}>{busy === step.entity + ':dry' ? 'Checking\u2026' : 'Dry run'}</Button>
+                <Button disabled={!result || !result.dry_run || result.valid === 0 || busy !== ''} onClick={() => run(step.entity, true)}>{busy === step.entity + ':commit' ? 'Importing\u2026' : `Import ${result?.valid ?? 0} rows`}</Button>
+                {!files[step.entity] && <span className="text-[12.5px] text-muted-foreground">Choose a file to begin.</span>}
+              </div>
+
               {error[step.entity] && <p className="text-[13.5px] text-destructive">{error[step.entity]}</p>}
+
               {result && (
-                <div className="space-y-2">
-                  <p className="text-[13.5px]">{result.dry_run ? 'Dry run' : 'Imported'}: {result.valid} of {result.total} rows ok{result.rejected ? `, ${result.rejected} cannot be taken` : ''}{!result.dry_run ? `, ${result.imported} written` : ''}.</p>
+                <div className={cn('rounded-lg border px-3 py-3', result.rejected ? 'border-warning/40 bg-warning/5' : 'border-success/40 bg-success/5')}>
+                  <p className="text-[13.5px] font-medium">
+                    {result.dry_run ? 'Dry run' : 'Imported'}: {result.valid} of {result.total} rows ok{result.rejected ? `, ${result.rejected} cannot be taken` : ''}{!result.dry_run ? `, ${result.imported} written` : ''}.
+                  </p>
+                  {result.dry_run && result.valid > 0 && <p className="mt-0.5 text-[12.5px] text-muted-foreground">Nothing has been written yet. Press Import to keep it.</p>}
                   {result.problems.length > 0 && (
-                    <Table head={['Row', 'Problem']}>
-                      {result.problems.slice(0, 50).map((p, i) => (
-                        <tr key={i}><Td className="tabular-nums">{p.row}</Td><Td className="whitespace-normal">{p.problem}</Td></tr>
+                    <ul className="mt-2.5 space-y-1 border-t pt-2.5">
+                      {result.problems.slice(0, 50).map((x, i) => (
+                        <li key={i} className="flex gap-2 text-[13px]">
+                          <span className="shrink-0 tabular-nums text-muted-foreground">Row {x.row}</span>
+                          <span>{x.problem}</span>
+                        </li>
                       ))}
-                    </Table>
+                      {result.problems.length > 50 && <li className="text-[12.5px] text-muted-foreground">and {result.problems.length - 50} more.</li>}
+                    </ul>
                   )}
                 </div>
               )}
