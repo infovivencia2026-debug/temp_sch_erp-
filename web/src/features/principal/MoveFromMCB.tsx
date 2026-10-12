@@ -192,7 +192,7 @@ export default function MoveFromMCB() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="secondary" disabled={!files[step.entity] || busy !== ''} onClick={() => run(step.entity, false)}>{busy === step.entity + ':dry' ? 'Checking\u2026' : 'Dry run'}</Button>
-                <Button disabled={!result || !result.dry_run || result.valid === 0 || busy !== ''} onClick={() => run(step.entity, true)}>{busy === step.entity + ':commit' ? 'Importing\u2026' : `Import ${result?.valid ?? 0} rows`}</Button>
+                <Button disabled={!result || !result.dry_run || result.valid === 0 || busy !== ''} onClick={() => run(step.entity, true)}>{busy === step.entity + ':commit' ? 'Importing\u2026' : `Import ${result?.valid ?? 0} row${result?.valid === 1 ? '' : 's'}`}</Button>
                 {!files[step.entity] && <span className="text-[12.5px] text-muted-foreground">Choose a file to begin.</span>}
               </div>
 
