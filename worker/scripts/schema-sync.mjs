@@ -9,6 +9,7 @@
 //   --out <dir>                            write there instead (tests)
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { WORKER, buildFresh, dump, listMigrations, pad } from './migrate-lib.mjs'
 
 const args = process.argv.slice(2)
@@ -39,7 +40,8 @@ ${list}
   return files
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL: on Windows argv[1] is C:\..., which a plain `file://` + path never equals.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const files = await generate()
   let stale = 0
   for (const [rel, text] of Object.entries(files)) {

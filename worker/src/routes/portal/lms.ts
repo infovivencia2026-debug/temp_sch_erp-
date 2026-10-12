@@ -487,6 +487,18 @@ export function registerPortalLMS(r: Router) {
      video; every one of them must be there, and the child must have opened
      the lesson at least half the video's length ago (2x is the fastest
      YouTube plays), so a forged map from a fresh page does not count. */
+  /* Where the child is in a YouTube lesson, from any device (0079). */
+  r.get('/portal/lms/lessons/{id}/youtube-progress', PERM, async (c) => {
+    const sid = await child(c)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    try {
+      const p = await c.db.prepare(`SELECT position_seconds AS position, watched, bucket_seconds FROM lms_yt_progress WHERE lesson_id = ? AND student_id = ?`)
+        .bind(id, sid).first()
+      return ok(p ?? { position: 0, watched: '', bucket_seconds: null })
+    } catch { return ok({ position: 0, watched: '', bucket_seconds: null }) }
+  })
+
   r.post('/portal/lms/lessons/{id}/youtube-watched', PERM, async (c) => {
     const me = await self(c)
     const k = await classroom(c, me.id)
@@ -500,7 +512,20 @@ export function registerPortalLMS(r: Router) {
     const dur = Number(b.duration)
     if (!(dur > 0) || dur > 6 * 3600) throw badRequest('duration is required')
     const bucket = bucketFor(dur), n = Math.ceil(dur / bucket)
-    const watched = typeof b.watched === 'string' ? b.watched.slice(0, n).replace(/[^01]/g, '0').padEnd(n, '0') : ''.padEnd(n, '0')
+    const sent = typeof b.watched === 'string' ? b.watched.slice(0, n).replace(/[^01]/g, '0').padEnd(n, '0') : ''.padEnd(n, '0')
+    /* KEPT ON THE SERVER, so another phone carries on from here (0079). Merged
+       with what was saved; a school whose database has not had 0079 yet
+       still finishes lessons, it just does not remember the place. */
+    let watched = sent
+    try {
+      const prev = await c.db.prepare(`SELECT watched, bucket_seconds FROM lms_yt_progress WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id)
+        .first<{ watched: string; bucket_seconds: number }>()
+      watched = mergeWatched(prev && prev.bucket_seconds === bucket ? prev.watched : '', sent, n)
+      const pos = Math.max(0, Math.min(dur, Number(b.position) || 0))
+      await c.db.prepare(`INSERT INTO lms_yt_progress (institution_id, lesson_id, student_id, position_seconds, bucket_seconds, watched, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (lesson_id, student_id) DO UPDATE SET position_seconds = excluded.position_seconds, bucket_seconds = excluded.bucket_seconds, watched = excluded.watched, updated_at = excluded.updated_at`)
+        .bind(institutionId(c), l.id, me.id, pos, bucket, watched, now()).run()
+    } catch { /* no lms_yt_progress here yet */ }
     const percent = Math.min(100, Math.round((100 * [...watched].filter((x) => x === '1').length) / n))
     if (!fullyWatched(watched)) return ok({ id: l.id, percent, done: false })
     const seen = await c.db.prepare(`SELECT first_at FROM lms_lesson_views WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id).first<{ first_at: string }>()

@@ -371,7 +371,18 @@ export function YouTubeLesson({
     let timer = 0
     function watch(p: YTPlayer) {
       const key = `yt-watched:${tr.current!.lessonId}`
-      let map: number[] = [], bucket = 5, last = -1, sending = false, finished = false, resumed = false
+      let map: number[] = [], bucket = 5, last = -1, sending = false, finished = false, resumed = false, saved = 0
+      /* The server's copy (any device), read once; this browser's copy is the fallback. */
+      let server: { position: number; watched: string; bucket_seconds: number | null } | null = null
+      let asked = false
+      const ask = async () => {
+        asked = true
+        try {
+          const acting = actingInstitution()
+          const res = await fetch(`/api/v1/portal/lms/lessons/${tr.current!.lessonId}/youtube-progress`, { credentials: 'same-origin', headers: acting ? { 'X-Acting-Institution': acting } : {} })
+          server = res.ok ? await res.json() : { position: 0, watched: '', bucket_seconds: null }
+        } catch { server = { position: 0, watched: '', bucket_seconds: null } }
+      }
       const posKey = `yt-pos:${tr.current!.lessonId}`
       const send = async (dur: number) => {
         if (sending || finished) return
@@ -381,7 +392,7 @@ export function YouTubeLesson({
           const res = await fetch(`/api/v1/portal/lms/lessons/${tr.current!.lessonId}/youtube-watched`, {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
-            body: JSON.stringify({ duration: dur, watched: map.map((x) => (x ? '1' : '0')).join('') }),
+            body: JSON.stringify({ duration: dur, position: p.getCurrentTime(), watched: map.map((x) => (x ? '1' : '0')).join('') }),
           })
           if (!res.ok) return
           const r = await res.json() as { done: boolean }
@@ -406,17 +417,22 @@ export function YouTubeLesson({
         if (dead) return
         const dur = p.getDuration?.() ?? 0
         if (!(dur > 0)) return
+        if (!asked) { void ask(); return }
+        if (!server) return
         if (!map.length) {
           bucket = Math.max(5, Math.ceil(dur / 2000))
-          let saved = ''
-          try { saved = localStorage.getItem(key) ?? '' } catch { /* private window */ }
-          map = Array.from({ length: Math.ceil(dur / bucket) }, (_, i) => (saved[i] === '1' ? 1 : 0))
+          let local = ''
+          try { local = localStorage.getItem(key) ?? '' } catch { /* private window */ }
+          const remote = server.bucket_seconds === bucket ? server.watched : ''
+          map = Array.from({ length: Math.ceil(dur / bucket) }, (_, i) => (local[i] === '1' || remote[i] === '1' ? 1 : 0))
         }
         /* Continue where it was left: the place saved in this browser. */
         if (!resumed) {
           resumed = true
           let pos = 0
           try { pos = Number(localStorage.getItem(posKey) ?? 0) } catch { /* fine */ }
+          /* The further of the two: this phone, or wherever they got to on another. */
+          pos = Math.max(pos, Number(server.position) || 0)
           if (pos > 5 && pos < dur - 5) { resumeAt.current = pos; p.seekTo(pos, true); last = -1; return }
         }
         let t = p.getCurrentTime()
@@ -436,6 +452,8 @@ export function YouTubeLesson({
           }
         }
         last = playing ? t : -1
+        /* Every ten seconds of playing, the place goes to the server too. */
+        if (playing && Date.now() - saved > 10_000) { saved = Date.now(); void send(dur) }
         if (map.length && !map.slice(0, -1).includes(0)) void send(dur)
       }, 1000)
     }
