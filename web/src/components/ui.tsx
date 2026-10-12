@@ -2015,9 +2015,13 @@ export function Select({
       />
       {/* A real button, not a decoration: the owner asked that every
           dropdown carry one, so it is plain that the box opens a list. */}
-      <button type="button" tabIndex={-1} aria-label={open ? 'Close list' : 'Open list'}
+      <button type="button" tabIndex={-1} aria-label="Open list"
         onMouseDown={(e) => e.preventDefault()}
-        onClick={() => { setOpen((o) => !o); setActive(0) }}
+        /* THE ARROW OPENS, IT NEVER CLOSES (owner, 2026-10-12: "that drop down is
+           not working, the down button"). It toggled: a click in the box opened the
+           list and the arrow pressed next shut it again, so the arrow read as dead.
+           Picking an option, clicking away or Esc closes it. */
+        onClick={() => { setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }) }}
         className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
         <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
       </button>
