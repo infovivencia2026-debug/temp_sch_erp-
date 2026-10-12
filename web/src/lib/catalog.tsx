@@ -59,7 +59,7 @@ export function setAllRoles(on: boolean) {
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const session = useSessionIfAny()
   const snapKey = catalogSnapshotKey(session?.user?.id, session?.institution?.id, allRolesOn())
-  const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isPending, isError, error, dataUpdatedAt, fetchStatus, refetch } = useQuery({
     queryKey: ['catalog', allRolesOn()],
     /* Last load's menu for this same person at this same school, painted at
        once and refetched at once (updated-at 0 is always stale). See
@@ -83,7 +83,15 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
      cold load shows: this is the state a person sees every time a workspace
      loads -- after sign-in, on every school switch -- and it used to be the
      words "Loading workspace…" alone in the middle of a blank page. */
-  if (isLoading) return <WorkspaceLoading />
+  /* NOT AN ERROR WHEN NOTHING FAILED (2026-10-12). A first load right after
+     sign-in can have its catalogue request cancelled by the page change; the
+     query is then pending with no data, no error and nothing in flight, and
+     this screen said "Could not load your workspace" over a perfectly good
+     session. That state now shows the loading screen and asks again. */
+  useEffect(() => {
+    if (isPending && !isError && fetchStatus === 'idle') void refetch()
+  }, [isPending, isError, fetchStatus, refetch])
+  if (isLoading || (isPending && !isError)) return <WorkspaceLoading />
   if (isError || !data) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">
