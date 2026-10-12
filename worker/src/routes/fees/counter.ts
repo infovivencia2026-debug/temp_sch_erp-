@@ -328,6 +328,12 @@ export function registerCounter(r: Router): void {
     const st = await c.db.prepare(`SELECT institution_id, campus_id FROM students WHERE id = ?`).bind(req.student_id).first<{ institution_id: string; campus_id: string }>()
     if (!st) throw notFound()
     await requireOpenPeriod(c, paidOn)
+    /* Never more than is owed (2026-10-12): an amount above the dues was taken
+       as a receipt and left the account in credit with no one deciding it. */
+    {
+      const due = (await outstanding(c, req.student_id)).filter((d) => !invoiceIds.length || invoiceIds.includes(d.invoice_id)).reduce((s, d) => s + d.balance_paise, 0)
+      if (amount > due) throw new HttpError(409, due > 0 ? `That is more than is owed: the most that can be collected is ₹${rupeesFixed(due)}.` : 'Nothing is owed on this account.', { code: 'over_payment' })
+    }
 
     /* The counter's own copy of the rule above: a cheque waits to clear,
        whatever its date. Two copies of one rule is how the helper was

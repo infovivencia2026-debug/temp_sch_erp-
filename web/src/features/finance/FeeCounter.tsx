@@ -163,6 +163,10 @@ export default function FeeCounter() {
 
   const isCheque = mode === 'cheque' || mode === 'dd'
   const amountPaise = rupeesToPaise(amount)
+  /* NEVER MORE THAN IS OWED (2026-10-12, found at the counter: ₹5 against a
+     ₹0.31 balance went through as a receipt and left the account at -₹4.69).
+     A slip of a zero at a fee counter is real money. */
+  const owedPaise = selected.size ? selectedTotal : dues.reduce((a, d) => a + d.balance_paise, 0)
   /* Why the button is dead, not merely that it is.
 
      Three separate conditions disabled Collect and the clerk was told none of
@@ -173,6 +177,8 @@ export default function FeeCounter() {
     ? 'Find a student first.'
     : amountPaise <= 0
       ? 'Enter an amount to collect.'
+      : amountPaise > owedPaise
+        ? (owedPaise > 0 ? `That is more than is owed. The most you can collect is ₹${(owedPaise / 100).toFixed(2)}.` : 'Nothing is owed on this account.')
       : isCheque && reference.trim() === ''
         ? 'A cheque needs its number before it can be collected.'
         : ''
