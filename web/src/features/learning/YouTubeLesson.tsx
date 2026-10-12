@@ -224,12 +224,15 @@ export function LockedFrame({ locked, playing, toggle, back, restart, children, 
   /* A TAP PLAYS OR PAUSES; TWO QUICK TAPS DO NOTHING. The single tap waits a
      moment to be sure it was not the first of two. */
   const tap = useRef<{ at: number; timer: number }>({ at: 0, timer: 0 })
-  const onTap = () => {
+  const onTap = (e: React.MouseEvent<HTMLButtonElement>) => {
     const now = Date.now(), t = tap.current
     if (now - t.at < 300) {
-      /* A double tap does nothing at all (owner, 2026-10-10): not back, not
-         forward, not even the pause the first tap was about to do. */
+      /* A double tap never pauses (the first tap's pause is cancelled). On
+         the left half it goes back 10 seconds; on the right half it does
+         nothing at all (owner, 2026-10-12), in every view. */
       window.clearTimeout(t.timer); t.at = 0
+      const r = e.currentTarget.getBoundingClientRect()
+      if (e.clientX < r.left + r.width / 2) fns.current.back()
       return
     }
     t.at = now
