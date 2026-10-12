@@ -100,8 +100,15 @@ export function SubjectMarks({ rows, loading }: {
    proportion to what each is worth — a payment lands on an invoice, not on a
    head, and there is no honest way to say which head a part-payment settled.
    The screen says so rather than leaving somebody to work it out. */
-export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']> }) {
-  if (heads.length === 0 && components.length === 0) return null
+export function FeeLedger({ heads: allHeads, components = [] }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']> }) {
+  /* ONE YEAR AT A TIME (owner, 2026-10-12: "make a dropdown year wise and
+     show selected year"). Earlier years' dues sat in the same table as this
+     year's terms and the total mixed them. The newest year is shown first. */
+  const years = [...new Set(allHeads.map((h) => h.year ?? ''))].sort((a, b) => b.localeCompare(a))
+  const [pickedYear, setPickedYear] = useState('')
+  const year = years.includes(pickedYear) ? pickedYear : (years[0] ?? '')
+  const heads = allHeads.filter((h) => (h.year ?? '') === year)
+  if (allHeads.length === 0 && components.length === 0) return null
   return (
     <>
     {components.length > 0 && (
@@ -128,6 +135,11 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
       <CardHeader
         title="What the fees are for"
         description="Paid is spread across an invoice's heads in proportion, a payment settles a bill, not a particular line of it."
+        action={years.length > 1 && years[0] ? (
+          <div className="w-40">
+            <Select value={year} onChange={setPickedYear} options={years.map((y) => ({ value: y, label: y }))} />
+          </div>
+        ) : undefined}
       />
       {/* A TOTAL AT THE FOOT (owner, 2026-10-12: "like this it should be
           breakdown of every student", with a Total row under the heads).

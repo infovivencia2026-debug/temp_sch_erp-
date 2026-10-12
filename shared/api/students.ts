@@ -75,7 +75,8 @@ export interface StudentProfile {
 /** Every tab of the student record in one round trip (GET /students/{id}/detail). */
 export interface StudentFullDetail {
   subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
-  fee_heads: { head: string; charged_paise?: string; paid_paise?: string }[]
+  /* year: the academic year the bills belong to, so the breakdown can show one year at a time. */
+  fee_heads: { head: string; year?: string; charged_paise?: string; paid_paise?: string }[]
   /* Charges this child carries that their class does not: the bus fare from
      the stop they board at. Per instalment, added to every demand raised
      while live. */
