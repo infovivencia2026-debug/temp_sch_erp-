@@ -101,6 +101,21 @@ export function SubjectMarks({ rows, loading }: {
    head, and there is no honest way to say which head a part-payment settled.
    The screen says so rather than leaving somebody to work it out. */
 export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']> }) {
+  /* THIS YEAR, WITH THE OTHERS A PICK AWAY (owner, 2026-10-12: "dont show
+     pervious years show this year and add dropdown for pervious years
+     also").
+
+     The card added every year together, so a child carrying an old balance
+     read higher here than on the Fee overview, which counts this year only.
+     Two screens, two answers, about the same money.
+
+     The newest year the child has a bill in is what opens -- not today's
+     date, because a child admitted mid-year has nothing in the current one
+     and an empty card is not an answer. "All years" is still in the list,
+     for the question of what the family owes the school altogether. */
+  const years = [...new Set(heads.map((h) => h.year).filter(Boolean))].sort().reverse()
+  const [year, setYear] = useState(years[0] ?? '')
+  const shown = year === '*' ? heads : heads.filter((h) => h.year === year)
   if (heads.length === 0 && components.length === 0) return null
   return (
     <>
@@ -127,7 +142,15 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
     <Card>
       <CardHeader
         title="What the fees are for"
-        description="Paid is spread across an invoice's heads in proportion, a payment settles a bill, not a particular line of it."
+        description={year === '*'
+          ? 'Every year the child has been billed in. Paid is spread across an invoice’s heads in proportion, a payment settles a bill, not a particular line of it.'
+          : `${year || 'This year'} only. Paid is spread across an invoice’s heads in proportion, a payment settles a bill, not a particular line of it.`}
+        action={years.length > 1 ? (
+          <div className="w-44 shrink-0">
+            <Select value={year} onChange={setYear}
+              options={[...years.map((y) => ({ value: y, label: y })), { value: '*', label: 'All years' }]} />
+          </div>
+        ) : undefined}
       />
       {/* A TOTAL AT THE FOOT (owner, 2026-10-12: "like this it should be
           breakdown of every student", with a Total row under the heads).
@@ -138,12 +161,12 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
           arithmetic as the Outstanding figure at the top of the tab, so the
           two cannot disagree. */}
       <Table head={['Fee head', 'Charged', 'Paid', 'Balance', 'Status']} empty={false}>
-        {heads.map((h) => {
+        {shown.map((h) => {
           const charged = Number(h.charged_paise ?? 0)
           const paid = Number(h.paid_paise ?? 0)
           const due = charged - paid
           return (
-            <tr key={h.head}>
+            <tr key={h.year + h.head}>
               <Td className="font-medium">{h.head}</Td>
               <Td className="tabular-nums">{formatPaise(charged)}</Td>
               <Td className="tabular-nums">{formatPaise(paid)}</Td>
@@ -157,8 +180,8 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
           )
         })}
         {(() => {
-          const charged = heads.reduce((a, h) => a + Number(h.charged_paise ?? 0), 0)
-          const paid = heads.reduce((a, h) => a + Number(h.paid_paise ?? 0), 0)
+          const charged = shown.reduce((a, h) => a + Number(h.charged_paise ?? 0), 0)
+          const paid = shown.reduce((a, h) => a + Number(h.paid_paise ?? 0), 0)
           const due = charged - paid
           return (
             <tr className="border-t-2 bg-muted/40 font-semibold">
