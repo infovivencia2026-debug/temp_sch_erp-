@@ -171,6 +171,9 @@ export function registerAdmissionsWorkflow(r: Router) {
     } else if (status !== 'lost' && before.status === 'lost') {
       stmts.push(c.db.prepare(`UPDATE enquiries SET lost_reason = NULL, lost_reason_note = NULL, lost_at = NULL, lost_by = NULL, lost_month = NULL WHERE id = ?`).bind(c.params.id))
     }
+    /* 'Called' on the list marks the lead contacted: that is a contact, so
+       'Last contacted' says when (2026-10-12: it said Never after a Called). */
+    if (status === 'contacted' && str(req.status) === 'contacted') stmts.push(c.db.prepare(`UPDATE enquiries SET last_contacted_at = ? WHERE id = ?`).bind(t, c.params.id))
     if (status !== before.status) stmts.push(activityStmt(c.db, inst, c.params.id, 'stage', { from: before.status, to: status, body: nz(status === 'lost' ? lostLabel : ''), follow, author: c.id.userId, at: t }))
     const said = str(req.notes).trim()
     if (said !== '') stmts.push(activityStmt(c.db, inst, c.params.id, 'note', { body: said, follow, author: c.id.userId, at: t }))

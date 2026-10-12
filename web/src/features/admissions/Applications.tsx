@@ -661,7 +661,9 @@ export default function Applications() {
                 ['Applied on', new Date(open.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })],
                 ['RTE seat', open.is_rte ? 'Yes' : 'No'],
                 ['Form fee', open.form_fee_paise == null ? 'None' : `₹${(open.form_fee_paise / 100).toLocaleString('en-IN')}${open.form_fee_paid_at ? ' · paid' : ' · unpaid'}`],
-                ['Documents', `${open.docs_verified} of ${open.docs_required} verified${open.docs_rejected ? `, ${open.docs_rejected} rejected` : ''}`],
+                /* From the refreshed list, not the copy taken when the panel opened:
+                   verifying a document left this at '1 of 4' (2026-10-12). */
+                ...((() => { const live = (apps.data?.items ?? []).find((x) => x.id === open.id) ?? open; return [['Documents', `${live.docs_verified} of ${live.docs_required} verified${live.docs_rejected ? `, ${live.docs_rejected} rejected` : ''}`]] as const })()),
               ] as const).map(([k, v]) => (
                 <div key={k}><dt className="text-[11.5px] text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
               ))}

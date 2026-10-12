@@ -74,6 +74,8 @@ export default function Documents({
       setRejecting(null)
       setWhy('')
       qc.invalidateQueries({ queryKey: ['application-documents', applicationId] })
+      // The application's own count (and the list's badge) moves with it.
+      qc.invalidateQueries({ queryKey: ['applications'] })
     },
   })
 
