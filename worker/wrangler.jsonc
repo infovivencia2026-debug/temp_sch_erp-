@@ -24,7 +24,11 @@
   // The files Pages serves beside the app (the sign-in stylesheet and fonts
   // under /static, the legal pages). Needed when the Worker is visited
   // directly, as on workers.dev; behind Pages they are served there first.
-  "assets": { "directory": "../web/public" },
+  // html_handling none: web/public/_redirects ends with the site's SPA
+  // fallback (/* /index.html 200), which Pages needs; with the Worker's default
+  // .html stripping Cloudflare refuses that rule as a loop and the whole deploy
+  // fails. The Worker serves these files as they are named.
+  "assets": { "directory": "../web/public", "html_handling": "none" },
   "vars": {
     // Session lifetime and idle limit, seconds. Same defaults as the Go server.
     "SESSION_TTL_SECONDS": "2592000",
