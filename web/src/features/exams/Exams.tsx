@@ -278,6 +278,10 @@ function ScheduleExam({
               options={CCE}
             />
           </Field>
+          {/* Pre-filled from the component (FA 20, SA 80) and editable: schools differ (owner, 2026-10-13). */}
+          <Field label="Max marks" hint="Applies to every paper of this exam.">
+            <Input type="number" value={f.max_marks} onChange={(x) => setF({ ...f, max_marks: x })} />
+          </Field>
           <Field label="Starts on">
             <Input type="date" value={f.starts_on} onChange={(x) => setF({ ...f, starts_on: x })} />
           </Field>
