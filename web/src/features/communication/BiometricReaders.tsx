@@ -73,6 +73,16 @@ export default function BiometricReaders() {
     },
   })
 
+  /* Fetch history: the reader sends every punch it holds on its next check-in. */
+  const [asked, setAsked] = useState<string | null>(null)
+  const history = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/setup/biometric-devices/${id}/fetch-history`, {}),
+    onSuccess: (_r, id) => {
+      setAsked(id)
+      for (const t of [30_000, 60_000, 120_000]) window.setTimeout(() => qc.invalidateQueries({ queryKey: ['biometric-devices'] }), t)
+    },
+  })
+
   const rows = devices.data?.items ?? []
   const orphans = unclaimed.data?.items ?? []
 
@@ -166,6 +176,13 @@ export default function BiometricReaders() {
                     )}
                   </Td>
                   <Td>
+                    <div className="flex flex-wrap justify-end gap-2">
+                    {d.is_active && (
+                      <Button size="sm" variant="secondary" pending={history.isPending && history.variables === d.id}
+                        title="Ask the reader to send every punch it holds" onClick={() => history.mutate(d.id)}>
+                        {asked === d.id ? 'Asked · arrives within a minute' : 'Fetch history'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={d.is_active ? 'ghost' : 'primary'}
@@ -176,11 +193,13 @@ export default function BiometricReaders() {
                     >
                       {d.is_active ? 'Deactivate' : 'Activate'}
                     </Button>
+                    </div>
                   </Td>
                 </tr>
               ))}
             </Table>
           )}
+          <FormNotice error={history.error} />
         </Card>
 
         {orphans.length > 0 && (

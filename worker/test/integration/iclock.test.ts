@@ -35,3 +35,16 @@ it('stores each punch once and marks the day present, in and out', async () => {
   expect(a).toMatchObject({ status: 'present', source: 'device' })
   expect(a!.check_in < a!.check_out).toBe(true)
 })
+
+it('Fetch history: the next check-in asks once for everything, and the answer is stored', async () => {
+  const dev = (await T().prepare(`SELECT id FROM biometric_devices WHERE serial = ?`).bind(SN).first<{ id: string }>())!.id
+  await T().prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, '{}')`).bind(IDS.school, `biometric_history:${dev}`).run()
+  const cmd = await (await call(`/iclock/getrequest?SN=${SN}`)).text()
+  expect(cmd).toMatch(/DATA QUERY ATTLOG/)
+  expect(await (await call(`/iclock/getrequest?SN=${SN}`)).text()).toBe('OK')
+  // A newer reader answers in key=value form.
+  const r = await call(`/iclock/querydata?SN=${SN}&type=tabledata&tablename=ATTLOG`, { method: 'POST', body: 'ATTLOG PIN=7\tTime=2026-10-01 09:02:00\tStatus=0\tVerify=1\n' })
+  expect(await r.text()).toBe('OK: 1')
+  const n = await T().prepare(`SELECT count(*) AS n FROM biometric_punches WHERE punched_at LIKE '2026-10-01%'`).first<{ n: number }>()
+  expect(n!.n).toBe(1)
+})

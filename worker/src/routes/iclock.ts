@@ -24,6 +24,27 @@ import { parsePunchTime, rollUpImportedDay } from './setup/imports'
    day's staff attendance exactly as an uploaded punch file is
    (setup/imports.ts rollUpImportedDay). */
 
+/** The module_settings row that holds a reader's pending "send me your history". */
+export const HISTORY_KEY = (deviceId: string) => `biometric_history:${deviceId}`
+
+/** [user id, time, status, verify] from either line format a reader uses:
+    "7<tab>2026-10-12 08:41:02<tab>0<tab>1" or "PIN=7<tab>Time=2026-10-12 08:41:02<tab>Status=0<tab>Verify=1". */
+function punchFields(line: string): string[] | null {
+  const t = line.trim()
+  if (!t) return null
+  if (/=/.test(t)) {
+    const kv = new Map<string, string>()
+    for (const part of t.replace(/^\S+\s+(?=\S+=)/, '').split(/\t|\s{2,}/)) {
+      const i = part.indexOf('=')
+      if (i > 0) kv.set(part.slice(0, i).trim().toLowerCase(), part.slice(i + 1).trim())
+    }
+    const pin = kv.get('pin') ?? kv.get('userid') ?? kv.get('user_id'), time = kv.get('time') ?? kv.get('datetime') ?? kv.get('checktime')
+    return pin && time ? [pin, time, kv.get('status') ?? '', kv.get('verify') ?? kv.get('verifytype') ?? ''] : null
+  }
+  const f = t.split('\t').map((x) => x.trim())
+  return f.length >= 2 && f[0] && f[1] ? f : null
+}
+
 const text = (body: string, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/plain' } })
 
 /* Which school a serial belongs to, kept for the life of this isolate. */
@@ -69,16 +90,19 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     ].join('\n') + '\n')
   }
 
-  if (path === '/iclock/cdata' && req.method === 'POST') {
+  /* Punches: the live push (cdata, table=ATTLOG) and the answer to a
+     history request (querydata, tablename=ATTLOG / transaction). */
+  const table = (url.searchParams.get('table') ?? url.searchParams.get('tablename') ?? '').toUpperCase()
+  if ((path === '/iclock/cdata' || path === '/iclock/querydata') && req.method === 'POST') {
     const body = await req.text()
-    const table = (url.searchParams.get('table') ?? '').toUpperCase()
-    if (table !== 'ATTLOG' || !db || !dev || !dev.active) return text(`OK: ${body.split('\n').filter((l) => l.trim()).length}`)
+    const isPunches = table === 'ATTLOG' || table === 'TRANSACTION' || (path === '/iclock/querydata' && /time=/i.test(body))
+    if (!isPunches || !db || !dev || !dev.active) return text(`OK: ${body.split('\n').filter((l) => l.trim()).length}`)
     const inst = dev.inst.id
     let n = 0
     const days = new Map<string, string>() // employee -> a punch time on that day, to roll up once each
     for (const line of body.split('\n')) {
-      const f = line.split('\t').map((x) => x.trim())
-      if (f.length < 2 || !f[0] || !f[1]) continue
+      const f = punchFields(line)
+      if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
@@ -95,6 +119,20 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     return text(`OK: ${n}`)
   }
 
-  // getrequest (no commands for the reader), devicecmd and anything else.
+  /* "Any commands for me?" Only one: send everything you hold, when the
+     school pressed Fetch history (setup/staff.ts). Asked both ways, since
+     firmware differs: DATA QUERY for newer readers, CHECK (re-upload from
+     stamp 0, which is what we hand out) for older ones. Asked once. */
+  if (path === '/iclock/getrequest' && db && dev && dev.active) {
+    const key = HISTORY_KEY(dev.deviceId)
+    const want = await db.prepare(`SELECT 1 AS x FROM module_settings WHERE module = ? AND enabled = 1`).bind(key).first()
+    if (want) {
+      await db.prepare(`UPDATE module_settings SET enabled = 0, config = ? WHERE module = ?`).bind(JSON.stringify({ sent_at: now() }), key).run()
+      const id = Math.floor(Date.now() / 1000) % 100000
+      return text(`C:${id}:DATA QUERY ATTLOG StartTime=2000-01-01 00:00:00\tEndTime=2099-12-31 23:59:59\nC:${id + 1}:CHECK\n`)
+    }
+  }
+
+  // devicecmd (a command's result) and anything else.
   return text('OK')
 }

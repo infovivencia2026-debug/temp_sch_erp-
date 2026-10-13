@@ -8,6 +8,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
+import { HISTORY_KEY } from '../iclock'
 import { staffHolidayChecker } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
@@ -748,6 +749,20 @@ export function registerStaff(r: Router): void {
       return o
     })
     return ok({ items })
+  })
+
+  /* Fetch history: the reader is asked, on its next check-in (about half a
+     minute), to send every punch it holds. Kept in module_settings until
+     then; nothing is sent twice, as each punch is stored once. */
+  r.post('/setup/biometric-devices/{id}/fetch-history', 'hr.employees.write', async (c) => {
+    const id = c.params.id
+    const d = await c.db.prepare(`SELECT id, is_active, last_seen_at FROM biometric_devices WHERE id = ?`).bind(id).first<{ id: string; is_active: number; last_seen_at: string | null }>()
+    if (!d) throw notFound('no such reader')
+    if (!d.is_active) throw badRequest('switch the reader on first')
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`)
+      .bind(instId(c), HISTORY_KEY(id), JSON.stringify({ asked_at: now(), by: c.id.userId })).run()
+    return ok({ asked: true, last_seen_at: d.last_seen_at })
   })
 
   r.post('/setup/biometric-devices', 'hr.employees.write', async (c) => {
