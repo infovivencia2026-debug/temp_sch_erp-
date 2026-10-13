@@ -1072,13 +1072,14 @@ function registerWorkflow(r: Router) {
     const on = c.url.searchParams.get('on_date') || today()
     const tz = school(c).timezone
     const rows = await c.db.prepare(`
-      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, sa.check_in
+      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, sa.check_in, sa.check_out
         FROM employees e JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?
        WHERE e.status = 'active' ORDER BY e.employee_code`).bind(on).all()
     return ok({ items: rows.results.map((v) => ({
       user_id: v.user_id, employee_code: v.employee_code, full_name: v.full_name,
       status: v.status ?? undefined, check_in: hhmmIn(tz, v.check_in as string | null) ?? undefined,
+      check_out: hhmmIn(tz, v.check_out as string | null) ?? undefined,
     })) })
   })
   r.post('/workflow/staff-attendance', 'hr.attendance.write', markStaffAttendance)

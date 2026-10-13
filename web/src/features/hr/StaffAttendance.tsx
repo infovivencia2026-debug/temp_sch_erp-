@@ -31,6 +31,8 @@ interface StaffRow {
   full_name: string
   status?: string
   check_in?: string
+  /* The last punch of the day, 24-hour like check_in (owner, 2026-10-13: "add in and out time 24 hours format"). */
+  check_out?: string
 }
 
 const MARKS: { value: string; short: string; label: string; tone: string }[] = [
@@ -85,7 +87,7 @@ export default function StaffAttendance() {
       logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     },
     onDate, printedBy: session.user?.full_name ?? '',
-    rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, mark: value(r) })),
+    rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, check_out: r.check_out, mark: value(r) })),
   }))
 
   /* FROM – TO (owner: "let them choose date from to and print those dates").
@@ -229,12 +231,12 @@ export default function StaffAttendance() {
             }
           />
           {q.isLoading ? (
-            <SkeletonTable columns={4} />
+            <SkeletonTable columns={5} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (
             <Table
-              head={['Code', 'Employee', 'Checked in', 'Mark']}
+              head={['Code', 'Employee', 'In', 'Out', 'Mark']}
               empty={!rows.length}
               emptyLabel="No active employees."
             >
@@ -245,6 +247,7 @@ export default function StaffAttendance() {
                     <Td className="font-mono text-[12px]">{r.employee_code}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
                     <Td className="tabular-nums text-muted-foreground">{r.check_in ?? '-'}</Td>
+                    <Td className="tabular-nums text-muted-foreground">{r.check_out ?? '-'}</Td>
                     <Td>
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {
