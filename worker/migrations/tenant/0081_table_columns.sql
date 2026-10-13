@@ -1,0 +1,13 @@
+-- WHICH COLUMNS A PERSON KEEPS (owner, 2026-10-13: "add edit button for every
+-- table in erp for customization ... table cols i meant").
+--
+-- One row per person already holds their theme, density and layout, so the
+-- columns they have turned off live there too: a single read on sign-in
+-- answers for every table in the product at once, rather than one request
+-- per table on every screen they open.
+--
+-- The value is a JSON object keyed by table, each key holding the labels that
+-- person has hidden: {"institution_admin.students.student_360|Student,Class":
+-- ["Date of birth"]}. Labels rather than indexes, so a column added to a table
+-- later does not silently hide a different one.
+ALTER TABLE user_display_preferences ADD COLUMN table_columns TEXT;

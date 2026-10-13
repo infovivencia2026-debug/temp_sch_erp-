@@ -579,6 +579,146 @@ export function useSort<T>(
 /** A column heading. A plain string is not sortable; give it a key to make it so. */
 export type Column = string | { label: string; key?: string; align?: 'right' }
 
+/* COLUMNS A PERSON KEEPS (owner, 2026-10-13: "add edit button for every table
+   in erp for customization ... table cols i meant").
+
+   Three hundred tables in this product and all of them are this one
+   component, so the chooser is built here once rather than three hundred
+   times. Each table gets a control that lists its columns; unticking one
+   hides it for that person on that table, everywhere they sign in.
+
+   WHAT IS STORED is the labels turned OFF, not the ones left on: a column
+   added to a table in a later release then appears for everybody, which is
+   the right default -- storing the ones on would hide every new column from
+   everyone who had ever touched the setting.
+
+   ONE REQUEST FOR THE WHOLE PRODUCT. The map is fetched once into this
+   module and shared; a screen with six tables makes one request, not six.
+   A role whose account cannot read it keeps every column and nothing
+   breaks -- the failure is swallowed on purpose. */
+type ColMap = Record<string, string[]>
+const NO_COLS: string[] = []
+let colMap: ColMap = {}
+let colLoaded = false
+let colLoading: Promise<unknown> | null = null
+const colSubs = new Set<() => void>()
+const colEmit = () => { for (const f of [...colSubs]) f() }
+
+function loadColumnPrefs() {
+  if (colLoaded || colLoading) return
+  colLoading = api
+    .get<{ columns: ColMap }>('/api/v1/portal/preferences/table-columns')
+    .then((r) => { colMap = r?.columns ?? {}; colLoaded = true; colEmit() })
+    .catch(() => { colLoaded = true })
+    .finally(() => { colLoading = null })
+}
+
+/** The labels this person has turned off on this table. */
+function useHiddenColumns(key: string): string[] {
+  useEffect(() => { loadColumnPrefs() }, [])
+  return useSyncExternalStore(
+    (f) => { colSubs.add(f); return () => { colSubs.delete(f) } },
+    () => colMap[key] ?? NO_COLS,
+    () => NO_COLS,
+  )
+}
+
+function setHiddenColumns(key: string, hidden: string[]) {
+  const next = { ...colMap }
+  if (hidden.length) next[key] = hidden
+  else delete next[key]
+  colMap = next
+  colEmit()
+  /* Saved in the background. The screen has already changed; a slow network
+     must not hold a tick box, and a failed save leaves the person looking at
+     what they asked for until they next sign in. */
+  void api.put('/api/v1/portal/preferences/table-columns', { key, hidden }).catch(() => {})
+}
+
+/* The table's name for the setting: the screen it is on, then its own
+   headings. Two tables on one screen differ by their headings; the same
+   table keeps its setting as the reader moves around the product. */
+function tableKeyOf(labels: string[]): string {
+  const path = typeof window === 'undefined' ? '' : window.location.pathname
+  return `${path}|${labels.join('~')}`.slice(0, 300)
+}
+
+function ColumnChooser({ labels, hidden, onChange }: {
+  labels: string[]; hidden: string[]; onChange: (next: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
+  }, [open])
+  /* A column with no heading is the row's own buttons -- Open, Edit, Remove.
+     Nobody means to hide those, and a list of blanks is not a choice. */
+  const choosable = labels.filter((l) => l.trim() !== '')
+  if (choosable.length < 2) return null
+  const shownCount = choosable.filter((l) => !hidden.includes(l)).length
+  return (
+    <div className="relative" ref={box}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="Choose which columns to show"
+        title="Choose which columns to show"
+        className="tap-inline grid size-8 place-items-center rounded-sm border border-border bg-card
+                   text-muted-foreground opacity-60 transition-opacity hover:text-foreground hover:opacity-100
+                   focus-visible:opacity-100 group-hover/table:opacity-100"
+      >
+        <Eye className="h-4 w-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-9 z-30 w-56 rounded-md border bg-popover p-1.5 text-popover-foreground shadow-lg">
+          <p className="px-2 py-1 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Columns</p>
+          <div className="max-h-72 overflow-y-auto">
+            {choosable.map((l) => {
+              const on = !hidden.includes(l)
+              /* The last one standing cannot be turned off: a table with no
+                 columns is not a smaller table, it is a broken screen. */
+              const locked = on && shownCount === 1
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => onChange(on ? [...hidden, l] : hidden.filter((x) => x !== l))}
+                  className={cn('flex min-h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-[13.5px]',
+                    locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted')}
+                  title={locked ? 'A table has to keep one column.' : undefined}
+                >
+                  <span aria-hidden className={cn('grid size-4 shrink-0 place-items-center rounded-[4px] border',
+                    on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
+                    {on && <Check className="h-3 w-3" />}
+                  </span>
+                  <span className="truncate">{l}</span>
+                </button>
+              )
+            })}
+          </div>
+          {hidden.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="mt-1 w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-primary hover:bg-muted"
+            >
+              Show every column
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * A table that stays a table on a phone.
  *
@@ -901,6 +1041,13 @@ export function Table({
   const rows = Children.toArray(children)
   const [page, setPage] = useState(0)
   const [full, setFull] = useState(false)
+  /* The chooser, for this table. The labels name the columns; the key names
+     the table, so the choice survives leaving the screen and coming back. */
+  const colLabels = head.map((h) => (typeof h === 'string' ? h : h.label))
+  const colKey = tableKeyOf(colLabels)
+  const hiddenCols = useHiddenColumns(colKey)
+  const hideAt = colLabels.map((l, i) => (l.trim() !== '' && hiddenCols.includes(l) ? i : -1)).filter((i) => i >= 0)
+  const [colClass] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
   /* While a print is being built every row is drawn: the owner's prints came
      out as "1–10 of 11", the first page of the list and nothing more. */
   const printingAll = useSyncExternalStore(printAllStore.sub, printAllStore.get, () => false)
@@ -1037,11 +1184,20 @@ export function Table({
        scroll left again. The controls that move you through the rows must not
        be reachable only from one horizontal position. */
     <div className="table-frame">
+      {/* The columns this person has turned off are hidden by their position
+          rather than by not rendering them: the rows belong to the screen
+          that drew them, and this component cannot reach inside somebody
+          else's <tr> to drop a cell. Not applied to an empty or loading
+          table, whose single wide cell is not in those columns at all. */}
+      {hideAt.length > 0 && !empty && !loading && (
+        <style>{hideAt.map((i) => `.${colClass} > thead th:nth-child(${i + 1}), .${colClass} > tbody td:nth-child(${i + 1}) { display: none }`).join('')}</style>
+      )}
       <div className="scroll-x">
       <table
         ref={tableEl}
         className={cn(
           'responsive-table text-[14px]',
+          colClass,
           // A table scrolled sideways must not carry away the column naming
           // the row, so is-wide freezes the first column -- see index.css.
           // On a narrow screen index.css freezes it for every table, because
@@ -1206,6 +1362,16 @@ export function Table({
   if (!full) {
     return (
       <div className="relative" data-table-expandable="">
+        {/* Beside the expand control, which is the other thing you can do to
+            a table as a whole. Same weight, same corner, so the pair reads as
+            one set of table controls rather than a new button appearing. */}
+        <div className="absolute right-11 top-1 z-20">
+          <ColumnChooser
+            labels={colLabels}
+            hidden={hiddenCols}
+            onChange={(next) => setHiddenColumns(colKey, next)}
+          />
+        </div>
         <button
           type="button"
           onClick={() => setFull(true)}
