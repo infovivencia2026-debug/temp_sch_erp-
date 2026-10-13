@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
 import DateSheet from './DateSheet'
+import ExamParts from './ExamParts'
 
 /* The exam, and the papers everything else hangs off.
  *
@@ -45,6 +46,7 @@ export default function Exams() {
   const [done, setDone] = useState('')
   const [scheduling, setScheduling] = useState(false)
   const [sheetFor, setSheetFor] = useState('')
+  const [partsFor, setPartsFor] = useState<{ id: string; name: string } | null>(null)
 
   const exams = useQuery({
     queryKey: ['exams-list'],
@@ -161,6 +163,10 @@ export default function Exams() {
                         Date sheet
                       </Button>
                     )}
+                    <Button size="sm" variant={partsFor?.id === e.id ? 'primary' : 'ghost'}
+                      onClick={() => { setPartsFor(partsFor?.id === e.id ? null : { id: e.id, name: e.name }); window.setTimeout(() => document.getElementById('exam-parts')?.scrollIntoView({ behavior: 'smooth' }), 150) }}>
+                      Parts
+                    </Button>
                     <Button
                       size="sm"
                       variant={e.papers === 0 ? 'primary' : 'ghost'}
@@ -188,6 +194,7 @@ export default function Exams() {
           )}
         </Card>
 
+        {partsFor && <div id="exam-parts"><ExamParts key={partsFor.id} examId={partsFor.id} examName={partsFor.name} onClose={() => setPartsFor(null)} /></div>}
         {sheetFor && <div id="date-sheet"><DateSheet key={sheetFor} examId={sheetFor} onClose={() => setSheetFor('')} /></div>}
       </PageBody>
     </>

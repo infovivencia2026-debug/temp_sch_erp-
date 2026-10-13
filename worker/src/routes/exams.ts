@@ -192,6 +192,10 @@ function registerExamGroup(r: Router) {
     const row = await c.db.prepare(`SELECT exam_id, (SELECT COUNT(*) FROM marks m WHERE m.exam_subject_id = ?1) AS entered
         FROM exam_subjects WHERE id = ?1`).bind(esId).first<{ exam_id: string; entered: number }>()
     if (!row) throw notFound('resource not found')
+    // A paper of an exam with parts is out of the parts' sum; it moves when the parts do.
+    if (maxMarks !== null && (await partsOf(c, row.exam_id)).length) {
+      throw coded(409, 'exam_has_parts', 'This exam is marked in parts, so each paper is out of the parts added together. Change the parts on the Exams screen.')
+    }
     if (row.entered > 0 && maxMarks !== null) {
       throw coded(409, 'marks_already_entered', 'this paper already has marks entered, so what it is out of can no longer change, 45 out of 50 is a distinction and 45 out of 100 is a fail. Clear the marks first, or set the maximum on a new paper.')
     }
@@ -254,6 +258,34 @@ function registerExamGroup(r: Router) {
   })
 
   r.typed('POST /exams/marks', MARKS_WRITE, enterMarks)
+
+  // --- exam parts -------------------------------------------------------
+  /* Written 80, Project 10, Notebook 5, Overall 5. The parts are the exam's,
+     so every paper in it is marked the same way; the paper keeps one total in
+     marks, which is why report cards, results and moderation never notice. */
+  r.get('/exams/{id}/parts', EXAMS_READ, async (c) => {
+    const examId = uuidParam(c.params.id)
+    return ok(items(await partsOf(c, examId)))
+  })
+  r.put('/exams/{id}/parts', EXAMS_WRITE, saveExamParts)
+  r.get('/exams/subjects/{id}/part-marks', EXAMS_READ, async (c) => {
+    const esId = uuidParam(c.params.id)
+    const es = await c.db.prepare(`SELECT exam_id FROM exam_subjects WHERE id = ?`).bind(esId).first<{ exam_id: string }>()
+    if (!es) throw notFound('resource not found')
+    const parts = await partsOf(c, es.exam_id)
+    const by = new Map<string, Record<string, number | null>>()
+    if (parts.length) {
+      const rows = await c.db.prepare(`SELECT student_id, part_id, CAST(marks AS REAL) AS marks FROM mark_parts WHERE exam_subject_id = ?`)
+        .bind(esId).all<{ student_id: string; part_id: string; marks: number | null }>()
+      for (const x of rows.results) {
+        const m = by.get(x.student_id) ?? {}
+        m[x.part_id] = x.marks
+        by.set(x.student_id, m)
+      }
+    }
+    return ok({ parts, items: [...by].map(([student_id, p]) => ({ student_id, parts: p })) })
+  })
+  r.put('/exams/subjects/{id}/part-marks', MARKS_WRITE, savePartMarks)
 
   // --- question papers ------------------------------------------------
   r.get('/exams/question-papers', EXAMS_READ, listQuestionPapers)
@@ -413,6 +445,7 @@ function registerExamGroup(r: Router) {
 // ------------------------------------------------------------ marks entry
 
 interface MarksEntry { student_id: string; marks_obtained?: number | null; is_absent?: boolean; remarks?: string }
+interface Paper { max_marks: number; subject: string; grading_scale_id: string | null; academic_year_id: string }
 
 async function enterMarks(c: Ctx): Promise<{ written: number }> {
   const req = await readJSON<{ exam_subject_id?: string; entries?: MarksEntry[] }>(c.req)
@@ -420,34 +453,49 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
   if (!isUUID(esId)) throw badRequest('exam_subject_id must be a uuid')
   const entries = req.entries ?? []
   if (entries.length === 0) throw badRequest('entries must not be empty')
-  const studentIds = entries.map((e) => e.student_id)
+  await requireMarksAccess(c, esId, entries.map((e) => e.student_id))
+  const paper = await loadPaper(c, esId)
+  await requireOpenYear(c, paper.academic_year_id)
+  const stmts = await marksStatements(c, esId, paper, entries)
+  await c.db.batch(stmts)
+  return { written: stmts.length }
+}
 
+/* Who may mark a paper: its subject teacher for those students, or their
+   class teacher, unless the caller already reaches every section. Shared by
+   the one-figure and the per-part entry so the rule exists once. */
+async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): Promise<void> {
   const res = await resolveScope(c)
-  if (!res.anySection && !res.platformAdmin) {
-    const may = await c.db.prepare(`
-      SELECT EXISTS (
-        SELECT 1 FROM exam_subjects es
-          JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
-          JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
-         WHERE es.id = ?1
-      ) OR EXISTS (
-        SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
-         WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
-      ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
-    if (!may?.ok) {
-      throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
-    }
+  if (res.anySection || res.platformAdmin) return
+  const may = await c.db.prepare(`
+    SELECT EXISTS (
+      SELECT 1 FROM exam_subjects es
+        JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
+        JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
+       WHERE es.id = ?1
+    ) OR EXISTS (
+      SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
+       WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
+    ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
+  if (!may?.ok) {
+    throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
   }
+}
 
+async function loadPaper(c: Ctx, esId: string): Promise<Paper> {
   const paper = await c.db.prepare(`
     SELECT CAST(es.max_marks AS REAL) AS max_marks, COALESCE(sub.name, '') AS subject, e.grading_scale_id, e.academic_year_id
       FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
       LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
       LEFT JOIN subjects sub ON sub.id = cs.subject_id
-     WHERE es.id = ?`).bind(esId).first<{ max_marks: number; subject: string; grading_scale_id: string | null; academic_year_id: string }>()
+     WHERE es.id = ?`).bind(esId).first<Paper>()
   if (!paper) throw notFound('resource not found')
-  await requireOpenYear(c, paper.academic_year_id)
+  return paper
+}
 
+/** The marks rows for a batch of entries: limits, grace and grade checked here. */
+async function marksStatements(c: Ctx, esId: string, paper: Paper, entries: MarksEntry[]): Promise<D1PreparedStatement[]> {
+  const studentIds = entries.map((e) => e.student_id)
   const bands = paper.grading_scale_id ? await gradeBands(c, paper.grading_scale_id) : []
   // Existing grace marks: the marks_ceiling trigger checked marks + grace against the paper.
   const existing = await c.db.prepare(`SELECT student_id, CAST(grace_marks AS REAL) AS grace FROM marks
@@ -478,8 +526,185 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
       .bind(uuid(), c.id.institution!.id, esId, e.student_id, m === null ? null : String(m), gradeStr, e.is_absent ? 1 : 0,
         e.remarks ? e.remarks : null, c.id.userId, now()))
   }
+  return stmts
+}
+
+// ------------------------------------------------------------ exam parts
+
+interface ExamPart { id: string; name: string; max_marks: number; sequence: number }
+
+/* A school whose database has not had the parts migration yet simply has no
+   parts: every read answers "none" instead of failing the screen. */
+const noPartsTable = (e: unknown) => /no such table/i.test(String((e as Error)?.message ?? e))
+
+async function partsOf(c: Ctx, examId: string): Promise<ExamPart[]> {
+  try {
+    const rows = await c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts
+        WHERE exam_id = ? ORDER BY sequence, created_at`).bind(examId).all<ExamPart>()
+    return rows.results
+  } catch (e) {
+    if (noPartsTable(e)) return []
+    throw e
+  }
+}
+
+/** Parts of the exam a paper belongs to, keyed by paper: the report card reads several at once. */
+async function partsByPaper(c: Ctx, esIds: string[]): Promise<Map<string, ExamPart[]>> {
+  const out = new Map<string, ExamPart[]>()
+  if (!esIds.length) return out
+  try {
+    const rows = await c.db.prepare(`SELECT es.id AS es_id, p.id, p.name, CAST(p.max_marks AS REAL) AS max_marks, p.sequence
+        FROM exam_subjects es JOIN exam_parts p ON p.exam_id = es.exam_id
+       WHERE es.id IN ${inList(esIds)} ORDER BY p.sequence, p.created_at`).bind(js(esIds)).all<ExamPart & { es_id: string }>()
+    for (const r of rows.results) out.set(r.es_id, [...(out.get(r.es_id) ?? []), r])
+  } catch (e) {
+    if (!noPartsTable(e)) throw e
+  }
+  return out
+}
+
+async function saveExamParts(c: Ctx): Promise<Response> {
+  const examId = uuidParam(c.params.id)
+  const body = await readJSON<{ parts?: { id?: string; name?: string; max_marks?: number }[] }>(c.req)
+  const list = Array.isArray(body.parts) ? body.parts : []
+  const exam = await c.db.prepare(`SELECT academic_year_id FROM exams WHERE id = ?`).bind(examId).first<{ academic_year_id: string }>()
+  if (!exam) throw notFound('resource not found')
+  await requireOpenYear(c, exam.academic_year_id)
+
+  const seen = new Set<string>()
+  const want = list.map((p, i) => {
+    const name = (p.name ?? '').trim()
+    if (!name) throw badRequest(`Part ${i + 1} needs a name.`)
+    if (seen.has(name.toLowerCase())) throw badRequest(`Two parts are called ${name}. Give each part its own name.`)
+    seen.add(name.toLowerCase())
+    const max = Number(p.max_marks)
+    if (!Number.isFinite(max) || max <= 0 || max > 1000) throw badRequest(`${name} needs a maximum between 1 and 1000.`)
+    return { id: p.id && isUUID(p.id) ? p.id : null, name, max, sequence: i }
+  })
+
+  let have: ExamPart[]
+  try {
+    have = (await c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts WHERE exam_id = ?`)
+      .bind(examId).all<ExamPart>()).results
+  } catch (e) {
+    if (noPartsTable(e)) throw badRequest('Exam parts are not switched on for this school yet.')
+    throw e
+  }
+  const haveIds = new Set(have.map((p) => p.id))
+  for (const w of want) if (w.id && !haveIds.has(w.id)) throw badRequest(`${w.name} is no longer a part of this exam. Reload and try again.`)
+
+  /* Lowering a maximum below a mark already given would leave a child above
+     full marks; say whose, rather than clipping their mark in silence. */
+  for (const w of want) {
+    if (!w.id) continue
+    const over = await c.db.prepare(`SELECT ${nameOf('st', false)} AS who, CAST(mp.marks AS REAL) AS marks FROM mark_parts mp
+        JOIN students st ON st.id = mp.student_id WHERE mp.part_id = ? AND mp.marks > ? LIMIT 1`).bind(w.id, w.max).first<{ who: string; marks: number }>()
+    if (over) throw badRequest(`${over.who} already has ${trimFloat(over.marks)} in ${w.name}, so it cannot be out of ${trimFloat(w.max)}. Change that mark first.`)
+  }
+
+  const keep = new Set(want.filter((w) => w.id).map((w) => w.id!))
+  const inst = c.id.institution!.id
+  const stmts: D1PreparedStatement[] = []
+  for (const p of have) {
+    if (keep.has(p.id)) continue
+    stmts.push(c.db.prepare(`DELETE FROM mark_parts WHERE part_id = ?`).bind(p.id))
+    stmts.push(c.db.prepare(`DELETE FROM exam_parts WHERE id = ?`).bind(p.id))
+  }
+  for (const w of want) {
+    if (w.id) stmts.push(c.db.prepare(`UPDATE exam_parts SET name = ?, max_marks = ?, sequence = ? WHERE id = ? AND exam_id = ?`)
+      .bind(w.name, w.max, w.sequence, w.id, examId))
+    else stmts.push(c.db.prepare(`INSERT INTO exam_parts (id, institution_id, exam_id, name, max_marks, sequence) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(uuid(), inst, examId, w.name, w.max, w.sequence))
+  }
+  // With no parts left the papers keep the maximum they last had; the marks stay as entered.
+  if (want.length) {
+    const total = want.reduce((a, w) => a + w.max, 0)
+    stmts.push(c.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE exam_id = ?`).bind(String(total), examId))
+  }
+  if (stmts.length) await c.db.batch(stmts)
+
+  if (want.length) {
+    const papers = await c.db.prepare(`SELECT id FROM exam_subjects WHERE exam_id = ?`).bind(examId).all<{ id: string }>()
+    for (const p of papers.results) await recomputeFromParts(c, p.id)
+  }
+  return ok({ parts: await partsOf(c, examId) })
+}
+
+/* A paper's mark is the sum of its parts, re-derived after the parts change
+   shape. Only the total and grade move; absence and remarks are the
+   teacher's and stay. */
+async function recomputeFromParts(c: Ctx, esId: string): Promise<void> {
+  const paper = await loadPaper(c, esId)
+  const sums = await c.db.prepare(`SELECT mp.student_id, SUM(mp.marks) AS total, COUNT(mp.marks) AS n, COALESCE(MAX(m.is_absent), 0) AS is_absent
+      FROM mark_parts mp LEFT JOIN marks m ON m.exam_subject_id = mp.exam_subject_id AND m.student_id = mp.student_id
+     WHERE mp.exam_subject_id = ? GROUP BY mp.student_id`).bind(esId).all<{ student_id: string; total: number | null; n: number; is_absent: number }>()
+  if (!sums.results.length) return
+  const bands = paper.grading_scale_id ? await gradeBands(c, paper.grading_scale_id) : []
+  const stmts = sums.results.map((s) => {
+    const m = s.n > 0 && !s.is_absent ? Number(s.total) : null
+    const grade = m !== null && !s.is_absent && paper.grading_scale_id && paper.max_marks > 0 ? pickGrade(bands, (m / paper.max_marks) * 100) : null
+    return c.db.prepare(`
+      INSERT INTO marks (id, institution_id, exam_subject_id, student_id, marks_obtained, grade, is_absent, entered_by, entered_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+      ON CONFLICT (exam_subject_id, student_id) DO UPDATE SET marks_obtained = excluded.marks_obtained, grade = excluded.grade`)
+      .bind(uuid(), c.id.institution!.id, esId, s.student_id, m === null ? null : String(m), grade, c.id.userId, now())
+  })
   await c.db.batch(stmts)
-  return { written: stmts.length }
+}
+
+interface PartEntry { student_id: string; parts?: Record<string, number | null>; is_absent?: boolean; remarks?: string }
+
+async function savePartMarks(c: Ctx): Promise<Response> {
+  const esId = uuidParam(c.params.id)
+  const req = await readJSON<{ entries?: PartEntry[] }>(c.req)
+  const entries = req.entries ?? []
+  if (entries.length === 0) throw badRequest('entries must not be empty')
+  for (const e of entries) if (!isUUID(e.student_id)) throw badRequest('student_id must be a uuid')
+  const studentIds = entries.map((e) => e.student_id)
+  await requireMarksAccess(c, esId, studentIds)
+  const paper = await loadPaper(c, esId)
+  await requireOpenYear(c, paper.academic_year_id)
+  const es = await c.db.prepare(`SELECT exam_id FROM exam_subjects WHERE id = ?`).bind(esId).first<{ exam_id: string }>()
+  const parts = await partsOf(c, es!.exam_id)
+  if (!parts.length) throw badRequest('This exam has no parts. Enter the paper\'s mark as one figure.')
+  const byId = new Map(parts.map((p) => [p.id, p]))
+
+  // Existing part marks, so a row that sends only some parts keeps the others.
+  const prior = await c.db.prepare(`SELECT student_id, part_id, CAST(marks AS REAL) AS marks FROM mark_parts
+      WHERE exam_subject_id = ? AND student_id IN ${inList(studentIds)}`)
+    .bind(esId, js(studentIds)).all<{ student_id: string; part_id: string; marks: number | null }>()
+  const merged = new Map<string, Map<string, number | null>>()
+  for (const x of prior.results) {
+    const m = merged.get(x.student_id) ?? new Map<string, number | null>()
+    m.set(x.part_id, x.marks)
+    merged.set(x.student_id, m)
+  }
+
+  const inst = c.id.institution!.id, at = now()
+  const stmts: D1PreparedStatement[] = []
+  const totals: MarksEntry[] = []
+  for (const e of entries) {
+    const m = merged.get(e.student_id) ?? new Map<string, number | null>()
+    for (const [pid, raw] of Object.entries(e.parts ?? {})) {
+      const part = byId.get(pid)
+      if (!part) throw badRequest('One of those parts is no longer on this exam. Reload and try again.')
+      const v = raw === null || raw === undefined || (raw as unknown) === '' ? null : Number(raw)
+      if (v !== null && !Number.isFinite(v)) throw badRequest(`${part.name} needs a number.`)
+      validateMark(`${paper.subject ? paper.subject + ' ' : ''}${part.name}`, part.max_marks, v)
+      m.set(pid, v)
+      stmts.push(c.db.prepare(`INSERT INTO mark_parts (institution_id, exam_subject_id, student_id, part_id, marks, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (exam_subject_id, student_id, part_id) DO UPDATE SET marks = excluded.marks, updated_at = excluded.updated_at`)
+        .bind(inst, esId, e.student_id, pid, v, at))
+    }
+    const given = [...m].filter(([pid, v]) => byId.has(pid) && v !== null).map(([, v]) => v as number)
+    // An absent child has no total; the part marks are kept should the absence be undone.
+    totals.push({ student_id: e.student_id, marks_obtained: e.is_absent ? null : given.length ? given.reduce((a, b) => a + b, 0) : null,
+      is_absent: e.is_absent, remarks: e.remarks })
+  }
+  // The total goes through the same door as a mark typed as one figure, so grace, ceiling and grade stay one set of rules.
+  const marksStmts = await marksStatements(c, esId, paper, totals)
+  await c.db.batch([...stmts, ...marksStmts])
+  return ok({ written: entries.length })
 }
 
 function validateMark(subject: string, maxMarks: number, marks: number | null) {
@@ -1109,7 +1334,11 @@ function fillReportCard(tpl: string, card: RenderedCard): string {
   let rows = ''
   for (const sub of card.subjects) {
     rows += '<tr>'
-    for (const k of ['subject', 'max_marks', 'marks', 'percent', 'subject_grade']) rows += '<td>' + escapeHtml(sub[k] ?? '') + '</td>'
+    for (const k of ['subject', 'max_marks', 'marks', 'percent', 'subject_grade']) {
+      // A paper marked in parts shows how its total was made, under the total.
+      const parts = k === 'marks' && sub.parts ? '<div class="rc-parts" style="font-size:0.78em;opacity:0.75;white-space:nowrap">' + escapeHtml(sub.parts) + '</div>' : ''
+      rows += '<td>' + escapeHtml(sub[k] ?? '') + parts + '</td>'
+    }
     rows += '</tr>'
   }
   let out = tpl.split('{{subject_rows}}').join(rows)
@@ -1197,7 +1426,7 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
   if (att !== null) values.attendance = att.toFixed(1) + '%'
 
   const subs = await c.db.prepare(`
-    SELECT sub.name, CAST(es.max_marks AS REAL) AS max,
+    SELECT es.id AS es_id, rc.student_id, sub.name, CAST(es.max_marks AS REAL) AS max,
            CASE WHEN m.marks_obtained IS NULL THEN NULL ELSE CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL), 0) END AS got,
            COALESCE((SELECT gb.grade FROM grade_bands gb WHERE gb.grading_scale_id = ex.grading_scale_id
                        AND ROUND(100.0 * (CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL),0)) / NULLIF(CAST(es.max_marks AS REAL),0), 2)
@@ -1212,9 +1441,21 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
                    AND (rc.exam_id IS NOT NULL OR rc.term_id IS NULL OR ex.term_id = rc.term_id)
       LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
      WHERE rc.id = ?
-     ORDER BY sub.name`).bind(cardId).all<{ name: string; max: number; got: number | null; g: string | null }>()
+     ORDER BY sub.name`).bind(cardId).all<{ es_id: string; student_id: string; name: string; max: number; got: number | null; g: string | null }>()
+  const partsOfPaper = await partsByPaper(c, subs.results.map((x) => x.es_id))
+  const partMarks = new Map<string, number | null>()
+  if (partsOfPaper.size) {
+    const rows = await c.db.prepare(`SELECT exam_subject_id || '|' || part_id AS k, CAST(marks AS REAL) AS marks FROM mark_parts
+        WHERE student_id = ? AND exam_subject_id IN ${inList([...partsOfPaper.keys()])}`)
+      .bind(subs.results[0].student_id, js([...partsOfPaper.keys()])).all<{ k: string; marks: number | null }>()
+    for (const x of rows.results) partMarks.set(x.k, x.marks)
+  }
   const subjects = subs.results.map((x) => {
     const r: Record<string, string> = { subject: x.name, max_marks: trimFloat(x.max), marks: '-', percent: '-', subject_grade: x.g ?? '' }
+    const ps = partsOfPaper.get(x.es_id) ?? []
+    if (ps.length && x.got !== null) {
+      r.parts = ps.map((p) => { const v = partMarks.get(`${x.es_id}|${p.id}`); return `${p.name} ${v == null ? '-' : trimFloat(v)}` }).join(' · ')
+    }
     if (x.got !== null) {
       r.marks = trimFloat(x.got)
       if (x.max > 0) r.percent = `${Math.round((100 * x.got) / x.max)}%`

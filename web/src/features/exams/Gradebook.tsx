@@ -20,6 +20,11 @@ interface Paper {
 
 type Row = GradebookRow
 
+interface PartMarks {
+  parts: { id: string; name: string; max_marks: number }[]
+  items: { student_id: string; parts: Record<string, number | null> }[]
+}
+
 interface SectionRow { id: string; name: string; class_id: string; class_name: string }
 
 /* Reading a marks sheet the exam cell already has.
@@ -139,6 +144,8 @@ export default function Gradebook() {
   })
 
   const [draft, setDraft] = useState<Record<string, string>>({})
+  /* Per-part typing, for an exam marked in parts: student -> part -> box. */
+  const [partDraft, setPartDraft] = useState<Record<string, Record<string, string>>>({})
   const [importNote, setImportNote] = useState('')
   const [importErr, setImportErr] = useState('')
 
@@ -212,6 +219,7 @@ export default function Gradebook() {
     // the new sheet down to nobody.
     setSectionID('')
     setDraft({})
+    setPartDraft({})
     setAbsent({})
   }
 
@@ -235,6 +243,30 @@ export default function Gradebook() {
     enabled: !!esID,
   })
 
+  /* An exam marked in parts (Written, Project, Notebook...): one box per part
+     and the paper's mark is their sum, worked out by the server. With no
+     parts this answers an empty list and the sheet is the one-figure sheet. */
+  const partQ = useQuery({
+    queryKey: ['part-marks', esID],
+    queryFn: () => api.get<PartMarks>(`/api/v1/exams/subjects/${esID}/part-marks`),
+    enabled: !!esID,
+  })
+  const parts = partQ.data?.parts ?? []
+  const hasParts = parts.length > 0
+  const savedParts = new Map((partQ.data?.items ?? []).map((x) => [x.student_id, x.parts]))
+  const partOf = (sid: string, pid: string) => {
+    const typed = partDraft[sid]?.[pid]
+    if (typed !== undefined) return typed
+    const v = savedParts.get(sid)?.[pid]
+    return v == null ? '' : String(v)
+  }
+  const partTotal = (sid: string) => {
+    const vals = parts.map((p) => partOf(sid, p.id)).filter((v) => v.trim() !== '' && Number.isFinite(Number(v)))
+    return vals.length ? vals.reduce((a, v) => a + Number(v), 0) : null
+  }
+  const setPart = (sid: string, pid: string, v: string) =>
+    setPartDraft((d) => ({ ...d, [sid]: { ...(d[sid] ?? {}), [pid]: v } }))
+
   const toast = useToast()
 
   /* Setting the paper up is the exam cell's, entering the marks is the
@@ -256,7 +288,8 @@ export default function Gradebook() {
   // Only rows the teacher has actually touched are sent. An untouched row is
   // not "zero", and posting one would overwrite a colleague's entry.
   const touched = rows.filter(
-    (r) => draft[r.student_id] !== undefined || absent[r.student_id] !== undefined,
+    (r) => draft[r.student_id] !== undefined || absent[r.student_id] !== undefined ||
+      (hasParts && partDraft[r.student_id] !== undefined),
   )
 
   /* A mark the server will refuse.
@@ -265,7 +298,14 @@ export default function Gradebook() {
      and the message would not say whose. Caught here, before it is sent, and
      the box carrying it is named. `parseFloat` used to turn a cleared field
      into NaN, which JSON writes as null: the mark was quietly erased. */
+  const partBad = (r: Row, pid: string, max: number) => {
+    const raw = partDraft[r.student_id]?.[pid]
+    if (isAbsent(r) || raw === undefined || raw.trim() === '') return false
+    const n = Number(raw)
+    return !Number.isFinite(n) || n < 0 || n > max
+  }
   const invalid = touched.filter((r) => {
+    if (hasParts) return parts.some((p) => partBad(r, p.id, p.max_marks))
     const raw = draft[r.student_id]
     if (isAbsent(r) || raw === undefined || raw.trim() === '') return false
     const n = Number(raw)
@@ -288,8 +328,17 @@ export default function Gradebook() {
   )
 
   const save = useMutation({
-    mutationFn: () =>
-      api.call('POST /exams/marks', { body: {
+    mutationFn: () => hasParts
+      ? api.put(`/api/v1/exams/subjects/${esID}/part-marks`, {
+          entries: touched.map((r) => ({
+            student_id: r.student_id,
+            is_absent: isAbsent(r),
+            // Only the boxes typed in; an emptied box clears that part.
+            parts: Object.fromEntries(Object.entries(partDraft[r.student_id] ?? {})
+              .map(([pid, v]) => [pid, v.trim() === '' ? null : Number(v)])),
+          })),
+        })
+      : api.call('POST /exams/marks', { body: {
         exam_subject_id: esID,
         entries: touched.map(entryFor),
       } }),
@@ -297,8 +346,9 @@ export default function Gradebook() {
       // Counted before the draft is cleared: the mutation builds its own
       // payload, so there is nothing handed back to count.
       const entered = touched.length
-      setDraft({}); setAbsent({})
+      setDraft({}); setPartDraft({}); setAbsent({})
       qc.invalidateQueries({ queryKey: ['gradebook', esID] })
+      qc.invalidateQueries({ queryKey: ['part-marks', esID] })
       toast.ok(`${entered} mark${entered === 1 ? '' : 's'} entered`)
     },
   })
@@ -323,7 +373,7 @@ export default function Gradebook() {
                 Export sat on the screen whose job is putting marks IN, and
                 downloaded every mark in the school — the wrong direction and
                 the wrong scope on a teacher's page. */}
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
+            {!hasParts && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
               <Upload className="h-3.5 w-3.5" aria-hidden />
               Import marks
               <input
@@ -337,7 +387,7 @@ export default function Gradebook() {
                   e.target.value = ''
                 }}
               />
-            </label>
+            </label>}
             <PrintButton />
             <Select
               value={classID}
@@ -373,7 +423,7 @@ export default function Gradebook() {
             {esID && ofClass.length > 1 && (
               <Select
                 value={sectionID}
-                onChange={(v) => { setSectionID(v); setDraft({}); setAbsent({}) }}
+                onChange={(v) => { setSectionID(v); setDraft({}); setPartDraft({}); setAbsent({}) }}
                 placeholder="All sections"
                 options={[
                   { value: '', label: 'All sections' },
@@ -429,14 +479,15 @@ export default function Gradebook() {
                 {setupNote && <FormNotice ok={setupNote} />}
                 {setup.error && <FormNotice error={setup.error} />}
                 <FormGrid>
-                  <Field label="Out of" hint="Usually 20, 80 or 100.">
+                  {/* Marked in parts, the paper is out of the parts' sum: that is changed under Parts on the Exams screen. */}
+                  {!hasParts && <Field label="Out of" hint="Usually 20, 80 or 100.">
                     <Input
                       type="number"
                       value={outOf}
                       onChange={setOutOf}
                       placeholder={String(max)}
                     />
-                  </Field>
+                  </Field>}
                   <Field label="Grade scale" hint="Applies to every paper in this exam.">
                     <Select
                       value={scaleID}
@@ -469,7 +520,7 @@ export default function Gradebook() {
             <Card>
               <CardHeader
                 title="Gradebook"
-                description={`Out of ${max}`}
+                description={hasParts ? `Out of ${max}: ${parts.map((p) => `${p.name} ${p.max_marks}`).join(' + ')}` : `Out of ${max}`}
                 action={
                   <Button
                     disabled={save.isPending || !touched.length || invalid.length > 0}
@@ -499,7 +550,8 @@ export default function Gradebook() {
                   one, every row would carry the same value the picker above
                   already shows. */}
               <Table
-                head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']), 'Marks', 'Absent', 'Grade']}
+                head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']),
+                  ...(hasParts ? [...parts.map((p) => `${p.name} (${p.max_marks})`), 'Total'] : ['Marks']), 'Absent', 'Grade']}
                 empty={!shown.length}
               >
                 {shown.map((r) => (
@@ -507,6 +559,24 @@ export default function Gradebook() {
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
                     {!sectionID && <Td className="text-muted-foreground">{r.section || '-'}</Td>}
+                    {hasParts ? (<>
+                      {parts.map((p) => (
+                        <Td key={p.id}>
+                          <Input
+                            type="number" min={0} max={p.max_marks}
+                            disabled={isAbsent(r)}
+                            value={partOf(r.student_id, p.id)}
+                            onChange={(v) => setPart(r.student_id, p.id, v)}
+                            srLabel={`${p.name} for ${r.full_name}, out of ${p.max_marks}`}
+                            ariaInvalid={partBad(r, p.id, p.max_marks) || undefined}
+                            className="w-20 disabled:opacity-40"
+                          />
+                        </Td>
+                      ))}
+                      <Td className="font-medium tabular-nums">
+                        {isAbsent(r) ? '-' : partTotal(r.student_id) ?? '-'}
+                      </Td>
+                    </>) : (
                     <Td>
                       <Input
                         type="number" min={0} max={r.max_marks}
@@ -518,6 +588,7 @@ export default function Gradebook() {
                         className="w-24 disabled:opacity-40"
                       />
                     </Td>
+                    )}
                     <Td>
                       <input
                         type="checkbox"
@@ -532,7 +603,9 @@ export default function Gradebook() {
               </Table>
               {invalid.length > 0 && (
                 <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
-                  {invalid.length === 1
+                  {hasParts
+                    ? `A part mark must be a number between 0 and that part's maximum: ${invalid.map((r) => r.full_name).join(', ')}.`
+                    : invalid.length === 1
                     ? `${invalid[0].full_name}'s mark must be a number between 0 and ${invalid[0].max_marks}.`
                     : `${invalid.length} marks are not a number between 0 and ${max}: ${invalid
                         .map((r) => r.full_name)

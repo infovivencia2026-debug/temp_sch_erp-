@@ -77,4 +77,7 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 77, name: 'retire_learning_courses_subjects', checksum: '478f1f6f0e901561fb29547866dfd1f8c2d8e5002b38267e1aba37712e6efb1c' },
   { version: 78, name: 'lesson_open_now', checksum: '90e0cc914fb547c87cdb38e5b645b8e799c9edc9a842db908cb774b12ffe6785' },
   { version: 79, name: 'lms_yt_progress', checksum: '291b7abf7ad4ad473bf574dd7e14044e0e32fe3a28e20a2ce3d3b60e424737c8' },
+  { version: 80, name: 'payroll_adjustments', checksum: 'd75ca4d33fbfb0ef046e3657c24181cfbdd9c8bd2ea79f0e571038b74f9d293f' },
+  { version: 81, name: 'table_columns', checksum: '64961bcf4ab1b2f99fc19f74bc5ad0d3f511940688399857d9b04d3e944b0d62' },
+  { version: 82, name: 'exam_parts', checksum: 'c878c0870e098347f7a3ff2b240ddeccacaeb8beaeb47a29547bc776555c64bd' },
 ]
