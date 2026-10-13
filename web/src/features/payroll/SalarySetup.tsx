@@ -300,7 +300,14 @@ export default function SalarySetup() {
                 </tr>
               ))}
             </Table>
-            <div className="flex flex-wrap items-center gap-3 pt-3">
+            {/* ON THE CARD'S OWN PADDING (owner, 2026-10-13).
+
+                The table above runs the full width of the card and carries
+                its padding on each cell, so this row -- which had vertical
+                padding and none at the sides -- started at the card's edge
+                instead of under the first column, and the button overhung
+                the rounded corner. */}
+            <div className="flex flex-wrap items-center gap-3 px-[var(--card-pad)] py-3">
               <Button
                 onClick={() => save.mutate({ employee_id: open })}
                 disabled={save.isPending || !Object.values(amounts).some((v) => Number(v) > 0)}

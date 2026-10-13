@@ -94,7 +94,14 @@ export default function CalendarDay() {
 
       {d && (
         <>
-          <div className="flex flex-wrap items-center gap-2 px-4 pb-3 text-[13px]">
+          {/* ON THE CARD'S OWN PADDING (owner, 2026-10-13).
+
+              This strip carried px-4 while the title above it and the table
+              below are both laid out on --card-pad, so the badge sat a few
+              pixels inside the heading it belongs to -- and with no padding
+              on top it was pressed against the header's rule, reading as part
+              of the table rather than as a note about the day. */}
+          <div className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-3 text-[13px]">
             {d.open ? (
               <Badge tone="success">School open</Badge>
             ) : (
