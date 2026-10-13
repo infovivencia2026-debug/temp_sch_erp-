@@ -6,6 +6,7 @@ import { school } from './school'
 import { requireFresh } from './fees/common'
 import { MONTHS, coded, daysInMonth, dateOf, inList, items, js, minuteOf, nameOf, nowIST, num, numOr0, pad2, requireOpenMonth,
   resolveScope, str, todayIST, uuidsOf } from './exams/common'
+import { isStaffHoliday, staffHolidayRows, teachingUsers } from './hr/staff_holidays'
 
 /* Port of the /communication, /timetable-admin, /compliance and /payroll
    route groups (internal/api/api.go lines 1235-1301) and their handlers in
@@ -586,9 +587,9 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
       workingDays: intList(s.working_days, [1, 2, 3, 4, 5, 6]),
     })
   }
-  const holidays = await c.db.prepare(`SELECT on_date, COALESCE(to_date, on_date) AS to_date FROM holidays
-      WHERE kind IN ('holiday','vacation') AND applies_to IN ('all','staff') AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`)
-    .bind(lastDay, firstDay).all<{ on_date: string; to_date: string }>()
+  // Whose holiday it is: everyone's, all staff, or only teaching / non-teaching staff (hr/staff_holidays.ts).
+  const holidays = await staffHolidayRows(c.db, firstDay, lastDay)
+  const teachers = await teachingUsers(c.db)
   const nDays = daysInMonth(year, month)
   const expected = new Map<string, number>()
   for (const [eid, sh] of shift) {
@@ -598,7 +599,7 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
       const dow = new Date(day + 'T00:00:00Z').getUTCDay()
       const isodow = dow === 0 ? 7 : dow
       if (!sh.workingDays.includes(isodow)) continue
-      if (holidays.results.some((h) => day >= h.on_date && day <= h.to_date)) continue
+      if (isStaffHoliday(holidays, day, !!sh.uid && teachers.has(sh.uid))) continue
       n++
     }
     expected.set(eid, n)

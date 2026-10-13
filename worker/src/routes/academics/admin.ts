@@ -128,7 +128,7 @@ async function saveCalendarEntry(c: Ctx) {
   const kind = req.kind || 'holiday'
   if (!calendarKinds.has(kind)) throw badRequest('kind must be one of holiday, vacation, exam, event, ptm, working_day')
   const appliesTo = req.applies_to || 'all'
-  if (!['all', 'students', 'staff'].includes(appliesTo)) throw badRequest('applies_to must be all, students or staff')
+  if (!['all', 'students', 'staff', 'teaching', 'non_teaching'].includes(appliesTo)) throw badRequest('applies_to must be all, students, staff, teaching or non_teaching')
   const toDate = str(req.to_date)
   if (toDate !== '' && toDate < str(req.on_date)) throw badRequest('to_date is before on_date')
   const campus = nullStr(str(req.campus_id)), yearIn = nullStr(str(req.academic_year_id))

@@ -6,6 +6,7 @@ import {
   type CandidateKey, type ResultLine, lineJSON, matchBoardLines, parseBoardResultCSV, percentOf, round1,
 } from './board_exams/results'
 import { school } from './school'
+import { staffHolidaySql } from './hr/staff_holidays'
 
 /* Port of mountBoardExams in internal/api/board_exams.go (mounted at /exams,
    so every path below is /exams/board/...) and getStaffCalendar in
@@ -1015,8 +1016,8 @@ const getStaffCalendar: Handler = async (c) => {
       SELECT ${dateOf('on_date')} AS date, ${dateOf('to_date')} AS end_date, kind, name AS title, description AS detail,
              NULL AS starts_at, NULL AS venue, id AS ref_id
         FROM holidays
-       WHERE on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1 AND applies_to IN ('all','staff')
-       ORDER BY on_date`).bind(from, to),
+       WHERE on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1 AND ${staffHolidaySql('holidays', '?3')}
+       ORDER BY on_date`).bind(from, to, u),
     c.db.prepare(`
       SELECT ${dateOf('starts_on')} AS date, ${dateOf('ends_on')} AS end_date, 'exam' AS kind, name AS title, NULL AS detail,
              NULL AS starts_at, NULL AS venue, id AS ref_id

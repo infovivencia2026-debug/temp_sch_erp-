@@ -8,6 +8,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
+import { isStaffHoliday, staffHolidayRows, teachingUsers } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
    staff_hours.go, staff_login.go, device_login.go (issueStaffPIN),
@@ -85,17 +86,11 @@ function monthDays(month: string): string[] {
 /** ISO weekday, 1 Monday to 7 Sunday. */
 const isoDow = (date: string): number => ((new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7) + 1
 
-async function staffHolidays(c: Ctx, from: string, to: string): Promise<Set<string>> {
-  const rows = await c.db.prepare(`SELECT on_date, to_date FROM holidays WHERE kind IN ('holiday','vacation') AND applies_to IN ('all','staff')
-      AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`).bind(to, from).all<{ on_date: string; to_date: string | null }>()
-  const days = new Set<string>()
-  for (const h of rows.results) {
-    const end = h.to_date ?? h.on_date
-    for (let d = new Date(h.on_date + 'T00:00:00Z'); d.toISOString().slice(0, 10) <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-      days.add(d.toISOString().slice(0, 10))
-    }
-  }
-  return days
+/** Whether a day is a holiday for a member of staff (teaching / non-teaching aware, hr/staff_holidays.ts). */
+async function staffHolidayCheck(c: Ctx, from: string, to: string): Promise<(day: string, uid: string | null) => boolean> {
+  const rows = await staffHolidayRows(c.db, from, to)
+  const teachers = await teachingUsers(c.db)
+  return (day, uid) => isStaffHoliday(rows, day, !!uid && teachers.has(uid))
 }
 
 function statusInWords(status: string): string {
@@ -436,7 +431,7 @@ export function registerStaff(r: Router): void {
         (SELECT ss.ctc_paise FROM salary_structures ss WHERE ss.employee_id = e.id AND ss.effective_from <= ? AND (ss.effective_to IS NULL OR ss.effective_to >= ?)
           ORDER BY ss.effective_from DESC LIMIT 1) AS monthly_paise
         FROM employees e ${PATTERN_JOINS} WHERE e.status = 'active' ORDER BY department, name`).bind(from, from).all<Record<string, unknown>>()
-    const holidays = await staffHolidays(c, from, to)
+    const isHol = await staffHolidayCheck(c, from, to)
     const att = await c.db.prepare(`SELECT user_id, on_date, status, check_in, check_out FROM staff_attendance WHERE on_date BETWEEN ? AND ?`).bind(from, to)
       .all<{ user_id: string; on_date: string; status: string; check_in: string | null; check_out: string | null }>()
     const byUser = new Map<string, typeof att.results>()
@@ -445,7 +440,7 @@ export function registerStaff(r: Router): void {
     const items = staff.results.map((s) => {
       const p: StaffPattern = { starts_at: s.starts_at as string | null, ends_at: s.ends_at as string | null, grace: Number(s.grace),
         full_min: Number(s.full_min), half_min: Number(s.half_min), working_days: workingDaysOf(s.working_days) }
-      const expected = days.filter((d) => p.working_days.includes(isoDow(d)) && !holidays.has(d)).length
+      const expected = days.filter((d) => p.working_days.includes(isoDow(d)) && !isHol(d, s.user_id == null ? null : String(s.user_id))).length
       let present = 0, halves = 0, excused = 0, marked = 0, late = 0, early = 0
       for (const a of byUser.get(String(s.user_id ?? '')) ?? []) {
         marked++
@@ -497,14 +492,14 @@ export function registerStaff(r: Router): void {
     const p: StaffPattern = { starts_at: (me.starts_at as string | null) ?? '09:00', ends_at: (me.ends_at as string | null) ?? '16:00', grace: Number(me.grace),
       full_min: Number(me.full_min), half_min: Number(me.half_min), working_days: workingDaysOf(me.working_days) }
     const days = monthDays(month)
-    const holidays = await staffHolidays(c, days[0], days[days.length - 1])
+    const isHol = await staffHolidayCheck(c, days[0], days[days.length - 1])
     const att = await c.db.prepare(`SELECT on_date, status, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`)
       .bind(String(me.user_id ?? ''), days[0], days[days.length - 1]).all<{ on_date: string; status: string; check_in: string | null; check_out: string | null }>()
     const byDay = new Map(att.results.map((a) => [a.on_date, a]))
     const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const items = days.map((d) => {
       const a = byDay.get(d)
-      const expected = p.working_days.includes(isoDow(d)) && !holidays.has(d)
+      const expected = p.working_days.includes(isoDow(d)) && !isHol(d, me.user_id == null ? null : String(me.user_id))
       const o: Record<string, unknown> = { on_date: d, weekday: dow[isoDow(d) - 1], expected, due_in: p.starts_at!.slice(0, 5), due_out: p.ends_at!.slice(0, 5), status: a?.status ?? '' }
       const inClock = istClock(a?.check_in), outClock = istClock(a?.check_out)
       if (inClock) o.check_in = inClock
