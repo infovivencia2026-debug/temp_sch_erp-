@@ -599,6 +599,36 @@ async function saveExamParts(c: Ctx): Promise<Response> {
   const haveIds = new Set(have.map((p) => p.id))
   for (const w of want) if (w.id && !haveIds.has(w.id)) throw badRequest(`${w.name} is no longer a part of this exam. Reload and try again.`)
 
+  /* THE SUBJECT PAPER IS THE FIRST PART (owner, 2026-10-13: "they will enter
+     SUBJECT MARKS TOO", and: the total is the subject and the parts added
+     together).
+
+     Parts began as the extras a report card carries -- project, notebook,
+     oral -- and a paper's total became those added up. That left nowhere to
+     type the written paper itself: a teacher opening Grade 6 English saw
+     Project, Notes and Oral and no box for English.
+
+     Rather than a second kind of mark beside the parts, with its own column,
+     its own maximum and its own arithmetic everywhere a total is worked out,
+     the paper is simply the first part. The teacher gets their box, the
+     total is still the parts added together, and every grade, rank, report
+     card and export downstream keeps the sum it already understood.
+
+     It is seeded only when an exam gains its FIRST parts, and it carries the
+     maximum the papers already had -- 80 marks of English stay 80 marks of
+     English, and the extras are added to them. After that it is an ordinary
+     part: rename it, change what it is out of, or delete it if this exam
+     really is only coursework. */
+  if (have.length === 0 && want.length > 0 && !want.some((w) => w.id)) {
+    const paper = await c.db.prepare(`SELECT CAST(MAX(max_marks) AS REAL) AS m FROM exam_subjects WHERE exam_id = ?`)
+      .bind(examId).first<{ m: number | null }>()
+    const subjectMax = Number(paper?.m ?? 0)
+    if (subjectMax > 0 && !want.some((w) => w.name.toLowerCase() === 'subject marks')) {
+      want.unshift({ id: null, name: 'Subject marks', max: subjectMax, sequence: -1 })
+      want.forEach((w, i) => { w.sequence = i })
+    }
+  }
+
   /* Lowering a maximum below a mark already given would leave a child above
      full marks; say whose, rather than clipping their mark in silence.
 

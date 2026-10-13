@@ -17,7 +17,7 @@ import { toastBus } from '@/components/Toast'
 export interface ExamPart { id: string; name: string; max_marks: number; sequence: number }
 type Draft = { id?: string; name: string; max: string }
 
-const SUGGEST = ['Written', 'Project', 'Notebook', 'Overall performance']
+const SUGGEST = ['Subject marks', 'Project', 'Notebook', 'Overall performance']
 
 export default function ExamParts({ examId, examName, onClose }: { examId: string; examName: string; onClose: () => void }) {
   const qc = useQueryClient()
@@ -84,8 +84,10 @@ export default function ExamParts({ examId, examName, onClose }: { examId: strin
         {rows.length === 0 ? (
           <p className="text-[13.5px] text-muted-foreground">
             No parts yet, so each paper of {examName} gets one mark out of its own total.
-            Add parts if this exam also marks project work, notebooks, orals and the like &mdash;
-            each paper is then marked part by part and its total is the parts added together.
+            Add parts if this exam also marks project work, notebooks, orals and the like.
+            The written paper becomes the first part, &ldquo;Subject marks&rdquo;, carrying the
+            total it already had &mdash; so a child is marked out of that paper <em>and</em> the
+            extras, added together.
           </p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-x-2 text-[13.5px] text-muted-foreground">
