@@ -6,6 +6,7 @@
    worked out live; nothing is written until Save, and Save goes paper by
    paper through the same routes the one-paper screen uses, so a teacher who
    may not mark a subject is told so for that subject only. */
+import { overMax } from './marksSheet'
 import { useState } from 'react'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
@@ -72,6 +73,9 @@ export default function ClassSheet({ papers, className, examName }: {
   const setCell = (pid: string, sid: string, key: string, v: string) =>
     setEdits((e) => ({ ...e, [pid]: { ...(e[pid] ?? {}), [sid]: { ...(e[pid]?.[sid] ?? {}), [key]: v } } }))
 
+  /* The grid appears once a sheet is imported, to check and change before
+     Save (owner, 2026-10-13); it is not a blank form to type into. */
+  const [shown, setShown] = useState(false)
   const importFile = (file: File) => {
     setNote(''); setProblems([])
     const reader = new FileReader()
@@ -88,6 +92,7 @@ export default function ClassSheet({ papers, className, examName }: {
         return next
       })
       setNote(`${got.filled} ${got.filled === 1 ? 'child' : 'children'} loaded below. Check them, then press Save.`)
+      setShown(true)
       const list = [...got.errors.map((x) => `${x} — not loaded.`)]
       if (got.missed.length) list.push(`Nobody in this class matched: ${got.missed.join(', ')}.`)
       setProblems(list)
@@ -123,6 +128,7 @@ export default function ClassSheet({ papers, className, examName }: {
     setProblems(failed.map((f) => `Not saved — ${f}`))
   }
 
+  if (!papers.length) return <p className="px-5 py-4 text-[14px] text-muted-foreground">No subject of this exam has a date yet. Set the dates in Exams &amp; papers → Date sheet, and those subjects appear here.</p>
   return (
     <Card>
       <CardHeader
@@ -165,7 +171,7 @@ export default function ClassSheet({ papers, className, examName }: {
           )}
         </div>
       )}
-      {loading ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Loading the class…</p> : (
+      {!shown ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Export the sheet, fill in the marks, then Import it: the marks appear here to check and change before you save.</p> : loading ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Loading the class…</p> : (
         <div className="overflow-x-auto border-t">
           <table className="w-full text-[13px]">
             <thead>
@@ -203,7 +209,7 @@ export default function ClassSheet({ papers, className, examName }: {
                             {on && (
                               <input
                                 value={v}
-                                onChange={(e) => setCell(p.id, s.student_id, k.key, e.target.value)}
+                                onChange={(e) => { if (overMax(e.target.value, k.max)) return; setCell(p.id, s.student_id, k.key, e.target.value) }}
                                 aria-label={`${p.subject} ${k.name} for ${s.full_name}, out of ${k.max}`}
                                 aria-invalid={badCell(v, k.max) || undefined}
                                 className={`w-14 rounded border px-1 py-0.5 text-right tabular-nums ${badCell(v, k.max) ? 'border-destructive' : ''} ${edits[p.id]?.[s.student_id]?.[k.key] !== undefined ? 'bg-primary/5' : ''}`}

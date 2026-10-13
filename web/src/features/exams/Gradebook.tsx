@@ -1,3 +1,4 @@
+import { overMax } from './marksSheet'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
@@ -18,6 +19,7 @@ interface Paper {
   marks_entered: number; students: number
   exam_id: string; exam_name: string; exam_kind: string
   class_id: string; class_name: string; subject: string
+  exam_date?: string | null
 }
 
 type Row = GradebookRow
@@ -440,7 +442,8 @@ export default function Gradebook() {
         {wholeClass && classID && examKind && visible.length > 0 && !esID ? (
           <ClassSheet
             key={`${classID}-${examKind}`}
-            papers={visible.map((p) => ({ id: p.id, subject: p.subject, max_marks: p.max_marks }))}
+            /* Only papers on the date sheet (a date set): a subject not being examined has no column (owner, 2026-10-13). */
+            papers={visible.filter((p) => !!p.exam_date).map((p) => ({ id: p.id, subject: p.subject, max_marks: p.max_marks }))}
             className={visible[0].class_name}
             examName={visible[0].exam_name}
           />
@@ -576,7 +579,7 @@ export default function Gradebook() {
                             type="number" min={0} max={p.max_marks}
                             disabled={isAbsent(r)}
                             value={partOf(r.student_id, p.id)}
-                            onChange={(v) => setPart(r.student_id, p.id, v)}
+                            onChange={(v) => { if (overMax(v, p.max_marks)) return; setPart(r.student_id, p.id, v) }}
                             srLabel={`${p.name} for ${r.full_name}, out of ${p.max_marks}`}
                             ariaInvalid={partBad(r, p.id, p.max_marks) || undefined}
                             className="w-20 disabled:opacity-40"
@@ -592,7 +595,7 @@ export default function Gradebook() {
                         type="number" min={0} max={r.max_marks}
                         disabled={isAbsent(r)}
                         value={markOf(r)}
-                        onChange={(v) => setDraft({ ...draft, [r.student_id]: v })}
+                        onChange={(v) => { if (overMax(v, r.max_marks)) return; setDraft({ ...draft, [r.student_id]: v }) }}
                         srLabel={`Marks for ${r.full_name}, out of ${r.max_marks}`}
                         ariaInvalid={invalid.some((x) => x.student_id === r.student_id) || undefined}
                         className="w-24 disabled:opacity-40"

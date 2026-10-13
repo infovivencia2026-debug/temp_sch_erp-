@@ -168,7 +168,7 @@ function registerExamGroup(r: Router) {
       mine = '(' + clauses.join(' OR ') + ')'
     }
     const rows = await c.db.prepare(`
-      SELECT es.id, e.id AS exam_id, e.name AS exam_name, COALESCE(e.kind,'') AS exam_kind, sub.name AS subject,
+      SELECT es.id, e.id AS exam_id, e.name AS exam_name, COALESCE(e.kind,'') AS exam_kind, sub.name AS subject, substr(es.exam_date, 1, 10) AS exam_date,
              c.id AS class_id, c.name AS class_name,
              e.name || ' · ' || c.name || ' · ' || sub.name AS label,
              CAST(es.max_marks AS REAL) AS max_marks,

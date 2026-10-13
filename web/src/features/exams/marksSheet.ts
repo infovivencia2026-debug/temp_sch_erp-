@@ -342,3 +342,12 @@ export function gradeFor(bands: { grade: string; min: number; max: number }[], g
   const pct = (got / outOf) * 100
   return bands.find((b) => pct >= b.min && pct <= b.max)?.grade ?? null
 }
+
+/** A typed value above the box's maximum (or below zero) is refused as it is typed
+    (owner, 2026-10-13: 44 went into a box out of 25). "AB" and blanks pass. */
+export function overMax(v: string, max: number | null | undefined): boolean {
+  const t = v.trim()
+  if (t === '' || /^ab$/i.test(t) || !/^-?\d*\.?\d*$/.test(t)) return false
+  const n = Number(t)
+  return Number.isFinite(n) && (n < 0 || (max != null && max > 0 && n > max))
+}
