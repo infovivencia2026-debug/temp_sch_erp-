@@ -548,10 +548,50 @@ interface ExamPart { id: string; name: string; max_marks: number; sequence: numb
    parts: every read answers "none" instead of failing the screen. */
 const noPartsTable = (e: unknown) => /no such table/i.test(String((e as Error)?.message ?? e))
 
+/* THE SUBJECT'S OWN MARK IS ALWAYS ONE OF THE PARTS (owner, 2026-10-13:
+   "AS DEFAULT SUBJECT MARK WILL BE THERE THAT IS IMPORTANT AND DEFAULT",
+   "AND REMAINING ARE PARTS AND FOR THEM THERE IS A MAX MARKS").
+
+   An exam marked in parts showed Project, Notes and Oral and no box for the
+   subject itself, so there was nowhere to put the mark the paper was
+   actually written for. Seeding it only when an exam gained its first parts
+   left every exam that already had them -- which is the ones schools are
+   using -- still with no box.
+
+   So it is ensured wherever the parts are read. A exam that has parts and
+   no "Subject marks" among them gets one, carrying the maximum its papers
+   already had: 25 here means the subject is out of 25 and Project, Notes
+   and Oral are added to it. Idempotent, and it never touches an exam with
+   no parts at all -- that one is marked as a single figure and always was.
+
+   The paper's maximum follows, because a paper is out of its parts added
+   together and the subject is now one of them. */
+const SUBJECT_PART = 'Subject marks'
+
+async function ensureSubjectPart(c: Ctx, examId: string, have: ExamPart[]): Promise<boolean> {
+  if (!have.length || !c.id.institution) return false
+  if (have.some((p) => p.name.trim().toLowerCase() === SUBJECT_PART.toLowerCase())) return false
+  const paper = await c.db.prepare(`SELECT CAST(MAX(max_marks) AS REAL) AS m FROM exam_subjects WHERE exam_id = ?`)
+    .bind(examId).first<{ m: number | null }>()
+  const subjectMax = Number(paper?.m ?? 0)
+  if (!(subjectMax > 0)) return false
+  const total = subjectMax + have.reduce((a, p) => a + Number(p.max_marks), 0)
+  await c.db.batch([
+    /* Sequence -1 puts it first without renumbering what is already there,
+       so a part a teacher dragged into place keeps the order they chose. */
+    c.db.prepare(`INSERT INTO exam_parts (id, institution_id, exam_id, name, max_marks, sequence) VALUES (?, ?, ?, ?, ?, -1)`)
+      .bind(uuid(), c.id.institution.id, examId, SUBJECT_PART, subjectMax),
+    c.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE exam_id = ?`).bind(String(total), examId),
+  ])
+  return true
+}
+
 async function partsOf(c: Ctx, examId: string): Promise<ExamPart[]> {
   try {
-    const rows = await c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts
+    const read = () => c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts
         WHERE exam_id = ? ORDER BY sequence, created_at`).bind(examId).all<ExamPart>()
+    const rows = await read()
+    if (await ensureSubjectPart(c, examId, rows.results)) return (await read()).results
     return rows.results
   } catch (e) {
     if (noPartsTable(e)) return []
