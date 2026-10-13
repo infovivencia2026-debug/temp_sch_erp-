@@ -9,6 +9,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "school-erp",
   "main": "src/index.ts",
+  // The workers.dev address stays on: the web site (Pages) reaches the API through it.
+  "workers_dev": true,
+  // bio.xulo.in: the address a biometric reader is pointed at. Readers such as the
+  // eSSL X2008 speak plain HTTP on port 80; the xulo.in zone must not force HTTPS for
+  // this one host (owner, 2026-10-13). See routes/iclock.ts.
+  "routes": [{ "pattern": "bio.xulo.in", "custom_domain": true }],
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   // Smart placement never placed it (cf-placement: local-BOM, about 200 ms a D1 trip);
