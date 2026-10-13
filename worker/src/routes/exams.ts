@@ -1461,20 +1461,11 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
       LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
      WHERE rc.id = ?
      ORDER BY sub.name`).bind(cardId).all<{ es_id: string; student_id: string; name: string; max: number; got: number | null; g: string | null }>()
-  const partsOfPaper = await partsByPaper(c, subs.results.map((x) => x.es_id))
-  const partMarks = new Map<string, number | null>()
-  if (partsOfPaper.size) {
-    const rows = await c.db.prepare(`SELECT exam_subject_id || '|' || part_id AS k, CAST(marks AS REAL) AS marks FROM mark_parts
-        WHERE student_id = ? AND exam_subject_id IN ${inList([...partsOfPaper.keys()])}`)
-      .bind(subs.results[0].student_id, js([...partsOfPaper.keys()])).all<{ k: string; marks: number | null }>()
-    for (const x of rows.results) partMarks.set(x.k, x.marks)
-  }
+  /* The report card shows each subject's total only (owner, 2026-10-13:
+     "don't show the parts, add the parts into that exam"): the parts are how
+     the total was made up, kept in Marks entry, not printed on the card. */
   const subjects = subs.results.map((x) => {
     const r: Record<string, string> = { subject: x.name, max_marks: trimFloat(x.max), marks: '-', percent: '-', subject_grade: x.g ?? '' }
-    const ps = partsOfPaper.get(x.es_id) ?? []
-    if (ps.length && x.got !== null) {
-      r.parts = ps.map((p) => { const v = partMarks.get(`${x.es_id}|${p.id}`); return `${p.name} ${v == null ? '-' : trimFloat(v)}` }).join(' · ')
-    }
     if (x.got !== null) {
       r.marks = trimFloat(x.got)
       if (x.max > 0) r.percent = `${Math.round((100 * x.got) / x.max)}%`
