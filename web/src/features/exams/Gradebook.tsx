@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
+import { Download, Upload } from 'lucide-react'
 import type { GradebookRow } from '@shared/api'
 import { api, type List } from '@/lib/api'
 import {
@@ -8,7 +8,9 @@ import {
   Table, Td, Badge, Button, Select, SkeletonTiles, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
-import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
+import { downloadCSV, SearchBox, Showing, useSearch } from '@/components/rows'
+import { marksTemplate, readMarksSheet } from './marksSheet'
+import ClassSheet from './ClassSheet'
 import { useToast } from '@/components/Toast'
 
 interface Paper {
@@ -23,63 +25,10 @@ type Row = GradebookRow
 interface PartMarks {
   parts: { id: string; name: string; max_marks: number }[]
   items: { student_id: string; parts: Record<string, number | null> }[]
+  bands?: { grade: string; min: number; max: number }[]
 }
 
 interface SectionRow { id: string; name: string; class_id: string; class_name: string }
-
-/* Reading a marks sheet the exam cell already has.
-
-   CSV because that is what every spreadsheet in an Indian school exports to,
-   and because a format a person can open in Notepad is one they can fix
-   themselves when a column is wrong.
-
-   The header is found rather than demanded: a sheet whose columns are
-   "Roll No, Name, Marks" and one whose columns are "admission_no, student,
-   score" are the same sheet, and refusing the second on a technicality is how
-   an import feature goes unused. */
-/** A column heading matched loosely: "Project (10)", "project", " PROJECT "
-    are the same column, because that is how a spreadsheet comes back from
-    whoever filled it in. */
-export function sameHeading(a: string, b: string): boolean {
-  const tidy = (x: string) => x.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]/g, '')
-  return tidy(a) !== '' && tidy(a) === tidy(b)
-}
-
-function readMarksSheet(text: string): { header: string[]; rows: { key: string; value: string; cells: string[] }[] } {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
-  if (lines.length === 0) return { header: [], rows: [] }
-
-  const split = (line: string) =>
-    line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
-
-  const header = split(lines[0]).map((h) => h.toLowerCase())
-  const find = (...names: string[]) =>
-    header.findIndex((h) => names.some((n) => h.includes(n)))
-
-  let idCol = find('admission', 'adm no', 'adm_no', 'roll')
-  let markCol = find('mark', 'score', 'obtained')
-  let nameCol = find('name', 'student')
-
-  /* A sheet with no header at all — somebody pasted two columns. Assume the
-     first is who and the last is how many, which is the only arrangement that
-     makes sense and the one a person would have typed. */
-  let body = lines.slice(1)
-  if (idCol < 0 && nameCol < 0 && markCol < 0) {
-    idCol = 0
-    markCol = split(lines[0]).length - 1
-    body = lines
-  }
-  if (markCol < 0) markCol = split(lines[0]).length - 1
-
-  const out: { key: string; value: string; cells: string[] }[] = []
-  for (const line of body) {
-    const cells = split(line)
-    const key = (idCol >= 0 ? cells[idCol] : nameCol >= 0 ? cells[nameCol] : '') ?? ''
-    const value = (cells[markCol] ?? '').trim()
-    if (key) out.push({ key: key.trim(), value, cells })
-  }
-  return { header, rows: out }
-}
 
 /** Marks entry. The grade is computed server-side from the exam's grading
     scale — the teacher enters marks, never a grade. */
@@ -96,6 +45,8 @@ export default function Gradebook() {
    * maths" — and it is what was asked for. */
   const [classID, setClassID] = useState('')
   const [examKind, setExamKind] = useState('')
+  /* The whole class at once: every subject of the chosen exam and class. */
+  const [wholeClass, setWholeClass] = useState(false)
 
   // A teacher picks the paper from a list. Asking them to paste a UUID was the
   // single worst thing left in the interface.
@@ -168,72 +119,31 @@ export default function Gradebook() {
     const reader = new FileReader()
     reader.onerror = () => setImportErr('That file could not be read.')
     reader.onload = () => {
-      const sheet = readMarksSheet(String(reader.result ?? ''))
-      const pairs = sheet.rows
-      if (pairs.length === 0) {
-        setImportErr('Nothing in that file looked like a marks sheet.')
+      /* The template's own columns are found by heading, so the file the
+         Template button wrote goes back in unchanged; a blank cell is "not
+         entered", AB is absent, and a bad number is named, row by row. */
+      const got = readMarksSheet(String(reader.result ?? ''), rows, parts, paper?.max_marks ?? 0)
+      if (got.filled === 0 && got.missed.length === 0 && got.errors.length === 0) {
+        setImportErr('Nothing in that file looked like a marks sheet, or every mark in it was blank.')
         return
       }
-      /* WHICH COLUMN IS WHICH PART (owner, 2026-10-13: "add import to add
-         those marks with templent of roll no grade name subject and the
-         parts and total marks").
-
-         An exam marked in parts has a column per part, and the import was
-         not offered at all on those papers -- the one place a sheet saves
-         the most typing, three numbers a child instead of one. The parts are
-         found by their headings, so the file the Template button produced
-         goes back in unchanged, and a sheet whose heading says "Project"
-         where ours says "Project (10)" is still the same column. */
-      const partCol = new Map<string, number>()
-      for (const part of parts) {
-        const i = sheet.header.findIndex((h) => sameHeading(h, part.name))
-        if (i >= 0) partCol.set(part.id, i)
-      }
-      /* Admission number first, name second. Two children called Rahul Iyer
-         sit in the same room, and an admission number belongs to one of them —
-         so a name is only trusted when nothing matched by number. */
-      const byAdm = new Map(rows.map((r) => [r.admission_no.toLowerCase(), r]))
-      const byName = new Map(rows.map((r) => [r.full_name.trim().toLowerCase(), r]))
-
-      const next = { ...draft }
-      const nextParts: Record<string, Record<string, string>> = { ...partDraft }
-      const missed: string[] = []
-      let filled = 0
-      for (const { key, value, cells } of pairs) {
-        const row = byAdm.get(key.toLowerCase()) ?? byName.get(key.toLowerCase())
-        if (!row) {
-          missed.push(key)
-          continue
-        }
-        if (partCol.size) {
-          const mine = { ...(nextParts[row.student_id] ?? {}) }
-          let any = false
-          for (const [partId, i] of partCol) {
-            const cell = (cells[i] ?? '').trim()
-            if (cell === '') continue
-            mine[partId] = cell
-            any = true
-          }
-          if (any) { nextParts[row.student_id] = mine; filled++ }
-          continue
-        }
-        next[row.student_id] = value
-        filled++
-      }
-      if (partCol.size) setPartDraft(nextParts)
-      else setDraft(next)
+      if (hasParts) setPartDraft((d) => ({ ...d, ...got.parts }))
+      else setDraft((d) => ({ ...d, ...got.marks }))
+      setAbsent((d) => ({ ...d, ...got.absent }))
       setImportNote(
-        partCol.size
-          ? `${filled} ${filled === 1 ? 'child' : 'children'} filled in across ${partCol.size} part${partCol.size === 1 ? '' : 's'}. Check them, then press Save marks.`
-          : `${filled} mark${filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
+        got.partColumns
+          ? `${got.filled} ${got.filled === 1 ? 'child' : 'children'} filled in across ${got.partColumns} part${got.partColumns === 1 ? '' : 's'}. Check them, then press Save marks.`
+          : `${got.filled} mark${got.filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
       )
-      if (missed.length) {
-        setImportErr(
-          `Nobody in this paper matched: ${missed.slice(0, 6).join(', ')}` +
-            (missed.length > 6 ? ` and ${missed.length - 6} more` : '') +
-            '. Those rows were left alone.',
-        )
+      const problems: string[] = []
+      if (got.errors.length) {
+        problems.push(got.errors.slice(0, 6).join('; ') + (got.errors.length > 6 ? ` and ${got.errors.length - 6} more` : '') + '. Those rows were left alone.')
       }
+      if (got.missed.length) {
+        problems.push(`Nobody in this paper matched: ${got.missed.slice(0, 6).join(', ')}` +
+          (got.missed.length > 6 ? ` and ${got.missed.length - 6} more` : '') + '. Those rows were left alone.')
+      }
+      if (problems.length) setImportErr(problems.join(' '))
     }
     reader.readAsText(file)
   }
@@ -308,6 +218,26 @@ export default function Gradebook() {
     setPartDraft((d) => ({ ...d, [sid]: { ...(d[sid] ?? {}), [pid]: v } }))
 
   const toast = useToast()
+
+  /* Total and grade as they will be once saved, live while typing or after an
+     import, by the paper's own grade bands -- so a sheet loaded from a file
+     and marks typed by hand look the same before Save. Untouched rows show
+     what the server recorded. */
+  const bands = partQ.data?.bands ?? []
+  const liveTotal = (r: Row): number | null => {
+    if (absent[r.student_id] ?? r.is_absent) return null
+    if (hasParts) return partTotal(r.student_id)
+    const v = draft[r.student_id] ?? (r.marks_obtained != null ? String(r.marks_obtained) : '')
+    return v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
+  }
+  const liveGrade = (r: Row): string | null => {
+    const dirty = draft[r.student_id] !== undefined || absent[r.student_id] !== undefined || partDraft[r.student_id] !== undefined
+    if (!dirty) return r.grade ?? null
+    const t = liveTotal(r)
+    if (t === null || !bands.length || !r.max_marks) return null
+    const pct = (t / r.max_marks) * 100
+    return bands.find((b) => pct >= b.min && pct <= b.max)?.grade ?? null
+  }
 
   /* Setting the paper up is the exam cell's, entering the marks is the
      teacher's. Both live on this screen because they happen in that order. */
@@ -424,23 +354,17 @@ export default function Gradebook() {
                 left blank on purpose -- it is the parts added up, worked out
                 here, and a figure typed into it would be ignored. */}
             {paper && rows.length > 0 && (
-              <ExportRows
-                label="Template"
-                name={`marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-')}
-                rows={rows}
-                columns={[
-                  { header: 'Admission no.', value: (r: Row) => r.admission_no },
-                  { header: 'Student', value: (r: Row) => r.full_name },
-                  { header: 'Section', value: (r: Row) => r.section },
-                  { header: 'Class', value: () => paper.class_name },
-                  { header: 'Subject', value: () => paper.subject },
-                  { header: 'Exam', value: () => paper.exam_name },
-                  ...(hasParts
-                    ? parts.map((pt) => ({ header: `${pt.name} (${pt.max_marks})`, value: () => '' }))
-                    : [{ header: `Marks (${paper.max_marks})`, value: () => '' }]),
-                  { header: 'Total', value: () => '' },
-                ]}
-              />
+              <Button
+                variant="secondary"
+                title="Every child on this paper, with a column to type marks in. Fill it and import the same file."
+                onClick={() => downloadCSV(
+                  marksTemplate(paper, rows, parts, savedParts),
+                  `marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-'),
+                )}
+              >
+                <Download className="h-4 w-4" />
+                Template
+              </Button>
             )}
             <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
               <Upload className="h-3.5 w-3.5" aria-hidden />
@@ -457,10 +381,19 @@ export default function Gradebook() {
                 }}
               />
             </label>
+            {classID && examKind && visible.length > 0 && (
+              <Button
+                variant={wholeClass ? 'primary' : 'secondary'}
+                title="Every subject of this class in this exam on one sheet"
+                onClick={() => { setWholeClass((w) => !w); setESID('') }}
+              >
+                Whole class sheet
+              </Button>
+            )}
             <PrintButton />
             <Select
               value={classID}
-              onChange={(v) => { setClassID(v); setESID('') }}
+              onChange={(v) => { setClassID(v); setESID(''); if (!v) setWholeClass(false) }}
               placeholder="Any class"
               options={[
                 { value: '', label: 'Any class' },
@@ -469,7 +402,7 @@ export default function Gradebook() {
             />
             <Select
               value={examKind}
-              onChange={(v) => { setExamKind(v); setESID('') }}
+              onChange={(v) => { setExamKind(v); setESID(''); if (!v) setWholeClass(false) }}
               placeholder="Any exam"
               options={[
                 { value: '', label: 'Any exam' },
@@ -504,7 +437,14 @@ export default function Gradebook() {
         }
       />
       <PageBody>
-        {!esID ? (
+        {wholeClass && classID && examKind && visible.length > 0 && !esID ? (
+          <ClassSheet
+            key={`${classID}-${examKind}`}
+            papers={visible.map((p) => ({ id: p.id, subject: p.subject, max_marks: p.max_marks }))}
+            className={visible[0].class_name}
+            examName={visible[0].exam_name}
+          />
+        ) : !esID ? (
           <EmptyState
             title="Choose a paper"
             body={
@@ -602,25 +542,26 @@ export default function Gradebook() {
               <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
                 <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
                 <Showing shown={shown.length} total={rows.length} noun="students" />
-                <ExportRows
-                  rows={shown}
-                  name="marks"
-                  columns={[
-                    { header: 'Admission no', value: (x) => x.admission_no },
-                    { header: 'Student', value: (x) => x.full_name },
-                    { header: 'Marks', value: (x) => x.marks_obtained },
-                    { header: 'Out of', value: (x) => x.max_marks },
-                    { header: 'Absent', value: (x) => (x.is_absent ? 'yes' : 'no') },
-                    { header: 'Grade', value: (x) => x.grade },
-                  ]}
-                />
+                {/* Export is the template too: every child, a column to type in,
+                    what is recorded already filled, and it imports unchanged. */}
+                <Button
+                  variant="secondary"
+                  title="Download every child with their marks; fill it and import the same file"
+                  onClick={() => paper && downloadCSV(
+                    marksTemplate(paper, rows, parts, savedParts),
+                    `marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-'),
+                  )}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
               </div>
               {/* The section column only when the sheet mixes them. Filtered to
                   one, every row would carry the same value the picker above
                   already shows. */}
               <Table
                 head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']),
-                  ...(hasParts ? [...parts.map((p) => `${p.name} (${p.max_marks})`), 'Total'] : ['Marks']), 'Absent', 'Grade']}
+                  ...(hasParts ? [...parts.map((p) => `${p.name} (${p.max_marks})`), 'Total'] : [`Marks (${max})`, 'Total']), 'Absent', 'Grade']}
                 empty={!shown.length}
               >
                 {shown.map((r) => (
@@ -658,6 +599,9 @@ export default function Gradebook() {
                       />
                     </Td>
                     )}
+                    {!hasParts && (
+                      <Td className="font-medium tabular-nums">{liveTotal(r) ?? '-'}</Td>
+                    )}
                     <Td>
                       <input
                         type="checkbox"
@@ -666,7 +610,7 @@ export default function Gradebook() {
                         aria-label={`Mark ${r.full_name} absent`}
                       />
                     </Td>
-                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '-'}</Td>
+                    <Td>{liveGrade(r) ? <Badge tone="primary">{liveGrade(r)}</Badge> : '-'}</Td>
                   </tr>
                 ))}
               </Table>

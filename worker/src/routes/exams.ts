@@ -225,7 +225,7 @@ function registerExamGroup(r: Router) {
     const rows = await c.db.prepare(`
       SELECT st.id AS student_id, st.admission_no, ${NAME} AS full_name,
              CAST(m.marks_obtained AS REAL) AS marks_obtained, CAST(es.max_marks AS REAL) AS max_marks,
-             m.grade, COALESCE(m.is_absent, 0) AS is_absent, COALESCE(sec.name,'') AS section
+             m.grade, COALESCE(m.is_absent, 0) AS is_absent, COALESCE(sec.name,'') AS section, e.roll_no
         FROM exam_subjects es
         JOIN class_subjects cs ON cs.id = es.class_subject_id
         JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active'
@@ -238,6 +238,7 @@ function registerExamGroup(r: Router) {
       student_id: str(v.student_id), admission_no: str(v.admission_no), full_name: str(v.full_name),
       marks_obtained: num(v.marks_obtained) ?? undefined, max_marks: numOr0(v.max_marks),
       grade: v.grade == null ? undefined : str(v.grade), is_absent: bool(v.is_absent), section: str(v.section),
+      roll_no: v.roll_no == null ? undefined : str(v.roll_no),
     })))
   })
 
@@ -289,7 +290,11 @@ function registerExamGroup(r: Router) {
         by.set(x.student_id, m)
       }
     }
-    return ok({ parts, items: [...by].map(([student_id, p]) => ({ student_id, parts: p })) })
+    /* The paper's grade bands travel with it, so Marks entry can show the grade
+       a typed or imported mark will get before Save, by the same bands. */
+    const scale = await c.db.prepare(`SELECT e.grading_scale_id AS id FROM exam_subjects es JOIN exams e ON e.id = es.exam_id WHERE es.id = ?`).bind(esId).first<{ id: string | null }>()
+    const bands = scale?.id ? await gradeBands(c, scale.id) : []
+    return ok({ parts, bands, items: [...by].map(([student_id, p]) => ({ student_id, parts: p })) })
   })
   r.put('/exams/subjects/{id}/part-marks', MARKS_WRITE, savePartMarks)
 
