@@ -676,6 +676,43 @@ function tableKeyOf(labels: string[]): string {
   return `${path}|${labels.join('~')}`.slice(0, 300)
 }
 
+/* THE SAME CHOOSER, FOR A TABLE THIS COMPONENT DID NOT DRAW.
+
+   A handful of screens draw their own <table> because their rows are not
+   rows -- a timetable's cells are periods, an import preview's are a file's
+   own columns. The ones that ARE ordinary tables should still let a person
+   put a column away, and converting their markup to the shared component to
+   get it would be a rewrite of working screens for a button.
+
+   So the chooser is handed over instead. A caller passes its column labels
+   and gets back the class to put on its <table>, the <style> that hides what
+   is turned off, the control itself, and `label()` for drawing each heading
+   in the school's own word. Four lines at the call site, the same behaviour
+   and the same stored setting as every other table in the product. */
+export function useColumnChooser(labels: string[]) {
+  const key = tableKeyOf(labels)
+  const hidden = useHiddenColumns(key)
+  const names = useColumnNames(key)
+  const [cls] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
+  const hideAt = labels.map((l, i) => (l.trim() !== '' && hidden.includes(l) ? i : -1)).filter((i) => i >= 0)
+  return {
+    className: cls,
+    label: (original: string) => names[original] ?? original,
+    style: hideAt.length === 0 ? null : (
+      <style>{hideAt.map((i) => `.${cls} > thead th:nth-child(${i + 1}), .${cls} > tbody td:nth-child(${i + 1}) { display: none }`).join('')}</style>
+    ),
+    chooser: (
+      <ColumnChooser
+        labels={labels}
+        hidden={hidden}
+        onChange={(next) => setHiddenColumns(key, next)}
+        names={names}
+        onRename={(next) => setColumnNames(key, next)}
+      />
+    ),
+  }
+}
+
 function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
   labels: string[]; hidden: string[]; onChange: (next: string[]) => void
   names: Record<string, string>; onRename: (next: Record<string, string>) => void

@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Field,
-  SkeletonTable, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState, useColumnChooser,
 } from '@/components/ui'
-import { formatPaise, formatTime } from '@/lib/utils'
+import { formatPaise, formatTime, cn } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
 import { MonthPicker } from '@/components/PickerMenu'
 
@@ -67,6 +67,8 @@ const hhmm = (m?: number | null) =>
    is about a particular morning: the day the reader missed her finger, the day
    she stayed until six and it still says half day. Without the days behind the
    total the office can only repeat the total back. */
+const HOUR_COLS = ['Day', 'Due in', 'Punched in', 'Due out', 'Punched out', 'On the premises', 'Late by', 'The day']
+
 function DayList({ employeeId, month }: { employeeId: string; month: string }) {
   const q = useQuery({
     queryKey: ['staff-hours-days', employeeId, month],
@@ -76,19 +78,20 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
   if (q.isLoading) return <div className="p-4"><SkeletonTable rows={4} /></div>
   if (q.error) return <div className="p-4"><ErrorState error={q.error} /></div>
 
+  /* This screen draws its own table -- the row is a day, not a record -- so
+     it takes the chooser from the shared component rather than being
+     rewritten around it. Same control, same stored setting. */
+  const cols = useColumnChooser(HOUR_COLS)
   return (
     <div className="overflow-x-auto p-4">
-      <table className="w-full text-[13px]">
+      {cols.style}
+      <div className="mb-1 flex justify-end">{cols.chooser}</div>
+      <table className={cn('w-full text-[13px]', cols.className)}>
         <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="py-1 pr-4">Day</th>
-            <th className="py-1 pr-4">Due in</th>
-            <th className="py-1 pr-4">Punched in</th>
-            <th className="py-1 pr-4">Due out</th>
-            <th className="py-1 pr-4">Punched out</th>
-            <th className="py-1 pr-4">On the premises</th>
-            <th className="py-1 pr-4">Late by</th>
-            <th className="py-1">The day</th>
+            {HOUR_COLS.map((h, i) => (
+              <th key={h} className={i === HOUR_COLS.length - 1 ? 'py-1' : 'py-1 pr-4'}>{cols.label(h)}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
