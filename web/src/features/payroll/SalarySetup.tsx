@@ -336,6 +336,15 @@ export default function SalarySetup() {
             onDone={refresh}
           />
         </div>
+        {/* The school's own salary sheet, the same columns as the School format download (Yajur, 2026-10-13). */}
+        <div className="mt-2">
+          <BulkImport
+            entity="salary_sheet"
+            title="Salary sheet (school format)"
+            hint="Your salary register as a CSV: EMP ID, NAME, DESIGNATION, MOBILE NUMBER, SUBJECT, D.O.J, A/C Number, IFSC CODE, AADHAR, PAN, UAN, BASIC, H.R.A, DA, CA, OA. Fills each staff record and sets the monthly salary as Basic, HRA, DA, CA and OA. Gross, EPF, ESI and net are worked out by the payroll run."
+            onDone={refresh}
+          />
+        </div>
       </PageBody>
     </>
   )

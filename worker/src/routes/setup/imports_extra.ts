@@ -50,6 +50,87 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     },
   }
 
+  /* THE SCHOOL'S OWN SALARY SHEET, READ BACK IN (Yajur, 2026-10-13: "add csv
+     import"). The same columns as the School format download, so a sheet can
+     go out, be corrected and come back. Each row fills the staff record
+     (designation, mobile, joining date, bank, PAN, UAN, the last four of
+     Aadhaar) and sets the standing monthly salary as Basic, HRA, DA, CA and
+     OA, which is what a payroll run pays from. Columns the sheet works out
+     (gross, EPF, ESI, LOP, net) are ignored: the run works them out again. */
+  const SHEET_PAY: [string, string][] = [['basic', 'BASIC'], ['h.r.a', 'HRA'], ['da', 'DA'], ['ca', 'CONVEY'], ['oa', 'SPECIAL']]
+  const rupeesCell = (v: unknown): number | null => {
+    const t = str(v).replace(/[,₹\s]/g, '').trim()
+    if (t === '' || t === '-') return null
+    const n = Number(t)
+    if (!Number.isFinite(n) || n < 0) throw new Error(`"${str(v).trim()}" is not an amount of rupees`)
+    return Math.round(n * 100)
+  }
+  const sheetDate = (v: unknown): string | null => {
+    const t = str(v).trim()
+    if (t === '') return null
+    let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
+    if (m) return t
+    m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(t)
+    if (!m) throw new Error(`D.O.J "${t}" is not a date like 01/06/2024`)
+    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])
+    return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  }
+  specs.salary_sheet = {
+    perm: 'hr.payroll.write',
+    columns: ['emp_id', 'name', 'designation', 'mobile_number', 'subject', 'd.o.j', 'a/c_number', 'ifsc_code', 'aadhar', 'pan', 'uan', 'basic', 'h.r.a', 'da', 'ca', 'oa'],
+    required: ['emp_id'], identity: 'emp_id',
+    sample: ['YPS59100001', 'RAMYA SRI RACHERLA', 'Teacher', '9876543210', 'English', '01/06/2024', '7707198963', 'IDIB000L009', '123412341234', 'ABCDE1234F', '100123456789', '15000', '6000', '0', '1600', '2400'],
+    check: (row) => {
+      for (const [col] of SHEET_PAY) rupeesCell(row[col])
+      sheetDate(row['d.o.j'])
+    },
+    verify: async (ctx, row) => {
+      if (!(await employeeByCode(ctx, str(row.emp_id).trim(), false))) throw new Error(`nobody on the roll with EMP ID "${str(row.emp_id).trim()}". Import the staff first`)
+    },
+    write: async (ctx, row) => {
+      const empId = await employeeByCode(ctx, str(row.emp_id).trim(), false)
+      if (!empId) throw new Error('no rows in result set')
+      const cell = (k: string) => str(row[k]).trim()
+      const digits = cell('aadhar').replace(/\D/g, '')
+      let designationId: string | null = null
+      if (cell('designation')) {
+        const d = await ctx.db.prepare(`SELECT id FROM designations WHERE institution_id = ? AND lower(name) = lower(?)`).bind(ctx.inst, cell('designation')).first<{ id: string }>()
+        if (d) designationId = d.id
+        else {
+          designationId = uuid()
+          await ctx.db.prepare(`INSERT INTO designations (id, institution_id, name) VALUES (?, ?, ?)`).bind(designationId, ctx.inst, cell('designation')).run()
+        }
+      }
+      await ctx.db.prepare(`UPDATE employees SET designation_id = COALESCE(?, designation_id), phone = COALESCE(NULLIF(?, ''), phone),
+          joined_on = COALESCE(?, joined_on), bank_account = COALESCE(NULLIF(?, ''), bank_account), bank_ifsc = COALESCE(NULLIF(?, ''), bank_ifsc),
+          aadhaar_last4 = COALESCE(NULLIF(?, ''), aadhaar_last4), pan = COALESCE(NULLIF(upper(?), ''), pan), uan = COALESCE(NULLIF(?, ''), uan) WHERE id = ?`)
+        .bind(designationId, cell('mobile_number').replace(/\D/g, '').slice(-10), sheetDate(row['d.o.j']), cell('a/c_number').replace(/\s/g, ''),
+          cell('ifsc_code').toUpperCase(), digits.length >= 4 ? digits.slice(-4) : '', cell('pan'), cell('uan').replace(/\s/g, ''), empId).run()
+
+      const pay = SHEET_PAY.map(([col, code]) => [code, rupeesCell(row[col])] as const).filter(([, v]) => v !== null) as [string, number][]
+      if (pay.length === 0) return
+      const total = pay.reduce((a, [, v]) => a + v, 0)
+      let open = await ctx.db.prepare(`SELECT id FROM salary_structures WHERE institution_id = ? AND employee_id = ? AND effective_to IS NULL ORDER BY effective_from DESC LIMIT 1`)
+        .bind(ctx.inst, empId).first<{ id: string }>()
+      if (open) await ctx.db.prepare(`UPDATE salary_structures SET ctc_paise = ? WHERE id = ?`).bind(total, open.id).run()
+      else {
+        let from: string | null = null
+        if (ctx.year) from = (await ctx.db.prepare(`SELECT starts_on FROM academic_years WHERE id = ?`).bind(ctx.year).first<{ starts_on: string }>())?.starts_on ?? null
+        open = { id: uuid() }
+        await ctx.db.prepare(`INSERT INTO salary_structures (id, institution_id, employee_id, effective_from, ctc_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+          .bind(open.id, ctx.inst, empId, from ?? todayIndia(), total, now()).run()
+        ctx.noteCreated('salary_sheet', open.id, true)
+      }
+      for (const [code, amount] of pay) {
+        const comp = await ctx.db.prepare(`SELECT id FROM salary_components WHERE institution_id = ? AND code = ?`).bind(ctx.inst, code).first<{ id: string }>()
+        if (!comp) throw new Error(`the salary part ${code} is not set up. Open Salary setup once so the standard parts are created, then import again`)
+        await ctx.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id = ? AND component_id = ?`).bind(open.id, comp.id).run()
+        await ctx.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise) VALUES (?, ?, ?, ?, ?)`)
+          .bind(uuid(), ctx.inst, open.id, comp.id, amount).run()
+      }
+    },
+  }
+
   specs.payslips = {
     perm: 'hr.payroll.write', columns: ['employee_code', 'month', 'paid_days', 'lop_days', 'gross', 'deductions', 'net'], required: ['employee_code', 'month', 'gross', 'net'],
     sample: ['EMP001', '2026-04', '30', '0', '45000', '3600', '41400'],

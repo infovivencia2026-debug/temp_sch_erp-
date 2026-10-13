@@ -212,6 +212,8 @@ export default function Payroll() {
         actions={
           <>
             <ExportButton report="payroll" query={{ month, year }} />
+            {/* The school's own salary sheet, column for column (Yajur, 2026-10-13). */}
+            <ExportButton report="payroll_school" label="School format" query={{ month, year }} />
             <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
