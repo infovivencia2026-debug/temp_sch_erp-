@@ -1056,6 +1056,7 @@ export function Table({
   emptyLabel = 'Nothing to show.',
   sort,
   wide,
+  unpaged,
   loading,
   loadingRows = 6,
   hasMore,
@@ -1131,6 +1132,8 @@ export function Table({
      Leave it unset and the table decides for itself — see WIDE_AT. Pass it
      explicitly to override in either direction. */
   wide?: boolean
+  /** Every row on one page, no pager: a short list that must be seen whole (a class's date sheet). */
+  unpaged?: boolean
 }) {
   const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
 
@@ -1182,7 +1185,7 @@ export function Table({
      Expanding a table is what somebody does when ten rows at a time is the
      problem, and answering with forty at a time is the same problem further
      away. Paged in the card, whole on the screen. */
-  const size = full || printingAll ? Math.max(rows.length, 1) : PAGE_SIZE
+  const size = full || printingAll || unpaged ? Math.max(rows.length, 1) : PAGE_SIZE
   const pages = Math.max(1, Math.ceil(rows.length / size))
 
   /* The list continues past the rows in hand.

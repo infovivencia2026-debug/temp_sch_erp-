@@ -37,9 +37,17 @@ interface SectionRow { id: string; name: string; class_id: string; class_name: s
    "Roll No, Name, Marks" and one whose columns are "admission_no, student,
    score" are the same sheet, and refusing the second on a technicality is how
    an import feature goes unused. */
-function readMarksSheet(text: string): { key: string; value: string }[] {
+/** A column heading matched loosely: "Project (10)", "project", " PROJECT "
+    are the same column, because that is how a spreadsheet comes back from
+    whoever filled it in. */
+export function sameHeading(a: string, b: string): boolean {
+  const tidy = (x: string) => x.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]/g, '')
+  return tidy(a) !== '' && tidy(a) === tidy(b)
+}
+
+function readMarksSheet(text: string): { header: string[]; rows: { key: string; value: string; cells: string[] }[] } {
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
-  if (lines.length === 0) return []
+  if (lines.length === 0) return { header: [], rows: [] }
 
   const split = (line: string) =>
     line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
@@ -63,14 +71,14 @@ function readMarksSheet(text: string): { key: string; value: string }[] {
   }
   if (markCol < 0) markCol = split(lines[0]).length - 1
 
-  const out: { key: string; value: string }[] = []
+  const out: { key: string; value: string; cells: string[] }[] = []
   for (const line of body) {
     const cells = split(line)
     const key = (idCol >= 0 ? cells[idCol] : nameCol >= 0 ? cells[nameCol] : '') ?? ''
     const value = (cells[markCol] ?? '').trim()
-    if (key) out.push({ key: key.trim(), value })
+    if (key) out.push({ key: key.trim(), value, cells })
   }
-  return out
+  return { header, rows: out }
 }
 
 /** Marks entry. The grade is computed server-side from the exam's grading
@@ -160,10 +168,26 @@ export default function Gradebook() {
     const reader = new FileReader()
     reader.onerror = () => setImportErr('That file could not be read.')
     reader.onload = () => {
-      const pairs = readMarksSheet(String(reader.result ?? ''))
+      const sheet = readMarksSheet(String(reader.result ?? ''))
+      const pairs = sheet.rows
       if (pairs.length === 0) {
         setImportErr('Nothing in that file looked like a marks sheet.')
         return
+      }
+      /* WHICH COLUMN IS WHICH PART (owner, 2026-10-13: "add import to add
+         those marks with templent of roll no grade name subject and the
+         parts and total marks").
+
+         An exam marked in parts has a column per part, and the import was
+         not offered at all on those papers -- the one place a sheet saves
+         the most typing, three numbers a child instead of one. The parts are
+         found by their headings, so the file the Template button produced
+         goes back in unchanged, and a sheet whose heading says "Project"
+         where ours says "Project (10)" is still the same column. */
+      const partCol = new Map<string, number>()
+      for (const part of parts) {
+        const i = sheet.header.findIndex((h) => sameHeading(h, part.name))
+        if (i >= 0) partCol.set(part.id, i)
       }
       /* Admission number first, name second. Two children called Rahul Iyer
          sit in the same room, and an admission number belongs to one of them —
@@ -172,20 +196,36 @@ export default function Gradebook() {
       const byName = new Map(rows.map((r) => [r.full_name.trim().toLowerCase(), r]))
 
       const next = { ...draft }
+      const nextParts: Record<string, Record<string, string>> = { ...partDraft }
       const missed: string[] = []
       let filled = 0
-      for (const { key, value } of pairs) {
+      for (const { key, value, cells } of pairs) {
         const row = byAdm.get(key.toLowerCase()) ?? byName.get(key.toLowerCase())
         if (!row) {
           missed.push(key)
           continue
         }
+        if (partCol.size) {
+          const mine = { ...(nextParts[row.student_id] ?? {}) }
+          let any = false
+          for (const [partId, i] of partCol) {
+            const cell = (cells[i] ?? '').trim()
+            if (cell === '') continue
+            mine[partId] = cell
+            any = true
+          }
+          if (any) { nextParts[row.student_id] = mine; filled++ }
+          continue
+        }
         next[row.student_id] = value
         filled++
       }
-      setDraft(next)
+      if (partCol.size) setPartDraft(nextParts)
+      else setDraft(next)
       setImportNote(
-        `${filled} mark${filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
+        partCol.size
+          ? `${filled} ${filled === 1 ? 'child' : 'children'} filled in across ${partCol.size} part${partCol.size === 1 ? '' : 's'}. Check them, then press Save marks.`
+          : `${filled} mark${filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
       )
       if (missed.length) {
         setImportErr(
@@ -373,7 +413,36 @@ export default function Gradebook() {
                 Export sat on the screen whose job is putting marks IN, and
                 downloaded every mark in the school — the wrong direction and
                 the wrong scope on a teacher's page. */}
-            {!hasParts && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
+            {/* THE SHEET TO FILL IN (owner, 2026-10-13: "with templent of
+                roll no grade name subject and the parts and total marks").
+
+                Who the row is, so whoever types into it can see they have the
+                right child, and the class and subject on every row so a file
+                that has been emailed about for a week still says what it is.
+                One column per part where the exam has them, each headed with
+                what it is out of; one Marks column where it has not. Total is
+                left blank on purpose -- it is the parts added up, worked out
+                here, and a figure typed into it would be ignored. */}
+            {paper && rows.length > 0 && (
+              <ExportRows
+                label="Template"
+                name={`marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-')}
+                rows={rows}
+                columns={[
+                  { header: 'Admission no.', value: (r: Row) => r.admission_no },
+                  { header: 'Student', value: (r: Row) => r.full_name },
+                  { header: 'Section', value: (r: Row) => r.section },
+                  { header: 'Class', value: () => paper.class_name },
+                  { header: 'Subject', value: () => paper.subject },
+                  { header: 'Exam', value: () => paper.exam_name },
+                  ...(hasParts
+                    ? parts.map((pt) => ({ header: `${pt.name} (${pt.max_marks})`, value: () => '' }))
+                    : [{ header: `Marks (${paper.max_marks})`, value: () => '' }]),
+                  { header: 'Total', value: () => '' },
+                ]}
+              />
+            )}
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
               <Upload className="h-3.5 w-3.5" aria-hidden />
               Import marks
               <input
@@ -387,7 +456,7 @@ export default function Gradebook() {
                   e.target.value = ''
                 }}
               />
-            </label>}
+            </label>
             <PrintButton />
             <Select
               value={classID}

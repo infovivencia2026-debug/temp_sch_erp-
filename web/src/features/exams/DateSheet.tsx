@@ -105,7 +105,7 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
         {shown.map(([cls, list]) => (
           <div key={cls}>
             <p className="border-b bg-muted/40 px-[var(--card-pad)] py-2 text-[13px] font-semibold">{cls}</p>
-            <Table head={['Subject', 'Date', 'Starts', 'Minutes', 'Ends', 'Marks']}>
+            <Table unpaged head={['Subject', 'Date', 'Starts', 'Minutes', 'Ends', 'Marks']}>
               {list.map((r) => {
                 const e = edits[r.id] ?? { exam_date: '', start_time: '', duration: '' }
                 return (

@@ -140,9 +140,15 @@ function registerExamGroup(r: Router) {
     if (cs.results.length === 0) {
       throw badRequest('nothing to add. Either every subject already has a paper in this exam, or the classes chosen have no subjects attached yet.')
     }
+    /* A paper added later is out of what the exam's papers already are (its
+       chosen max, or its parts' total), not a flat 100 (owner, 2026-10-13). */
+    const ref = await c.db.prepare(`SELECT MAX(CAST(max_marks AS REAL)) AS m, MAX(CAST(pass_marks AS REAL)) AS p FROM exam_subjects WHERE exam_id = ?`)
+      .bind(examId).first<{ m: number | null; p: number | null }>()
+    const useMax = !req.max_marks && ref?.m ? ref.m : maxMarks
+    const usePass = !req.max_marks && ref?.p ? ref.p : passMarks
     await c.db.batch(cs.results.map((row) => c.db.prepare(`
       INSERT OR IGNORE INTO exam_subjects (id, institution_id, exam_id, class_subject_id, max_marks, pass_marks)
-      VALUES (?, ?, ?, ?, ?, ?)`).bind(uuid(), c.id.institution!.id, examId, row.id, String(maxMarks), String(passMarks))))
+      VALUES (?, ?, ?, ?, ?, ?)`).bind(uuid(), c.id.institution!.id, examId, row.id, String(useMax), String(usePass))))
     return ok({ papers_added: cs.results.length })
   })
 

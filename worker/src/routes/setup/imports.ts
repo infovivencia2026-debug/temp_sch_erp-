@@ -1,3 +1,4 @@
+import { addSubjectsToOpenExams } from './academics'
 import type { Router } from '../../router'
 import { collect } from '../fees/counter'
 import { isBatchGuardFailure } from '../fees/common'
@@ -756,6 +757,7 @@ export const importSpecs: Record<string, ImportSpec> = {
         csId = uuid()
         await ctx.db.prepare(`INSERT INTO class_subjects (id, institution_id, class_id, subject_id, max_marks, periods_per_week) VALUES (?, ?, ?, ?, ?, COALESCE(?, 0))`).bind(csId, ctx.inst, classId, subject.id, maxMarks, perWeek).run()
         ctx.noteCreated('class_subjects', csId, true)
+        await addSubjectsToOpenExams(ctx.db, ctx.inst, classId, [subject.id])
       }
       let sectionId = ''
       const haveSection = str(row.section).trim() !== ''

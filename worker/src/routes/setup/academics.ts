@@ -333,7 +333,8 @@ export function registerAcademics(r: Router): void {
       linked++
     }
     await batch(c, stmts)
-    return ok({ subjects: linked })
+    const papers = await addSubjectsToOpenExams(c.db, instId(c), classId, wanted)
+    return ok({ subjects: linked, papers_added: papers })
   })
 
   r.post('/setup/class-teacher', 'academics.write', async (c) => {
@@ -819,3 +820,24 @@ export async function assignSectionTeacher(c: Ctx, sectionId: string, classSubje
     .bind(uuid(), inst, sectionId, classSubjectId, teacherUserId, now()).run()
 }
 
+/* A SUBJECT ADDED LATER JOINS THE CLASS'S EXAMS (owner, 2026-10-13: "if I
+   add something it should be there without losing anything"). For every exam
+   not yet published that this class already sits, the new subject gets its
+   paper, out of what the class's other papers are out of (so exam parts and a
+   chosen max carry over). Only missing papers are added; nothing existing is
+   changed. Called after subjects are linked to a class. */
+export async function addSubjectsToOpenExams(db: D1Database, inst: string, classId: string, subjectIds: string[]): Promise<number> {
+  if (!subjectIds.length) return 0
+  const r = await db.prepare(`
+    INSERT OR IGNORE INTO exam_subjects (id, institution_id, exam_id, class_subject_id, max_marks, pass_marks)
+    SELECT lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-a' || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))),
+           ?1, e.id, cs.id, ref.max_marks, ref.pass_marks
+      FROM class_subjects cs
+      JOIN exams e ON COALESCE(e.is_published, 0) = 0
+      JOIN (SELECT es.exam_id, MAX(CAST(es.max_marks AS REAL)) AS max_marks, MAX(CAST(es.pass_marks AS REAL)) AS pass_marks
+              FROM exam_subjects es JOIN class_subjects c2 ON c2.id = es.class_subject_id WHERE c2.class_id = ?2 GROUP BY es.exam_id) ref ON ref.exam_id = e.id
+     WHERE cs.class_id = ?2 AND cs.subject_id IN (SELECT value FROM json_each(?3))
+       AND NOT EXISTS (SELECT 1 FROM exam_subjects x WHERE x.exam_id = e.id AND x.class_subject_id = cs.id)`)
+    .bind(inst, classId, JSON.stringify(subjectIds)).run()
+  return r.meta.changes ?? 0
+}
