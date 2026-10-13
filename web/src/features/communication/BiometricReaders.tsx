@@ -207,10 +207,10 @@ export default function BiometricReaders() {
         {orphans.length > 0 && (
           <Card>
             <CardHeader
-              title="Fingers nobody claims"
-              description="Punches arriving under an id no staff record carries. Somebody enrolled at the machine without telling the office, or a staff record is missing its reader id."
+              title="Not yet matched to staff"
+              description="Reader ids whose punches are not linked to anyone on the staff list yet. They are matched by the name enrolled on the reader; the reader holds no phone numbers, so a name it cannot match one person to stays here for the office to link."
             />
-            <Table head={['Reader id', 'Name on the reader', 'Punches', 'First seen', 'Last seen']}>
+            <Table head={['Reader id', 'Name on the reader', 'Punches', 'First punch', 'Latest punch']}>
               {orphans.map((o) => (
                 <tr key={o.device_user_id}>
                   <Td className="font-mono">{o.device_user_id}</Td>

@@ -794,7 +794,10 @@ export function registerStaff(r: Router): void {
     const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen,
           (SELECT u.name FROM biometric_device_users u WHERE u.device_id = MAX(p.device_id) AND u.device_user_id = p.device_user_id) AS name
         FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string; name: string | null }>()
-    const stamp = (iso: string) => `${istDate(iso)} ${istClock(iso)}`
+    // "25 Sep 2024, 4:17 PM": the school reads a 12-hour clock, not 16:17.
+    const stamp = (iso: string) => new Date(iso).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+    }).replace(/(am|pm)/, (m) => m.toUpperCase())
     const items = rows.results.map((v) => ({
       device_user_id: /^\d+$/.test(v.device_user_id) ? Number(v.device_user_id) : v.device_user_id,
       punches: Number(v.punches), first_seen: stamp(v.first_seen), last_seen: stamp(v.last_seen), name: v.name ?? undefined,
