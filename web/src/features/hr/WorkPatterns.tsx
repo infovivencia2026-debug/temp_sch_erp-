@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -219,10 +220,10 @@ export default function WorkPatterns() {
                   <Input value={draft.name} onChange={(v) => set({ name: v })} />
                 </Field>
                 <Field label="Day starts" required>
-                  <Input type="time" value={draft.starts_at} onChange={(v) => set({ starts_at: v })} />
+                  <TimePicker value={draft.starts_at} onChange={(v) => set({ starts_at: v })} />
                 </Field>
                 <Field label="Day ends" required>
-                  <Input type="time" value={draft.ends_at} onChange={(v) => set({ ends_at: v })} />
+                  <TimePicker value={draft.ends_at} onChange={(v) => set({ ends_at: v })} />
                 </Field>
                 <Field label="Grace, minutes" hint="Late only after this">
                   <Input type="number" value={draft.grace_minutes} onChange={(v) => set({ grace_minutes: v })} />

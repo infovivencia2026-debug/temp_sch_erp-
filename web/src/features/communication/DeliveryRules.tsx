@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, X } from 'lucide-react'
@@ -76,13 +77,13 @@ export default function DeliveryRules() {
         <div className="p-5">
           <FormGrid>
             <Field label="Daily digest at" hint="Notices, homework and marks set to 'Digest' go as one message at this time (IST).">
-              <Input type="time" value={settings.digest_time} onChange={(v) => setSettings({ ...settings, digest_time: v })} />
+              <TimePicker value={settings.digest_time} onChange={(v) => setSettings({ ...settings, digest_time: v })} />
             </Field>
             <Field label="Quiet hours from" hint="Non-urgent messages wait until quiet hours end. Leave both empty for none.">
-              <Input type="time" value={settings.quiet_from ?? ''} onChange={(v) => setSettings({ ...settings, quiet_from: v || null })} />
+              <TimePicker value={settings.quiet_from ?? ''} onChange={(v) => setSettings({ ...settings, quiet_from: v || null })} />
             </Field>
             <Field label="Quiet hours until">
-              <Input type="time" value={settings.quiet_to ?? ''} onChange={(v) => setSettings({ ...settings, quiet_to: v || null })} />
+              <TimePicker value={settings.quiet_to ?? ''} onChange={(v) => setSettings({ ...settings, quiet_to: v || null })} />
             </Field>
             <Field label="Most messages per family per day" hint="Anything over this waits for the next digest. 0 means no cap.">
               <Input type="number" value={String(settings.daily_cap)} onChange={(v) => setSettings({ ...settings, daily_cap: Number(v) || 0 })} />

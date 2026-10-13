@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -91,8 +92,8 @@ export default function Rules() {
               {messaging.error ? <div className="px-5 pb-5"><ErrorState error={messaging.error} /></div> : ms && (
                 <div className="space-y-3 px-5 pb-5 pt-4">
                   <FormGrid>
-                    <Field label="Quiet from" hint="Blank on both means no quiet hours."><Input type="time" value={ms.quiet_from} onChange={(v) => setMsg({ ...ms, quiet_from: v })} /></Field>
-                    <Field label="Quiet to"><Input type="time" value={ms.quiet_to} onChange={(v) => setMsg({ ...ms, quiet_to: v })} /></Field>
+                    <Field label="Quiet from" hint="Blank on both means no quiet hours."><TimePicker value={ms.quiet_from} onChange={(v) => setMsg({ ...ms, quiet_from: v })} /></Field>
+                    <Field label="Quiet to"><TimePicker value={ms.quiet_to} onChange={(v) => setMsg({ ...ms, quiet_to: v })} /></Field>
                     <Field label="At most, per family, per day" hint="Messages beyond this wait for the digest."><Input type="number" value={ms.daily_cap} onChange={(v) => setMsg({ ...ms, daily_cap: v })} placeholder="No cap" /></Field>
                   </FormGrid>
                   <p className="text-[12.5px] text-muted-foreground">An urgent message, a bus alert or an absence, goes through quiet hours anyway.</p>

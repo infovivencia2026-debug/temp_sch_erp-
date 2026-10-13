@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
@@ -529,7 +530,7 @@ function Appointments() {
               <Input type="date" value={form.on_date ?? ''} onChange={set('on_date')} />
             </Field>
             <Field label="Time" required>
-              <Input type="time" value={form.starts_at ?? ''} onChange={set('starts_at')} />
+              <TimePicker value={form.starts_at ?? ''} onChange={set('starts_at')} />
             </Field>
             <Field label="What it is about" wide required>
               <Input value={form.purpose ?? ''} onChange={set('purpose')} placeholder="Discuss falling maths marks" />

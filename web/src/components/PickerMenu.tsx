@@ -294,3 +294,62 @@ export function MonthPicker({
     />
   )
 }
+
+/** "14:05" -> "2:05 pm". Anything else comes back as it went in. */
+export function timeLabel(v: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(v)
+  if (!m) return v
+  const h = Number(m[1]), mm = m[2]
+  if (h < 0 || h > 23) return v
+  const ampm = h < 12 ? 'am' : 'pm'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${mm} ${ampm}`
+}
+
+/* A TIME, IN THE PRODUCT'S OWN MENU (owner, 2026-10-13: "change dropdown like
+   our theme all dropdowns this also").
+
+   `<input type="time">` hands the job to the browser, and Chrome answers with
+   three blue scrolling columns in its own colours and typeface -- the same
+   complaint as the month picker, in the same place on the screen. It also
+   ignores the dark theme, and where the field is empty it shows "--:--"
+   rather than saying what it wants.
+
+   The value stays "HH:MM" on the 24-hour clock, exactly what the native input
+   gave, so every endpoint behind it is untouched; only the choosing changes.
+   Read back as "9:00 am", because that is how a school says it. Five-minute
+   steps cover bells, gates and office hours, and a time already saved that
+   falls between them is kept in the list so it is never silently moved. */
+export function TimePicker({
+  value, onChange, ariaLabel, srLabel, from = 0, to = 23, step = 5, className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  ariaLabel?: string
+  /** The same thing by the name the form fields use. */
+  srLabel?: string
+  /** First and last hour offered. */
+  from?: number
+  to?: number
+  /** Minutes between choices. */
+  step?: number
+  className?: string
+}) {
+  const keys: string[] = []
+  for (let h = from; h <= to; h++) {
+    for (let m = 0; m < 60; m += step) keys.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+  }
+  const now = (value || '').slice(0, 5)
+  if (now && !keys.includes(now)) { keys.push(now); keys.sort() }
+  return (
+    <PickerMenu
+      value={now}
+      options={keys.map((k) => ({ value: k, label: timeLabel(k) }))}
+      onChange={onChange}
+      ariaLabel={ariaLabel ?? srLabel ?? 'Time'}
+      placeholder="Choose a time"
+      align="start"
+      className={className}
+    />
+  )
+}

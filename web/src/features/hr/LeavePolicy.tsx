@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Clock, Scale } from 'lucide-react'
@@ -420,7 +421,7 @@ function LOPRulesTab({
         <div className="p-5">
           <FormGrid>
             <Field label="The day starts at">
-              <Input type="time" value={policy.shift_starts_at}
+              <TimePicker value={policy.shift_starts_at}
                 onChange={(v) => onChange('shift_starts_at', v)} />
             </Field>
             <Field label="Grace period (minutes)">

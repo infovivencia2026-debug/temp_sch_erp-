@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -322,7 +323,7 @@ export default function LeadPanel({ id, onClose, onOpen }: { id: string; onClose
                   </label>
                   <label className="flex flex-col gap-1 text-[13px]">
                     <span className="text-muted-foreground">Time (optional)</span>
-                    <Input type="time" value={visitTime} onChange={setVisitTime} />
+                    <TimePicker value={visitTime} onChange={setVisitTime} />
                   </label>
                   <Button disabled={!visitDay || bookVisit.isPending} onClick={() => bookVisit.mutate()}>
                     {bookVisit.isPending ? 'Booking…' : 'Book visit'}
