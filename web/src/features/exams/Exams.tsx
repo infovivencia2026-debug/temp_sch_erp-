@@ -98,10 +98,12 @@ export default function Exams() {
         {scheduling || rows.length === 0 ? (
           <ScheduleExam
             onCancel={rows.length === 0 ? undefined : () => setScheduling(false)}
-            onDone={(name) => {
+            onDone={(name, id) => {
               setScheduling(false)
-              setDone(`${name} scheduled. Give it papers below before marks entry can run.`)
+              setDone(`${name} scheduled. Add its parts below if it has project, assignment or notebook marks; otherwise it is ready.`)
               qc.invalidateQueries({ queryKey: ['exams-list'] })
+              /* Straight on to its parts: project, assignments, notes, each with its own max marks. */
+              if (id) { setPartsFor({ id, name }); window.setTimeout(() => document.getElementById('exam-parts')?.scrollIntoView({ behavior: 'smooth' }), 300) }
             }}
           />
         ) : (
@@ -211,14 +213,17 @@ export default function Exams() {
    by marks entry, moderation, hall tickets and report cards -- an exam with no
    papers stops all four, and looks like four broken screens rather than one
    unfinished exam. */
+/* The kind of exam only; what it is out of is the Max marks box (owner,
+   2026-10-13: "let the school choose the max marks"). */
 const CCE = [
-  { value: 'FA1', label: 'FA1, formative, 20 marks' },
-  { value: 'FA2', label: 'FA2, formative, 20 marks' },
-  { value: 'FA3', label: 'FA3, formative, 20 marks' },
-  { value: 'FA4', label: 'FA4, formative, 20 marks' },
-  { value: 'SA1', label: 'SA1, summative, 80 marks' },
-  { value: 'SA2', label: 'SA2, summative, 80 marks' },
-  { value: 'SA3', label: 'SA3, summative, 80 marks' },
+  { value: 'FA1', label: 'FA1 · formative' },
+  { value: 'FA2', label: 'FA2 · formative' },
+  { value: 'FA3', label: 'FA3 · formative' },
+  { value: 'FA4', label: 'FA4 · formative' },
+  { value: 'SA1', label: 'SA1 · summative' },
+  { value: 'SA2', label: 'SA2 · summative' },
+  { value: 'SA3', label: 'SA3 · summative' },
+  { value: 'OTHER', label: 'Other (unit test, project, pre-board…)' },
 ]
 
 interface Klass { id: string; name: string }
@@ -227,7 +232,7 @@ function ScheduleExam({
   onDone,
   onCancel,
 }: {
-  onDone: (name: string) => void
+  onDone: (name: string, id?: string) => void
   onCancel?: () => void
 }) {
   const classes = useQuery({
@@ -242,12 +247,13 @@ function ScheduleExam({
 
   const save = useMutation({
     mutationFn: () =>
-      api.post('/api/v1/setup/exams', {
+      api.post<{ id: string }>('/api/v1/setup/exams', {
         ...f,
+        cce_component: f.cce_component === 'OTHER' ? '' : f.cce_component,
         max_marks: Number(f.max_marks) || 20,
         class_ids: [...picked],
       }),
-    onSuccess: () => onDone(f.name.trim() || 'The exam'),
+    onSuccess: (res) => onDone(f.name.trim() || 'The exam', res.id),
   })
 
   const list = classes.data?.items ?? []
@@ -278,8 +284,8 @@ function ScheduleExam({
                 setF({
                   ...f,
                   cce_component: x,
-                  kind: x.startsWith('FA') ? 'formative' : 'summative',
-                  max_marks: x.startsWith('FA') ? '20' : '80',
+                  kind: x.startsWith('FA') ? 'formative' : x.startsWith('SA') ? 'summative' : 'term',
+                  max_marks: x.startsWith('FA') ? '20' : x.startsWith('SA') ? '80' : '100',
                 })
               }
               options={CCE}
