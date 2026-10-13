@@ -306,50 +306,79 @@ export function timeLabel(v: string): string {
   return `${h12}:${mm} ${ampm}`
 }
 
-/* A TIME, IN THE PRODUCT'S OWN MENU (owner, 2026-10-13: "change dropdown like
-   our theme all dropdowns this also").
+/* A TIME IS TYPED (owner, 2026-10-13: "instead of this let them write time").
 
-   `<input type="time">` hands the job to the browser, and Chrome answers with
-   three blue scrolling columns in its own colours and typeface -- the same
-   complaint as the month picker, in the same place on the screen. It also
-   ignores the dark theme, and where the field is empty it shows "--:--"
-   rather than saying what it wants.
+   It began as a menu, like the month picker, and that was wrong: a month has
+   twelve choices, a time has two hundred and eighty-eight. The list opened at
+   12:00 am -- the middle of the night, nowhere near a school day -- and
+   finding 9:30 meant scrolling past a hundred and fourteen times nobody
+   wanted. Faster to type it, which is what the native control was at least
+   letting people do.
 
-   The value stays "HH:MM" on the 24-hour clock, exactly what the native input
-   gave, so every endpoint behind it is untouched; only the choosing changes.
-   Read back as "9:00 am", because that is how a school says it. Five-minute
-   steps cover bells, gates and office hours, and a time already saved that
-   falls between them is kept in the list so it is never silently moved. */
+   So it is a plain field of ours, and it reads what a person actually writes:
+   "9:30", "9.30", "930", "0930", "9:30 am", "9 pm", "21:45". Bare hours below
+   8 are read as the afternoon -- a school writing "2:30" for a paper means
+   half past two, not half past two in the morning -- and anything genuinely
+   unreadable leaves the last good value alone rather than silently becoming
+   midnight. The value stays "HH:MM" on the 24-hour clock, exactly what the
+   native input gave, so every endpoint behind it is untouched. */
+export function parseTime(raw: string): string | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '')
+  if (!t) return ''
+  const m = /^(\d{1,2})(?:[:.]?(\d{2}))?(am|pm|a|p)?$/.exec(t)
+  if (!m) return null
+  let h = Number(m[1])
+  const mins = m[2] === undefined ? 0 : Number(m[2])
+  if (mins > 59) return null
+  const ap = m[3]?.[0]
+  if (m[1].length === 4) return null
+  if (ap === 'a') { if (h < 1 || h > 12) return null; if (h === 12) h = 0 }
+  else if (ap === 'p') { if (h < 1 || h > 12) return null; if (h !== 12) h += 12 }
+  else {
+    if (h > 23) return null
+    /* "930" is 9:30; "1430" is half past two. A bare 1 to 7 with no am/pm is
+       the afternoon, because a school day does not start then. */
+    if (h >= 1 && h <= 7 && m[2] === undefined) h += 12
+  }
+  return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
 export function TimePicker({
-  value, onChange, ariaLabel, srLabel, from = 0, to = 23, step = 5, className,
+  value, onChange, ariaLabel, srLabel, className, placeholder = '9:30 am',
 }: {
   value: string
   onChange: (v: string) => void
   ariaLabel?: string
   /** The same thing by the name the form fields use. */
   srLabel?: string
-  /** First and last hour offered. */
-  from?: number
-  to?: number
-  /** Minutes between choices. */
-  step?: number
   className?: string
+  placeholder?: string
 }) {
-  const keys: string[] = []
-  for (let h = from; h <= to; h++) {
-    for (let m = 0; m < 60; m += step) keys.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
-  }
   const now = (value || '').slice(0, 5)
-  if (now && !keys.includes(now)) { keys.push(now); keys.sort() }
+  const [text, setText] = useState(() => (now ? timeLabel(now) : ''))
+  const [live, setLive] = useState(false)
+  /* While it is not being typed in, the field shows the tidy reading of
+     whatever is stored -- so "0930" becomes "9:30 am" the moment focus
+     leaves, and a value changed elsewhere on the screen shows up here. */
+  useEffect(() => { if (!live) setText(now ? timeLabel(now) : '') }, [now, live])
+  const commit = (raw: string) => {
+    const parsed = parseTime(raw)
+    if (parsed === null) { setText(now ? timeLabel(now) : ''); return }
+    if (parsed !== now) onChange(parsed)
+    setText(parsed ? timeLabel(parsed) : '')
+  }
   return (
-    <PickerMenu
-      value={now}
-      options={keys.map((k) => ({ value: k, label: timeLabel(k) }))}
-      onChange={onChange}
-      ariaLabel={ariaLabel ?? srLabel ?? 'Time'}
-      placeholder="Choose a time"
-      align="start"
-      className={className}
+    <input
+      type="text"
+      inputMode="numeric"
+      value={text}
+      aria-label={ariaLabel ?? srLabel ?? 'Time'}
+      placeholder={placeholder}
+      onFocus={(e) => { setLive(true); setText(now); e.currentTarget.select() }}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={(e) => { setLive(false); commit(e.target.value) }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+      className={cn('field w-full [@media(pointer:coarse)]:text-[16px]', className)}
     />
   )
 }
