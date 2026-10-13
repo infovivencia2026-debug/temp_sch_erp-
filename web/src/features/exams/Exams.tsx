@@ -8,6 +8,7 @@ import {
 import { formatDate, cn } from '@/lib/utils'
 import DateSheet from './DateSheet'
 import ExamParts from './ExamParts'
+import Gradebook from './Gradebook'
 
 /* The exam, and the papers everything else hangs off.
  *
@@ -47,6 +48,7 @@ export default function Exams() {
   const [scheduling, setScheduling] = useState(false)
   const [sheetFor, setSheetFor] = useState('')
   const [partsFor, setPartsFor] = useState<{ id: string; name: string } | null>(null)
+  const [marksOpen, setMarksOpen] = useState(false)
 
   const exams = useQuery({
     queryKey: ['exams-list'],
@@ -84,6 +86,13 @@ export default function Exams() {
   const rows = exams.data?.items ?? []
   const empty = rows.filter((e) => e.papers === 0)
 
+  if (marksOpen) return (
+    <>
+      <div className="px-4 pt-3 sm:px-6"><Button variant="secondary" onClick={() => setMarksOpen(false)}>← Back to exams</Button></div>
+      <Gradebook />
+    </>
+  )
+
   return (
     <>
       <PageHead
@@ -107,7 +116,10 @@ export default function Exams() {
             }}
           />
         ) : (
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {/* The principal and the exam controller enter marks for any class here
+                (owner, 2026-10-13); teachers have their own Marks entry. */}
+            <Button variant={marksOpen ? 'primary' : 'secondary'} onClick={() => setMarksOpen(!marksOpen)}>{marksOpen ? 'Close marks entry' : 'Enter marks'}</Button>
             <Button onClick={() => setScheduling(true)}>Schedule an exam</Button>
           </div>
         )}
