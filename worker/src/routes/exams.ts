@@ -1291,6 +1291,9 @@ const reportCardPlaceholders = [
   { token: '{{result}}', means: "PASS or FAIL, on the school's own pass mark" },
   { token: '{{rank}}', means: 'rank in the section' },
   { token: '{{attendance}}', means: 'attendance percentage' },
+  { token: '{{attendance_rows}}', means: 'one table row per month: days, present, absent and the percentage, with a total' },
+  { token: '{{class_teacher_remarks}}', means: "the class teacher's remark on this card" },
+  { token: '{{principal_remarks}}', means: "the head's remark on this card" },
   { token: '{{class_teacher}}', means: 'the class teacher who sent it for approval' },
   { token: '{{class_teacher_sign}}', means: 'their signature, once they have sent it up' },
   { token: '{{principal}}', means: 'the head who approved it' },
@@ -1322,7 +1325,7 @@ async function loadReportCardTemplate(c: Ctx): Promise<ReportCardTemplate> {
   return { name: t.name, template_html: t.template_html, is_built_in: false, font, updated_at: t.at, updated_by: t.by ?? undefined }
 }
 
-interface RenderedCard { values: Record<string, string>; subjects: Record<string, string>[] }
+interface RenderedCard { values: Record<string, string>; subjects: Record<string, string>[]; attendanceRows?: string }
 
 function imgTag(id: string): string {
   const v = id.trim()
@@ -1386,6 +1389,7 @@ function fillReportCard(tpl: string, card: RenderedCard): string {
     }
     out = out.split('{{performance_chart}}').join(ch)
   }
+  out = out.split('{{attendance_rows}}').join(card.attendanceRows ?? '')
   out = out.split('{{photo}}').join(imgTag(card.values.photo_file_id ?? ''))
   out = out.split('{{school_logo}}').join(logoTag(card.values.logo_file_id ?? ''))
   out = out.split('{{class_teacher_sign}}').join(imgTag(card.values.teacher_sign_file_id ?? ''))
@@ -1417,7 +1421,7 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
            (SELECT u2.full_name FROM users u2 WHERE u2.id = rc.decided_by) AS principal,
            (SELECT u.signature_file_id FROM users u WHERE u.id = rc.submitted_by) AS teacher_sign,
            (SELECT u2.signature_file_id FROM users u2 WHERE u2.id = rc.decided_by) AS principal_sign,
-           rc.rank_in_section AS rank
+           rc.rank_in_section AS rank, rc.class_teacher_remarks AS ct_remarks, rc.principal_remarks AS p_remarks
       FROM report_cards rc
       JOIN students st ON st.id = rc.student_id
       JOIN institutions i ON i.id = rc.institution_id
@@ -1435,7 +1439,10 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
     class: s('class'), section: s('section'), admission_no: s('admission_no'), roll_no: s('roll_no'),
     date_of_birth: ddmmyyyy(row.date_of_birth as string | null), admission_date: ddmmyyyy(row.admission_date as string | null),
     photo_file_id: s('photo_file_id'), father_name: s('father'), mother_name: s('mother'), guardian_name: s('guardian'),
-    total_marks: n('total'), marks_obtained: n('obtained'), grade: s('grade'), remarks: '',
+    total_marks: n('total'), marks_obtained: n('obtained'), grade: s('grade'),
+    /* The remarks are already written and approved on the card; they were
+       gathered nowhere, so a design asking for them printed an empty box. */
+    remarks: s('ct_remarks'), class_teacher_remarks: s('ct_remarks'), principal_remarks: s('p_remarks'),
     exam_name: s('exam_name'), academic_year: s('year'), class_teacher: s('class_teacher'), principal: s('principal'),
     rank: s('rank'), issued_on: ddmmyyyy(todayIST()), percentage: '', attendance: '', result: '',
   }
@@ -1472,7 +1479,44 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
     }
     return r
   })
-  return { values, subjects }
+  /* THE REGISTER, MONTH BY MONTH (owner, 2026-10-13, with a design whose
+     attendance block is a table rather than one percentage).
+
+     The card already carries the year's attendance as a single figure. A
+     family reading "94.2%" cannot see that the two absences were both in
+     August, which is the conversation a parents' evening actually has. Same
+     filter as that figure -- the child's own register for this academic
+     year, whole days only, holidays and approved leave left out -- so the
+     total at the foot of this table is the percentage printed above it and
+     the two can never disagree.
+
+     Built here as HTML rather than handed over as data, like the subject
+     rows, because a template is a page of HTML and has no way to loop. */
+  const months = await c.db.prepare(`
+    SELECT substr(sa.on_date, 1, 7) AS ym,
+           COUNT(*) AS total,
+           SUM(CASE WHEN sa.status IN ('present','late') THEN 1 ELSE 0 END) AS present
+      FROM student_attendance sa
+      JOIN report_cards rc ON rc.id = ?1
+      JOIN academic_years ay ON ay.id = rc.academic_year_id
+     WHERE sa.student_id = rc.student_id AND sa.period_id IS NULL
+       AND sa.status NOT IN ('holiday','leave')
+       AND sa.on_date BETWEEN ay.starts_on AND ay.ends_on
+     GROUP BY ym ORDER BY ym`).bind(cardId).all<{ ym: string; total: number; present: number }>()
+  const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  let attRows = '', tDays = 0, tPresent = 0
+  for (const m of months.results) {
+    const total = Number(m.total) || 0, present = Number(m.present) || 0
+    tDays += total; tPresent += present
+    const name = `${MONTH[Number(m.ym.slice(5, 7)) - 1] ?? m.ym} ${m.ym.slice(0, 4)}`
+    const pc = total > 0 ? ((100 * present) / total).toFixed(1) + '%' : '-'
+    attRows += `<tr><td class="rc-left">${escapeHtml(name)}</td><td>${total}</td><td>${present}</td><td>${total - present}</td><td>${pc}</td></tr>`
+  }
+  if (attRows) {
+    const pc = tDays > 0 ? ((100 * tPresent) / tDays).toFixed(1) + '%' : '-'
+    attRows += `<tr class="rc-total"><td class="rc-left">Total</td><td>${tDays}</td><td>${tPresent}</td><td>${tDays - tPresent}</td><td>${pc}</td></tr>`
+  }
+  return { values, subjects, attendanceRows: attRows }
 }
 
 // ------------------------------------------------------------ exam day
