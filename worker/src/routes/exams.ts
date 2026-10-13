@@ -233,7 +233,17 @@ function registerExamGroup(r: Router) {
         LEFT JOIN sections sec ON sec.id = e.section_id
         LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = st.id
        WHERE es.id = ? AND (? = '' OR e.section_id = ?)
-       ORDER BY sec.name, st.admission_no`).bind(esId, sectionId, sectionId).all()
+       /* ROLL NUMBER ORDER (owner, 2026-10-13: "let this be roll number
+          wise"). The sheet was in admission-number order, which is the order
+          children joined the school -- 2, 5, 32, 27, 22 down the page. A
+          teacher marking thirty papers has them in roll order in front of
+          them, and reading a name out of a list sorted by something else,
+          thirty times, is where a mark lands on the wrong child.
+
+          roll_no is an integer, so 9 comes before 10. A child with no roll
+          number yet goes last rather than first, where a NULL would sort,
+          and admission number breaks a tie. */
+       ORDER BY sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no`).bind(esId, sectionId, sectionId).all()
     return items(rows.results.map((v): GradebookRow => ({
       student_id: str(v.student_id), admission_no: str(v.admission_no), full_name: str(v.full_name),
       marks_obtained: num(v.marks_obtained) ?? undefined, max_marks: numOr0(v.max_marks),
