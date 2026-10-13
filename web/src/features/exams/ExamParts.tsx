@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { Button, Card, CardHeader, ErrorState, FormNotice, Input, SkeletonTable } from '@/components/ui'
+import { toastBus } from '@/components/Toast'
 
 /* EXAM PARTS (owner, 2026-10-13): "some schools give marks for project
    assessment, notebook completion and overall performance, shown on the
@@ -30,12 +30,11 @@ export default function ExamParts({ examId, examName, onClose }: { examId: strin
   }, [q.data])
 
   const set = (i: number, k: 'name' | 'max', v: string) => setRows((r) => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
-  const move = (i: number, d: -1 | 1) => setRows((r) => {
-    const j = i + d
-    if (j < 0 || j >= r.length) return r
-    const n = [...r]; [n[i], n[j]] = [n[j], n[i]]
-    return n
-  })
+  /* NO ARROWS (owner, 2026-10-13: "no need of arrows"). Two buttons on every
+     row to shuffle three parts up and down, when the order of Written and
+     Project changes nothing but the order they are typed in. Removing a part
+     and adding it again is the whole of reordering, and the row is four
+     controls lighter for it. */
   const total = rows.reduce((a, r) => a + (Number(r.max) || 0), 0)
   const bad = rows.some((r) => !r.name.trim() || !(Number(r.max) > 0))
   const removing = (q.data?.items ?? []).filter((p) => !rows.some((r) => r.id === p.id))
@@ -45,6 +44,10 @@ export default function ExamParts({ examId, examName, onClose }: { examId: strin
       parts: rows.map((r) => ({ ...(r.id ? { id: r.id } : {}), name: r.name.trim(), max_marks: Number(r.max) })),
     }),
     onSuccess: () => {
+      /* The card says what changed and for how long it matters; the toast
+         says it landed, which is the bit somebody watching the button wants
+         (owner, 2026-10-13: "also show saved popup"). */
+      toastBus()?.ok('Saved')
       setNote(rows.length ? `Saved. Every paper of ${examName} is now out of ${total}, and marks already entered were added up again.` : 'Saved. This exam is marked as one figure per paper again.')
       qc.invalidateQueries({ queryKey: ['exam-parts', examId] })
       qc.invalidateQueries({ queryKey: ['exams-list'] })
@@ -61,18 +64,39 @@ export default function ExamParts({ examId, examName, onClose }: { examId: strin
     <Card>
       <CardHeader
         title={`Parts · ${examName}`}
-        description={rows.length ? `Out of ${total}. Each paper is marked part by part and its total is the parts added together.` : 'No parts: each paper gets one mark. Add parts if this exam also marks project work, notebooks and the like.'}
         action={<Button variant="ghost" onClick={onClose}>Close</Button>}
       />
-      <div className="space-y-3 px-5 pb-5">
+      <div className="space-y-3 px-[var(--card-pad)] py-[var(--card-pad)]">
         {note && <FormNotice ok={note} />}
         {save.error && <FormNotice error={save.error} />}
+        {/* THE CARD HAS TO SAY WHAT IT IS (owner, 2026-10-13: "fix the ui").
+
+            This was a CardHeader `description`, and CardHeader has not drawn
+            descriptions for some time -- the prop is kept so that nothing
+            breaks, which is exactly how a sentence goes missing without
+            anybody noticing. With no parts yet, every word explaining what a
+            part is went nowhere and the card opened as a title, a Close and
+            two buttons over white space.
+
+            It is said here instead, where there is room for it, and only
+            while it is needed: once there are parts the rows speak for
+            themselves and the line becomes the total. */}
+        {rows.length === 0 ? (
+          <p className="text-[13.5px] text-muted-foreground">
+            No parts yet, so each paper of {examName} gets one mark out of its own total.
+            Add parts if this exam also marks project work, notebooks, orals and the like &mdash;
+            each paper is then marked part by part and its total is the parts added together.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-x-2 text-[13.5px] text-muted-foreground">
+            <span>Each paper is marked part by part; its total is the parts added together.</span>
+            <strong className="text-foreground">Out of {total}</strong>
+          </div>
+        )}
         {rows.map((r, i) => (
           <div key={r.id ?? `new-${i}`} className="flex flex-wrap items-center gap-2">
             <Input value={r.name} onChange={(v) => set(i, 'name', v)} placeholder={SUGGEST[i] ?? 'Part name'} srLabel={`Part ${i + 1} name`} className="w-56" />
             <Input type="number" min={1} value={r.max} onChange={(v) => set(i, 'max', v)} placeholder="Out of" srLabel={`Part ${i + 1} out of`} className="w-24" />
-            <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up"><ArrowUp className="h-3.5 w-3.5" aria-hidden /></Button>
-            <Button size="sm" variant="ghost" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down"><ArrowDown className="h-3.5 w-3.5" aria-hidden /></Button>
             <Button size="sm" variant="ghost" onClick={() => setRows((x) => x.filter((_, j) => j !== i))}>Remove</Button>
           </div>
         ))}
@@ -84,7 +108,7 @@ export default function ExamParts({ examId, examName, onClose }: { examId: strin
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" onClick={() => setRows((x) => [...x, { name: '', max: '' }])}>Add part</Button>
           <Button disabled={save.isPending || bad} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
-          {rows.length > 0 && <span className="text-[13px] text-muted-foreground">Out of {total}</span>}
+
         </div>
       </div>
     </Card>

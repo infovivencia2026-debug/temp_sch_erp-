@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Button, Card, CardHeader, ErrorState, FormNotice, Input, PrintButton, SkeletonTable, Table, Td } from '@/components/ui'
+import { Button, Card, CardHeader, ErrorState, FormNotice, Input, PrintButton, Select, SkeletonTable, Table, Td } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 /* THE DATE SHEET (owner, 2026-10-08): when each paper is written.
@@ -43,6 +43,11 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
     for (const r of rows) m.set(r.class_name, [...(m.get(r.class_name) ?? []), r])
     return [...m.entries()]
   }, [rows])
+  /* One class at a time (owner, 2026-10-13: "instead of all this add a
+     dropdown"); "All classes" is still there for printing the whole sheet. */
+  const [cls, setCls] = useState('')
+  const shownCls = cls || byClass[0]?.[0] || ''
+  const shown = shownCls === '*' ? byClass : byClass.filter(([c]) => c === shownCls)
   const set = (id: string, k: keyof Edit, v: string) => setEdits((e) => ({ ...e, [id]: { ...e[id], [k]: v } }))
   const changed = rows.some((r) => {
     const e = edits[r.id]
@@ -89,7 +94,14 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
           <span className="text-muted-foreground">Then set each paper's date below.</span>
         </div>
 
-        {byClass.map(([cls, list]) => (
+        {byClass.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 border-b px-[var(--card-pad)] py-3 text-[14px]">
+            <span className="font-medium">Class</span>
+            <div className="w-56"><Select value={shownCls} onChange={setCls}
+              options={[...byClass.map(([c, l]) => ({ value: c, label: `${c} · ${l.length} papers` })), { value: '*', label: 'All classes' }]} /></div>
+          </div>
+        )}
+        {shown.map(([cls, list]) => (
           <div key={cls}>
             <p className="border-b bg-muted/40 px-[var(--card-pad)] py-2 text-[13px] font-semibold">{cls}</p>
             <Table head={['Subject', 'Date', 'Starts', 'Minutes', 'Ends', 'Marks']}>
