@@ -6,6 +6,7 @@ import {
   Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton,
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
+import { StaffMonth } from './StaffMonth'
 import { useCan } from '@/lib/session'
 import { Download, Printer } from 'lucide-react'
 import { useSession } from '@/lib/session'
@@ -42,6 +43,8 @@ const MARKS: { value: string; short: string; label: string; tone: string }[] = [
   { value: 'half_day', short: '½', label: 'Half day', tone: 'text-warning border-warning/40 bg-warning/10' },
   { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-secondary-foreground border-border-strong bg-surface-hover' },
   { value: 'wfh', short: 'H', label: 'From home', tone: 'text-info border-info/40 bg-info/10' },
+  /* Late with permission (Yajur, 2026-10-13): within an hour it is not a late mark, so no pay is cut. */
+  { value: 'permission', short: 'Pr', label: 'Permission', tone: 'text-success border-success/40 bg-success/10' },
 ]
 
 export default function StaffAttendance() {
@@ -289,6 +292,8 @@ export default function StaffAttendance() {
             </Table>
           )}
         </Card>
+
+        <StaffMonth people={rows} />
       </PageBody>
     </>
   )

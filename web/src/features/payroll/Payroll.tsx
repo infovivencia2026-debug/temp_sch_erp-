@@ -12,6 +12,7 @@ import { Printer } from 'lucide-react'
 import { printHtml } from '@/features/finance/receipt-print'
 import { registerHtml } from './payroll-print'
 import { useToast } from '@/components/Toast'
+import { PayAdjustments } from './PayAdjustments'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -469,7 +470,7 @@ export default function Payroll() {
           />
           {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
-              head={['Code', 'Employee', 'Paid days', 'LOP', ...components, 'Gross', 'Deductions', 'Net']}
+              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c), 'Gross', 'Deductions', 'Net']}
               empty={!rows.length}
               emptyLabel="No payroll run for this month yet."
             >
@@ -506,6 +507,8 @@ export default function Payroll() {
             </Table>
           )}
         </Card>
+
+        <PayAdjustments month={month} year={year} people={rows} locked={locked} canWrite={canRun} />
       </PageBody>
     </>
   )

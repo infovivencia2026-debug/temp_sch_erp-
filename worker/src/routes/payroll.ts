@@ -22,6 +22,8 @@ const REPORTS_READ = 'admin.reports.read'
 const STUDENTS_WRITE = 'students.write'
 const PAYROLL_READ = 'hr.payroll.read'
 const PAYROLL_WRITE = 'hr.payroll.write'
+/** How late a 'permission' day may be before it counts as late after all. */
+const PERMISSION_MINUTES = 60
 
 const EMP_NAME = nameOf('e', false)
 
@@ -663,6 +665,10 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
     let lateMark = 0
     if (['absent', 'half_day', 'leave', 'holiday', 'week_off'].includes(status)) lateMark = 0
     else if (pol.lateHalfDayAfter != null && (late ?? 0) >= pol.lateHalfDayAfter) lateMark = 0
+    /* PERMISSION (Yajur, 2026-10-13: "coming late one hour with permission is
+       a permission and they won't get cut"). Within the hour it is not a late
+       mark; beyond it, it is late like any other day. */
+    else if (status === 'permission') lateMark = (late ?? 0) > PERMISSION_MINUTES ? 1 : 0
     else if (status === 'late' || (late ?? 0) > sh.grace) lateMark = 1
     const t = tally.get(eid) ?? { charged: 0, marks: 0 }
     t.charged += charged; t.marks += lateMark
@@ -830,6 +836,9 @@ async function runPayroll(c: Ctx) {
       if (take >= d.owing) stmts.push(c.db.prepare(`UPDATE staff_loans SET status = 'closed', closed_on = ? WHERE id = ?`).bind(todayIST(), d.id))
     }
     if (loanCut > 0) { deduct += loanCut; breakup.ADVANCE = -loanCut }
+    const adj = await monthAdjustments(c, e.id, year, month)
+    if (adj.earn > 0) { earn += adj.earn; breakup.ADJ_ADD = adj.earn }
+    if (adj.deduct > 0) { deduct += adj.deduct; breakup.ADJ_CUT = -adj.deduct }
 
     stmts.push(c.db.prepare(`INSERT INTO payslips (id, institution_id, payroll_run_id, employee_id, paid_days, lop_days, gross_paise, deduction_paise, net_paise, breakup, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -939,7 +948,86 @@ const starterComponents: SalaryComponent[] = [
   { id: '', code: 'TDS', name: 'Income tax (TDS)', kind: 'deduction', sequence: 80, is_percent: false, is_statutory: true },
 ]
 
+/* ------------------------------------------------------------ adjustments
+ * Bonus, arrears or a one-off deduction for one person in one month, made
+ * before the month is locked (owner, 2026-10-13: "let them edit the payroll
+ * before publishing"). The run folds them in after the statutory figures, so
+ * changing one here and re-running the month give the same payslip. */
+async function monthAdjustments(c: Ctx, employeeId: string, year: number, month: number): Promise<{ earn: number; deduct: number }> {
+  const r = await c.db.prepare(`SELECT COALESCE(SUM(CASE WHEN kind = 'earning' THEN amount_paise END), 0) AS earn,
+      COALESCE(SUM(CASE WHEN kind = 'deduction' THEN amount_paise END), 0) AS deduct
+      FROM payroll_adjustments WHERE employee_id = ? AND period_year = ? AND period_month = ?`).bind(employeeId, year, month).first<{ earn: number; deduct: number }>()
+  return { earn: Number(r?.earn ?? 0), deduct: Number(r?.deduct ?? 0) }
+}
+
+/** Refold one person's adjustments into their payslip and the month's totals, in place. */
+async function refoldAdjustments(c: Ctx, employeeId: string, year: number, month: number) {
+  const run = await c.db.prepare(`SELECT id, status FROM payroll_runs WHERE period_year = ? AND period_month = ?`).bind(year, month).first<{ id: string; status: string }>()
+  if (!run) return
+  const ps = await c.db.prepare(`SELECT id, gross_paise, deduction_paise, breakup FROM payslips WHERE payroll_run_id = ? AND employee_id = ?`).bind(run.id, employeeId)
+    .first<{ id: string; gross_paise: number; deduction_paise: number; breakup: string | null }>()
+  if (!ps) return
+  const b: Record<string, number> = (() => { try { return JSON.parse(ps.breakup ?? '{}') ?? {} } catch { return {} } })()
+  const oldAdd = Number(b.ADJ_ADD ?? 0), oldCut = -Number(b.ADJ_CUT ?? 0)
+  const adj = await monthAdjustments(c, employeeId, year, month)
+  delete b.ADJ_ADD; delete b.ADJ_CUT
+  if (adj.earn > 0) b.ADJ_ADD = adj.earn
+  if (adj.deduct > 0) b.ADJ_CUT = -adj.deduct
+  const gross = Number(ps.gross_paise) - oldAdd + adj.earn
+  const deduct = Number(ps.deduction_paise) - oldCut + adj.deduct
+  await c.db.batch([
+    c.db.prepare(`UPDATE payslips SET gross_paise = ?, deduction_paise = ?, net_paise = ?, breakup = ? WHERE id = ?`).bind(gross, deduct, gross - deduct, JSON.stringify(b), ps.id),
+    c.db.prepare(`UPDATE payroll_runs SET gross_paise = (SELECT COALESCE(SUM(gross_paise),0) FROM payslips WHERE payroll_run_id = ?1),
+        deduction_paise = (SELECT COALESCE(SUM(deduction_paise),0) FROM payslips WHERE payroll_run_id = ?1),
+        net_paise = (SELECT COALESCE(SUM(net_paise),0) FROM payslips WHERE payroll_run_id = ?1) WHERE id = ?1`).bind(run.id),
+  ])
+}
+
+async function requireAdjustableMonth(c: Ctx, year: number, month: number) {
+  const run = await c.db.prepare(`SELECT status, bank_file_drawn_at FROM payroll_runs WHERE period_year = ? AND period_month = ?`).bind(year, month)
+    .first<{ status: string; bank_file_drawn_at: string | null }>()
+  if (run && (run.status === 'locked' || run.status === 'paid' || run.bank_file_drawn_at)) {
+    throw coded(409, 'payroll_locked', 'This month is locked. Unlock it first to change anybody\'s pay.')
+  }
+}
+
 function registerPayrollGroup(r: Router) {
+  r.get('/payroll/adjustments', PAYROLL_READ, async (c) => {
+    const month = num(c.url.searchParams.get('month')), year = num(c.url.searchParams.get('year'))
+    const rows = await c.db.prepare(`SELECT a.id, a.employee_id, a.kind, a.amount_paise, a.reason, a.created_at, COALESCE(u.full_name, '') AS by_name
+        FROM payroll_adjustments a LEFT JOIN users u ON u.id = a.created_by
+       WHERE a.period_year = ? AND a.period_month = ? ORDER BY a.created_at`).bind(year, month).all()
+    return ok(items(rows.results))
+  })
+  r.post('/payroll/adjustments', PAYROLL_WRITE, async (c) => {
+    const req = await readJSON<{ month?: number; year?: number; employee_id?: string; kind?: string; amount_paise?: number; reason?: string }>(c.req)
+    const month = Number(req.month ?? 0), year = Number(req.year ?? 0)
+    if (month < 1 || month > 12 || year < 2000) throw badRequest('Choose a month.')
+    const employeeId = String(req.employee_id ?? '')
+    if (!isUUID(employeeId)) throw badRequest('Choose who this is for.')
+    const kind = req.kind === 'deduction' ? 'deduction' : req.kind === 'earning' ? 'earning' : ''
+    if (!kind) throw badRequest('Say whether this adds to pay or takes off.')
+    const amount = Math.round(Number(req.amount_paise ?? 0))
+    if (!(amount > 0)) throw badRequest('Enter an amount more than zero.')
+    const reason = String(req.reason ?? '').trim()
+    if (!reason) throw badRequest('Give a reason. It is printed on the payslip.')
+    await requireAdjustableMonth(c, year, month)
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO payroll_adjustments (id, institution_id, employee_id, period_year, period_month, kind, amount_paise, reason, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, c.id.institution!.id, employeeId, year, month, kind, amount, reason.slice(0, 200), c.id.userId, now()).run()
+    await refoldAdjustments(c, employeeId, year, month)
+    return created({ id })
+  })
+  r.del('/payroll/adjustments/{id}', PAYROLL_WRITE, async (c) => {
+    const id = uuidParam(c.params.id)
+    const a = await c.db.prepare(`SELECT employee_id, period_year, period_month FROM payroll_adjustments WHERE id = ?`).bind(id)
+      .first<{ employee_id: string; period_year: number; period_month: number }>()
+    if (!a) throw notFound()
+    await requireAdjustableMonth(c, a.period_year, a.period_month)
+    await c.db.prepare(`DELETE FROM payroll_adjustments WHERE id = ?`).bind(id).run()
+    await refoldAdjustments(c, a.employee_id, a.period_year, a.period_month)
+    return ok({ deleted: true })
+  })
   r.get('/payroll/payslips', PAYROLL_READ, async (c) => {
     const month = num(c.url.searchParams.get('month')), year = num(c.url.searchParams.get('year'))
     const rows = await c.db.prepare(`
