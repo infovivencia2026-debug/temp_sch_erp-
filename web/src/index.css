@@ -935,6 +935,29 @@
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
+
+  /* NO RING FOR A MOUSE (owner, 2026-10-13: "when i click smth sometimes i
+     see this blue line every where like on the icon and other places too i
+     dont wanna see this blue line").
+
+     Everything here was already written against :focus-visible, which is
+     meant to keep the ring off a mouse click. It leaks anyway because the
+     app moves focus itself -- a tab hands focus back when its menu closes,
+     a dialog focuses its first field, a closed tab passes focus to its
+     neighbour -- and the browser treats focus it did not see the pointer
+     cause as keyboard focus, so the ring is drawn around whatever was just
+     clicked.
+
+     So the pointer says so itself. `data-pointer` goes on <html> while the
+     last thing the person did was click or tap, and comes off the moment
+     they use a key that moves focus (main.tsx). The ring is suppressed only
+     in that state: tab through the screen and every ring is back, which is
+     the half of this that must not be lost -- without it a keyboard user
+     cannot see where they are. */
+  html[data-pointer] :focus-visible,
+  html[data-pointer] :focus {
+    outline: none !important;
+  }
 }
 
 @layer components {

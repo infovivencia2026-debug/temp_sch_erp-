@@ -393,6 +393,37 @@ if (import.meta.env.DEV) {
   void import('./lib/motion-audit').then((m) => m.installMotionAudit())
 }
 
+/* WHICH HAND IS DRIVING (owner, 2026-10-13: "when i click smth sometimes i
+   see this blue line every where ... i dont wanna see this blue line").
+
+   The focus ring is meant to be a keyboard thing, and the stylesheet asks
+   for it with :focus-visible. It still appeared on clicks, because the app
+   moves focus itself in a dozen places -- a tab hands focus back when its
+   menu closes, a dialog focuses its first field -- and focus the browser did
+   not see a pointer cause counts as keyboard focus.
+
+   So the pointer is recorded here instead of guessed at in CSS. While the
+   last thing the person did was click or tap, <html> carries data-pointer
+   and index.css suppresses the ring. The first key that moves focus takes it
+   off again, and every ring comes back: a keyboard user who cannot see where
+   they are has lost the screen, so that half is not negotiable.
+
+   Only keys that MOVE focus count. Typing into a box must not light a ring
+   around it, and Escape closing a dialog must not light one around whatever
+   it hands focus back to. Capture phase, so a handler that stops the event
+   cannot hide the interaction from us. */
+{
+  const root = document.documentElement
+  const pointer = () => root.setAttribute('data-pointer', '')
+  const keyboard = () => root.removeAttribute('data-pointer')
+  const MOVES = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
+  pointer()
+  addEventListener('pointerdown', pointer, true)
+  addEventListener('mousedown', pointer, true)
+  addEventListener('touchstart', pointer, { capture: true, passive: true })
+  addEventListener('keydown', (e) => { if (MOVES.has((e as KeyboardEvent).key)) keyboard() }, true)
+}
+
 /* The stored language's catalogue before the first paint, so a Telugu
    household never sees English flash first. English resolves at once. */
 void ensureCatalogue(readStoredLocale()).finally(() => {
