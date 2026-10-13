@@ -12,19 +12,3 @@
 # rule here mapping /privacy back to /privacy.html made a redirect loop, so
 # there is deliberately no rule for them.
 
-# THE SPA FALLBACK, WRITTEN DOWN (2026-10-13: every deep link answered 404
-# with an empty body -- /institution_admin/students/student_360, and every
-# other screen, so a refresh or a pasted link showed nothing at all; only
-# /login worked, because the Function owns that path).
-#
-# The note above said Pages falls back to index.html for a single-page app on
-# its own and needs no rule. It does not, or does not reliably once
-# _routes.json is restricting Functions to a path list, which is the shape
-# this project has. The rule is cheap, it is the documented spelling, and it
-# cannot be lost to a default changing under us.
-#
-# It is the LAST rule on purpose: a real file still wins, the rewrites above
-# still win, and /api/* never reaches here because _routes.json sends it to
-# the Function first. 200 = rewrite, so the URL the person typed survives for
-# the router to read.
-/*  /index.html  200
