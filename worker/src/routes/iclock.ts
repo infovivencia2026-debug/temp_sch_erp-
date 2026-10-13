@@ -74,7 +74,11 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
   const serial = (url.searchParams.get('SN') ?? '').trim()
   if (!serial) return text('OK')
   const dev = await findDevice(env, serial)
-  const path = url.pathname.replace(/\/+$/, '')
+  /* eSSL firmware (the X2008 among them) calls the same endpoints with .aspx
+     on the end: /iclock/getrequest.aspx, /iclock/cdata.aspx. Matched without
+     it, the reader's check-ins were seen but Fetch history was never handed
+     to it and every punch it pushed was answered OK and dropped. */
+  const path = url.pathname.replace(/\/+$/, '').replace(/\.aspx$/i, '')
   const db = dev ? tenantDb(env, dev.inst) : null
   if (db && dev) {
     const fw = url.searchParams.get('pushver') ?? url.searchParams.get('FWVersion')
