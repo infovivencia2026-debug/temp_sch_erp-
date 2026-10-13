@@ -182,6 +182,14 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
      away, so the key itself is refused to every school account. */
   const off = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('student.') || k.startsWith('parent.')))
   const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k))
+  /* A TEACHING SCREEN GIVEN TO SOMEONE WHO DOES NOT TEACH (owner, 2026-10-13:
+     CCE marks entry granted to an exam controller showed its icon, then
+     "your login is not allowed to see this"). Every teacher screen reads
+     through routes guarded by academics.timetable.read; a faculty.* feature
+     held by anyone brings that read with it, so the screen it opens works.
+     What the person then sees is still scoped as before (their classes, or
+     every class with students.read.all). */
+  if (granted.some((k) => k.startsWith('faculty.')) && !granted.includes('academics.timetable.read')) granted.push('academics.timetable.read')
   return { sessionId: s.id, userId: s.user_id, fullName: u.full_name, platformAdmin: false, restricted: false, institution,
     homeInstitutionId: home.id, permissions: new Set(granted), roles: roles.results.map((r) => r.key),
     mustChangePassword: !!u.must_change_password }

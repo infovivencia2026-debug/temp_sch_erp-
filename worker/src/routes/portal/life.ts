@@ -631,6 +631,64 @@ async function saveDisplayPreferences(c: Ctx) {
   return ok({ preference: { theme, density, reduce_motion: reduceMotion, locale, high_contrast: highContrast, layout } })
 }
 
+/* WHICH COLUMNS A PERSON KEEPS (owner, 2026-10-13: "add edit button for every
+   table in erp for customization ... table cols i meant").
+
+   Every table in the product is the same shared component, so the choice is
+   stored the same way for all of them: one JSON object on the person's own
+   preferences row, keyed by table, each key holding the labels that person
+   has turned OFF. One read answers for the whole product, so a screen with
+   six tables does not make six requests.
+
+   Labels, not indexes: a column added to a table in a later release would
+   otherwise silently hide the one next to it. A label that no longer exists
+   is simply never matched, which is the right way for this to fail.
+
+   Empty means nothing is hidden, which is also what a person who has never
+   touched it gets -- so the feature costs an existing school nothing. */
+async function getTableColumns(c: Ctx) {
+  const r = await c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`)
+    .bind(c.id.userId).first<{ table_columns: string | null }>()
+  return ok({ columns: readColumns(r?.table_columns ?? null) })
+}
+
+function readColumns(raw: string | null): Record<string, string[]> {
+  if (!raw) return {}
+  try {
+    const v = JSON.parse(raw) as unknown
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+    const out: Record<string, string[]> = {}
+    for (const [k, list] of Object.entries(v as Record<string, unknown>)) {
+      if (Array.isArray(list)) out[k] = list.filter((x): x is string => typeof x === 'string').slice(0, 60)
+    }
+    return out
+  } catch { return {} }
+}
+
+async function saveTableColumns(c: Ctx) {
+  if (!c.id.institution) throw badRequest('this setting belongs to a school account')
+  const req = await readJSON(c.req)
+  const key = s(req.key).trim().slice(0, 300)
+  if (!key) throw badRequest('key is required: which table this is about')
+  const hidden = Array.isArray(req.hidden)
+    ? req.hidden.filter((x: unknown): x is string => typeof x === 'string').map((x) => x.slice(0, 120)).slice(0, 60)
+    : []
+  const r = await c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`)
+    .bind(c.id.userId).first<{ table_columns: string | null }>()
+  const all = readColumns(r?.table_columns ?? null)
+  /* Nothing hidden means the table is back to its default, so the key goes
+     rather than sitting there as an empty list for ever. */
+  if (hidden.length) all[key] = hidden
+  else delete all[key]
+  const t = now()
+  await c.db.prepare(`
+      INSERT INTO user_display_preferences (user_id, institution_id, theme, density, reduce_motion, locale, high_contrast, layout, table_columns, updated_at)
+      VALUES (?, ?, 'system', 'comfortable', 0, ?, 0, 'classic', ?, ?)
+      ON CONFLICT (user_id) DO UPDATE SET table_columns = excluded.table_columns, updated_at = excluded.updated_at`)
+    .bind(c.id.userId, institutionId(c), DEFAULT_LOCALE, JSON.stringify(all), t).run()
+  return ok({ columns: all })
+}
+
 // ---------------------------------------------------------------------------
 // virtual classroom hand raise
 
@@ -838,6 +896,8 @@ export function registerPortalLife(r: Router): void {
   // display preferences
   r.get('/portal/preferences/display', PERM, getDisplayPreferences)
   r.put('/portal/preferences/display', PERM, saveDisplayPreferences)
+  r.get('/portal/preferences/table-columns', PERM, getTableColumns)
+  r.put('/portal/preferences/table-columns', PERM, saveTableColumns)
 
   // live classes: literal paths before {id}
   r.get('/portal/live-classes', PERM, listMyLiveClasses)
