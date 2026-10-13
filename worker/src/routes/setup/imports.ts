@@ -1261,7 +1261,8 @@ async function writeMark(ctx: ImportCtx, examSubjectId: string, studentId: strin
 }
 
 /** One imported punch becomes the day it belongs to: first in, last out, only where a device wrote the day. */
-async function rollUpImportedDay(ctx: ImportCtx, empId: string, at: string, serial: string): Promise<void> {
+/** Also used by the reader push (routes/iclock.ts). */
+export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, empId: string, at: string, serial: string): Promise<void> {
   const onDate = new Date(Date.parse(at) + 330 * 60_000).toISOString().slice(0, 10)
   const dayFrom = istToUTC(onDate, '00:00'), dayTo = istToUTC(onDate, '23:59:59')
   const d = await ctx.db.prepare(`SELECT MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen FROM biometric_punches p WHERE p.institution_id = ? AND p.employee_id = ? AND p.punched_at BETWEEN ? AND ?`)

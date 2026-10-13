@@ -1,3 +1,4 @@
+import { handleIclock } from './routes/iclock'
 import type { Env } from './env'
 import { runBatch, type Job } from './services/jobs'
 import './services/job-registry'
@@ -44,6 +45,8 @@ export default {
 
     try {
       if (pathname === '/healthz') return new Response('ok')
+      // Biometric readers push here; a reader is known by its registered serial, not a session (routes/iclock.ts).
+      { const r = await handleIclock(env, req, url); if (r) return r }
       if (originRefused(env, pathname, verified)) return new Response('Not Found', { status: 404 })
       if (pathname === '/login' && m === 'GET') return showLogin(env, req)
       if (pathname === '/login' && m === 'POST') return login(env, req)
