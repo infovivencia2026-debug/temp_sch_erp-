@@ -218,6 +218,8 @@ interface Detail {
   pan?: string
   uan?: string
   esi_number?: string
+  /** The id this person is enrolled under on the biometric reader, e.g. YPS0006. */
+  device_user_id?: string
   teaching: {
     id: string; class: string; section: string; subject: string
     section_id: string; class_subject_id: string
@@ -472,6 +474,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                         ['pan', 'PAN'],
                         ['uan', 'UAN'],
                         ['esi_number', 'ESI number'],
+                        ['device_user_id', 'Biometric reader id'],
                       ] as [string, string][]).map(([k, label]) => (
                         <FormField key={k} label={label}>
                           <Input
@@ -680,6 +683,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                     ['PAN', d.pan],
                     ['UAN', d.uan],
                     ['ESI number', d.esi_number],
+                    ['Biometric reader id', d.device_user_id],
                   ] as [string, string | undefined][]).map(([k, v]) => (
                     <div key={k} className="rounded-lg border px-3 py-2">
                       <p className="eyebrow text-muted-foreground">{k}</p>

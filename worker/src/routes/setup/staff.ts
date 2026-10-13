@@ -8,7 +8,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
-import { HISTORY_KEY } from '../iclock'
+import { HISTORY_KEY, USERS_KEY, resolveStoredPunches } from '../iclock'
 import { staffHolidayChecker } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
@@ -271,7 +271,7 @@ export function registerStaff(r: Router): void {
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
-          s('confirmed_on'), relieved, has(req, 'device_user_id') ? asInt(req.device_user_id) : null, s('qualification'), exp, s('address'),
+          s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
           s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName)
         .run()
     } catch (e) {
@@ -280,6 +280,8 @@ export function registerStaff(r: Router): void {
       throw e
     }
     if (!res.meta.changes) throw badRequest('no such staff record in this school')
+    // A reader id just set: the punches already stored under it are this person's now.
+    if (has(req, 'device_user_id') && str(req.device_user_id).trim()) await resolveStoredPunches(c.db, instId(c))
     const row = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name, status, user_id FROM employees WHERE id = ?`).bind(empId)
       .first<{ name: string; status: string; user_id: string | null }>()
     let accessEnded = false
@@ -762,6 +764,10 @@ export function registerStaff(r: Router): void {
     await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
         ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`)
       .bind(instId(c), HISTORY_KEY(id), JSON.stringify({ asked_at: now(), by: c.id.userId })).run()
+    // And the names enrolled on it, which is how its ids are linked to staff.
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`)
+      .bind(instId(c), USERS_KEY(id), JSON.stringify({ asked_at: now(), by: c.id.userId })).run()
     return ok({ asked: true, last_seen_at: d.last_seen_at })
   })
 
@@ -785,12 +791,13 @@ export function registerStaff(r: Router): void {
   })
 
   r.get('/setup/biometric-devices/unclaimed', 'hr.employees.read', async (c) => {
-    const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen
-        FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string }>()
+    const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen,
+          (SELECT u.name FROM biometric_device_users u WHERE u.device_id = MAX(p.device_id) AND u.device_user_id = p.device_user_id) AS name
+        FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string; name: string | null }>()
     const stamp = (iso: string) => `${istDate(iso)} ${istClock(iso)}`
     const items = rows.results.map((v) => ({
       device_user_id: /^\d+$/.test(v.device_user_id) ? Number(v.device_user_id) : v.device_user_id,
-      punches: Number(v.punches), first_seen: stamp(v.first_seen), last_seen: stamp(v.last_seen),
+      punches: Number(v.punches), first_seen: stamp(v.first_seen), last_seen: stamp(v.last_seen), name: v.name ?? undefined,
     }))
     return ok({ items })
   })

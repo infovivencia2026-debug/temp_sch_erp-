@@ -47,6 +47,107 @@ function punchFields(line: string): string[] | null {
 
 const text = (body: string, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/plain' } })
 
+/* THE READER'S OWN USER LIST.
+
+   Punches carry only the id enrolled on the reader (YPS0006), which need not
+   be anything the office uses. The reader also holds the name typed in at
+   enrolment, and sends its list in one of two shapes depending on firmware:
+     USER PIN=YPS0006<tab>Name=Ravi Kumar<tab>Pri=0<tab>Card=...   (OPERLOG)
+     user uid=6<tab>pin=YPS0006<tab>name=Ravi Kumar<tab>privilege=0 (USERINFO)
+   Both are read here. Readers hold no phone numbers. */
+function userFields(line: string): { pin: string; name: string; card: string; pri: number | null } | null {
+  const t = line.trim()
+  if (!/\bpin=/i.test(t) || !/\bname=/i.test(t)) return null
+  const kv = new Map<string, string>()
+  for (const part of t.replace(/^user\s+/i, '').split(/\t/)) {
+    const i = part.indexOf('=')
+    if (i > 0) kv.set(part.slice(0, i).trim().toLowerCase(), part.slice(i + 1).trim())
+  }
+  const pin = (kv.get('pin') ?? '').toUpperCase()
+  if (!pin) return null
+  const pri = Number(kv.get('pri') ?? kv.get('privilege'))
+  return { pin, name: kv.get('name') ?? '', card: kv.get('card') ?? kv.get('cardno') ?? '', pri: Number.isFinite(pri) ? pri : null }
+}
+
+/** A name reduced to its words, lower case, letters only, sorted. */
+const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1).sort().join(' ')
+
+/* LINK BY NAME. Every reader id that no staff record carries yet is matched to
+   the member of staff whose name is the same words (in any order); a reader
+   name cut short by the machine's field length matches when its words are all
+   in exactly one staff name. Anything matching none or more than one is left
+   for the office, under "Fingers nobody claims". Returns the employees linked. */
+export async function linkReaderUsersByName(db: D1Database, inst: string, deviceId: string): Promise<string[]> {
+  const users = await db.prepare(`SELECT u.device_user_id AS pin, u.name FROM biometric_device_users u
+      WHERE u.device_id = ? AND COALESCE(u.name, '') <> ''
+        AND NOT EXISTS (SELECT 1 FROM employees e WHERE e.institution_id = ? AND upper(CAST(e.device_user_id AS TEXT)) = u.device_user_id)`)
+    .bind(deviceId, inst).all<{ pin: string; name: string }>()
+  if (!users.results.length) return []
+  const staff = await db.prepare(`SELECT id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name FROM employees
+      WHERE institution_id = ? AND device_user_id IS NULL`).bind(inst).all<{ id: string; name: string }>()
+  const keyed = staff.results.map((s) => ({ id: s.id, key: nameKey(s.name), words: new Set(nameKey(s.name).split(' ')) }))
+  const taken = new Set<string>()
+  const links: { emp: string; pin: string }[] = []
+  for (const u of users.results) {
+    const k = nameKey(u.name)
+    if (!k) continue
+    let hits = keyed.filter((s) => s.key === k)
+    if (hits.length === 0) {
+      const words = k.split(' ')
+      if (words.length >= 2) hits = keyed.filter((s) => words.every((w) => s.words.has(w)))
+    }
+    if (hits.length !== 1 || taken.has(hits[0].id)) continue
+    taken.add(hits[0].id)
+    links.push({ emp: hits[0].id, pin: u.pin })
+  }
+  if (!links.length) return []
+  await db.batch(links.map((l) => db.prepare(`UPDATE employees SET device_user_id = ? WHERE id = ? AND device_user_id IS NULL`).bind(l.pin, l.emp)))
+  return links.map((l) => l.emp)
+}
+
+/* MATCH THE PUNCHES ALREADY HERE, AND ROLL RECENT DAYS INTO ATTENDANCE.
+
+   A punch that arrived before its owner was linked is stored with no
+   employee. Matched here in one statement, then the last 75 days of those
+   punches are written into staff attendance exactly as rollUpImportedDay
+   would, one day at a time per person -- but as two set-based statements, so
+   a reader's two years of history does not run past the Worker's per-request
+   query limit. Older days stay stored and matched, not rewritten into
+   attendance: their months are long since paid. A day the office marked by
+   hand (any source but 'device') is never touched. */
+export async function resolveStoredPunches(db: D1Database, inst: string): Promise<{ matched: number; days: number }> {
+  const m = await db.prepare(`UPDATE biometric_punches SET employee_id = (
+        SELECT e.id FROM employees e WHERE e.institution_id = biometric_punches.institution_id
+          AND upper(CAST(e.device_user_id AS TEXT)) = biometric_punches.device_user_id)
+      WHERE institution_id = ? AND employee_id IS NULL
+        AND EXISTS (SELECT 1 FROM employees e WHERE e.institution_id = biometric_punches.institution_id
+          AND upper(CAST(e.device_user_id AS TEXT)) = biometric_punches.device_user_id)`).bind(inst).run()
+  const since = new Date(Date.now() - 75 * 86400_000).toISOString()
+  const day = `date(datetime(p.punched_at, '+330 minutes'))`
+  const [ins] = await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, check_in, check_out, source, device_ref, created_at)
+        SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
+               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN g.la > g.fi THEN g.la END, 'device', g.serial, ?3
+          FROM (SELECT e.user_id, ${day} AS d, MIN(p.punched_at) AS fi, MAX(p.punched_at) AS la, MAX(bd.serial) AS serial
+                  FROM biometric_punches p JOIN employees e ON e.id = p.employee_id JOIN biometric_devices bd ON bd.id = p.device_id
+                 WHERE p.institution_id = ?1 AND p.punched_at >= ?2 AND e.user_id IS NOT NULL
+                 GROUP BY e.user_id, d) g`).bind(inst, since, now()),
+    db.prepare(`UPDATE staff_attendance SET
+          check_in = MIN(COALESCE(check_in, '9999'), (SELECT MIN(p.punched_at) FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)),
+          check_out = (SELECT CASE WHEN MAX(p.punched_at) > MIN(p.punched_at) THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
+          status = 'present'
+        WHERE institution_id = ?1 AND source = 'device' AND on_date >= date(?2, '+330 minutes')
+          AND EXISTS (SELECT 1 FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)`).bind(inst, since),
+  ])
+  return { matched: m.meta.changes ?? 0, days: ins.meta.changes ?? 0 }
+}
+
+/** The module_settings row that holds a reader's pending "send me your user list". */
+export const USERS_KEY = (deviceId: string) => `biometric_users:${deviceId}`
+
 /* Which school a serial belongs to, kept for the life of this isolate. */
 const known = new Map<string, { inst: Institution; deviceId: string; active: boolean; at: number }>()
 
@@ -99,6 +200,25 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
   const table = (url.searchParams.get('table') ?? url.searchParams.get('tablename') ?? '').toUpperCase()
   if ((path === '/iclock/cdata' || path === '/iclock/querydata') && req.method === 'POST') {
     const body = await req.text()
+    /* The user list, in either shape, from whichever table the firmware files
+       it under. Kept, then linked by name, then the punches already stored
+       for anybody newly linked are matched. */
+    if (db && dev && dev.active) {
+      const users = body.split('\n').map(userFields).filter((u): u is NonNullable<ReturnType<typeof userFields>> => !!u)
+      if (users.length) {
+        const inst = dev.inst.id
+        for (let i = 0; i < users.length; i += 50) {
+          await db.batch(users.slice(i, i + 50).map((u) => db.prepare(`INSERT INTO biometric_device_users (institution_id, device_id, device_user_id, name, card, privilege, updated_at)
+              VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?)
+              ON CONFLICT (device_id, device_user_id) DO UPDATE SET name = excluded.name, card = excluded.card, privilege = excluded.privilege, updated_at = excluded.updated_at`)
+            .bind(inst, dev.deviceId, u.pin, u.name, u.card, u.pri, now())))
+        }
+        const linked = await linkReaderUsersByName(db, inst, dev.deviceId)
+        if (linked.length) await resolveStoredPunches(db, inst)
+        console.log(JSON.stringify({ iclock: 'users', serial, received: users.length, linked: linked.length }))
+        if (!(table === 'ATTLOG' || table === 'TRANSACTION')) return text(`OK: ${users.length}`)
+      }
+    }
     const isPunches = table === 'ATTLOG' || table === 'TRANSACTION' || (path === '/iclock/querydata' && /time=/i.test(body))
     if (!isPunches || !db || !dev || !dev.active) return text(`OK: ${body.split('\n').filter((l) => l.trim()).length}`)
     const inst = dev.inst.id
@@ -128,11 +248,19 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
      firmware differs: DATA QUERY for newer readers, CHECK (re-upload from
      stamp 0, which is what we hand out) for older ones. Asked once. */
   if (path === '/iclock/getrequest' && db && dev && dev.active) {
+    const id = Math.floor(Date.now() / 1000) % 100000
+    /* The user list first: it is small, and the names are what link the
+       punches that follow to staff. Asked both ways, as with punches. */
+    const ukey = USERS_KEY(dev.deviceId)
+    const wantUsers = await db.prepare(`SELECT 1 AS x FROM module_settings WHERE module = ? AND enabled = 1`).bind(ukey).first()
+    if (wantUsers) {
+      await db.prepare(`UPDATE module_settings SET enabled = 0, config = ? WHERE module = ?`).bind(JSON.stringify({ sent_at: now() }), ukey).run()
+      return text(`C:${id + 2}:DATA QUERY USERINFO\nC:${id + 3}:DATA QUERY USER\n`)
+    }
     const key = HISTORY_KEY(dev.deviceId)
     const want = await db.prepare(`SELECT 1 AS x FROM module_settings WHERE module = ? AND enabled = 1`).bind(key).first()
     if (want) {
       await db.prepare(`UPDATE module_settings SET enabled = 0, config = ? WHERE module = ?`).bind(JSON.stringify({ sent_at: now() }), key).run()
-      const id = Math.floor(Date.now() / 1000) % 100000
       return text(`C:${id}:DATA QUERY ATTLOG StartTime=2000-01-01 00:00:00\tEndTime=2099-12-31 23:59:59\nC:${id + 1}:CHECK\n`)
     }
   }

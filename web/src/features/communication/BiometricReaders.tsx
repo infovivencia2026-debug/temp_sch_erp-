@@ -34,7 +34,9 @@ interface Device {
 }
 
 interface Unclaimed {
-  device_user_id: number
+  device_user_id: number | string
+  /** The name enrolled on the reader, once its user list has arrived. */
+  name?: string
   punches: number
   first_seen: string
   last_seen: string
@@ -208,10 +210,11 @@ export default function BiometricReaders() {
               title="Fingers nobody claims"
               description="Punches arriving under an id no staff record carries. Somebody enrolled at the machine without telling the office, or a staff record is missing its reader id."
             />
-            <Table head={['Reader id', 'Punches', 'First seen', 'Last seen']}>
+            <Table head={['Reader id', 'Name on the reader', 'Punches', 'First seen', 'Last seen']}>
               {orphans.map((o) => (
                 <tr key={o.device_user_id}>
                   <Td className="font-mono">{o.device_user_id}</Td>
+                  <Td>{o.name || '-'}</Td>
                   <Td className="tabular-nums">{o.punches}</Td>
                   <Td className="whitespace-nowrap">{o.first_seen}</Td>
                   <Td className="whitespace-nowrap">{o.last_seen}</Td>
@@ -219,8 +222,9 @@ export default function BiometricReaders() {
               ))}
             </Table>
             <p className="px-5 pb-4 text-[13px] text-muted-foreground">
-              Set the matching number on the staff record, it is the reader id field, and every
-              punch already collected under it resolves on the next push.
+              Names on the reader are matched to staff automatically. For anyone left here, open
+              their staff record, Edit, and type this id as the Biometric reader id: every punch
+              already collected under it is matched at once.
             </p>
           </Card>
         )}

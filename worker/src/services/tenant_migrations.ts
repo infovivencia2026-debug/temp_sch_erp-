@@ -80,4 +80,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 80, name: 'payroll_adjustments', checksum: 'd75ca4d33fbfb0ef046e3657c24181cfbdd9c8bd2ea79f0e571038b74f9d293f' },
   { version: 81, name: 'table_columns', checksum: '64961bcf4ab1b2f99fc19f74bc5ad0d3f511940688399857d9b04d3e944b0d62' },
   { version: 82, name: 'exam_parts', checksum: 'c878c0870e098347f7a3ff2b240ddeccacaeb8beaeb47a29547bc776555c64bd' },
+  { version: 83, name: 'biometric_device_users', checksum: '8f11960d3e5ec85e7390bfe82508e9dee636701657a78f064572e70c309f5eb1' },
 ]
