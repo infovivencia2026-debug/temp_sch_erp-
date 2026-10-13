@@ -324,7 +324,7 @@ export default function Gradebook() {
 
   const all = papers.data?.items ?? []
   const visible = all.filter(
-    (p) => (!classID || p.class_id === classID) && (!examKind || p.exam_kind === examKind),
+    (p) => (!classID || p.class_id === classID) && (!examKind || p.exam_id === examKind),
   )
 
   const save = useMutation({
@@ -401,10 +401,10 @@ export default function Gradebook() {
             <Select
               value={examKind}
               onChange={(v) => { setExamKind(v); setESID('') }}
-              placeholder="Any exam type"
+              placeholder="Any exam"
               options={[
-                { value: '', label: 'Any exam type' },
-                ...kindOptions(all),
+                { value: '', label: 'Any exam' },
+                ...examOptions(all),
               ]}
             />
             <Select
@@ -639,8 +639,18 @@ function classOptions(papers: Paper[]) {
   return [...seen].map(([value, label]) => ({ value, label }))
 }
 
-function kindOptions(papers: Paper[]) {
-  const seen = new Set<string>()
-  for (const p of papers) if (p.exam_kind) seen.add(p.exam_kind)
-  return [...seen].map((k) => ({ value: k, label: k.replace(/_/g, ' ') }))
+/* THE EXAM, BY ITS NAME (owner, 2026-10-13: "should be FA-01").
+
+   This listed exam_kind -- the three words the database files an exam under,
+   "formative", "summative", "term" -- so a school that runs FA-01, FA-02 and
+   SA-01 was offered "formative" and got all of them at once. Nobody marking
+   asks for "a formative paper"; they ask for FA-01, which is what the school
+   wrote on the timetable and on the board.
+
+   So the exams themselves are listed, newest first, each with the kind in
+   small print behind it for the schools whose exam names are not obvious. */
+function examOptions(papers: Paper[]) {
+  const seen = new Map<string, string>()
+  for (const p of papers) if (p.exam_id && !seen.has(p.exam_id)) seen.set(p.exam_id, p.exam_name || p.exam_kind)
+  return [...seen].map(([id, name]) => ({ value: id, label: name }))
 }

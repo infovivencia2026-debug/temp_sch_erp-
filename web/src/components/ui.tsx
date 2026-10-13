@@ -2344,7 +2344,16 @@ export function Select({
           className="menu-scroll fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {placeholder && !q && (
+          {/* NOT TWICE (owner, 2026-10-13: a list offering "Any exam type"
+              above "Any exam type").
+
+              This row clears the choice, and it is drawn from `placeholder`.
+              A caller that ALSO puts a blank option in its own list -- which
+              reads perfectly sensibly at the call site -- got both, one above
+              the other, the first greyed and the second not, doing exactly
+              the same thing. The caller's own row wins where there is one,
+              because that is the one whose wording they chose. */}
+          {placeholder && !q && !options.some((o) => o.value === '') && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
               className={cn('flex min-h-[36px] w-full items-center rounded-lg px-3 text-left text-[14px] text-muted-foreground hover:bg-accent', COARSE_ROW)}>
               {placeholder}
