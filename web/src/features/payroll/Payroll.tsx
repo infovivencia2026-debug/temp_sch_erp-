@@ -472,7 +472,7 @@ export default function Payroll() {
           />
           {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
-              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c), 'Gross', 'Deductions', 'Net']}
+              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c === 'GROSS' ? 'Monthly salary' : c), 'Gross', 'Deductions', 'Net']}
               empty={!rows.length}
               emptyLabel="No payroll run for this month yet."
             >

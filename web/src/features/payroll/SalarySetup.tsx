@@ -127,8 +127,12 @@ export default function SalarySetup() {
   const rows = structures.data?.items ?? []
   const unpaid = rows.filter((r) => !r.structure_id)
 
-  const monthly = (r: Row) =>
-    r.items.filter((i) => i.kind === 'earning').reduce((a, i) => a + i.amount_paise, 0)
+  // The parts when there are any; otherwise the monthly gross the salary
+  // import set, which is what the payroll run pays in that case.
+  const monthly = (r: Row) => {
+    const parts = r.items.filter((i) => i.kind === 'earning').reduce((a, i) => a + i.amount_paise, 0)
+    return parts > 0 ? parts : Number(r.ctc_paise) || 0
+  }
 
   return (
     <>

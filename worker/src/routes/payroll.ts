@@ -746,7 +746,7 @@ async function runPayroll(c: Ctx) {
       throw new HttpError(409,
         `${gap.length} staff have no attendance marked for this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
         { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.length * daysInMonth(year, month),
-          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, monthly_paise: Math.round(Number(g.ctc_paise ?? 0) / 12) })) } })
+          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
     }
   }
 
@@ -773,13 +773,13 @@ async function runPayroll(c: Ctx) {
   const lop = await lopRegister(c, year, month)
   const firstDay = `${key}-01`
   const emps = await c.db.prepare(`
-    SELECT e.id, e.user_id, ss.id AS structure, COALESCE(p.lop_basis, 'salary') AS lop_basis, COALESCE(p.salary_divisor, 0) AS divisor
+    SELECT e.id, e.user_id, ss.id AS structure, COALESCE(ss.ctc_paise, 0) AS ctc_paise, COALESCE(p.lop_basis, 'salary') AS lop_basis, COALESCE(p.salary_divisor, 0) AS divisor
       FROM employees e
       JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?1 AND (ss.effective_to IS NULL OR ss.effective_to >= ?1)
       LEFT JOIN departments d ON d.id = e.department_id
       LEFT JOIN work_patterns p ON p.id = COALESCE(e.work_pattern_id, d.work_pattern_id, (SELECT dp.id FROM work_patterns dp WHERE dp.is_default LIMIT 1))
      WHERE e.status = 'active' AND e.user_id IS NOT NULL`).bind(firstDay)
-    .all<{ id: string; user_id: string; structure: string; lop_basis: string; divisor: number }>()
+    .all<{ id: string; user_id: string; structure: string; ctc_paise: number; lop_basis: string; divisor: number }>()
 
   const stmts: D1PreparedStatement[] = [c.db.prepare(`DELETE FROM payslips WHERE payroll_run_id = ?`).bind(runId)]
   let employees = 0, gross = 0, deduction = 0, net = 0
@@ -807,6 +807,18 @@ async function runPayroll(c: Ctx) {
         if (cmp.code === 'PF' || cmp.code === 'ESI' || cmp.code === 'PT') continue
         deduct += cmp.amount_paise; breakup[cmp.code] = -cmp.amount_paise
       }
+    }
+    /* A SALARY WITH NO PARTS IS STILL A SALARY.
+
+       The school's salary import sets each person's monthly gross and no
+       Basic/HRA/DA split, and the run read only the split -- so 47 staff with
+       a gross on file were paid Rs 0. With no earning parts, the monthly gross
+       is paid as one line, cut for loss of pay exactly as the parts would be.
+       Statutory deductions are then worked out on it as gross (PF, which needs
+       Basic + DA, waits for a split). */
+    if (!comps.results.some((x) => x.kind === 'earning') && Number(e.ctc_paise) > 0) {
+      const v = Math.trunc(Number(e.ctc_paise) * ratio)
+      earn += v; breakup.GROSS = v
     }
     if (set.substitution_rate_paise > 0) {
       const p = await c.db.prepare(`SELECT COUNT(*) AS n FROM substitutions sub WHERE sub.substitute_user_id = ? AND SUBSTR(sub.on_date,1,7) = ?`)
