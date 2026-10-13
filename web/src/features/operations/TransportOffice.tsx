@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { lazy, Suspense, startTransition, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { rupeesToPaise } from '@/lib/money'
@@ -1786,10 +1787,10 @@ function Routes() {
                       <Input value={s.name} onChange={setStop(i, 'name')} placeholder="JNTU crossroads" />
                     </Field>
                     <Field label="Pickup time">
-                      <Input type="time" value={s.pickup_time} onChange={setStop(i, 'pickup_time')} />
+                      <TimePicker value={s.pickup_time} onChange={setStop(i, 'pickup_time')} />
                     </Field>
                     <Field label="Drop time">
-                      <Input type="time" value={s.drop_time} onChange={setStop(i, 'drop_time')} />
+                      <TimePicker value={s.drop_time} onChange={setStop(i, 'drop_time')} />
                     </Field>
                     <Field
                       label="Location"

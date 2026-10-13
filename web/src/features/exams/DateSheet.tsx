@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -86,7 +87,7 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
 
         {/* Same time for every paper: the usual case, in one press. */}
         <div className="no-print flex flex-wrap items-end gap-3 border-b px-[var(--card-pad)] py-3 text-[13px]">
-          <label className="flex flex-col gap-1">Every paper starts at<Input type="time" value={allTime} onChange={setAllTime} /></label>
+          <label className="flex flex-col gap-1">Every paper starts at<TimePicker value={allTime} onChange={setAllTime} /></label>
           <label className="flex flex-col gap-1">and runs (minutes)<Input type="number" value={allMins} onChange={setAllMins} /></label>
           <Button variant="secondary" onClick={() => setEdits((e) => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, { ...v, start_time: allTime, duration: allMins }])))}>
             Apply to all papers
@@ -111,7 +112,7 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
                   <tr key={r.id}>
                     <Td className="font-medium">{r.subject}</Td>
                     <Td><Input type="date" value={e.exam_date} onChange={(v) => set(r.id, 'exam_date', v)} /></Td>
-                    <Td><Input type="time" value={e.start_time} onChange={(v) => set(r.id, 'start_time', v)} /></Td>
+                    <Td><TimePicker value={e.start_time} onChange={(v) => set(r.id, 'start_time', v)} /></Td>
                     <Td><Input type="number" value={e.duration} onChange={(v) => set(r.id, 'duration', v)} /></Td>
                     <Td className="tabular-nums text-muted-foreground">{ends(e.start_time, Number(e.duration) || null) || '-'}</Td>
                     <Td className="tabular-nums">{r.max_marks ?? '-'}</Td>

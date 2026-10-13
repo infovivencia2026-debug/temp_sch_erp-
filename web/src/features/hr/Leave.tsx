@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -626,8 +627,8 @@ function AttendanceFix() {
       <div className="px-5 pb-5">
         <FormGrid>
           <Field label="Day" required><Input type="date" value={form.on_date} onChange={(v) => setForm({ ...form, on_date: v })} /></Field>
-          <Field label="Came in"><Input type="time" value={form.check_in} onChange={(v) => setForm({ ...form, check_in: v })} /></Field>
-          <Field label="Left"><Input type="time" value={form.check_out} onChange={(v) => setForm({ ...form, check_out: v })} /></Field>
+          <Field label="Came in"><TimePicker value={form.check_in} onChange={(v) => setForm({ ...form, check_in: v })} /></Field>
+          <Field label="Left"><TimePicker value={form.check_out} onChange={(v) => setForm({ ...form, check_out: v })} /></Field>
         </FormGrid>
         <Field label="What happened" required><Input value={form.reason} onChange={(v) => setForm({ ...form, reason: v })} placeholder="The reader at the main gate was off; the guard saw me come in at 8:50" /></Field>
         <FormNotice error={send.error} />

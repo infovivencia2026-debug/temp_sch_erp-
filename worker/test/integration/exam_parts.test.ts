@@ -100,12 +100,13 @@ describe('exam parts', () => {
     expect(now.map((x: { name: string }) => x.name)).toEqual(['Written', 'Notebook', 'Project work'])
   })
 
-  it('the report card shows the parts under the total', async () => {
+  it('the report card shows the total only, not the parts (owner, 2026-10-13)', async () => {
     expect((await api('teacher', 'POST', '/exams/report-cards/generate', { exam_id: EXAM, section_id: IDS.section })).status).toBe(200)
     const card = await E.TENANT_TEST.prepare(`SELECT id FROM report_cards WHERE exam_id = ? AND student_id = ?`).bind(EXAM, IDS.child).first<{ id: string }>()
     const { status, body } = await api('teacher', 'GET', `/exams/report-cards/render?id=${card!.id}`)
     expect(status).toBe(200)
-    expect(body.html).toContain('Written 72 · Notebook 5 · Project work 9')
+    expect(body.html).not.toContain('Written 72')
+    expect(body.html).not.toContain('rc-parts')
   })
 
   it('refuses a teacher who neither teaches the paper nor heads the class', async () => {

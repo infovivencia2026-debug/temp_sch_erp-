@@ -594,12 +594,22 @@ async function saveExamParts(c: Ctx): Promise<Response> {
   for (const w of want) if (w.id && !haveIds.has(w.id)) throw badRequest(`${w.name} is no longer a part of this exam. Reload and try again.`)
 
   /* Lowering a maximum below a mark already given would leave a child above
-     full marks; say whose, rather than clipping their mark in silence. */
-  for (const w of want) {
-    if (!w.id) continue
-    const over = await c.db.prepare(`SELECT ${nameOf('st', false)} AS who, CAST(mp.marks AS REAL) AS marks FROM mark_parts mp
-        JOIN students st ON st.id = mp.student_id WHERE mp.part_id = ? AND mp.marks > ? LIMIT 1`).bind(w.id, w.max).first<{ who: string; marks: number }>()
-    if (over) throw badRequest(`${over.who} already has ${trimFloat(over.marks)} in ${w.name}, so it cannot be out of ${trimFloat(w.max)}. Change that mark first.`)
+     full marks; say whose, rather than clipping their mark in silence.
+
+     ONE QUESTION, NOT ONE PER PART (owner, 2026-10-13: "taking lot of time
+     for saving"). This asked the database once for every part, in turn, so
+     four parts meant four round trips before any writing began. The caps
+     travel as JSON and the check is a single query. */
+  const caps = want.filter((w) => w.id).map((w) => ({ id: w.id!, max: w.max, name: w.name }))
+  if (caps.length) {
+    const over = await c.db.prepare(`SELECT ${nameOf('st', false)} AS who, CAST(mp.marks AS REAL) AS marks,
+          json_extract(j.value, '$.name') AS part, json_extract(j.value, '$.max') AS cap
+        FROM json_each(?) j
+        JOIN mark_parts mp ON mp.part_id = json_extract(j.value, '$.id')
+        JOIN students st ON st.id = mp.student_id
+       WHERE mp.marks > json_extract(j.value, '$.max') LIMIT 1`)
+      .bind(JSON.stringify(caps)).first<{ who: string; marks: number; part: string; cap: number }>()
+    if (over) throw badRequest(`${over.who} already has ${trimFloat(over.marks)} in ${over.part}, so it cannot be out of ${trimFloat(over.cap)}. Change that mark first.`)
   }
 
   const keep = new Set(want.filter((w) => w.id).map((w) => w.id!))
@@ -625,7 +635,16 @@ async function saveExamParts(c: Ctx): Promise<Response> {
 
   if (want.length) {
     const papers = await c.db.prepare(`SELECT id FROM exam_subjects WHERE exam_id = ?`).bind(examId).all<{ id: string }>()
-    for (const p of papers.results) await recomputeFromParts(c, p.id)
+    /* THE PAPERS ARE ADDED UP TOGETHER, NOT ONE AFTER ANOTHER (owner,
+       2026-10-13: "taking lot of time for saving").
+
+       Every paper of the exam has its totals re-derived, and each of those
+       is several queries. Done in turn, an exam with twenty papers waited
+       for twenty of them end to end, and the Save button sat on "Saving..."
+       for the whole of it. They do not depend on one another -- each reads
+       and writes only its own paper -- so they go at once and the wait is
+       the slowest one rather than the sum of all. */
+    await Promise.all(papers.results.map((p) => recomputeFromParts(c, p.id)))
   }
   return ok({ parts: await partsOf(c, examId) })
 }
@@ -1442,20 +1461,11 @@ async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
       LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
      WHERE rc.id = ?
      ORDER BY sub.name`).bind(cardId).all<{ es_id: string; student_id: string; name: string; max: number; got: number | null; g: string | null }>()
-  const partsOfPaper = await partsByPaper(c, subs.results.map((x) => x.es_id))
-  const partMarks = new Map<string, number | null>()
-  if (partsOfPaper.size) {
-    const rows = await c.db.prepare(`SELECT exam_subject_id || '|' || part_id AS k, CAST(marks AS REAL) AS marks FROM mark_parts
-        WHERE student_id = ? AND exam_subject_id IN ${inList([...partsOfPaper.keys()])}`)
-      .bind(subs.results[0].student_id, js([...partsOfPaper.keys()])).all<{ k: string; marks: number | null }>()
-    for (const x of rows.results) partMarks.set(x.k, x.marks)
-  }
+  /* The report card shows each subject's total only (owner, 2026-10-13:
+     "don't show the parts, add the parts into that exam"): the parts are how
+     the total was made up, kept in Marks entry, not printed on the card. */
   const subjects = subs.results.map((x) => {
     const r: Record<string, string> = { subject: x.name, max_marks: trimFloat(x.max), marks: '-', percent: '-', subject_grade: x.g ?? '' }
-    const ps = partsOfPaper.get(x.es_id) ?? []
-    if (ps.length && x.got !== null) {
-      r.parts = ps.map((p) => { const v = partMarks.get(`${x.es_id}|${p.id}`); return `${p.name} ${v == null ? '-' : trimFloat(v)}` }).join(' · ')
-    }
     if (x.got !== null) {
       r.marks = trimFloat(x.got)
       if (x.max > 0) r.percent = `${Math.round((100 * x.got) / x.max)}%`
