@@ -647,9 +647,71 @@ async function saveDisplayPreferences(c: Ctx) {
    Empty means nothing is hidden, which is also what a person who has never
    touched it gets -- so the feature costs an existing school nothing. */
 async function getTableColumns(c: Ctx) {
-  const r = await c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`)
-    .bind(c.id.userId).first<{ table_columns: string | null }>()
-  return ok({ columns: readColumns(r?.table_columns ?? null) })
+  const [mine, named] = await batchOf(c)
+  return ok({ columns: mine, names: named })
+}
+
+/* WHAT THE SCHOOL CALLS A COLUMN (owner, 2026-10-13: "column should be
+   editable ... add a editable button").
+
+   Hiding a column is one person's business; renaming one is the school's --
+   "Adm no." is "Admission Number" or "PEN" depending on the school, and two
+   members of staff reading the same screen must not see it called two
+   different things. So the names live against the institution, not the
+   person, and only an account that may change settings can set them.
+
+   Keyed by the column's ORIGINAL label, so a rename and a person's hidden
+   list never disagree about which column they mean, and clearing the rename
+   always gets the product's own word back. */
+async function batchOf(c: Ctx): Promise<[Record<string, string[]>, Record<string, Record<string, string>>]> {
+  const [mine, named] = await c.db.batch([
+    c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`).bind(c.id.userId),
+    c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'table_columns'`).bind(institutionId(c)),
+  ])
+  const row = mine.results[0] as { table_columns: string | null } | undefined
+  const cfg = (named.results[0] as { config: string | null } | undefined)?.config ?? null
+  return [readColumns(row?.table_columns ?? null), readNames(cfg)]
+}
+
+function readNames(raw: string | null): Record<string, Record<string, string>> {
+  if (!raw) return {}
+  try {
+    const v = JSON.parse(raw) as unknown
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+    const out: Record<string, Record<string, string>> = {}
+    for (const [k, map] of Object.entries(v as Record<string, unknown>)) {
+      if (!map || typeof map !== 'object' || Array.isArray(map)) continue
+      const inner: Record<string, string> = {}
+      for (const [from, to] of Object.entries(map as Record<string, unknown>)) {
+        if (typeof to === 'string' && to.trim() !== '') inner[from] = to.trim().slice(0, 60)
+      }
+      if (Object.keys(inner).length) out[k] = inner
+    }
+    return out
+  } catch { return {} }
+}
+
+async function saveTableColumnNames(c: Ctx) {
+  if (!c.id.institution) throw badRequest('this setting belongs to a school account')
+  const req = await readJSON(c.req)
+  const key = s(req.key).trim().slice(0, 300)
+  if (!key) throw badRequest('key is required: which table this is about')
+  const sent = (req.names && typeof req.names === 'object' && !Array.isArray(req.names)) ? req.names as Record<string, unknown> : {}
+  const inner: Record<string, string> = {}
+  for (const [from, to] of Object.entries(sent)) {
+    /* A name the same as the product's own is not a rename; it is the school
+       changing its mind back, so the entry goes rather than being stored. */
+    if (typeof to === 'string' && to.trim() !== '' && to.trim() !== from) inner[from.slice(0, 120)] = to.trim().slice(0, 60)
+  }
+  const cur = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'table_columns'`)
+    .bind(institutionId(c)).first<{ config: string | null }>()
+  const all = readNames(cur?.config ?? null)
+  if (Object.keys(inner).length) all[key] = inner
+  else delete all[key]
+  await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'table_columns', 1, ?)
+      ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`)
+    .bind(institutionId(c), JSON.stringify(all)).run()
+  return ok({ names: all })
 }
 
 function readColumns(raw: string | null): Record<string, string[]> {
@@ -898,6 +960,7 @@ export function registerPortalLife(r: Router): void {
   r.put('/portal/preferences/display', PERM, saveDisplayPreferences)
   r.get('/portal/preferences/table-columns', PERM, getTableColumns)
   r.put('/portal/preferences/table-columns', PERM, saveTableColumns)
+  r.put('/portal/preferences/table-column-names', 'institution.settings.write', saveTableColumnNames)
 
   // live classes: literal paths before {id}
   r.get('/portal/live-classes', PERM, listMyLiveClasses)

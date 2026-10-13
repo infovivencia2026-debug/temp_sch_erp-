@@ -15,7 +15,7 @@ import { useAnchoredPosition } from './anchored'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
   CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
-  Maximize2, Printer, RefreshCw, X} from 'lucide-react'
+  Maximize2, Pencil, Printer, RefreshCw, X} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
@@ -597,7 +597,10 @@ export type Column = string | { label: string; key?: string; align?: 'right' }
    A role whose account cannot read it keeps every column and nothing
    breaks -- the failure is swallowed on purpose. */
 type ColMap = Record<string, string[]>
+type NameMap = Record<string, Record<string, string>>
 const NO_COLS: string[] = []
+const NO_NAMES: Record<string, string> = {}
+let nameMap: NameMap = {}
 let colMap: ColMap = {}
 let colLoaded = false
 let colLoading: Promise<unknown> | null = null
@@ -607,8 +610,8 @@ const colEmit = () => { for (const f of [...colSubs]) f() }
 function loadColumnPrefs() {
   if (colLoaded || colLoading) return
   colLoading = api
-    .get<{ columns: ColMap }>('/api/v1/portal/preferences/table-columns')
-    .then((r) => { colMap = r?.columns ?? {}; colLoaded = true; colEmit() })
+    .get<{ columns: ColMap; names?: NameMap }>('/api/v1/portal/preferences/table-columns')
+    .then((r) => { colMap = r?.columns ?? {}; nameMap = r?.names ?? {}; colLoaded = true; colEmit() })
     .catch(() => { colLoaded = true })
     .finally(() => { colLoading = null })
 }
@@ -621,6 +624,36 @@ function useHiddenColumns(key: string): string[] {
     () => colMap[key] ?? NO_COLS,
     () => NO_COLS,
   )
+}
+
+/* WHAT THE SCHOOL CALLS THIS COLUMN (owner, 2026-10-13: "column should be
+   editable ... add a editable button").
+
+   Hiding a column is one person's business; renaming one is the school's --
+   "Adm no." is "Admission Number" at one school and "PEN" at another, and two
+   people reading the same screen must not see it called two different things.
+   So a rename is saved against the institution and everybody gets it, which
+   is why only an account that may change settings is offered the pencil.
+
+   Always keyed by the column's ORIGINAL label. A person's hidden list is
+   keyed the same way, so renaming a column never loses track of which one is
+   hidden, and clearing the rename always gets the product's own word back. */
+function useColumnNames(key: string): Record<string, string> {
+  useEffect(() => { loadColumnPrefs() }, [])
+  return useSyncExternalStore(
+    (f) => { colSubs.add(f); return () => { colSubs.delete(f) } },
+    () => nameMap[key] ?? NO_NAMES,
+    () => NO_NAMES,
+  )
+}
+
+function setColumnNames(key: string, names: Record<string, string>) {
+  const next = { ...nameMap }
+  if (Object.keys(names).length) next[key] = names
+  else delete next[key]
+  nameMap = next
+  colEmit()
+  void api.put('/api/v1/portal/preferences/table-column-names', { key, names }).catch(() => {})
 }
 
 function setHiddenColumns(key: string, hidden: string[]) {
@@ -643,10 +676,14 @@ function tableKeyOf(labels: string[]): string {
   return `${path}|${labels.join('~')}`.slice(0, 300)
 }
 
-function ColumnChooser({ labels, hidden, onChange }: {
+function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
   labels: string[]; hidden: string[]; onChange: (next: string[]) => void
+  names: Record<string, string>; onRename: (next: Record<string, string>) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState('')
+  const [draft, setDraft] = useState('')
+  const mayRename = useCan()('institution.settings.write')
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -685,25 +722,67 @@ function ColumnChooser({ labels, hidden, onChange }: {
               /* The last one standing cannot be turned off: a table with no
                  columns is not a smaller table, it is a broken screen. */
               const locked = on && shownCount === 1
+              const shownAs = names[l] ?? l
+              const commit = () => {
+                const v = draft.trim()
+                const next = { ...names }
+                /* Back to the product's own word clears the rename rather
+                   than storing the same word as an override for ever. */
+                if (v === '' || v === l) delete next[l]
+                else next[l] = v
+                setEditing('')
+                onRename(next)
+              }
+              if (editing === l) {
+                return (
+                  <div key={l} className="flex items-center gap-1 px-2 py-1">
+                    <input
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing('') }}
+                      onBlur={commit}
+                      placeholder={l}
+                      aria-label={`What this school calls ${l}`}
+                      className="field h-8 w-full text-[13px]"
+                    />
+                  </div>
+                )
+              }
               return (
-                <button
-                  key={l}
-                  type="button"
-                  disabled={locked}
-                  onClick={() => onChange(on ? [...hidden, l] : hidden.filter((x) => x !== l))}
-                  className={cn('flex min-h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-[13.5px]',
-                    locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted')}
-                  title={locked ? 'A table has to keep one column.' : undefined}
-                >
-                  <span aria-hidden className={cn('grid size-4 shrink-0 place-items-center rounded-[4px] border',
-                    on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
-                    {on && <Check className="h-3 w-3" />}
-                  </span>
-                  <span className="truncate">{l}</span>
-                </button>
+                <div key={l} className="group/col flex items-center">
+                  <button
+                    type="button"
+                    disabled={locked}
+                    onClick={() => onChange(on ? [...hidden, l] : hidden.filter((x) => x !== l))}
+                    className={cn('flex min-h-9 flex-1 items-center gap-2 rounded-sm px-2 text-left text-[13.5px]',
+                      locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted')}
+                    title={locked ? 'A table has to keep one column.' : undefined}
+                  >
+                    <span aria-hidden className={cn('grid size-4 shrink-0 place-items-center rounded-[4px] border',
+                      on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
+                      {on && <Check className="h-3 w-3" />}
+                    </span>
+                    <span className="truncate">{shownAs}</span>
+                  </button>
+                  {mayRename && (
+                    <button
+                      type="button"
+                      onClick={() => { setDraft(shownAs); setEditing(l) }}
+                      aria-label={`Rename ${shownAs} for the whole school`}
+                      title="Rename this column for the whole school"
+                      className="mr-1 grid size-7 shrink-0 place-items-center rounded-sm text-muted-foreground
+                                 opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100
+                                 group-hover/col:opacity-100"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
+          {mayRename && <p className="px-2 pt-1 text-[11.5px] text-muted-foreground">A new name is for the whole school. Ticks are only yours.</p>}
           {hidden.length > 0 && (
             <button
               type="button"
@@ -711,6 +790,15 @@ function ColumnChooser({ labels, hidden, onChange }: {
               className="mt-1 w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-primary hover:bg-muted"
             >
               Show every column
+            </button>
+          )}
+          {Object.keys(names).length > 0 && mayRename && (
+            <button
+              type="button"
+              onClick={() => onRename({})}
+              className="w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-primary hover:bg-muted"
+            >
+              Use the original names
             </button>
           )}
         </div>
@@ -1046,6 +1134,7 @@ export function Table({
   const colLabels = head.map((h) => (typeof h === 'string' ? h : h.label))
   const colKey = tableKeyOf(colLabels)
   const hiddenCols = useHiddenColumns(colKey)
+  const colNames = useColumnNames(colKey)
   const hideAt = colLabels.map((l, i) => (l.trim() !== '' && hiddenCols.includes(l) ? i : -1)).filter((i) => i >= 0)
   const [colClass] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
   /* While a print is being built every row is drawn: the owner's prints came
@@ -1208,7 +1297,10 @@ export function Table({
         <thead>
           <tr>
             {head.map((h, i) => {
-              const label = typeof h === 'string' ? h : h.label
+              const original = typeof h === 'string' ? h : h.label
+              /* The school's word for it, if it has one. The original is
+                 still what sorting, hiding and data-label key off. */
+              const label = colNames[original] ?? original
               const key = typeof h === 'string' ? undefined : h.key
               const active = !!key && sort?.sortKey === key
               // A money column is read as a column of digits lined up on the
@@ -1370,6 +1462,8 @@ export function Table({
             labels={colLabels}
             hidden={hiddenCols}
             onChange={(next) => setHiddenColumns(colKey, next)}
+            names={colNames}
+            onRename={(next) => setColumnNames(colKey, next)}
           />
         </div>
         <button
