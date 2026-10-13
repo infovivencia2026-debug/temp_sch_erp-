@@ -9,6 +9,7 @@ import {
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { inr, kg, toPaise } from './admin-ops-lib'
+import { MonthPicker } from '@/components/PickerMenu'
 
 /* institution_admin.mid_day_meal.mid_day_meal_register
  *
@@ -166,7 +167,7 @@ export default function MDMRegister() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-[13px]">
             <span className="text-muted-foreground">Month</span>
-            <Input value={month} onChange={setMonth} type="month" />
+            <MonthPicker value={month} onChange={setMonth} ariaLabel="Month" />
           </label>
           {(context.data?.campuses.length ?? 0) > 1 && (
             <label className="flex flex-col gap-1.5 text-[13px]">

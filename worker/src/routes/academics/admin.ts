@@ -19,6 +19,14 @@ export function registerAdminAcademics(r: Router) {
     new Response('Subject,Sheet_Name,TOPICS,NUMBER OF PERIODS\nMathematics,G-6,Knowing our numbers,8\nMathematics,G-6,Whole numbers,6\nScience,G-6,Food: where does it come from,5\n',
       { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="year-plan-template.csv"' } }))
   r.post('/academics/admin/calendar', 'academics.write', saveCalendarEntry)
+  /* Who a holiday can be for, beyond the fixed choices: each member of staff, and each saved staff group. */
+  r.get('/academics/admin/calendar/audiences', 'academics.write', async (c) => {
+    const [staff, groups] = await c.db.batch([
+      c.db.prepare(`SELECT e.id, ${fullName('e')} AS name FROM employees e WHERE e.status = 'active' ORDER BY 2`),
+      c.db.prepare(`SELECT id, name FROM person_groups WHERE kind = 'staff' ORDER BY lower(name)`),
+    ])
+    return ok({ staff: staff.results, groups: groups.results })
+  })
   r.del('/academics/admin/calendar/{id}', 'academics.write', deleteCalendarEntry)
   r.get('/academics/admin/exam-monitor', 'admin.reports.read', getExamMonitor)
   r.post('/academics/admin/exam-monitor/approve', 'academics.exams.write', approveExamMarks)
@@ -128,7 +136,12 @@ async function saveCalendarEntry(c: Ctx) {
   const kind = req.kind || 'holiday'
   if (!calendarKinds.has(kind)) throw badRequest('kind must be one of holiday, vacation, exam, event, ptm, working_day')
   const appliesTo = req.applies_to || 'all'
-  if (!['all', 'students', 'staff', 'teaching', 'non_teaching'].includes(appliesTo)) throw badRequest('applies_to must be all, students, staff, teaching or non_teaching')
+  if (appliesTo.startsWith('people:')) {
+    const ids = appliesTo.slice(7).split(',').filter(Boolean)
+    if (!ids.length || ids.some((x) => !isUUID(x))) throw badRequest('pick at least one member of staff')
+  } else if (appliesTo.startsWith('group:')) {
+    if (!isUUID(appliesTo.slice(6))) throw badRequest('pick a staff group')
+  } else if (!['all', 'students', 'staff', 'teaching', 'non_teaching'].includes(appliesTo)) throw badRequest('applies_to must be all, students, staff, teaching, non_teaching, people:… or group:…')
   const toDate = str(req.to_date)
   if (toDate !== '' && toDate < str(req.on_date)) throw badRequest('to_date is before on_date')
   const campus = nullStr(str(req.campus_id)), yearIn = nullStr(str(req.academic_year_id))

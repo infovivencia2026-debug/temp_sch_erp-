@@ -6,7 +6,7 @@ import { school } from './school'
 import { requireFresh } from './fees/common'
 import { MONTHS, coded, daysInMonth, dateOf, inList, items, js, minuteOf, nameOf, nowIST, num, numOr0, pad2, requireOpenMonth,
   resolveScope, str, todayIST, uuidsOf } from './exams/common'
-import { isStaffHoliday, staffHolidayRows, teachingUsers } from './hr/staff_holidays'
+import { staffHolidayChecker } from './hr/staff_holidays'
 
 /* Port of the /communication, /timetable-admin, /compliance and /payroll
    route groups (internal/api/api.go lines 1235-1301) and their handlers in
@@ -588,8 +588,7 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
     })
   }
   // Whose holiday it is: everyone's, all staff, or only teaching / non-teaching staff (hr/staff_holidays.ts).
-  const holidays = await staffHolidayRows(c.db, firstDay, lastDay)
-  const teachers = await teachingUsers(c.db)
+  const isHoliday = await staffHolidayChecker(c.db, firstDay, lastDay)
   const nDays = daysInMonth(year, month)
   const expected = new Map<string, number>()
   for (const [eid, sh] of shift) {
@@ -599,7 +598,7 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
       const dow = new Date(day + 'T00:00:00Z').getUTCDay()
       const isodow = dow === 0 ? 7 : dow
       if (!sh.workingDays.includes(isodow)) continue
-      if (isStaffHoliday(holidays, day, !!sh.uid && teachers.has(sh.uid))) continue
+      if (isHoliday(day, sh.uid)) continue
       n++
     }
     expected.set(eid, n)

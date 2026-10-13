@@ -68,7 +68,24 @@ const KINDS = [
   { value: 'working_day', label: 'Working day' },
 ]
 
+interface Audiences { staff: { id: string; name: string }[]; groups: { id: string; name: string }[] }
+const useAudiences = () => useQuery({ queryKey: ['calendar-audiences'], queryFn: () => api.get<Audiences>('/api/v1/academics/admin/calendar/audiences'), staleTime: 60_000 })
+const FIXED: Record<string, string> = { all: 'Everybody', students: 'Students only', staff: 'All staff', teaching: 'Teaching staff only', non_teaching: 'Non-teaching staff only' }
+/** "Everybody", "Teaching staff only", "Asha, Ravi +2", "Group: Office staff". */
+function audienceLabel(a: string, au?: Audiences): string {
+  if (FIXED[a]) return FIXED[a]
+  if (a.startsWith('group:')) return `Group: ${au?.groups.find((g) => g.id === a.slice(6))?.name ?? 'a staff group'}`
+  if (a.startsWith('people:')) {
+    const ids = a.slice(7).split(',').filter(Boolean)
+    const names = ids.map((id) => au?.staff.find((p) => p.id === id)?.name).filter(Boolean) as string[]
+    if (!names.length) return `${ids.length} named staff`
+    return names.slice(0, 2).join(', ') + (ids.length > 2 ? ` +${ids.length - 2}` : '')
+  }
+  return a
+}
+
 export default function AcademicCalendar() {
+  const audiences = useAudiences()
   const qc = useQueryClient()
   const [kind, setKind] = useState('')
   /* The entry being edited, shown in the form below in place of a blank one. */
@@ -187,7 +204,7 @@ export default function AcademicCalendar() {
                     </Badge>
                   </Td>
                   <Td className="text-muted-foreground">
-                    {r.source === 'calendar' ? r.applies_to : `set in ${r.source}s`}
+                    {r.source === 'calendar' ? audienceLabel(r.applies_to, audiences.data) : `set in ${r.source}s`}
                   </Td>
                   <Td className="tabular-nums">{r.days}</Td>
                   <Td>
@@ -266,7 +283,16 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
   const [onDate, setOnDate] = useState(editing?.starts_on ?? '')
   const [toDate, setToDate] = useState(editing && editing.ends_on !== editing.starts_on ? editing.ends_on : '')
   const [kind, setKind] = useState(editing?.kind ?? 'holiday')
-  const [appliesTo, setAppliesTo] = useState(editing?.applies_to ?? 'all')
+  const initial = editing?.applies_to ?? 'all'
+  /* The picker shows one of: a fixed choice, "people" or "group"; the names
+     and the group live beside it and are folded into applies_to on save. */
+  const [appliesTo, setAppliesTo] = useState(initial.startsWith('people:') ? 'people' : initial.startsWith('group:') ? 'group' : initial)
+  const [people, setPeople] = useState<string[]>(initial.startsWith('people:') ? initial.slice(7).split(',').filter(Boolean) : [])
+  const [group, setGroup] = useState(initial.startsWith('group:') ? initial.slice(6) : '')
+  const [find, setFind] = useState('')
+  const au = useAudiences()
+  const audience = appliesTo === 'people' ? `people:${people.join(',')}` : appliesTo === 'group' ? `group:${group}` : appliesTo
+  const audienceReady = appliesTo === 'people' ? people.length > 0 : appliesTo === 'group' ? !!group : true
   const [description, setDescription] = useState(editing?.description ?? '')
 
   const save = useMutation({
@@ -277,7 +303,7 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
         on_date: onDate,
         to_date: toDate,
         kind,
-        applies_to: appliesTo,
+        applies_to: audience,
         description,
       }),
     onSuccess: () => {
@@ -319,9 +345,29 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
                 { value: 'staff', label: 'All staff' },
                 { value: 'teaching', label: 'Teaching staff only' },
                 { value: 'non_teaching', label: 'Non-teaching staff only' },
+                { value: 'people', label: 'Specific staff…' },
+                { value: 'group', label: 'A staff group…' },
               ]}
             />
           </Field>
+          {appliesTo === 'group' && (
+            <Field label="Staff group" hint={au.data && !au.data.groups.length ? 'No staff groups yet. Make one in Staff groups & lists.' : 'Its members on the day, rules and hand-picked alike.'}>
+              <Select value={group} onChange={setGroup} placeholder="Choose a group" options={(au.data?.groups ?? []).map((g) => ({ value: g.id, label: g.name }))} />
+            </Field>
+          )}
+          {appliesTo === 'people' && (
+            <Field label={`Staff (${people.length} picked)`} wide>
+              <Input value={find} onChange={setFind} placeholder="Find by name" />
+              <div className="mt-2 max-h-56 overflow-y-auto rounded-md border">
+                {(au.data?.staff ?? []).filter((p) => !find || p.name.toLowerCase().includes(find.toLowerCase())).map((p) => (
+                  <label key={p.id} className="flex min-h-10 cursor-pointer items-center gap-2 border-b px-3 text-[14px] last:border-b-0 hover:bg-muted/40">
+                    <input type="checkbox" checked={people.includes(p.id)} onChange={() => setPeople(people.includes(p.id) ? people.filter((x) => x !== p.id) : [...people, p.id])} />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            </Field>
+          )}
           <Field label="Note" wide>
             <Textarea
               value={description}
@@ -333,7 +379,7 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
         </FormGrid>
         <div className="mt-5 flex items-center gap-3">
           <Button
-            disabled={save.isPending || !name.trim() || !onDate}
+            disabled={save.isPending || !name.trim() || !onDate || !audienceReady}
             onClick={() => save.mutate()}
           >
             {editing ? 'Save changes' : 'Add entry'}

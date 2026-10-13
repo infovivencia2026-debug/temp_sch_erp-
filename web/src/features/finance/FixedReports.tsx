@@ -6,6 +6,7 @@ import {
   Loading, ErrorState, FormNotice, TAB_BAR, tabClass,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { MonthPicker } from '@/components/PickerMenu'
 
 /* The fixed finance reports. Seven sheets an accountant asks for by name;
    each is one request and one table, nothing to configure. */
@@ -155,7 +156,7 @@ function OutstandingAsAt() {
     <div className="space-y-4">
       <Card>
         <div className="flex flex-wrap items-end gap-3 p-5">
-          <Field label="As at the end of"><Input type="month" value={month} onChange={setMonth} /></Field>
+          <Field label="As at the end of"><MonthPicker value={month} onChange={setMonth} ariaLabel="As at the end of" /></Field>
           {q.data && <p className="pb-2 text-[13.5px] text-muted-foreground">Billed and paid up to {formatDate(q.data.as_at)}. Later payments do not change this figure.</p>}
         </div>
       </Card>

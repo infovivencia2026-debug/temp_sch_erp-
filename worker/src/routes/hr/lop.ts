@@ -1,5 +1,5 @@
 import { addDays, parseJSON, round2 } from '../admissions/util'
-import { isStaffHoliday, staffHolidayRows, teachingUsers } from './staff_holidays'
+import { staffHolidayChecker } from './staff_holidays'
 
 /* Port of the plpgsql function staff_lop_register (migrations/00244): the
    month's loss of pay per employee, from the attendance register, the leave
@@ -52,9 +52,7 @@ export async function lopRegister(db: D1Database, inst: string, year: number, mo
     if (s.uid) byUser.set(s.uid, { eid: s.eid, starts: clockMinutes(s.starts_at.slice(0, 5)), grace: s.grace, days })
   }
   // Whose holiday it is: everyone's, all staff, or only teaching / non-teaching staff (staff_holidays.ts).
-  const holidays = await staffHolidayRows(db, firstDay, lastDay)
-  const teachers = await teachingUsers(db)
-  const isHoliday = (day: string, uid: string | null) => isStaffHoliday(holidays, day, !!uid && teachers.has(uid))
+  const isHoliday = await staffHolidayChecker(db, firstDay, lastDay)
 
   // Approved staff leave covering any day of the year so far, with its type.
   const leaves = await db.prepare(`SELECT r.employee_id, r.from_date, r.to_date, r.is_half_day, r.leave_type_id, lt.is_paid, lt.annual_quota

@@ -8,7 +8,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
-import { isStaffHoliday, staffHolidayRows, teachingUsers } from '../hr/staff_holidays'
+import { staffHolidayChecker } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
    staff_hours.go, staff_login.go, device_login.go (issueStaffPIN),
@@ -88,9 +88,7 @@ const isoDow = (date: string): number => ((new Date(date + 'T00:00:00Z').getUTCD
 
 /** Whether a day is a holiday for a member of staff (teaching / non-teaching aware, hr/staff_holidays.ts). */
 async function staffHolidayCheck(c: Ctx, from: string, to: string): Promise<(day: string, uid: string | null) => boolean> {
-  const rows = await staffHolidayRows(c.db, from, to)
-  const teachers = await teachingUsers(c.db)
-  return (day, uid) => isStaffHoliday(rows, day, !!uid && teachers.has(uid))
+  return staffHolidayChecker(c.db, from, to)
 }
 
 function statusInWords(status: string): string {

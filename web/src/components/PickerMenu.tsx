@@ -234,3 +234,63 @@ export function PickerMenu<T extends string>({
     </div>
   )
 }
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+
+/** "2026-10" -> "October 2026". Anything else comes back as it went in. */
+export function monthLabel(key: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(key)
+  if (!m) return key
+  const i = Number(m[2]) - 1
+  return i >= 0 && i < 12 ? `${MONTH_NAMES[i]} ${m[1]}` : key
+}
+
+/* A MONTH, IN THE PRODUCT'S OWN MENU (owner, 2026-10-13: "change this
+   dropdown").
+
+   `<input type="month">` hands the job to the browser, and Chrome answers
+   with its own panel: a grid of months in its own orange and blue, its own
+   typeface and its own idea of a focus ring, sitting on top of a screen
+   that looks nothing like it. It is also the one control on the page that
+   ignores the dark theme entirely, and on the browsers that do not
+   implement it at all the field degrades to a bare text box wanting
+   "2026-10" typed by hand.
+
+   The value is still YYYY-MM, exactly what the native input gave, so
+   callers and every endpoint behind them are untouched -- only the way it
+   is chosen changes. The list runs back from this month, far enough for a
+   year's reporting, and a value from outside that window is kept in the
+   list so an older saved month still shows its name rather than vanishing. */
+export function MonthPicker({
+  value, onChange, ariaLabel = 'Month', back = 24, ahead = 0, className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  ariaLabel?: string
+  /** How many months before this one to offer. */
+  back?: number
+  /** How many after — a payroll month can be set before it has run. */
+  ahead?: number
+  className?: string
+}) {
+  const now = new Date()
+  const keys: string[] = []
+  for (let i = -ahead; i <= back; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  if (value && !keys.includes(value)) keys.push(value)
+  keys.sort().reverse()
+  return (
+    <PickerMenu
+      value={value}
+      options={keys.map((k) => ({ value: k, label: monthLabel(k) }))}
+      onChange={onChange}
+      ariaLabel={ariaLabel}
+      placeholder="Choose a month"
+      align="start"
+      className={className}
+    />
+  )
+}

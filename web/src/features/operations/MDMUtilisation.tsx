@@ -8,6 +8,7 @@ import {
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { adminOpsBase, inr, kg, toPaise, type MDMUtilisation as Util } from './admin-ops-lib'
+import { MonthPicker } from '@/components/PickerMenu'
 
 /* The monthly PM POSHAN utilisation return.
  *
@@ -99,7 +100,7 @@ export default function MDMUtilisation() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-[13px]">
             <span className="text-muted-foreground">Month</span>
-            <Input value={month} onChange={setMonth} type="month" />
+            <MonthPicker value={month} onChange={setMonth} ariaLabel="Month" />
           </label>
           <PrintButton label="Print the return" />
           {mayFile && d && (

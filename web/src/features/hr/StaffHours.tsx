@@ -2,11 +2,12 @@ import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Input, Field,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Field,
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise, formatTime } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
+import { MonthPicker } from '@/components/PickerMenu'
 
 /* WHAT THE PUNCHES ADD UP TO.
 
@@ -154,7 +155,7 @@ export default function StaffHours() {
           />
           <div className="p-5">
             <Field label="Month">
-              <Input type="month" value={month} onChange={setMonth} />
+              <MonthPicker value={month} onChange={setMonth} ariaLabel="Month" />
             </Field>
             {noPattern > 0 && (
               <p className="mt-3 text-sm text-muted-foreground">
