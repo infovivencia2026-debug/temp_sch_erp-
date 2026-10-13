@@ -1083,6 +1083,30 @@ function registerWorkflow(r: Router) {
     })) })
   })
   r.post('/workflow/staff-attendance', 'hr.attendance.write', markStaffAttendance)
+  /* A MONTH OF ONE PERSON'S DAYS (owner, 2026-10-13: "let them see all month
+     in and out"). Every day of the month, marked or not, with the mark, the
+     first and last punch in 24-hour time, and the hours between them. */
+  r.get('/workflow/staff-month', 'hr.attendance.write', async (c) => {
+    const user = c.url.searchParams.get('user_id') ?? ''
+    const ym = c.url.searchParams.get('month') ?? today().slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(ym)) throw badRequest('month must look like 2026-10')
+    const tz = school(c).timezone
+    const rows = (await c.db.prepare(`SELECT on_date, status, check_in, check_out, source, remarks FROM staff_attendance
+        WHERE user_id = ? AND substr(on_date, 1, 7) = ? ORDER BY on_date`).bind(user, ym).all<Record<string, string | null>>()).results
+    const byDay = new Map(rows.map((r) => [String(r.on_date), r]))
+    const [y, m] = ym.split('-').map(Number)
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    const out = []
+    for (let d = 1; d <= days; d++) {
+      const on = `${ym}-${String(d).padStart(2, '0')}`
+      const r = byDay.get(on)
+      const ci = r?.check_in ?? null, co = r?.check_out ?? null
+      const mins = ci && co ? Math.max(0, Math.round((Date.parse(co) - Date.parse(ci)) / 60000)) : null
+      out.push({ on_date: on, status: r?.status ?? undefined, check_in: hhmmIn(tz, ci) ?? undefined, check_out: hhmmIn(tz, co) ?? undefined,
+        hours: mins == null ? undefined : `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`, source: r?.source ?? undefined, remarks: r?.remarks ?? undefined })
+    }
+    return ok({ items: out })
+  })
 
   /* A member of staff asks for a day's punch to be fixed; HR decides on the
      Staff register, and an approved request writes the mark. */
@@ -1514,7 +1538,8 @@ async function decideConcession(c: Ctx): Promise<Response> {
   return ok({ id: cid, status: req.decision })
 }
 
-const staffStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday', 'week_off', 'wfh'])
+// permission: came late with leave to (Yajur, 2026-10-13); payroll does not count it as late up to an hour.
+const staffStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday', 'week_off', 'wfh', 'permission'])
 
 async function markStaffAttendance(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
