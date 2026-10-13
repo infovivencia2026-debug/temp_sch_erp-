@@ -22,7 +22,16 @@ export function registerAdminAcademics(r: Router) {
   /* Who a holiday can be for, beyond the fixed choices: each member of staff, and each saved staff group. */
   r.get('/academics/admin/calendar/audiences', 'academics.write', async (c) => {
     const [staff, groups] = await c.db.batch([
-      c.db.prepare(`SELECT e.id, ${fullName('e')} AS name FROM employees e WHERE e.status = 'active' ORDER BY 2`),
+      /* A STAFF NAME HAS NO MIDDLE (owner, 2026-10-13: the holiday audience
+         picker answered 500, so "for whom" could not be chosen at all).
+
+         fullName() below is written for `students`, which carries a
+         middle_name; `employees` does not, so this one query asked SQLite for
+         a column that is not there and the whole endpoint threw. Nothing in
+         the response was wrong -- it simply never arrived, and the screen
+         fell back to no staff and no groups. */
+      c.db.prepare(`SELECT e.id, trim(e.first_name || ' ' || COALESCE(e.last_name, '')) AS name
+                      FROM employees e WHERE e.status = 'active' ORDER BY 2`),
       c.db.prepare(`SELECT id, name FROM person_groups WHERE kind = 'staff' ORDER BY lower(name)`),
     ])
     return ok({ staff: staff.results, groups: groups.results })
@@ -203,7 +212,30 @@ async function getCalendarDay(c: Ctx) {
                                              ORDER BY l.week_of DESC, (l.teaching_day IS NULL), l.teaching_day LIMIT 1)
      WHERE p.is_break = 1 OR te.id IS NOT NULL
      ORDER BY p.sequence, c.name, sec.name`).bind(dow, section, section, teacher, teacher, date, addDays(date, -6), date, dow).all<Record<string, unknown>>()
-  const periods = rows.results.map((v) => {
+  /* ONE BREAK IS ONE BREAK (owner, 2026-10-13: "why everything is repeated").
+
+     A teaching period reaches this list through its timetable entry, so it
+     is already pinned to the one bell schedule that entry belongs to. A
+     break has no timetable entry -- it is admitted by `p.is_break = 1`
+     alone -- so every break in every schedule came through. A school that
+     keeps one schedule per weekday (Monday ... Saturday, the same fifteen
+     periods in each) therefore saw School Assembly six times, Lunch six
+     times, every day of the year.
+
+     Which schedule the day belongs to is not recorded anywhere: the weekday
+     lives in the schedule's NAME, and nothing joins a date to it. So the
+     breaks are reduced to one of each by when they are -- same name, same
+     start, same end is the same break, whichever schedule it was typed
+     into. A school whose Monday break genuinely differs from its Tuesday
+     one still shows both, because the times differ. */
+  const seenBreak = new Set<string>()
+  const periods = rows.results.filter((v) => {
+    if (!bool(v.is_break)) return true
+    const k = `${v.name}|${v.starts_at}|${v.ends_at}`
+    if (seenBreak.has(k)) return false
+    seenBreak.add(k)
+    return true
+  }).map((v) => {
     const o: Record<string, unknown> = { period_id: v.period_id, name: v.name, sequence: v.sequence, starts_at: v.starts_at, ends_at: v.ends_at, is_break: bool(v.is_break) }
     for (const k of ['entry_id', 'class', 'section', 'subject', 'teacher', 'room', 'substitute', 'substitute_reason']) if (v[k] !== null) o[k] = v[k]
     if (v.lesson_id !== null) {
