@@ -16,7 +16,17 @@ export interface Requirement {
   teacherId: string; periodsPerWeek: number; maxPerDay: number; difficult: boolean
 }
 export interface Teacher { userId: string; name: string; maxPerDay: number; maxPerWeek: number; unavailable: Slot[]; committed: Slot[] }
-export interface Input { grid: Grid; requirements: Requirement[]; teachers: Teacher[]; seed: number; retryBudget: number }
+export interface Input {
+  grid: Grid; requirements: Requirement[]; teachers: Teacher[]; seed: number; retryBudget: number
+  /* Classes on timings of their own (bell.ts). A section listed here is placed
+     only on these periods; one not listed uses grid.periods. grid.periods is
+     then every teaching period of every schedule in play. */
+  sectionPeriods?: Map<string, Period[]>
+  /* A period's id and the ids of other schedules' periods that overlap it in
+     time, so a teacher is not in two classes at once across two bells. Absent
+     when the school runs one bell, where a period only clashes with itself. */
+  overlaps?: Map<string, string[]>
+}
 export interface Placement {
   sectionId: string; sectionName: string; classSubjectId: string; subjectName: string
   teacherId: string; weekday: number; periodId: string
@@ -90,6 +100,7 @@ class State {
   stacked: boolean[]
   moves = 0
   budget: number
+  sectionSlots = new Map<string, Slot[]>()
 
   constructor(public input: Input) {
     this.sortedPeriods = [...input.grid.periods].sort((a, b) => a.sequence - b.sequence)
@@ -104,6 +115,9 @@ class State {
     if (this.budget < 0) this.budget = 0
     for (const p of input.grid.periods) this.seq.set(p.id, p.sequence)
     for (const s of this.slots) this.jitter.set(slotKey(s), Math.floor(rng() * 1024))
+    for (const [sec, ps] of input.sectionPeriods ?? []) {
+      this.sectionSlots.set(sec, gridSlots(input.grid, [...ps].sort((a, b) => a.sequence - b.sequence)))
+    }
     for (const src of input.teachers) {
       const t = { ...src, unavailableSet: new Set(src.unavailable.map(slotKey)) }
       if (t.maxPerWeek <= 0) t.maxPerWeek = this.slots.length
@@ -122,6 +136,26 @@ class State {
     this.stacked = new Array(n).fill(false)
   }
 
+  /** The slots a section can be placed in: its own bell's, else the grid's. */
+  slotsFor(section: string): Slot[] {
+    return this.sectionSlots.get(section) ?? this.slots
+  }
+
+  /** Whether the teacher already teaches at this time, in this period or one of another bell that overlaps it. */
+  teacherBusy(teacher: string, s: Slot): boolean {
+    for (const p of this.input.overlaps?.get(s.periodId) ?? [s.periodId]) {
+      if (this.teachAt.has(teacher + '|' + s.weekday + '|' + p)) return true
+    }
+    return false
+  }
+
+  unavailableAt(t: { unavailableSet: Set<string> }, s: Slot): boolean {
+    for (const p of this.input.overlaps?.get(s.periodId) ?? [s.periodId]) {
+      if (t.unavailableSet.has(s.weekday + '|' + p)) return true
+    }
+    return false
+  }
+
   dayCap(ri: number): number {
     const r = this.input.requirements[ri]
     if (r.maxPerDay > 0) return r.maxPerDay
@@ -132,11 +166,12 @@ class State {
 
   requirementOrder(): number[] {
     const list = this.input.requirements.map((r, idx) => {
-      let room = this.slots.length
+      const slots = this.slotsFor(r.sectionId)
+      let room = slots.length
       const t = this.teachers.get(r.teacherId)
       if (t) {
         room = 0
-        for (const s of this.slots) if (!t.unavailableSet.has(slotKey(s)) && !this.teachAt.has(tkey(t.userId, s))) room++
+        for (const s of slots) if (!this.unavailableAt(t, s) && !this.teacherBusy(t.userId, s)) room++
         if (t.maxPerWeek < room) room = t.maxPerWeek
       }
       const tension = room > 0 ? r.periodsPerWeek / room : 1000
@@ -157,8 +192,8 @@ class State {
     if (this.secAt.has(skey(r.sectionId, s))) return BLK_SECTION_BUSY
     const t = this.teachers.get(r.teacherId)
     if (t) {
-      if (this.teachAt.has(tkey(t.userId, s))) return BLK_TEACHER_BUSY
-      if (t.unavailableSet.has(slotKey(s))) return BLK_UNAVAILABLE
+      if (this.teacherBusy(t.userId, s)) return BLK_TEACHER_BUSY
+      if (this.unavailableAt(t, s)) return BLK_UNAVAILABLE
       if (get(this.teachWk, t.userId) >= t.maxPerWeek) return BLK_WEEK_CAP
       if (get(this.teachDay, dkey(t.userId, s.weekday)) >= t.maxPerDay) return BLK_DAY_CAP
     }
@@ -213,8 +248,9 @@ class State {
 
   tryPlace(ri: number, slack: number): boolean {
     let best = -1, bestScore = 0
-    for (let i = 0; i < this.slots.length; i++) {
-      const s = this.slots[i]
+    const slots = this.slotsFor(this.input.requirements[ri].sectionId)
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]
       const b = this.blockers(ri, s, slack)
       if (b >= 0) {
         if (slack === 0) this.blocked[ri][b]++
@@ -224,7 +260,7 @@ class State {
       if (best < 0 || sc < bestScore) { best = i; bestScore = sc }
     }
     if (best < 0) return false
-    this.commit(ri, this.slots[best])
+    this.commit(ri, slots[best])
     return true
   }
 
@@ -267,15 +303,15 @@ class State {
     if (this.moves >= this.budget) return false
     const r = this.input.requirements[ri]
     const slack = this.input.grid.periods.length
-    for (const s of this.slots) {
+    for (const s of this.slotsFor(r.sectionId)) {
       const holder = this.secAt.get(skey(r.sectionId, s))
       if (holder === undefined) continue
       let blockedBySomethingElse = false
       const t = this.teachers.get(r.teacherId)
       if (t) {
-        if (this.teachAt.has(tkey(t.userId, s)) || get(this.teachDay, dkey(t.userId, s.weekday)) >= t.maxPerDay ||
+        if (this.teacherBusy(t.userId, s) || get(this.teachDay, dkey(t.userId, s.weekday)) >= t.maxPerDay ||
           get(this.teachWk, t.userId) >= t.maxPerWeek) blockedBySomethingElse = true
-        if (t.unavailableSet.has(slotKey(s))) blockedBySomethingElse = true
+        if (this.unavailableAt(t, s)) blockedBySomethingElse = true
       }
       if (blockedBySomethingElse) continue
 
@@ -324,9 +360,9 @@ class State {
       d.periods += r.periodsPerWeek
       bySection.set(r.sectionId, d)
     }
-    const cells = this.slots.length
     for (const id of [...bySection.keys()].sort(cmp)) {
       const d = bySection.get(id)!
+      const cells = this.slotsFor(id).length
       if (d.periods <= cells) continue
       out.push(issue({
         kind: 'section_oversubscribed', severity: SEVERITY_BLOCKING, sectionId: id, sectionName: d.name,

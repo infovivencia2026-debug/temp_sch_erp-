@@ -113,8 +113,9 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     enabled: isStaff && seeAll,
   })
   const periods = useQuery({
-    queryKey: ['periods'],
-    queryFn: () => api.call('GET /timetable/periods'),
+    /* Every schedule's periods: a week can span classes on different timings. */
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
   })
   const query = view.mode === 'me' ? '?teacher_id=me' : sectionId ? `?section_id=${sectionId}` : ''
   const entries = useQuery({
@@ -143,6 +144,28 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     mine: view.mode === 'me' || (!!me && e.teacher_id === me),
     unstaffed: view.mode !== 'me' && !e.teacher_name,
   }))
+
+  /* THE ROWS ARE THE WEEK'S OWN BELL. Classes may run to different timings
+     (Nursery's short morning, the school day), so every schedule's periods
+     arrive. The grid keeps the schedules this week actually uses -- one, for
+     a class or a teacher on one bell -- and falls back to the first. */
+  const allPeriods = periods.data?.items ?? []
+  const usedIds = new Set(cells.map((c) => c.period_id))
+  const usedBells = new Set(allPeriods.filter((p) => usedIds.has(p.id)).map((p) => p.bell_schedule_id ?? ''))
+  if (usedBells.size === 0 && allPeriods.length) usedBells.add(allPeriods[0].bell_schedule_id ?? '')
+  /* A period that is the same in two bells (same name, same times) is one row. */
+  const same = (p: { name: string; starts_at: string; ends_at: string; is_break: boolean }) => `${p.name}|${p.starts_at}|${p.ends_at}|${p.is_break}`
+  const canon = new Map<string, string>(), rowOf = new Map<string, string>()
+  const rows = allPeriods.filter((p) => usedBells.has(p.bell_schedule_id ?? ''))
+    .sort((a, b) => (usedBells.size > 1 ? a.starts_at.localeCompare(b.starts_at) : 0) || a.sequence - b.sequence)
+    .filter((p) => {
+      const k = same(p), first = canon.get(k)
+      rowOf.set(p.id, first ?? p.id)
+      if (first) return false
+      canon.set(k, p.id)
+      return true
+    })
+  const gridCells = cells.map((c) => ({ ...c, period_id: rowOf.get(c.period_id) ?? c.period_id }))
 
   const tab = (on: boolean) => cn('rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
     on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')
@@ -187,7 +210,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
             who={title}
             where={view.mode === 'me' ? 'Every period you teach, across all your classes' : 'The whole week for this class'}
             breaks={view.mode !== 'me'}
-            periods={periods.data?.items ?? []}
+            periods={allPeriods}
             entries={cells.map((c) => ({
               weekday: c.weekday,
               period_id: c.period_id,
@@ -203,7 +226,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
               ? <>Every period you teach, across all your classes.</>
               : <>The whole week for <b className="text-foreground">{title}</b>{classes.some((c) => c.id === sectionId) ? '. Your own periods are highlighted.' : '.'}</>}
           </p>
-          <StaffWeekGrid cells={cells} periods={periods.data?.items ?? []}
+          <StaffWeekGrid cells={gridCells} periods={rows}
             empty={view.mode === 'me' ? 'No periods are timetabled for you yet.' : 'Nothing is timetabled for this class yet.'} />
         </div>
       )}

@@ -8,6 +8,7 @@ import {
 import { json } from '../env'
 import { school } from './school'
 import { enqueue, queueOf, QUEUES } from '../services/jobs'
+import { allPeriods, periodsForSection, periodsOfSchedule, scheduleOfClass, schoolDayPeriods, sectionScheduleSQL } from './scheduling/bell'
 
 /* Port of the /timetable, /attendance, /class, /me, /jobs, /workflow and
    /homework route groups (internal/api/api.go 409-521). Handlers live in
@@ -248,27 +249,20 @@ function registerTimetable(r: Router) {
   })
 
   r.typed('GET /timetable/periods', 'academics.timetable.read', async (c) => {
+    /* A section's or a class's periods follow bell.ts: the section's own
+       timings, else its class's, else the school day. Neither named is the
+       school day, which is what the setup step edits. all=1 is every
+       schedule's periods, for a week that spans classes on different bells
+       (a teacher's, or a child whose lessons sit on another schedule). */
     const q = c.url.searchParams
     const sec = uuidQuery(q.get('section_id')), cls = uuidQuery(q.get('class_id'))
-    const rows = await c.db.prepare(`
-      WITH want AS (
-        SELECT COALESCE(
-          (SELECT sec.bell_schedule_id FROM sections sec WHERE sec.id = ?),
-          (SELECT cl.bell_schedule_id FROM classes cl
-            WHERE cl.id = COALESCE(?, (SELECT class_id FROM sections WHERE id = ?))),
-          (SELECT b.id FROM bell_schedules b WHERE b.is_default ORDER BY b.created_at LIMIT 1)
-        ) AS id
-      )
-      SELECT p.id, p.name, p.sequence, substr(p.starts_at,1,5) AS starts_at, substr(p.ends_at,1,5) AS ends_at,
-             p.is_break, p.bell_schedule_id
-        FROM periods p, want
-       WHERE p.bell_schedule_id = want.id
-          OR (want.id IS NULL AND p.bell_schedule_id IS NULL)
-          OR NOT EXISTS (SELECT 1 FROM periods q2, want w2 WHERE q2.bell_schedule_id = w2.id)
-       ORDER BY p.sequence`).bind(sec, cls, sec).all<Omit<Period, 'is_break'> & { is_break: number }>()
-    return { items: rows.results.map((v): Period => ({
+    const list = q.get('all') === '1' ? await allPeriods(c)
+      : sec ? await periodsForSection(c, sec)
+      : cls ? await periodsOfSchedule(c, await scheduleOfClass(c, cls))
+      : await schoolDayPeriods(c)
+    return { items: list.map((v): Period => ({
       id: v.id, name: v.name, sequence: v.sequence, starts_at: v.starts_at, ends_at: v.ends_at,
-      is_break: bool(v.is_break), bell_schedule_id: v.bell_schedule_id ?? null,
+      is_break: v.is_break, bell_schedule_id: v.bell_schedule_id ?? null,
     })) }
   })
 
@@ -347,9 +341,9 @@ function registerTimetable(r: Router) {
     const period = await c.db.prepare(`
       SELECT p.id FROM periods p JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
        WHERE p.institution_id = ? AND p.name = ?
-         AND (bs.name = ? OR bs.id = (SELECT cl.bell_schedule_id FROM sections s JOIN classes cl ON cl.id = s.class_id WHERE s.id = ?) OR bs.is_default)
+         AND (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
        ORDER BY (bs.name = ?) DESC,
-                (bs.id = (SELECT cl.bell_schedule_id FROM sections s JOIN classes cl ON cl.id = s.class_id WHERE s.id = ?)) DESC,
+                (bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?)) DESC,
                 bs.is_default DESC
        LIMIT 1`).bind(inst, periodName, day, sec, day, sec).first<{ id: string }>()
     if (!period) throw rejected(`no period "${periodName}" on ${day}`)

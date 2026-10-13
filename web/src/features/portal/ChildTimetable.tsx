@@ -34,8 +34,9 @@ export default function ChildTimetable() {
        laid on a different schedule's periods, so the day showed that
        schedule's breaks and none of the lessons. The timeline keeps to the
        periods the lessons actually use, and takes breaks from their schedule. */
-    queryKey: ['periods'],
-    queryFn: () => api.call('GET /timetable/periods'),
+    /* Every schedule's periods: a week can span classes on different timings. */
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
     enabled: !!sectionId,
   })
   const entries = useQuery({

@@ -39,7 +39,7 @@ export interface TimetableApi {
     query: { section_id?: string; academic_year_id?: string; teacher_id?: string }
     res: List<TimetableEntry>
   }
-  'GET /timetable/periods': { query: { section_id?: string; class_id?: string }; res: List<Period> }
+  'GET /timetable/periods': { query: { section_id?: string; class_id?: string; all?: '1' }; res: List<Period> }
   'GET /timetable/teachers': {
     query: { subject_id?: string; free_class_teacher?: 'true'; except_section?: string; include_former?: 'true' }
     res: List<Teacher>

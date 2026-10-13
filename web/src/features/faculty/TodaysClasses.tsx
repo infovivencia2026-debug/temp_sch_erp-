@@ -42,8 +42,9 @@ export default function TodaysClasses() {
   const weekday = todayWeekday()
 
   const periods = useQuery({
-    queryKey: ['periods'],
-    queryFn: () => api.call('GET /timetable/periods'),
+    /* Every schedule's periods: a week can span classes on different timings. */
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
   })
   const session = useSession()
   const sections = useQuery({

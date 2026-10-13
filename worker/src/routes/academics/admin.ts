@@ -5,6 +5,7 @@ import {
   weekdayOf, workingYear, workingYearSQL,
 } from '../students/common'
 import { planReplaceSyllabusUnits, type PlanUnit } from '../academics'
+import { DEFAULT_SCHEDULE_SQL, sectionScheduleSQL } from '../scheduling/bell'
 
 /* Port of mountAdminAcademics (internal/api/admin_academics.go plus
    calendar_day.go, year_plan.go, year_plan_import.go, exam_publish.go and
@@ -201,6 +202,8 @@ async function getCalendarDay(c: Ctx) {
            lp.id AS lesson_id, COALESCE(lp.status,'') AS lesson_status, lp.week_of, lp.teaching_day, lp.objectives, lp.activities, lp.resources, lp.homework,
            lp.delivered_on, lp.file_id
       FROM periods p
+      /* A class on timings of its own sees its own breaks (scheduling/bell.ts). */
+      CROSS JOIN (SELECT (SELECT ${sectionScheduleSQL('bs')} FROM sections bs WHERE bs.id = ?) AS id) own
       LEFT JOIN timetable_entries te ON te.period_id = p.id AND te.weekday = ? AND (? IS NULL OR te.section_id = ?) AND (? IS NULL OR te.teacher_user_id = ?)
       LEFT JOIN sections sec ON sec.id = te.section_id LEFT JOIN classes c ON c.id = sec.class_id
       LEFT JOIN class_subjects cs ON cs.id = te.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
@@ -210,8 +213,8 @@ async function getCalendarDay(c: Ctx) {
       LEFT JOIN lesson_plans lp ON lp.id = (SELECT l.id FROM lesson_plans l WHERE l.section_id = te.section_id AND l.class_subject_id = te.class_subject_id
                                               AND l.week_of BETWEEN ? AND ? AND (l.teaching_day IS NULL OR l.teaching_day = ?)
                                              ORDER BY l.week_of DESC, (l.teaching_day IS NULL), l.teaching_day LIMIT 1)
-     WHERE p.is_break = 1 OR te.id IS NOT NULL
-     ORDER BY p.sequence, c.name, sec.name`).bind(dow, section, section, teacher, teacher, date, addDays(date, -6), date, dow).all<Record<string, unknown>>()
+     WHERE (p.is_break = 1 AND (own.id IS NULL OR own.id = ${DEFAULT_SCHEDULE_SQL} OR p.bell_schedule_id = own.id)) OR te.id IS NOT NULL
+     ORDER BY p.sequence, c.name, sec.name`).bind(section, dow, section, section, teacher, teacher, date, addDays(date, -6), date, dow).all<Record<string, unknown>>()
   /* ONE BREAK IS ONE BREAK (owner, 2026-10-13: "why everything is repeated").
 
      A teaching period reaches this list through its timetable entry, so it

@@ -11,6 +11,7 @@ import WeekGrid from '@/components/WeekGrid'
 import PeriodsNeeded from './PeriodsNeeded'
 import BulkImport from '@/components/BulkImport'
 import SectionGrid from './SectionGrid'
+import ClassTimings from './ClassTimings'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* institution_admin.academics.master_timetable_generation
@@ -72,7 +73,7 @@ interface GridPeriod {
   starts_at: string; ends_at: string; is_break: boolean
 }
 
-interface Overview {
+interface Overview extends Bells {
   academic_year_id: string
   academic_year: string
   weekdays: number[]
@@ -110,7 +111,18 @@ interface DraftIssue {
   detail: string
 }
 
-interface DraftDetail {
+/* Each class's own bell (worker scheduling/bell.ts): every schedule with its
+   periods, and which one each section runs to. `periods` is the school day. */
+interface Bells {
+  schedules?: { id: string; name: string; is_default: boolean; periods: GridPeriod[] }[]
+  section_schedules?: Record<string, string>
+}
+
+/** The periods a section's grid is drawn on: its own timings, else the school day. */
+const periodsOf = (b: Bells & { periods: GridPeriod[] }, sectionID: string): GridPeriod[] =>
+  b.schedules?.find((x) => x.id === b.section_schedules?.[sectionID])?.periods ?? b.periods
+
+interface DraftDetail extends Bells {
   draft: DraftHead
   entries: DraftEntry[]
   issues: DraftIssue[]
@@ -583,6 +595,10 @@ export default function MasterTimetable() {
           />
         )}
 
+        {/* Timings per class, where the timetable is built: Nursery's short
+            morning is decided here, before the grid is laid on it. */}
+        {can('academics.write') && <ClassTimings />}
+
         {/* Three columns, not seven, and the draft column only while a draft
             exists — a column of dashes is a column you have to read to
             discover it says nothing. */}
@@ -859,7 +875,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
                 detail: (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
                 unstaffed: !e.teacher_name,
               }))}
-            periods={dd.periods}
+            periods={periodsOf(dd, chosen)}
             weekdays={dd.weekdays}
             empty="This suggestion places nothing for that class."
           />
@@ -887,7 +903,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
         ) : (
           <DraftWeekGrid
             entries={dd.entries.filter((e) => e.section_id === chosen)}
-            periods={dd.periods}
+            periods={periodsOf(dd, chosen)}
             weekdays={dd.weekdays}
             mayWrite={mayWrite}
             draftID={draftID}
