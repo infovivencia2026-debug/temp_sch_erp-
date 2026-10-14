@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Anchored } from '@/components/AnchoredPanel'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
@@ -107,6 +108,8 @@ function summaryOf(
 }
 
 export default function StudentProfile() {
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportBox = useRef<HTMLDetailsElement>(null)
   /* THE FILTERS LIVE IN THE URL, beside the child.
 
      They were component state, so opening a child and coming back put the
@@ -717,11 +720,11 @@ export default function StudentProfile() {
                         header of a list is not the place to enumerate what a
                         download could be. Export is one idea, and which file
                         is a choice you make after deciding you want one. */}
-                    <details className="relative">
+                    <details ref={exportBox} className="relative" onToggle={(e) => setExportOpen((e.currentTarget as HTMLDetailsElement).open)}>
                       <summary className="cursor-pointer list-none rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent">
                         Export
                       </summary>
-                      <div className="absolute right-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border bg-card shadow-[var(--elev-2)]">
+                      <Anchored open={exportOpen} anchor={exportBox} align="end" width={256} className="rounded-lg border bg-card shadow-[var(--elev-2)]">
                         {[
                           ['students_on_roll', 'Students on the roll',
                             'The children here now'],
@@ -739,7 +742,7 @@ export default function StudentProfile() {
                             <span className="block text-[12px] text-muted-foreground">{about}</span>
                           </a>
                         ))}
-                      </div>
+                      </Anchored>
                     </details>
                     {(browsing || searching) && (
                       <Button

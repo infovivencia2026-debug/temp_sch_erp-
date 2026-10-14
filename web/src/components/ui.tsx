@@ -12,6 +12,7 @@ import {
   type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
+import { Anchored } from './AnchoredPanel'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
   CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
@@ -722,9 +723,10 @@ function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
   const [draft, setDraft] = useState('')
   const mayRename = useCan()('institution.settings.write')
   const box = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (box.current && !box.current.contains(t) && !panel.current?.contains(t)) setOpen(false) }
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', away)
     document.addEventListener('keydown', key)
@@ -751,7 +753,8 @@ function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
         <Eye className="h-4 w-4" aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute right-0 top-9 z-30 w-56 rounded-md border bg-popover p-1.5 text-popover-foreground shadow-lg">
+        <Anchored open anchor={box} panelRef={panel} align="end" width={224} maxHeight={420}
+          className="rounded-md border bg-popover p-1.5 text-popover-foreground shadow-lg">
           <p className="px-2 py-1 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Columns</p>
           <div className="max-h-72 overflow-y-auto">
             {choosable.map((l) => {
@@ -838,7 +841,7 @@ function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
               Use the original names
             </button>
           )}
-        </div>
+        </Anchored>
       )}
     </div>
   )

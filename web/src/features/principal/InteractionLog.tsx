@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Anchored } from '@/components/AnchoredPanel'
 import { useQuery } from '@tanstack/react-query'
 import { Download, Paperclip } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -190,6 +191,7 @@ export default function InteractionLog() {
 
 function PersonPicker({ label, value, onChange }: { label: string; value: Person | null; onChange: (p: Person | null) => void }) {
   const [text, setText] = useState('')
+  const nameBox = useRef<HTMLDivElement>(null)
   const { data } = useQuery({
     queryKey: ['interaction-people', text],
     queryFn: () => api.get<List<Person>>(`/api/v1/admin/interactions/people?q=${encodeURIComponent(text)}`),
@@ -207,10 +209,10 @@ function PersonPicker({ label, value, onChange }: { label: string; value: Person
           </Button>
         </div>
       ) : (
-        <div className="relative mt-1">
+        <div ref={nameBox} className="relative mt-1">
           <Input value={text} onChange={setText} placeholder="Type a name" />
           {options.length > 0 && text.trim().length >= 2 && (
-            <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-background shadow-md">
+            <Anchored open anchor={nameBox} width="trigger" gap={4} maxHeight={224} className="rounded-md border bg-background shadow-md"><ul>
               {options.map((p) => (
                 <li key={p.id}>
                   <button
@@ -226,7 +228,7 @@ function PersonPicker({ label, value, onChange }: { label: string; value: Person
                   </button>
                 </li>
               ))}
-            </ul>
+            </ul></Anchored>
           )}
         </div>
       )}

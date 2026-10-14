@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Z_ABOVE_DIALOGS } from './anchored'
 
 /* ONE CALENDAR, EVERYWHERE A DATE IS ASKED FOR.
  *
@@ -31,7 +32,6 @@ import { cn } from '@/lib/utils'
    expiry -- opened its calendar BEHIND the dialog: the field looked dead,
    and the only way to set a date was to give up. Reported as "the date
    picker is invisible", which is exactly what it was. */
-const Z_ABOVE_DIALOGS = 240
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']

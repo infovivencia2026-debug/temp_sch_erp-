@@ -1,3 +1,4 @@
+import { Anchored } from './AnchoredPanel'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -350,6 +351,7 @@ export function Shell({
      inside the drawer that is about to be removed. */
   const openerRef = useRef<HTMLButtonElement>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const switcherRef = useRef<HTMLButtonElement>(null)
   /* Escape closes the workspace switcher, as it closes every other menu. The
      scrim handled a click outside; the keyboard had no way out. */
   useEffect(() => {
@@ -878,7 +880,7 @@ export function Shell({
           >
             <PanelLeftClose className="h-5 w-5" />
           </button>
-          <button
+          <button ref={switcherRef}
             onClick={() => setSwitcherOpen((v) => !v)}
             aria-expanded={switcherOpen}
             aria-haspopup="menu"
@@ -957,9 +959,9 @@ export function Shell({
                 onClick={() => setSwitcherOpen(false)}
                 aria-hidden
               />
-              <div
+              <Anchored open anchor={switcherRef} width="trigger" gap={4} maxHeight={560}
                 role="menu"
-                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
+                className="rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
               >
                 {/* Bounded, because "View every role" turns thirteen rows
                     into twenty-odd and the menu then runs off the bottom of
@@ -997,7 +999,7 @@ export function Shell({
                   </button>
                 ))}
                 </ScrollBox>
-              </div>
+              </Anchored>
             </>
           )}
 

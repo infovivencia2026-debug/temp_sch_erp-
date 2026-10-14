@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Anchored } from '@/components/AnchoredPanel'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import type { ReportCard as ReportCardBody } from '@shared/api'
@@ -183,6 +184,7 @@ export default function ReportCards() {
      show who is actually here. One letter would offer half the section, which
      is the roll list they can already see. */
   const [suggesting, setSuggesting] = useState(false)
+  const findBox = useRef<HTMLDivElement>(null)
 
   const exams = useQuery({
     queryKey: ['exam-list'],
@@ -500,7 +502,7 @@ export default function ReportCards() {
             <ExportButton name="marks" query={{ exam: examId, section: sectionId }} />
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
-            <div className="relative w-full sm:w-auto">
+            <div ref={findBox} className="relative w-full sm:w-auto">
               <Input
                 value={find}
                 onChange={(v) => { setFind(v); setSuggesting(true) }}
@@ -512,7 +514,7 @@ export default function ReportCards() {
                 className="w-full sm:w-64"
               />
               {suggesting && suggestions.length > 0 && (
-                <ul className="absolute left-0 top-full z-30 mt-1 w-full min-w-[16rem] overflow-hidden rounded-md border bg-surface shadow-lg sm:w-72">
+                <Anchored open anchor={findBox} width="trigger" minWidth={256} gap={4} className="rounded-md border bg-surface shadow-lg"><ul>
                   {suggestions.map((r) => (
                     <li key={r.id}>
                       <button
@@ -536,7 +538,7 @@ export default function ReportCards() {
                       </button>
                     </li>
                   ))}
-                </ul>
+                </ul></Anchored>
               )}
             </div>
             <Select value={sectionId} onChange={setSectionId} placeholder="Section"
