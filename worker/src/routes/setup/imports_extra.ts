@@ -57,7 +57,16 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
      Aadhaar) and sets the standing monthly salary as Basic, HRA, DA, CA and
      OA, which is what a payroll run pays from. Columns the sheet works out
      (gross, EPF, ESI, LOP, net) are ignored: the run works them out again. */
-  const SHEET_PAY: [string, string][] = [['basic', 'BASIC'], ['h.r.a', 'HRA'], ['da', 'DA'], ['ca', 'CONVEY'], ['oa', 'SPECIAL']]
+  const SHEET_PAY: [string, string][] = [['basic', 'BASIC'], ['house_rent_allowance', 'HRA'], ['dearness_allowance', 'DA'], ['conveyance_allowance', 'CONVEY'], ['other_allowance', 'SPECIAL']]
+  /* Headings as the payslip words them (Yajur, 2026-10-14: "that template is
+     not right"). Sheets made with the first short headings still load: each
+     old heading is copied onto the new one before the row is read. */
+  const SHEET_OLD: [string, string][] = [['employee_id', 'emp_id'], ['employee_name', 'name'], ['date_of_joining', 'd.o.j'],
+    ['bank_account_number', 'a/c_number'], ['ifsc', 'ifsc_code'], ['aadhaar', 'aadhar'], ['house_rent_allowance', 'h.r.a'],
+    ['dearness_allowance', 'da'], ['conveyance_allowance', 'ca'], ['other_allowance', 'oa']]
+  const sheetRow = (row: Record<string, string>) => {
+    for (const [now, was] of SHEET_OLD) if ((row[now] ?? '') === '' && (row[was] ?? '') !== '') row[now] = row[was]
+  }
   const rupeesCell = (v: unknown): number | null => {
     const t = str(v).replace(/[,₹\s]/g, '').trim()
     if (t === '' || t === '-') return null
@@ -77,21 +86,26 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
   }
   specs.salary_sheet = {
     perm: 'hr.payroll.write',
-    columns: ['emp_id', 'name', 'designation', 'mobile_number', 'subject', 'd.o.j', 'a/c_number', 'ifsc_code', 'aadhar', 'pan', 'uan', 'basic', 'h.r.a', 'da', 'ca', 'oa'],
-    required: ['emp_id'], identity: 'emp_id',
+    columns: ['Employee ID', 'Employee Name', 'Designation', 'Mobile Number', 'Subject', 'Date of Joining', 'Bank Account Number', 'IFSC',
+      'Aadhaar', 'PAN', 'UAN', 'Basic', 'House Rent Allowance', 'Dearness Allowance', 'Conveyance Allowance', 'Other Allowance'],
+    required: [], identity: 'employee_id',
     sample: ['YPS59100001', 'RAMYA SRI RACHERLA', 'Teacher', '9876543210', 'English', '01/06/2024', '7707198963', 'IDIB000L009', '123412341234', 'ABCDE1234F', '100123456789', '15000', '6000', '0', '1600', '2400'],
     check: (row) => {
+      sheetRow(row)
+      if (str(row.employee_id).trim() === '') throw new Error('Employee ID is required')
       for (const [col] of SHEET_PAY) rupeesCell(row[col])
-      sheetDate(row['d.o.j'])
+      sheetDate(row.date_of_joining)
     },
     verify: async (ctx, row) => {
-      if (!(await employeeByCode(ctx, str(row.emp_id).trim(), false))) throw new Error(`nobody on the roll with EMP ID "${str(row.emp_id).trim()}". Import the staff first`)
+      sheetRow(row)
+      if (!(await employeeByCode(ctx, str(row.employee_id).trim(), false))) throw new Error(`nobody on the roll with EMP ID "${str(row.employee_id).trim()}". Import the staff first`)
     },
     write: async (ctx, row) => {
-      const empId = await employeeByCode(ctx, str(row.emp_id).trim(), false)
+      sheetRow(row)
+      const empId = await employeeByCode(ctx, str(row.employee_id).trim(), false)
       if (!empId) throw new Error('no rows in result set')
       const cell = (k: string) => str(row[k]).trim()
-      const digits = cell('aadhar').replace(/\D/g, '')
+      const digits = cell('aadhaar').replace(/\D/g, '')
       let designationId: string | null = null
       if (cell('designation')) {
         const d = await ctx.db.prepare(`SELECT id FROM designations WHERE institution_id = ? AND lower(name) = lower(?)`).bind(ctx.inst, cell('designation')).first<{ id: string }>()
@@ -104,8 +118,8 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
       await ctx.db.prepare(`UPDATE employees SET designation_id = COALESCE(?, designation_id), phone = COALESCE(NULLIF(?, ''), phone),
           joined_on = COALESCE(?, joined_on), bank_account = COALESCE(NULLIF(?, ''), bank_account), bank_ifsc = COALESCE(NULLIF(?, ''), bank_ifsc),
           aadhaar_last4 = COALESCE(NULLIF(?, ''), aadhaar_last4), pan = COALESCE(NULLIF(upper(?), ''), pan), uan = COALESCE(NULLIF(?, ''), uan) WHERE id = ?`)
-        .bind(designationId, cell('mobile_number').replace(/\D/g, '').slice(-10), sheetDate(row['d.o.j']), cell('a/c_number').replace(/\s/g, ''),
-          cell('ifsc_code').toUpperCase(), digits.length >= 4 ? digits.slice(-4) : '', cell('pan'), cell('uan').replace(/\s/g, ''), empId).run()
+        .bind(designationId, cell('mobile_number').replace(/\D/g, '').slice(-10), sheetDate(row.date_of_joining), cell('bank_account_number').replace(/\s/g, ''),
+          cell('ifsc').toUpperCase(), digits.length >= 4 ? digits.slice(-4) : '', cell('pan'), cell('uan').replace(/\s/g, ''), empId).run()
 
       const pay = SHEET_PAY.map(([col, code]) => [code, rupeesCell(row[col])] as const).filter(([, v]) => v !== null) as [string, number][]
       if (pay.length === 0) return
