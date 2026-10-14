@@ -265,9 +265,13 @@ export default function StaffAttendance() {
                           and why it cannot be marked, instead of wondering
                           whether they forgot somebody. */}
                       {r.needs_login ? (
-                        <span className="text-[13px] text-muted-foreground">
-                          Needs a login before attendance can be taken &mdash; Staff &rsaquo; Logins &amp; access.
-                        </span>
+                        /* The reader's times are already in the two columns
+                           to the left, so this says only what is missing --
+                           the ability to overrule them by hand -- and says it
+                           quietly. It used to be a sentence of instruction
+                           where a mark should be, which read as the row being
+                           broken rather than as one waiting on a password. */
+                        <span className="text-[12.5px] text-muted-foreground">From the reader only</span>
                       ) : (
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {
