@@ -271,7 +271,11 @@ export default function StaffAttendance() {
                            quietly. It used to be a sentence of instruction
                            where a mark should be, which read as the row being
                            broken rather than as one waiting on a password. */
-                        <span className="text-[12.5px] text-muted-foreground">From the reader only</span>
+                        /* Nothing (owner, 2026-10-14: "why do i see that message").
+                           The in and out are in the columns beside; marks are
+                           the only thing a login adds, and an empty cell says
+                           that without a sentence. */
+                        <span aria-hidden className="block h-8" />
                       ) : (
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {

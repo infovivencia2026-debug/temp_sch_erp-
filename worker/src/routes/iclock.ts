@@ -82,11 +82,23 @@ export async function linkReaderUsersByName(db: D1Database, inst: string, device
       WHERE u.device_id = ? AND COALESCE(u.name, '') <> ''
         AND NOT EXISTS (SELECT 1 FROM employees e WHERE e.institution_id = ? AND upper(CAST(e.device_user_id AS TEXT)) = u.device_user_id)`)
     .bind(deviceId, inst).all<{ pin: string; name: string }>()
-  if (!users.results.length) return []
+  if (!users.results.length) return linkReaderUsersByCode(db, inst)
   const staff = await db.prepare(`SELECT id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name FROM employees
       WHERE institution_id = ? AND device_user_id IS NULL`).bind(inst).all<{ id: string; name: string }>()
   const keyed = staff.results.map((s) => ({ id: s.id, key: nameKey(s.name), words: new Set(nameKey(s.name).split(' ')) }))
-  const taken = new Set<string>()
+  /* THE PIN THAT IS THE STAFF CODE (owner, 2026-10-14: "i dont see their past
+     attendance and today's also").
+
+     At Yajur the reader was enrolled with each person's staff code as their
+     PIN -- T063 is T063 on the machine -- and named them "T,PRANAY". The name
+     pass below reduces "M,NANDINI" to one word and "MADISHETTY NANDINI" to
+     two, and will never match them; T064 sat unlinked for a day while her
+     neighbours linked by name. A PIN equal to a staff code is that person,
+     full stop. Settled first, as one SQL statement -- the same selection is
+     checkable against the database directly, and it is the database's
+     answer that counts. */
+  const byCode = await linkReaderUsersByCode(db, inst)
+  const taken = new Set<string>(byCode)
   const links: { emp: string; pin: string }[] = []
   for (const u of users.results) {
     const k = nameKey(u.name)
@@ -100,9 +112,24 @@ export async function linkReaderUsersByName(db: D1Database, inst: string, device
     taken.add(hits[0].id)
     links.push({ emp: hits[0].id, pin: u.pin })
   }
-  if (!links.length) return []
-  await db.batch(links.map((l) => db.prepare(`UPDATE employees SET device_user_id = ? WHERE id = ? AND device_user_id IS NULL`).bind(l.pin, l.emp)))
-  return links.map((l) => l.emp)
+  if (links.length) await db.batch(links.map((l) => db.prepare(`UPDATE employees SET device_user_id = ? WHERE id = ? AND device_user_id IS NULL`).bind(l.pin, l.emp)))
+  return [...byCode, ...links.map((l) => l.emp)]
+}
+
+/** Every unlinked active employee whose staff code is an unclaimed reader PIN is linked to it. Returns the employees linked. */
+export async function linkReaderUsersByCode(db: D1Database, inst: string): Promise<string[]> {
+  const who = await db.prepare(`SELECT e.id FROM employees e
+      WHERE e.institution_id = ?1 AND e.status = 'active' AND e.device_user_id IS NULL AND COALESCE(e.employee_code, '') <> ''
+        AND EXISTS (SELECT 1 FROM biometric_device_users u WHERE u.institution_id = e.institution_id
+                      AND upper(trim(u.device_user_id)) = upper(trim(e.employee_code)))
+        AND NOT EXISTS (SELECT 1 FROM employees x WHERE x.institution_id = e.institution_id AND x.id <> e.id
+                          AND upper(trim(CAST(x.device_user_id AS TEXT))) = upper(trim(e.employee_code)))`).bind(inst).all<{ id: string }>()
+  if (!who.results.length) return []
+  await db.prepare(`UPDATE employees SET device_user_id = (
+        SELECT u.device_user_id FROM biometric_device_users u
+         WHERE u.institution_id = employees.institution_id AND upper(trim(u.device_user_id)) = upper(trim(employees.employee_code)) LIMIT 1)
+      WHERE id IN (SELECT value FROM json_each(?1)) AND device_user_id IS NULL`).bind(JSON.stringify(who.results.map((r) => r.id))).run()
+  return who.results.map((r) => r.id)
 }
 
 /* MATCH THE PUNCHES ALREADY HERE, AND ROLL RECENT DAYS INTO ATTENDANCE.
@@ -127,7 +154,7 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
   const [ins] = await db.batch([
     db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, check_in, check_out, source, device_ref, created_at)
         SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
-               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN g.la > g.fi THEN g.la END, 'device', g.serial, ?3
+               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN julianday(g.la) - julianday(g.fi) >= 5.0 / 1440 THEN g.la END, 'device', g.serial, ?3
           FROM (SELECT e.user_id, ${day} AS d, MIN(p.punched_at) AS fi, MAX(p.punched_at) AS la, MAX(bd.serial) AS serial
                   FROM biometric_punches p JOIN employees e ON e.id = p.employee_id JOIN biometric_devices bd ON bd.id = p.device_id
                  WHERE p.institution_id = ?1 AND p.punched_at >= ?2 AND e.user_id IS NOT NULL

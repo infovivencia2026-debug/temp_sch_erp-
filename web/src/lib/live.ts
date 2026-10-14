@@ -95,6 +95,8 @@ const LIVE_WORDS: string[][] = [
   [...COMMON, 'concession', 'ledger', 'fee', 'finance'],
   // Staff and salaries (Yajur, 2026-10-14): a new member of staff shows on every login.
   ['employee', 'staff', 'salary', 'payroll', 'roster', 'people', 'hr', 'teacher'],
+  // The school calendar (Yajur, 2026-10-14): a holiday added or removed shows on every screen that draws one.
+  [...COMMON, 'calendar', 'holiday', 'term', 'school-life', 'events', 'day'],
 ]
 
 export function useLiveUpdates() {

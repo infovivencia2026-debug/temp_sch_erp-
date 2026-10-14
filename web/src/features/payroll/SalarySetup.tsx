@@ -186,7 +186,7 @@ function LineInputs({ comps, lines, setLines, split }: {
             </Td>
             {typed(c) ? (
               <>
-                <Td><Select value={l.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></Td>
+                <Td><div className="w-[10.5rem] min-w-[10.5rem]"><Select value={l.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></div></Td>
                 <Td><Input type="number" value={l.val} onChange={(v) => set({ val: v })} placeholder="0" /></Td>
                 <Td className="tabular-nums">{formatPaise(split[c.id] ?? 0)}</Td>
               </>
@@ -486,7 +486,7 @@ export default function SalarySetup() {
                         </Td>
                         {typed(c) ? (
                           <>
-                            <Td><Select value={cur.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></Td>
+                            <Td><div className="w-[10.5rem] min-w-[10.5rem]"><Select value={cur.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></div></Td>
                             <Td>
                               <Input type="number" value={cur.val} onChange={(v) => set({ val: v })} placeholder={cur.mode === 'amt' ? '₹' : '%'} />
                             </Td>
@@ -589,7 +589,8 @@ export default function SalarySetup() {
                       setOpen(open === r.employee_id ? null : r.employee_id)
                       setFrom(r.effective_from ?? today())
                       setGross(monthly(r) ? String(monthly(r) / 100) : '')
-                      setRest(false)
+                      // Only a gross on file (the sheet import): the rules split it, and the rest stays as Special allowance.
+                      setRest(!r.items.some((i) => i.kind === 'earning'))
                       const seed: Lines = {}
                       for (const i of r.items) {
                         const c = components.find((x) => x.id === i.component_id)
