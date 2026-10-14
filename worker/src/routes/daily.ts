@@ -9,6 +9,7 @@ import { json } from '../env'
 import { school } from './school'
 import { enqueue, queueOf, QUEUES } from '../services/jobs'
 import { allPeriods, periodsForSection, periodsOfSchedule, scheduleOfClass, schoolDayPeriods, sectionScheduleSQL } from './scheduling/bell'
+import { linkReaderUsersByName, resolveStoredPunches } from './iclock'
 
 /* Port of the /timetable, /attendance, /class, /me, /jobs, /workflow and
    /homework route groups (internal/api/api.go 409-521). Handlers live in
@@ -1065,6 +1066,29 @@ function registerWorkflow(r: Router) {
   r.get('/workflow/staff-register', 'hr.attendance.write', async (c) => {
     const on = c.url.searchParams.get('on_date') || today()
     const tz = school(c).timezone
+    /* THE REGISTER LINKS WHOEVER IT CAN BEFORE IT SHOWS ITSELF (owner,
+       2026-10-14: "why i see this again").
+
+       Linking a member of staff to their reader PIN used to wait for a cue
+       from the machine -- its user list, or a punch from somebody unowned.
+       That left three people at Yajur blank all day because they had punched
+       in before the fix and the machine had gone quiet until home time. The
+       person opening this sheet is the cue that matters: if any staff member
+       on it is unlinked and the reader knows a PIN equal to their code, link
+       them now and roll their punches in, so the sheet they are about to
+       read is the true one. Guarded by one EXISTS, so a register with
+       nothing to link costs nothing extra, and idempotent after that. */
+    const inst = school(c).id
+    const pending = await c.db.prepare(`SELECT 1 AS x FROM employees e
+        WHERE e.institution_id = ? AND e.status = 'active' AND e.device_user_id IS NULL
+          AND EXISTS (SELECT 1 FROM biometric_device_users u WHERE u.institution_id = e.institution_id
+                        AND u.device_user_id = upper(trim(e.employee_code))) LIMIT 1`).bind(inst).first()
+    if (pending) {
+      const devices = await c.db.prepare(`SELECT id FROM biometric_devices WHERE institution_id = ?`).bind(inst).all<{ id: string }>()
+      let linked = 0
+      for (const d of devices.results) linked += (await linkReaderUsersByName(c.db, inst, d.id)).length
+      if (linked) await resolveStoredPunches(c.db, inst)
+    }
     /* EVERY MEMBER OF STAFF ON THE ROLL, AND WHAT THE READER SAW (owner,
        2026-10-14: "after adding new staff show their attendance in staff
        registry" and "show attendance history directly").

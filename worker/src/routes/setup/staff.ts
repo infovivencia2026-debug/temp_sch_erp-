@@ -9,7 +9,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
 import { alreadyUsed, guardOverwrite } from '../../services/overwrite'
-import { HISTORY_KEY, USERS_KEY, resolveStoredPunches } from '../iclock'
+import { HISTORY_KEY, USERS_KEY, linkReaderUsersByName, resolveStoredPunches } from '../iclock'
 import { staffHolidayChecker } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
@@ -241,6 +241,25 @@ export function registerStaff(r: Router): void {
       throw e
     }
     if (out.userId !== '') await indexLogin(c, out.userId)
+    /* THE READER'S HISTORY, THE MOMENT THE PERSON EXISTS (owner, 2026-10-14:
+       "if any staff is created their biometric will be seen here right after
+       creating with any past attendance through biometric, no need of them to
+       sign in or whatever").
+
+       The machine usually knew this person before the office did: they were
+       enrolled on the reader on day one and have been punching since, into a
+       record nobody owned. Appointing them is the moment to claim it. If the
+       reader has a PIN equal to the staff code they were just given -- which
+       is how this school enrols -- they are linked here and now, every punch
+       they have made is attached, and the last 75 days are written into the
+       register. No login is involved: the punches belong to the employee. */
+    if (out.created) {
+      const inst = instId(c)
+      const devices = await c.db.prepare(`SELECT id FROM biometric_devices WHERE institution_id = ?`).bind(inst).all<{ id: string }>()
+      let linked = 0
+      for (const d of devices.results) linked += (await linkReaderUsersByName(c.db, inst, d.id)).length
+      if (linked) await resolveStoredPunches(c.db, inst)
+    }
     return created({ id: out.empId, user_id: out.userId === '' ? null : out.userId, employee_code: body.employee_code, created: out.created })
   })
 
