@@ -8,6 +8,7 @@ import { can } from '../../identity'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, CLASS_LEVEL_FLOOR, CLASS_LEVEL_CEILING,
   appointEmployee, PhoneInUse, endFamilyAccess, todayIndia, istToUTC, isClock, str } from './common'
 import { registerImportSpecsExtra } from './imports_extra'
+import { describeReplacements, replacements, type CodeChange } from '../../services/overwrite'
 
 /* Port of bulk_import.go: the shared CSV importer, its history and undo.
 
@@ -251,6 +252,10 @@ export interface ImportSpec {
   check?: (row: Row) => void
   skip?: (row: Row) => boolean
   verify?: (ctx: ImportCtx, row: Row) => Promise<void>
+  /** The identifying codes this row would change on a record already on file
+      (owner, 2026-10-14): such a row is reported and held back unless the
+      upload says overwrite=true. Return every candidate; blanks-to-fill are dropped. */
+  replaces?: (ctx: ImportCtx, row: Row) => Promise<CodeChange[]>
   write: (ctx: ImportCtx, row: Row) => Promise<void>
 }
 
@@ -829,6 +834,13 @@ export const importSpecs: Record<string, ImportSpec> = {
         if (!okRow) throw new Error(`no subject called "${want}". Check the Subjects step for the exact name`)
       }
     },
+    // The upsert writes email and phone as given (a blank clears them).
+    replaces: async (ctx, row) => {
+      const cur = await ctx.db.prepare(`SELECT email, phone FROM employees WHERE institution_id = ? AND employee_code = ?`)
+        .bind(ctx.inst, str(row.employee_code).trim()).first<{ email: string | null; phone: string | null }>()
+      if (!cur) return []
+      return [{ field: 'email', label: 'email', from: cur.email, to: str(row.email).trim() }, { field: 'phone', label: 'phone', from: cur.phone, to: str(row.phone).trim() }]
+    },
     write: async (ctx, row) => {
       if (isStaffStatusWord(str(row.designation)) && !isStaffStatusWord(str(row.status))) { const d = row.designation; row.designation = row.status; row.status = d }
       const designationId = await ctx.designationID(str(row.designation))
@@ -1317,7 +1329,10 @@ export function parseCSV(text: string): { rows: string[][]; errors: Map<number, 
 }
 
 interface ImportRow { row: number; data?: Row; problem?: string }
-interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string }
+interface ImportReplace { row: number; changes: Array<{ field: string; label: string; from: string; to: string | null }>; problem: string }
+interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[] }
+
+
 
 function columnMapFrom(c: Ctx): Record<string, string> | null {
   const raw = (c.req.headers.get('x-column-map') ?? '').trim()
@@ -1417,6 +1432,29 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       }
     }
     if (bad.size > 0) rows = rows.filter((p) => !bad.has(p.row))
+  }
+  /* A row that would replace a code already on file is listed in the check
+     and, unless the person ticked "replace" (overwrite=true), left out of
+     the import rather than applied silently (owner, 2026-10-14). */
+  if (spec.replaces && rows.length > 0) {
+    const overwrite = c.url.searchParams.get('overwrite') === 'true'
+    const campus = await ensureCampus(c)
+    const ctx = new ImportCtx(c, inst, campus, sheetFactsFrom(c), subjectColumnsFrom(c))
+    const held = new Set<number>()
+    out.replacements = []
+    for (const p of rows) {
+      const ch = replacements(await spec.replaces(ctx, p.data), true)
+      if (ch.length === 0) continue
+      const problem = describeReplacements(ch)
+      out.replacements.push({ row: p.row, problem, changes: ch.map((x) => ({ field: x.field, label: x.label, from: String(x.from ?? '').trim(), to: x.to === null || String(x.to).trim() === '' ? null : String(x.to).trim() })) })
+      if (overwrite) continue
+      held.add(p.row)
+      if (commit) {
+        out.valid--; out.rejected++
+        out.problems.push({ row: p.row, data: p.data, problem: problem + '. Not applied: tick "Replace existing codes" and import again to apply it' })
+      }
+    }
+    if (commit && held.size > 0) rows = rows.filter((p) => !held.has(p.row))
   }
   if (!commit || rows.length === 0) return { out, clientMsg: '' }
 

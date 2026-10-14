@@ -2,6 +2,7 @@ import type { Ctx, Router } from '../router'
 import { autoIssueFamilyLogins, autoIssueGuardianLogin } from './setup/staff'
 import { indexLogin } from './setup/common'
 import { reply } from '../router'
+import { alreadyUsed, describeReplacements, guardOverwrite, replacements, stripOverwriteFlags, type CodeChange } from '../services/overwrite'
 import { portalChild } from './teaching/common'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
@@ -265,10 +266,23 @@ async function updateStudent(c: Ctx) {
   const pred = studentPredicate(await resolveScope(c), 'st')
   const existing = await c.db.prepare(`SELECT st.admission_no FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first<{ admission_no: string }>()
   if (!existing) throw notFoundGo()
-  req.admission_no = existing.admission_no // never renumber on edit
+  /* The edit form shows the admission number, and a change typed there used
+     to be dropped without a word. It is applied now, after asking (owner,
+     2026-10-14); APAAR, Child Info id and Aadhaar are asked about the same way. */
+  const r = req as unknown as Record<string, unknown>
+  const renumber = typeof r.admission_no === 'string' && r.admission_no.trim() !== '' && r.admission_no.trim() !== existing.admission_no
+    ? r.admission_no.trim() : null
+  const given: Record<string, string | null> = {}
+  if (renumber) given.admission_no = renumber
+  // The upsert keeps a stored APAAR / Child Info id when sent blank, so only a different value is a change.
+  for (const k of ['apaar_id', 'child_info_id'] as const) if (str(r[k]).trim() !== '') given[k] = str(r[k]).trim()
+  if ('aadhaar_last4' in r) given.aadhaar_last4 = str(r.aadhaar_last4).trim()
+  await guardStudentCodes(c, id, r, given)
+  req.admission_no = existing.admission_no // the upsert finds the record by its current number
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
+  if (renumber) await c.db.prepare(`UPDATE students SET admission_no = ?, updated_at = ? WHERE id = ?`).bind(renumber, now(), id).run()
   // A parent number added or changed on the record gets its login too.
   await autoIssueFamilyLogins(c, id)
   return ok({ id, updated: true })
@@ -1140,9 +1154,36 @@ const patchableStudentFields = new Set([
   'apaar_id', 'child_info_id', 'house_id', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'medium', 'admission_no',
 ])
 
+/* A child's identifying numbers are not typed over without being asked
+   (owner, 2026-10-14; services/overwrite.ts). Admission number, APAAR and
+   Child Info id are unique per school, so a number another child holds is
+   refused naming that child. `given` holds only the fields being written. */
+const studentCodeLabels: Record<string, string> = {
+  admission_no: 'admission no.', apaar_id: 'APAAR ID', child_info_id: 'Child Info ID', aadhaar_last4: 'Aadhaar (last 4)', roll_no: 'roll no.',
+}
+export async function guardStudentCodes(c: Ctx, id: string, flags: unknown, given: Record<string, string | null>): Promise<void> {
+  if (Object.keys(given).length === 0) return
+  const cur = await c.db.prepare(`SELECT st.admission_no, st.apaar_id, st.child_info_id, st.aadhaar_last4,
+      (SELECT CAST(e.roll_no AS TEXT) FROM enrollments e WHERE e.student_id = st.id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS roll_no
+      FROM students st WHERE st.id = ?`).bind(id).first<Record<string, string | null>>()
+  if (!cur) return // the scope check that follows says why
+  for (const k of ['admission_no', 'apaar_id', 'child_info_id']) {
+    const v = given[k]
+    if (!v || v === (cur[k] ?? '')) continue
+    const holder = await c.db.prepare(`SELECT ${fullNameSQL('st')} AS name, st.admission_no FROM students st
+        WHERE st.institution_id = ? AND ${k === 'admission_no' ? 'lower(st.admission_no) = lower(?)' : `st.${k} = ?`} AND st.id <> ?`)
+      .bind(inst(c), v, id).first<{ name: string; admission_no: string }>()
+    if (holder) throw alreadyUsed(k, studentCodeLabels[k], v, `${holder.name} (${holder.admission_no})`)
+  }
+  const changes: CodeChange[] = Object.entries(given).map(([k, to]) => ({ field: k, label: studentCodeLabels[k], from: cur[k], to }))
+  guardOverwrite(flags, changes)
+}
+
 async function patchStudentFields(c: Ctx) {
   const id = sid(c)
   const req = await readJSON<Record<string, string>>(c.req)
+  const flags = { confirm_overwrite: (req as Record<string, unknown>).confirm_overwrite, overwrite: (req as Record<string, unknown>).overwrite }
+  stripOverwriteFlags(req)
   const rollGiven = Object.prototype.hasOwnProperty.call(req, 'roll_no')
   let rollNo: number | null = null
   if (rollGiven) {
@@ -1156,6 +1197,10 @@ async function patchStudentFields(c: Ctx) {
     }
   }
   if (Object.keys(req).length === 0 && !rollGiven) throw badRequest('nothing to change')
+  const given: Record<string, string | null> = {}
+  for (const k of ['admission_no', 'apaar_id', 'child_info_id', 'aadhaar_last4']) if (k in req) given[k] = str(req[k]).trim()
+  if (rollGiven) given.roll_no = rollNo === null ? '' : String(rollNo)
+  await guardStudentCodes(c, id, flags, given)
 
   const sets: string[] = []
   const args: unknown[] = []
@@ -1313,7 +1358,7 @@ async function importStudents(c: Ctx) {
 
   const seenKeys = new Map<string, number>()
   let good: Parsed[] = []
-  const out: { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string } =
+  const out: { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: Array<{ row: number; changes: CodeChange[]; problem: string }> } =
     { total: 0, valid: 0, rejected: 0, imported: 0, dry_run: !commit, problems: [] }
 
   for (let rowNum = 2; rowNum <= records.length; rowNum++) {
@@ -1420,6 +1465,35 @@ async function importStudents(c: Ctx) {
       }
       return true
     })
+  }
+
+  /* A row for a child already on file that would replace an APAAR, Child
+     Info id or Aadhaar tail is listed, and held back unless the upload says
+     overwrite=true (owner, 2026-10-14). One scan of the roll, not a query a row. */
+  if (good.length > 0) {
+    const onFile = new Map<string, Record<string, string | null>>()
+    const all = await c.db.prepare(`SELECT lower(admission_no) AS k, apaar_id, child_info_id, aadhaar_last4 FROM students`).all<Record<string, string | null>>()
+    for (const r of all.results) onFile.set(String(r.k), r)
+    const overwrite = q.get('overwrite') === 'true'
+    const held = new Set<number>()
+    for (const g of good) {
+      const cur = onFile.get(str(g.req.admission_no).trim().toLowerCase())
+      if (!cur) continue
+      const cand: CodeChange[] = []
+      if (str(g.req.apaar_id).trim() !== '') cand.push({ field: 'apaar_id', label: 'APAAR ID', from: cur.apaar_id, to: str(g.req.apaar_id).trim() })
+      if (str(g.req.child_info_id).trim() !== '') cand.push({ field: 'child_info_id', label: 'Child Info ID', from: cur.child_info_id, to: str(g.req.child_info_id).trim() })
+      cand.push({ field: 'aadhaar_last4', label: 'Aadhaar (last 4)', from: cur.aadhaar_last4, to: str(g.req.aadhaar_last4).trim() })
+      const ch = replacements(cand)
+      if (ch.length === 0) continue
+      const problem = describeReplacements(ch)
+      ;(out.replacements ??= []).push({ row: g.row, changes: ch, problem })
+      if (overwrite) continue
+      if (commit) {
+        held.add(g.row); out.valid--; out.rejected++
+        out.problems.push({ row: g.row, problem: problem + '. Not applied: tick "Replace existing codes" and import again to apply it' })
+      }
+    }
+    if (held.size > 0) good = good.filter((g) => !held.has(g.row))
   }
 
   if (!commit) return ok(out)

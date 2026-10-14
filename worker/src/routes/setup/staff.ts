@@ -8,6 +8,7 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
+import { alreadyUsed, guardOverwrite } from '../../services/overwrite'
 import { HISTORY_KEY, USERS_KEY, resolveStoredPunches } from '../iclock'
 import { staffHolidayChecker } from '../hr/staff_holidays'
 
@@ -214,6 +215,21 @@ export function registerStaff(r: Router): void {
         throw new HttpError(403, "that role belongs to the people who operate this installation, not to a school. Pick one of your own school's roles.", { code: 'platform_role' })
       }
     }
+    /* A code already on the roll makes this an update of THAT person (the
+       upsert below). Ask before their name or contacts are replaced; filling
+       a blank one is fine (owner, 2026-10-14). */
+    if (body.employee_code.trim() !== '') {
+      const held = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name, email, phone FROM employees
+          WHERE institution_id = ? AND employee_code = ?`).bind(instId(c), body.employee_code.trim()).first<{ name: string; email: string | null; phone: string | null }>()
+      if (held) {
+        const newName = `${body.first_name} ${body.last_name}`.trim()
+        guardOverwrite(req, [
+          { field: 'employee_code', label: `staff code ${body.employee_code.trim()} (already ${held.name}), name`, from: held.name, to: newName },
+          { field: 'email', label: 'email', from: held.email, to: body.email },
+          { field: 'phone', label: 'phone', from: held.phone, to: body.phone },
+        ], true)
+      }
+    }
     const campus = await ensureCampus(c)
     let out: { empId: string; userId: string; created: boolean }
     try {
@@ -242,6 +258,26 @@ export function registerStaff(r: Router): void {
     const leaving = status !== null && oneOfStr(status, 'resigned', 'terminated', 'retired')
     if (relieved === null && leaving) relieved = todayIndia()
     const t = now()
+    /* Codes are not typed over without being asked (owner, 2026-10-14): see
+       services/overwrite.ts. A value someone else holds is refused outright. */
+    const cur = await c.db.prepare(`SELECT employee_code, device_user_id, bank_account, bank_ifsc, pan, uan, esi_number, phone, email
+        FROM employees WHERE id = ?`).bind(empId).first<Record<string, string | null>>()
+    if (!cur) throw badRequest('no such staff record in this school')
+    const newCode = has(req, 'employee_code') ? str(req.employee_code).trim() : null
+    if (newCode === '') throw badRequest('a staff record needs an employee code')
+    const newDevice = has(req, 'device_user_id') ? str(req.device_user_id).trim().toUpperCase() : null
+    for (const [col, label, v] of [['employee_code', 'Staff code', newCode], ['device_user_id', 'Biometric reader id', newDevice]] as const) {
+      if (!v || v === (cur[col] ?? '')) continue
+      const holder = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name FROM employees
+          WHERE institution_id = ? AND ${col === 'employee_code' ? 'lower(employee_code) = lower(?)' : 'device_user_id = ?'} AND id <> ?`)
+        .bind(instId(c), v, empId).first<{ name: string }>()
+      if (holder) throw alreadyUsed(col, label, v, holder.name)
+    }
+    const codeLabels: [string, string][] = [['employee_code', 'staff code'], ['device_user_id', 'biometric reader id'], ['bank_account', 'bank account number'],
+      ['bank_ifsc', 'IFSC'], ['pan', 'PAN'], ['uan', 'UAN'], ['esi_number', 'ESI number'], ['phone', 'phone'], ['email', 'email']]
+    // device_user_id cannot be cleared here (COALESCE below), so an empty one is no change.
+    guardOverwrite(req, codeLabels.filter(([k]) => has(req, k) && !(k === 'device_user_id' && newDevice === ''))
+      .map(([k, label]) => ({ field: k, label, from: cur[k], to: k === 'device_user_id' ? newDevice : str(req[k]).trim() })), true)
     let res: D1Result
     try {
       // employees_touch trigger: updated_at is stamped here.
@@ -268,11 +304,12 @@ export function registerStaff(r: Router): void {
           esi_number = CASE WHEN ?19 IS NULL THEN esi_number ELSE NULLIF(?19, '') END,
           emergency_contact_name = CASE WHEN ?20 IS NULL THEN emergency_contact_name ELSE NULLIF(?20, '') END,
           emergency_contact_phone = CASE WHEN ?21 IS NULL THEN emergency_contact_phone ELSE NULLIF(?21, '') END,
+          employee_code = COALESCE(?25, employee_code),
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName)
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, newCode)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')

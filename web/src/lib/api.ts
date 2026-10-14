@@ -258,22 +258,39 @@ export function servedFromCache(data: unknown): boolean {
   return !!data && typeof data === 'object' && cachedBodies.has(data as object)
 }
 
+/* A write that would replace an identifying code (staff code, admission
+   number, PAN, reader id...) comes back 409 confirm_overwrite with the list of
+   changes. Asked once here and resent with the flag, so every form and every
+   older screen gets the question (owner, 2026-10-14). Cancel keeps the old
+   value and says so; nothing was written. */
+async function write<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const send = (b: unknown) => request<T>(path, { method, body: b ? JSON.stringify(b) : undefined })
+  try {
+    return await send(body)
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.code !== 'confirm_overwrite' || !body || typeof body !== 'object' || Array.isArray(body)) throw e
+    const changes = (e.body as { changes?: [] } | undefined)?.changes ?? []
+    const { confirmOverwrite } = await import('./confirm-overwrite')
+    if (!(await confirmOverwrite(changes))) {
+      throw new ApiError(409, 'overwrite_cancelled', 'Not saved. The existing value was kept.')
+    }
+    return send({ ...(body as Record<string, unknown>), confirm_overwrite: true })
+  }
+}
+
 export const api = {
   /** A route on the contract (shared/api), typed end to end. See `call` below. */
   call,
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  put: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
+  post: <T>(path: string, body?: unknown) => write<T>('POST', path, body),
+  put: <T>(path: string, body?: unknown) => write<T>('PUT', path, body),
   /* PATCH, for an edit that names only what changes.
 
      PUT replaces, which means a caller has to send back every field it does
      not want cleared — and a caller that forgets one clears it silently. An
      endpoint that distinguishes "not mentioned" from "set to empty" needs the
      verb that says so. */
-  patch: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+  patch: <T>(path: string, body?: unknown) => write<T>('PATCH', path, body),
   /* A body on a DELETE, which is unusual and here on purpose: erasing a
      child's record asks for the name to be typed back, and that confirmation
      belongs in the request rather than in a query string that lands in every
