@@ -186,7 +186,7 @@ function LineInputs({ comps, lines, setLines, split }: {
             </Td>
             {typed(c) ? (
               <>
-                <Td><Select value={l.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></Td>
+                <Td><div className="min-w-[9.5rem]"><Select value={l.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></div></Td>
                 <Td><Input type="number" value={l.val} onChange={(v) => set({ val: v })} placeholder="0" /></Td>
                 <Td className="tabular-nums">{formatPaise(split[c.id] ?? 0)}</Td>
               </>
@@ -486,7 +486,7 @@ export default function SalarySetup() {
                         </Td>
                         {typed(c) ? (
                           <>
-                            <Td><Select value={cur.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></Td>
+                            <Td><div className="min-w-[9.5rem]"><Select value={cur.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></div></Td>
                             <Td>
                               <Input type="number" value={cur.val} onChange={(v) => set({ val: v })} placeholder={cur.mode === 'amt' ? '₹' : '%'} />
                             </Td>
