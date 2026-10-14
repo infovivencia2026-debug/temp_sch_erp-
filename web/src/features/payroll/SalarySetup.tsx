@@ -589,7 +589,8 @@ export default function SalarySetup() {
                       setOpen(open === r.employee_id ? null : r.employee_id)
                       setFrom(r.effective_from ?? today())
                       setGross(monthly(r) ? String(monthly(r) / 100) : '')
-                      setRest(false)
+                      // Only a gross on file (the sheet import): the rules split it, and the rest stays as Special allowance.
+                      setRest(!r.items.some((i) => i.kind === 'earning'))
                       const seed: Lines = {}
                       for (const i of r.items) {
                         const c = components.find((x) => x.id === i.component_id)
