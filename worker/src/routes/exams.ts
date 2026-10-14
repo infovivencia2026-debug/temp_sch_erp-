@@ -243,7 +243,7 @@ function registerExamGroup(r: Router) {
           roll_no is an integer, so 9 comes before 10. A child with no roll
           number yet goes last rather than first, where a NULL would sort,
           and admission number breaks a tie. */
-       ORDER BY sec.name, e.roll_no IS NULL, e.roll_no, st.admission_no`).bind(esId, sectionId, sectionId).all()
+       ORDER BY sec.name, e.roll_no IS NULL, CAST(e.roll_no AS INTEGER), e.roll_no, st.admission_no`).bind(esId, sectionId, sectionId).all()
     return items(rows.results.map((v): GradebookRow => ({
       student_id: str(v.student_id), admission_no: str(v.admission_no), full_name: str(v.full_name),
       marks_obtained: num(v.marks_obtained) ?? undefined, max_marks: numOr0(v.max_marks),
@@ -883,7 +883,7 @@ async function listReportCards(c: Ctx): Promise<List<ReportCard>> {
       LEFT JOIN sections sec ON sec.id = e.section_id
       LEFT JOIN classes c ON c.id = sec.class_id
      WHERE (?1 IS NULL OR e.section_id = ?2) AND ${where}
-     ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`).bind(...args).all()
+     ORDER BY e.roll_no IS NULL, CAST(e.roll_no AS INTEGER), e.roll_no, st.admission_no`).bind(...args).all()
   const optS = (v: unknown) => (v === null || v === undefined ? undefined : str(v))
   const optN = (v: unknown) => num(v) ?? undefined
   return items(rows.results.map((v): ReportCard => ({

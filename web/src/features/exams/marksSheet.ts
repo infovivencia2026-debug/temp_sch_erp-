@@ -202,11 +202,17 @@ export function classColumns(papers: ClassPaper[]): ClassColumn[] {
   return out
 }
 
-/** Every child on any of the papers, once, in admission-number order. */
+/** Every child on any of the papers, once: section by section, then by roll
+    number (1, 2, 3…) as a class register is read (owner, 2026-10-14); a child
+    without a roll number goes last in their section, by admission number. */
 export function classStudents(papers: ClassPaper[]): SheetRow[] {
   const by = new Map<string, SheetRow>()
   for (const p of papers) for (const r of p.rows) if (!by.has(r.student_id)) by.set(r.student_id, r)
-  return [...by.values()].sort((a, b) => a.admission_no.localeCompare(b.admission_no, undefined, { numeric: true }))
+  const roll = (r: SheetRow) => { const n = Number(r.roll_no); return r.roll_no == null || r.roll_no === '' || !Number.isFinite(n) ? Infinity : n }
+  return [...by.values()].sort((a, b) =>
+    (a.section ?? '').localeCompare(b.section ?? '', undefined, { numeric: true })
+    || roll(a) - roll(b)
+    || a.admission_no.localeCompare(b.admission_no, undefined, { numeric: true }))
 }
 
 /** What is recorded for one cell, as the sheet writes it. */
