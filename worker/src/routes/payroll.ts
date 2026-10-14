@@ -1136,17 +1136,18 @@ function registerPayrollGroup(r: Router) {
     const list = body.items ?? []
     if (list.length === 0) throw badRequest('A salary with no lines in it pays nothing. Add at least basic pay.')
     for (const it of list) if (!isUUID(it.component_id)) throw badRequest('invalid UUID format')
-    const dayBefore = new Date(from + 'T00:00:00Z'); dayBefore.setUTCDate(dayBefore.getUTCDate() - 1)
     const total = list.reduce((s, it) => s + numOr0(it.amount_paise), 0)
     const newId = uuid()
     const inst = c.id.institution!.id
+    /* Revise edits the salary in force rather than adding another beside it
+       (Yajur, 2026-10-14: "let them edit and save and no need to duplicate").
+       Moving the date earlier used to leave the old one open as well, so the
+       person showed, and would be paid, twice. */
     await c.db.batch([
-      c.db.prepare(`UPDATE salary_structures SET effective_to = ? WHERE employee_id = ? AND effective_to IS NULL AND effective_from < ?`)
-        .bind(dayBefore.toISOString().slice(0, 10), empId, from),
-      c.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from = ?)`).bind(empId, from),
-      c.db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND effective_from = ?`).bind(empId, from),
+      c.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND (effective_to IS NULL OR effective_from = ?))`).bind(empId, from),
+      c.db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND (effective_to IS NULL OR effective_from = ?)`).bind(empId, from),
       c.db.prepare(`INSERT INTO salary_structures (id, institution_id, employee_id, effective_from, ctc_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .bind(newId, inst, empId, from, total * 12, now()),
+        .bind(newId, inst, empId, from, total, now()),
       ...list.map((it) => c.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, ?)`)
         .bind(uuid(), inst, newId, it.component_id, numOr0(it.amount_paise), it.percent == null ? null : String(it.percent))),
     ])
