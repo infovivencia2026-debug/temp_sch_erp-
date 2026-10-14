@@ -889,6 +889,19 @@ async function runPayroll(c: Ctx) {
      WHERE e.status = 'active' AND e.user_id IS NOT NULL`).bind(firstDay)
     .all<{ id: string; user_id: string; structure: string; ctc_paise: number; lop_basis: string; divisor: number }>()
 
+  /* THE USUAL RULE OF EACH COMPONENT (Yajur, 2026-10-14: "once the
+     components are saved, that applies for all months till they change").
+     A component with a usual figure -- HRA 40% of Basic, say -- is paid to
+     everyone whose salary has no figure of its own for it, every month, until
+     the rule is changed. A figure typed on a person's form wins. PF, ESI and
+     PT are never rules here; the run works them out. Before migration 0086
+     there are no rules. */
+  let ruleComps: { code: string; kind: string; is_percent: number; percent_of: string | null; default_value: number }[] = []
+  try {
+    ruleComps = (await c.db.prepare(`SELECT code, kind, is_percent, percent_of, default_value FROM salary_components
+        WHERE default_value > 0 AND code NOT IN ('PF', 'ESI', 'PT') ORDER BY sequence, name`).all<typeof ruleComps[number]>()).results
+  } catch { /* no default_value column yet */ }
+
   const stmts: D1PreparedStatement[] = [c.db.prepare(`DELETE FROM payslips WHERE payroll_run_id = ?`).bind(runId)]
   let employees = 0, gross = 0, deduction = 0, net = 0
   for (const e of emps.results) {
@@ -935,6 +948,34 @@ async function runPayroll(c: Ctx) {
       const v = Math.trunc(Number(e.ctc_paise) * ratio)
       earn += v; breakup.GROSS = v
       fullGross += Number(e.ctc_paise)
+    }
+    if (ruleComps.length > 0) {
+      const have = new Set(comps.results.map((x) => x.code))
+      const grossBase = fullGross
+      let ruleEarn = 0
+      for (const r of ruleComps) {
+        if (have.has(r.code)) continue
+        const full = r.is_percent
+          ? Math.round(((r.percent_of === 'GROSS' ? grossBase : fullBasic) * Number(r.default_value)) / 100)
+          : Math.round(Number(r.default_value) * 100)
+        if (full <= 0) continue
+        if (r.kind === 'earning') {
+          const v = Math.trunc(full * ratio)
+          earn += v; breakup[r.code] = v; ruleEarn += v
+          if (breakup.GROSS === undefined) fullGross += full
+          if (r.code === 'BASIC') { basicV += v; fullBasic += full; basicDA += v; fullPfWage += full }
+          else if (r.code === 'DA') { daV += v; fullDA += full; if (set.pf_wage_base !== 'basic') { basicDA += v; fullPfWage += full } }
+        } else if (r.kind === 'deduction') {
+          deduct += full; breakup[r.code] = -full
+        }
+      }
+      /* A gross with no parts is split by the rules, not added to: the lines
+         come out of the one GROSS line, which keeps whatever is left. */
+      if (breakup.GROSS !== undefined && ruleEarn > 0) {
+        const cut = Math.min(breakup.GROSS, ruleEarn)
+        breakup.GROSS -= cut; earn -= cut
+        if (breakup.GROSS === 0) delete breakup.GROSS
+      }
     }
     const partsGross = earn
     if (set.substitution_rate_paise > 0) {
@@ -1198,21 +1239,28 @@ function registerPayrollGroup(r: Router) {
   r.post('/payroll/state', PAYROLL_WRITE, setPayrollState)
 
   r.get('/payroll/components', PAYROLL_READ, async (c) => {
-    const rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory FROM salary_components ORDER BY sequence, name`).all()
+    // default_value arrived with migration 0086; a database without it still answers.
+    let rows: D1Result<Record<string, unknown>>
+    try {
+      rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory, default_value FROM salary_components ORDER BY sequence, name`).all()
+    } catch {
+      rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory, NULL AS default_value FROM salary_components ORDER BY sequence, name`).all()
+    }
     return ok({
       items: rows.results.map((v) => ({
         id: v.id, code: v.code, name: v.name, kind: v.kind, sequence: numOr0(v.sequence), is_percent: bool(v.is_percent),
-        percent_of: v.percent_of ?? undefined, is_statutory: bool(v.is_statutory),
+        percent_of: v.percent_of ?? undefined, is_statutory: bool(v.is_statutory), default_value: num(v.default_value) ?? null,
       })),
       suggested: starterComponents.map((s) => ({ ...s, percent_of: s.percent_of })),
     })
   })
   r.post('/payroll/components', PAYROLL_WRITE, async (c) => {
-    let body: { starters?: boolean; code?: string; name?: string; kind?: string; is_percent?: boolean; percent_of?: string | null }
+    let body: { starters?: boolean; code?: string; name?: string; kind?: string; is_percent?: boolean; percent_of?: string | null; default_value?: number | null }
     try { body = await c.req.json() } catch { throw badRequest('Send a component.') }
     let wanted: SalaryComponent[]
     if (body.starters) wanted = starterComponents
     else {
+      checkRule(body)
       const code = (body.code ?? '').trim().toUpperCase(), name = (body.name ?? '').trim()
       if (code === '' || name === '') throw badRequest('A component needs a short code and a name.')
       if (!['earning', 'deduction', 'employer_contribution'].includes(body.kind ?? '')) {
@@ -1223,8 +1271,42 @@ function registerPayrollGroup(r: Router) {
     const results = await c.db.batch(wanted.map((w) => c.db.prepare(`INSERT OR IGNORE INTO salary_components
         (id, institution_id, code, name, kind, sequence, is_percent, percent_of, is_statutory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(uuid(), c.id.institution!.id, w.code, w.name, w.kind, w.sequence, w.is_percent ? 1 : 0, w.percent_of ?? null, w.is_statutory ? 1 : 0)))
-    return ok({ created: results.reduce((s, x) => s + x.meta.changes, 0) })
+    const created = results.reduce((s, x) => s + x.meta.changes, 0)
+    if (!body.starters && created > 0 && body.default_value != null) {
+      try {
+        await c.db.prepare(`UPDATE salary_components SET default_value = ? WHERE institution_id = ? AND code = ?`)
+          .bind(Number(body.default_value), c.id.institution!.id, wanted[0].code).run()
+      } catch { /* migration 0086 not applied yet: the rule is kept, the default is not */ }
+    }
+    return ok({ created })
   })
+  /* THE RULE A COMPONENT IS USUALLY WORKED OUT BY (Yajur, 2026-10-14): a fixed
+     sum, a share of the gross, or a share of Basic, and the usual figure. It
+     pre-fills every salary form; it changes nobody's saved salary. */
+  r.patch('/payroll/components/{id}', PAYROLL_WRITE, async (c) => {
+    const cid = c.params.id
+    if (!isUUID(cid)) throw badRequest('invalid id')
+    let body: { name?: string; is_percent?: boolean; percent_of?: string | null; default_value?: number | null }
+    try { body = await c.req.json() } catch { throw badRequest('Send what to change.') }
+    checkRule(body)
+    const name = (body.name ?? '').trim()
+    let d: D1Result
+    try {
+      d = await c.db.prepare(`UPDATE salary_components SET name = COALESCE(NULLIF(?, ''), name), is_percent = ?, percent_of = ?, default_value = ? WHERE id = ?`)
+        .bind(name, body.is_percent ? 1 : 0, body.is_percent ? body.percent_of ?? 'BASIC' : null, body.default_value == null ? null : Number(body.default_value), cid).run()
+    } catch {
+      throw coded(409, 'not_ready', 'The salary parts need a small database update first; ask support to apply migration 0086.')
+    }
+    if (!d.meta.changes) throw notFound('resource not found')
+    return ok({ ok: true })
+  })
+  function checkRule(body: { is_percent?: boolean; percent_of?: string | null; default_value?: number | null }) {
+    if (body.is_percent && !['BASIC', 'GROSS'].includes(body.percent_of ?? '')) throw badRequest('A percent is of Basic or of the gross.')
+    if (body.default_value != null) {
+      const v = Number(body.default_value)
+      if (!Number.isFinite(v) || v < 0 || (body.is_percent && v > 100)) throw badRequest(body.is_percent ? 'A percent is between 0 and 100.' : 'The usual figure is rupees a month.')
+    }
+  }
   r.del('/payroll/components/{id}', PAYROLL_WRITE, async (c) => {
     const cid = c.params.id
     if (!isUUID(cid)) throw badRequest('invalid id')

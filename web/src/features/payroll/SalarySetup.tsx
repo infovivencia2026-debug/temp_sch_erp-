@@ -31,6 +31,14 @@ interface Component {
   is_percent: boolean
   percent_of?: string
   is_statutory: boolean
+  default_value?: number | null
+}
+
+/* The rules the run applies on its own, so the table can say so in words. */
+interface PayrollRules {
+  pf_enabled: boolean; pf_employee_percent: number; pf_employer_percent: number; pf_wage_base?: 'basic_da' | 'basic'
+  esi_enabled: boolean; esi_employee_percent: number; esi_mode?: 'deduct' | 'employer'
+  pt_enabled: boolean; pt_state: string
 }
 
 interface Item {
@@ -88,19 +96,54 @@ const MODES = [
 const AUTO = new Set(['PF', 'ESI', 'PT'])
 const typed = (c: Component) => !AUTO.has(c.code)
 
+/* THE USUAL RULE OF A COMPONENT (Yajur, 2026-10-14: "show how each is
+   calculated in a table, and if we add one more it will be there with % or
+   money"). Kept on the component, so every salary form opens with it filled
+   in; a person's figure can still be changed on their own form. */
+const ruleOf = (c: Component): Line => ({
+  mode: c.is_percent ? (c.percent_of === 'GROSS' ? 'pg' : 'pb') : 'amt',
+  val: c.default_value != null ? String(c.default_value) : '',
+})
+const lineOf = (c: Component, lines: Lines): Line => lines[c.id] ?? ruleOf(c)
+const modeLabel = (m: Mode) => MODES.find((x) => x.value === m)?.label ?? m
+
+/** One line of plain words on how a component reaches the payslip. */
+function howWorked(c: Component, rules?: PayrollRules): string {
+  if (c.code === 'PF') {
+    if (rules && !rules.pf_enabled) return 'Off in Payroll settings'
+    const base = rules?.pf_wage_base === 'basic' ? 'Basic' : 'Basic + DA'
+    return `Employee ${rules?.pf_employee_percent ?? 12}% of ${base}, employer ${rules?.pf_employer_percent ?? 12}%, from Payroll settings; a person can be set differently on their salary form`
+  }
+  if (c.code === 'ESI') {
+    if (rules && !rules.esi_enabled) return 'Off in Payroll settings'
+    return `${rules?.esi_employee_percent ?? 0.75}% of gross for those under the ESI wage limit${rules?.esi_mode === 'employer' ? ', shown but not deducted' : ''}`
+  }
+  if (c.code === 'PT') return rules?.pt_enabled ? `${rules.pt_state || 'State'} slab on the month's gross, from Payroll settings` : 'Off in Payroll settings'
+  if (c.code === 'TDS') return "From each person's tax declaration; type a monthly figure on the salary form if the school deducts a fixed sum"
+  const r = ruleOf(c)
+  const v = r.val !== '' ? r.val : null
+  let how =
+    r.mode === 'pg' ? (v ? `${v}% of the monthly gross` : 'A percent of the monthly gross')
+    : r.mode === 'pb' ? (v ? `${v}% of Basic pay` : 'A percent of Basic pay')
+    : v ? `${formatPaise(rupeesToPaise(v))} a month` : 'A fixed sum a month'
+  if (c.code === 'SPECIAL') how += ', or whatever is left of the gross when that box is ticked'
+  if (c.kind === 'earning') how += '; cut for loss-of-pay days'
+  return how
+}
+
 function splitSalary(comps: Component[], lines: Lines, grossPaise: number, rest: boolean): Record<string, number> {
   const out: Record<string, number> = {}
   const share = (v: string, of: number) => Math.round((of * (Number(v) || 0)) / 100)
   for (const c of comps) {
-    const l = lines[c.id]
-    if (!typed(c) || !l || l.mode === 'pb') continue
+    const l = lineOf(c, lines)
+    if (!typed(c) || l.mode === 'pb') continue
     out[c.id] = l.mode === 'pg' ? share(l.val, grossPaise) : rupeesToPaise(l.val || 0)
   }
   const basic = comps.find((c) => c.code === 'BASIC')
   const basicPaise = basic ? out[basic.id] ?? 0 : 0
   for (const c of comps) {
-    const l = lines[c.id]
-    if (typed(c) && l?.mode === 'pb') out[c.id] = share(l.val, basicPaise)
+    const l = lineOf(c, lines)
+    if (typed(c) && l.mode === 'pb') out[c.id] = share(l.val, basicPaise)
   }
   const special = comps.find((c) => c.code === 'SPECIAL')
   if (rest && special && grossPaise > 0) {
@@ -133,7 +176,7 @@ function LineInputs({ comps, lines, setLines, split }: {
   return (
     <Table head={['Component', 'Type', 'Entered as', 'Value', 'Comes to']}>
       {comps.map((c) => {
-        const l: Line = lines[c.id] ?? { mode: 'amt', val: '' }
+        const l = lineOf(c, lines)
         const set = (p: Partial<Line>) => setLines((x) => ({ ...x, [c.id]: { ...l, ...p } }))
         return (
           <tr key={c.id}>
@@ -182,12 +225,20 @@ export default function SalarySetup() {
   const [pfPct, setPfPct] = useState('')
   const [newName, setNewName] = useState('')
   const [newKind, setNewKind] = useState('earning')
+  const [newRule, setNewRule] = useState<Line>({ mode: 'amt', val: '' })
+  const [showComps, setShowComps] = useState(false)
+  // Edits to a component's usual rule, by component id, until saved.
+  const [ruleEdits, setRuleEdits] = useState<Record<string, Line>>({})
   const [done, setDone] = useState('')
 
   const comps = useQuery({
     queryKey: ['salary-components'],
     queryFn: () =>
       api.get<{ items: Component[]; suggested: Component[] }>('/api/v1/payroll/components'),
+  })
+  const rules = useQuery({
+    queryKey: ['payroll-settings'],
+    queryFn: () => api.get<PayrollRules>('/api/v1/payroll/settings'),
   })
   const structures = useQuery({
     queryKey: ['salary-structures'],
@@ -247,13 +298,31 @@ export default function SalarySetup() {
         name: newName.trim(),
         code: newName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20),
         kind: newKind,
+        is_percent: newRule.mode !== 'amt',
+        percent_of: newRule.mode === 'pg' ? 'GROSS' : newRule.mode === 'pb' ? 'BASIC' : null,
+        default_value: newRule.val.trim() === '' ? null : Number(newRule.val),
       }),
     onSuccess: (r) => {
-      setDone(r.created ? `${newName.trim()} added. Set it per person or by range below.` : 'A component with that name is already there.')
+      setDone(r.created ? `${newName.trim()} added. It is on every salary form now, with its usual figure filled in.` : 'A component with that name is already there.')
       setNewName('')
+      setNewRule({ mode: 'amt', val: '' })
       refresh()
     },
     onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not add'),
+  })
+  const saveRule = useMutation({
+    mutationFn: (v: { id: string; line: Line }) =>
+      api.patch(`/api/v1/payroll/components/${v.id}`, {
+        is_percent: v.line.mode !== 'amt',
+        percent_of: v.line.mode === 'pg' ? 'GROSS' : v.line.mode === 'pb' ? 'BASIC' : null,
+        default_value: v.line.val.trim() === '' ? null : Number(v.line.val),
+      }),
+    onSuccess: (_, v) => {
+      setDone('Rule saved. It applies from the next payroll run, every month, until you change it.')
+      setRuleEdits((x) => { const n = { ...x }; delete n[v.id]; return n })
+      refresh()
+    },
+    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not save the rule'),
   })
   const delComponent = useMutation({
     mutationFn: (componentId: string) => api.del(`/api/v1/payroll/components/${componentId}`),
@@ -377,47 +446,109 @@ export default function SalarySetup() {
           </Card>
         ) : (
           <Card>
+            {/* A HEADING THAT OPENS (Yajur, 2026-10-14: "when I click pay
+                components that table should be there like a big table
+                dropdown"). Closed, the chips; open, one row per component
+                saying how it is worked out, and the form for a new one. */}
             <CardHeader
               title="Pay components"
-              description="The lines every payslip is built from."
+              description={showComps ? 'How each line of the payslip is worked out. Change a rule here and every new salary form opens with it.' : 'The lines every payslip is built from. Open to see how each is worked out.'}
+              action={
+                <Button variant="ghost" onClick={() => setShowComps((v) => !v)} aria-expanded={showComps}>
+                  {showComps ? 'Hide table' : 'Show table'}
+                </Button>
+              }
             />
-            <div className="flex flex-wrap gap-2 px-[var(--card-pad)] py-3">
-              {components.map((c) => (
-                <span key={c.id} className="inline-flex items-center gap-1">
-                  <Badge tone={c.kind === 'earning' ? 'success' : 'neutral'}>
-                    {c.name}
-                    {c.is_percent && c.percent_of ? ` (% of ${c.percent_of})` : ''}
-                  </Badge>
-                  <button
-                    type="button"
-                    title={`Remove ${c.name}`}
-                    disabled={delComponent.isPending}
-                    onClick={() => { if (confirm(`Remove the ${c.name} pay component?`)) delComponent.mutate(c.id) }}
-                    className="rounded px-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] pb-3">
-              <Field label="New component">
-                <Input value={newName} onChange={setNewName} placeholder="e.g. Bus allowance" />
-              </Field>
-              <Field label="Type">
-                <Select
-                  value={newKind}
-                  onChange={setNewKind}
-                  options={[
-                    { value: 'earning', label: 'Added to pay' },
-                    { value: 'deduction', label: 'Taken off pay' },
-                  ]}
-                />
-              </Field>
-              <Button onClick={() => addComponent.mutate()} disabled={addComponent.isPending || newName.trim() === ''}>
-                Add component
-              </Button>
-            </div>
+            {!showComps ? (
+              <div className="flex flex-wrap gap-2 px-[var(--card-pad)] py-3">
+                {components.map((c) => {
+                  const r = ruleOf(c)
+                  const tag = typed(c) && r.val !== '' ? (r.mode === 'amt' ? ` (${formatPaise(rupeesToPaise(r.val))})` : ` (${r.val}% of ${r.mode === 'pg' ? 'gross' : 'Basic'})`) : ''
+                  return (
+                    <button key={c.id} type="button" onClick={() => setShowComps(true)} className="inline-flex items-center gap-1">
+                      <Badge tone={c.kind === 'earning' ? 'success' : 'neutral'}>{c.name}{tag}</Badge>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <>
+                <Table head={['Component', 'Type', 'Worked out as', 'Usual figure', 'How it reaches the payslip', '']}>
+                  {components.map((c) => {
+                    const cur = ruleEdits[c.id] ?? ruleOf(c)
+                    const dirty = ruleEdits[c.id] != null && (ruleEdits[c.id].mode !== ruleOf(c).mode || ruleEdits[c.id].val !== ruleOf(c).val)
+                    const set = (p: Partial<Line>) => setRuleEdits((x) => ({ ...x, [c.id]: { ...cur, ...p } }))
+                    return (
+                      <tr key={c.id}>
+                        <Td className="font-medium">{c.name}</Td>
+                        <Td>
+                          <Badge tone={c.kind === 'earning' ? 'success' : 'neutral'}>{c.kind === 'earning' ? 'added to pay' : 'taken off'}</Badge>
+                        </Td>
+                        {typed(c) ? (
+                          <>
+                            <Td><Select value={cur.mode} onChange={(v) => set({ mode: v as Mode })} options={MODES} /></Td>
+                            <Td>
+                              <Input type="number" value={cur.val} onChange={(v) => set({ val: v })} placeholder={cur.mode === 'amt' ? '₹' : '%'} />
+                            </Td>
+                            <Td className="text-[13px] text-muted-foreground">{howWorked({ ...c, is_percent: cur.mode !== 'amt', percent_of: cur.mode === 'pg' ? 'GROSS' : 'BASIC', default_value: cur.val === '' ? null : Number(cur.val) }, rules.data)}</Td>
+                          </>
+                        ) : (
+                          <>
+                            <Td className="text-muted-foreground">By rule</Td>
+                            <Td className="text-muted-foreground">-</Td>
+                            <Td className="text-[13px] text-muted-foreground">{howWorked(c, rules.data)}</Td>
+                          </>
+                        )}
+                        <Td>
+                          <span className="inline-flex items-center gap-1">
+                            {dirty && (
+                              <Button size="sm" onClick={() => saveRule.mutate({ id: c.id, line: cur })} disabled={saveRule.isPending}>
+                                Save
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={delComponent.isPending}
+                              onClick={() => { if (confirm(`Remove the ${c.name} pay component?`)) delComponent.mutate(c.id) }}
+                            >
+                              Remove
+                            </Button>
+                          </span>
+                        </Td>
+                      </tr>
+                    )
+                  })}
+                </Table>
+                <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] py-3">
+                  <Field label="New component">
+                    <Input value={newName} onChange={setNewName} placeholder="e.g. Bus allowance" />
+                  </Field>
+                  <Field label="Type">
+                    <Select
+                      value={newKind}
+                      onChange={setNewKind}
+                      options={[
+                        { value: 'earning', label: 'Added to pay' },
+                        { value: 'deduction', label: 'Taken off pay' },
+                      ]}
+                    />
+                  </Field>
+                  <Field label="Worked out as">
+                    <Select value={newRule.mode} onChange={(v) => setNewRule((r) => ({ ...r, mode: v as Mode }))} options={MODES} />
+                  </Field>
+                  <Field label={newRule.mode === 'amt' ? 'Usual ₹ a month' : 'Usual %'}>
+                    <Input type="number" value={newRule.val} onChange={(v) => setNewRule((r) => ({ ...r, val: v }))} placeholder={newRule.mode === 'amt' ? '0' : '0'} />
+                  </Field>
+                  <Button onClick={() => addComponent.mutate()} disabled={addComponent.isPending || newName.trim() === ''}>
+                    Add component
+                  </Button>
+                </div>
+                <p className="px-[var(--card-pad)] pb-3 text-[13px] text-muted-foreground">
+                  A rule with a usual figure is paid every month, to everyone whose salary has no figure of its own for that part, until you change it. A figure typed on a person's form wins. {modeLabel('pb')} and {modeLabel('pg')} are worked out from each person's own Basic and gross.
+                </p>
+              </>
+            )}
           </Card>
         )}
 
