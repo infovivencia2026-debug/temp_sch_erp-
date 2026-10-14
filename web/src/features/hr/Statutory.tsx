@@ -44,6 +44,21 @@ interface Settings {
   gratuity_min_years: number
   gratuity_cap_paise: number
   pt_slabs: Slab[]
+  bank_name?: string
+  bank_account?: string
+  /* The school's own pay rules. Each default is how payroll already worked. */
+  pf_wage_base?: 'basic_da' | 'basic'
+  lop_method?: 'prorate' | 'day_pay'
+  lop_day_base?: 'gross' | 'ctc'
+  lop_divisor?: 'month' | '30' | '26' | 'pattern'
+  free_leave_days?: number
+  late_rule?: 'policy' | 'per_day'
+  late_marks_per_day?: number
+  pay_holidays_worked?: boolean
+  esi_mode?: 'deduct' | 'employer'
+  bank_branch?: string
+  bank_address?: string
+  rules_available?: boolean
 }
 interface Slab {
   id?: string
@@ -1039,6 +1054,69 @@ function Rates() {
             checked={v.pt_enabled}
             onChange={(x) => setDraft({ ...v, pt_enabled: x })}
             label="Deduct professional tax"
+          />
+        </div>
+
+        <h3 className="mt-6 text-[14px] font-medium">How this school works out pay</h3>
+        <p className="mt-1 text-[12.5px] text-muted-foreground">
+          Each choice starts as the way payroll already works. Changes apply the next time a month is run.
+          {v.rules_available === false && ' These choices need a database update before they can be saved; ask support.'}
+        </p>
+        <FormGrid>
+          <Field label="PF is worked out on">
+            <Select value={v.pf_wage_base ?? 'basic_da'} onChange={(x) => setDraft({ ...v, pf_wage_base: x === 'basic' ? 'basic' : 'basic_da' })}
+              options={[{ value: 'basic_da', label: 'Basic + DA' }, { value: 'basic', label: 'Basic only' }]} />
+          </Field>
+          <Field label="Loss of pay" hint="A day's pay: every part is paid in full, PF and PT on full pay, and each day not worked comes off as one LOP line.">
+            <Select value={v.lop_method ?? 'prorate'} onChange={(x) => setDraft({ ...v, lop_method: x === 'day_pay' ? 'day_pay' : 'prorate' })}
+              options={[{ value: 'prorate', label: 'Reduce every pay part by days not worked' }, { value: 'day_pay', label: "Deduct a day's pay" }]} />
+          </Field>
+          {(v.lop_method === 'day_pay' || v.pay_holidays_worked) && (
+            <>
+              <Field label="A day's pay is">
+                <Select value={v.lop_day_base ?? 'gross'} onChange={(x) => setDraft({ ...v, lop_day_base: x === 'ctc' ? 'ctc' : 'gross' })}
+                  options={[{ value: 'gross', label: 'Gross salary' }, { value: 'ctc', label: 'CTC (gross + employer PF)' }]} />
+              </Field>
+              <Field label="Divided by">
+                <Select value={v.lop_divisor ?? 'month'} onChange={(x) => setDraft({ ...v, lop_divisor: (['30', '26', 'pattern'].includes(x) ? x : 'month') as Settings['lop_divisor'] })}
+                  options={[{ value: 'month', label: 'Days in the month (28 to 31)' }, { value: '30', label: '30 days' }, { value: '26', label: '26 days' }, { value: 'pattern', label: "The work pattern's days" }]} />
+              </Field>
+            </>
+          )}
+          <Field label="Free leave days a month" hint="Days of leave or absence forgiven each month before any loss of pay.">
+            <Input value={String(v.free_leave_days ?? 0)} onChange={(x) => setDraft({ ...v, free_leave_days: Math.max(0, Number(x) || 0) })} type="number" />
+          </Field>
+          <Field label="Coming late">
+            <Select value={v.late_rule ?? 'policy'} onChange={(x) => setDraft({ ...v, late_rule: x === 'per_day' ? 'per_day' : 'policy' })}
+              options={[{ value: 'policy', label: 'As the leave policy says' }, { value: 'per_day', label: 'A number of late marks = 1 day of LOP' }]} />
+          </Field>
+          {v.late_rule === 'per_day' && (
+            <Field label="Late marks for 1 day of LOP">
+              <Input value={String(v.late_marks_per_day ?? 3)} onChange={(x) => setDraft({ ...v, late_marks_per_day: Math.max(1, Math.round(Number(x) || 3)) })} type="number" />
+            </Field>
+          )}
+          <Field label="ESI employee share">
+            <Select value={v.esi_mode ?? 'deduct'} onChange={(x) => setDraft({ ...v, esi_mode: x === 'employer' ? 'employer' : 'deduct' })}
+              options={[{ value: 'deduct', label: 'Deduct from pay' }, { value: 'employer', label: 'School pays it all (shown, not deducted)' }]} />
+          </Field>
+          <Field label="School's bank" hint="Printed on the salary transfer letter.">
+            <Input value={v.bank_name ?? ''} onChange={(x) => setDraft({ ...v, bank_name: x })} />
+          </Field>
+          <Field label="Branch">
+            <Input value={v.bank_branch ?? ''} onChange={(x) => setDraft({ ...v, bank_branch: x })} />
+          </Field>
+          <Field label="School's account number">
+            <Input value={v.bank_account ?? ''} onChange={(x) => setDraft({ ...v, bank_account: x })} />
+          </Field>
+          <Field label="Branch address">
+            <Input value={v.bank_address ?? ''} onChange={(x) => setDraft({ ...v, bank_address: x })} />
+          </Field>
+        </FormGrid>
+        <div className="mt-3">
+          <Checkbox
+            checked={!!v.pay_holidays_worked}
+            onChange={(x) => setDraft({ ...v, pay_holidays_worked: x })}
+            label="Pay extra for holidays worked (a day's pay for each)"
           />
         </div>
 

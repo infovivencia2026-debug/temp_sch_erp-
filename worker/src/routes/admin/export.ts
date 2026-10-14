@@ -192,7 +192,7 @@ function baseSpecs(today: string): Record<string, Spec> {
       about: "The month's payslips in the school's own sheet: bank, PAN, UAN, every earning, EPF, ESI, PT, days, LOP and net.", perm: 'hr.payroll.read',
       header: ['S.No', 'EMP ID', 'NAME', 'DESIGNATION', 'MOBILE NUMBER', 'SUBJECT', 'D.O.J', 'A/C Number', 'IFSC CODE', 'AADHAR', 'PAN', 'UAN',
         'LOAN', 'CONSOLIDATED', 'BASIC', 'H.R.A', 'DA', 'CA', 'OA', 'GROSS SALARY', 'Employer EPF Share (12% of Basic)', 'Employee EPF Share (12% of Basic)',
-        'PT', 'Employer ESI (3.25%)', 'Employee ESI (0.75%)', 'TOTAL ESI', 'Days', 'LOP', 'Payable Days', 'DEDUCTIONS', 'NET PAY'],
+        'PT', 'Employer ESI (3.25%)', 'Employee ESI (0.75%)', 'TOTAL ESI', 'Days', 'LOP', 'Payable Days', 'LOP AMOUNT', 'HOLIDAYS WORKED PAY', 'DEDUCTIONS', 'NET PAY'],
       query: `SELECT CAST(ROW_NUMBER() OVER (ORDER BY e.employee_code) AS TEXT), e.employee_code, ${name2('e')}, COALESCE(dg.name,''), COALESCE(e.phone,''),
           COALESCE((SELECT group_concat(n, ', ') FROM (SELECT DISTINCT sub.name AS n FROM timetable_entries te
               JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
@@ -200,12 +200,13 @@ function baseSpecs(today: string): Record<string, Spec> {
           COALESCE(${dmy('e.joined_on')},''), COALESCE(e.bank_account,''), COALESCE(e.bank_ifsc,''),
           CASE WHEN COALESCE(e.aadhaar_last4,'') <> '' THEN 'XXXX-XXXX-' || e.aadhaar_last4 ELSE '' END, COALESCE(e.pan,''), COALESCE(e.uan,''),
           ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ADVANCE'), 0))")},
-          ${rs("COALESCE((SELECT SUM(ssi.amount_paise) FROM salary_structures ss JOIN salary_structure_items ssi ON ssi.salary_structure_id = ss.id JOIN salary_components sc ON sc.id = ssi.component_id WHERE ss.employee_id = e.id AND sc.kind = 'earning' AND ss.effective_from <= printf('%04d-%02d-28', pr.period_year, pr.period_month) AND (ss.effective_to IS NULL OR ss.effective_to >= printf('%04d-%02d-01', pr.period_year, pr.period_month))), 0)")},
-          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.BASIC'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.HRA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.DA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.CONVEY'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.SPECIAL'), 0))")}, ${rs('ps.gross_paise')},
-          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF_EMPLOYER'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PT'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), 0))")},
-          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), 0))")},
+          ${rs("COALESCE((SELECT SUM(ssi.amount_paise) FROM salary_structures ss JOIN salary_structure_items ssi ON ssi.salary_structure_id = ss.id JOIN salary_components sc ON sc.id = ssi.component_id WHERE ss.employee_id = e.id AND sc.kind = 'earning' AND ss.effective_from <= printf('%04d-%02d-28', pr.period_year, pr.period_month) AND (ss.effective_to IS NULL OR ss.effective_to >= printf('%04d-%02d-01', pr.period_year, pr.period_month))), 0) + ABS(COALESCE(json_extract(ps.breakup, '$.PF_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.EPS'), 0))")},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.BASIC'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.HRA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.DA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.CONVEY'), json_extract(ps.breakup, '$.CA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.SPECIAL'), json_extract(ps.breakup, '$.OA'), 0))")}, ${rs('ps.gross_paise')},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.EPS'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PT'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), json_extract(ps.breakup, '$.ESI_EE_BY_EMPLOYER'), 0))")},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), json_extract(ps.breakup, '$.ESI_EE_BY_EMPLOYER'), 0))")},
           CAST(CAST(strftime('%d', date(printf('%04d-%02d-01', pr.period_year, pr.period_month), '+1 month', '-1 day')) AS INTEGER) AS TEXT),
-          CAST(ps.lop_days AS TEXT), CAST(ps.paid_days AS TEXT), ${rs('ps.deduction_paise')}, ${rs('ps.net_paise')}
+          CAST(ps.lop_days AS TEXT), CAST(ps.paid_days AS TEXT), ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.LOP'), 0))")}, ${rs("COALESCE(json_extract(ps.breakup, '$.HOLIDAY_WORK'), 0)")},
+          ${rs('ps.deduction_paise')}, ${rs('ps.net_paise')}
         FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
         LEFT JOIN designations dg ON dg.id = e.designation_id
         WHERE pr.period_month = CAST(?1 AS INTEGER) AND pr.period_year = CAST(?2 AS INTEGER)

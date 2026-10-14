@@ -13,6 +13,8 @@ import { printHtml } from '@/features/finance/receipt-print'
 import { registerHtml } from './payroll-print'
 import { useToast } from '@/components/Toast'
 import { PayAdjustments } from './PayAdjustments'
+import { MonthDays } from './MonthDays'
+import { bankLetterHtml, type LetterRow } from './bank-letter'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -191,6 +193,20 @@ export default function Payroll() {
     month: Number(month), year: Number(year), status, published, rows, printedBy: session.user?.full_name ?? '',
   })) : toast.error(`No payroll has been run for ${MONTHS[Number(month) - 1]} ${year} yet, so there is nothing to print. Choose a month that has been run, or run this one first.`)
   const components = [...new Set(rows.flatMap((r) => Object.keys(r.breakup ?? {})))].sort()
+  /* The salary transfer letter to the school's bank, for a locked month. */
+  const printBankLetter = async () => {
+    if (!locked) {
+      toast.error('The bank letter is for a locked month. Lock this month first, so the amounts cannot change after the letter is signed.')
+      return
+    }
+    try {
+      const st = await api.get<{ items: LetterRow[]; bank: { name: string; branch: string; account: string; address: string } }>(
+        `/api/v1/payroll/statement?month=${month}&year=${year}`)
+      printHtml(bankLetterHtml({ school: session.institution?.display_name ?? 'School', month: Number(month), year: Number(year), bank: st.bank, rows: st.items }))
+    } catch {
+      toast.error('The bank letter could not be prepared. Check your connection and try again.')
+    }
+  }
 
   if (!canRead) {
     return (
@@ -216,6 +232,9 @@ export default function Payroll() {
             <ExportButton report="payroll_school" label="School format" query={{ month, year }} />
             <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
+            </Button>
+            <Button variant="secondary" onClick={printBankLetter}>
+              <Printer className="h-4 w-4" /> Bank letter
             </Button>
             {/* One control, not two lists. "July 2026" was a month dropdown
                 and a year dropdown side by side: two decisions for one
@@ -472,7 +491,7 @@ export default function Payroll() {
           />
           {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
-              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c === 'GROSS' ? 'Monthly salary' : c), 'Gross', 'Deductions', 'Net']}
+              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c === 'GROSS' ? 'Monthly salary' : c === 'LOP' ? 'Loss of pay' : c === 'HOLIDAY_WORK' ? 'Holidays worked' : c === 'ESI_EE_BY_EMPLOYER' ? 'ESI (school pays)' : c), 'Gross', 'Deductions', 'Net']}
               empty={!rows.length}
               emptyLabel="No payroll run for this month yet."
             >
@@ -511,6 +530,7 @@ export default function Payroll() {
         </Card>
 
         <PayAdjustments month={month} year={year} people={rows} locked={locked} canWrite={canRun} />
+        <MonthDays month={month} year={year} people={rows} locked={locked} canWrite={canRun} />
       </PageBody>
     </>
   )

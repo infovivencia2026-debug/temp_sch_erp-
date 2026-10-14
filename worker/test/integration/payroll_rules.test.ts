@@ -95,6 +95,12 @@ describe('payroll rules', () => {
     expect(row.ctc_paise).toBe(1669200)
     expect(row.lop_paise).toBe(161535)
     expect(row.esi_deducted).toBe(false)
+    // The school-format salary sheet: CTC (gross + employer PF) and the LOP amount.
+    const res = await api('admin', 'GET', '/export/payroll_school?month=8&year=2026&format=csv')
+    expect(res.status).toBe(200)
+    const text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body)
+    expect(text).toContain('16692')
+    expect(text).toContain('1615.35')
   }, 180_000)
 
   it('one free leave a month is forgiven before loss of pay', async () => {
