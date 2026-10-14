@@ -84,6 +84,12 @@ function audienceLabel(a: string, au?: Audiences): string {
   return a
 }
 
+/* Every calendar on this login, not only this screen's (Yajur, 2026-10-14):
+   the day panel, the staff and portal calendars and the dashboard all draw
+   the same holidays, and each kept its own copy until it expired. */
+const refreshCalendars = (qc: ReturnType<typeof useQueryClient>) =>
+  qc.invalidateQueries({ predicate: (q) => q.queryKey.some((k) => typeof k === 'string' && /calendar|holiday|term/.test(k)) })
+
 export default function AcademicCalendar() {
   const audiences = useAudiences()
   const qc = useQueryClient()
@@ -101,7 +107,7 @@ export default function AcademicCalendar() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/academics/admin/calendar/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-calendar'] }),
+    onSuccess: () => refreshCalendars(qc),
   })
 
   if (cal.isLoading && !cal.data) return <SkeletonTable columns={6} label="Reading the year…" />
@@ -262,7 +268,7 @@ export default function AcademicCalendar() {
                 'updates rather than doubles.'
               }
               onDone={() => {
-                qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+                refreshCalendars(qc)
                 qc.invalidateQueries({ queryKey: ['calendar-terms'] })
               }}
             />
@@ -307,7 +313,7 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
         description,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
       if (editing) { done(); return }
       setName('')
       setToDate('')
@@ -425,7 +431,7 @@ function Terms() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-terms'] })
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
       setName('')
       setStartsOn('')
       setEndsOn('')
@@ -436,7 +442,7 @@ function Terms() {
     mutationFn: (id: string) => api.del(`/api/v1/academics/calendar/terms/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-terms'] })
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
     },
   })
 

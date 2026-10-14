@@ -885,7 +885,15 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
         (SELECT COALESCE(max(created_at), '') || ':' || count(*) FROM salary_structures) AS sal,
         (SELECT count(*) FROM salary_components) AS comp`).first<{ emp: string; sal: string; comp: string }>()
     parts.push(st ? `${st.emp};${st.sal};${st.comp}`.replace(/[^0-9a-zA-Z:;]/g, '') : '')
-  }
+  } else parts.push('')
+  /* A NINTH: THE SCHOOL CALENDAR (Yajur, 2026-10-14: "should reflect right
+     after adding a holiday, and if something is deleted it should not be in
+     the calendar"). holidays has no timestamp, so the count and the newest
+     rowid stand in: an addition moves one, a deletion the other. */
+  const cal = await c.db.prepare(`SELECT
+      (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM holidays) AS h,
+      (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM school_events) AS ev`).first<{ h: string; ev: string }>()
+  parts.push(cal ? `${cal.h};${cal.ev}` : '')
   const n = nowInIndia()
   return json({ rev: parts.join('|'), at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
     200, { 'Cache-Control': 'no-store, max-age=0' })
