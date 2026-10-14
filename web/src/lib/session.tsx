@@ -45,6 +45,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        is reflected without a stale copy deciding what this person may do. A short
        in-session staleTime avoids refetching identity on every navigation. */
     staleTime: 60_000,
+    /* A reload is enough (Yajur, 2026-10-14: "after reloading it should
+       come"). A permission granted a minute ago was invisible until the
+       person signed out, because the restored cache still counted the old
+       answer as fresh. Every page load asks once; navigation still does not. */
+    refetchOnMount: 'always',
   })
 
   /* THE FIRST PAINT IS THE SHAPE OF THE APP, NOT THE WORD "LOADING".
