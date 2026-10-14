@@ -1087,7 +1087,8 @@ function registerWorkflow(r: Router) {
       const devices = await c.db.prepare(`SELECT id FROM biometric_devices WHERE institution_id = ?`).bind(inst).all<{ id: string }>()
       let linked = 0
       for (const d of devices.results) linked += (await linkReaderUsersByName(c.db, inst, d.id)).length
-      if (linked) await resolveStoredPunches(c.db, inst)
+      const rolled = linked ? await resolveStoredPunches(c.db, inst) : null
+      console.log(JSON.stringify({ register: 'self-heal', inst, devices: devices.results.length, linked, rolled }))
     }
     /* EVERY MEMBER OF STAFF ON THE ROLL, AND WHAT THE READER SAW (owner,
        2026-10-14: "after adding new staff show their attendance in staff

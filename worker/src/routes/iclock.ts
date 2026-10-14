@@ -169,6 +169,9 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
           AND EXISTS (SELECT 1 FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)`).bind(inst, since),
   ])
+  /* Said out loud, because the one time this quietly wrote nothing it took
+     an afternoon to find out. */
+  console.log(JSON.stringify({ iclock: 'resolve-stored-punches', inst, matched: m.meta.changes ?? 0, days: ins.meta.changes ?? 0, since }))
   return { matched: m.meta.changes ?? 0, days: ins.meta.changes ?? 0 }
 }
 
