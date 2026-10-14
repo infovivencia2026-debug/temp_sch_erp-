@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
+import { useTabs } from '@/lib/tabs'
 import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
@@ -464,12 +465,51 @@ function Home() {
    the API, and people who asked for reduced motion, get the plain swap and
    the arrival fade they had. */
 function RoutedScreen() {
-  /* The address on screen follows the router directly. (A hidden pre-load of
-     the next screen was tried on 2026-09-30 and rolled back: it switched
-     before some screens had loaded and left the account page on its
-     placeholder.) */
+  /* AN OPEN TAB KEEPS ITS PLACE (owner, 2026-10-14: "when i change anything
+     in any feature ... when i came back from tab switching the changes i did
+     are gone, that should not be gone like that").
+
+     A tab was only ever an address. Switching one navigated, React unmounted
+     the screen, and everything it was holding went with it -- half a form
+     typed, boxes ticked, the inner tab you were reading, where you had
+     scrolled to. The work was not saved anywhere because it was not finished;
+     it simply stopped existing. On a strip whose whole promise is that you
+     can look at something else and come back, that is the one thing it must
+     not do.
+
+     So every open tab is rendered, and the ones you are not looking at are
+     hidden rather than thrown away. Coming back is the same component with
+     the same state, not a fresh one -- which is also why this is done by
+     keeping it mounted rather than by saving drafts somewhere: there is no
+     guessing about which record a half-typed form belonged to, because it is
+     the same form.
+
+     The cost, paid knowingly: a hidden tab goes on running. Its queries
+     refetch, anything live stays live. MAX_TABS caps that at eight, closing
+     a tab ends it, and on a phone -- where there is no strip and `tabs` is
+     empty -- nothing changes at all.
+
+     A screen is still rendered for an address that is not a tab (settings,
+     the account page), so those behave exactly as before. */
   const location = useLocation()
-  return <AppRoutes location={location.pathname + location.search + location.hash} />
+  const here = location.pathname + location.search + location.hash
+  const { tabs } = useTabs()
+  const alive = tabs.some((t) => t.path === here) ? tabs.map((t) => t.path) : [...tabs.map((t) => t.path), here]
+  return (
+    <>
+      {alive.map((path) => {
+        const on = path === here
+        return (
+          /* `display: none` rather than unmounting: the subtree keeps its
+             state but leaves the tab order and the accessibility tree, so
+             nothing in a hidden tab can be tabbed into or read out. */
+          <div key={path} style={on ? undefined : { display: 'none' }}>
+            <AppRoutes location={path} />
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 export function AppRoutes({ location }: { location?: string }) {
