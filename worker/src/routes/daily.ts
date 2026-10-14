@@ -1065,20 +1065,20 @@ function registerWorkflow(r: Router) {
   r.get('/workflow/staff-register', 'hr.attendance.write', async (c) => {
     const on = c.url.searchParams.get('on_date') || today()
     const tz = school(c).timezone
+    /* EVERY MEMBER OF STAFF ON THE ROLL (owner, 2026-10-14: "after adding
+       new staff show their attendance in staff registry").
+
+       This was an inner join to users, so the register listed only the staff
+       who had been given a login. Somebody taken on this morning is on the
+       roll, in the building and teaching, and was simply not on the sheet --
+       no row to mark, no absence, nothing in the month's export, and nobody
+       looking at the register had any way to tell that a name was missing
+       rather than unmarked.
+
+       They are listed now. Attendance itself is still kept against a login
+       (staff_attendance.user_id), so a row without one carries no marks and
+       says so on the screen rather than pretending to take one. */
     const rows = await c.db.prepare(`
-      /* EVERY MEMBER OF STAFF ON THE ROLL (owner, 2026-10-14: "after adding
-         new staff show their attendance in staff registry").
-
-         This was an inner join to `users`, so the register listed only the
-         staff who had been given a login. Somebody taken on this morning is
-         on the roll, in the building and teaching, and was simply not on the
-         sheet -- no row to mark, no absence, nothing in the month's export,
-         and nobody looking at the register had any way to tell that a name
-         was missing rather than marked.
-
-         They are listed now. Attendance itself is still kept against a login
-         (staff_attendance.user_id), so a row without one carries no marks and
-         says so on the screen rather than pretending to take one. */
       SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, sa.check_in, sa.check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?
