@@ -160,6 +160,8 @@ export default function SalarySetup() {
       return n
     })
   const [applying, setApplying] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newKind, setNewKind] = useState('earning')
   const [done, setDone] = useState('')
 
   const comps = useQuery({
@@ -214,6 +216,22 @@ export default function SalarySetup() {
     mutationFn: (structureId: string) => api.del(`/api/v1/payroll/structures/${structureId}`),
     onSuccess: () => { setDone('Salary revision deleted.'); refresh() },
     onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not delete'),
+  })
+  // A school's own pay line (owner, 2026-10-14: "let them add pay components").
+  // The code is made from the name: "Bus allowance" becomes BUS_ALLOWANCE.
+  const addComponent = useMutation({
+    mutationFn: () =>
+      api.post<{ created: number }>('/api/v1/payroll/components', {
+        name: newName.trim(),
+        code: newName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20),
+        kind: newKind,
+      }),
+    onSuccess: (r) => {
+      setDone(r.created ? `${newName.trim()} added. Set it per person or by range below.` : 'A component with that name is already there.')
+      setNewName('')
+      refresh()
+    },
+    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not add'),
   })
   const delComponent = useMutation({
     mutationFn: (componentId: string) => api.del(`/api/v1/payroll/components/${componentId}`),
@@ -341,6 +359,24 @@ export default function SalarySetup() {
                   </button>
                 </span>
               ))}
+            </div>
+            <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] pb-3">
+              <Field label="New component">
+                <Input value={newName} onChange={setNewName} placeholder="e.g. Bus allowance" />
+              </Field>
+              <Field label="Type">
+                <Select
+                  value={newKind}
+                  onChange={setNewKind}
+                  options={[
+                    { value: 'earning', label: 'Added to pay' },
+                    { value: 'deduction', label: 'Taken off pay' },
+                  ]}
+                />
+              </Field>
+              <Button onClick={() => addComponent.mutate()} disabled={addComponent.isPending || newName.trim() === ''}>
+                Add component
+              </Button>
             </div>
           </Card>
         )}
