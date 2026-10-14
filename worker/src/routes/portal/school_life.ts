@@ -870,8 +870,22 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
      client (web/src/lib/live.ts) invalidates by position, and dropping nulls
      as Postgres concat_ws did shifted every later part onto the wrong family
      (a parent with no attendance yet saw homework changes as notifications). */
-  const parts = [att, v.marks, v.invoices, v.notes, v.homework, v.results, v.concessions]
+  const parts: string[] = [att, v.marks, v.invoices, v.notes, v.homework, v.results, v.concessions]
     .map((s) => ist(s)?.compact ?? '')
+  /* AN EIGHTH PART: THE STAFF ROLL AND WHAT IT IS PAID (Yajur, 2026-10-14:
+     "when one staff is added, show in the staff register and in salary setup
+     and everywhere directly"). Somebody added on one login stayed missing on
+     another until that screen's cache happened to expire, because nothing
+     here moved when staff did. The latest change and the count of each, so an
+     edit, an addition and a deletion all move it. Staff logins only: a family
+     has no staff screens. */
+  if (!family) {
+    const st = await c.db.prepare(`SELECT
+        (SELECT max(max(COALESCE(updated_at, '')), max(COALESCE(created_at, ''))) || ':' || count(*) FROM employees) AS emp,
+        (SELECT COALESCE(max(created_at), '') || ':' || count(*) FROM salary_structures) AS sal,
+        (SELECT count(*) FROM salary_components) AS comp`).first<{ emp: string; sal: string; comp: string }>()
+    parts.push(st ? `${st.emp};${st.sal};${st.comp}`.replace(/[^0-9a-zA-Z:;]/g, '') : '')
+  }
   const n = nowInIndia()
   return json({ rev: parts.join('|'), at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
     200, { 'Cache-Control': 'no-store, max-age=0' })
