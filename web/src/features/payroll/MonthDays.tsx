@@ -29,7 +29,7 @@ export function MonthDays({ month, year, people, locked, canWrite }: {
     }),
     onSuccess: () => { setHw(''); setVd(''); setDates(''); qc.invalidateQueries({ queryKey: ['payroll-month-days'] }) },
   })
-  const rows = (list.data?.items ?? []).filter((r) => r.holidays_worked > 0 || r.vacation_days > 0)
+  const rows = (list.data?.items ?? []).filter((r) => r.vacation_days > 0)
   const editable = canWrite && !locked
   if (!editable && rows.length === 0) return null
   const name = (id: string) => {
@@ -45,8 +45,8 @@ export function MonthDays({ month, year, people, locked, canWrite }: {
   return (
     <Card>
       <CardHeader
-        title="Holidays worked and vacation"
-        description="Holidays worked are paid as extra days if the school pays for them (Statutory → Settings); run the month again after a change. Vacation is shown on the salary statement."
+        title="Vacation taken"
+        description="Vacation days and dates for the month, shown on the salary statement. Pay for holidays worked goes in Changes to pay above."
       />
       {editable && (
         <div className="flex flex-wrap items-end gap-2 border-b px-5 py-4">
@@ -54,18 +54,16 @@ export function MonthDays({ month, year, people, locked, canWrite }: {
             <Select value={who} onChange={pickPerson} placeholder="Choose a person"
               options={people.filter((p) => p.employee_id).map((p) => ({ value: p.employee_id!, label: `${p.full_name} (${p.employee_code})` }))} />
           </div>
-          <div className="w-full sm:w-36"><Input value={hw} onChange={setHw} placeholder="Holidays worked" type="number" /></div>
           <div className="w-full sm:w-36"><Input value={vd} onChange={setVd} placeholder="Vacation days" type="number" /></div>
           <div className="w-full sm:w-56"><Input value={dates} onChange={setDates} placeholder="Vacation dates, e.g. 10-14 Aug" /></div>
           <Button disabled={!who || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
           <div className="w-full"><FormNotice error={save.error} /></div>
         </div>
       )}
-      <Table head={['Employee', 'Holidays worked', 'Vacation days', 'Vacation dates']} empty={rows.length === 0} emptyLabel="Nothing entered this month.">
+      <Table head={['Employee', 'Vacation days', 'Vacation dates']} empty={rows.length === 0} emptyLabel="Nothing entered this month.">
         {rows.map((r) => (
           <tr key={r.employee_id}>
             <Td className="font-medium">{name(r.employee_id)}</Td>
-            <Td className="num">{r.holidays_worked || '-'}</Td>
             <Td className="num">{r.vacation_days || '-'}</Td>
             <Td>{r.vacation_dates || '-'}</Td>
           </tr>

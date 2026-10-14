@@ -1071,7 +1071,7 @@ function Rates() {
             <Select value={v.lop_method ?? 'prorate'} onChange={(x) => setDraft({ ...v, lop_method: x === 'day_pay' ? 'day_pay' : 'prorate' })}
               options={[{ value: 'prorate', label: 'Reduce every pay part by days not worked' }, { value: 'day_pay', label: "Deduct a day's pay" }]} />
           </Field>
-          {(v.lop_method === 'day_pay' || v.pay_holidays_worked) && (
+          {v.lop_method === 'day_pay' && (
             <>
               <Field label="A day's pay is">
                 <Select value={v.lop_day_base ?? 'gross'} onChange={(x) => setDraft({ ...v, lop_day_base: x === 'ctc' ? 'ctc' : 'gross' })}
@@ -1112,13 +1112,6 @@ function Rates() {
             <Input value={v.bank_address ?? ''} onChange={(x) => setDraft({ ...v, bank_address: x })} />
           </Field>
         </FormGrid>
-        <div className="mt-3">
-          <Checkbox
-            checked={!!v.pay_holidays_worked}
-            onChange={(x) => setDraft({ ...v, pay_holidays_worked: x })}
-            label="Pay extra for holidays worked (a day's pay for each)"
-          />
-        </div>
 
         <h3 className="mt-6 text-[14px] font-medium">Professional tax slabs · {v.pt_state}</h3>
         <Table head={[{ label: 'Monthly wage from' }, { label: 'To' }, { label: 'Tax' }]}>
