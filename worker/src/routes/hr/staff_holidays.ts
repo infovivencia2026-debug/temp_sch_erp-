@@ -12,12 +12,14 @@
 
 import { staffGroupMemberIds } from '../growth/people'
 
-export interface StaffHolidayRow { on_date: string; to_date: string; applies_to: string }
+export interface StaffHolidayRow { on_date: string; to_date: string; applies_to: string; kind: string }
 
 /** Holidays and vacations any member of staff might have off in [from, to]. */
 export async function staffHolidayRows(db: D1Database, from: string, to: string): Promise<StaffHolidayRow[]> {
-  const r = await db.prepare(`SELECT substr(on_date, 1, 10) AS on_date, substr(COALESCE(to_date, on_date), 1, 10) AS to_date, applies_to FROM holidays
-      WHERE kind IN ('holiday','vacation') AND (applies_to IN ('all','staff','teaching','non_teaching') OR applies_to LIKE 'people:%' OR applies_to LIKE 'group:%')
+  /* Working days come back too, because one can cancel a holiday for the
+     people it names -- see isStaffHoliday. */
+  const r = await db.prepare(`SELECT substr(on_date, 1, 10) AS on_date, substr(COALESCE(to_date, on_date), 1, 10) AS to_date, applies_to, kind FROM holidays
+      WHERE kind IN ('holiday','vacation','working_day') AND (applies_to IN ('all','staff','teaching','non_teaching') OR applies_to LIKE 'people:%' OR applies_to LIKE 'group:%')
         AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`)
     .bind(to, from).all<StaffHolidayRow>()
   return r.results
@@ -30,8 +32,29 @@ export async function teachingUsers(db: D1Database): Promise<Set<string>> {
 }
 
 /** Is `day` a holiday for this member of staff? `eid` and `groups` are needed for named people and groups. */
+/* A WORKING DAY CANCELS A HOLIDAY FOR THE PEOPLE IT NAMES (owner,
+   2026-10-14: "for attendance marking only for this people and remaining
+   staff will be in vacation").
+
+   Holidays only ever said who was OFF, so a vacation where four of the
+   office still come in had to be written as a holiday aimed at everybody
+   except those four -- a list to build and then maintain against every
+   joiner and leaver, and the one group nobody thinks to update.
+
+   The school writes what it actually means instead: a vacation for all
+   staff, and a Working day entry over the same dates naming the group that
+   is in. The working day wins. So those four are expected, their attendance
+   is taken and their absence counts; everybody else is on holiday and
+   nothing is marked against them.
+
+   It wins rather than merely competing because it is the narrower, later
+   statement: a school adds "except these" to a closure it has already
+   declared, never the other way round. */
 export function isStaffHoliday(rows: StaffHolidayRow[], day: string, teaching: boolean, eid: string | null = null, groups?: Map<string, Set<string>>): boolean {
-  return rows.some((h) => day >= h.on_date && day <= h.to_date && appliesToStaff(h.applies_to, teaching, eid, groups))
+  const here = rows.filter((h) => day >= h.on_date && day <= h.to_date && appliesToStaff(h.applies_to, teaching, eid, groups))
+  if (!here.length) return false
+  if (here.some((h) => h.kind === 'working_day')) return false
+  return true
 }
 
 export function appliesToStaff(a: string, teaching: boolean, eid: string | null, groups?: Map<string, Set<string>>): boolean {
