@@ -246,6 +246,10 @@ export class ImportCtx {
 export interface ImportSpec {
   perm: string
   columns: string[]
+  /** Columns that depend on the school (Yajur, 2026-10-14: one column per pay
+      component). Used for the template and the field list; `columns` stays as
+      the fallback and for the header check. */
+  columnsFor?: (c: Ctx) => Promise<{ columns: string[]; sample: string[] }>
   required: string[]
   identity?: string
   sample: string[]
@@ -1598,17 +1602,18 @@ export function registerImports(r: Router): void {
     return ok({ entity: run.entity, filename: run.filename, content: run.content ?? '', omitted: !!run.content_omitted })
   })
 
-  r.get('/setup/import/{entity}/template', 'auth', (c) => {
+  r.get('/setup/import/{entity}/template', 'auth', async (c) => {
     const entity = c.params.entity
     const spec = importSpecs[entity]
     if (!spec) throw badRequest('nothing can be imported as ' + entity)
     if (!can(c.id, spec.perm)) throw new HttpError(403, 'you cannot import ' + entity, { code: 'forbidden' })
-    let body = csvLine(spec.columns)
-    if (spec.sample.length === spec.columns.length) body += csvLine(spec.sample)
+    const shape = spec.columnsFor ? await spec.columnsFor(c) : { columns: spec.columns, sample: spec.sample }
+    let body = csvLine(shape.columns)
+    if (shape.sample.length === shape.columns.length) body += csvLine(shape.sample)
     return new Response(body, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${entity}-template.csv"`, 'cache-control': 'no-store, must-revalidate' } })
   })
 
-  r.get('/setup/import/{entity}/fields', 'auth', (c) => {
+  r.get('/setup/import/{entity}/fields', 'auth', async (c) => {
     const entity = c.params.entity
     if (entity === 'students') {
       if (!can(c.id, 'students.write')) throw new HttpError(403, 'you cannot import students', { code: 'forbidden' })
@@ -1618,9 +1623,10 @@ export function registerImports(r: Router): void {
     if (!spec) throw badRequest('nothing can be imported as ' + entity)
     if (!can(c.id, spec.perm)) throw new HttpError(403, 'you cannot import ' + entity, { code: 'forbidden' })
     const required = new Set(spec.required)
-    const fields = spec.columns.map((col, i) => {
+    const shape = spec.columnsFor ? await spec.columnsFor(c) : { columns: spec.columns, sample: spec.sample }
+    const fields = shape.columns.map((col, i) => {
       const f: Record<string, unknown> = { name: col, required: required.has(col) }
-      if (i < spec.sample.length) f.example = spec.sample[i]
+      if (i < shape.sample.length) f.example = shape.sample[i]
       return f
     })
     return ok({ fields })
