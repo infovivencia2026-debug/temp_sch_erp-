@@ -223,6 +223,7 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     if (!isPunches || !db || !dev || !dev.active) return text(`OK: ${body.split('\n').filter((l) => l.trim()).length}`)
     const inst = dev.inst.id
     let n = 0
+    let orphans = 0
     const days = new Map<string, string>() // employee -> a punch time on that day, to roll up once each
     for (const line of body.split('\n')) {
       const f = punchFields(line)
@@ -237,8 +238,25 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
         .bind(uuid(), inst, dev.deviceId, uid, emp?.id ?? null, at, Number(f[2]) || null, Number(f[3]) || null, line.slice(0, 300), now()).run()
       n++
       if (emp && res.meta.changes) days.set(emp.id + '\0' + at.slice(0, 10), at)
+      if (!emp) orphans++
     }
     for (const [k, at] of days) await rollUpImportedDay({ db, inst }, k.split('\0')[0], at, serial)
+    /* A PUNCH FROM SOMEBODY WE HAVE NOT LINKED TRIES THE LINK (owner,
+       2026-10-14: "show staff past registry and their in and out after they
+       created with history").
+
+       Linking only ran when the reader sent its user list, and this reader
+       has sent it once. A member of staff added after that -- or one the
+       name pass missed -- punched every morning into a record nobody owned,
+       and nothing would ever revisit it. So a punch with no owner is the
+       cue: try the linker, and if anybody is newly linked, match what they
+       have already punched and roll the recent days into attendance. Only
+       when an orphan was seen, so an ordinary push costs nothing extra. */
+    if (orphans > 0) {
+      const linked = await linkReaderUsersByName(db, inst, dev.deviceId)
+      if (linked.length) await resolveStoredPunches(db, inst)
+      console.log(JSON.stringify({ iclock: 'orphan-punches', serial, orphans, linked: linked.length }))
+    }
     await db.prepare(`UPDATE biometric_devices SET last_push_at = ? WHERE id = ?`).bind(now(), dev.deviceId).run()
     return text(`OK: ${n}`)
   }
