@@ -257,16 +257,17 @@ export function registerStaff(r: Router): void {
     let relieved = s('relieved_on')
     const leaving = status !== null && oneOfStr(status, 'resigned', 'terminated', 'retired')
     if (relieved === null && leaving) relieved = todayIndia()
+    // Staff code is editable (owner, 2026-10-14). Upper-cased like the codes an import writes.
+    const code = has(req, 'employee_code') ? str(req.employee_code).trim().toUpperCase() : null
+    if (code === '') throw badRequest('a staff record needs a staff code')
     const t = now()
     /* Codes are not typed over without being asked (owner, 2026-10-14): see
        services/overwrite.ts. A value someone else holds is refused outright. */
     const cur = await c.db.prepare(`SELECT employee_code, device_user_id, bank_account, bank_ifsc, pan, uan, esi_number, phone, email
         FROM employees WHERE id = ?`).bind(empId).first<Record<string, string | null>>()
     if (!cur) throw badRequest('no such staff record in this school')
-    const newCode = has(req, 'employee_code') ? str(req.employee_code).trim() : null
-    if (newCode === '') throw badRequest('a staff record needs an employee code')
     const newDevice = has(req, 'device_user_id') ? str(req.device_user_id).trim().toUpperCase() : null
-    for (const [col, label, v] of [['employee_code', 'Staff code', newCode], ['device_user_id', 'Biometric reader id', newDevice]] as const) {
+    for (const [col, label, v] of [['employee_code', 'Staff code', code], ['device_user_id', 'Biometric reader id', newDevice]] as const) {
       if (!v || v === (cur[col] ?? '')) continue
       const holder = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name FROM employees
           WHERE institution_id = ? AND ${col === 'employee_code' ? 'lower(employee_code) = lower(?)' : 'device_user_id = ?'} AND id <> ?`)
@@ -277,12 +278,13 @@ export function registerStaff(r: Router): void {
       ['bank_ifsc', 'IFSC'], ['pan', 'PAN'], ['uan', 'UAN'], ['esi_number', 'ESI number'], ['phone', 'phone'], ['email', 'email']]
     // device_user_id cannot be cleared here (COALESCE below), so an empty one is no change.
     guardOverwrite(req, codeLabels.filter(([k]) => has(req, k) && !(k === 'device_user_id' && newDevice === ''))
-      .map(([k, label]) => ({ field: k, label, from: cur[k], to: k === 'device_user_id' ? newDevice : str(req[k]).trim() })), true)
+      .map(([k, label]) => ({ field: k, label, from: cur[k], to: k === 'device_user_id' ? newDevice : k === 'employee_code' ? code : str(req[k]).trim() })), true)
     let res: D1Result
     try {
       // employees_touch trigger: updated_at is stamped here.
       res = await c.db.prepare(`UPDATE employees SET
           first_name = COALESCE(?24, first_name),
+          employee_code = COALESCE(?25, employee_code),
           last_name = CASE WHEN ?1 IS NULL THEN last_name ELSE NULLIF(?1, '') END,
           phone = CASE WHEN ?2 IS NULL THEN phone ELSE NULLIF(?2, '') END,
           email = CASE WHEN ?3 IS NULL THEN email ELSE NULLIF(?3, '') END,
@@ -304,12 +306,11 @@ export function registerStaff(r: Router): void {
           esi_number = CASE WHEN ?19 IS NULL THEN esi_number ELSE NULLIF(?19, '') END,
           emergency_contact_name = CASE WHEN ?20 IS NULL THEN emergency_contact_name ELSE NULLIF(?20, '') END,
           emergency_contact_phone = CASE WHEN ?21 IS NULL THEN emergency_contact_phone ELSE NULLIF(?21, '') END,
-          employee_code = COALESCE(?25, employee_code),
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, newCode)
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')
