@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils'
 
 interface StaffRow {
   user_id: string
+  /** On the roll but with no login yet, so nothing can be marked against them. */
+  needs_login?: boolean
   employee_code: string
   full_name: string
   status?: string
@@ -246,12 +248,27 @@ export default function StaffAttendance() {
               {rows.map((r) => {
                 const v = value(r)
                 return (
-                  <tr key={r.user_id}>
+                  <tr key={r.user_id || r.employee_code}>
                     <Td className="font-mono text-[12px]">{r.employee_code}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
                     <Td className="tabular-nums text-muted-foreground">{r.check_in ?? '-'}</Td>
                     <Td className="tabular-nums text-muted-foreground">{r.check_out ?? '-'}</Td>
                     <Td>
+                      {/* ON THE ROLL, NOT YET MARKABLE (owner, 2026-10-14:
+                          "after adding new staff show their attendance in
+                          staff registry").
+
+                          A new member of staff used to be absent from this
+                          sheet altogether, because attendance is kept against
+                          a login and they had none. They are listed now, so
+                          whoever takes the register can see the name is there
+                          and why it cannot be marked, instead of wondering
+                          whether they forgot somebody. */}
+                      {r.needs_login ? (
+                        <span className="text-[13px] text-muted-foreground">
+                          Needs a login before attendance can be taken &mdash; Staff &rsaquo; Logins &amp; access.
+                        </span>
+                      ) : (
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {
                           const on = v === m.value
@@ -285,6 +302,7 @@ export default function StaffAttendance() {
                           )
                         })}
                       </div>
+                      )}
                     </Td>
                   </tr>
                 )
