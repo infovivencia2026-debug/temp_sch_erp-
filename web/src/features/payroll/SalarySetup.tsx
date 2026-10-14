@@ -772,7 +772,7 @@ export default function SalarySetup() {
           <BulkImport
             entity="salary_sheet"
             title="Salary sheet (school format)"
-            hint="Your salary register as a CSV: Employee ID, Employee Name, Designation, Mobile Number, Subject, Date of Joining, Bank Account Number, IFSC, Aadhaar, PAN, UAN, Basic, House Rent Allowance, Dearness Allowance, Conveyance Allowance, Other Allowance. Fills each staff record and sets the monthly salary from the five pay parts. Gross, EPF, ESI and net are worked out by the payroll run."
+            hint="Download the template: it has one column for each pay component set up above (and PF, if you have it), so a part you add is a column the next time. Fill a cell with rupees a month, or a percent like 40%. Blank cells keep what is there. After the upload, Revise shows every part and PF filled in, still editable by hand. Gross, ESI, PT and net are worked out by the payroll run."
             onDone={refresh}
           />
         </div>

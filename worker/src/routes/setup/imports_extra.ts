@@ -1,7 +1,7 @@
 import { uuid, now } from '../../http'
 import { str, todayIndia } from './common'
 import type { ImportSpec, ImportCtx } from './imports'
-import { paiseOrNil, numOrNil, isWholeNumber, withinWindow } from './imports'
+import { paiseOrNil, numOrNil, isWholeNumber, withinWindow, normaliseHeader } from './imports'
 
 /* The payroll sheets of bulk_import.go: the standing salary and bank
    details keyed by staff code, and months already paid before go-live. */
@@ -66,22 +66,59 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
      Aadhaar) and sets the standing monthly salary as Basic, HRA, DA, CA and
      OA, which is what a payroll run pays from. Columns the sheet works out
      (gross, EPF, ESI, LOP, net) are ignored: the run works them out again. */
-  const SHEET_PAY: [string, string][] = [['basic', 'BASIC'], ['house_rent_allowance', 'HRA'], ['dearness_allowance', 'DA'], ['conveyance_allowance', 'CONVEY'], ['other_allowance', 'SPECIAL']]
-  /* Headings as the payslip words them (Yajur, 2026-10-14: "that template is
-     not right"). Sheets made with the first short headings still load: each
-     old heading is copied onto the new one before the row is read. */
-  const SHEET_OLD: [string, string][] = [['employee_id', 'emp_id'], ['employee_name', 'name'], ['date_of_joining', 'd.o.j'],
-    ['bank_account_number', 'a/c_number'], ['ifsc', 'ifsc_code'], ['aadhaar', 'aadhar'], ['house_rent_allowance', 'h.r.a'],
-    ['dearness_allowance', 'da'], ['conveyance_allowance', 'ca'], ['other_allowance', 'oa']]
-  const sheetRow = (row: Record<string, string>) => {
-    for (const [now, was] of SHEET_OLD) if ((row[now] ?? '') === '' && (row[was] ?? '') !== '') row[now] = row[was]
+  /* ONE COLUMN PER PAY COMPONENT (Yajur, 2026-10-14: "let the template
+     headings follow the components; if they have PF add PF; they upload it
+     and Revise shows every component, PF too, still editable by hand").
+     The template is built from salary_components at download time, so a
+     part the school adds is a column the next time. A cell is rupees a
+     month, or a percent written "40%" (of Basic, or of the gross for a
+     component whose rule says so). PF takes two columns: the employee's own
+     percent (blank = school rate) and what it is taken on. Blank cells keep
+     what is there. */
+  const SHEET_FIXED = ['Employee ID', 'Employee Name', 'Designation', 'Mobile Number', 'Subject', 'Date of Joining', 'Bank Account Number', 'IFSC', 'Aadhaar', 'PAN', 'UAN']
+  const SHEET_FIXED_SAMPLE = ['YPS59100001', 'RAMYA SRI RACHERLA', 'Teacher', '9876543210', 'English', '01/06/2024', '7707198963', 'IDIB000L009', '123412341234', 'ABCDE1234F', '100123456789']
+  const PF_COLS = ['Provident fund %', 'PF on']
+  const PF_KEYS = PF_COLS.map(normaliseHeader)
+  // Old and short headings a cell may still arrive under, by component code.
+  const SHEET_ALIAS: Record<string, string[]> = {
+    BASIC: ['basic', 'basic_pay'], HRA: ['house_rent_allowance', 'h.r.a', 'hra'], DA: ['dearness_allowance', 'da'],
+    CONVEY: ['conveyance_allowance', 'conveyance', 'ca'], SPECIAL: ['other_allowance', 'special_allowance', 'oa'], TDS: ['income_tax_(tds)', 'tds', 'income_tax'],
   }
-  const rupeesCell = (v: unknown): number | null => {
-    const t = str(v).replace(/[,₹\s]/g, '').trim()
+  type SheetComp = { id: string; code: string; name: string; kind: string; is_percent: number; percent_of: string | null; default_value: number | null }
+  const sheetComps = async (db: D1Database): Promise<SheetComp[]> => {
+    try {
+      return (await db.prepare(`SELECT id, code, name, kind, is_percent, percent_of, default_value FROM salary_components WHERE code NOT IN ('PF', 'ESI', 'PT') ORDER BY sequence, name`).all<SheetComp>()).results
+    } catch {
+      return (await db.prepare(`SELECT id, code, name, kind, is_percent, percent_of, NULL AS default_value FROM salary_components WHERE code NOT IN ('PF', 'ESI', 'PT') ORDER BY sequence, name`).all<SheetComp>()).results
+    }
+  }
+  const hasPf = async (db: D1Database) => !!(await db.prepare(`SELECT 1 FROM salary_components WHERE code = 'PF'`).first())
+  const compCell = (row: Record<string, unknown>, comp: SheetComp): string => {
+    const keys = [normaliseHeader(comp.name), normaliseHeader(comp.code), ...(SHEET_ALIAS[comp.code] ?? [])]
+    for (const k of keys) { const v = str(row[k]).trim(); if (v !== '') return v }
+    return ''
+  }
+  /** "15000", "15,000", "40%" → { percent } or { paise }; '' → null. */
+  const payCell = (raw: string): { percent?: number; paise?: number } | null => {
+    const t = raw.replace(/[,₹\s]/g, '')
     if (t === '' || t === '-') return null
+    if (t.endsWith('%')) {
+      const n = Number(t.slice(0, -1))
+      if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`"${raw}" is not a percent between 0 and 100`)
+      return { percent: n }
+    }
     const n = Number(t)
-    if (!Number.isFinite(n) || n < 0) throw new Error(`"${str(v).trim()}" is not an amount of rupees`)
-    return Math.round(n * 100)
+    if (!Number.isFinite(n) || n < 0) throw new Error(`"${raw}" is not an amount of rupees (or a percent like 40%)`)
+    return { paise: Math.round(n * 100) }
+  }
+  const pfOnCell = (raw: string): string | null => {
+    const t = raw.trim().toLowerCase().replace(/[\s+_-]+/g, '')
+    if (t === '') return null
+    if (['none', 'no', 'nopf', 'off'].includes(t)) return 'none'
+    if (['basic', 'basiconly'].includes(t)) return 'basic'
+    if (['basicda', 'basicanda', 'basicplusda'].includes(t)) return 'basic_da'
+    if (['school', 'schoolrule', 'default'].includes(t)) return 'default'
+    throw new Error(`PF on "${raw}" should be Basic, Basic + DA, None or School rule`)
   }
   const sheetDate = (v: unknown): string | null => {
     const t = str(v).trim()
@@ -89,25 +126,45 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
     if (m) return t
     m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(t)
-    if (!m) throw new Error(`D.O.J "${t}" is not a date like 01/06/2024`)
+    if (!m) throw new Error(`Date of Joining "${t}" is not a date like 01/06/2024`)
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])
     return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
   }
+  const SHEET_OLD: [string, string][] = [['employee_id', 'emp_id'], ['employee_name', 'name'], ['date_of_joining', 'd.o.j'],
+    ['bank_account_number', 'a/c_number'], ['ifsc', 'ifsc_code'], ['aadhaar', 'aadhar']]
+  const sheetRow = (row: Record<string, string>) => {
+    for (const [now, was] of SHEET_OLD) if ((row[now] ?? '') === '' && (row[was] ?? '') !== '') row[now] = row[was]
+  }
   specs.salary_sheet = {
     perm: 'hr.payroll.write',
-    columns: ['Employee ID', 'Employee Name', 'Designation', 'Mobile Number', 'Subject', 'Date of Joining', 'Bank Account Number', 'IFSC',
-      'Aadhaar', 'PAN', 'UAN', 'Basic', 'House Rent Allowance', 'Dearness Allowance', 'Conveyance Allowance', 'Other Allowance'],
+    columns: [...SHEET_FIXED, 'Basic', 'House Rent Allowance', 'Dearness Allowance', 'Conveyance Allowance', 'Other Allowance'],
+    columnsFor: async (c) => {
+      const comps = await sheetComps(c.db)
+      const pf = await hasPf(c.db)
+      const sample = comps.map((x) => {
+        if (x.default_value != null && x.default_value > 0) return x.is_percent ? `${x.default_value}%` : String(x.default_value)
+        return x.is_percent ? '40%' : x.kind === 'earning' ? '5000' : '0'
+      })
+      return {
+        columns: [...SHEET_FIXED, ...comps.map((x) => x.name), ...(pf ? PF_COLS : [])],
+        sample: [...SHEET_FIXED_SAMPLE, ...sample, ...(pf ? ['', 'School rule'] : [])],
+      }
+    },
     required: [], identity: 'employee_id',
-    sample: ['YPS59100001', 'RAMYA SRI RACHERLA', 'Teacher', '9876543210', 'English', '01/06/2024', '7707198963', 'IDIB000L009', '123412341234', 'ABCDE1234F', '100123456789', '15000', '6000', '0', '1600', '2400'],
+    sample: [...SHEET_FIXED_SAMPLE, '15000', '6000', '0', '1600', '2400'],
     check: (row) => {
       sheetRow(row)
       if (str(row.employee_id).trim() === '') throw new Error('Employee ID is required')
-      for (const [col] of SHEET_PAY) rupeesCell(row[col])
       sheetDate(row.date_of_joining)
+      const fixed = new Set([...SHEET_FIXED.map(normaliseHeader), ...SHEET_OLD.map(([, was]) => normaliseHeader(was)), ...PF_KEYS])
+      for (const [k, v] of Object.entries(row)) if (!fixed.has(k) && str(v).trim() !== '') payCell(str(v))
+      const pfp = str(row[PF_KEYS[0]]).trim()
+      if (pfp !== '') { const n = Number(pfp.replace('%', '')); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`Provident fund % "${pfp}" should be between 0 and 100`) }
+      pfOnCell(str(row[PF_KEYS[1]]))
     },
     verify: async (ctx, row) => {
       sheetRow(row)
-      if (!(await employeeByCode(ctx, str(row.employee_id).trim(), false))) throw new Error(`nobody on the roll with EMP ID "${str(row.employee_id).trim()}". Import the staff first`)
+      if (!(await employeeByCode(ctx, str(row.employee_id).trim(), false))) throw new Error(`nobody on the roll with Employee ID "${str(row.employee_id).trim()}". Import the staff first`)
     },
     // Each cell fills or replaces (a blank cell keeps what is there).
     replaces: async (ctx, row) => {
@@ -144,12 +201,34 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
         .bind(designationId, cell('mobile_number').replace(/\D/g, '').slice(-10), sheetDate(row.date_of_joining), cell('bank_account_number').replace(/\s/g, ''),
           cell('ifsc').toUpperCase(), digits.length >= 4 ? digits.slice(-4) : '', cell('pan'), cell('uan').replace(/\s/g, ''), empId).run()
 
-      const pay = SHEET_PAY.map(([col, code]) => [code, rupeesCell(row[col])] as const).filter(([, v]) => v !== null) as [string, number][]
-      if (pay.length === 0) return
-      const total = pay.reduce((a, [, v]) => a + v, 0)
+      // PF, by the person's own column: percent and what it is taken on.
+      const pfPct = cell(PF_KEYS[0]).replace('%', '')
+      const pfOn = pfOnCell(cell(PF_KEYS[1]))
+      if (pfPct !== '' || pfOn !== null) {
+        try {
+          await ctx.db.prepare(`UPDATE employees SET pf_percent = CASE WHEN ? = '' THEN pf_percent ELSE ? END, pf_mode = COALESCE(?, pf_mode) WHERE id = ?`)
+            .bind(pfPct, pfPct === '' ? null : Number(pfPct), pfOn, empId).run()
+        } catch { throw new Error('PF by person needs a database update first (migration 0085)') }
+      }
+
+      // The pay parts: rupees as given, percents worked out from Basic (or
+      // the gross of the rupee cells, for a part whose rule is of the gross).
+      const comps = await sheetComps(ctx.db)
+      const given: { comp: SheetComp; v: { percent?: number; paise?: number } }[] = []
+      for (const comp of comps) { const v = payCell(compCell(row, comp)); if (v) given.push({ comp, v }) }
+      if (given.length === 0) return
+      const rupeeGross = given.filter((g) => g.comp.kind === 'earning' && g.v.paise != null).reduce((a, g) => a + (g.v.paise ?? 0), 0)
+      const basicGiven = given.find((g) => g.comp.code === 'BASIC')
+      const basicPaise = basicGiven?.v.paise ?? (basicGiven?.v.percent != null ? Math.round((rupeeGross * basicGiven.v.percent) / 100) : 0)
+      const items = given.map((g) => {
+        const base = g.comp.percent_of === 'GROSS' ? rupeeGross : basicPaise
+        const amount = g.v.paise ?? Math.round((base * (g.v.percent ?? 0)) / 100)
+        return { comp: g.comp, amount, percent: g.v.percent ?? null }
+      })
+      const total = items.filter((i) => i.comp.kind === 'earning').reduce((a, i) => a + i.amount, 0)
       let open = await ctx.db.prepare(`SELECT id FROM salary_structures WHERE institution_id = ? AND employee_id = ? AND effective_to IS NULL ORDER BY effective_from DESC LIMIT 1`)
         .bind(ctx.inst, empId).first<{ id: string }>()
-      if (open) await ctx.db.prepare(`UPDATE salary_structures SET ctc_paise = ? WHERE id = ?`).bind(total, open.id).run()
+      if (open) { if (total > 0) await ctx.db.prepare(`UPDATE salary_structures SET ctc_paise = ? WHERE id = ?`).bind(total, open.id).run() }
       else {
         let from: string | null = null
         if (ctx.year) from = (await ctx.db.prepare(`SELECT starts_on FROM academic_years WHERE id = ?`).bind(ctx.year).first<{ starts_on: string }>())?.starts_on ?? null
@@ -158,12 +237,10 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
           .bind(open.id, ctx.inst, empId, from ?? todayIndia(), total, now()).run()
         ctx.noteCreated('salary_sheet', open.id, true)
       }
-      for (const [code, amount] of pay) {
-        const comp = await ctx.db.prepare(`SELECT id FROM salary_components WHERE institution_id = ? AND code = ?`).bind(ctx.inst, code).first<{ id: string }>()
-        if (!comp) throw new Error(`the salary part ${code} is not set up. Open Salary setup once so the standard parts are created, then import again`)
-        await ctx.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id = ? AND component_id = ?`).bind(open.id, comp.id).run()
-        await ctx.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise) VALUES (?, ?, ?, ?, ?)`)
-          .bind(uuid(), ctx.inst, open.id, comp.id, amount).run()
+      for (const it of items) {
+        await ctx.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id = ? AND component_id = ?`).bind(open.id, it.comp.id).run()
+        await ctx.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, ?)`)
+          .bind(uuid(), ctx.inst, open.id, it.comp.id, it.amount, it.percent == null ? null : String(it.percent)).run()
       }
     },
   }
