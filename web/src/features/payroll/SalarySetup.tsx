@@ -49,8 +49,21 @@ interface Row {
   structure_id?: string
   effective_from?: string
   ctc_paise: number
+  pf_mode?: PfMode
+  pf_percent?: number | null
   items: Item[]
 }
+
+/* PF BY CHOICE PER PERSON (Yajur, 2026-10-14). "School rule" leaves the
+   person exactly where payroll settings put them; the others are for the
+   few whose PF the school agreed differently. */
+type PfMode = 'default' | 'none' | 'basic' | 'basic_da'
+const PF_CHOICES = [
+  { value: 'default', label: 'School rule' },
+  { value: 'none', label: 'No PF' },
+  { value: 'basic', label: 'On Basic only' },
+  { value: 'basic_da', label: 'On Basic + DA' },
+]
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -99,7 +112,10 @@ function splitSalary(comps: Component[], lines: Lines, grossPaise: number, rest:
 const earned = (comps: Component[], split: Record<string, number>) =>
   comps.filter((c) => c.kind === 'earning').reduce((a, c) => a + (split[c.id] ?? 0), 0)
 
-type RangeRule = { from: string; to: string; lines: Lines; rest: boolean }
+/* WHO A SPLIT GOES TO (Yajur, 2026-10-14): either people picked by name, or
+   everyone whose gross falls in a range. One chooser, so it is plain which. */
+type ApplyTo = 'staff' | 'range'
+type RangeRule = { from: string; to: string; lines: Lines; rest: boolean; to_whom?: ApplyTo }
 const RULE_KEY = 'salary-range-rule'
 const loadRule = (): RangeRule => {
   try {
@@ -160,6 +176,10 @@ export default function SalarySetup() {
       return n
     })
   const [applying, setApplying] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(() => new Set())
+  const [pickSearch, setPickSearch] = useState('')
+  const [pfMode, setPfMode] = useState<PfMode>('default')
+  const [pfPct, setPfPct] = useState('')
   const [newName, setNewName] = useState('')
   const [newKind, setNewKind] = useState('earning')
   const [done, setDone] = useState('')
@@ -189,10 +209,11 @@ export default function SalarySetup() {
 
   // Paise in the database, so no salary is ever a float. The percent rides
   // along so the form reopens as it was filled.
-  const post = (employee_id: string, effective_from: string, l: Lines, split: Record<string, number>) =>
+  const post = (employee_id: string, effective_from: string, l: Lines, split: Record<string, number>, pf?: { pf_mode: PfMode; pf_percent: string }) =>
     api.post('/api/v1/payroll/structures', {
       employee_id,
       effective_from,
+      ...(pf ?? {}),
       items: Object.entries(split)
         .filter(([, v]) => v > 0)
         .map(([component_id, amount_paise]) => ({
@@ -203,7 +224,8 @@ export default function SalarySetup() {
     })
 
   const save = useMutation({
-    mutationFn: (v: { employee_id: string; split: Record<string, number> }) => post(v.employee_id, from, lines, v.split),
+    mutationFn: (v: { employee_id: string; split: Record<string, number> }) =>
+      post(v.employee_id, from, lines, v.split, { pf_mode: pfMode, pf_percent: pfMode === 'none' ? '' : pfPct }),
     onSuccess: () => {
       setDone('Saved. The next payroll run pays these amounts.')
       setOpen(null)
@@ -264,7 +286,25 @@ export default function SalarySetup() {
     const hi = rule.to.trim() === '' ? Infinity : rupeesToPaise(rule.to)
     return r.structure_id != null && m > 0 && m >= lo && m <= hi
   }
-  const ruleRows = rows.filter(inRange)
+  const toWhom: ApplyTo = rule.to_whom ?? 'range'
+  // Only people with a gross can be split: a share of nothing is nothing.
+  const splittable = rows.filter((r) => r.structure_id != null && monthly(r) > 0)
+  const q = pickSearch.trim().toLowerCase()
+  const pickList = q ? splittable.filter((r) => `${r.full_name} ${r.employee_code}`.toLowerCase().indexOf(q) >= 0) : splittable
+  const ruleRows = toWhom === 'range' ? rows.filter(inRange) : splittable.filter((r) => picked.has(r.employee_id))
+  const togglePick = (id: string) =>
+    setPicked((x) => {
+      const n = new Set(x)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const pickShown = () =>
+    setPicked((x) => {
+      const n = new Set(x)
+      for (const r of pickList) n.add(r.employee_id)
+      return n
+    })
   const ruleReady = components.some((c) => typed(c) && Number(rule.lines[c.id]?.val) > 0)
   const sample = ruleRows[0]
   const sampleSplit = sample ? splitSalary(components, rule.lines, monthly(sample), rule.rest) : {}
@@ -428,6 +468,8 @@ export default function SalarySetup() {
                             : { mode: 'amt', val: String(i.amount_paise / 100) }
                       }
                       setLines(seed)
+                      setPfMode(r.pf_mode ?? 'default')
+                      setPfPct(r.pf_percent != null ? String(r.pf_percent) : '')
                     }}
                     disabled={components.length === 0}
                   >
@@ -465,6 +507,14 @@ export default function SalarySetup() {
               <Field label="Monthly gross (₹)" hint="What a percent of gross is taken from.">
                 <Input type="number" value={gross} onChange={setGross} placeholder="0" />
               </Field>
+              <Field label="PF" hint="School rule follows payroll settings.">
+                <Select value={pfMode} onChange={(v) => setPfMode(v as PfMode)} options={PF_CHOICES} />
+              </Field>
+              {pfMode !== 'none' && (
+                <Field label="Employee PF % for this person" hint="Leave empty for the school's rate.">
+                  <Input type="number" value={pfPct} onChange={setPfPct} placeholder="school rate" />
+                </Field>
+              )}
             </FormGrid>
             <LineInputs comps={components} lines={lines} setLines={setLines} split={split} />
             {/* ON THE CARD'S OWN PADDING (owner, 2026-10-13): the table runs
@@ -492,17 +542,65 @@ export default function SalarySetup() {
 
         <Card>
           <CardHeader
-            title="Split salaries by range"
-            description="One rule for everyone whose monthly gross falls in a range, for example Basic 50% of gross, HRA 40% of Basic, the rest as Special allowance. Each person keeps their gross; only the split changes."
+            title="Split salaries for many at once"
+            description="One split, for example Basic 50% of gross, HRA 40% of Basic, the rest as Special allowance, for the staff you pick or for everyone whose monthly gross falls in a range. Each person keeps their gross; only the split changes."
           />
           <FormGrid>
-            <Field label="Gross from (₹)">
-              <Input type="number" value={rule.from} onChange={(v) => setRule((r) => ({ ...r, from: v }))} placeholder="0" />
+            <Field label="Apply to">
+              <Select
+                value={toWhom}
+                onChange={(v) => setRule((r) => ({ ...r, to_whom: v as ApplyTo }))}
+                options={[
+                  { value: 'staff', label: 'Staff I pick' },
+                  { value: 'range', label: 'Gross salary range' },
+                ]}
+              />
             </Field>
-            <Field label="Gross up to (₹)" hint="Leave empty for no upper limit.">
-              <Input type="number" value={rule.to} onChange={(v) => setRule((r) => ({ ...r, to: v }))} placeholder="no limit" />
-            </Field>
+            {toWhom === 'range' && (
+              <Field label="Gross from (₹)">
+                <Input type="number" value={rule.from} onChange={(v) => setRule((r) => ({ ...r, from: v }))} placeholder="0" />
+              </Field>
+            )}
+            {toWhom === 'range' && (
+              <Field label="Gross up to (₹)" hint="Leave empty for no upper limit.">
+                <Input type="number" value={rule.to} onChange={(v) => setRule((r) => ({ ...r, to: v }))} placeholder="no limit" />
+              </Field>
+            )}
+            {toWhom === 'staff' && (
+              <Field label="Find staff">
+                <Input value={pickSearch} onChange={setPickSearch} placeholder="Name or code" />
+              </Field>
+            )}
           </FormGrid>
+          {toWhom === 'staff' && (
+            <div className="px-[var(--card-pad)] pb-3">
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-[13px]">
+                <span className="text-muted-foreground">{picked.size} picked</span>
+                <Button size="sm" variant="ghost" onClick={pickShown} disabled={pickList.length === 0}>
+                  Pick all shown
+                </Button>
+                <Button size="sm" variant="ghost" disabled={picked.size === 0} onClick={() => setPicked(new Set())}>
+                  Clear
+                </Button>
+              </div>
+              <div className="max-h-64 overflow-y-auto rounded border border-border">
+                {pickList.length === 0 ? (
+                  <p className="p-3 text-[13px] text-muted-foreground">
+                    {splittable.length === 0 ? 'Nobody has a monthly gross set yet.' : 'Nobody matches that search.'}
+                  </p>
+                ) : (
+                  pickList.map((r) => (
+                    <label key={r.employee_id} className="flex items-center border-b border-border px-3 py-2 text-[13px] last:border-b-0">
+                      <input type="checkbox" className="mr-2" checked={picked.has(r.employee_id)} onChange={() => togglePick(r.employee_id)} />
+                      <span className="mr-2 font-mono text-[12px] text-muted-foreground">{r.employee_code}</span>
+                      <span className="flex-1">{r.full_name}</span>
+                      <span className="tabular-nums text-muted-foreground">{formatPaise(monthly(r))}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
           <LineInputs
             comps={components}
             lines={rule.lines}
@@ -520,7 +618,11 @@ export default function SalarySetup() {
               {applying || `Apply to ${ruleRows.length} staff`}
             </Button>
             <span className="text-[13px] text-muted-foreground">
-              {sample ? `"Comes to" shows ${sample.full_name} (gross ${formatPaise(monthly(sample))}).` : 'Nobody with a salary falls in this range.'}
+              {sample
+                ? `"Comes to" shows ${sample.full_name} (gross ${formatPaise(monthly(sample))}).`
+                : toWhom === 'staff'
+                  ? 'Pick at least one member of staff.'
+                  : 'Nobody with a salary falls in this range.'}
             </span>
           </div>
         </Card>
