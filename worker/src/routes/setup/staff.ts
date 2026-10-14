@@ -241,12 +241,16 @@ export function registerStaff(r: Router): void {
     let relieved = s('relieved_on')
     const leaving = status !== null && oneOfStr(status, 'resigned', 'terminated', 'retired')
     if (relieved === null && leaving) relieved = todayIndia()
+    // Staff code is editable (owner, 2026-10-14). Upper-cased like the codes an import writes.
+    const code = has(req, 'employee_code') ? str(req.employee_code).trim().toUpperCase() : null
+    if (code === '') throw badRequest('a staff record needs a staff code')
     const t = now()
     let res: D1Result
     try {
       // employees_touch trigger: updated_at is stamped here.
       res = await c.db.prepare(`UPDATE employees SET
           first_name = COALESCE(?24, first_name),
+          employee_code = COALESCE(?25, employee_code),
           last_name = CASE WHEN ?1 IS NULL THEN last_name ELSE NULLIF(?1, '') END,
           phone = CASE WHEN ?2 IS NULL THEN phone ELSE NULLIF(?2, '') END,
           email = CASE WHEN ?3 IS NULL THEN email ELSE NULLIF(?3, '') END,
@@ -272,7 +276,7 @@ export function registerStaff(r: Router): void {
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName)
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')

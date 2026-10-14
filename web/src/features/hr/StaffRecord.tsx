@@ -459,6 +459,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                   <div className="space-y-4 p-4">
                     <FormGrid>
                       {([
+                        ['employee_code', 'Staff code'],
                         ['first_name', 'First name'],
                         ['last_name', 'Last name'],
                         ['phone', 'Phone'],
