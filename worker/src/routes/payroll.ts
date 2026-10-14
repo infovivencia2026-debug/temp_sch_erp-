@@ -589,6 +589,46 @@ export function oneDayPay(set: PayRules, fullGross: number, full: Statutory, day
   return div > 0 ? base / div : 0
 }
 
+/* A DAY'S PAY FOR EVERY ACTIVE MEMBER OF STAFF, for the year-end payout
+   (owner, 2026-10-14). Gross is the salary in force on the first of the pay
+   month, worked out as the run does: the parts, or the one gross figure when
+   there are none. CTC adds the employer's PF, as the run's "deduct a day's
+   pay" rule does. The pattern divisor is the person's work pattern's, 0 when
+   it has none. Nobody without a salary in force is in the map. */
+export interface PayBase { gross_paise: number; ctc_paise: number; pattern_divisor: number }
+export async function staffPayBases(c: Ctx, year: number, month: number): Promise<Map<string, PayBase>> {
+  const set = await loadPayrollSettings(c)
+  const pfPeople = await pfOverrides(c)
+  const firstDay = `${year}-${pad2(month)}-01`
+  const emps = await c.db.prepare(`
+    SELECT e.id, ss.id AS structure, COALESCE(ss.ctc_paise, 0) AS ctc_paise, COALESCE(p.salary_divisor, 0) AS divisor
+      FROM employees e
+      JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?1 AND (ss.effective_to IS NULL OR ss.effective_to >= ?1)
+      LEFT JOIN departments d ON d.id = e.department_id
+      LEFT JOIN work_patterns p ON p.id = COALESCE(e.work_pattern_id, d.work_pattern_id, (SELECT dp.id FROM work_patterns dp WHERE dp.is_default LIMIT 1))
+     WHERE e.status = 'active' AND e.user_id IS NOT NULL`).bind(firstDay)
+    .all<{ id: string; structure: string; ctc_paise: number; divisor: number }>()
+  const out = new Map<string, PayBase>()
+  for (const e of emps.results) {
+    const comps = await c.db.prepare(`SELECT sc.code, sc.kind, ssi.amount_paise FROM salary_structure_items ssi
+        JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ?`).bind(e.structure)
+      .all<{ code: string; kind: string; amount_paise: number }>()
+    let gross = 0, basic = 0, da = 0
+    for (const cmp of comps.results) {
+      if (cmp.kind !== 'earning') continue
+      gross += cmp.amount_paise
+      if (cmp.code === 'BASIC') basic += cmp.amount_paise
+      else if (cmp.code === 'DA') da += cmp.amount_paise
+    }
+    if (gross === 0) gross = Number(e.ctc_paise)
+    const pfp = pfPeople.get(e.id)
+    const schoolWage = set.pf_wage_base === 'basic' ? basic : basic + da
+    const st = computeStatutory(personSettings(set, pfp), personPfWage(pfp, basic, da, schoolWage), gross, month)
+    out.set(e.id, { gross_paise: gross, ctc_paise: gross + st.pf_employer_paise + st.eps_paise, pattern_divisor: numOr0(e.divisor) })
+  }
+  return out
+}
+
 /** ?year=&month= from the query, defaulting to last month. */
 function periodFrom(c: Ctx): [number, number] {
   let y = Number(c.url.searchParams.get('year') ?? 0) || 0

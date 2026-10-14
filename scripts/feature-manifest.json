@@ -140,6 +140,39 @@
         "worker/src/routes/help/helpdesk.ts",
         "worker/test/integration/feature_helpdesk.test.ts"
       ]
+    },
+    "payroll.year_end_payout": {
+      "name": "Year-end payout",
+      "summary": "Holiday work and unused leave paid out once a year. Pick the academic year and the month to pay it in; the table shows each member of staff's leave taken and left, the holidays they worked and the money for each. Save adds it to that month's payroll as pay adjustments.",
+      "section": "payroll",
+      "sectionName": "Payroll",
+      "slug": "year_end_payout",
+      "roles": [
+        "hr"
+      ],
+      "keys": [
+        "hr.payroll.year_end_payout"
+      ],
+      "module": "payroll",
+      "webDir": "payroll",
+      "planModule": "hr",
+      "apiBase": "/payroll/year-end",
+      "readPerm": "hr.payroll.read",
+      "writePerm": "hr.payroll.write",
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0087_feature_year_end_payout.sql",
+      "files": [
+        "shared/api/feature_year_end_payout.ts",
+        "web/src/features/payroll/YearEndPayout.tsx",
+        "worker/src/routes/payroll/year_end_payout.ts",
+        "worker/test/integration/year_end_payout.test.ts",
+        "worker\\migrations\\tenant\\0087_feature_year_end_payout.sql"
+      ]
     }
   }
 }

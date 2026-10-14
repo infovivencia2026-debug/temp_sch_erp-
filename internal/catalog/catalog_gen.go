@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 429 features.
+// Roles is the catalog: 24 roles, 430 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -1514,6 +1514,7 @@ var Roles = []Role{
 					{Key: "hr.payroll.monthly_payroll", Slug: "monthly_payroll", Name: "Monthly payroll", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Run the month's salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee's days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them."},
 					{Key: "hr.payroll.salary_setup", Slug: "salary_setup", Name: "Salary setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each member of staff is paid, and the components a payslip is built from, basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year's payslips still explain themselves."},
 					{Key: "hr.payroll.taxes_statutory", Slug: "taxes_statutory", Name: "Taxes & statutory", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff."},
+					{Key: "hr.payroll.year_end_payout", Slug: "year_end_payout", Name: "Year-end payout", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Holiday work and unused leave paid out once a year. Pick the academic year and the month to pay it in; the table shows each member of staff's leave taken and left, the holidays they worked and the money for each. Save adds it to that month's payroll as pay adjustments."},
 				},
 			},
 			{
