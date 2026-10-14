@@ -554,6 +554,33 @@ function computeStatutory(set: PayrollSettings, basicPlusDA: number, gross: numb
   return out
 }
 
+/* PF FOR ONE PERSON (Yajur, 2026-10-14: "PF should be by our choice per
+   person"; migration 0085). 'default' leaves the person on the school's rule,
+   exactly as before; 'none' takes no PF; 'basic' / 'basic_da' pick the PF wage
+   for this person only. A percent, when set, replaces the employee's PF rate
+   for them; the employer's share stays at the school rate. Read apart from the
+   run's main query so a database without the migration still runs. */
+type PfMode = 'default' | 'none' | 'basic' | 'basic_da'
+interface PfPerson { mode: PfMode; percent: number | null }
+const PF_MODES = ['default', 'none', 'basic', 'basic_da'] as const
+async function pfOverrides(c: Ctx): Promise<Map<string, PfPerson>> {
+  const out = new Map<string, PfPerson>()
+  try {
+    const rows = await c.db.prepare(`SELECT id, pf_mode, pf_percent FROM employees WHERE pf_mode <> 'default' OR pf_percent IS NOT NULL`)
+      .all<{ id: string; pf_mode: string; pf_percent: number | null }>()
+    for (const r of rows.results) out.set(r.id, { mode: pick(r.pf_mode, PF_MODES, 'default'), percent: num(r.pf_percent) })
+  } catch { /* migration 0085 not applied: nobody overridden */ }
+  return out
+}
+/** The PF wage for one person: the school's (passed in) unless they have their own choice. */
+function personPfWage(p: PfPerson | undefined, basic: number, da: number, school: number): number {
+  if (!p || p.mode === 'default') return school
+  return p.mode === 'none' ? 0 : p.mode === 'basic' ? basic : basic + da
+}
+function personSettings(set: PayrollSettings, p: PfPerson | undefined): PayrollSettings {
+  return p?.percent != null && p.percent >= 0 ? { ...set, pf_employee_percent: p.percent } : set
+}
+
 /** One day's pay under the school's "deduct a day's pay" rule: gross, or CTC
  *  (gross + the employer's PF), over the chosen divisor. Unrounded paise. */
 export function oneDayPay(set: PayRules, fullGross: number, full: Statutory, daysInMonthN: number, patternBase: number): number {
@@ -844,6 +871,7 @@ async function runPayroll(c: Ctx) {
   const nDays = daysInMonth(year, month)
   const set = await loadPayrollSettings(c)
   const lop = await lopRegister(c, year, month, set)
+  const pfPeople = await pfOverrides(c)
   // Holidays worked typed in by hand for the month (migration 0084; absent table = none).
   const manualDays = new Map<string, number>()
   try {
@@ -878,7 +906,7 @@ async function runPayroll(c: Ctx) {
     const dayPay = set.lop_method === 'day_pay' && e.lop_basis !== 'none'
     if (dayPay) ratio = 1
 
-    let earn = 0, deduct = 0, basicDA = 0, fullGross = 0, fullPfWage = 0
+    let earn = 0, deduct = 0, basicDA = 0, fullGross = 0, fullPfWage = 0, basicV = 0, daV = 0, fullBasic = 0, fullDA = 0
     const breakup: Record<string, number> = {}
     const comps = await c.db.prepare(`SELECT sc.code, sc.kind, ssi.amount_paise FROM salary_structure_items ssi
         JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ? ORDER BY sc.sequence`).bind(e.structure)
@@ -889,6 +917,7 @@ async function runPayroll(c: Ctx) {
         earn += v; breakup[cmp.code] = v
         fullGross += cmp.amount_paise
         if (cmp.code === 'BASIC' || (cmp.code === 'DA' && set.pf_wage_base !== 'basic')) { basicDA += v; fullPfWage += cmp.amount_paise }
+        if (cmp.code === 'BASIC') { basicV += v; fullBasic += cmp.amount_paise } else if (cmp.code === 'DA') { daV += v; fullDA += cmp.amount_paise }
       } else if (cmp.kind === 'deduction') {
         if (cmp.code === 'PF' || cmp.code === 'ESI' || cmp.code === 'PT') continue
         deduct += cmp.amount_paise; breakup[cmp.code] = -cmp.amount_paise
@@ -913,7 +942,9 @@ async function runPayroll(c: Ctx) {
         .bind(e.user_id, key).first<{ n: number }>()
       if (p && p.n > 0) { const v = p.n * set.substitution_rate_paise; earn += v; breakup.SUBST = v }
     }
-    const st = computeStatutory(set, basicDA, earn, month)
+    const pfp = pfPeople.get(e.id)
+    const pset = personSettings(set, pfp)
+    const st = computeStatutory(pset, personPfWage(pfp, basicV, daV, basicDA), earn, month)
     /* ESI "employer pays it all": worked out and shown, not taken from pay. */
     const esiCut = set.esi_mode === 'employer' ? 0 : st.esi_employee_paise
     if (esiCut === 0 && st.esi_employee_paise > 0) breakup.ESI_EE_BY_EMPLOYER = st.esi_employee_paise
@@ -922,7 +953,7 @@ async function runPayroll(c: Ctx) {
     }
     const holidays = set.pay_holidays_worked ? (l.holidays_worked ?? 0) + (manualDays.get(e.id) ?? 0) : 0
     if (dayPay || holidays > 0) {
-      const full = computeStatutory(set, fullPfWage, fullGross, month)
+      const full = computeStatutory(pset, personPfWage(pfp, fullBasic, fullDA, fullPfWage), fullGross, month)
       const pay1 = oneDayPay(set, fullGross, full, nDays, base)
       if (dayPay && l.lop_days > 0) {
         const cut = Math.min(Math.round(pay1 * l.lop_days), partsGross)
@@ -1213,8 +1244,10 @@ function registerPayrollGroup(r: Router) {
     const out = rows.results.map((v) => ({
       employee_id: String(v.employee_id), employee_code: v.employee_code, full_name: v.full_name,
       structure_id: v.structure_id == null ? undefined : String(v.structure_id), effective_from: v.effective_from ?? undefined,
-      ctc_paise: numOr0(v.ctc_paise), items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
+      ctc_paise: numOr0(v.ctc_paise), pf_mode: 'default' as PfMode, pf_percent: null as number | null, items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
     }))
+    const pfPeople = await pfOverrides(c)
+    for (const o of out) { const p = pfPeople.get(o.employee_id); if (p) { o.pf_mode = p.mode; o.pf_percent = p.percent } }
     const byStructure = new Map(out.filter((o) => o.structure_id).map((o) => [o.structure_id!, o]))
     if (byStructure.size > 0) {
       const ids = [...byStructure.keys()]
@@ -1231,7 +1264,8 @@ function registerPayrollGroup(r: Router) {
     return ok(items(out))
   })
   r.post('/payroll/structures', PAYROLL_WRITE, async (c) => {
-    let body: { employee_id?: string; effective_from?: string; items?: { component_id: string; amount_paise?: number; percent?: number | null }[] }
+    let body: { employee_id?: string; effective_from?: string; items?: { component_id: string; amount_paise?: number; percent?: number | null }[]
+      pf_mode?: string; pf_percent?: number | string | null }
     try { body = await c.req.json() } catch { throw badRequest('Send a salary.') }
     const empId = (body.employee_id ?? '').trim()
     if (!isUUID(empId)) throw badRequest('Choose whose salary this is.')
@@ -1255,6 +1289,14 @@ function registerPayrollGroup(r: Router) {
       ...list.map((it) => c.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, ?)`)
         .bind(uuid(), inst, newId, it.component_id, numOr0(it.amount_paise), it.percent == null ? null : String(it.percent))),
     ])
+    // The person's own PF choice, sent with the salary form (migration 0085).
+    if (body.pf_mode !== undefined) {
+      const pctRaw = body.pf_percent == null || String(body.pf_percent).trim() === '' ? null : Number(body.pf_percent)
+      const pfPct = pctRaw != null && Number.isFinite(pctRaw) && pctRaw >= 0 && pctRaw <= 100 ? pctRaw : null
+      try {
+        await c.db.prepare(`UPDATE employees SET pf_mode = ?, pf_percent = ? WHERE id = ?`).bind(pick(body.pf_mode, PF_MODES, 'default'), pfPct, empId).run()
+      } catch { throw badRequest('The salary is saved, but this school is not set up for a PF choice per person yet; ask support to update the database.') }
+    }
     return ok({ structure_id: newId })
   })
   r.del('/payroll/structures/{id}', PAYROLL_WRITE, async (c) => {
