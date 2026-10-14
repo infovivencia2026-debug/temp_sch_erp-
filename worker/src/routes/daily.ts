@@ -1065,8 +1065,9 @@ function registerWorkflow(r: Router) {
   r.get('/workflow/staff-register', 'hr.attendance.write', async (c) => {
     const on = c.url.searchParams.get('on_date') || today()
     const tz = school(c).timezone
-    /* EVERY MEMBER OF STAFF ON THE ROLL (owner, 2026-10-14: "after adding
-       new staff show their attendance in staff registry").
+    /* EVERY MEMBER OF STAFF ON THE ROLL, AND WHAT THE READER SAW (owner,
+       2026-10-14: "after adding new staff show their attendance in staff
+       registry" and "show attendance history directly").
 
        This was an inner join to users, so the register listed only the staff
        who had been given a login. Somebody taken on this morning is on the
@@ -1075,13 +1076,26 @@ function registerWorkflow(r: Router) {
        looking at the register had any way to tell that a name was missing
        rather than unmarked.
 
-       They are listed now. Attendance itself is still kept against a login
-       (staff_attendance.user_id), so a row without one carries no marks and
-       says so on the screen rather than pretending to take one. */
+       They are listed now. A mark is still kept against a login
+       (staff_attendance.user_id), so a row without one cannot be marked by
+       hand -- but it is no longer blank either: the times come from the
+       reader. The punches are stored against the EMPLOYEE, not the login, so
+       a member of staff the machine knows has their in and out on the sheet
+       from the day they are added, whether or not anyone has got round to
+       giving them a password.
+
+       A mark the office made always wins; the reader only fills what is
+       empty, which is what COALESCE says here. */
     const rows = await c.db.prepare(`
-      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, sa.check_in, sa.check_out
+      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status,
+             COALESCE(sa.check_in, bp.first_punch) AS check_in,
+             COALESCE(sa.check_out, CASE WHEN bp.last_punch > bp.first_punch THEN bp.last_punch END) AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
-        LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?
+        LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
+        LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
+                     FROM biometric_punches p
+                    WHERE date(datetime(p.punched_at, '+330 minutes')) = ?1
+                    GROUP BY p.employee_id) bp ON bp.employee_id = e.id
        WHERE e.status = 'active' ORDER BY e.employee_code`).bind(on).all()
     return ok({ items: rows.results.map((v) => ({
       user_id: v.user_id ?? '', needs_login: v.user_id == null,

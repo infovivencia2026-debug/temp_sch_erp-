@@ -66,8 +66,14 @@ export function prettyDate(v: string): string {
    same control open downwards on one screen and upwards on the next -- so the
    day you were reaching for moved depending on where the field happened to
    sit. One direction, every time: down, shifted sideways only as far as
-   keeping it on screen requires. */
-function below(anchor: RefObject<HTMLElement | null>, width: number): CSSProperties {
+   keeping it on screen requires.
+
+   ...AND NEVER OFF THE BOTTOM OF THE SCREEN (Yajur, 2026-10-14: "in August I
+   don't see 30 and 31"). A month that runs to six rows is taller than the room
+   left under a field low on the page, and the last row was cut off. So the
+   panel is measured, and lifted only as far as it takes for its foot to sit on
+   screen; on a screen too short for it at all, it scrolls inside itself. */
+function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObject<HTMLElement | null>): CSSProperties {
   const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', opacity: 0 })
   useLayoutEffect(() => {
     const place = () => {
@@ -76,16 +82,25 @@ function below(anchor: RefObject<HTMLElement | null>, width: number): CSSPropert
       const r = a.getBoundingClientRect()
       const margin = 8
       const left = Math.min(Math.max(margin, r.left), window.innerWidth - width - margin)
-      setStyle({ position: 'fixed', left, top: r.bottom + 6, opacity: 1 })
+      const h = box.current?.offsetHeight ?? 0
+      const room = window.innerHeight - 2 * margin
+      const top = Math.max(margin, Math.min(r.bottom + 6, window.innerHeight - margin - h))
+      setStyle({ position: 'fixed', left, top, maxHeight: room, overflowY: h > room ? 'auto' : undefined, opacity: 1 })
     }
     place()
+    // Measured again once painted, and whenever its height changes (month to month, or the month grid).
+    const raf = requestAnimationFrame(place)
+    const ro = typeof ResizeObserver !== 'undefined' && box.current ? new ResizeObserver(place) : null
+    if (ro && box.current) ro.observe(box.current)
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [anchor, width])
+  }, [anchor, width, box])
   return style
 }
 
@@ -107,7 +122,7 @@ export function DatePopover({
   }))
   const [months, setMonths] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const pos = below(anchor, 310)
+  const pos = below(anchor, 310, box)
 
   /* Escape closes, and so does a press anywhere else. Pointerdown rather than
      click: a click that starts outside and ends inside must not close it. */
@@ -278,7 +293,7 @@ export function MonthField({
   const [shownYear, setShownYear] = useState(year)
   const anchor = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
-  const pos = below(anchor, 280)
+  const pos = below(anchor, 280, box)
 
   useEffect(() => { if (open) setShownYear(year) }, [open, year])
   useEffect(() => {

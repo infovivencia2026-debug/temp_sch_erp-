@@ -13,7 +13,7 @@ import { api, type List, type Page, type Student } from '@/lib/api'
    three times over. On Cloud Run that is three billed requests and three Neon
    reads for one unchanged list.
 
-   One key each, and five minutes of staleness. A roster changes when somebody
+   One key each. A roster changes when somebody
    is admitted or appointed, which is a handful of times a term; the mutations
    that do it invalidate ['students'] and ['employees'], and this key sits
    under those prefixes, so a new arrival still appears at once.
@@ -21,7 +21,17 @@ import { api, type List, type Page, type Student } from '@/lib/api'
    The hooks return the query untouched, so every call site keeps the shape it
    already reads (`students.data?.items`, `employees.isLoading`). */
 
-const ROSTER_STALE = 5 * 60_000
+
+/* SOMEBODY ELSE'S NEW ARRIVAL (Yajur, 2026-10-14: "other staff added a new
+   staff and I don't see that person in my login").
+
+   The invalidation above only reaches the browser that made the change. On
+   another login the cached roll stayed "fresh" for five minutes, survived a
+   reload through the persisted cache, and was never asked again while the
+   screen stayed open. So the roll is shown from cache at once, as before, and
+   then checked with the server every time a screen opens it and whenever the
+   tab comes back into view. */
+const ROSTER_FRESH = { staleTime: 0, refetchOnMount: 'always' as const, refetchOnWindowFocus: 'always' as const }
 
 /** Everyone on the payroll, for a name-picker. */
 export function useEmployeeRoster<T = EmployeeName>(): UseQueryResult<List<T>> {
@@ -34,7 +44,7 @@ export function useEmployeeRoster<T = EmployeeName>(): UseQueryResult<List<T>> {
        the substitution board are all fed from here -- with nothing anywhere
        to say a name was missing rather than absent. */
     queryFn: () => walkRoster<T>('/api/v1/hr/employees'),
-    staleTime: ROSTER_STALE,
+    ...ROSTER_FRESH,
   })
 }
 
@@ -99,6 +109,6 @@ export function useStudentRoster<T = Student>(): UseQueryResult<List<T>> {
   return useQuery({
     queryKey: ['students', 'roster'],
     queryFn: () => walkRoster<T>('/api/v1/students'),
-    staleTime: ROSTER_STALE,
+    ...ROSTER_FRESH,
   })
 }

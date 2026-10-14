@@ -459,6 +459,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                   <div className="space-y-4 p-4">
                     <FormGrid>
                       {([
+                        // Editable since 2026-10-14; a change is confirmed first (lib/confirm-overwrite.tsx).
                         ['employee_code', 'Staff code'],
                         ['first_name', 'First name'],
                         ['last_name', 'Last name'],

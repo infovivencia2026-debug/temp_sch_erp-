@@ -27,6 +27,15 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     verify: async (ctx, row) => {
       if (!(await employeeByCode(ctx, str(row.staff_code).trim(), true))) throw new Error(`nobody on the roll with employee code "${str(row.staff_code).trim()}". Import the staff first`)
     },
+    // Bank and IFSC are written as a pair: one given clears the other if blank.
+    replaces: async (ctx, row) => {
+      const bank = str(row.bank_account).trim(), ifsc = str(row.ifsc).trim()
+      if (bank === '' && ifsc === '') return []
+      const empId = await employeeByCode(ctx, str(row.staff_code).trim(), true)
+      const cur = empId ? await ctx.db.prepare(`SELECT bank_account, bank_ifsc FROM employees WHERE id = ?`).bind(empId).first<{ bank_account: string | null; bank_ifsc: string | null }>() : null
+      if (!cur) return []
+      return [{ field: 'bank_account', label: 'bank account', from: cur.bank_account, to: bank }, { field: 'bank_ifsc', label: 'IFSC', from: cur.bank_ifsc, to: ifsc }]
+    },
     write: async (ctx, row) => {
       const empId = await employeeByCode(ctx, str(row.staff_code).trim(), true)
       if (!empId) throw new Error('no rows in result set')
@@ -99,6 +108,20 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     verify: async (ctx, row) => {
       sheetRow(row)
       if (!(await employeeByCode(ctx, str(row.employee_id).trim(), false))) throw new Error(`nobody on the roll with EMP ID "${str(row.employee_id).trim()}". Import the staff first`)
+    },
+    // Each cell fills or replaces (a blank cell keeps what is there).
+    replaces: async (ctx, row) => {
+      const empId = await employeeByCode(ctx, str(row.employee_id).trim(), false)
+      const cur = empId ? await ctx.db.prepare(`SELECT phone, bank_account, bank_ifsc, aadhaar_last4, pan, uan FROM employees WHERE id = ?`).bind(empId).first<Record<string, string | null>>() : null
+      if (!cur) return []
+      const cell = (k: string) => str(row[k]).trim()
+      const digits = cell('aadhaar').replace(/\D/g, '')
+      const want: Record<string, string> = {
+        phone: cell('mobile_number').replace(/\D/g, '').slice(-10), bank_account: cell('bank_account_number').replace(/\s/g, ''), bank_ifsc: cell('ifsc').toUpperCase(),
+        aadhaar_last4: digits.length >= 4 ? digits.slice(-4) : '', pan: cell('pan').toUpperCase(), uan: cell('uan').replace(/\s/g, ''),
+      }
+      const label: Record<string, string> = { phone: 'phone', bank_account: 'bank account', bank_ifsc: 'IFSC', aadhaar_last4: 'Aadhaar (last 4)', pan: 'PAN', uan: 'UAN' }
+      return Object.entries(want).filter(([, v]) => v !== '').map(([k, v]) => ({ field: k, label: label[k], from: cur[k], to: v }))
     },
     write: async (ctx, row) => {
       sheetRow(row)
