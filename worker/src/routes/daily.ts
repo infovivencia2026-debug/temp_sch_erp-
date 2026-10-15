@@ -1124,14 +1124,31 @@ function registerWorkflow(r: Router) {
                     WHERE date(datetime(p.punched_at, '+330 minutes')) = ?1
                     GROUP BY p.employee_id) bp ON bp.employee_id = e.id
        WHERE e.status = 'active' ORDER BY e.employee_code`).bind(on).all()
-    return ok({ items: rows.results.map((v) => ({
+    /* A HOLIDAY ON THE SCHOOL CALENDAR (Yajur, 2026-10-15: "in calendar
+       school calendar holiday is set from and to date but in any role i dont
+       see that days as grey / holiday"). Dussehra ran 9-22 Oct; the register
+       showed forty blank rows as if forty people had not turned up. Every day
+       of the range is a holiday -- not only the first -- and anyone the reader
+       did not see that day is shown as on holiday, not unmarked. Someone who
+       came in keeps their punch. */
+    const hol = await staffHolidays(c.db, on, on)
+    const holiday = hol.get(on)
+    return ok({ holiday: holiday ?? undefined, items: rows.results.map((v) => ({
       user_id: v.user_id ?? '', needs_login: v.user_id == null,
       employee_code: v.employee_code, full_name: v.full_name,
-      status: v.status ?? undefined, check_in: hhmmIn(tz, v.check_in as string | null) ?? undefined,
+      status: v.status ?? (holiday && !v.check_in ? 'holiday' : undefined), check_in: hhmmIn(tz, v.check_in as string | null) ?? undefined,
       check_out: hhmmIn(tz, v.check_out as string | null) ?? undefined,
     })) })
   })
   r.post('/workflow/staff-attendance', 'hr.attendance.write', markStaffAttendance)
+  /* Every holiday day in a range, for any signed-in person: the date pickers
+     and calendars grey these out in every role. */
+  r.get('/calendar/holiday-days', 'auth', async (c) => {
+    const from = c.url.searchParams.get('from') ?? '', to = c.url.searchParams.get('to') ?? ''
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) throw badRequest('from and to must look like 2026-10-01')
+    const hol = await staffHolidays(c.db, from, to, true)
+    return ok({ items: [...hol.entries()].map(([date, h]) => ({ date, name: h.name, from: h.from, to: h.to })) })
+  })
   /* A MONTH OF ONE PERSON'S DAYS (owner, 2026-10-13: "let them see all month
      in and out"). Every day of the month, marked or not, with the mark, the
      first and last punch in 24-hour time, and the hours between them. */
@@ -1145,13 +1162,14 @@ function registerWorkflow(r: Router) {
     const byDay = new Map(rows.map((r) => [String(r.on_date), r]))
     const [y, m] = ym.split('-').map(Number)
     const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    const hol = await staffHolidays(c.db, `${ym}-01`, `${ym}-${String(days).padStart(2, '0')}`)
     const out = []
     for (let d = 1; d <= days; d++) {
       const on = `${ym}-${String(d).padStart(2, '0')}`
       const r = byDay.get(on)
       const ci = r?.check_in ?? null, co = r?.check_out ?? null
       const mins = ci && co ? Math.max(0, Math.round((Date.parse(co) - Date.parse(ci)) / 60000)) : null
-      out.push({ on_date: on, status: r?.status ?? undefined, check_in: hhmmIn(tz, ci) ?? undefined, check_out: hhmmIn(tz, co) ?? undefined,
+      out.push({ on_date: on, status: r?.status ?? (hol.has(on) && !ci ? 'holiday' : undefined), holiday: hol.get(on)?.name, check_in: hhmmIn(tz, ci) ?? undefined, check_out: hhmmIn(tz, co) ?? undefined,
         hours: mins == null ? undefined : `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`, source: r?.source ?? undefined, remarks: r?.remarks ?? undefined })
     }
     return ok({ items: out })
@@ -1162,6 +1180,27 @@ function registerWorkflow(r: Router) {
   r.get('/hr/attendance-requests', 'auth', listAttendanceRequests)
   r.post('/hr/attendance-requests', 'auth', askAttendanceFix)
   r.post('/hr/attendance-requests/{id}/decide', 'hr.attendance.write', decideAttendanceFix)
+}
+
+/** Each day from..to covered by a holiday on the school calendar, every day
+ *  of a ranged holiday included. Staff-facing by default (holidays for all,
+ *  staff or teaching); `anyone` includes student-only ones too, for calendars. */
+export async function staffHolidays(db: D1Database, from: string, to: string, anyone = false): Promise<Map<string, { name: string; from: string; to: string }>> {
+  const out = new Map<string, { name: string; from: string; to: string }>()
+  let rows: { name: string; on_date: string; to_date: string | null }[] = []
+  try {
+    rows = (await db.prepare(`SELECT name, on_date, to_date FROM holidays
+        WHERE kind IN ('holiday', 'vacation') AND on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1
+          AND (?3 = 1 OR applies_to IN ('all', 'staff', 'teaching')) ORDER BY on_date`).bind(from, to, anyone ? 1 : 0)
+      .all<{ name: string; on_date: string; to_date: string | null }>()).results
+  } catch { return out }
+  for (const h of rows) {
+    const end = h.to_date && h.to_date > h.on_date ? h.to_date : h.on_date
+    for (let d = h.on_date > from ? h.on_date : from; d <= end && d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) {
+      if (!out.has(d)) out.set(d, { name: h.name, from: h.on_date, to: end })
+    }
+  }
+  return out
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/

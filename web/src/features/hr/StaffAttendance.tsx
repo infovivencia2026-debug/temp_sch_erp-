@@ -47,6 +47,8 @@ const MARKS: { value: string; short: string; label: string; tone: string }[] = [
   { value: 'wfh', short: 'H', label: 'From home', tone: 'text-info border-info/40 bg-info/10' },
   /* Late with permission (Yajur, 2026-10-13): within an hour it is not a late mark, so no pay is cut. */
   { value: 'permission', short: 'Pr', label: 'Permission', tone: 'text-success border-success/40 bg-success/10' },
+  /* A day on the school calendar's holiday list: grey, and nobody's absent. */
+  { value: 'holiday', short: 'Hol', label: 'Holiday', tone: 'text-muted-foreground border-border-strong bg-muted' },
 ]
 
 export default function StaffAttendance() {
@@ -61,7 +63,7 @@ export default function StaffAttendance() {
 
   const q = useQuery({
     queryKey: ['staff-register', onDate],
-    queryFn: () => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${onDate}`),
+    queryFn: () => api.get<List<StaffRow> & { holiday?: { name: string; from: string; to: string } }>(`/api/v1/workflow/staff-register?on_date=${onDate}`),
   })
 
   const save = useMutation({
@@ -235,6 +237,13 @@ export default function StaffAttendance() {
               </span>
             }
           />
+          {q.data?.holiday && (
+            <div className="mx-[var(--card-pad)] mb-3 rounded-md border border-border bg-muted px-3 py-2 text-[13.5px] text-muted-foreground">
+              <strong className="text-foreground">Holiday: {q.data.holiday.name}</strong>
+              {q.data.holiday.to !== q.data.holiday.from && <> ({q.data.holiday.from} to {q.data.holiday.to})</>}
+              . Anyone the reader did not see today is shown as on holiday.
+            </div>
+          )}
           {q.isLoading ? (
             <SkeletonTable columns={5} />
           ) : q.error ? (

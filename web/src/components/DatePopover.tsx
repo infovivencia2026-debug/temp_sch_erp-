@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Z_ABOVE_DIALOGS } from './anchored'
 
@@ -121,6 +122,24 @@ export function DatePopover({
     m: picked?.m ?? today.getMonth(),
   }))
   const [months, setMonths] = useState(false)
+  /* HOLIDAYS GREY (Yajur, 2026-10-15: "holiday is set from and to date but
+     in any role i dont see that days as grey"). Every day of a ranged
+     holiday, from the school calendar. Plain fetch, not api(): a date box on
+     a signed-out page must not bounce anyone to the login screen, and a
+     calendar that cannot load holidays is still a calendar. */
+  const monthKey = `${view.y}-${pad(view.m + 1)}`
+  const hol = useQuery({
+    queryKey: ['holiday-days', monthKey],
+    queryFn: async () => {
+      const last = new Date(view.y, view.m + 1, 0).getDate()
+      const r = await fetch(`/api/v1/calendar/holiday-days?from=${monthKey}-01&to=${monthKey}-${pad(last)}`, { credentials: 'include' })
+      if (!r.ok) return new Map<string, string>()
+      const j = await r.json() as { items?: { date: string; name: string }[]; data?: { items?: { date: string; name: string }[] } }
+      const list = j.items ?? j.data?.items ?? []
+      return new Map(list.map((h) => [h.date, h.name]))
+    },
+    staleTime: 10 * 60_000, retry: false,
+  })
   const box = useRef<HTMLDivElement>(null)
   const pos = below(anchor, 310, box)
 
@@ -223,17 +242,21 @@ export function DatePopover({
               const isToday = today.getFullYear() === view.y && today.getMonth() === view.m
                 && today.getDate() === d
               const off = outOfRange(d)
+              const holiday = hol.data?.get(iso(view.y, view.m, d))
               return (
                 <button
                   key={d}
                   type="button"
                   disabled={off}
+                  title={holiday ? `Holiday: ${holiday}` : undefined}
+                  aria-label={holiday ? `${d}, holiday: ${holiday}` : undefined}
                   onClick={() => { onChange(iso(view.y, view.m, d)); onClose() }}
                   className={cn(
                     'relative mx-auto grid aspect-square w-9 place-items-center rounded-full text-[14.5px]',
                     'transition-transform active:scale-90',
                     off && 'cursor-not-allowed opacity-30',
                     !off && !isPicked && 'hover:bg-accent',
+                    holiday && !isPicked && 'bg-muted text-muted-foreground line-through decoration-muted-foreground/50',
                     isPicked && 'bg-primary font-semibold text-primary-foreground',
                   )}
                 >
