@@ -97,6 +97,26 @@ export function useFeatureHref(key: string): string | undefined {
   return undefined
 }
 
+/** Any of several feature keys, whichever this person's roles answer first, in
+    the order given (owner, 2026-10-15: a notification knows what kind of
+    thing happened, not which of a dozen role-prefixed catalogue keys holds
+    that screen for this particular person -- "communication.messages" is a
+    different key under every role that carries it, "circulars" under others
+    still. One hook call rather than one per candidate, so the list can be as
+    long as the catalogue needs without multiplying hooks. */
+export function useFeatureHrefAny(keys: string[]): string | undefined {
+  const catalog = useCatalog()
+  for (const key of keys) {
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        const feature = section.features.find((f) => f.key === key)
+        if (feature && usable(feature)) return `/${role.key}/${section.slug}/${feature.slug}`
+      }
+    }
+  }
+  return undefined
+}
+
 // --- cells --------------------------------------------------------------
 
 export type CellSpan = 'anchor' | 'wide' | 'one' | 'tall' | 'full'

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useFeatureHref } from '@/features/bento/bento-kit'
+import { useFeatureHref, useFeatureHrefAny } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X, Images, ChevronRight, Video } from 'lucide-react'
@@ -319,12 +319,38 @@ export default function Notifications() {
      still land somewhere sensible for a parent: the kind names the screen.
      Each href is undefined for a reader who does not hold that screen, so
      staff see nothing they cannot open. */
+  /* EVERY ROLE'S OWN MESSAGES SCREEN, NOT ONLY THE PARENT'S (owner,
+     2026-10-15: "I see the notification number but no messages... every
+     notification, every role should open what it is about"). A "message"
+     or "chat" notification -- the one kind with no fallback at all before
+     this -- had nowhere to go for anyone who was not a parent, which is
+     most of the people this bell rings for: a teacher, the front office, HR,
+     a librarian, each sees the identical "communication.messages" screen
+     under their own role's key. Tried in this fixed order (parent first,
+     since a family account is never also one of the roles below it), the
+     first one this person actually holds wins. */
+  const messagesHref = useFeatureHrefAny([
+    'parent.messages.communication',
+    'faculty.communication.messages', 'institution_admin.communication.messages', 'hod.communication.messages',
+    'hr.communication.messages', 'finance.communication.messages', 'front_office.communication.messages',
+    'librarian.communication.messages', 'nurse.communication.messages', 'counsellor.communication.messages',
+    'admissions.communication.messages', 'exam_controller.communication.messages', 'discipline_officer.communication.messages',
+    'hostel_warden.communication.messages', 'transport_manager.communication.messages', 'activity_coord.communication.messages',
+    'it_admin.communication.messages', 'operations.communication.messages',
+  ])
+  /* A circular is read on the same screen a parent reads it on; staff who
+     must acknowledge one have their own circulars desk. */
+  const circularHref = useFeatureHrefAny([
+    'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
+  ])
   const fallback: Record<string, string | undefined> = {
     transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
     fee: useFeatureHref('parent.fees.fees_payments'),
     attendance: useFeatureHref('parent.attendance.attendance'),
     homework: useFeatureHref('parent.academics.homework_academics'),
     result: useFeatureHref('parent.academics.results_report_cards'),
+    message: messagesHref,
+    circular: circularHref,
   }
   const linkFor = (n: Note): string | undefined => {
     /* The digest rows (fee_due, attendance) carry the API-shaped link Go
@@ -338,6 +364,11 @@ export default function Notifications() {
     if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
     if (k.startsWith('homework')) return fallback.homework
     if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
+    // A broadcast or a direct message carries its kind as the template code
+    // (payroll.payslip, fee_reminder, ...) and most of those already matched
+    // a branch above; the two literal, kindless cases are message and chat.
+    if (k === 'message' || k === 'chat' || k.startsWith('message_') || k.startsWith('chat_')) return fallback.message
+    if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
     return undefined
   }
   const openNote = (n: Note) => {
@@ -387,10 +418,18 @@ export default function Notifications() {
      opens on an empty side by default. */
   /* The owner's split: Messages is every notification; Activity is status
      posts (the e-learning hub's photo, video and note statuses). */
-  const shownType = type ?? 'messages'
+  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
+  /* THE BELL'S OWN NUMBER, OPENED ONTO (owner, 2026-10-15: "I see the
+     notification number but I don't see any messages"). The drawer always
+     opened on Messages, which is right unless every one of today's unread
+     rows happens to be a class-status post -- then the bell said "3" and the
+     tab it landed on said nothing, with Activity, carrying the three, one
+     tap away and no sign it was there. The default now looks at what is
+     actually unread before choosing a side; a person's own choice (`type`)
+     still wins once they have picked one. */
+  const shownType = type ?? (countFor('messages') > 0 || countFor('activity') === 0 ? 'messages' : 'activity')
   const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
   void newStatuses
-  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
   void isMessage
   /* Status updates live in Activity; Messages is everything else (the owner's rule). */
   const isStatusNote = (n: Note) => /status/.test(n.kind)
