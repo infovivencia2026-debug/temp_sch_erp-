@@ -330,11 +330,20 @@ function DirectoryPanel({
           </button>
         ))}
       </div>
-      <CellGrid cols={3}>
-        <Stat label="Total students" value={scoped.length} />
-        <Stat label="With photos" value={coveredCount} />
-        <Stat label="Missing photographs" value={missingCount} />
-      </CellGrid>
+      {/* A GAP ON EVERY SIDE, NOT JUST A CHILD (owner, 2026-10-15: "touching
+          all the lines"). CellGrid draws its own border and shadow, which
+          everywhere else in the product sits on the page itself, clear of
+          anything around it; dropped flush against the tab strip above and
+          the filters below, inside this one Card, both edges read as one
+          touching line instead of three separate things. The same padding
+          every other row in this card already carries keeps it clear. */}
+      <div className="px-[var(--card-pad)] pb-4 pt-3">
+        <CellGrid cols={3}>
+          <Stat label="Total students" value={scoped.length} />
+          <Stat label="With photos" value={coveredCount} />
+          <Stat label="Missing photographs" value={missingCount} />
+        </CellGrid>
+      </div>
       <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] pb-3">
         <Select
           value={cls}
