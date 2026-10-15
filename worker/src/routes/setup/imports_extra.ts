@@ -144,12 +144,27 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
     if (m) return t
     m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(t)
-    if (!m) throw new Error(`Date of Joining "${t}" is not a date like 01/06/2024`)
+    /* NOT GUESSED (owner, 2026-10-15: Yajur's September sheet). One column
+       held "1/1/2024", "4/19/2024", "22-03-2024" and "12.08.2026": slashes
+       saved by Excel month-first, dashes and dots typed day-first. Read as
+       day-first throughout, "4/19/2024" became month 19 and was stored. So a
+       date is taken only when it can be read one way: a part over 12 says
+       which is the day; two parts that are both 12 or under are ambiguous
+       and the date is left as it was. Payroll does not need it, and a wrong
+       joining date is worse than none. */
+    if (!m) return null
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])
-    return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+    const a = Number(m[1]), b = Number(m[2])
+    let day: number, month: number
+    if (a > 12 && b <= 12) { day = a; month = b }
+    else if (b > 12 && a <= 12) { day = b; month = a }
+    else if (a === b) { day = a; month = b }
+    else return null
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null
+    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
   const SHEET_OLD: [string, string][] = [['employee_id', 'emp_id'], ['employee_name', 'name'], ['date_of_joining', 'd.o.j'],
-    ['bank_account_number', 'a/c_number'], ['ifsc', 'ifsc_code'], ['aadhaar', 'aadhar']]
+    ['bank_account_number', 'a/c_number'], ['ifsc', 'ifsc_code'], ['aadhaar', 'aadhar'], ['designation', 'desig_nation']]
   const sheetRow = (row: Record<string, string>) => {
     for (const [now, was] of SHEET_OLD) if ((row[now] ?? '') === '' && (row[was] ?? '') !== '') row[now] = row[was]
   }
@@ -177,12 +192,24 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
          had every UAN as 1.01711E+11). The digits after the fifth are gone, so
          saving it would store a wrong UAN or account number. Refused, with the
          fix, rather than kept. */
+      /* A UAN, account number or Aadhaar Excel has shortened ("1.01711E+11")
+         has lost its digits, so that one cell is dropped and the record keeps
+         what it had. Refusing the row instead threw away the salary split the
+         school typed beside it -- on Yajur's sheet, all 47 rows over one
+         column. An amount in that shape is still refused: pay is not guessed. */
+      for (const k of ['uan', 'bank_account_number', 'a/c_number', 'aadhaar', 'aadhar']) {
+        if (/^\s*\d(\.\d+)?e\+\d+\s*$/i.test(str(row[k]))) row[k] = ''
+      }
       for (const [k, v] of Object.entries(row)) {
         if (/^\s*\d(\.\d+)?e\+\d+\s*$/i.test(str(v))) throw new Error(`${k.replace(/_/g, ' ')} is "${str(v).trim()}": Excel has shortened this number and the real digits are lost. In Excel, set that column to Text, type the numbers again, and save`)
       }
       sheetDate(row.date_of_joining)
-      const fixed = new Set([...SHEET_FIXED.map(normaliseHeader), ...SHEET_OLD.map(([, was]) => normaliseHeader(was)), ...PF_KEYS])
-      for (const [k, v] of Object.entries(row)) if (!fixed.has(k) && str(v).trim() !== '') payCell(str(v))
+      /* Only the pay parts are amounts. A school's own sheet carries columns
+         the import does not use (S.No., LOAN, GROSS, the statutory totals);
+         write() never reads them, so they are not checked here either. The
+         school's own component names are checked in verify(). */
+      const payKeys = new Set(Object.values(SHEET_ALIAS).flat())
+      for (const [k, v] of Object.entries(row)) if (payKeys.has(k) && str(v).trim() !== '') payCell(str(v))
       const pfp = str(row[PF_KEYS[0]]).trim()
       if (pfp !== '') { const n = Number(pfp.replace('%', '')); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`Provident fund % "${pfp}" should be between 0 and 100`) }
       pfOnCell(str(row[PF_KEYS[1]]))
@@ -190,6 +217,7 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     verify: async (ctx, row) => {
       sheetRow(row)
       if (!(await employeeByCode(ctx, str(row.employee_id).trim(), false))) throw new Error(`nobody on the roll with Employee ID "${str(row.employee_id).trim()}". Import the staff first`)
+      for (const comp of await sheetComps(ctx.db)) payCell(compCell(row, comp))
     },
     // Each cell fills or replaces (a blank cell keeps what is there).
     replaces: async (ctx, row) => {

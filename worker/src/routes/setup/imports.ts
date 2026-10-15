@@ -1305,7 +1305,12 @@ export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, emp
 /* --- the engine ----------------------------------------------------------------- */
 
 export function normaliseHeader(h: string): string {
-  return h.replace(/^﻿/, '').trim().toLowerCase().replace(/ /g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '')
+  /* Any run of whitespace -- a line break Excel put inside a wrapped heading
+     ("EMP
+ ID", "GROSS
+SALARY") as much as a space -- is one underscore,
+     so a heading reads the same however its cell was wrapped. */
+  return h.replace(/^﻿/, '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '')
 }
 
 /** RFC 4180 CSV: quoted fields, doubled quotes, newlines inside quotes, ragged rows kept. */
