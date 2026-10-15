@@ -162,7 +162,7 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
     db.prepare(`UPDATE staff_attendance SET
           check_in = MIN(COALESCE(check_in, '9999'), (SELECT MIN(p.punched_at) FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)),
-          check_out = (SELECT CASE WHEN MAX(p.punched_at) > MIN(p.punched_at) THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 5.0 / 1440 THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
           status = 'present'
         WHERE institution_id = ?1 AND source = 'device' AND on_date >= date(?2, '+330 minutes')
