@@ -561,7 +561,7 @@ function computeStatutory(set: PayrollSettings, basicPlusDA: number, gross: numb
    for them; the employer's share stays at the school rate. Read apart from the
    run's main query so a database without the migration still runs. */
 type PfMode = 'default' | 'none' | 'basic' | 'basic_da'
-interface PfPerson { mode: PfMode; percent: number | null }
+interface PfPerson { mode: PfMode; percent: number | null; esi?: boolean }
 const PF_MODES = ['default', 'none', 'basic', 'basic_da'] as const
 async function pfOverrides(c: Ctx): Promise<Map<string, PfPerson>> {
   const out = new Map<string, PfPerson>()
@@ -570,6 +570,12 @@ async function pfOverrides(c: Ctx): Promise<Map<string, PfPerson>> {
       .all<{ id: string; pf_mode: string; pf_percent: number | null }>()
     for (const r of rows.results) out.set(r.id, { mode: pick(r.pf_mode, PF_MODES, 'default'), percent: num(r.pf_percent) })
   } catch { /* migration 0085 not applied: nobody overridden */ }
+  /* ESI for one person (migration 0088): 0 = no ESI from or for them, even
+     under the wage limit, as on Yajur's own sheet. */
+  try {
+    const rows = await c.db.prepare(`SELECT id FROM employees WHERE esi_applies = 0`).all<{ id: string }>()
+    for (const r of rows.results) out.set(r.id, { ...(out.get(r.id) ?? { mode: 'default', percent: null }), esi: false })
+  } catch { /* migration 0088 not applied */ }
   return out
 }
 /** The PF wage for one person: the school's (passed in) unless they have their own choice. */
@@ -578,7 +584,9 @@ function personPfWage(p: PfPerson | undefined, basic: number, da: number, school
   return p.mode === 'none' ? 0 : p.mode === 'basic' ? basic : basic + da
 }
 function personSettings(set: PayrollSettings, p: PfPerson | undefined): PayrollSettings {
-  return p?.percent != null && p.percent >= 0 ? { ...set, pf_employee_percent: p.percent } : set
+  let out = p?.percent != null && p.percent >= 0 ? { ...set, pf_employee_percent: p.percent } : set
+  if (p?.esi === false) out = { ...out, esi_enabled: false }
+  return out
 }
 
 /** One day's pay under the school's "deduct a day's pay" rule: gross, or CTC
@@ -1366,10 +1374,10 @@ function registerPayrollGroup(r: Router) {
     const out = rows.results.map((v) => ({
       employee_id: String(v.employee_id), employee_code: v.employee_code, full_name: v.full_name,
       structure_id: v.structure_id == null ? undefined : String(v.structure_id), effective_from: v.effective_from ?? undefined,
-      ctc_paise: numOr0(v.ctc_paise), pf_mode: 'default' as PfMode, pf_percent: null as number | null, items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
+      ctc_paise: numOr0(v.ctc_paise), pf_mode: 'default' as PfMode, pf_percent: null as number | null, esi_applies: true, items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
     }))
     const pfPeople = await pfOverrides(c)
-    for (const o of out) { const p = pfPeople.get(o.employee_id); if (p) { o.pf_mode = p.mode; o.pf_percent = p.percent } }
+    for (const o of out) { const p = pfPeople.get(o.employee_id); if (p) { o.pf_mode = p.mode; o.pf_percent = p.percent }; o.esi_applies = p?.esi !== false }
     const byStructure = new Map(out.filter((o) => o.structure_id).map((o) => [o.structure_id!, o]))
     if (byStructure.size > 0) {
       const ids = [...byStructure.keys()]
@@ -1387,7 +1395,7 @@ function registerPayrollGroup(r: Router) {
   })
   r.post('/payroll/structures', PAYROLL_WRITE, async (c) => {
     let body: { employee_id?: string; effective_from?: string; items?: { component_id: string; amount_paise?: number; percent?: number | null }[]
-      pf_mode?: string; pf_percent?: number | string | null }
+      pf_mode?: string; pf_percent?: number | string | null; esi_applies?: boolean | number }
     try { body = await c.req.json() } catch { throw badRequest('Send a salary.') }
     const empId = (body.employee_id ?? '').trim()
     if (!isUUID(empId)) throw badRequest('Choose whose salary this is.')
@@ -1418,6 +1426,11 @@ function registerPayrollGroup(r: Router) {
       try {
         await c.db.prepare(`UPDATE employees SET pf_mode = ?, pf_percent = ? WHERE id = ?`).bind(pick(body.pf_mode, PF_MODES, 'default'), pfPct, empId).run()
       } catch { throw badRequest('The salary is saved, but this school is not set up for a PF choice per person yet; ask support to update the database.') }
+    }
+    if (body.esi_applies !== undefined) {
+      try {
+        await c.db.prepare(`UPDATE employees SET esi_applies = ? WHERE id = ?`).bind(body.esi_applies === false || body.esi_applies === 0 ? 0 : 1, empId).run()
+      } catch { throw badRequest('The salary is saved, but this school is not set up for an ESI choice per person yet; ask support to update the database.') }
     }
     return ok({ structure_id: newId })
   })

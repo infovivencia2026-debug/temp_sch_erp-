@@ -264,6 +264,32 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
         } catch { throw new Error('PF by person needs a database update first (migration 0085)') }
       }
 
+      /* THE SHEET'S OWN PF AND ESI COLUMNS (Yajur, 2026-10-15: "from now on
+         all the payrolls should be match"). A school's sheet often carries
+         what it actually took -- "Employee EPF Share", "Employee ESI" -- and
+         a 0 there for someone who has a Basic, or who is under the ESI limit,
+         is the school's choice for that person. Read as that choice, so every
+         later month comes out the same as the sheet. A column that is absent
+         changes nothing. */
+      const statCol = (prefix: string) => Object.keys(row).find((k) => k.startsWith(prefix) && str(row[k]).trim() !== '')
+      const epfKey = statCol('employee_epf'), esiKey = statCol('employee_esi')
+      if (epfKey && pfPct === '' && pfOn === null) {
+        const took = Number(str(row[epfKey]).replace(/,/g, ''))
+        const basicCell = Number(str(row.basic ?? row.basic_pay ?? '').replace(/,/g, ''))
+        if (Number.isFinite(took) && basicCell > 0) {
+          try { await ctx.db.prepare(`UPDATE employees SET pf_mode = ? WHERE id = ?`).bind(took === 0 ? 'none' : 'default', empId).run() } catch { /* 0085 not applied */ }
+        }
+      }
+      if (esiKey) {
+        const took = Number(str(row[esiKey]).replace(/,/g, ''))
+        /* Above the ESI limit a 0 is the law, not a choice: left alone. */
+        const grossKey = Object.keys(row).find((k) => k.startsWith('gross'))
+        const sheetGross = grossKey ? Number(str(row[grossKey]).replace(/,/g, '')) : NaN
+        if (Number.isFinite(took) && (took > 0 || (Number.isFinite(sheetGross) && sheetGross > 0 && sheetGross <= 21000))) {
+          try { await ctx.db.prepare(`UPDATE employees SET esi_applies = ? WHERE id = ?`).bind(took > 0 ? 1 : 0, empId).run() } catch { /* 0088 not applied */ }
+        }
+      }
+
       // The pay parts: rupees as given, percents worked out from Basic (or
       // the gross of the rupee cells, for a part whose rule is of the gross).
       const comps = await sheetComps(ctx.db)

@@ -59,6 +59,7 @@ interface Row {
   ctc_paise: number
   pf_mode?: PfMode
   pf_percent?: number | null
+  esi_applies?: boolean
   items: Item[]
 }
 
@@ -223,6 +224,7 @@ export default function SalarySetup() {
   const [pickSearch, setPickSearch] = useState('')
   const [pfMode, setPfMode] = useState<PfMode>('default')
   const [pfPct, setPfPct] = useState('')
+  const [esiOn, setEsiOn] = useState('yes')
   const [newName, setNewName] = useState('')
   const [newKind, setNewKind] = useState('earning')
   const [newRule, setNewRule] = useState<Line>({ mode: 'amt', val: '' })
@@ -260,7 +262,7 @@ export default function SalarySetup() {
 
   // Paise in the database, so no salary is ever a float. The percent rides
   // along so the form reopens as it was filled.
-  const post = (employee_id: string, effective_from: string, l: Lines, split: Record<string, number>, pf?: { pf_mode: PfMode; pf_percent: string }) =>
+  const post = (employee_id: string, effective_from: string, l: Lines, split: Record<string, number>, pf?: { pf_mode: PfMode; pf_percent: string; esi_applies?: boolean }) =>
     api.post('/api/v1/payroll/structures', {
       employee_id,
       effective_from,
@@ -276,7 +278,7 @@ export default function SalarySetup() {
 
   const save = useMutation({
     mutationFn: (v: { employee_id: string; split: Record<string, number> }) =>
-      post(v.employee_id, from, lines, v.split, { pf_mode: pfMode, pf_percent: pfMode === 'none' ? '' : pfPct }),
+      post(v.employee_id, from, lines, v.split, { pf_mode: pfMode, pf_percent: pfMode === 'none' ? '' : pfPct, esi_applies: esiOn === 'yes' }),
     onSuccess: () => {
       setDone('Saved. The next payroll run pays these amounts.')
       setOpen(null)
@@ -602,6 +604,7 @@ export default function SalarySetup() {
                       setLines(seed)
                       setPfMode(r.pf_mode ?? 'default')
                       setPfPct(r.pf_percent != null ? String(r.pf_percent) : '')
+                      setEsiOn(r.esi_applies === false ? 'no' : 'yes')
                     }}
                     disabled={components.length === 0}
                   >
@@ -647,6 +650,9 @@ export default function SalarySetup() {
                   <Input type="number" value={pfPct} onChange={setPfPct} placeholder="school rate" />
                 </Field>
               )}
+              <Field label="ESI" hint="No ESI is taken for this person, even under the wage limit.">
+                <Select value={esiOn} onChange={setEsiOn} options={[{ value: 'yes', label: 'School rule' }, { value: 'no', label: 'No ESI' }]} />
+              </Field>
             </FormGrid>
             <LineInputs comps={components} lines={lines} setLines={setLines} split={split} />
             {/* ON THE CARD'S OWN PADDING (owner, 2026-10-13): the table runs
