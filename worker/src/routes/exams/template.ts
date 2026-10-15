@@ -215,3 +215,97 @@ export const defaultReportCardCSS = `
   .card tr { break-inside: avoid; }
 }
 `
+
+/* THE SCHOOL FORMAT (Yajur Public School, 2026-10-15: "change the report card
+   template to this"). Their file was a blank sheet to type into -- a print
+   toolbar and contenteditable cells. Here every cell is filled from the
+   record: the subjects are only the papers the timetable dated (see
+   examinedPaper in card.ts), the bands are the exam's grading scale, the
+   attendance is the exam's term with months across, and the chart is plain
+   HTML bars so it prints in grey on any printer. Sized to one A4 page per
+   child at the application's print margin. */
+export const schoolFormatHTML = `<div class="yrc">
+  <div class="yrc-frame">
+    <header class="yrc-head">
+      <div class="yrc-seal">{{school_seal}}</div>
+      <div class="yrc-school">{{school_name}}</div>
+      <div class="yrc-address">{{school_address}}</div>
+      <div class="yrc-report">{{exam_name}} REPORT - {{academic_year}}</div>
+      <div class="yrc-photo">{{photo}}</div>
+    </header>
+    <table class="yrc-info">
+      <tr><td class="yrc-l">ROLL NO</td><td>{{roll_no}}</td><td class="yrc-l">ACADEMIC YEAR</td><td>{{academic_year}}</td></tr>
+      <tr><td class="yrc-l">STUDENT NAME</td><td>{{student_name}}</td><td class="yrc-l">ASSESSMENT</td><td>{{exam_name}}</td></tr>
+      <tr><td class="yrc-l">D.O.B</td><td>{{date_of_birth}}</td><td class="yrc-l">FATHER NAME</td><td>{{father_name}}</td></tr>
+      <tr><td class="yrc-l">GRADE</td><td>{{class}} - {{section}}</td><td class="yrc-l">MOBILE NUMBER</td><td>{{mobile_number}}</td></tr>
+    </table>
+    <table class="yrc-marks">
+      <colgroup><col style="width:7%"><col style="width:25%"><col style="width:17%"><col style="width:18%"><col style="width:15%"><col style="width:18%"></colgroup>
+      <thead><tr><th>S.No</th><th>SUBJECTS</th><th>Total Marks</th><th>Obtained Marks</th><th>Grade</th><th>Percentage</th></tr></thead>
+      <tbody>
+        {{subject_rows_numbered}}
+        <tr class="yrc-total"><td colspan="2">GRAND TOTAL</td><td>{{total_marks}}</td><td>{{marks_obtained}}</td><td>{{grade}}</td><td>{{percentage}}</td></tr>
+      </tbody>
+    </table>
+    <div class="yrc-small">Scholastic Grades:</div>
+    {{grade_band_table}}
+    <div class="yrc-remarks">Class Teacher's Remarks:<div class="yrc-remark">{{class_teacher_remarks}}</div></div>
+    {{attendance_table}}
+    <div class="yrc-chart-title">Student Performance {{exam_name}}</div>
+    {{grade_chart}}
+    <table class="yrc-signs">
+      <tr><td><div class="yrc-ink">{{class_teacher_sign}}</div>Class Teacher</td><td><div class="yrc-ink">{{principal_sign}}</div>Principal</td><td><div class="yrc-ink"></div>Parent</td></tr>
+      <tr><td class="yrc-date">Date :</td><td class="yrc-date">Date :</td><td class="yrc-date">Date :</td></tr>
+    </table>
+  </div>
+</div>`
+
+export const schoolFormatCSS = `
+.yrc { width: 100%; max-width: 186mm; margin: 0 auto; background: #fff; color: #141414;
+  font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; box-sizing: border-box;
+  break-after: page; page-break-after: always; break-inside: avoid; page-break-inside: avoid;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.yrc:last-child { break-after: auto; page-break-after: auto; }
+.yrc * { box-sizing: border-box; }
+.yrc-frame { border: 2px solid #171717; padding: 6px 8px 8px; }
+.yrc-head { text-align: center; position: relative; min-height: 84px; padding: 4px 76px 8px; }
+.yrc-school { font-family: Georgia, 'Times New Roman', serif; font-weight: 900; font-size: 24px; letter-spacing: -0.5px; text-transform: uppercase; }
+.yrc-address { font-weight: bold; font-size: 9.5px; margin-top: 3px; text-transform: uppercase; }
+.yrc-report { font-size: 15px; font-weight: 800; text-decoration: underline; margin-top: 6px; text-transform: uppercase; }
+.yrc-seal { position: absolute; left: 0; top: 6px; width: 66px; height: 66px; border: 3px double #333; border-radius: 50%;
+  overflow: hidden; text-align: center; font-size: 8px; font-weight: bold; padding: 6px; line-height: 1.15;
+  display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
+.yrc-photo { position: absolute; right: 0; top: 4px; width: 60px; height: 72px; border: 1px solid #555; overflow: hidden; }
+.yrc table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.yrc td, .yrc th { border: 1px solid #444; padding: 3px 4px; vertical-align: middle; }
+.yrc-info td { height: 21px; }
+.yrc-info .yrc-l { font-weight: bold; background: #f4f4f4; width: 22%; }
+.yrc-marks { margin-top: 10px; }
+.yrc-marks th, .yrc-marks td { text-align: center; }
+.yrc-marks th:nth-child(2), .yrc-marks td:nth-child(2) { text-align: left; }
+.yrc-marks td { height: 22px; }
+.yrc-total td { font-weight: bold; background: #eee; }
+.yrc-small { font-size: 10.5px; font-weight: 700; margin: 9px 0 3px; }
+.yrc-grading td { text-align: center; padding: 3px 2px; }
+.yrc-grading td:first-child { text-align: left; font-weight: 700; width: 14%; }
+.yrc-remarks { margin-top: 10px; border: 1px solid #444; min-height: 58px; padding: 6px 8px; font-weight: 700; }
+.yrc-remark { font-weight: normal; margin-top: 3px; }
+.yrc-attend { margin-top: 10px; }
+.yrc-attend td, .yrc-attend th { text-align: center; height: 21px; }
+.yrc-attend td:first-child, .yrc-attend th:first-child { text-align: left; width: 18%; font-weight: bold; }
+.yrc-chart-title { text-align: center; font-weight: bold; margin: 10px 0 5px; text-transform: uppercase; }
+.yrc-chart { height: 150px; border: 1px solid #444; display: flex; padding: 14px 10px 22px; }
+.yrc-y { display: flex; flex-direction: column; justify-content: space-between; width: 28px; font-size: 9px; color: #444; }
+.yrc-plot { flex: 1; border-left: 1px solid #888; border-bottom: 1px solid #888; display: flex; align-items: flex-end; justify-content: space-around; height: 100%; }
+.yrc-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; position: relative; }
+.yrc-barbox { height: 100%; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.yrc-bar { width: 26px; max-width: 70%; background: #8a8a8a; border: 1px solid #333; border-bottom: 0; position: relative; min-height: 1px; }
+.yrc-bg { position: absolute; top: -13px; left: -10px; right: -10px; text-align: center; font-size: 9px; font-weight: bold; }
+.yrc-sub { position: absolute; bottom: -16px; left: 0; right: 0; text-align: center; font-size: 8.5px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.yrc-signs { margin-top: 10px; }
+.yrc-signs td { height: 46px; vertical-align: bottom; font-weight: bold; text-align: center; }
+.yrc-ink { height: 26px; }
+.yrc-ink img { height: 26px; width: auto; max-width: 100%; object-fit: contain; display: inline-block; }
+.yrc-signs .yrc-date { height: 19px; text-align: left; vertical-align: middle; }
+`

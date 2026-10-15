@@ -44,6 +44,8 @@ type ReportCard = ReportCardBody
 
 /** The design the school prints on. */
 interface Template {
+  /** 'standard' or 'school' (the built-in choice), 'custom' once imported. */
+  design?: string
   name: string
   template_html: string
   is_built_in: boolean
@@ -315,6 +317,16 @@ export default function ReportCards() {
       api.post('/api/v1/exams/report-cards/template', v),
     onSuccess: (_r, v) => {
       setOutcome(`"${v.name}" is now the design every report card prints on.`)
+      qc.invalidateQueries({ queryKey: ['report-card-template'] })
+    },
+  })
+  /* The built-in design to print on when nothing is imported: the standard
+     card, or the school's bordered format with the grade chart. A setting,
+     so it never overwrites an imported design. */
+  const chooseDesign = useMutation({
+    mutationFn: (design: string) => api.post('/api/v1/exams/report-cards/design', { design }),
+    onSuccess: (_r, design) => {
+      setOutcome(design === 'school' ? 'Report cards now print on the school format.' : 'Back to the standard design.')
       qc.invalidateQueries({ queryKey: ['report-card-template'] })
     },
   })
@@ -591,6 +603,18 @@ export default function ReportCards() {
                     back. A panel explaining what a design is belonged to
                     somebody setting this up for the first time, and it sat on
                     the screen for everybody who prints results every term. */}
+                {template.data && template.data.template.is_built_in && (
+                  <Button
+                    variant="ghost"
+                    disabled={chooseDesign.isPending}
+                    onClick={() => chooseDesign.mutate(template.data!.template.design === 'school' ? 'standard' : 'school')}
+                    title={template.data.template.design === 'school'
+                      ? 'Printing on the school format. This goes back to the standard design.'
+                      : 'Print on the school format: bordered sheet, numbered subjects, grade bands, monthly attendance and a grade chart.'}
+                  >
+                    {template.data.template.design === 'school' ? 'Use standard design' : 'Use school format'}
+                  </Button>
+                )}
                 {template.data && !template.data.template.is_built_in && (
                   <Button
                     variant="ghost"
