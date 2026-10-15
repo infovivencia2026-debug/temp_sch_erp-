@@ -20,6 +20,7 @@ import { useSession } from '@/lib/session'
 import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import { PhotoViewer } from '@/components/PhotoViewer'
 import {
   FeeLedger, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, CoScholastic,
@@ -311,6 +312,7 @@ export default function StudentProfile() {
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState(false)
   const [admitting, setAdmitting] = useState(false)
+  const [viewingPhoto, setViewingPhoto] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
     queryFn: () => api.call('GET /students/{id}', { params: { id: selected! } }),
@@ -1933,20 +1935,32 @@ export default function StudentProfile() {
         }}
       />
     )}
+    {viewingPhoto && p.photo_file_id && (
+      <PhotoViewer src={`/api/v1/files/${p.photo_file_id}?inline=1`} name={`${p.full_name}'s photo`} onClose={() => setViewingPhoto(false)} />
+    )}
     <RecordShell
       title={p.full_name}
       /* The face and the class at the top, where the eye lands first; the
          attendance and fee figures are on the Overview tiles below. */
       media={
         <span className="relative shrink-0">
-        <span className="relative grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full border-2 border-card bg-primary/10 text-[22px] font-bold text-primary shadow-md">
+        {/* A TAP OPENS THE PHOTO, THE WAY A CHAT APP'S PROFILE PICTURE DOES
+            (owner, 2026-10-15). Only when there is a photo to show -- the
+            initials fallback has nothing to open. */}
+        <button
+          type="button"
+          onClick={() => p.photo_file_id && setViewingPhoto(true)}
+          disabled={!p.photo_file_id}
+          aria-label={p.photo_file_id ? `View ${p.full_name}'s photo` : undefined}
+          className="relative grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full border-2 border-card bg-primary/10 text-[22px] font-bold text-primary shadow-md disabled:cursor-default"
+        >
           {p.full_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
           {p.photo_file_id && (
             <img src={`/api/v1/files/${p.photo_file_id}?inline=1`} alt=""
               onError={(e) => { e.currentTarget.style.display = 'none' }}
               className="absolute inset-0 h-full w-full object-cover" />
           )}
-        </span>
+        </button>
         {/* No green dot (owner, 2026-10-09: "in student 360 there is active
             than there is no need of green dot on proflie").
 

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, X } from 'lucide-react'
 import { api } from '@/lib/api'
+import { PhotoViewer } from '@/components/PhotoViewer'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Table, Td, Badge,
@@ -249,6 +250,7 @@ function RollPicker({
 export default function StudentPhotos() {
   const nav = useRouteFeature()
   const [ready, setReady] = useState<Ready[]>([])
+  const [viewing, setViewing] = useState<Ready | null>(null)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ matched: number; unmatched: string[] } | null>(null)
 
@@ -366,8 +368,12 @@ export default function StudentPhotos() {
   live.current = ready
   useEffect(() => () => { live.current.forEach((r) => URL.revokeObjectURL(r.preview)) }, [])
 
+  const viewerName = viewing ? `${viewing.file.name}${viewing.admissionNo ? ` (${viewing.admissionNo})` : ''}` : ''
   return (
     <>
+      {viewing && (
+        <PhotoViewer src={viewing.preview} name={viewerName} onClose={() => setViewing(null)} />
+      )}
       <PageHead
         eyebrow={nav.section?.name ?? 'Students'}
         title={nav.feature?.name ?? 'Student photographs'}
@@ -438,11 +444,16 @@ export default function StudentPhotos() {
                   return (
                     <tr key={r.file.name}>
                       <Td>
-                        <img loading="lazy" decoding="async"
-                          src={r.preview}
-                          alt=""
-                          className="h-12 w-10 rounded border object-cover"
-                        />
+                        {/* A tap opens it full screen, the way the record's own
+                            photo does (owner, 2026-10-15), so a face is worth
+                            checking before Import rather than after. */}
+                        <button type="button" onClick={() => setViewing(r)} aria-label={`View ${r.file.name}`}>
+                          <img loading="lazy" decoding="async"
+                            src={r.preview}
+                            alt=""
+                            className="h-12 w-10 rounded border object-cover"
+                          />
+                        </button>
                       </Td>
                       <Td className="text-[13px]">
                         {r.file.name}
