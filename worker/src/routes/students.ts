@@ -162,7 +162,7 @@ async function listStudents(c: Ctx): Promise<Page<Student>> {
   stmts.push(c.db.prepare(`
     SELECT st.id, st.person_code, st.admission_no, ${fullNameSQL('st')} AS full_name,
            st.first_name, st.middle_name, st.last_name, st.gender, st.date_of_birth, st.status, st.admission_date,
-           c.name AS class_name, sec.name AS section_name, en.roll_no,
+           c.name AS class_name, sec.name AS section_name, en.roll_no, st.photo_file_id,
            (SELECT g.phone FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
              WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS primary_phone
     ${from} ORDER BY st.admission_no, st.id LIMIT ? OFFSET ?`)
@@ -191,7 +191,7 @@ function studentRow(r: Record<string, unknown>): Student {
     person_code: optStr(r.person_code), middle_name: optStr(r.middle_name), last_name: optStr(r.last_name),
     gender: optStr(r.gender), date_of_birth: optStr(r.date_of_birth), class_name: optStr(r.class_name),
     section_name: optStr(r.section_name), roll_no: r.roll_no === null || r.roll_no === undefined ? undefined : Number(r.roll_no),
-    primary_phone: optStr(r.primary_phone),
+    primary_phone: optStr(r.primary_phone), photo_file_id: optStr(r.photo_file_id),
   }
   return out
 }
