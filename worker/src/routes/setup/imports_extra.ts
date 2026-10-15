@@ -10,7 +10,25 @@ async function employeeByCode(ctx: ImportCtx, code: string, exact: boolean): Pro
   const row = exact
     ? await ctx.db.prepare(`SELECT id FROM employees WHERE institution_id = ? AND employee_code = ?`).bind(ctx.inst, code).first<{ id: string }>()
     : await ctx.db.prepare(`SELECT id FROM employees WHERE institution_id = ? AND lower(employee_code) = lower(?)`).bind(ctx.inst, code).first<{ id: string }>()
-  return row?.id ?? null
+  if (row) return row.id
+  /* THE SCHOOL'S OWN STAFF ID (owner, 2026-10-15: "this september payroll of
+     yajur is not match with our payroll why").
+
+     Yajur keeps its own staff IDs -- T001, T002, N004 -- on its salary sheet
+     and on the biometric reader. Our records carry the codes the MyClassBoard
+     import gave them (YPS59100001...), so the salary sheet matched by staff
+     code found nobody: 0 of 47 rows, and every Basic/HRA/DA split the school
+     typed was refused. The reader PIN is that same school ID, already linked
+     to the right person, so it is the second place to look -- measured on
+     Yajur's September sheet it finds 46 of 47, each pairing correct.
+
+     A letter O typed for a zero ("TO62") is read as the zero it meant, and a
+     PIN shared by two people is no match at all rather than a guess. */
+  const id = code.trim().toUpperCase().replace(/O(?=\d)/g, '0')
+  if (!id) return null
+  const byPin = await ctx.db.prepare(`SELECT id FROM employees WHERE institution_id = ? AND upper(trim(CAST(device_user_id AS TEXT))) = ? LIMIT 2`)
+    .bind(ctx.inst, id).all<{ id: string }>()
+  return byPin.results.length === 1 ? byPin.results[0].id : null
 }
 
 const monthLabel = (m: string): string => new Date(m + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
