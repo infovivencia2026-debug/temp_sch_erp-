@@ -1,15 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Upload, X } from 'lucide-react'
+import { Upload, X, Image as ImageIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Table, Td, Badge,
-  FormNotice, EmptyState, Input,
+  FormNotice, Input, Select, CellGrid, Stat, tabClass, TAB_BAR,
 } from '@/components/ui'
+import { ExportRows } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
+import { useSearch } from '@/components/rows'
 
 /* The photographer's delivery, in one go.
 
@@ -40,6 +42,9 @@ interface Roll {
   section_name?: string
   roll_no?: number
   status: string
+  /** Already on file, from before this screen ever opened (owner, 2026-10-15:
+      a coverage directory, "who still needs one"). */
+  photo_file_id?: string
 }
 
 interface Ready {
@@ -247,12 +252,140 @@ function RollPicker({
   )
 }
 
+/* WHO STILL HAS NO PHOTOGRAPH, NOT ONLY WHAT WAS JUST CHOSEN (owner,
+   2026-10-15). The office's question before a folder ever lands is "who are
+   we still missing", and this screen only ever answered it for the files on
+   screen that moment. The roll already carries photo_file_id, so the answer
+   is drawn from the roll itself: a tab for Missing (the default), All and
+   With photos, filtered by class, section and a search box, same as the rest
+   of the product. A file staged in this visit counts as covered before the
+   import is even pressed, so ticking off a child as their face lands in the
+   table below does not wait for a page reload. */
+type DirTab = 'missing' | 'all' | 'covered'
+
+function DirectoryPanel({
+  roll, loading, ready, onChoosePhoto,
+}: {
+  roll: Roll[]
+  loading: boolean
+  ready: Ready[]
+  onChoosePhoto: (admissionNo: string) => void
+}) {
+  const [tab, setTab] = useState<DirTab>('missing')
+  const [cls, setCls] = useState('')
+  const [section, setSection] = useState('')
+  // Not yet matched to any real admission number is harmless noise here: it
+  // can never equal a roll student's own admission_no below.
+  const stagedAdmissions = useMemo(
+    () => new Set(ready.filter((r) => !r.done).map((r) => r.admissionNo.trim().toLowerCase())),
+    [ready],
+  )
+  const covered = (s: Roll) => !!s.photo_file_id || stagedAdmissions.has(s.admission_no.trim().toLowerCase())
+
+  const classes = useMemo(() => [...new Set(roll.map((s) => s.class_name).filter((x): x is string => !!x))], [roll])
+  const sections = useMemo(
+    () => [...new Set(roll.filter((s) => !cls || s.class_name === cls).map((s) => s.section_name).filter((x): x is string => !!x))],
+    [roll, cls],
+  )
+  const scoped = useMemo(
+    () => roll.filter((s) => (!cls || s.class_name === cls) && (!section || s.section_name === section)),
+    [roll, cls, section],
+  )
+  const { q, setQ, shown: searched } = useSearch(scoped, (s) => [s.full_name, s.admission_no, String(s.roll_no ?? '')])
+  const shown = searched.filter((s) => tab === 'all' || (tab === 'covered' ? covered(s) : !covered(s)))
+
+  const missingCount = scoped.filter((s) => !covered(s)).length
+  const coveredCount = scoped.filter(covered).length
+
+  const tabs: { key: DirTab; label: string; n: number }[] = [
+    { key: 'missing', label: 'Missing photos', n: missingCount },
+    { key: 'all', label: 'All students', n: scoped.length },
+    { key: 'covered', label: 'With photos', n: coveredCount },
+  ]
+
+  return (
+    <Card>
+      <CardHeader
+        title="Student photo coverage"
+        description="Who already has a photograph on file, and who the ID cards and report cards are still missing one for."
+        action={
+          <ExportRows
+            rows={scoped.filter((s) => !covered(s))}
+            columns={[
+              { header: 'Admission number', value: (s) => s.admission_no },
+              { header: 'Student', value: (s) => s.full_name },
+              { header: 'Class', value: (s) => s.class_name ?? '' },
+              { header: 'Section', value: (s) => s.section_name ?? '' },
+              { header: 'Roll', value: (s) => s.roll_no ?? '' },
+            ]}
+            name="missing-student-photos"
+            label="Export missing list"
+          />
+        }
+      />
+      <div className={TAB_BAR + ' px-[var(--card-pad)]'}>
+        {tabs.map((t) => (
+          <button key={t.key} type="button" className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
+            {t.label} <span className="text-muted-foreground">({t.n})</span>
+          </button>
+        ))}
+      </div>
+      <CellGrid cols={3}>
+        <Stat label="Total students" value={scoped.length} />
+        <Stat label="With photos" value={coveredCount} />
+        <Stat label="Missing photographs" value={missingCount} />
+      </CellGrid>
+      <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] pb-3">
+        <Select
+          value={cls}
+          onChange={(v) => { setCls(v); setSection('') }}
+          placeholder="All classes"
+          options={classes.map((c) => ({ value: c, label: c }))}
+        />
+        <Select
+          value={section}
+          onChange={setSection}
+          placeholder="All sections"
+          options={sections.map((s) => ({ value: s, label: s }))}
+        />
+        <div className="w-full sm:w-64">
+          <Input srLabel="Search student or admission number" value={q} onChange={setQ} placeholder="Search student or admission number…" />
+        </div>
+      </div>
+      <Table head={['Student', 'Admission number', 'Class · section', 'Roll', 'Photo status', '']} empty={!loading && shown.length === 0} emptyLabel="No students match this view.">
+        {shown.map((s) => (
+          <tr key={s.admission_no}>
+            <Td className="font-medium">{s.full_name}</Td>
+            <Td className="font-mono text-[12px]">{s.admission_no}</Td>
+            <Td className="text-muted-foreground">{[s.class_name, s.section_name].filter(Boolean).join(' · ')}</Td>
+            <Td className="text-muted-foreground">{s.roll_no ?? '-'}</Td>
+            <Td>
+              <Badge tone={covered(s) ? 'success' : 'warning'}>{covered(s) ? 'Photo available' : 'Missing photo'}</Badge>
+              {!s.photo_file_id && covered(s) && <div className="text-[11px] text-muted-foreground">Chosen just now, not yet imported</div>}
+            </Td>
+            <Td>
+              {!covered(s) && (
+                <button type="button" className="text-[13px] text-primary underline" onClick={() => onChoosePhoto(s.admission_no)}>
+                  Select photo
+                </button>
+              )}
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </Card>
+  )
+}
+
 export default function StudentPhotos() {
   const nav = useRouteFeature()
   const [ready, setReady] = useState<Ready[]>([])
   const [viewing, setViewing] = useState<Ready | null>(null)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ matched: number; unmatched: string[] } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const uploadPanel = useRef<HTMLDivElement>(null)
 
   /* The roll, once, so every row can say who it is going to.
 
@@ -268,6 +401,16 @@ export default function StudentPhotos() {
     queryFn: async () =>
       (await walkRoster<Roll>('/api/v1/students', { status: 'active' })).items,
   })
+
+  /* "Select photo" from the coverage table below scrolls up to the picker and
+     opens it, so choosing a face for one named child is the same one-click
+     motion as choosing the whole folder. Matching is still by filename -- a
+     single file picked this way only lands on that child if its name carries
+     the admission number, or the office points it there by hand below. */
+  function choosePhotoFor() {
+    uploadPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    fileInput.current?.click()
+  }
 
   const byAdmission = useMemo(() => {
     const m = new Map<string, Roll>()
@@ -323,15 +466,17 @@ export default function StudentPhotos() {
   function choose(files: FileList | null) {
     if (!files) return
     setResult(null)
-    setReady(
-      Array.from(files)
-        .filter((f) => f.type.startsWith('image/'))
-        .map((f) => ({
-          file: f,
-          admissionNo: admissionFrom(f.webkitRelativePath || f.name),
-          preview: URL.createObjectURL(f),
-        })),
-    )
+    const incoming = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .map((f) => ({
+        file: f,
+        admissionNo: admissionFrom(f.webkitRelativePath || f.name),
+        preview: URL.createObjectURL(f),
+      }))
+    // Dropped or picked again: kept alongside what is already staged, so a
+    // second folder (or a single face chosen from the coverage table) adds to
+    // the batch rather than throwing away a review in progress.
+    setReady((old) => [...old, ...incoming.filter((f) => !old.some((x) => x.file.name === f.file.name && x.file.size === f.file.size))])
   }
 
   /* Taking a file back out of the batch.
@@ -384,6 +529,7 @@ export default function StudentPhotos() {
               <Upload className="h-3.5 w-3.5" aria-hidden />
               Choose photographs
               <input
+                ref={fileInput}
                 type="file"
                 accept="image/*"
                 multiple
@@ -405,6 +551,11 @@ export default function StudentPhotos() {
         }
       />
       <PageBody>
+        <CellGrid cols={3}>
+          <Stat label="Selected photos" value={ready.length} />
+          <Stat label="Matched" value={ready.filter((r) => !r.done && childFor(r.admissionNo)).length} />
+          <Stat label="Needs review" value={unknown} />
+        </CellGrid>
         {send.error && <FormNotice error={send.error} />}
         {result && (
           <FormNotice
@@ -427,15 +578,35 @@ export default function StudentPhotos() {
         )}
 
         <Card>
+          <div ref={uploadPanel} />
           <CardHeader
             title={ready.length ? `${ready.length} chosen` : 'How this works'}
             description="Name each file with the child's admission number · 2022/08/145.jpg for admission number 2022/08/145, and every photograph finds its child on its own. Anything that does not, you can point at a child by typing their name."
           />
           {ready.length === 0 ? (
-            <EmptyState
-              title="No photographs chosen"
-              body="Choose the folder the photographer delivered. Anything that is not an image is ignored, and nothing is attached until you press Import."
-            />
+            /* A DROP TARGET, NOT ONLY A BUTTON (owner, 2026-10-15). The
+               office's folder is already open in Explorer or Finder; dragging
+               it onto the page is one motion, picking a button and then a
+               folder from a dialog is three. */
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInput.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInput.current?.click() }}
+              onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
+              onDragOver={(e) => e.preventDefault()}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setDragging(false); choose(e.dataTransfer.files) }}
+              className={
+                'mx-[var(--card-pad)] mb-[var(--card-pad)] flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ' +
+                (dragging ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')
+              }
+            >
+              <ImageIcon className="h-8 w-8 text-muted-foreground" aria-hidden />
+              <p className="text-[14px] font-medium">Drag and drop photographs here</p>
+              <p className="text-[13px] text-muted-foreground">or choose the folder the photographer delivered</p>
+              <p className="text-[12px] text-muted-foreground">Anything that is not an image is ignored, and nothing is attached until you press Import.</p>
+            </div>
           ) : (
             <>
               <Table head={['', 'File', 'Goes to', 'Class · roll', '']}>
@@ -508,6 +679,7 @@ export default function StudentPhotos() {
             </>
           )}
         </Card>
+        <DirectoryPanel roll={roll.data ?? []} loading={roll.isLoading} ready={ready} onChoosePhoto={choosePhotoFor} />
       </PageBody>
     </>
   )

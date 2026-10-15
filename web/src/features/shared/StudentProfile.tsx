@@ -726,7 +726,7 @@ export default function StudentProfile() {
                       <summary className="cursor-pointer list-none rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent">
                         Export
                       </summary>
-                      <Anchored open={exportOpen} anchor={exportBox} align="end" width={256} className="rounded-lg border bg-card shadow-[var(--elev-2)]">
+                      <Anchored open={exportOpen} anchor={exportBox} align="end" width={256} className="rounded-lg border bg-popover text-popover-foreground shadow-[var(--elev-2)]">
                         {[
                           ['students_on_roll', 'Students on the roll',
                             'The children here now'],

@@ -7,7 +7,7 @@ export interface Student {
   first_name: string; middle_name?: string; last_name?: string
   gender?: string; date_of_birth?: string; status: string; admission_date: string
   class_name?: string; section_name?: string; roll_no?: number
-  primary_phone?: string; person_code?: string
+  primary_phone?: string; person_code?: string; photo_file_id?: string
 }
 
 export interface StudentGuardianBrief {

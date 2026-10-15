@@ -494,16 +494,44 @@ function RoutedScreen() {
   const location = useLocation()
   const here = location.pathname + location.search + location.hash
   const { tabs } = useTabs()
-  const alive = tabs.some((t) => t.path === here) ? tabs.map((t) => t.path) : [...tabs.map((t) => t.path), here]
+  const onATab = tabs.some((t) => t.path === here)
+  /* A SCREEN TYPED INTO IS NOT A NEW SCREEN (owner, 2026-10-15: "after
+     entering a single letter I need to click again for the cursor, then
+     type one more").
+
+     The untracked page you are simply looking at -- not yet pinned as a
+     tab -- used to be keyed by its full address, search string included. A
+     live search box patches `?q=` into the URL on every keystroke (Student
+     360's, and any screen built the same way), so `here` changed on every
+     key: the old key vanished from this map, a brand new one took its
+     place, and React mounted that page over again from nothing, taking the
+     focus the browser was mid-keystroke in with it. One character landed,
+     the box went cold, and typing the next one first had to click it awake.
+
+     A tab, once opened, keeps the identity tabs.ts gives it on purpose --
+     two different students open as two different tabs, by that file's own
+     comment -- so a committed tab is still keyed by its full path. Only the
+     single floating "whatever is on screen but not pinned" entry is keyed
+     by the bare pathname, so typing into it updates the same mounted
+     screen instead of replacing it; the full address, query included,
+     still goes to AppRoutes so the search box's own state (read from the
+     URL) is exactly as current as before. The rare page that is pinned as
+     a tab with no query of its own would collide on that bare key, so it
+     is only used when nothing already owns it. */
+  const untrackedKey =
+    !onATab && !tabs.some((t) => t.path === location.pathname) ? location.pathname : here
+  const alive = onATab
+    ? tabs.map((t) => ({ key: t.path, path: t.path }))
+    : [...tabs.map((t) => ({ key: t.path, path: t.path })), { key: untrackedKey, path: here }]
   return (
     <>
-      {alive.map((path) => {
+      {alive.map(({ key, path }) => {
         const on = path === here
         return (
           /* `display: none` rather than unmounting: the subtree keeps its
              state but leaves the tab order and the accessibility tree, so
              nothing in a hidden tab can be tabbed into or read out. */
-          <div key={path} style={on ? undefined : { display: 'none' }}>
+          <div key={key} style={on ? undefined : { display: 'none' }}>
             <AppRoutes location={path} />
           </div>
         )
