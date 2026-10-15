@@ -346,6 +346,12 @@ func IsDefault(roleKey string) bool { return !optionalRoles[roleKey] }
 
 // SystemRoles mirrors the role set production seeds per institution.
 var SystemRoles = []Role{
+	// The LMS Admin's course screens read through routes guarded by
+	// academics.timetable.read (worker routes/teaching/lms.ts). Its catalogue
+	// feature alone does not carry that, and a hand edit to the generated
+	// provision_seed.ts was wiped on the next regeneration (2026-10-15), so the
+	// grant lives here, where scripts/d1/tenant_seed reads it.
+	{"lms_admin", "LMS Admin", []string{"academics.timetable.read"}},
 	{"seller_admin", "Seller Admin", SellerAdminPermissions},
 	{"support_admin", "Support Admin", SupportAdminPermissions},
 	{"institution_admin", "Institution Admin / Principal", keysExcept(PlatformTenantsRW, PlatformPlansRW)},
