@@ -526,12 +526,12 @@ export default function ReportCards() {
                 className="w-full sm:w-64"
               />
               {suggesting && suggestions.length > 0 && (
-                <Anchored open anchor={findBox} width="trigger" minWidth={256} gap={4} className="rounded-md border bg-popover text-popover-foreground shadow-lg"><ul>
+                <Anchored open anchor={findBox} width="trigger" minWidth={320} gap={4} className="menu-scroll max-h-72 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"><ul>
                   {suggestions.map((r) => (
                     <li key={r.id}>
                       <button
                         type="button"
-                        className="flex w-full items-baseline gap-2 px-3 py-2 text-left text-[13px] hover:bg-muted/60"
+                        className="flex min-h-[36px] w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[14px] hover:bg-accent"
                         onClick={() => {
                           // The admission number, not the name: it is unique, so
                           // picking a child leaves exactly that child in the table
@@ -543,8 +543,8 @@ export default function ReportCards() {
                         <span className="w-6 shrink-0 tabular-nums text-muted-foreground">
                           {r.roll_no ?? '-'}
                         </span>
-                        <span className="flex-1 font-medium">{r.full_name}</span>
-                        <span className="font-mono text-[11px] text-muted-foreground">
+                        <span className="min-w-0 flex-1 truncate font-medium" title={r.full_name}>{r.full_name}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                           {r.admission_no}
                         </span>
                       </button>
