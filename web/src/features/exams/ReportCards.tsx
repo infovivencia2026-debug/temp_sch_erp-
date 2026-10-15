@@ -514,7 +514,7 @@ export default function ReportCards() {
                 className="w-full sm:w-64"
               />
               {suggesting && suggestions.length > 0 && (
-                <Anchored open anchor={findBox} width="trigger" minWidth={256} gap={4} className="rounded-md border bg-surface shadow-lg"><ul>
+                <Anchored open anchor={findBox} width="trigger" minWidth={256} gap={4} className="rounded-md border bg-popover text-popover-foreground shadow-lg"><ul>
                   {suggestions.map((r) => (
                     <li key={r.id}>
                       <button

@@ -212,7 +212,7 @@ function PersonPicker({ label, value, onChange }: { label: string; value: Person
         <div ref={nameBox} className="relative mt-1">
           <Input value={text} onChange={setText} placeholder="Type a name" />
           {options.length > 0 && text.trim().length >= 2 && (
-            <Anchored open anchor={nameBox} width="trigger" gap={4} maxHeight={224} className="rounded-md border bg-background shadow-md"><ul>
+            <Anchored open anchor={nameBox} width="trigger" gap={4} maxHeight={224} className="rounded-md border bg-popover text-popover-foreground shadow-md"><ul>
               {options.map((p) => (
                 <li key={p.id}>
                   <button
