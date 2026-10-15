@@ -9,7 +9,7 @@
 import { overMax } from './marksSheet'
 import { useState } from 'react'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { Download, Upload } from 'lucide-react'
+import { Download, Upload, X } from 'lucide-react'
 import type { GradebookRow } from '@shared/api'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, CardHeader, FormNotice } from '@/components/ui'
@@ -162,7 +162,22 @@ export default function ClassSheet({ papers, className, examName }: {
       </div>
       {(note || problems.length > 0) && (
         <div className="space-y-2 px-5 pb-3">
-          {note && <FormNotice ok={note} />}
+          {/* Closable (owner, 2026-10-15): "5 subjects saved" is only true
+              until the next edit, and sat on screen with no way to put it
+              away while the class kept working through the next exam. */}
+          {note && (
+            <div className="relative">
+              <FormNotice ok={note} />
+              <button
+                type="button"
+                onClick={() => setNote('')}
+                aria-label="Close"
+                className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+          )}
           {problems.length > 0 && (
             <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-destructive">
               {problems.slice(0, 30).map((x, i) => <li key={i}>{x}</li>)}
