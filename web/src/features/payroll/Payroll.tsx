@@ -314,8 +314,8 @@ export default function Payroll() {
               </Table>
             )}
             <div className="flex flex-wrap items-center gap-2 px-5 pb-5 pt-4">
-              <Button disabled={run.isPending} onClick={() => run.mutate(true)}>
-                {leaveOut.size ? `Run payroll, leaving out ${leaveOut.size}` : 'Run payroll, paying them in full'}
+              <Button disabled={run.isPending} pending={run.isPending} onClick={() => run.mutate(true)}>
+                {run.isPending ? 'Running payroll… keep this page open' : leaveOut.size ? `Run payroll, leaving out ${leaveOut.size}` : 'Run payroll, paying them in full'}
               </Button>
               <a href="/hr/attendance/staff_register" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">Mark attendance first</a>
               <Button variant="ghost" onClick={() => { setUnmarked(null); setLeaveOut(new Set()) }}>Cancel</Button>

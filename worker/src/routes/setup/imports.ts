@@ -1367,9 +1367,15 @@ function subjectColumnsFrom(c: Ctx): Record<string, string> {
 const MAX_KEPT_IMPORT_BYTES = 1 << 20
 
 async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: string, commit: boolean): Promise<{ out: ImportResult; clientMsg: string }> {
-  const { rows: records, errors: readErrors } = parseCSV(raw)
+  const { rows: allRows, errors: readErrors } = parseCSV(raw)
+  /* BLANK LINES ABOVE THE HEADINGS ARE SKIPPED (owner, 2026-10-15: a salary
+     sheet saved from Excel began with a line of bare commas, the headings were
+     taken from it, and the upload said "0 rows read" with no reason). The
+     headings are the first line with something in it. */
+  const lead = allRows.findIndex((r) => r.some((x) => String(x).trim() !== ''))
+  const records = lead > 0 ? allRows.slice(lead) : allRows
   const out: ImportResult = { total: 0, valid: 0, rejected: 0, imported: 0, dry_run: !commit, problems: [] }
-  if (records.length === 0) return { out, clientMsg: 'that file has no header row' }
+  if (records.length === 0 || lead < 0) return { out, clientMsg: 'that file has no header row' }
   const head = records[0]
   let index = new Map<string, number>()
   head.forEach((h, i) => index.set(normaliseHeader(h), i))
@@ -1392,7 +1398,7 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
   const parsed: Array<{ row: number; data: Row }> = []
   const seen = new Map<string, number>()
   for (let r = 1; r < records.length; r++) {
-    const n = r + 1
+    const n = r + 1 + Math.max(0, lead) // the line number in the file as the school sees it
     const rec = records[r]
     const readErr = readErrors.get(n)
     if (readErr) { out.total++; out.rejected++; out.problems.push({ row: n, problem: 'could not read this row: ' + readErr }); continue }

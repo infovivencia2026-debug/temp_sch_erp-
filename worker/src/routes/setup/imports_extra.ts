@@ -155,6 +155,13 @@ export function registerImportSpecsExtra(specs: Record<string, ImportSpec>): voi
     check: (row) => {
       sheetRow(row)
       if (str(row.employee_id).trim() === '') throw new Error('Employee ID is required')
+      /* EXCEL SHORTENS LONG NUMBERS (owner, 2026-10-15: a September sheet
+         had every UAN as 1.01711E+11). The digits after the fifth are gone, so
+         saving it would store a wrong UAN or account number. Refused, with the
+         fix, rather than kept. */
+      for (const [k, v] of Object.entries(row)) {
+        if (/^\s*\d(\.\d+)?e\+\d+\s*$/i.test(str(v))) throw new Error(`${k.replace(/_/g, ' ')} is "${str(v).trim()}": Excel has shortened this number and the real digits are lost. In Excel, set that column to Text, type the numbers again, and save`)
+      }
       sheetDate(row.date_of_joining)
       const fixed = new Set([...SHEET_FIXED.map(normaliseHeader), ...SHEET_OLD.map(([, was]) => normaliseHeader(was)), ...PF_KEYS])
       for (const [k, v] of Object.entries(row)) if (!fixed.has(k) && str(v).trim() !== '') payCell(str(v))

@@ -765,6 +765,19 @@ export default function BulkImport({
           </div>
         )}
 
+        {/* Say that something is happening (owner, 2026-10-15: "no loading,
+            no response, I don't know if it saved"). */}
+        {busy && (
+          <p className="mt-4 inline-flex items-center gap-2 text-[13px] text-muted-foreground" role="status" aria-live="polite">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />
+            {result ? 'Saving… keep this page open.' : 'Checking the file…'}
+          </p>
+        )}
+        {result && !busy && result.total === 0 && (
+          <p className="mt-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]" role="alert">
+            No rows were found in this file. The first line with something in it must be the column headings (EMP ID, NAME…), and the staff rows go under it. Fix the file and choose it again.
+          </p>
+        )}
         {result && (
           <div className="mt-4">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
