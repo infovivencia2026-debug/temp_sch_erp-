@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 430 features.
+// Roles is the catalog: 24 roles, 432 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -347,6 +347,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.class_setup", Slug: "class_setup", Name: "Class Setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it."},
 					{Key: "institution_admin.academics.year_rollover", Slug: "year_rollover", Name: "Year Rollover", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Carry this year's sections, fee structure, bus allocations and timetable grid into the year that has not started yet, once. Shows what will be copied before it runs, and what was already carried. Children move separately, under Class Promotion."},
 					{Key: "institution_admin.academics.teacher_assignment", Slug: "teacher_assignment", Name: "Teacher Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated, and push the result into the published timetable so the two agree."},
+					{Key: "institution_admin.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 				},
 			},
 			{
@@ -577,6 +578,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
 					{Key: "hod.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set."},
+					{Key: "hod.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 				},
 			},
 			{

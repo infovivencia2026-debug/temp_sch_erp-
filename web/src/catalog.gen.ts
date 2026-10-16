@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 430 features. */
+/** 24 roles, 432 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -300,6 +300,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.academics.class_setup', slug: 'class_setup', name: 'Class Setup', scope: 'institution', tier: 'core', summary: 'Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it.' },
           { key: 'institution_admin.academics.year_rollover', slug: 'year_rollover', name: 'Year Rollover', scope: 'institution', tier: 'core', summary: 'Carry this year\'s sections, fee structure, bus allocations and timetable grid into the year that has not started yet, once. Shows what will be copied before it runs, and what was already carried. Children move separately, under Class Promotion.' },
           { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated, and push the result into the published timetable so the two agree.' },
+          { key: 'institution_admin.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
         ],
       },
       {
@@ -530,6 +531,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hod.academics.language_subject_allocation', slug: 'language_subject_allocation', name: 'Language subject allocation', scope: 'department', tier: 'core', summary: 'Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content.' },
           { key: 'hod.academics.faculty_allocation', slug: 'faculty_allocation', name: 'Faculty allocation', scope: 'department', tier: 'core', summary: 'Which teacher teaches which subject to which section, across the department, with each teacher\'s total periods shown so the load can be seen while it is being set.' },
+          { key: 'hod.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
         ],
       },
       {

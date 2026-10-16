@@ -32,6 +32,7 @@ import { registerTroubleshooters } from './help/troubleshoot'
 import { registerAssist } from './help/assist'
 import { registerIncidents } from './help/incidents'
 import { registerYearEndPayout } from './payroll/year_end_payout' // feature:payroll.year_end_payout
+import { registerSubjectOverview } from './academics/subject_overview' // feature:academics.subject_overview
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -72,5 +73,6 @@ export function buildRouter(): Router {
   registerAssist(r)
   registerIncidents(r)
   registerYearEndPayout(r) // feature:payroll.year_end_payout
+  registerSubjectOverview(r) // feature:academics.subject_overview
   return r
 }

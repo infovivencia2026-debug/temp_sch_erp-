@@ -1,6 +1,41 @@
 {
   "_comment": "Written by scripts/feature.mjs: what `feature:new` added for each feature, so `feature:remove` can take exactly that back out. Do not edit by hand.",
   "features": {
+    "academics.subject_overview": {
+      "name": "Subject overview",
+      "summary": "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.",
+      "section": "academics",
+      "sectionName": "Academics",
+      "slug": "subject_overview",
+      "roles": [
+        "hod",
+        "institution_admin"
+      ],
+      "keys": [
+        "hod.academics.subject_overview",
+        "institution_admin.academics.subject_overview"
+      ],
+      "module": "academics",
+      "webDir": "academics",
+      "planModule": "academics",
+      "apiBase": "C:/Program Files/Git/teaching/subject-overview",
+      "readPerm": "academics.timetable.read",
+      "writePerm": null,
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0090_feature_subject_overview.sql",
+      "files": [
+        "shared/api/feature_subject_overview.ts",
+        "web/src/features/academics/SubjectOverview.tsx",
+        "worker/src/routes/academics/subject_overview.ts",
+        "worker/test/integration/feature_subject_overview.test.ts",
+        "worker\\migrations\\tenant\\0090_feature_subject_overview.sql"
+      ]
+    },
     "communication.class_status": {
       "name": "Class Status",
       "summary": "Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.",
