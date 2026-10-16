@@ -74,9 +74,13 @@ export function prettyDate(v: string): string {
    left under a field low on the page, and the last row was cut off. So the
    panel is measured, and lifted only as far as it takes for its foot to sit on
    screen; on a screen too short for it at all, it scrolls inside itself. */
-function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObject<HTMLElement | null>): CSSProperties {
+/* `open` re-measures each time the popup opens. The month box is mounted
+   with the page, so measuring once put the popup wherever the box was while
+   the page was still laying out -- the top-left corner (Yajur, 2026-10-16). */
+function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObject<HTMLElement | null>, open = true): CSSProperties {
   const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', opacity: 0 })
   useLayoutEffect(() => {
+    if (!open) return
     const place = () => {
       const a = anchor.current
       if (!a) return
@@ -101,7 +105,7 @@ function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObj
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [anchor, width, box])
+  }, [anchor, width, box, open])
   return style
 }
 
@@ -316,7 +320,7 @@ export function MonthField({
   const [shownYear, setShownYear] = useState(year)
   const anchor = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
-  const pos = below(anchor, 280, box)
+  const pos = below(anchor, 280, box, open)
 
   useEffect(() => { if (open) setShownYear(year) }, [open, year])
   useEffect(() => {
