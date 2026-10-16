@@ -9,7 +9,6 @@ import { registerPushToken } from './push'
 /* Both are seen by someone who is not yet in the app (a visitor on /, a first
    sign-in setting a password), so they load on their own, not with the shell. */
 const SetYourPassword = lazy(() => import('@/features/shared/SetYourPassword'))
-const Landing = lazy(() => import('@/features/landing/Landing').then((m) => ({ default: m.Landing })))
 import { claimTabs } from './tabs'
 import { applyBrand, rememberSchoolMark } from './brand'
 import { setPrintLetterhead } from './print'
@@ -112,7 +111,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        link to a fee receipt wants the receipt, so any deeper address still
        goes to the form and comes back to where they were pointed, which is
        what `next` carries below. */
-    if (location.pathname === '/' && !location.search) return <Suspense fallback={null}><Landing /></Suspense>
+    /* Owner, 2026-10-16: "that link should open directly login page not
+       this". The front-door page is no longer shown at the root: everyone
+       arriving signed out goes straight to the sign-in form. */
     // Full navigation, not a client route: /login is server-rendered by the Go
     // binary and must mint the cookie itself.
     const next = encodeURIComponent(location.pathname + location.search)
