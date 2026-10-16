@@ -15,18 +15,21 @@ import { notifyStmt } from '../misc/chat'
    timetable, so it never goes stale. The office picks the head per subject;
    the head sees only the subjects they head. */
 
+/* The office: the principal's catalogue key. A HOD also holds academics.write, so that cannot be the test. */
+const OFFICE = 'institution_admin.academics.subject_overview'
+
 const all = async <T>(s: D1PreparedStatement) => (await s.all<T>()).results
 
 /** Subjects this caller may look at: the ones they head, or every headed one for the office. */
 async function viewableSubjects(c: Ctx): Promise<{ id: string; name: string }[]> {
-  if (can(c.id, 'academics.write')) {
+  if (can(c.id, OFFICE)) {
     return all(c.db.prepare(`SELECT s.id, s.name FROM subject_heads h JOIN subjects s ON s.id = h.subject_id ORDER BY s.name`))
   }
   return all(c.db.prepare(`SELECT s.id, s.name FROM subject_heads h JOIN subjects s ON s.id = h.subject_id WHERE h.head_user_id = ? ORDER BY s.name`).bind(c.id.userId))
 }
 
 async function mayHead(c: Ctx, subjectId: string): Promise<boolean> {
-  if (can(c.id, 'academics.write')) return true
+  if (can(c.id, OFFICE)) return true
   return !!(await c.db.prepare(`SELECT 1 AS x FROM subject_heads WHERE subject_id = ? AND head_user_id = ?`).bind(subjectId, c.id.userId).first())
 }
 
@@ -191,8 +194,8 @@ async function deleteMeeting(c: Ctx) {
 }
 
 export function registerSubjectOverview(r: Router): void {
-  r.get('/academics/subject-heads', 'academics.write', listHeads)
-  r.put('/academics/subject-heads', 'academics.write', setHead)
+  r.get('/academics/subject-heads', OFFICE, listHeads)
+  r.put('/academics/subject-heads', OFFICE, setHead)
   r.get('/teaching/my-subjects', 'academics.timetable.read', overview)
   r.post('/teaching/my-subjects/meetings', 'academics.timetable.read', createMeeting)
   r.patch('/teaching/my-subjects/meetings/{id}', 'academics.timetable.read', updateMeeting)
