@@ -547,8 +547,11 @@ function computeStatutory(set: PayrollSettings, basicPlusDA: number, gross: numb
     out.pf_admin_paise = pct(wage, set.pf_admin_percent)
   }
   if (set.esi_enabled && gross > 0 && gross <= set.esi_wage_threshold_paise) {
-    out.esi_employee_paise = pct(gross, set.esi_employee_percent)
-    out.esi_employer_paise = pct(gross, set.esi_employer_percent)
+    /* Whole rupees, as on the school's own sheet (Yajur, 2026-10-16):
+       Rs 113.25 was Rs 113 there, and a payslip in paise matched nobody's. */
+    const rupee = (p: number) => Math.round(p / 100) * 100
+    out.esi_employee_paise = rupee(pct(gross, set.esi_employee_percent))
+    out.esi_employer_paise = rupee(pct(gross, set.esi_employer_percent))
   }
   if (set.pt_enabled) out.pt_paise = professionalTax(set.pt_slabs, gross, month)
   return out
