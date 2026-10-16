@@ -13,3 +13,4 @@ hr	hr.onboarding_exit.staff_joinings_exits	POST /academics/admin/faculty-allocat
 hr	hr.onboarding_exit.staff_joinings_exits	POST /setup/class-teacher
 hr	hr.records.staff_records	POST /academics/admin/faculty-allocation
 hr	hr.records.staff_records	POST /setup/class-teacher
+hod	hod.academics.subject_overview	PUT /academics/subject-heads
