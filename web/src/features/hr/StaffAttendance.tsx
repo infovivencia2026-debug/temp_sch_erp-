@@ -237,11 +237,15 @@ export default function StaffAttendance() {
               </span>
             }
           />
+          {/* Just the fact, not the explanation (owner, 2026-10-16: "only
+              show holiday, why other unnecessary text"); the sentence about
+              the reader was true but nobody taking the register needed to be
+              told how the mark got there. A top margin too, so it no longer
+              sits flush under the header's own divider. */}
           {q.data?.holiday && (
-            <div className="mx-[var(--card-pad)] mb-3 rounded-md border border-border bg-muted px-3 py-2 text-[13.5px] text-muted-foreground">
+            <div className="mx-[var(--card-pad)] mb-3 mt-3 rounded-md border border-border bg-muted px-3 py-2 text-[13.5px] text-muted-foreground">
               <strong className="text-foreground">Holiday: {q.data.holiday.name}</strong>
               {q.data.holiday.to !== q.data.holiday.from && <> ({q.data.holiday.from} to {q.data.holiday.to})</>}
-              . Anyone the reader did not see today is shown as on holiday.
             </div>
           )}
           {q.isLoading ? (
