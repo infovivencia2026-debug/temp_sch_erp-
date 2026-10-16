@@ -27,6 +27,27 @@ interface Payslip {
   breakup: Record<string, number>
   bank_ready?: boolean
   employee_id?: string
+  /* Why the days were cut, from the same register the Staff register shows. */
+  why?: { late_marks?: number; late_dates?: string[]; absent_days?: number; half_days?: number; unpaid_leave_days?: number; free_leave_used?: number; holidays_worked?: number }
+  adjustments?: { kind: string; amount_paise: number; reason: string }[]
+}
+
+/** "3 late (2, 7, 9 Oct) · 1 absent" -- the reasons behind a person's cut days. */
+function lopReasons(w: Payslip['why']): string[] {
+  if (!w) return []
+  const out: string[] = []
+  const dd = (d: string) => String(Number(d.slice(8, 10)))
+  if (w.late_marks) {
+    const ds = w.late_dates ?? []
+    const mon = ds[0] ? new Date(ds[0] + 'T00:00:00').toLocaleString('en-IN', { month: 'short' }) : ''
+    out.push(`${w.late_marks} late${ds.length ? ` (${ds.map(dd).join(', ')} ${mon})` : ''}`)
+  }
+  if (w.absent_days) out.push(`${w.absent_days} absent`)
+  if (w.half_days) out.push(`${w.half_days} half day${w.half_days > 1 ? 's' : ''}`)
+  if (w.unpaid_leave_days) out.push(`${w.unpaid_leave_days} unpaid leave`)
+  if (w.free_leave_used) out.push(`${w.free_leave_used} forgiven`)
+  if (w.holidays_worked) out.push(`worked ${w.holidays_worked} holiday${w.holidays_worked > 1 ? 's' : ''}`)
+  return out
 }
 interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number }
 interface Unmarked { staff_with_no_marks: number; unmarked_days: number; staff?: UnmarkedStaff[] }
@@ -514,6 +535,14 @@ export default function Payroll() {
                     {Number(p.lop_days) > 0
                       ? <Badge tone="warning">{p.lop_days}</Badge>
                       : '-'}
+                    {lopReasons(p.why).length > 0 && (
+                      <div className="mt-1 whitespace-normal text-left text-[11.5px] leading-snug text-muted-foreground">{lopReasons(p.why).join(' · ')}</div>
+                    )}
+                    {(p.adjustments ?? []).map((a, i) => (
+                      <div key={i} className={cn('mt-1 whitespace-normal text-left text-[11.5px] leading-snug', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
+                        {a.kind === 'deduction' ? '-' : '+'}{formatPaise(a.amount_paise)}{a.reason ? ` ${a.reason}` : ''}
+                      </div>
+                    ))}
                   </Td>
                   {components.map((c) => (
                     <Td key={c} className={cn('num', (p.breakup?.[c] ?? 0) < 0 && 'text-destructive')}>

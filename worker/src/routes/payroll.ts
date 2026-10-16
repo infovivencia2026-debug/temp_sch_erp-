@@ -666,7 +666,8 @@ Port of staff_lop_register(p_year, p_month) from migrations/00244_lop_shifts_and
 the month's attendance turned into days of loss of pay under the school's own
 leave policy, shifts, holidays and leave quotas.
 */
-interface LopRow { lop_days: number; expected_days: number; holidays_worked?: number; late_marks?: number; free_leave_used?: number }
+interface LopRow { lop_days: number; expected_days: number; holidays_worked?: number; late_marks?: number; free_leave_used?: number
+  absent_days?: number; half_days?: number; unpaid_leave_days?: number; late_dates?: string[] }
 
 function intList(raw: unknown, dflt: number[]): number[] {
   const s = str(raw).trim()
@@ -768,7 +769,7 @@ async function lopRegister(c: Ctx, year: number, month: number, rules: PayRules 
                                                AND sa.on_date BETWEEN r.from_date AND r.to_date ORDER BY r.from_date DESC LIMIT 1)
       LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
      WHERE sa.on_date BETWEEN ? AND ?`).bind(firstDay, lastDay).all<Record<string, unknown>>()
-  interface Tally { charged: number; marks: number; holidayWork: number }
+  interface Tally { charged: number; marks: number; holidayWork: number; absent?: number; half?: number; unpaid?: number; lateDates?: string[] }
   const tally = new Map<string, Tally>()
   for (const m of marked.results) {
     const eid = str(m.eid)
@@ -786,8 +787,13 @@ async function lopRegister(c: Ctx, year: number, month: number, rules: PayRules 
         const t0 = tally.get(eid) ?? { charged: 0, marks: 0, holidayWork: 0 }
         t0.holidayWork += 1
         tally.set(eid, t0)
-        if (rules.pay_holidays_worked) continue
       }
+      /* A HOLIDAY NEVER CUTS PAY (Yajur, 2026-10-16: deductions did not
+         match the register). Coming in on Dussehra at 09:30 used to count as
+         a late mark, and three of those took a day's pay for working a
+         holiday; an "absent" on a holiday took a whole day. Neither is
+         absence from work the school expected. */
+      if (off) continue
     }
     const halfLeave = bool(m.is_half_day)
     const paidLeave = m.is_paid == null ? false : bool(m.is_paid)
@@ -817,6 +823,11 @@ async function lopRegister(c: Ctx, year: number, month: number, rules: PayRules 
     else if (status === 'late' || (late ?? 0) > sh.grace) lateMark = 1
     const t = tally.get(eid) ?? { charged: 0, marks: 0, holidayWork: 0 }
     t.charged += charged; t.marks += lateMark
+    // What the cut is made of, so the payroll screen can say why.
+    if (status === 'absent' && charged > 0) t.absent = (t.absent ?? 0) + charged
+    else if (status === 'half_day' && charged > 0) t.half = (t.half ?? 0) + 1
+    else if (status === 'leave' && charged > 0) t.unpaid = (t.unpaid ?? 0) + charged
+    if (lateMark) (t.lateDates ??= []).push(str(m.on_date))
     tally.set(eid, t)
   }
   const out = new Map<string, LopRow>()
@@ -828,7 +839,8 @@ async function lopRegister(c: Ctx, year: number, month: number, rules: PayRules 
     let v = pol.rounding === 'up' ? Math.ceil(gross) : pol.rounding === 'half' ? Math.round(gross * 2) / 2 : gross
     if (pol.maxPerMonth != null) v = Math.min(v, pol.maxPerMonth)
     v = Math.min(v, nDays)
-    out.set(eid, { lop_days: Number(v.toFixed(2)), expected_days: expected.get(eid) ?? 0, holidays_worked: t.holidayWork, late_marks: t.marks, free_leave_used: free })
+    out.set(eid, { lop_days: Number(v.toFixed(2)), expected_days: expected.get(eid) ?? 0, holidays_worked: t.holidayWork, late_marks: t.marks, free_leave_used: free,
+      absent_days: t.absent ?? 0, half_days: t.half ?? 0, unpaid_leave_days: t.unpaid ?? 0, late_dates: (t.lateDates ?? []).sort() })
   }
   for (const [eid] of shift) if (!out.has(eid)) out.set(eid, { lop_days: 0, expected_days: expected.get(eid) ?? 0 })
   return out
@@ -1274,7 +1286,19 @@ function registerPayrollGroup(r: Router) {
         FROM payslips ps JOIN employees e ON e.id = ps.employee_id JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
        WHERE (?1 IS NULL OR pr.period_month = ?1) AND (?2 IS NULL OR pr.period_year = ?2)
        ORDER BY e.employee_code`).bind(month, year).all()
+    /* WHY THE DAYS WERE CUT (Yajur, 2026-10-16: "i should see all those").
+       Worked out again from the same register the Staff register shows, so
+       the two cannot disagree; and each hand-entered adjustment with its note. */
+    const why = new Map<string, LopRow>()
+    const adjBy = new Map<string, { kind: string; amount_paise: number; reason: string }[]>()
+    if (month != null && year != null) {
+      try { for (const [k, v] of await lopRegister(c, year, month, await loadPayrollSettings(c))) why.set(k, v) } catch { /* shown without the reasons */ }
+      const adj = await c.db.prepare(`SELECT employee_id, kind, amount_paise, reason FROM payroll_adjustments WHERE period_year = ? AND period_month = ? ORDER BY created_at`)
+        .bind(year, month).all<{ employee_id: string; kind: string; amount_paise: number; reason: string | null }>()
+      for (const a of adj.results) { const l = adjBy.get(a.employee_id) ?? []; l.push({ kind: a.kind, amount_paise: numOr0(a.amount_paise), reason: a.reason ?? '' }); adjBy.set(a.employee_id, l) }
+    }
     return ok(items(rows.results.map((v) => ({
+      why: why.get(String(v.employee_id)), adjustments: adjBy.get(String(v.employee_id)) ?? [],
       employee_code: v.employee_code, full_name: v.full_name, paid_days: str(v.paid_days), lop_days: str(v.lop_days),
       gross_paise: numOr0(v.gross_paise), deduction_paise: numOr0(v.deduction_paise), net_paise: numOr0(v.net_paise),
       breakup: parseJSON(v.breakup), run_status: v.run_status, published: bool(v.published), left_service: bool(v.left_service),
