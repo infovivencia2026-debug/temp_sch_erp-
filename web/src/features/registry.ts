@@ -217,12 +217,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
   'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
   'hr.payroll.year_end_payout': screen(() => import('./payroll/YearEndPayout')), // feature:payroll.year_end_payout
-  /* Attendance — three separate menu tiles, one screen each: Take attendance,
-     Present & absent and Absentee follow-up. Each is scoped server-side, so a
-     class teacher gets their sections and a read.all holder gets the school.
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
+  /* Attendance — three separate menu tiles, one screen each: Take attendance,
+     Present & absent and Absentee follow-up. Each is scoped server-side, so a
+     class teacher gets their sections and a read.all holder gets the school.
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   /* Same register, wider reach. Which sections it offers is decided by the
      permission the feature carries, not by the screen: with
