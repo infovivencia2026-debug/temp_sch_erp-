@@ -46,7 +46,6 @@ function lopReasons(w: Payslip['why']): string[] {
   if (w.half_days) out.push(`${w.half_days} half day${w.half_days > 1 ? 's' : ''}`)
   if (w.unpaid_leave_days) out.push(`${w.unpaid_leave_days} unpaid leave`)
   if (w.free_leave_used) out.push(`${w.free_leave_used} forgiven`)
-  if (w.holidays_worked) out.push(`worked ${w.holidays_worked} holiday${w.holidays_worked > 1 ? 's' : ''}`)
   return out
 }
 interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number }
@@ -532,17 +531,10 @@ export default function Payroll() {
                   </Td>
                   <Td className="num">{p.paid_days}</Td>
                   <Td className="num">
+                    {/* Only the number (owner, 2026-10-16: "just show lop"); why, on hover. */}
                     {Number(p.lop_days) > 0
-                      ? <Badge tone="warning">{p.lop_days}</Badge>
+                      ? <span title={lopReasons(p.why).join(' · ') || undefined}><Badge tone="warning">{p.lop_days}</Badge></span>
                       : '-'}
-                    {lopReasons(p.why).length > 0 && (
-                      <div className="mt-1 whitespace-normal text-left text-[11.5px] leading-snug text-muted-foreground">{lopReasons(p.why).join(' · ')}</div>
-                    )}
-                    {(p.adjustments ?? []).map((a, i) => (
-                      <div key={i} className={cn('mt-1 whitespace-normal text-left text-[11.5px] leading-snug', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
-                        {a.kind === 'deduction' ? '-' : '+'}{formatPaise(a.amount_paise)}{a.reason ? ` ${a.reason}` : ''}
-                      </div>
-                    ))}
                   </Td>
                   {components.map((c) => (
                     <Td key={c} className={cn('num', (p.breakup?.[c] ?? 0) < 0 && 'text-destructive')}>
