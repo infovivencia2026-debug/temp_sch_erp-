@@ -255,22 +255,25 @@ export default function Notifications() {
     failure: "Couldn't clear them",
   })
 
-  /* One entry read, not the lot: opening a message used to mark every other
-     one read with it. */
-  const readOne = useOptimisticMutation<string>({
-    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/read`, {}),
+  /* OPENING ONE REMOVES IT, THE WAY ANSWERING A LETTER TAKES IT OFF THE PILE
+     (owner, 2026-10-16: "after any message is opened it should disappear
+     from the notifications"). Reading used to leave the row in place, duller
+     but still there, so the only way the drawer ever shrank was the blunt
+     Clear All. Opening a status post is unaffected -- that reads the post
+     itself over in status-api.ts, not this table -- see openNote below. */
+  const dismissOne = useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
     queryKeys: [['notifications']],
     apply: (old, id) => {
       const f = old as Feed
-      const now = new Date().toISOString()
       const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
       return {
         ...f,
         unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
-        items: (f.items ?? []).map((n) => (n.id === id && !n.read_at ? { ...n, read_at: now } : n)),
+        items: (f.items ?? []).filter((n) => n.id !== id),
       }
     },
-    failure: "Couldn't mark it read",
+    failure: "Couldn't clear it",
   })
   /* The message being read in full, over the drawer. */
   const [viewing, setViewing] = useState<Note | null>(null)
@@ -306,7 +309,6 @@ export default function Notifications() {
   if (feed.error) return null
 
   const items = feed.data?.items ?? []
-  const unread = feed.data?.unread ?? 0
 
   /* Clicking a notification opens the thing it is about.
    *
@@ -384,9 +386,8 @@ export default function Notifications() {
        vanished and a long one was never readable anywhere. The screen it is
        about is one button away in the dialog (`follow`). */
     setViewing(n)
-    // Read on open rather than on sight: a count that clears because somebody
-    // glanced at the bell is a count that stops meaning anything.
-    if (!n.read_at) readOne.mutate(n.id)
+    // Dismissed on open, not merely marked read: see dismissOne above.
+    dismissOne.mutate(n.id)
   }
   const viewingLink = viewing ? linkFor(viewing) : undefined
   const follow = () => {
@@ -418,7 +419,18 @@ export default function Notifications() {
      opens on an empty side by default. */
   /* The owner's split: Messages is every notification; Activity is status
      posts (the e-learning hub's photo, video and note statuses). */
-  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
+  /* An account whose roles carry no workspace (a class teacher alone, a
+     school mid-setup) has no active role at all; the bell still has to draw. */
+  const asParent = activeRole?.key === 'parent'
+  /* THE BADGE NEVER PROMISES WHAT THE DRAWER CANNOT SHOW (owner, 2026-10-16:
+     "why do I see this" -- Messages badged 3, Messages open, "Nothing in
+     this filter"). The three were a daily digest, which `inToggles` below
+     has always hidden from anyone not currently a parent -- the badge never
+     knew that and counted them anyway. Whichever rule ever hides a kind from
+     this account entirely goes here too, so nothing counted is a row the
+     drawer could not produce if asked. */
+  const reachable = (n: Note) => asParent || !/digest/.test(n.kind)
+  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
   /* THE BELL'S OWN NUMBER, OPENED ONTO (owner, 2026-10-15: "I see the
      notification number but I don't see any messages"). The drawer always
      opened on Messages, which is right unless every one of today's unread
@@ -428,17 +440,13 @@ export default function Notifications() {
      actually unread before choosing a side; a person's own choice (`type`)
      still wins once they have picked one. */
   const shownType = type ?? (countFor('messages') > 0 || countFor('activity') === 0 ? 'messages' : 'activity')
+  const unread = countFor('messages') + countFor('activity')
   const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
   void newStatuses
   void isMessage
   /* Status updates live in Activity; Messages is everything else (the owner's rule). */
   const isStatusNote = (n: Note) => /status/.test(n.kind)
-  /* The parents' daily digest belongs to the parent login only (owner,
-     2026-10-05): a teacher who is also a parent never sees it at work. */
-  /* An account whose roles carry no workspace (a class teacher alone, a
-     school mid-setup) has no active role at all; the bell still has to draw. */
-  const asParent = activeRole?.key === 'parent'
-  const inToggles = (n: Note) => (asParent || !/digest/.test(n.kind)) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
+  const inToggles = (n: Note) => reachable(n) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)

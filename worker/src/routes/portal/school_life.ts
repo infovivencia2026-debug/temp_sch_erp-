@@ -149,6 +149,7 @@ export function registerPortalSchoolLife(r: Router): void {
   r.post('/portal/notifications/read-all', GROUP, markAllNotificationsRead)
   r.post('/portal/notifications/clear', GROUP, clearNotifications)
   r.post('/portal/notifications/{id}/read', GROUP, markNotificationRead)
+  r.post('/portal/notifications/{id}/dismiss', GROUP, dismissNotification)
 
   r.get('/portal/cafeteria/purchases', GROUP, listCafeteriaPurchases)
 }
@@ -1012,6 +1013,25 @@ async function markNotificationRead(c: Ctx): Promise<Response> {
   const res = await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ? AND read_at IS NULL`)
     .bind(now(), noteID, c.id.userId).run()
   if (res.meta.changes === 1) return ok({ status: 'read' })
+  throw notFound()
+}
+
+/* OPENED IS GONE (owner, 2026-10-16: "after any message is opened it should
+   disappear from the notifications"). Reading one used to leave it sitting
+   in the list, duller than the rest but still there, so the drawer only ever
+   emptied by the blunt "Clear all" -- the bell's whole point, that a number
+   means something waiting, was undone by its own list never shrinking as
+   things stopped waiting. One row leaves the same way Clear All removes it
+   (dismissed_at set, read_at backfilled); a status post is not covered here,
+   since opening one reads the post itself, not this table. */
+async function dismissNotification(c: Ctx): Promise<Response> {
+  const noteID = c.params.id
+  if (!isUUID(noteID)) throw badRequest('invalid notification id')
+  const ts = now()
+  const res = await c.db.prepare(`UPDATE notifications SET dismissed_at = ?, read_at = COALESCE(read_at, ?)
+                                   WHERE id = ? AND user_id = ? AND dismissed_at IS NULL`)
+    .bind(ts, ts, noteID, c.id.userId).run()
+  if (res.meta.changes === 1) return ok({ status: 'dismissed' })
   throw notFound()
 }
 
