@@ -753,6 +753,8 @@ export function Shell({
           railHidden ? 'lg:!hidden' : '',
           // The staff layout has no icon rail, so a resting tablet uses the drawer.
           staffLayout && !tabletDrawer && 'md:max-lg:!hidden',
+          // On a phone the staff menu opens across the whole screen (owner, 2026-10-19).
+          staffLayout && 'max-md:!w-full max-md:border-r-0',
           chromeless ? '!hidden' : ''
         )}
         /* Only while it is a drawer (phone, or the tablet once opened): a fixed
