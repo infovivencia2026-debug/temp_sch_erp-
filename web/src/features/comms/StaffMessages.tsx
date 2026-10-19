@@ -100,7 +100,8 @@ export default function StaffMessages() {
      that want answering; scrolling the address book to find them is the
      wrong way round. */
   const [unreadOnly, setUnreadOnly] = useState(false)
-  const me = useSession().user?.id
+  const session = useSession()
+  const me = session.user?.id
   /* The parents' register sits behind /teaching, which is gated on the
      timetable. Finance and HR have neither, and asking only earned a 403. */
   /* WHO MAY WRITE TO A FAMILY.
@@ -126,7 +127,9 @@ export default function StaffMessages() {
   /* Writing to families needs comms.announcements.write (the server refuses a send without it);
      a plain subject teacher messages colleagues only. */
   // Class teachers (students.write) and bus staff keep the family register, as the server allows.
-  const canParents = busOnly || (teaches && (can('comms.announcements.write') || can('students.write')))
+  // The school can keep teachers to colleagues only (settings: Teachers message parents directly).
+  const parentDMs = !session.modules?.some((m) => m.module === 'teacher_parent_messages' && !m.enabled)
+  const canParents = busOnly || (teaches && parentDMs && (can('comms.announcements.write') || can('students.write')))
   const CONTACTS = busOnly ? '/api/v1/ops/transport/parent-contacts' : '/api/v1/teaching/parent-contacts'
   const THREADS = busOnly ? '/api/v1/ops/transport/parent-messages' : '/api/v1/teaching/parent-messages'
 

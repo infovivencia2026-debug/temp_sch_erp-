@@ -597,8 +597,16 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
 
 interface TeacherRow { user_id: string; full_name: string; subject: string | null; class_teacher: number; photo: string | null; unread: number }
 
+/** The school's switch (setting `messaging.teacher_parent_messages`): on unless
+    module_settings 'teacher_parent_messages' is switched off. */
+async function teacherParentMessagesOn(c: Ctx): Promise<boolean> {
+  const row = await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'teacher_parent_messages'`).first<{ enabled: number }>()
+  return !row || !!row.enabled
+}
+
 /** The address book, and the allow list for sending: who teaches this child. */
 async function reachableTeachers(c: Ctx, sid: string): Promise<TeacherRow[]> {
+  if (!(await teacherParentMessagesOn(c))) return []
   const rows = await c.db.prepare(`
     WITH child_section AS (
         SELECT e.section_id
@@ -845,6 +853,9 @@ async function sendPortalMessage(c: Ctx): Promise<Response> {
     const mayWriteFamilies = can(c.id, 'comms.announcements.write') || can(c.id, 'operations.transport.read') ||
       bool((await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e JOIN sections sec ON sec.id = e.section_id
           WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id = ?) AS ok`).bind(sid, me).first<{ ok: number }>())?.ok)
+    if (!can(c.id, 'operations.transport.read') && !(await teacherParentMessagesOn(c))) {
+      throw new HttpError(403, 'this school keeps teacher messages to staff; send a class notice to reach families', { code: 'forbidden' })
+    }
     if (!mayWriteFamilies) {
       throw new HttpError(403, 'messaging parents needs the comms.announcements.write permission; you can message staff', { code: 'forbidden' })
     }
