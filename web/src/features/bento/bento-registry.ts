@@ -90,7 +90,8 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      stated confidently beside the line it justifies. The catalogue says
      `parent.home.dashboard`, and the classic registry has said so all along. */
   'parent.home.dashboard': screen(() => import('./ParentWeek')),
-  'faculty.home.todays_classes': screen(() => import('./FacultyToday')),
+  /* The owner's teacher home (2026-10-19) is one layout on both shells. */
+  'faculty.home.todays_classes': screen(() => import('../faculty/TodaysClasses')),
 
   /* The four small workspaces: exam office, IT, operations, driver. The same
      board is the classic Home too, through classic-board.tsx, so there is one

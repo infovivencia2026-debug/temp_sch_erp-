@@ -1,31 +1,34 @@
 import { useQuery } from '@tanstack/react-query'
-import { NavLink } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { featurePath } from '@/lib/catalog'
-import { Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
+import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
+import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
-import type { List, Section } from '@/lib/api'
+import type { List } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { notificationDay, useNotificationFeed } from '@/components/Notifications'
+import {
+  notificationDay, notificationKind, useNotificationActions, useNotificationFeed, type Note,
+} from '@/components/Notifications'
 
 /* A teacher's own day, from their own timetable.
 
    THIS SCREEN USED TO BE FICTION. 190 lines, not one data call: it told every
    teacher who opened it that their next class was "Math (10th Grade)" in "Room
-   304" with 26 of 28 present, and listed a roll of Alex, Ben and Chloe. None of
-   those people attend this school. It was routed at two catalogue keys, so a
-   teacher met it as both "Today's classes" and "My Class Hub".
-
-   A screen that invents data is worse than a screen that says it has none. An
-   empty timetable is a fact a teacher can act on — they go and ask why. A
-   plausible fake is one they cannot, because nothing looks wrong until they
-   walk to Room 304.
+   304" with 26 of 28 present. A screen that invents data is worse than a
+   screen that says it has none.
 
    Everything here comes from routes that already existed:
-     /api/v1/timetable/periods          the bell schedule
+     /api/v1/timetable/periods                 the bell schedule (and its breaks)
      /api/v1/timetable/entries?teacher_id=me   this teacher's own lessons
+     /api/v1/calendar/holiday-days             today a school holiday?
+     /api/v1/me/pay                            the staff code (employee_code)
+     /api/v1/profile/session-activity          today's sign-ins, when the school records them
+     /api/v1/portal/notifications              the bell's own feed
 
-   No new endpoint, no new feature — the same screen, telling the truth. */
+   THE OWNER'S LAYOUT (2026-10-19): greeting and date with a compact profile
+   block on the right; under it the day's timetable (wide) beside the
+   notifications. One column on a phone, timetable first. Also the bento
+   layout's faculty home, so every teacher sees the same screen. */
 
 /** Monday is 1 in the timetable's weekday numbering; JS Sunday is 0. */
 function todayWeekday(): number {
@@ -38,19 +41,50 @@ function minutesInto(t: string): number {
   return (h || 0) * 60 + (m || 0)
 }
 
+function localIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function clock(d: Date): string {
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function ago(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  if (!Number.isFinite(ms)) return ''
+  const min = Math.floor(ms / 60_000)
+  if (min < 1) return 'Just now'
+  if (min < 60) return `${min} min ago`
+  if (min < 24 * 60 && notificationDay(iso) === 'Today') return `${Math.floor(min / 60)} h ago`
+  return notificationDay(iso)
+}
+
+/* The left edge of a notification says what family it is from. */
+const KIND_EDGE: Record<string, string> = {
+  Fees: 'border-l-warning',
+  Messages: 'border-l-primary',
+  Message: 'border-l-primary',
+  Attendance: 'border-l-success',
+  Homework: 'border-l-info',
+  Results: 'border-l-info',
+  Lessons: 'border-l-info',
+  Timetable: 'border-l-info',
+  Notice: 'border-l-destructive',
+}
+
+type Row =
+  | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string }
+  | { kind: 'break'; key: string; start: number; end: number; label: string; span: string }
+
 export default function TodaysClasses() {
-  const role = 'faculty'
   const weekday = todayWeekday()
+  const navigate = useNavigate()
+  const session = useSession()
 
   const periods = useQuery({
     /* Every schedule's periods: a week can span classes on different timings. */
     queryKey: ['periods', 'all'],
     queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
-  })
-  const session = useSession()
-  const sections = useQuery({
-    queryKey: ['academics', 'sections'],
-    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const entries = useQuery({
     queryKey: ['timetable', 'me'],
@@ -58,208 +92,206 @@ export default function TodaysClasses() {
   })
 
   /* A HOLIDAY HAS NO CLASSES (Yajur, 2026-10-19: "if the school is holiday
-     by school calendar why showing this show holiday"). Dussehra ran 9-22
-     Oct and every teacher was still shown five lessons and "Now in session". */
-  const d0 = new Date()
-  const todayIso = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+     by school calendar why showing this show holiday"). */
+  const todayIso = localIso(new Date())
   const hol = useQuery({
     queryKey: ['holiday-days', 'today', todayIso],
     queryFn: () => api.get<List<{ date: string; name: string }>>(`/api/v1/calendar/holiday-days?from=${todayIso}&to=${todayIso}`),
     staleTime: 10 * 60_000, retry: false,
   })
-  const holiday = hol.data?.items?.[0]?.name
+  /* Same key as My pay, so the two share one request. */
+  const pay = useQuery({
+    queryKey: ['my-pay'],
+    queryFn: () => api.get<{ employee_code?: string }>('/api/v1/me/pay'),
+    staleTime: 10 * 60_000, retry: false,
+  })
+  /* Same key as the profile's Your sessions card. Empty unless the school
+     records session activity; then the line is left out. */
+  const activity = useQuery({
+    queryKey: ['own-session-activity'],
+    queryFn: () => api.get<{ recording: boolean; items: { signed_in_at: string }[] }>('/api/v1/profile/session-activity'),
+    staleTime: 5 * 60_000, retry: false,
+  })
   const notes = useNotificationFeed()
-  const noteItems = notes.data?.items ?? []
+  const { readAll, linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   if (entries.error) return <ErrorState error={entries.error} />
   if (periods.error) return <ErrorState error={periods.error} />
 
+  const holiday = hol.data?.items?.[0]?.name
   const bell = new Map((periods.data?.items ?? []).map((p) => [p.id, p]))
-  const mine = (entries.data?.items ?? [])
-    .filter((e) => !holiday && e.weekday === weekday)
-    .sort((a, b) => (bell.get(a.period_id)?.sequence ?? 0) - (bell.get(b.period_id)?.sequence ?? 0))
+  const mine = (entries.data?.items ?? []).filter((e) => !holiday && e.weekday === weekday)
 
-  /* "Now" and "next" are read off the clock rather than stored, so the screen
-     is right whenever it is opened and does not need refreshing to stop lying. */
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
-  const current = mine.find((e) => {
+  /* Breaks from the same bell schedules today's lessons run on, between the
+     first lesson and the last; a break from another schedule is not this
+     teacher's. */
+  const span = (a: string, b: string) => `${a.slice(0, 5)} – ${b.slice(0, 5)}`
+  const lessonRows: Row[] = mine.map((e) => {
     const p = bell.get(e.period_id)
-    return p && minutesInto(p.starts_at) <= nowMin && nowMin < minutesInto(p.ends_at)
+    return {
+      kind: 'lesson', key: e.id,
+      start: p ? minutesInto(p.starts_at) : 0, end: p ? minutesInto(p.ends_at) : 0,
+      label: p?.name ?? e.period_name,
+      title: `${e.subject_name} · ${e.class_name} ${e.section_name}`,
+      room: e.room || undefined,
+      span: p ? span(p.starts_at, p.ends_at) : '',
+    }
   })
-  const next = mine.find((e) => {
-    const p = bell.get(e.period_id)
-    return p && minutesInto(p.starts_at) > nowMin
-  })
+  const schedules = new Set(mine.map((e) => bell.get(e.period_id)?.bell_schedule_id ?? null))
+  const firstStart = Math.min(...lessonRows.map((r) => r.start))
+  const lastEnd = Math.max(...lessonRows.map((r) => r.end))
+  const breakRows: Row[] = lessonRows.length === 0 ? [] : (periods.data?.items ?? [])
+    .filter((p) => p.is_break && schedules.has(p.bell_schedule_id ?? null))
+    .filter((p) => minutesInto(p.starts_at) >= firstStart && minutesInto(p.ends_at) <= lastEnd)
+    .map((p) => ({
+      kind: 'break', key: p.id, start: minutesInto(p.starts_at), end: minutesInto(p.ends_at),
+      label: p.name, span: span(p.starts_at, p.ends_at),
+    }))
+  const rows = [...lessonRows, ...breakRows].sort((a, b) => a.start - b.start || a.end - b.end)
 
-  const timetableHref = featurePath(role, 'my_classes', 'my_timetable')
-  const workHref = featurePath(role, 'home', 'my_work')
+  /* Done, Now and Upcoming are read off the clock rather than stored, so the
+     screen is right whenever it is opened. */
+  const now = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const statusOf = (r: Row) => (r.end <= nowMin ? 'done' : r.start <= nowMin ? 'now' : 'upcoming')
 
-  /* THE OWNER'S LAYOUT: a greeting with today's date, the lesson in session
-     (or the next one) as a card on the left, the day's lessons on the right
-     -- done, now, upcoming -- and three figures underneath. */
-  const hour = new Date().getHours()
+  const hour = now.getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const first = (session.user?.full_name ?? '').split(/\s+/)[0]
-  const dateBadge = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
-  const ownSections = [...new Set((entries.data?.items ?? []).map((e) => e.section_id).filter(Boolean))]
-  const todaysSections = new Set(mine.map((e) => e.section_id))
-  const students = (sections.data?.items ?? [])
-    .filter((x) => ownSections.includes(x.id))
-    .reduce((n, x) => n + (x.enrolled ?? 0), 0)
-  const done = mine.filter((e) => { const p = bell.get(e.period_id); return p && minutesInto(p.ends_at) <= nowMin }).length
-  const upcoming = mine.filter((e) => { const p = bell.get(e.period_id); return p && minutesInto(p.starts_at) > nowMin }).length
-  const focus = current ?? next
-  const focusP = focus ? bell.get(focus.period_id) : undefined
-  const after = focus ? mine[mine.indexOf(focus) + 1] : undefined
-  const afterP = after ? bell.get(after.period_id) : undefined
-  const span = (p?: { starts_at: string; ends_at: string }) => p ? `${p.starts_at.slice(0, 5)} – ${p.ends_at.slice(0, 5)}` : ''
+  const fullName = session.user?.full_name ?? ''
+  const first = fullName.split(/\s+/)[0]
+  const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const staffCode = pay.data?.employee_code
+  const signIns = (activity.data?.items ?? [])
+    .map((a) => new Date(a.signed_in_at))
+    .filter((d) => !Number.isNaN(d.getTime()) && localIso(d) === todayIso)
+    .sort((a, b) => a.getTime() - b.getTime())
+  const signInLine = signIns.length === 0
+    ? null
+    : signIns.length === 1
+      ? `Signed in ${clock(signIns[0])}`
+      : `First sign-in ${clock(signIns[0])} · last ${clock(signIns[signIns.length - 1])}`
 
-  const subjectsToday = [...new Set(mine.map((e) => e.subject_name).filter(Boolean))]
+  const noteItems: Note[] = notes.data?.items ?? []
+  const unread = notes.data?.unread ?? 0
+
   return (
-    /* THE OWNER'S WEB LAYOUT: a greeting card across the top, then three
-       columns -- the lesson in session, the day's lessons, and an overview
-       with the figures and the two ways onward as buttons. Drawn in the
-       ERP's own cards and the school's colour, so it sits with every other
-       screen. One column on a phone. */
     <PageBody top><div className="flex flex-col gap-5">
-      <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
-          <p className="text-[14px] text-muted-foreground">
-            {holiday ? `Holiday today: ${holiday}. No classes.` : mine.length === 0 ? 'Nothing is timetabled for you today' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} scheduled on your timetable today`}
-          </p>
+          <p className="text-[14px] text-muted-foreground">{dateLine}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground">{dateBadge}</span>
-          {subjectsToday.length > 0 && (
-            <span className="rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground">Faculty: {subjectsToday.join(', ')}</span>
-          )}
+        <div className="flex min-w-0 items-center gap-3">
+          <PersonAvatar name={fullName || '?'} size={40} />
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold">{fullName}</p>
+            {staffCode && <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">{staffCode}</p>}
+            {signInLine && <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">{signInLine}</p>}
+          </div>
         </div>
-      </Card>
-
-      <div className="grid grid-cols-[minmax(0,1fr)] items-stretch gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,2fr)_minmax(0,0.95fr)]">
-        <Card className="flex flex-col justify-between border-primary/25 bg-gradient-to-b from-card to-primary/[0.06] px-6 py-6">
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.05em] text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              {current ? 'Now in session' : next ? 'Up next' : 'Day complete'}
-            </span>
-            {focusP && <span className="text-[13px] text-muted-foreground">{focusP.name}</span>}
-          </div>
-          <div className="my-8">
-            {focus ? (
-              <>
-                <h2 className="text-[32px] font-bold leading-tight tracking-[-0.02em]">{focus.subject_name}</h2>
-                <p className="text-[19px] font-semibold text-primary">{focus.class_name} {focus.section_name}</p>
-                {focusP && <p className="mt-1 text-[15px] text-muted-foreground">{span(focusP)}</p>}
-              </>
-            ) : (
-              <h2 className="text-[22px] font-bold leading-tight">{mine.length ? `All ${mine.length} classes done` : 'No classes today'}</h2>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3 border-t pt-4">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Room</span>
-              <strong className="mt-0.5 block text-[16px] font-semibold">{focus?.room || '-'}</strong>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Next up</span>
-              <strong className="mt-0.5 block text-[16px] font-semibold">
-                {after ? `${after.class_name} ${after.section_name}${afterP ? ` (${afterP.starts_at.slice(0, 5)})` : ''}` : '-'}
-              </strong>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="px-6 py-5">
-          <div className="mb-4 flex items-center justify-between border-b pb-3">
-            <h3 className="text-[16px] font-bold">Today's classes</h3>
-            <span className="text-[13px] text-muted-foreground">{mine.length} {mine.length === 1 ? 'period' : 'periods'} total</span>
-          </div>
-          {mine.length === 0 ? (
-            <EmptyState
-              title="No lessons timetabled today"
-              body={weekday >= 6
-                ? 'Today is the weekend. Your full week is on the timetable.'
-                : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
-            />
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {mine.map((e) => {
-                const p = bell.get(e.period_id)
-                const isNow = current?.id === e.id
-                const isDone = !!p && minutesInto(p.ends_at) <= nowMin
-                return (
-                  <div key={e.id}
-                    className={cn('flex items-center justify-between gap-3 rounded-xl border px-5 py-4 transition-colors',
-                      isNow ? 'border-primary/40 bg-primary/[0.07] shadow-sm' : 'bg-muted/30 hover:bg-muted/60')}>
-                    <div className="flex min-w-0 items-center gap-6">
-                      <span className={cn('min-w-[100px] whitespace-nowrap text-[14px] font-semibold tabular-nums', isNow ? 'text-primary' : 'text-muted-foreground')}>
-                        {p ? span(p) : e.period_name}
-                      </span>
-                      <div className="min-w-0">
-                        <h4 className="truncate text-[15px] font-semibold">{e.subject_name} · {e.class_name} {e.section_name}</h4>
-                        <p className="truncate text-[13px] text-muted-foreground">{p?.name ?? e.period_name}{e.room ? ` • ${e.room}` : ''}</p>
-                      </div>
-                    </div>
-                    <span className={cn('shrink-0 text-[13px]', isNow ? 'font-semibold text-primary' : isDone ? 'text-muted-foreground' : 'font-medium text-foreground/70')}>
-                      {isNow ? 'Active now' : isDone ? 'Completed' : 'Upcoming'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        <Card className="flex flex-col gap-3 px-6 py-5">
-          <h3 className="text-[16px] font-bold">Overview</h3>
-          {[
-            ['Daily progress', `${done} / ${mine.length}`, `${current ? 1 : 0} ongoing, ${upcoming} upcoming`],
-            ['Total students', String(students), 'Enrolled in your sections'],
-            ['Classes today', String(mine.length), `Across ${todaysSections.size} ${todaysSections.size === 1 ? 'section' : 'sections'}`],
-          ].map(([t, v, sub]) => (
-            <div key={t} className="rounded-xl border bg-muted/30 px-5 py-4">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{t}</div>
-              <div className="mt-1 text-[24px] font-bold tracking-[-0.02em]">{v}</div>
-              <div className="text-[13px] text-muted-foreground">{sub}</div>
-            </div>
-          ))}
-          {[
-            ['My timetable', timetableHref],
-            ['What is outstanding on me', workHref],
-          ].map(([label, to]) => (
-            <NavLink key={label} to={to}
-              className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-[14px] font-semibold transition-colors hover:border-primary/40 hover:bg-primary/[0.06] hover:text-primary">
-              {label} <span aria-hidden>→</span>
-            </NavLink>
-          ))}
-        </Card>
       </div>
 
-      {!notes.error && (
-        <Card className="px-6 py-5">
-          <h3 className="mb-3 border-b pb-3 text-[16px] font-bold">Notifications</h3>
-          {notes.isLoading ? (
-            <Loading label="Loading notifications" />
-          ) : noteItems.length === 0 ? (
-            <EmptyState title="No notifications" body="New notices and messages for you appear here." />
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {noteItems.slice(0, 5).map((n) => (
-                <li key={n.id} className="flex items-start justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className={cn('truncate text-[14px]', !n.read_at && 'font-semibold')}>{n.title}</p>
-                    {n.body && <p className="line-clamp-2 text-[13px] text-muted-foreground">{n.body}</p>}
-                  </div>
-                  <span className="shrink-0 text-[12px] text-muted-foreground">{notificationDay(n.created_at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+            <h2 className="text-[16px] font-bold">Today's timetable</h2>
+            {!holiday && (
+              <span className="text-[13px] text-muted-foreground">
+                {lessonRows.length} {lessonRows.length === 1 ? 'period' : 'periods'}
+              </span>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+            {holiday ? (
+              <EmptyState title="Holiday" body={`${holiday}. No classes today.`} />
+            ) : rows.length === 0 ? (
+              <EmptyState
+                title="No lessons timetabled today"
+                body={weekday >= 6
+                  ? 'Today is the weekend. Your full week is on My timetable.'
+                  : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
+              />
+            ) : (
+              <ul>
+                {rows.map((r) => {
+                  if (r.kind === 'break') {
+                    return (
+                      <li key={r.key} className="flex items-center gap-3 px-5 py-1.5 text-[12px] text-muted-foreground">
+                        <span className="h-px flex-1 bg-border" />
+                        <span className="shrink-0">{r.label} · {r.span}</span>
+                        <span className="h-px flex-1 bg-border" />
+                      </li>
+                    )
+                  }
+                  const st = statusOf(r)
+                  return (
+                    <li key={r.key}
+                      className={cn('flex items-center gap-3 border-b border-l-2 border-l-transparent px-5 py-3 last:border-b-0',
+                        st === 'now' && 'border-l-primary bg-primary/[0.07]')}>
+                      <span className={cn('w-16 shrink-0 truncate text-[13px] font-semibold',
+                        st === 'now' ? 'text-primary' : 'text-muted-foreground')}>{r.label}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14.5px] font-semibold">{r.title}</p>
+                        <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">
+                          {r.span}{r.room ? ` · ${r.room}` : ''}
+                        </p>
+                      </div>
+                      <Badge tone={st === 'now' ? 'primary' : st === 'done' ? 'neutral' : 'info'} className="shrink-0">
+                        {st === 'now' ? 'Now' : st === 'done' ? 'Done' : 'Upcoming'}
+                      </Badge>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
         </Card>
-      )}
+
+        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[16px] font-bold">Notifications</h2>
+              {unread > 0 && <span className="text-[13px] text-muted-foreground">{unread} new</span>}
+            </div>
+            {unread > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => readAll.mutate()}>Mark all read</Button>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+            {notes.isLoading ? (
+              <Loading label="Loading notifications" />
+            ) : notes.error ? (
+              <EmptyState title="Could not load notifications" body="Open the bell at the top to try again." />
+            ) : noteItems.length === 0 ? (
+              <EmptyState title="No notifications" body="New notices and messages for you appear here." />
+            ) : (
+              <ul className="flex flex-col gap-2 p-3">
+                {noteItems.map((n) => {
+                  const link = linkFor(n)
+                  const family = notificationKind(n.kind).label
+                  return (
+                    <li key={n.id}
+                      className={cn('flex items-start gap-3 rounded-lg border border-l-2 px-3 py-2.5',
+                        KIND_EDGE[family] ?? 'border-l-muted-foreground')}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className={cn('min-w-0 truncate text-[14px]', n.read_at ? 'font-medium' : 'font-semibold')}>{n.title}</p>
+                          <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
+                        </div>
+                        {n.body && <p className="truncate text-[13px] text-muted-foreground">{n.body}</p>}
+                      </div>
+                      {link && (
+                        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate(link)}>Open</Button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </Card>
+      </div>
     </div></PageBody>
   )
 }

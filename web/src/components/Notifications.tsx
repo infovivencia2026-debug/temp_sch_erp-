@@ -40,7 +40,7 @@ import { Button, Dialog } from '@/components/ui'
    Anchored to the window rather than to the bell, so it is the same panel at
    every width and does not have to be measured away from the right edge. */
 
-interface Note {
+export interface Note {
   id: string
   kind: string
   title: string
@@ -177,6 +177,87 @@ export function useNotificationFeed() {
   })
 }
 
+type Feed = { items?: Note[]; unread?: number }
+
+/** Mark all read, and where a notification leads: shared by the bell and the
+    home panels, so both open the same screen for the same row. */
+export function useNotificationActions() {
+  const readAll = useOptimisticMutation<void>({
+    mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
+    queryKeys: [['notifications']],
+    apply: (old) => {
+      const f = old as Feed
+      const now = new Date().toISOString()
+      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
+    },
+    failure: "Couldn't mark them read",
+  })
+  /* Clicking a notification opens the thing it is about.
+   *
+   * Every row carried a link and nothing used it: the panel listed what had
+   * happened and left the reader to work out where it lived, which for a
+   * staff message meant knowing that Communication has a Messages screen. The
+   * one action a notification exists to prompt was the one thing it did not
+   * do. */
+  /* Rows written before links were, and any kind the server does not map,
+     still land somewhere sensible for a parent: the kind names the screen.
+     Each href is undefined for a reader who does not hold that screen, so
+     staff see nothing they cannot open. */
+  /* EVERY ROLE'S OWN MESSAGES SCREEN, NOT ONLY THE PARENT'S (owner,
+     2026-10-15: "I see the notification number but no messages... every
+     notification, every role should open what it is about"). A "message"
+     or "chat" notification -- the one kind with no fallback at all before
+     this -- had nowhere to go for anyone who was not a parent, which is
+     most of the people this bell rings for: a teacher, the front office, HR,
+     a librarian, each sees the identical "communication.messages" screen
+     under their own role's key. Tried in this fixed order (parent first,
+     since a family account is never also one of the roles below it), the
+     first one this person actually holds wins. */
+  const messagesHref = useFeatureHrefAny([
+    'parent.messages.communication',
+    'faculty.communication.messages', 'institution_admin.communication.messages', 'hod.communication.messages',
+    'hr.communication.messages', 'finance.communication.messages', 'front_office.communication.messages',
+    'librarian.communication.messages', 'nurse.communication.messages', 'counsellor.communication.messages',
+    'admissions.communication.messages', 'exam_controller.communication.messages', 'discipline_officer.communication.messages',
+    'hostel_warden.communication.messages', 'transport_manager.communication.messages', 'activity_coord.communication.messages',
+    'it_admin.communication.messages', 'operations.communication.messages',
+  ])
+  /* A circular is read on the same screen a parent reads it on; staff who
+     must acknowledge one have their own circulars desk. */
+  const circularHref = useFeatureHrefAny([
+    'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
+  ])
+  const fallback: Record<string, string | undefined> = {
+    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
+    fee: useFeatureHref('parent.fees.fees_payments'),
+    attendance: useFeatureHref('parent.attendance.attendance'),
+    homework: useFeatureHref('parent.academics.homework_academics'),
+    result: useFeatureHref('parent.academics.results_report_cards'),
+    message: messagesHref,
+    circular: circularHref,
+  }
+  const linkFor = (n: Note): string | undefined => {
+    /* The digest rows (fee_due, attendance) carry the API-shaped link Go
+       writes, "/portal/fees" and "/portal/attendance". No screen lives there,
+       so following it fell through to the dashboard; the kind names the
+       screen instead. Every other link is a /go/ or screen path already. */
+    if (n.link && !n.link.startsWith('/portal/')) return n.link
+    const k = n.kind.toLowerCase()
+    if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
+    if (k.startsWith('fee')) return fallback.fee
+    if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
+    if (k.startsWith('homework')) return fallback.homework
+    if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
+    // A broadcast or a direct message carries its kind as the template code
+    // (payroll.payslip, fee_reminder, ...) and most of those already matched
+    // a branch above; the two literal, kindless cases are message and chat.
+    if (k === 'message' || k === 'chat' || k.startsWith('message_') || k.startsWith('chat_')) return fallback.message
+    if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
+    return undefined
+  }
+  return { readAll, linkFor }
+}
+
 export { dayOf as notificationDay, kindOf as notificationKind }
 
 export default function Notifications() {
@@ -235,17 +316,7 @@ export default function Notifications() {
      * stale count. The options live in useNotificationFeed. */
   /* Optimistic (lib/optimistic): the badge clears and the list empties the
      moment either is pressed; a refusal puts them back with the reason. */
-  type Feed = { items?: Note[]; unread?: number }
-  const readAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    queryKeys: [['notifications']],
-    apply: (old) => {
-      const f = old as Feed
-      const now = new Date().toISOString()
-      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
-    },
-    failure: "Couldn't mark them read",
-  })
+  const { readAll, linkFor } = useNotificationActions()
   /* Clear empties the list; Mark all read only quiets the badge. Both were
      asked for by name: a feed a fortnight long that can only be marked read
      is a feed that has to be scrolled past every time. */
@@ -312,69 +383,6 @@ export default function Notifications() {
 
   const items = feed.data?.items ?? []
 
-  /* Clicking a notification opens the thing it is about.
-   *
-   * Every row carried a link and nothing used it: the panel listed what had
-   * happened and left the reader to work out where it lived, which for a
-   * staff message meant knowing that Communication has a Messages screen. The
-   * one action a notification exists to prompt was the one thing it did not
-   * do. */
-  /* Rows written before links were, and any kind the server does not map,
-     still land somewhere sensible for a parent: the kind names the screen.
-     Each href is undefined for a reader who does not hold that screen, so
-     staff see nothing they cannot open. */
-  /* EVERY ROLE'S OWN MESSAGES SCREEN, NOT ONLY THE PARENT'S (owner,
-     2026-10-15: "I see the notification number but no messages... every
-     notification, every role should open what it is about"). A "message"
-     or "chat" notification -- the one kind with no fallback at all before
-     this -- had nowhere to go for anyone who was not a parent, which is
-     most of the people this bell rings for: a teacher, the front office, HR,
-     a librarian, each sees the identical "communication.messages" screen
-     under their own role's key. Tried in this fixed order (parent first,
-     since a family account is never also one of the roles below it), the
-     first one this person actually holds wins. */
-  const messagesHref = useFeatureHrefAny([
-    'parent.messages.communication',
-    'faculty.communication.messages', 'institution_admin.communication.messages', 'hod.communication.messages',
-    'hr.communication.messages', 'finance.communication.messages', 'front_office.communication.messages',
-    'librarian.communication.messages', 'nurse.communication.messages', 'counsellor.communication.messages',
-    'admissions.communication.messages', 'exam_controller.communication.messages', 'discipline_officer.communication.messages',
-    'hostel_warden.communication.messages', 'transport_manager.communication.messages', 'activity_coord.communication.messages',
-    'it_admin.communication.messages', 'operations.communication.messages',
-  ])
-  /* A circular is read on the same screen a parent reads it on; staff who
-     must acknowledge one have their own circulars desk. */
-  const circularHref = useFeatureHrefAny([
-    'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
-  ])
-  const fallback: Record<string, string | undefined> = {
-    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
-    fee: useFeatureHref('parent.fees.fees_payments'),
-    attendance: useFeatureHref('parent.attendance.attendance'),
-    homework: useFeatureHref('parent.academics.homework_academics'),
-    result: useFeatureHref('parent.academics.results_report_cards'),
-    message: messagesHref,
-    circular: circularHref,
-  }
-  const linkFor = (n: Note): string | undefined => {
-    /* The digest rows (fee_due, attendance) carry the API-shaped link Go
-       writes, "/portal/fees" and "/portal/attendance". No screen lives there,
-       so following it fell through to the dashboard; the kind names the
-       screen instead. Every other link is a /go/ or screen path already. */
-    if (n.link && !n.link.startsWith('/portal/')) return n.link
-    const k = n.kind.toLowerCase()
-    if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
-    if (k.startsWith('fee')) return fallback.fee
-    if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
-    if (k.startsWith('homework')) return fallback.homework
-    if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
-    // A broadcast or a direct message carries its kind as the template code
-    // (payroll.payslip, fee_reminder, ...) and most of those already matched
-    // a branch above; the two literal, kindless cases are message and chat.
-    if (k === 'message' || k === 'chat' || k.startsWith('message_') || k.startsWith('chat_')) return fallback.message
-    if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
-    return undefined
-  }
   const openNote = (n: Note) => {
     /* A status opens the viewer at that post, over the drawer; seeing it
        is what reads the entry (POST /status/posts/{id}/view). */
