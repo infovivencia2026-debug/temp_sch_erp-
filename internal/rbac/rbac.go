@@ -264,9 +264,9 @@ var All = []Permission{
 	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
 	{HelpDeskRead, "help", "View Helpdesk"},                                                                     // feature:help.helpdesk
 	{HelpDeskWrite, "help", "Manage Helpdesk"},                                                                  // feature:help.helpdesk
-	{CommsMailRead, "comms", "View Inbox"}, // feature:communication.inbox
-	{CommsMailWrite, "comms", "Manage Inbox"}, // feature:communication.inbox
-	{CommsMailManage, "comms", "View Mail addresses"}, // feature:communication.mail_addresses
+	{CommsMailRead, "comms", "View Inbox"},                                                                      // feature:communication.inbox
+	{CommsMailWrite, "comms", "Manage Inbox"},                                                                   // feature:communication.inbox
+	{CommsMailManage, "comms", "View Mail addresses"},                                                           // feature:communication.mail_addresses
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -410,7 +410,7 @@ var SystemRoles = []Role{
 	// which carries it, so Take attendance shows for them and no one else.
 	{"hod", "HOD / Department Head", []string{
 		CommsMailWrite, // feature:communication.inbox
-		CommsMailRead, // feature:communication.inbox
+		CommsMailRead,  // feature:communication.inbox
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
 		AttendanceRead, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
@@ -600,6 +600,9 @@ func keysExcept(excluded ...string) []string {
 	}
 	return out
 }
-	CommsMailRead = "comms.mail.read" // feature:communication.inbox
-	CommsMailWrite = "comms.mail.write" // feature:communication.inbox
+
+const (
+	CommsMailRead   = "comms.mail.read"   // feature:communication.inbox
+	CommsMailWrite  = "comms.mail.write"  // feature:communication.inbox
 	CommsMailManage = "comms.mail.manage" // feature:communication.mail_addresses
+)

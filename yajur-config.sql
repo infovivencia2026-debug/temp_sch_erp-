@@ -155,3 +155,23 @@ ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1;
 DELETE FROM role_permissions WHERE permission_key = 'self.profile.write'
    AND role_id IN (SELECT id FROM roles WHERE key NOT IN ('student', 'parent', 'seller_admin'));
 UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE key NOT IN ('student', 'parent', 'seller_admin');
+
+-- ---------------------------------------------------------------------------
+-- Parent concerns go through the front desk (owner, 2026-10-20). Parents may
+-- send a concern only to the front desk staff, named; the front desk passes
+-- it to the class teacher or a subject teacher of that class; the teacher
+-- marks it resolved; the front desk tells the parent. Switch off by setting
+-- this module to 0.
+
+INSERT INTO module_settings (institution_id, module, enabled)
+SELECT id, 'concerns_via_front_desk', 1 FROM institutions WHERE 1 LIMIT 1
+ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1;
+
+INSERT OR IGNORE INTO permissions (key, module, description) VALUES
+  ('front_office.communication.parent_concerns', 'front_office', 'Parent concerns sent to the front desk: pass to a teacher of the class, see what they resolved, tell the parent.'),
+  ('faculty.communication.concerns_from_parents', 'faculty', 'Concerns the front desk passed to you. Mark each resolved; the front desk tells the parent.');
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT id, 'front_office.communication.parent_concerns' FROM roles WHERE key = 'front_office';
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT id, 'faculty.communication.concerns_from_parents' FROM roles WHERE key IN ('faculty', 'class_teacher');
