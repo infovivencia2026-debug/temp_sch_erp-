@@ -93,4 +93,7 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 93, name: 'hod_trim', checksum: '2c9619acb75eef4509dfaf287ef567a9f51e3f8bcd0f8e49c48d68c7226360a7' },
   { version: 94, name: 'question_paper_deadlines', checksum: '0ba91dd47aa76662f4bff1c8fc516c1d51eca0471f8a0e81f96b86dacec23096' },
   { version: 95, name: 'faculty_trim_existing', checksum: '35374ce4a03f8ff40c476a22a79318886c4a4b4f6c646597348286b0019bf823' },
+  { version: 96, name: 'subject_head_role', checksum: '50d3a824c534a09e05668539033473a87df47bc1794a14a4f2727eb4dae08eb6' },
+  { version: 97, name: 'subject_chat', checksum: '4dd60137856ec8669a8005639f92b35e987ea9b1c2bd3db4449ea79139b746a8' },
+  { version: 98, name: 'exam_controller_deadline_perm', checksum: 'ba228b27bbb4af2ecb9e0d6bc9d4802980e7145448e5fe4dc3571402ccf2e6f3' },
 ]
