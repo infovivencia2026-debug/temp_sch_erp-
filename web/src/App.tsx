@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api'
+import { staffLayoutOn } from '@/lib/staff-layout'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
 import { useTabs } from '@/lib/tabs'
@@ -297,7 +298,14 @@ function FeatureRoute() {
     )
   }
 
-  const Component = componentFor(feature.key)
+  const homeFirst = section.features[0]?.key === feature.key &&
+    (section.workspace === 'Home' || section.slug === 'home' || section.slug === 'dashboard')
+  /* With the school's staff layout on, every staff member's Home is today's
+     timetable beside the notifications (Yajur, 2026-10-19: "this is for all
+     staff of yajur school"). */
+  const staffHome = homeFirst && staffLayoutOn(session, role.key)
+  const Component = componentFor(staffHome ? 'faculty.home.todays_classes' : feature.key)
+  const timetableHome = staffHome || feature.key === 'faculty.home.todays_classes'
 
   /* Every role's Home opens with the same question.
 
@@ -367,8 +375,8 @@ function FeatureRoute() {
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
         {homeLanding && (
-          <PageBody width={feature.key === 'faculty.home.todays_classes' ? 'full' : undefined}>
-            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} noAttention={feature.key === 'faculty.home.todays_classes'} />
+          <PageBody width={timetableHome ? 'full' : undefined}>
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={timetableHome || feature.key === 'student.home.my_day'} noAttention={timetableHome} />
           </PageBody>
         )}
         {/* Keyed by the feature, not just by the component.
