@@ -92,4 +92,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 92, name: 'feature_subject_meetings', checksum: 'c21322006cdc64f366cbe4f178950038e2f7ed32f777176ee0679825d969d9e7' },
   { version: 93, name: 'hod_trim', checksum: '2c9619acb75eef4509dfaf287ef567a9f51e3f8bcd0f8e49c48d68c7226360a7' },
   { version: 94, name: 'question_paper_deadlines', checksum: '0ba91dd47aa76662f4bff1c8fc516c1d51eca0471f8a0e81f96b86dacec23096' },
+  { version: 95, name: 'faculty_trim_existing', checksum: '35374ce4a03f8ff40c476a22a79318886c4a4b4f6c646597348286b0019bf823' },
 ]
