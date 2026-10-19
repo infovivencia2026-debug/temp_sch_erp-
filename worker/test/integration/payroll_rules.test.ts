@@ -68,7 +68,7 @@ describe('payroll rules', () => {
     const cut = PARTS.map(([, a]) => Math.trunc((a * 23) / 26))
     const gross = cut.reduce((n, x) => n + x, 0)
     const pf = Math.floor(((cut[0] + cut[2]) * 12) / 100 + 0.5)
-    const esi = Math.floor((gross * 0.75) / 100 + 0.5)
+    const esi = Math.round(Math.floor((gross * 0.75) / 100 + 0.5) / 100) * 100 // whole rupees, as on the school's sheet
     const pt = gross >= 1500000 ? 15000 : 0
     expect(p.gross_paise).toBe(gross)
     expect(p.breakup.PF).toBe(-pf)
@@ -85,7 +85,7 @@ describe('payroll rules', () => {
     expect(p.breakup.PF).toBe(-72000)
     expect(p.breakup.PT).toBe(-15000)
     expect(p.breakup.ESI).toBeUndefined()
-    expect(p.breakup.ESI_EE_BY_EMPLOYER).toBe(11979)
+    expect(p.breakup.ESI_EE_BY_EMPLOYER).toBe(12000)
     expect(p.breakup.LOP).toBe(-161535)
     expect(p.net_paise).toBe(1348665)
 

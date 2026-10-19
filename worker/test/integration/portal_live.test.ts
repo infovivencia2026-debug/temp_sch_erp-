@@ -38,8 +38,8 @@ describe('portal live revision', () => {
 })
 
 describe('portal live revision shape', () => {
-  it('always has seven positions, so the client can tell which part moved', async () => {
+  it('always has nine positions, so the client can tell which part moved', async () => {
     const r = await api<{ rev: string }>('otherParent', 'GET', '/portal/live')
-    expect(r.body.rev.split('|')).toHaveLength(7)
+    expect(r.body.rev.split('|')).toHaveLength(9)
   })
 })

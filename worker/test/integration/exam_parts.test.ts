@@ -45,11 +45,12 @@ describe('exam parts', () => {
       { name: 'Written', max_marks: 80 }, { name: 'Project', max_marks: 10 }, { name: 'Notebook', max_marks: 5 }, { name: 'Overall', max_marks: 5 },
     ] })
     expect(status).toBe(200)
-    parts = body.parts
-    expect(parts.map((p) => p.name)).toEqual(['Written', 'Project', 'Notebook', 'Overall'])
-    expect(await maxOf(PAPER)).toBe(100)
+    // Subject marks is always the first part, out of the paper's old maximum (owner, 2026-10-13).
+    expect(body.parts.map((p: { name: string }) => p.name)).toEqual(['Subject marks', 'Written', 'Project', 'Notebook', 'Overall'])
+    parts = body.parts.filter((p: { name: string }) => p.name !== 'Subject marks')
+    expect(await maxOf(PAPER)).toBe(200)
     const got = await api('teacher', 'GET', `/exams/${EXAM}/parts`)
-    expect(got.body.items).toHaveLength(4)
+    expect(got.body.items).toHaveLength(5)
   })
 
   it('refuses duplicate names and a zero maximum', async () => {

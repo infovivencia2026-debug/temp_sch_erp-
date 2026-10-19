@@ -8,6 +8,6 @@ describe('academics.subject_overview', () => {
   const r = new Router()
   registerSubjectOverview(r)
   it('lists under academics.timetable.read', () => {
-    expect(r.match('GET', '/api/v1C:/Program Files/Git/teaching/subject-overview')?.route.perm).toBe('academics.timetable.read')
+    expect(r.match('GET', '/teaching/my-subjects')?.route.perm).toBe('academics.timetable.read')
   })
 })
