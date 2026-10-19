@@ -1,10 +1,15 @@
 import type { SessionResponse } from './api'
 
+/* The teaching workspaces. Class teachers and subject heads work inside the
+   faculty workspace, so they are covered by it. */
+const TEACHING = new Set(['faculty', 'hod'])
+
 /** The school's staff layout switch: module_settings 'staff_layout' (settings
     registry key `app.staff_layout`), seller-set, off unless a row says on.
-    Applies to staff only; a parent's or a student's screens never change. */
+    Teaching staff only (Yajur, 2026-10-19: "this UI only for teaching staff");
+    every other workspace keeps the standard shell. */
 export function staffLayoutOn(session: Pick<SessionResponse, 'modules'>, roleKey: string | undefined): boolean {
-  if (!roleKey || roleKey === 'parent' || roleKey === 'student') return false
+  if (!roleKey || !TEACHING.has(roleKey)) return false
   return !!session.modules?.some((m) => m.module === 'staff_layout' && m.enabled)
 }
 
