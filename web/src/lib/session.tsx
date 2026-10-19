@@ -9,7 +9,7 @@ import { registerPushToken } from './push'
 /* Both are seen by someone who is not yet in the app (a visitor on /, a first
    sign-in setting a password), so they load on their own, not with the shell. */
 const SetYourPassword = lazy(() => import('@/features/shared/SetYourPassword'))
-import { claimTabs } from './tabs'
+import { claimTabs, multitaskingAllowed, setMultitasking } from './tabs'
 import { applyBrand, rememberSchoolMark } from './brand'
 import { setPrintLetterhead } from './print'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
@@ -153,6 +153,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      so nobody sees the previous person's tabs even for a frame. claimTabs is
      idempotent for the same user, so a re-render costs nothing. */
   if (data.user) claimTabs(data.user.id)
+  /* The school's "Tabs and split screen" switch, before anything draws the
+     strip: off closes whatever this device still had open. */
+  setMultitasking(multitaskingAllowed(data))
   /* And the outbox follows the same person for the same reason. A queue of
      unsent writes flushed under the next sign-in posts one teacher's register
      as another, to sections they may not even be scoped for. */

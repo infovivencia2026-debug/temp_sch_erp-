@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { openTab, closeTab, closeOthers, closeAll, neighbourOf, useTabs, MAX_TABS, claimTabs } from './tabs'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { openTab, closeTab, closeOthers, closeAll, neighbourOf, useTabs, MAX_TABS, claimTabs, multitaskingAllowed, setMultitasking } from './tabs'
+import { isSplit, splitTo } from './panes'
 
 /* The store, not the strip. What matters here is the two places a tab bar
    usually gets it wrong: which tab it drops when it is full, and where it sends
@@ -14,6 +15,27 @@ function current() {
 beforeEach(() => {
   closeAll()
   sessionStorage.clear()
+})
+
+describe('the school switched multitasking off', () => {
+  afterEach(() => setMultitasking(true))
+
+  it('reads the switch from the session modules, on by default', () => {
+    expect(multitaskingAllowed({})).toBe(true)
+    expect(multitaskingAllowed({ modules: [{ module: 'multitasking', enabled: true }] })).toBe(true)
+    expect(multitaskingAllowed({ modules: [{ module: 'multitasking', enabled: false }] })).toBe(false)
+  })
+
+  it('closes open tabs and the split, and opens no new ones', () => {
+    openTab('/a', 'A', '/a')
+    splitTo('right', '/b', '/a')
+    setMultitasking(false)
+    expect(current()).toEqual([])
+    expect(isSplit()).toBe(false)
+    openTab('/c', 'C', '/c')
+    expect(current()).toEqual([])
+    expect(splitTo('right', '/d', '/c')).toBe(false)
+  })
 })
 
 describe('opening', () => {
