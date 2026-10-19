@@ -86,13 +86,48 @@ import ScrollBox from '@/components/ScrollBox'
    child; the permission is real, the workspace is simply empty, and an empty
    workspace is not a menu entry. Optional never appears. Advanced appears on
    request. Unbuilt appears on request. */
-function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean) {
+/* A FEW OF FACULTY'S OWN ITEMS ARE A CLASS TEACHER'S, NOT EVERY TEACHER'S
+   (owner, 2026-10-16, testing a subject-teacher login: "why does a subject
+   teacher have attendance... let me remove that... no need of student360...
+   no need of report card also... after class teacher is selected their role
+   gets class teacher features").
+
+   The catalogue hands every "Faculty / Teacher" login the same menu, because
+   it is generated per ROLE and has no idea which of a school's sections any
+   one teacher actually runs. Building a second, switchable workspace for
+   that would have split one teacher's day across two tabs for no reason --
+   the fix the owner asked for the moment they saw it ("after class teacher
+   is selected there role get class teacher features") is that assigning the
+   existing Class Teacher role (Logins & access → Change roles) simply
+   widens this SAME menu, because permissions already union across every role
+   a person holds (worker/src/identity.ts). So each of these items additionally
+   requires the one RBAC permission that already exists for it and that
+   "Faculty" no longer carries on its own (see internal/rbac/rbac.go) -- a
+   subject teacher never sees them; a class teacher, holding both roles,
+   does, in the one menu they have always had. */
+const CLASS_TEACHER_ONLY: Record<string, string> = {
+  'faculty.attendance.take_attendance': 'academics.attendance.write',
+  'faculty.attendance.take_attendance_school': 'academics.attendance.write',
+  'faculty.attendance.attendance_correction': 'academics.attendance.write',
+  'faculty.attendance.absentee_followup': 'academics.attendance.read',
+  'faculty.attendance.student_absentees': 'academics.attendance.read',
+  'faculty.attendance.offline_attendance_diary_capture': 'academics.attendance.write',
+  'faculty.my_classes.class_360': 'academics.class360.view',
+  'faculty.my_classes.student_details': 'academics.class360.view',
+  'faculty.marks_report_cards.report_cards': 'academics.reportcards.generate',
+  // "No need for a subject teacher" (owner, 2026-10-16): a parent's child's
+  // leave is approved by the class teacher, not by whoever teaches one of
+  // their subjects.
+  'faculty.my_profile.student_leave_requests': 'academics.class360.view',
+}
+function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean, perms: ReadonlySet<string>) {
   return section.features.filter(
     (f) =>
       f.in_scope &&
       (f.live || showPlanned) &&
       f.tier !== 'optional' &&
-      (f.tier !== 'advanced' || showAdvanced),
+      (f.tier !== 'advanced' || showAdvanced) &&
+      (!CLASS_TEACHER_ONLY[f.key] || perms.has(CLASS_TEACHER_ONLY[f.key])),
   )
 }
 
@@ -112,12 +147,13 @@ function workspacesFor(
   role: { sections: ApiSection[] } | undefined,
   showPlanned: boolean,
   showAdvanced: boolean,
+  perms: ReadonlySet<string>,
 ): Workspace[] {
   if (!role) return []
   const out: Workspace[] = []
   const index = new Map<string, Workspace>()
   for (const section of role.sections) {
-    if (visibleFeatures(section, showPlanned, showAdvanced).length === 0) continue
+    if (visibleFeatures(section, showPlanned, showAdvanced, perms).length === 0) continue
     const name = section.workspace || section.name
     let ws = index.get(name)
     if (!ws) {
@@ -468,7 +504,8 @@ export function Shell({
      fee screen from the command palette moves the rail to Finance by itself.
      A rail that only ever followed clicks would sit on Home while somebody
      worked in Operations all afternoon. */
-  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced)
+  const permSet = new Set(session.permissions)
+  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced, permSet)
 
   const activeWs =
     railWorkspaces.find((w) => w.slug === railPick) ??
@@ -1033,7 +1070,7 @@ export function Shell({
               is short enough that a habit is one glance down it. */}
           {(activeWs ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
-              (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,
+              (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced, permSet).length,
               0,
             )
 
@@ -1042,7 +1079,7 @@ export function Shell({
                the tree-explorer feel in miniature. */
             const onlyItem =
               ws.sections.length === 1 && count === 1
-                ? visibleFeatures(ws.sections[0], showPlanned, showAdvanced)[0]
+                ? visibleFeatures(ws.sections[0], showPlanned, showAdvanced, permSet)[0]
                 : null
 
             if (onlyItem && role) {
@@ -1066,7 +1103,7 @@ export function Shell({
             return (
               <div key={ws.slug} className="pb-1 pt-1">
                 {ws.sections.map((section) => {
-                  const items = visibleFeatures(section, showPlanned, showAdvanced)
+                  const items = visibleFeatures(section, showPlanned, showAdvanced, permSet)
                   if (!items.length) return null
                   const labelled = ws.sections.length > 1
                   return (

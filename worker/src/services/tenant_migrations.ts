@@ -88,4 +88,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 88, name: 'employee_esi_choice', checksum: '008aab08478b9617489ba111912ce07d17c8eeb980539be28e3856046877c119' },
   { version: 89, name: 'subject_heads', checksum: '4a3170e431db49a6ec8016ff8c64fd9d57959bbc2883f6a2cb4168ee93ced456' },
   { version: 90, name: 'feature_subject_overview', checksum: 'c48404b4a8002908ecc3cf53b1735a28f173978a066b81f971be5a45d93e35c3' },
+  { version: 91, name: 'class_teacher_auto_grant', checksum: '3c74342d6c9758a74740d895dd68a21b332a354b065ce5ca1ba9b256ae758ef5' },
 ]

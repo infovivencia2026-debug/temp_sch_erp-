@@ -419,21 +419,26 @@ var SystemRoles = []Role{
 	// not bring the notebook, third time" and "helped a classmate who had been
 	// ill" as a matter of course; editing the child's record, or agreeing the
 	// accommodations for one who needs them, is the class teacher's job.
+	//
+	// NO ATTENDANCE, NO CLASS 360, NO REPORT CARDS BY DEFAULT (owner,
+	// 2026-10-16, testing a subject teacher login: "why does a subject
+	// teacher have attendance... let me remove that... no need of report
+	// card also"). All three used to sit in this role's own grant, which
+	// made every subject teacher a class teacher whether they were one or
+	// not: a menu of screens for a section they do not run, most of them a
+	// dead end the moment they were opened. Being a section's class teacher
+	// is a fact about the section, not a role somebody is given by default —
+	// it is the separate "class_teacher" role below, additive on top of this
+	// one, picked for whoever actually is. A subject teacher's own view of a
+	// child is the "class_teacher" role below, additive on top of this one,
+	// picked for whoever actually is a class teacher. A subject teacher's own
+	// view of a child is Student progress (faculty.my_classes.student_progress),
+	// their own subject only — not Class 360, which is the class teacher's
+	// whole-class, every-subject view.
 	{"faculty", "Faculty / Teacher", []string{
 		StatusPost, // feature:communication.class_status
-		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
+		StudentsRead, AcademicsRead, TimetableRead,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
-		Class360Read,
-		/* Being a section's class teacher is a fact about the section, not a
-		   role somebody is given. A teacher who is class teacher of 6-B held
-		   the plain "teacher" role and met "missing permission" on the report
-		   card screen for their own section — the workflow that has them send
-		   results up to the head was unreachable by the people it is for.
-
-		   Safe to grant here because the handler checks
-		   res.IsClassTeacherOf(sectionID) regardless of the permission: a
-		   teacher who is class teacher of nothing can generate nothing. */
-		ReportCardsGenerate,
 		SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
 		StatusPost, // feature:communication.class_status
