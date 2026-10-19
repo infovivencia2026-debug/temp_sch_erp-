@@ -140,3 +140,12 @@ DELETE FROM role_permissions
 DELETE FROM role_permissions
  WHERE role_id IN (SELECT id FROM roles WHERE key = 'class_teacher')
    AND permission_key IN ('academics.attendance.write.any', 'faculty.attendance.take_attendance_school');
+
+-- Owner, 2026-10-19: Take attendance lists every class and section for a
+-- class teacher; Class 360 back on, for her own class only.
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT id, k.column1 FROM roles, (VALUES ('academics.attendance.write.any'), ('faculty.my_classes.class_360')) k
+ WHERE key = 'class_teacher';
+INSERT INTO module_settings (institution_id, module, enabled)
+SELECT id, 'class360_own_class', 1 FROM institutions WHERE 1 LIMIT 1
+ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1;
