@@ -94,5 +94,5 @@ UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%
 -- Classroom communication. Bus staff keep their parent messages. Switch back
 -- on in Settings -> Communication -> Teachers message parents directly.
 INSERT INTO module_settings (institution_id, module, enabled)
-SELECT id, 'teacher_parent_messages', 0 FROM institutions LIMIT 1
+SELECT id, 'teacher_parent_messages', 0 FROM institutions WHERE 1 LIMIT 1
 ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 0;
