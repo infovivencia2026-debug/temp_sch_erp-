@@ -368,7 +368,7 @@ function FeatureRoute() {
       <Suspense fallback={<SkeletonPage />}>
         {homeLanding && (
           <PageBody>
-            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} />
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} noAttention={feature.key === 'faculty.home.todays_classes'} />
           </PageBody>
         )}
         {/* Keyed by the feature, not just by the component.
