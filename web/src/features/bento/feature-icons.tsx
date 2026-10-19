@@ -196,6 +196,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   global_university_guidance_counselor: 'public', // Global University Guidance Counselor
   gps_hardware_integration: 'gps_fixed', // GPS Hardware Integration
   grievances: 'feedback', // Grievances
+  concerns_from_parents: 'feedback', // Concerns from parents
+  parent_concerns: 'support_agent', // Parent concerns
   groups_lists: 'groups', // Groups & lists
   hall_ticket_issue: 'confirmation_number', // Hall Ticket Issue
   hall_tickets_seating: 'event_seat', // Hall tickets & seating
