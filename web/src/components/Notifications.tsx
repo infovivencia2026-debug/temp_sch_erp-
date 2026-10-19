@@ -310,9 +310,6 @@ export default function Notifications() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, viewing])
 
-  // Refused, or this account has no feed: show nothing rather than a dead control.
-  if (feed.error) return null
-
   const items = feed.data?.items ?? []
 
   /* Clicking a notification opens the thing it is about.
@@ -466,6 +463,10 @@ export default function Notifications() {
   }
 
   const shownGroups = groups
+
+  // Refused, or this account has no feed: show nothing rather than a dead control.
+  // Below every hook, so a feed that starts failing never changes the hook order.
+  if (feed.error) return null
 
   return (
     <>
