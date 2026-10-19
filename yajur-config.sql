@@ -132,3 +132,11 @@ DELETE FROM role_permissions
    AND permission_key IN ('faculty.attendance.absentee_followup', 'faculty.attendance.attendance_correction',
      'faculty.attendance.offline_attendance_diary_capture', 'faculty.attendance.student_absentees',
      'faculty.my_classes.student_details', 'faculty.my_classes.class_360');
+
+-- Class teacher works on her own class only (owner, 2026-10-19: "show only
+-- her class students which is class teacher of"): no any-section reach, so
+-- attendance, marks, report cards, class notices and leave cover the
+-- section(s) she is class teacher of.
+DELETE FROM role_permissions
+ WHERE role_id IN (SELECT id FROM roles WHERE key = 'class_teacher')
+   AND permission_key IN ('academics.attendance.write.any', 'faculty.attendance.take_attendance_school');
