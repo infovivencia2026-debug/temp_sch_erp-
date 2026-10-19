@@ -14,3 +14,5 @@ hr	hr.onboarding_exit.staff_joinings_exits	POST /setup/class-teacher
 hr	hr.records.staff_records	POST /academics/admin/faculty-allocation
 hr	hr.records.staff_records	POST /setup/class-teacher
 hod	hod.academics.subject_overview	PUT /academics/subject-heads
+faculty	faculty.exams.question_papers	POST /exams/question-paper-deadlines
+faculty	faculty.exams.question_papers	POST /exams/question-paper-deadlines/{id}/mark-received

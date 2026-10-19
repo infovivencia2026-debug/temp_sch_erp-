@@ -8,6 +8,7 @@ import {
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
+import PaperDeadlines from './PaperDeadlines'
 import { formatDate } from '@/lib/utils'
 
 /* The paper, read before it is printed.
@@ -88,6 +89,15 @@ export default function QuestionPapers() {
     queryKey: ['question-paper-slots'],
     queryFn: () => api.get<{ items: Slot[] }>('/api/v1/exams/question-papers/slots'),
   })
+  // A teacher's own deadlines (owner, 2026-10-19): the dashboard for this is
+  // this screen, since this is where the paper is actually sent.
+  const myDeadlines = useQuery({
+    queryKey: ['my-paper-deadlines'],
+    queryFn: () => api.get<{ items: { id: string; deadline: string; subject_name: string; class_name: string; exam_name: string; status: 'pending' | 'late' | 'received' }[] }>(
+      '/api/v1/exams/question-paper-deadlines/mine',
+    ),
+  })
+  const dueDeadlines = (myDeadlines.data?.items ?? []).filter((x) => x.status !== 'received')
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['question-papers'] })
@@ -155,6 +165,22 @@ export default function QuestionPapers() {
         {(submit.error || decide.error) && (
           <FormNotice error={submit.error ?? decide.error} />
         )}
+
+        {/* The deadline the examination branch set, read here because here
+            is where the paper is sent. Late items stay shown rather than
+            vanishing, so the remark they caused is not a surprise later. */}
+        {dueDeadlines.length > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13.5px] text-secondary-foreground">
+            {dueDeadlines.map((x) => (
+              <div key={x.id}>
+                <strong>{x.status === 'late' ? 'Missed: ' : 'Due: '}</strong>
+                {x.subject_name} for {x.class_name} ({x.exam_name}) {x.status === 'late' ? 'was due' : 'by'} {new Date(x.deadline).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.
+              </div>
+            ))}
+          </div>
+        )}
+
+        {d.decides && <PaperDeadlines />}
 
         {/* Nothing to set a paper against.
          *

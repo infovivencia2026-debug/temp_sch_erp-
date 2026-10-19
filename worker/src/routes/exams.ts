@@ -332,6 +332,12 @@ function registerExamGroup(r: Router) {
   r.post('/exams/question-papers', EXAMS_READ, submitQuestionPaper)
   r.post('/exams/question-papers/{id}/decide', EXAMS_APPROVE, decideQuestionPaper)
 
+  // --- question paper deadlines (owner, 2026-10-19) --------------------
+  r.get('/exams/question-paper-deadlines', EXAMS_APPROVE, listPaperDeadlines)
+  r.post('/exams/question-paper-deadlines', EXAMS_APPROVE, setPaperDeadline)
+  r.post('/exams/question-paper-deadlines/{id}/mark-received', EXAMS_APPROVE, markPaperReceived)
+  r.get('/exams/question-paper-deadlines/mine', EXAMS_READ, listMyPaperDeadlines)
+
   // --- moderation -----------------------------------------------------
   r.get('/exams/moderation', EXAMS_APPROVE, listMarkModeration)
   r.post('/exams/moderation', EXAMS_APPROVE, moderateMarks)
@@ -1298,6 +1304,134 @@ async function decideQuestionPaper(c: Ctx) {
       .bind(uuid(), c.id.institution!.id, row.submitted_by, text, now()),
   ])
   return ok({ status: decision })
+}
+
+/* THE EXAMINATION BRANCH'S OWN LIST: one row per subject of the exam, the
+   staff who could be asked (teaching that class's subject, any section),
+   and the deadline already set for whichever of them were asked -- so
+   setting one is "pick from who is already shown", not a second lookup. */
+async function listPaperDeadlines(c: Ctx) {
+  const examId = c.url.searchParams.get('exam_id') ?? ''
+  if (!isUUID(examId)) throw badRequest('Choose which exam.')
+  const subjects = await c.db.prepare(`
+    SELECT es.id, es.class_subject_id, c.name AS class_name, sub.name AS subject_name, es.exam_date
+      FROM exam_subjects es
+      JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes c ON c.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE es.exam_id = ?
+     ORDER BY c.name, sub.name`).bind(examId)
+    .all<{ id: string; class_subject_id: string; class_name: string; subject_name: string; exam_date: string | null }>()
+  if (subjects.results.length === 0) return ok(items([]))
+  const esIds = subjects.results.map((s) => s.id)
+  const [teachers, deadlines, papers] = await c.db.batch([
+    c.db.prepare(`SELECT DISTINCT cs.id AS class_subject_id, u.id AS teacher_id, u.full_name
+        FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+        JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id JOIN users u ON u.id = sst.teacher_user_id
+       WHERE es.id IN ${inList(esIds)}`).bind(js(esIds)),
+    c.db.prepare(`SELECT qpd.id, qpd.exam_subject_id, qpd.teacher_user_id, u.full_name AS teacher_name, qpd.deadline,
+             qpd.manually_received_at IS NOT NULL AS received_manually
+        FROM question_paper_deadlines qpd JOIN users u ON u.id = qpd.teacher_user_id
+       WHERE qpd.exam_subject_id IN ${inList(esIds)}`).bind(js(esIds)),
+    c.db.prepare(`SELECT exam_subject_id, status, submitted_at, file_id FROM question_papers WHERE exam_subject_id IN ${inList(esIds)}`).bind(js(esIds)),
+  ])
+  const teachersByClassSubject = new Map<string, { teacher_id: string; full_name: string }[]>()
+  for (const t of teachers.results as unknown as { class_subject_id: string; teacher_id: string; full_name: string }[]) {
+    const arr = teachersByClassSubject.get(t.class_subject_id) ?? []
+    arr.push({ teacher_id: t.teacher_id, full_name: t.full_name })
+    teachersByClassSubject.set(t.class_subject_id, arr)
+  }
+  const paperOf = new Map((papers.results as unknown as { exam_subject_id: string; status: string; submitted_at: string; file_id: string | null }[])
+    .map((p) => [p.exam_subject_id, p]))
+  const nowIso = now()
+  const out = subjects.results.map((s) => {
+    const paper = paperOf.get(s.id)
+    const assigned = (deadlines.results as unknown as { id: string; exam_subject_id: string; teacher_user_id: string; teacher_name: string; deadline: string; received_manually: number }[])
+      .filter((d) => d.exam_subject_id === s.id)
+      .map((d) => {
+        const onTime = !!paper && ['submitted', 'approved'].includes(paper.status) && paper.submitted_at <= d.deadline
+        const received = onTime || !!d.received_manually
+        return {
+          id: d.id, teacher_id: d.teacher_user_id, teacher_name: d.teacher_name, deadline: d.deadline,
+          status: received ? 'received' : d.deadline < nowIso ? 'late' : 'pending',
+          received_manually: !!d.received_manually,
+        }
+      })
+    return {
+      exam_subject_id: s.id, class_name: s.class_name, subject_name: s.subject_name, exam_date: s.exam_date,
+      candidate_teachers: teachersByClassSubject.get(s.class_subject_id) ?? [],
+      paper: paper ? { status: paper.status, submitted_at: paper.submitted_at, file_id: paper.file_id } : null,
+      assigned,
+    }
+  })
+  return ok(items(out))
+}
+
+async function setPaperDeadline(c: Ctx) {
+  let body: { exam_subject_id?: string; teacher_user_ids?: string[]; deadline?: string }
+  try { body = await c.req.json() } catch { throw badRequest('Send who and when.') }
+  const esId = (body.exam_subject_id ?? '').trim()
+  if (!isUUID(esId)) throw badRequest('Choose which exam paper this deadline is for.')
+  const deadline = (body.deadline ?? '').trim()
+  if (!deadline || Number.isNaN(new Date(deadline).getTime())) throw badRequest('Set a date and time for the deadline.')
+  const teacherIds = [...new Set((body.teacher_user_ids ?? []).map((x) => x.trim()).filter(isUUID))]
+  if (teacherIds.length === 0) throw badRequest('Choose at least one teacher to ask.')
+  const row = await c.db.prepare(`SELECT sub.name AS subject_name, cl.name AS class_name, ex.name AS exam_name FROM exam_subjects es
+      JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN classes cl ON cl.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id JOIN exams ex ON ex.id = es.exam_id WHERE es.id = ?`).bind(esId)
+    .first<{ subject_name: string; class_name: string; exam_name: string }>()
+  if (!row) throw notFound()
+  const inst = c.id.institution!.id
+  const t = now()
+  const stmts = teacherIds.flatMap((teacherId) => {
+    const id = uuid()
+    const noticeBody = `${row.subject_name} for ${row.class_name} (${row.exam_name}), due ${deadline.slice(0, 16).replace('T', ' ')}.`
+    return [
+      c.db.prepare(`INSERT INTO question_paper_deadlines (id, institution_id, exam_subject_id, teacher_user_id, deadline, scheduled_by, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (exam_subject_id, teacher_user_id) DO UPDATE SET deadline = excluded.deadline, scheduled_by = excluded.scheduled_by,
+            manually_received_at = NULL, remarked_at = NULL`)
+        .bind(id, inst, esId, teacherId, deadline, c.id.userId, t),
+      c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/faculty/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+        .bind(uuid(), inst, teacherId, noticeBody, esId, t),
+    ]
+  })
+  await c.db.batch(stmts)
+  return ok({ asked: teacherIds.length })
+}
+
+async function markPaperReceived(c: Ctx) {
+  const id = c.params.id
+  if (!isUUID(id)) throw badRequest('Unknown deadline.')
+  const res = await c.db.prepare(`UPDATE question_paper_deadlines SET manually_received_at = ?, remarked_at = COALESCE(remarked_at, ?)
+      WHERE id = ?`).bind(now(), now(), id).run()
+  if (!res.meta.changes) throw notFound()
+  return ok({ status: 'received' })
+}
+
+/* A teacher's own deadlines, for the banner on their Question papers screen
+   (owner, 2026-10-19: "they will get a deadline in dashboard"). */
+async function listMyPaperDeadlines(c: Ctx) {
+  const rows = await c.db.prepare(`
+    SELECT qpd.id, qpd.deadline, sub.name AS subject_name, cl.name AS class_name, ex.name AS exam_name,
+           qpd.manually_received_at IS NOT NULL AS received_manually,
+           (qp.status IN ('submitted','approved') AND qp.submitted_at <= qpd.deadline) AS received_on_time
+      FROM question_paper_deadlines qpd
+      JOIN exam_subjects es ON es.id = qpd.exam_subject_id
+      JOIN exams ex ON ex.id = es.exam_id
+      JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes cl ON cl.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id
+      LEFT JOIN question_papers qp ON qp.exam_subject_id = qpd.exam_subject_id
+     WHERE qpd.teacher_user_id = ?
+     ORDER BY qpd.deadline`).bind(c.id.userId)
+    .all<{ id: string; deadline: string; subject_name: string; class_name: string; exam_name: string; received_manually: number; received_on_time: number }>()
+  const nowIso = now()
+  return ok(items(rows.results.map((v) => ({
+    id: v.id, deadline: v.deadline, subject_name: v.subject_name, class_name: v.class_name, exam_name: v.exam_name,
+    status: (v.received_on_time || v.received_manually) ? 'received' : v.deadline < nowIso ? 'late' : 'pending',
+  }))))
 }
 
 // ------------------------------------------------------------ moderation

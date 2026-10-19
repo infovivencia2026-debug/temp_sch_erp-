@@ -89,4 +89,7 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 89, name: 'subject_heads', checksum: '4a3170e431db49a6ec8016ff8c64fd9d57959bbc2883f6a2cb4168ee93ced456' },
   { version: 90, name: 'feature_subject_overview', checksum: 'c48404b4a8002908ecc3cf53b1735a28f173978a066b81f971be5a45d93e35c3' },
   { version: 91, name: 'class_teacher_auto_grant', checksum: '3c74342d6c9758a74740d895dd68a21b332a354b065ce5ca1ba9b256ae758ef5' },
+  { version: 92, name: 'feature_subject_meetings', checksum: 'c21322006cdc64f366cbe4f178950038e2f7ed32f777176ee0679825d969d9e7' },
+  { version: 93, name: 'hod_trim', checksum: '2c9619acb75eef4509dfaf287ef567a9f51e3f8bcd0f8e49c48d68c7226360a7' },
+  { version: 94, name: 'question_paper_deadlines', checksum: '0ba91dd47aa76662f4bff1c8fc516c1d51eca0471f8a0e81f96b86dacec23096' },
 ]
