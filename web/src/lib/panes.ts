@@ -111,7 +111,7 @@ export function isSplit() {
 export function splitTo(side: Side, path: string, from: string): boolean {
   // Refused here as well as hidden in the menu: the menu is one caller, and a
   // rule worth stating is worth holding at the store.
-  if (isHomeBoard(path)) return false
+  if (isHomeBoard(path) || !multitaskingOn) return false
   const base = state.paths.length > 1 ? state.paths : [from]
   if (base.length >= MAX_PANES) return false
   const at = state.paths.length > 1 ? state.focus : 0
@@ -143,6 +143,15 @@ export function closePane(index: number) {
 
 export function closeSplit() {
   write(EMPTY)
+}
+
+let multitaskingOn = true
+
+/** The school's multitasking switch (lib/tabs.ts setMultitasking). Off
+    collapses any split and refuses new ones. */
+export function setSplitAllowed(on: boolean) {
+  multitaskingOn = on
+  if (!on && isSplit()) closeSplit()
 }
 
 export function focusPane(index: number) {

@@ -55,6 +55,7 @@ import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
+import { multitaskingAllowed } from '@/lib/tabs'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -1344,7 +1345,7 @@ export function Shell({
               pinned over the top of it is the chrome Focus exists to put
               away. The tabs are not lost: switching to Work shows the same
               strip with the same screens still open in it. */}
-          {!chromeless && <TabStrip />}
+          {!chromeless && multitaskingAllowed(session) && <TabStrip />}
           {/* Split or whole, decided one level in.
 
               PaneArea renders `children` untouched when nothing is split, so
