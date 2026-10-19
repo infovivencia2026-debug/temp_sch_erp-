@@ -57,13 +57,13 @@ DELETE FROM role_permissions
 
 INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
 SELECT r.id, k.value FROM roles r, json_each('["status.post","students.read","academics.read","academics.timetable.read","academics.exams.read","academics.marks.write","academics.homework.write","welfare.discipline.write","self.profile.read","faculty.marks_report_cards.marks_entry","faculty.timetable.my_timetable","faculty.home.todays_classes","faculty.communication.remarks","faculty.communication.messages","faculty.my_profile.profile","faculty.communication.class_status","faculty.teaching.homework_classwork","faculty.teaching.assignments_submissions","faculty.my_classes.student_progress","faculty.my_classes.behaviour","faculty.my_profile.leave_self_service","faculty.my_profile.my_pay","faculty.my_profile.my_tasks","faculty.exams.question_papers"]') k
- WHERE r.key = 'faculty';
+ WHERE k.value IN (SELECT key FROM permissions) AND r.key = 'faculty';
 
 -- Class teacher remarks and PTM notes leave the Faculty role but stay with
 -- Yajur's class teachers, through the Class Teacher role they also hold.
 INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
 SELECT r.id, k.value FROM roles r, json_each('["faculty.communication.class_teacher_remarks","faculty.communication.ptm_notes_action_items"]') k
- WHERE r.key = 'class_teacher';
+ WHERE k.value IN (SELECT key FROM permissions) AND r.key = 'class_teacher';
 UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE key = 'class_teacher';
 
 -- Marked customised so a later role reinstall or reset does not put the
@@ -87,7 +87,7 @@ UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%
 --   Messages: staff to staff only (module teacher_parent_messages off below)
 INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
 SELECT r.id, k.value FROM roles r, json_each('["comms.announcements.write","academics.attendance.read","academics.attendance.read.all","academics.attendance.write","academics.attendance.write.any","academics.reportcards.generate","academics.marks.write","academics.homework.write","academics.class360.view","welfare.discipline.write","students.read","academics.read","academics.timetable.read","academics.exams.read","status.post","self.profile.read","faculty.attendance.take_attendance","faculty.attendance.take_attendance_school","faculty.attendance.attendance_correction","faculty.attendance.absentee_followup","faculty.attendance.student_absentees","faculty.attendance.offline_attendance_diary_capture","faculty.my_classes.my_classes","faculty.my_classes.class_360","faculty.my_classes.student_details","faculty.my_classes.student_progress","faculty.my_classes.behaviour","faculty.marks_report_cards.marks_entry","faculty.marks_report_cards.report_cards","faculty.assessment_schemes.cce_formative_assessment_entry","faculty.assessment_schemes.cce_summative_assessment_entry","faculty.communication.classroom_communication","faculty.communication.remarks","faculty.communication.anecdotal_records","faculty.communication.class_teacher_remarks","faculty.communication.ptm_notes_action_items","faculty.communication.messages","faculty.communication.class_status","faculty.my_profile.student_leave_requests","faculty.teaching.homework_classwork","faculty.teaching.assignments_submissions","faculty.home.todays_classes","faculty.timetable.my_timetable"]') k
- WHERE r.key = 'class_teacher';
+ WHERE k.value IN (SELECT key FROM permissions) AND r.key = 'class_teacher';
 UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE key = 'class_teacher';
 
 -- Messages for teachers are staff to staff; families are reached through
