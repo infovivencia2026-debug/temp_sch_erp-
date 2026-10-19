@@ -319,7 +319,14 @@ export default function MyClasses() {
           )}
         </Card>
 
-        {progressOf && <ProgressDetail row={progressOf} onClose={() => setProgressOf(null)} />}
+        {progressOf && (
+          <ProgressDetail
+            row={progressOf}
+            onClose={() => setProgressOf(null)}
+            fullClass={pickedSection?.full ?? false}
+            mySubjects={(pickedSection?.subjects ?? []).filter((x) => x.mine).map((x) => x.name)}
+          />
+        )}
 
         {reviewDue.length > 0 && (
           <Card>

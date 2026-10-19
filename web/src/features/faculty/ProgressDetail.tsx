@@ -12,7 +12,17 @@ import { formatDate, cn } from '@/lib/utils'
    progress -- overall figures, every subject with its trend, the attendance
    calendar, and the remarks written about them -- rather than leaving for
    Student 360, which is the office's file on the child. It opens over the
-   roster and Back returns to it. */
+   roster and Back returns to it.
+
+   ONLY THEIR OWN SUBJECT, UNLESS THEY ARE THE CLASS TEACHER (owner,
+   2026-10-16: "progress should show only their subject... class teacher
+   can see their assigned classes, all subjects"). Every subject's marks came
+   from the detail endpoint regardless of who was looking, so a subject
+   teacher opening a child's Progress read Maths and Science marks they had
+   no reason to see. fullClass (from the section picker's own "my class" flag)
+   and mySubjects (that teacher's own subjects in this section) narrow it;
+   a class teacher of the section passes fullClass=true and sees all of it,
+   the same as before. */
 
 interface Row {
   student_id: string
@@ -49,7 +59,14 @@ function Stat({ label, value, small, tone }: { label: string; value: string; sma
   )
 }
 
-export default function ProgressDetail({ row, onClose }: { row: Row; onClose: () => void }) {
+export default function ProgressDetail({ row, onClose, fullClass, mySubjects }: {
+  row: Row
+  onClose: () => void
+  /** True for a class teacher's own section: every subject shows, as before. */
+  fullClass: boolean
+  /** This teacher's own subjects in the section the roster was filtered to. */
+  mySubjects: string[]
+}) {
   const id = row.student_id
   const profile = useQuery({
     queryKey: ['student-profile', id],
@@ -65,6 +82,8 @@ export default function ProgressDetail({ row, onClose }: { row: Row; onClose: ()
   })
 
   const hw = row.homework_set ? Math.round((row.homework_submitted / row.homework_set) * 100) : null
+  const mine = new Set(mySubjects)
+  const subjectMarks = fullClass ? (detail.data?.subject_marks ?? []) : (detail.data?.subject_marks ?? []).filter((m) => mine.has(m.subject))
 
   return createPortal(
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-background">
@@ -94,7 +113,7 @@ export default function ProgressDetail({ row, onClose }: { row: Row; onClose: ()
           <>
             <AcademicsYear
               results={profile.data.results}
-              marks={detail.data?.subject_marks ?? []}
+              marks={subjectMarks}
               loading={false}
               attendancePercent={profile.data.attendance.percent}
               figures={false}
