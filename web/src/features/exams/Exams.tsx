@@ -6,9 +6,11 @@ import {
   Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
+import { useCan } from '@/lib/session'
 import DateSheet from './DateSheet'
 import ExamParts from './ExamParts'
 import Gradebook from './Gradebook'
+import PaperDeadlines from './PaperDeadlines'
 
 /* The exam, and the papers everything else hangs off.
  *
@@ -42,6 +44,8 @@ import Gradebook from './Gradebook'
 
 
 export default function Exams() {
+  const can = useCan()
+  const mayAssignDeadlines = can('academics.exams.approve')
   const qc = useQueryClient()
   const [marks, setMarks] = useState('100')
   const [done, setDone] = useState('')
@@ -210,6 +214,13 @@ export default function Exams() {
 
         {partsFor && <div id="exam-parts"><ExamParts key={partsFor.id} examId={partsFor.id} examName={partsFor.name} onClose={() => setPartsFor(null)} /></div>}
         {sheetFor && <div id="date-sheet"><DateSheet key={sheetFor} examId={sheetFor} onClose={() => setSheetFor('')} /></div>}
+
+        {/* Who was asked for each paper, and by when (owner, 2026-10-19:
+            "the examination branch will set a deadline... let them click
+            'the paper is given'"). Gated the same way the server gates the
+            routes it calls, so a role without ExamsApprove never sees a
+            panel it cannot use. */}
+        {mayAssignDeadlines && <PaperDeadlines />}
       </PageBody>
     </>
   )
