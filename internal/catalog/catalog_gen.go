@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 439 features.
+// Roles is the catalog: 24 roles, 441 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -795,6 +795,7 @@ var Roles = []Role{
 					{Key: "faculty.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them."},
 					{Key: "faculty.communication.class_status", Slug: "class_status", Name: "Class Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status: it disappears after 24 hours unless you pin it to the class gallery. See who has viewed each post."},
 					{Key: "faculty.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+					{Key: "faculty.communication.concerns_from_parents", Slug: "concerns_from_parents", Name: "Concerns from parents", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Concerns the front desk has passed to you about your classes. Read them and mark each one resolved; the front desk then tells the parent."},
 				},
 			},
 			{
@@ -1435,6 +1436,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "front_office.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school."},
 					{Key: "front_office.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+					{Key: "front_office.communication.parent_concerns", Slug: "parent_concerns", Name: "Parent concerns", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Concerns parents send to the front desk. Filter by class, section or student, pass one to that class teacher or subject teacher, see which the teacher has resolved, and tell the parent it is resolved."},
 				},
 			},
 			{

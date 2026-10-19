@@ -157,6 +157,39 @@
         "worker/src/services/class_status.ts"
       ]
     },
+    "communication.concerns_from_parents": {
+      "name": "Concerns from parents",
+      "summary": "Concerns the front desk has passed to you about your classes. Read them and mark each one resolved; the front desk then tells the parent.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "concerns_from_parents",
+      "roles": [
+        "faculty"
+      ],
+      "keys": [
+        "faculty.communication.concerns_from_parents"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/teaching/parent-concerns",
+      "readPerm": "academics.timetable.read",
+      "writePerm": null,
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0103_feature_concerns_from_parents.sql",
+      "files": [
+        "shared/api/feature_concerns_from_parents.ts",
+        "web/src/features/comms/ConcernsFromParents.tsx",
+        "worker/src/routes/comms/concerns_from_parents.ts",
+        "worker/test/integration/feature_concerns_from_parents.test.ts",
+        "worker/migrations/tenant/0103_feature_concerns_from_parents.sql"
+      ]
+    },
     "communication.inbox": {
       "name": "Inbox",
       "summary": "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.",
@@ -487,16 +520,20 @@
           "setup_common"
         ],
         "board_member comms.mail.read": [
-          "go"
+          "go",
+          "static_data"
         ],
         "board_member comms.mail.write": [
-          "go"
+          "go",
+          "static_data"
         ],
         "lms_admin comms.mail.read": [
-          "go"
+          "go",
+          "static_data"
         ],
         "lms_admin comms.mail.write": [
-          "go"
+          "go",
+          "static_data"
         ]
       },
       "addedSectionModule": false,
@@ -554,6 +591,39 @@
         "worker/src/routes/comms/mail_addresses.ts",
         "worker/test/integration/feature_mail_addresses.test.ts",
         "worker/migrations/tenant/0100_feature_mail_addresses.sql"
+      ]
+    },
+    "communication.parent_concerns": {
+      "name": "Parent concerns",
+      "summary": "Concerns parents send to the front desk. Filter by class, section or student, pass one to that class teacher or subject teacher, see which the teacher has resolved, and tell the parent it is resolved.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "parent_concerns",
+      "roles": [
+        "front_office"
+      ],
+      "keys": [
+        "front_office.communication.parent_concerns"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/comms/parent-concerns-desk",
+      "readPerm": "office.front_desk.read",
+      "writePerm": null,
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0102_feature_parent_concerns.sql",
+      "files": [
+        "shared/api/feature_parent_concerns.ts",
+        "web/src/features/comms/ParentConcerns.tsx",
+        "worker/src/routes/comms/parent_concerns.ts",
+        "worker/test/integration/feature_parent_concerns.test.ts",
+        "worker/migrations/tenant/0102_feature_parent_concerns.sql"
       ]
     },
     "help.helpdesk": {

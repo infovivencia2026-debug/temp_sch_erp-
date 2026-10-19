@@ -36,6 +36,8 @@ import { registerSubjectOverview } from './academics/subject_overview' // featur
 import { registerSubjectMeetings } from './academics/subject_meetings' // feature:academics.subject_meetings
 import { registerInbox } from './comms/inbox' // feature:communication.inbox
 import { registerMailAddresses } from './comms/mail_addresses' // feature:communication.mail_addresses
+import { registerParentConcerns } from './comms/parent_concerns' // feature:communication.parent_concerns
+import { registerConcernsFromParents } from './comms/concerns_from_parents' // feature:communication.concerns_from_parents
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -80,5 +82,7 @@ export function buildRouter(): Router {
   registerSubjectMeetings(r) // feature:academics.subject_meetings
   registerInbox(r) // feature:communication.inbox
   registerMailAddresses(r) // feature:communication.mail_addresses
+  registerParentConcerns(r) // feature:communication.parent_concerns
+  registerConcernsFromParents(r) // feature:communication.concerns_from_parents
   return r
 }

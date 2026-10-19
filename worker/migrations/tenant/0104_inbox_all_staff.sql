@@ -1,4 +1,4 @@
--- 0102_inbox_all_staff (tenant: every school database).
+-- 0104_inbox_all_staff (tenant: every school database).
 --
 -- Forward-only: once applied anywhere this file must not change (its
 -- checksum is recorded); fix a mistake with a new migration. Make it

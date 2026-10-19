@@ -267,9 +267,9 @@ var All = []Permission{
 	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
 	{HelpDeskRead, "help", "View Helpdesk"},                                                                     // feature:help.helpdesk
 	{HelpDeskWrite, "help", "Manage Helpdesk"},                                                                  // feature:help.helpdesk
-	{CommsMailRead, "comms", "View Inbox"}, // feature:communication.inbox
-	{CommsMailWrite, "comms", "Manage Inbox"}, // feature:communication.inbox
-	{CommsMailManage, "comms", "View Mail addresses"}, // feature:communication.mail_addresses
+	{CommsMailRead, "comms", "View Inbox"},                                                                      // feature:communication.inbox
+	{CommsMailWrite, "comms", "Manage Inbox"},                                                                   // feature:communication.inbox
+	{CommsMailManage, "comms", "View Mail addresses"},                                                           // feature:communication.mail_addresses
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -417,7 +417,7 @@ var SystemRoles = []Role{
 	// which carries it, so Take attendance shows for them and no one else.
 	{"hod", "HOD / Department Head", []string{
 		CommsMailWrite, // feature:communication.inbox
-		CommsMailRead, // feature:communication.inbox
+		CommsMailRead,  // feature:communication.inbox
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
 		AttendanceRead, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
@@ -458,8 +458,7 @@ var SystemRoles = []Role{
 	// their own subject only — not Class 360, which is the class teacher's
 	// whole-class, every-subject view.
 	{"faculty", "Faculty / Teacher", []string{
-		CommsMailRead, // feature:communication.inbox
-		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		StatusPost, // feature:communication.class_status
 		StudentsRead, AcademicsRead, TimetableRead,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
@@ -492,14 +491,13 @@ var SystemRoles = []Role{
 	// same permission question-paper approval already uses, and this
 	// role never held it, so its own exam screen had no deadline panel.
 	{"exam_controller", "Examination Controller", []string{
-		CommsMailRead, // feature:communication.inbox
 		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, // feature:communication.inbox
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
 		AcademicsRead, ExamsRead, ExamsWrite, ExamsApprove, MarksWrite,
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
-		CommsMailRead, // feature:communication.inbox
-		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
 		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, WalletRead, WalletManage, ReportsRead,
 		SelfProfileRead, SelfProfileWrite}},
@@ -516,8 +514,7 @@ var SystemRoles = []Role{
 	   route; it can see which routes exist and put a child on one, which is
 	   the job it is being asked to do. */
 	{"admissions", "Admissions & Front Office", []string{
-		CommsMailRead, // feature:communication.inbox
-		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		FrontDeskRead, FrontDeskWrite,
 		AcademicsRead, AdmissionsRead, AdmissionsWrite, StudentsRead, StudentsWrite,
 		/* The whole roll, because the office admits into all of it.
@@ -590,8 +587,7 @@ var SystemRoles = []Role{
 		FeesRead, InvoicesRead, PaymentsRead, WalletRead, PayrollRead, InventoryRead,
 		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
-		CommsMailRead, // feature:communication.inbox
-		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},
 	{"librarian", "Librarian", []string{
