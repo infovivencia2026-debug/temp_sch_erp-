@@ -185,6 +185,14 @@ export default function MyClasses() {
     { key: 'full_name' },
   )
 
+  // Hooks before the early returns below, or React refuses the render.
+  const [showPending, setShowPending] = useState(false)
+  const pending = useQuery({
+    queryKey: ['pending-homework', range, filterQuery],
+    queryFn: () => api.get<{ items: { id: string; title: string; subject: string; class: string; assigned_on: string; due_on?: string; students: { id: string; name: string; admission_no: string }[] }[] }>(
+      `/api/v1/teaching/progress/pending-homework?${rangeQuery(range)}${filterQuery ? '&' + filterQuery : ''}`),
+    enabled: showPending,
+  })
   if (options.isLoading || progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
 
@@ -195,13 +203,6 @@ export default function MyClasses() {
   const classAvg = avg(rows.map((r) => r.marks_percent).filter((x): x is number => x != null))
   const attAvg = avg(rows.map((r) => r.attendance_percent).filter((x): x is number => x != null))
   const pendingHw = rows.reduce((n, r) => n + Math.max(0, r.homework_set - r.homework_submitted), 0)
-  const [showPending, setShowPending] = useState(false)
-  const pending = useQuery({
-    queryKey: ['pending-homework', range, filterQuery],
-    queryFn: () => api.get<{ items: { id: string; title: string; subject: string; class: string; assigned_on: string; due_on?: string; students: { id: string; name: string; admission_no: string }[] }[] }>(
-      `/api/v1/teaching/progress/pending-homework?${rangeQuery(range)}${filterQuery ? '&' + filterQuery : ''}`),
-    enabled: showPending,
-  })
   const rangeLabel = (presets.data?.items ?? []).find((o) => o.value === range.period)?.label
   const reviewDue = (plans.data?.items ?? []).filter((p) => p.review_due)
 
