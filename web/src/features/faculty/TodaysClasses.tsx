@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
@@ -124,8 +124,12 @@ export default function TodaysClasses() {
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
-  if (entries.error) return <ErrorState error={entries.error} />
-  if (periods.error) return <ErrorState error={periods.error} />
+  /* This home is also every staff member's at a school with the staff layout on
+     (Yajur, 2026-10-19), so someone who holds no timetable is refused here; the
+     panel then reads as no classes rather than the page turning into an error. */
+  const refused = (e: unknown) => e instanceof ApiError && e.status === 403
+  if (entries.error && !refused(entries.error)) return <ErrorState error={entries.error} />
+  if (periods.error && !refused(periods.error)) return <ErrorState error={periods.error} />
 
   const holiday = hol.data?.items?.[0]?.name
   const bell = new Map((periods.data?.items ?? []).map((p) => [p.id, p]))
