@@ -334,7 +334,9 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   }
   /* Question maker (setting `academics.question_maker_in_menu`): the AI paper
      generator and the question bank sit in the normal menu, not behind Show advanced. */
-  const qmaker = !!(await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'question_maker_in_menu'`).first<{ enabled: number }>())?.enabled
+  // Asked only of a person in a school who holds one of the two screens: no read for families or platform staff.
+  const qmaker = !!c.id.institution && !c.id.platformAdmin && [...QUESTION_MAKER].some((k) => can(c.id, k)) &&
+    !!(await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'question_maker_in_menu'`).first<{ enabled: number }>())?.enabled
   const tierOf = (f: CatalogFeature) => (qmaker && QUESTION_MAKER.has(f.key) ? 'core' : f.tier)
   const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: tierOf(f), in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
 
