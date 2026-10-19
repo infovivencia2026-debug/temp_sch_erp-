@@ -359,9 +359,7 @@ var SystemRoles = []Role{
 	// feature alone does not carry that, and a hand edit to the generated
 	// provision_seed.ts was wiped on the next regeneration (2026-10-15), so the
 	// grant lives here, where scripts/d1/tenant_seed reads it.
-	{"lms_admin", "LMS Admin", []string{"academics.timetable.read"}},
-		CommsMailRead, // feature:communication.inbox
-		CommsMailWrite, // feature:communication.inbox
+	{"lms_admin", "LMS Admin", []string{CommsMailRead, CommsMailWrite, "academics.timetable.read"}},
 	{"seller_admin", "Seller Admin", SellerAdminPermissions},
 	{"support_admin", "Support Admin", SupportAdminPermissions},
 	{"institution_admin", "Institution Admin / Principal", keysExcept(PlatformTenantsRW, PlatformPlansRW)},
