@@ -1,0 +1,303 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Paperclip, Reply, ReplyAll, Star } from 'lucide-react'
+import { api } from '@/lib/api'
+import { useOptimisticMutation } from '@/lib/optimistic'
+import type { MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
+import {
+  PageHead, PageBody, Card, Badge, Button, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice,
+  Input, Loading, Textarea, TAB_BAR, tabClass, SEG_BAR, segClass,
+} from '@/components/ui'
+import { cn, formatDate, formatDateTime } from '@/lib/utils'
+
+/* A member of staff's own school email (worker/src/routes/comms/inbox.ts).
+   Only the signed-in person's mailbox is ever fetched. HTML mail is shown in
+   a frame sandboxed without scripts and without the app's origin, with
+   remote content blocked; the plain text is always one tap away. */
+
+type Tab = 'inbox' | 'starred' | 'sent' | 'trash'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'inbox', label: 'Inbox' }, { key: 'starred', label: 'Starred' }, { key: 'sent', label: 'Sent' }, { key: 'trash', label: 'Trash' },
+]
+const folderOf = (t: Tab): MailFolder => (t === 'starred' ? 'inbox' : t)
+
+const who = (p: MailPerson) => p.name || p.address
+const list = (ps: MailPerson[]) => ps.map((p) => (p.name ? `${p.name} <${p.address}>` : p.address)).join(', ')
+const size = (n: number) => (n < 1024 ? `${n} B` : n < 1 << 20 ? `${Math.round(n / 1024)} KB` : `${(n / (1 << 20)).toFixed(1)} MB`)
+const addresses = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean)
+
+interface Draft { to: string; cc: string; subject: string; text: string; reply_to_id?: string }
+
+/* The sender's HTML, made inert: no scripts (sandbox), no reach into the app
+   (no allow-same-origin), nothing fetched from outside (CSP), links open in a
+   new tab. */
+function inertHtml(html: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><base target="_blank"><style>body{margin:0;padding:12px;font:14px/1.5 system-ui,sans-serif;word-wrap:break-word}img{max-width:100%;height:auto}</style></head><body>${html}</body></html>`
+}
+
+export default function Inbox() {
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<Tab>('inbox')
+  const [q, setQ] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Draft | null>(null)
+
+  const box = useQuery({ queryKey: ['mail', 'box'], queryFn: () => api.call('GET /comms/mail/box') })
+  const query = { folder: folderOf(tab), q: q.trim() || undefined, starred: tab === 'starred' ? true : undefined, limit: 50 }
+  const page = useQuery({
+    queryKey: ['mail', 'list', query],
+    queryFn: () => api.call('GET /comms/mail', { query }),
+    enabled: !!box.data?.address,
+  })
+  const msg = useQuery({
+    queryKey: ['mail', 'message', openId],
+    queryFn: async () => {
+      const m = await api.call('GET /comms/mail/{id}', { params: { id: openId! } })
+      qc.invalidateQueries({ queryKey: ['mail', 'box'] }); qc.invalidateQueries({ queryKey: ['mail', 'list'] })
+      return m
+    },
+    enabled: !!openId,
+  })
+
+  /* The row and the open message change at once; the server follows. */
+  const patchRows = (old: unknown, id: string, f: (m: MailSummary) => MailSummary | null) => {
+    if (!old || typeof old !== 'object') return old
+    if ('items' in old) {
+      const p = old as MailPage
+      return { ...p, items: p.items.map((m) => (m.id === id ? f(m) : m)).filter((m): m is MailSummary => m !== null) }
+    }
+    const m = old as MailMessage
+    if (m.id !== id) return old
+    const next = f(m)
+    return next ? { ...m, ...next } : old
+  }
+  const flag = useOptimisticMutation<{ id: string; read?: boolean; starred?: boolean }>({
+    mutationFn: ({ id, ...body }) => api.call('PATCH /comms/mail/{id}', { params: { id }, body }),
+    queryKeys: [['mail', 'list'], ['mail', 'message']],
+    invalidate: [['mail']],
+    apply: (old, v) => patchRows(old, v.id, (m) => ({ ...m, ...(v.read !== undefined && { read: v.read }), ...(v.starred !== undefined && { starred: v.starred }) })),
+    failure: "Couldn't change that message",
+  })
+  const move = useOptimisticMutation<{ id: string; to: 'trash' | 'restore' }>({
+    mutationFn: ({ id, to }) => (to === 'trash'
+      ? api.call('POST /comms/mail/{id}/trash', { params: { id } })
+      : api.call('POST /comms/mail/{id}/restore', { params: { id } })),
+    queryKeys: [['mail', 'list']],
+    invalidate: [['mail']],
+    apply: (old, v) => patchRows(old, v.id, () => null),
+    confirm: (v) => (v.to === 'trash' ? 'Moved to Trash' : 'Moved back'),
+    failure: "Couldn't move that message",
+    onSuccess: () => setOpenId(null),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => api.call('DELETE /comms/mail/{id}', { params: { id } }),
+    onSuccess: () => { setOpenId(null); qc.invalidateQueries({ queryKey: ['mail'] }) },
+  })
+
+  const reply = (m: MailMessage, all: boolean) => {
+    const me = box.data?.address ?? ''
+    const others = all ? [...m.to, ...m.cc].map((p) => p.address).filter((a) => a !== me && a !== m.from.address) : []
+    const quoted = m.text.split('\n').map((l) => '> ' + l).join('\n')
+    setDraft({
+      to: m.folder === 'sent' ? m.to.map((p) => p.address).join(', ') : m.from.address,
+      cc: others.join(', '),
+      subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`,
+      text: `\n\nOn ${formatDateTime(m.received_at)}, ${who(m.from)} wrote:\n${quoted}`,
+      reply_to_id: m.id,
+    })
+  }
+
+  if (box.isError) return <><PageHead eyebrow="Communication" title="Inbox" /><PageBody><ErrorState error={box.error} /></PageBody></>
+  if (!box.data) return <><PageHead eyebrow="Communication" title="Inbox" /><PageBody><Loading shape="page" /></PageBody></>
+  const b = box.data
+  const canSend = b.status === 'active'
+
+  return (
+    <>
+      <PageHead
+        eyebrow="Communication"
+        title="Inbox"
+        actions={b.address ? <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button> : undefined}
+      />
+      <PageBody>
+        {!b.address ? (
+          <EmptyState title="You have no school email address yet." body="The office gives one on Communication > Mail addresses." />
+        ) : (
+          <div className="space-y-3">
+            <p className="text-[13px] text-muted-foreground">
+              Your address: <span className="font-medium text-foreground">{b.address}</span>
+              {!canSend && <Badge tone="warning" className="ms-2">Switched off by the office</Badge>}
+            </p>
+            <div className={TAB_BAR} role="tablist">
+              {TABS.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)}
+                  onClick={() => { setTab(t.key); setOpenId(null) }}>
+                  {t.label}
+                  {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
+              <Card className={cn('min-w-0', openId && 'hidden lg:block')}>
+                <div className="px-4 py-3">
+                  <Input value={q} onChange={setQ} placeholder="Search subject, sender or text" srLabel="Search mail" type="search" />
+                </div>
+                <MailList page={page.data} error={page.error} loading={page.isLoading} openId={openId} onOpen={setOpenId} folder={folderOf(tab)} />
+              </Card>
+              <div className={cn('min-w-0', !openId && 'hidden lg:block')}>
+                {!openId ? (
+                  <Card className="p-10 text-center text-[14px] text-muted-foreground">Choose a message to read it here.</Card>
+                ) : msg.isError ? <ErrorState error={msg.error} /> : !msg.data ? <Loading shape="cards" /> : (
+                  <Reader
+                    m={msg.data}
+                    canSend={canSend}
+                    onBack={() => setOpenId(null)}
+                    onReply={(all) => reply(msg.data!, all)}
+                    onStar={() => flag.mutate({ id: msg.data!.id, starred: !msg.data!.starred })}
+                    onUnread={() => { flag.mutate({ id: msg.data!.id, read: false }); setOpenId(null) }}
+                    onTrash={() => move.mutate({ id: msg.data!.id, to: 'trash' })}
+                    onRestore={() => move.mutate({ id: msg.data!.id, to: 'restore' })}
+                    onDelete={() => remove.mutate(msg.data!.id)}
+                    deleteError={remove.error}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </PageBody>
+      {draft && <Compose draft={draft} from={b.address ?? ''} onClose={() => setDraft(null)} />}
+    </>
+  )
+}
+
+function MailList({ page, error, loading, openId, onOpen, folder }: {
+  page?: MailPage; error: unknown; loading: boolean; openId: string | null; onOpen: (id: string) => void; folder: MailFolder
+}) {
+  if (error) return <div className="px-4 pb-4"><ErrorState error={error} /></div>
+  if (loading || !page) return <div className="px-4 pb-4"><Loading shape="inline" /></div>
+  if (!page.items.length) return <p className="px-4 pb-4 text-[13px] text-muted-foreground">No messages here.</p>
+  return (
+    <ul className="divide-y border-t">
+      {page.items.map((m) => {
+        const name = folder === 'sent' ? `To ${m.to.map(who).join(', ')}` : who(m.from)
+        return (
+          <li key={m.id}>
+            <button type="button" onClick={() => onOpen(m.id)} aria-current={m.id === openId}
+              className={cn('flex min-h-[var(--control-h)] w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-muted/60', m.id === openId && 'bg-muted')}>
+              <span className="flex w-full items-baseline gap-2">
+                <span className={cn('min-w-0 flex-1 truncate text-[14px]', !m.read ? 'font-semibold' : 'font-medium')}>{name}</span>
+                {m.starred && <Star className="h-3.5 w-3.5 shrink-0 self-center" aria-label="Starred" />}
+                {m.has_attachments && <Paperclip className="h-3.5 w-3.5 shrink-0 self-center" aria-label="Has attachments" />}
+                <span className="shrink-0 text-[12px] text-muted-foreground">{formatDate(m.received_at)}</span>
+              </span>
+              <span className={cn('block truncate text-[13px]', !m.read && 'font-semibold')}>{m.subject || '(no subject)'}</span>
+              <span className="block truncate text-[12.5px] text-muted-foreground">{m.snippet}</span>
+            </button>
+          </li>
+        )
+      })}
+      {page.total > page.items.length && (
+        <li className="px-4 py-3 text-[12.5px] text-muted-foreground">Showing the newest {page.items.length} of {page.total}. Search to find older mail.</li>
+      )}
+    </ul>
+  )
+}
+
+function Reader({ m, canSend, onBack, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
+  m: MailMessage; canSend: boolean; onBack: () => void; onReply: (all: boolean) => void; onStar: () => void
+  onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
+}) {
+  const [view, setView] = useState<'formatted' | 'text'>(m.html ? 'formatted' : 'text')
+  const doc = useMemo(() => (m.html ? inertHtml(m.html) : ''), [m.html])
+  const many = m.to.length + m.cc.length > 1
+  return (
+    <Card className="min-w-0">
+      <div className="space-y-3 border-b px-4 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="lg:hidden"><Button variant="ghost" size="sm" onClick={onBack} title="Back to the list"><ArrowLeft className="h-4 w-4" /></Button></span>
+          {m.folder !== 'trash' && canSend && <Button variant="secondary" size="sm" onClick={() => onReply(false)}><Reply className="h-4 w-4" /> Reply</Button>}
+          {m.folder !== 'trash' && canSend && many && <Button variant="secondary" size="sm" onClick={() => onReply(true)}><ReplyAll className="h-4 w-4" /> Reply all</Button>}
+          <Button variant="ghost" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
+          {m.folder === 'inbox' && <Button variant="ghost" size="sm" onClick={onUnread}>Mark unread</Button>}
+          {m.folder === 'trash' ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={onRestore}>Move back</Button>
+              <ConfirmButton tone="danger" confirmLabel="Delete for good" question="This message and its attachments are deleted and cannot be brought back." onConfirm={onDelete}>
+                Delete for good
+              </ConfirmButton>
+            </>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={onTrash}>Move to Trash</Button>
+          )}
+        </div>
+        <FormNotice error={deleteError} />
+        <h2 className="break-words text-[17px] font-semibold">{m.subject || '(no subject)'}</h2>
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+          <dt className="text-muted-foreground">From</dt><dd className="break-words">{list([m.from])}</dd>
+          <dt className="text-muted-foreground">To</dt><dd className="break-words">{list(m.to)}</dd>
+          {m.cc.length > 0 && <><dt className="text-muted-foreground">Cc</dt><dd className="break-words">{list(m.cc)}</dd></>}
+          <dt className="text-muted-foreground">Date</dt><dd>{formatDateTime(m.received_at)}</dd>
+        </dl>
+        {m.html && (
+          <div className={SEG_BAR} role="tablist" aria-label="How to show this message">
+            <button type="button" role="tab" aria-selected={view === 'formatted'} className={segClass(view === 'formatted')} onClick={() => setView('formatted')}>Formatted</button>
+            <button type="button" role="tab" aria-selected={view === 'text'} className={segClass(view === 'text')} onClick={() => setView('text')}>Plain text</button>
+          </div>
+        )}
+      </div>
+      {view === 'formatted' && m.html ? (
+        <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+          className="block h-[60vh] w-full border-0 bg-card" />
+      ) : (
+        <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
+      )}
+      {m.attachments.length > 0 && (
+        <ul className="space-y-1 border-t px-4 py-3 text-[13px]">
+          {m.attachments.map((a) => (
+            <li key={a.id} className="flex min-w-0 items-center gap-2">
+              <Paperclip className="h-3.5 w-3.5 shrink-0" />
+              <a className="min-w-0 truncate font-medium hover:underline" download={a.filename}
+                href={`/api/v1/comms/mail/${encodeURIComponent(m.id)}/attachments/${encodeURIComponent(a.id)}`}>{a.filename}</a>
+              <span className="shrink-0 text-muted-foreground">{size(a.size_bytes)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+function Compose({ draft, from, onClose }: { draft: Draft; from: string; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [d, setD] = useState(draft)
+  const set = (k: keyof Draft) => (v: string) => setD((x) => ({ ...x, [k]: v }))
+  const send = useMutation({
+    mutationFn: () => api.call('POST /comms/mail/send', {
+      body: { to: addresses(d.to), cc: addresses(d.cc), subject: d.subject, text: d.text, reply_to_id: d.reply_to_id },
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail'] }); onClose() },
+  })
+  return (
+    <Dialog
+      onClose={onClose}
+      title={d.reply_to_id ? 'Reply' : 'New message'}
+      description={`From ${from}`}
+      size="lg"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button pending={send.isPending} needsNetwork disabled={!addresses(d.to).length} onClick={() => send.mutate()}>Send</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Field label="To" hint="Separate addresses with commas."><Input value={d.to} onChange={set('to')} autoComplete="email" /></Field>
+        <Field label="Cc"><Input value={d.cc} onChange={set('cc')} /></Field>
+        <Field label="Subject"><Input value={d.subject} onChange={set('subject')} /></Field>
+        <Field label="Message"><Textarea value={d.text} onChange={set('text')} rows={8} maxRows={20} aria-label="Message" /></Field>
+        <FormNotice error={send.error} />
+      </div>
+    </Dialog>
+  )
+}

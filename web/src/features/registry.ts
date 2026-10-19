@@ -222,6 +222,25 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.
+  'institution_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hod.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'exam_controller.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'faculty.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'librarian.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'transport_manager.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'operations.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'driver.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'nurse.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'counsellor.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'discipline_officer.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hostel_warden.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'activity_coord.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'finance.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'admissions.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'front_office.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hr.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'it_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   /* Same register, wider reach. Which sections it offers is decided by the

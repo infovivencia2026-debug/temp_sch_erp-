@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 418 features. */
+/** 24 roles, 437 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -330,6 +330,8 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
           { key: 'institution_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'A message to one colleague, a head of department, a class teacher, rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
           { key: 'institution_admin.communication.class_status', slug: 'class_status', name: 'Class Status', scope: 'institution', tier: 'core', summary: 'Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers\' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.' },
+          { key: 'institution_admin.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+          { key: 'institution_admin.communication.mail_addresses', slug: 'mail_addresses', name: 'Mail addresses', scope: 'institution', tier: 'core', summary: 'The school\'s mail domain and each staff member\'s email address: give one, change it or switch it off. Mail itself stays private to its owner.' },
         ],
       },
       {
@@ -579,6 +581,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hod.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Notices home to the classes they teach, and the thread with a parent about one child.' },
           { key: 'hod.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book and the thread with each of them.' },
+          { key: 'hod.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -621,6 +624,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'exam_controller.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'exam_controller.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -735,6 +739,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.communication.classroom_communication', slug: 'classroom_communication', name: 'Classroom communication', scope: 'assigned_classes', tier: 'core', summary: 'A notice to a whole class, or to one child’s parent.' },
           { key: 'faculty.communication.messages', slug: 'messages', name: 'Messages', scope: 'assigned_classes', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them.' },
           { key: 'faculty.communication.class_status', slug: 'class_status', name: 'Class Status', scope: 'institution', tier: 'core', summary: 'Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status: it disappears after 24 hours unless you pin it to the class gallery. See who has viewed each post.' },
+          { key: 'faculty.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -795,6 +800,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'librarian.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'librarian.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -857,6 +863,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'transport_manager.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'transport_manager.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -921,6 +928,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'operations.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'operations.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -965,6 +973,14 @@ export const ROLES: Role[] = [
           { key: 'driver.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'driver.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+        ],
+      },
     ],
   },
   {
@@ -995,6 +1011,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'nurse.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'nurse.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1036,6 +1053,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'counsellor.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'counsellor.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1076,6 +1094,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'discipline_officer.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'discipline_officer.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1119,6 +1138,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'hostel_warden.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'hostel_warden.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1160,6 +1180,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'activity_coord.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'activity_coord.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1234,6 +1255,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'finance.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'finance.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1307,6 +1329,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school.' },
           { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Tell a family their offer is out, what paperwork is still missing, or when the entrance test is, by SMS, WhatsApp or email, to the families behind the applications you choose.' },
+          { key: 'admissions.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1356,6 +1379,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'front_office.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school.' },
+          { key: 'front_office.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1427,6 +1451,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'hr.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'hr.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {
@@ -1530,6 +1555,7 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'it_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'it_admin.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
       {

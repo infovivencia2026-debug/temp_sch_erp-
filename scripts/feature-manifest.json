@@ -157,6 +157,381 @@
         "worker/src/services/class_status.ts"
       ]
     },
+    "communication.inbox": {
+      "name": "Inbox",
+      "summary": "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "inbox",
+      "roles": [
+        "institution_admin",
+        "hod",
+        "exam_controller",
+        "faculty",
+        "librarian",
+        "transport_manager",
+        "operations",
+        "driver",
+        "nurse",
+        "counsellor",
+        "discipline_officer",
+        "hostel_warden",
+        "activity_coord",
+        "finance",
+        "admissions",
+        "front_office",
+        "hr",
+        "it_admin"
+      ],
+      "keys": [
+        "institution_admin.communication.inbox",
+        "hod.communication.inbox",
+        "exam_controller.communication.inbox",
+        "faculty.communication.inbox",
+        "librarian.communication.inbox",
+        "transport_manager.communication.inbox",
+        "operations.communication.inbox",
+        "driver.communication.inbox",
+        "nurse.communication.inbox",
+        "counsellor.communication.inbox",
+        "discipline_officer.communication.inbox",
+        "hostel_warden.communication.inbox",
+        "activity_coord.communication.inbox",
+        "finance.communication.inbox",
+        "admissions.communication.inbox",
+        "front_office.communication.inbox",
+        "hr.communication.inbox",
+        "it_admin.communication.inbox"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/comms/mail",
+      "readPerm": "comms.mail.read",
+      "writePerm": "comms.mail.write",
+      "table": null,
+      "group": "communication_inbox",
+      "createdPerms": [
+        {
+          "key": "comms.mail.read",
+          "module": "comms",
+          "desc": "View Inbox"
+        },
+        {
+          "key": "comms.mail.write",
+          "module": "comms",
+          "desc": "Manage Inbox"
+        }
+      ],
+      "grants": {
+        "institution_admin": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "hod": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "exam_controller": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "faculty": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "librarian": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "transport_manager": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "operations": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "driver": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "nurse": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "counsellor": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "discipline_officer": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "hostel_warden": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "activity_coord": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "finance": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "admissions": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "front_office": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "hr": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "it_admin": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ]
+      },
+      "grantWhere": {
+        "institution_admin comms.mail.read": [
+          "static_data"
+        ],
+        "institution_admin comms.mail.write": [
+          "static_data"
+        ],
+        "hod comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "hod comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "exam_controller comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "exam_controller comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "faculty comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "faculty comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "librarian comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "librarian comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "transport_manager comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "transport_manager comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "operations comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "operations comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "driver comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "driver comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "nurse comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "nurse comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "counsellor comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "counsellor comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "discipline_officer comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "discipline_officer comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "hostel_warden comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "hostel_warden comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "activity_coord comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "activity_coord comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "finance comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "finance comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "admissions comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "admissions comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "front_office comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "front_office comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "hr comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "hr comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "it_admin comms.mail.read": [
+          "go",
+          "static_data",
+          "setup_common"
+        ],
+        "it_admin comms.mail.write": [
+          "go",
+          "static_data",
+          "setup_common"
+        ]
+      },
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0098_feature_inbox.sql",
+      "files": [
+        "shared/api/feature_inbox.ts",
+        "web/src/features/comms/Inbox.tsx",
+        "worker/src/routes/comms/inbox.ts",
+        "worker/test/integration/feature_inbox.test.ts",
+        "worker\\migrations\\tenant\\0098_feature_inbox.sql"
+      ]
+    },
+    "communication.mail_addresses": {
+      "name": "Mail addresses",
+      "summary": "The school's mail domain and each staff member's email address: give one, change it or switch it off. Mail itself stays private to its owner.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "mail_addresses",
+      "roles": [
+        "institution_admin"
+      ],
+      "keys": [
+        "institution_admin.communication.mail_addresses"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/comms/mail-addresses",
+      "readPerm": "comms.mail.manage",
+      "writePerm": null,
+      "table": null,
+      "group": "communication_mail_addresses",
+      "createdPerms": [
+        {
+          "key": "comms.mail.manage",
+          "module": "comms",
+          "desc": "View Mail addresses"
+        }
+      ],
+      "grants": {
+        "institution_admin": [
+          "comms.mail.manage"
+        ]
+      },
+      "grantWhere": {
+        "institution_admin comms.mail.manage": [
+          "static_data"
+        ]
+      },
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0099_feature_mail_addresses.sql",
+      "files": [
+        "shared/api/feature_mail_addresses.ts",
+        "web/src/features/comms/MailAddresses.tsx",
+        "worker/src/routes/comms/mail_addresses.ts",
+        "worker/test/integration/feature_mail_addresses.test.ts",
+        "worker\\migrations\\tenant\\0099_feature_mail_addresses.sql"
+      ]
+    },
     "help.helpdesk": {
       "name": "Helpdesk",
       "summary": "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.",

@@ -76,6 +76,8 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'campus_money.cafeteria_store_sales': ['/portal/cafeteria', '/store/catalogue'],
   'communication.class_status': ['/status'], // feature:communication.class_status
   'payroll.year_end_payout': ['/payroll/year-end'], // feature:payroll.year_end_payout
+  'communication.inbox': ['/comms/mail'], // feature:communication.inbox
+  'communication.mail_addresses': ['/comms/mail-addresses'], // feature:communication.mail_addresses
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }

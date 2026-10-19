@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 418 features.
+// Roles is the catalog: 24 roles, 437 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -377,6 +377,8 @@ var Roles = []Role{
 					{Key: "institution_admin.communication.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},
 					{Key: "institution_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A message to one colleague, a head of department, a class teacher, rather than a notice to the school. Every member of staff is listed whether or not you have written to them before."},
 					{Key: "institution_admin.communication.class_status", Slug: "class_status", Name: "Class Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length."},
+					{Key: "institution_admin.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+					{Key: "institution_admin.communication.mail_addresses", Slug: "mail_addresses", Name: "Mail addresses", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's mail domain and each staff member's email address: give one, change it or switch it off. Mail itself stays private to its owner."},
 				},
 			},
 			{
@@ -626,6 +628,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "hod.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notices home to the classes they teach, and the thread with a parent about one child."},
 					{Key: "hod.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book and the thread with each of them."},
+					{Key: "hod.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -668,6 +671,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "exam_controller.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "exam_controller.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -782,6 +786,7 @@ var Roles = []Role{
 					{Key: "faculty.communication.classroom_communication", Slug: "classroom_communication", Name: "Classroom communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A notice to a whole class, or to one child’s parent."},
 					{Key: "faculty.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them."},
 					{Key: "faculty.communication.class_status", Slug: "class_status", Name: "Class Status", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Post a photo or a short video to your section, your class or the whole school, like a WhatsApp status: it disappears after 24 hours unless you pin it to the class gallery. See who has viewed each post."},
+					{Key: "faculty.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -842,6 +847,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "librarian.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "librarian.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -904,6 +910,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "transport_manager.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "transport_manager.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -968,6 +975,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "operations.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "operations.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1012,6 +1020,14 @@ var Roles = []Role{
 					{Key: "driver.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "driver.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+				},
+			},
 		},
 	},
 	{
@@ -1042,6 +1058,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "nurse.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "nurse.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1083,6 +1100,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "counsellor.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "counsellor.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1123,6 +1141,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "discipline_officer.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "discipline_officer.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1166,6 +1185,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "hostel_warden.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "hostel_warden.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1207,6 +1227,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "activity_coord.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "activity_coord.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1281,6 +1302,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "finance.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "finance.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1354,6 +1376,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "admissions.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school."},
 					{Key: "admissions.communication.applicant_communication", Slug: "applicant_communication", Name: "Applicant communication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Tell a family their offer is out, what paperwork is still missing, or when the entrance test is, by SMS, WhatsApp or email, to the families behind the applications you choose."},
+					{Key: "admissions.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1403,6 +1426,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "front_office.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school."},
+					{Key: "front_office.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1474,6 +1498,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "hr.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "hr.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{
@@ -1577,6 +1602,7 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "it_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+					{Key: "it_admin.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 			{

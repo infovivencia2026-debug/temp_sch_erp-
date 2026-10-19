@@ -55,6 +55,11 @@
   // Gemini calls leave through the relay: Google refuses them from ap-east-1 (ai-relay/index.ts).
   "services": [{ "binding": "AI_RELAY", "service": "school-erp-ai-relay" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
+  // Staff Inbox (src/services/mail.ts): incoming mail reaches the email() handler
+  // through Cloudflare Email Routing, set up per mail domain in the dashboard
+  // (Email > Email Routing on the domain's zone: enable it, which adds the MX and
+  // SPF records, then Routing rules > Catch-all > Send to a Worker > school-erp).
+  // No binding is needed here for receiving. Attachments go to FILES_WRITE.
   // One tick a minute; the schedule itself (per school, in the school's
   // timezone) is src/services/cron.ts, replacing Cloud Scheduler -> /api/v1/cron.
   "triggers": { "crons": ["* * * * *"] },

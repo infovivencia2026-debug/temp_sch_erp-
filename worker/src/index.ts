@@ -3,6 +3,7 @@ import type { Env } from './env'
 import { runBatch, type Job } from './services/jobs'
 import './services/job-registry'
 import { tick } from './services/cron'
+import { handleEmail } from './services/mail'
 import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
 import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } from './routes/login'
@@ -131,6 +132,12 @@ export default {
     // The dead-letter queue: record, alert, ack (src/services/dead_letters.ts).
     if (batch.queue.endsWith('-dlq')) return consumeDeadLetters(batch, env)
     await runBatch(batch, env)
+  },
+
+  /* Staff Inbox: Cloudflare Email Routing hands every message for a school's
+     mail domain here (services/mail.ts). Unknown addresses are refused. */
+  async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
+    await handleEmail(message, env)
   },
 
   /* Cron Trigger, every minute: replaces Cloud Scheduler's call to
