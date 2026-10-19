@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { StaffMailAddress } from '@shared/api/feature_mail_addresses'
+import { readMailImportCsv, type MailImportPreview, type MailImportResult, type MailImportRow, type StaffMailAddress } from '@shared/api/feature_mail_addresses'
+import { parseCsv } from '@/components/BulkImport'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Dialog, ErrorState, Field, FormNotice, Input, Loading, Table, Td,
 } from '@/components/ui'
@@ -15,6 +16,7 @@ export default function MailAddresses() {
   const [domain, setDomain] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [editing, setEditing] = useState<StaffMailAddress | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const saveDomain = useMutation({
     mutationFn: (d: string) => api.call('PUT /comms/mail-addresses/domain', { body: { domain: d } }),
@@ -63,7 +65,12 @@ export default function MailAddresses() {
           </Card>
 
           <Card>
-            <CardHeader title="Staff" action={<Input value={filter} onChange={setFilter} placeholder="Search name or address" srLabel="Search staff" type="search" />} />
+            <CardHeader title="Staff" action={
+              <div className="flex items-center gap-2">
+                <Input value={filter} onChange={setFilter} placeholder="Search name or address" srLabel="Search staff" type="search" />
+                <Button variant="secondary" onClick={() => setImporting(true)}>Import from file</Button>
+              </div>
+            } />
             <FormNotice error={setStatus.error} />
             <Table head={['Name', 'Address', 'Status', '']} empty={rows.length === 0} emptyLabel={f ? 'No one matches.' : 'No staff found.'}>
               {rows.map((s) => (
@@ -95,6 +102,7 @@ export default function MailAddresses() {
         </div>
       </PageBody>
       {editing && current && <AddressDialog person={editing} domain={current} onClose={() => setEditing(null)} />}
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </>
   )
 }
@@ -127,6 +135,113 @@ function AddressDialog({ person, domain, onClose }: { person: StaffMailAddress; 
           <p className="text-[13px] text-muted-foreground">Mail already in this person's Inbox stays there. Mail sent to the old address after the change is refused.</p>
         )}
         <FormNotice error={save.error} />
+      </div>
+    </Dialog>
+  )
+}
+
+const RESULT: Record<MailImportResult, { label: string; tone: 'success' | 'neutral' | 'warning' | 'danger' }> = {
+  assign: { label: 'Will assign', tone: 'success' },
+  already: { label: 'Already set', tone: 'neutral' },
+  unmatched: { label: 'No staff match', tone: 'warning' },
+  invalid: { label: 'Not an email', tone: 'danger' },
+  duplicate: { label: 'Duplicate address', tone: 'danger' },
+  domain: { label: 'Other domain', tone: 'warning' },
+}
+
+/* Import from a staff list CSV. Only the code, name and email columns are
+   read here; a password column in the file is never read or sent. The server
+   dry-runs the match first, and Apply writes only the lines marked Will assign. */
+function ImportDialog({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [rows, setRows] = useState<MailImportRow[] | null>(null)
+  const [readError, setReadError] = useState('')
+  const [plan, setPlan] = useState<MailImportPreview | null>(null)
+  const [assigned, setAssigned] = useState<number | null>(null)
+
+  const preview = useMutation({
+    mutationFn: (r: MailImportRow[]) => api.call('POST /comms/mail-addresses/import/preview', { body: { rows: r } }),
+    onSuccess: setPlan,
+  })
+  const setDomain = useMutation({
+    mutationFn: (d: string) => api.call('PUT /comms/mail-addresses/domain', { body: { domain: d } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail-addresses'] }); if (rows) preview.mutate(rows) },
+  })
+  const apply = useMutation({
+    mutationFn: () => api.call('POST /comms/mail-addresses/import', { body: { rows: rows! } }),
+    onSuccess: (res) => { setPlan(res); setAssigned(res.assigned); qc.invalidateQueries({ queryKey: ['mail-addresses'] }) },
+  })
+
+  async function onFile(file: File | undefined) {
+    if (!file) return
+    setPlan(null); setAssigned(null); setReadError('')
+    if (!/\.(csv|txt)$/i.test(file.name)) { setReadError('Save the sheet as CSV first, then choose that file.'); return }
+    const read = readMailImportCsv(parseCsv(await file.text()))
+    if ('error' in read) { setReadError(read.error); return }
+    if (read.rows.length === 0) { setReadError('The file has a header line but no staff under it.'); return }
+    setRows(read.rows)
+    preview.mutate(read.rows)
+  }
+
+  const ready = plan?.rows.filter((r) => r.result === 'assign').length ?? 0
+  return (
+    <Dialog
+      onClose={onClose}
+      title="Import from file"
+      description="A CSV with an employee code or Staff Name column and an Email ID column. Other columns are not read."
+      size="xl"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{assigned === null ? 'Cancel' : 'Close'}</Button>
+          {assigned === null && (
+            <Button pending={apply.isPending} disabled={!plan || ready === 0 || preview.isPending} onClick={() => apply.mutate()}>
+              {ready ? `Assign ${ready} address${ready === 1 ? '' : 'es'}` : 'Assign addresses'}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" pending={preview.isPending} onClick={() => fileRef.current?.click()}>{rows ? 'Choose another file' : 'Choose CSV file'}</Button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden"
+            onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }} />
+        </div>
+        {readError && <FormNotice error={new Error(readError)} />}
+        <FormNotice error={preview.error ?? setDomain.error ?? apply.error} ok={assigned !== null ? `${assigned} address${assigned === 1 ? '' : 'es'} assigned.` : undefined} />
+        {plan && !plan.domain && (
+          plan.suggested_domain ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[13px] text-muted-foreground">No school mail domain is set. Every address in the file is on {plan.suggested_domain}.</p>
+              <Button size="sm" variant="secondary" pending={setDomain.isPending} onClick={() => setDomain.mutate(plan.suggested_domain!)}>Set domain to {plan.suggested_domain}</Button>
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">No school mail domain is set. Set it on this screen first, then choose the file again.</p>
+          )
+        )}
+        {plan && (
+          <Table head={['Line', 'In the file', 'Staff member', 'Address', 'Result']} empty={plan.rows.length === 0} emptyLabel="No lines read.">
+            {plan.rows.map((r) => (
+              <tr key={r.line}>
+                <Td className="tabular-nums text-muted-foreground">{r.line}</Td>
+                <Td>
+                  <span className="block">{r.name || <span className="text-muted-foreground">No name</span>}</span>
+                  {r.code && <span className="block text-[12px] text-muted-foreground">{r.code}</span>}
+                </Td>
+                <Td>
+                  {r.full_name ?? <span className="text-muted-foreground">None</span>}
+                  {r.matched_by && <span className="block text-[12px] text-muted-foreground">{r.matched_by === 'code' ? 'By code' : 'By name'}</span>}
+                </Td>
+                <Td className="break-all">
+                  {r.email}
+                  {r.current && r.current !== r.email && <span className="block text-[12px] text-muted-foreground">Now {r.current}</span>}
+                </Td>
+                <Td><Badge tone={RESULT[r.result].tone}>{RESULT[r.result].label}</Badge></Td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </div>
     </Dialog>
   )

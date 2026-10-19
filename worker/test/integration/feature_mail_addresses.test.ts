@@ -12,6 +12,8 @@ describe('communication.mail_addresses', () => {
   it('every route needs comms.mail.manage', () => {
     expect(r.match('GET', '/api/v1/comms/mail-addresses')?.route.perm).toBe('comms.mail.manage')
     expect(r.match('PUT', '/api/v1/comms/mail-addresses/domain')?.route.perm).toBe('comms.mail.manage')
+    expect(r.match('POST', '/api/v1/comms/mail-addresses/import/preview')?.route.perm).toBe('comms.mail.manage')
+    expect(r.match('POST', '/api/v1/comms/mail-addresses/import')?.route.perm).toBe('comms.mail.manage')
     expect(r.match('PUT', '/api/v1/comms/mail-addresses/00000000-0000-4000-8000-000000000002')?.route.perm).toBe('comms.mail.manage')
   })
   it('never reads mail', () => {
