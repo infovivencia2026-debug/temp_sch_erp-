@@ -7,6 +7,7 @@ import { SchoolPDF, schoolFacts, logoBytes, inr as docINR } from '../../services
 import { publish } from '../../services/live'
 import { feedbackUpdateStmt } from '../comms/grievances'
 import { canReopen, dueAt, notify, ownAttachment, policyFor, ticketStage } from '../comms/concern_shared'
+import { frontDeskMode, frontDeskPeople } from '../comms/parent_concerns'
 
 /* Port of internal/api/portal_requests.go (mountParentPortal): what a family
    asks the school for, and what the school owes them back. Every route sits
@@ -487,6 +488,10 @@ const CONCERN_CATEGORIES = new Set(['academic', 'fees', 'transport', 'hostel', '
  * the whole list.
  */
 async function listConcernRecipients(c: Ctx): Promise<Response> {
+  /* A school that runs concerns through the front desk (Yajur, 2026-10-20:
+     "concerns should only send to front desk roles, their names shown, not
+     all the teachers") offers only the front desk staff, by name. */
+  if (await frontDeskMode(c)) return ok({ items: (await frontDeskPeople(c)).map((p) => ({ ...p, role: 'Front desk' })) })
   const { studentIds: ids } = await familyChildren(c, c.url.searchParams.get('student_id') ?? '')
   const out: Record<string, unknown>[] = []
   const seen = new Set<string>()
@@ -558,7 +563,7 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
     if (!isUUID(wanted)) throw badRequest('assigned_to must be a uuid')
     const allowed = await (await listConcernRecipients(c)).clone().json<{ items: { user_id: string }[] }>()
     if (!allowed.items.some((x) => x.user_id === wanted)) {
-      throw badRequest("you can address this to one of your child's teachers or to the head of the school")
+      throw badRequest((await frontDeskMode(c)) ? 'send it to one of the front desk staff' : "you can address this to one of your child's teachers or to the head of the school")
     }
     addressedTo = wanted
   }
@@ -582,7 +587,7 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
   const owner = addressedTo ?? policy?.default_owner_id ?? null
   if (owner && owner !== c.id.userId) {
     stmts.push(notify(c, owner, 'A new concern has been raised', subject,
-      `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
+      (await frontDeskMode(c)) ? `/go/parent_concerns?id=${newID}` : `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
   }
   try {
     await c.db.batch(stmts)
