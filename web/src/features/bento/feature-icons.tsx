@@ -33,6 +33,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   reading_levels: 'library_books', // Reading levels
   fee_corrections: 'receipt', // Fee corrections
   fixed_reports: 'receipt_long', // Fixed reports
+  parent_concerns: 'contact_support', // Parent concerns
+  concerns_from_parents: 'record_voice_over', // Concerns from parents
   todays_runs: 'directions_bus', // Today's runs
   transport_reports: 'description', // Transport reports
   hall_ticket: 'badge', // Hall ticket (student and parent)
