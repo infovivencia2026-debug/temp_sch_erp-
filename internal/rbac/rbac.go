@@ -471,9 +471,14 @@ var SystemRoles = []Role{
 	// widens the rows they return. This role held the widener without the
 	// opener, so its institution-wide attendance access resolved to a 403 on
 	// every attendance endpoint and the .all grant did nothing at all.
+	// ExamsApprove (owner, 2026-10-19: "there is a role Examination
+	// Controller... for that person that feature should be there" --
+	// scheduling a question-paper deadline is gated on ExamsApprove, the
+	// same permission question-paper approval already uses, and this
+	// role never held it, so its own exam screen had no deadline panel.
 	{"exam_controller", "Examination Controller", []string{
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
-		AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
+		AcademicsRead, ExamsRead, ExamsWrite, ExamsApprove, MarksWrite,
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
