@@ -123,7 +123,10 @@ export default function StaffMessages() {
      keeps the teaching routes. Somebody who is both reads as a teacher,
      because that list is the wider of the two. */
   const busOnly = !teaches && can('operations.transport.read')
-  const canParents = teaches || busOnly
+  /* Writing to families needs comms.announcements.write (the server refuses a send without it);
+     a plain subject teacher messages colleagues only. */
+  // Class teachers (students.write) and bus staff keep the family register, as the server allows.
+  const canParents = busOnly || (teaches && (can('comms.announcements.write') || can('students.write')))
   const CONTACTS = busOnly ? '/api/v1/ops/transport/parent-contacts' : '/api/v1/teaching/parent-contacts'
   const THREADS = busOnly ? '/api/v1/ops/transport/parent-messages' : '/api/v1/teaching/parent-messages'
 

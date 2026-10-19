@@ -6,6 +6,7 @@ import { Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui
 import { useSession } from '@/lib/session'
 import type { List, Section } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { notificationDay, useNotificationFeed } from '@/components/Notifications'
 
 /* A teacher's own day, from their own timetable.
 
@@ -67,6 +68,8 @@ export default function TodaysClasses() {
     staleTime: 10 * 60_000, retry: false,
   })
   const holiday = hol.data?.items?.[0]?.name
+  const notes = useNotificationFeed()
+  const noteItems = notes.data?.items ?? []
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   if (entries.error) return <ErrorState error={entries.error} />
@@ -234,6 +237,29 @@ export default function TodaysClasses() {
           ))}
         </Card>
       </div>
+
+      {!notes.error && (
+        <Card className="px-6 py-5">
+          <h3 className="mb-3 border-b pb-3 text-[16px] font-bold">Notifications</h3>
+          {notes.isLoading ? (
+            <Loading label="Loading notifications" />
+          ) : noteItems.length === 0 ? (
+            <EmptyState title="No notifications" body="New notices and messages for you appear here." />
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {noteItems.slice(0, 5).map((n) => (
+                <li key={n.id} className="flex items-start justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className={cn('truncate text-[14px]', !n.read_at && 'font-semibold')}>{n.title}</p>
+                    {n.body && <p className="line-clamp-2 text-[13px] text-muted-foreground">{n.body}</p>}
+                  </div>
+                  <span className="shrink-0 text-[12px] text-muted-foreground">{notificationDay(n.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
     </div></PageBody>
   )
 }

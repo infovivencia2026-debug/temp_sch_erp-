@@ -9,6 +9,7 @@ import {
   cut, hhmm, lengthOf, mins, useNowMinutes, useShape,
 } from './persona-kit'
 import { Widget } from './WidgetLayer'
+import { notificationDay, useNotificationFeed } from '@/components/Notifications'
 
 /* TODAY'S CLASSES, IN THE EDITORIAL CARD LANGUAGE.
 
@@ -228,6 +229,10 @@ export default function FacultyToday() {
 
       <Widget id="lessons" label={t('bento.faculty_today.lessons_label')} size="small" index={4}>
         {(span) => <LessonsCell span={span} lessons={lessons} idxNow={idxNow} to={toTimetable} />}
+      </Widget>
+
+      <Widget id="notifications" label="Notifications" size="small" index={5}>
+        {(span) => <NotesCell span={span} />}
       </Widget>
     </PersonaPage>
   )
@@ -697,6 +702,33 @@ export function SectionsCell({ span, mine, to }: { span: CellSpan; mine: MyClass
       cueLabel={t('bento.faculty_today.sections_cue')}
     >
       {mine.length === 0 ? <Say>{t('bento.faculty_today.sections_none')}</Say> : drawing}
+    </PersonaCard>
+  )
+}
+
+/* ─── NOTIFICATIONS: the teacher's own feed, the same one the bell opens. */
+export function NotesCell({ span }: { span: CellSpan }) {
+  const { tall } = useShape()
+  const feed = useNotificationFeed()
+  const items = feed.data?.items ?? []
+  const unread = feed.data?.unread ?? 0
+  return (
+    <PersonaCard
+      span={span}
+      title="Notifications"
+      glyph="◔"
+      value={unread}
+      change={feed.error ? 'Could not load notifications' : unread === 0 ? 'Nothing unread' : 'Unread'}
+      cueLabel="Notifications"
+    >
+      {items.length === 0 ? (
+        <Say>{feed.isLoading ? 'Loading' : 'No notifications'}</Say>
+      ) : (
+        <Facts
+          items={cut(items.map((n) => ({ label: n.title, value: notificationDay(n.created_at) })), tall ? 5 : 3)}
+          srLabel="Latest notifications"
+        />
+      )}
     </PersonaCard>
   )
 }
