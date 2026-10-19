@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import WeekGrid from '@/components/WeekGrid'
+import SubjectChat from './SubjectChat'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, ErrorState, EmptyState, SkeletonTiles, TAB_BAR, tabClass,
@@ -39,7 +40,7 @@ interface Data {
   parts: Parts; pending_plans: Plan[]; removed: { id: string; name: string }[]
 }
 
-const TABS = ['All subjects', 'Teachers', 'Classes', 'Approvals', 'Timetable', 'Notices', 'Meetings', 'Subject heads'] as const
+const TABS = ['All subjects', 'Teachers', 'Classes', 'Approvals', 'Timetable', 'Notices', 'Meetings', 'Chat', 'Subject heads'] as const
 /* Which school setting turns each tab off for a head. The principal always sees them all. */
 const TAB_PART: Partial<Record<(typeof TABS)[number], keyof Parts>> = {
   Teachers: 'performance', Classes: 'classes', Approvals: 'approvals', Timetable: 'timetable', Notices: 'notices', Meetings: 'meetings',
@@ -95,6 +96,7 @@ export default function SubjectOverview() {
               {shown === 'Approvals' && <Approvals rows={d.pending_plans} />}
               {shown === 'Classes' && <Classes rows={d.sections} canAssign={d.can_assign} staff={d.staff} />}
               {shown === 'Timetable' && <Timetable rows={d.timetable} teachers={d.teachers} />}
+              {shown === 'Chat' && <SubjectChat subjectId={d.subject.id} />}
               {shown === 'Notices' && <Notices rows={d.notices} />}
               {shown === 'Subject heads' && heads.data && <><HeadsSetup data={heads.data} /><div className="mt-4"><PartsSetup /></div></>}
               {shown === 'Meetings' && <Meetings subjectId={d.subject.id} rows={d.meetings} teachers={d.teachers.length} />}

@@ -7,6 +7,7 @@ import type { Ctx, Router } from '../../router'
 import { ok, badRequest, forbidden, notFound, readJSON, isUUID, now } from '../../http'
 import { institutionId } from '../admin/common'
 import { subjectTeachers } from './subject_overview'
+import { registerSubjectChat } from './subject_chat'
 
 async function myMeetings(c: Ctx) {
   const subs = await c.db.prepare(`SELECT DISTINCT subject_id FROM subject_meetings WHERE meets_at >= date('now', '-30 days')`).all<{ subject_id: string }>()
@@ -38,6 +39,7 @@ async function reply(c: Ctx) {
 }
 
 export function registerSubjectMeetings(r: Router): void {
+  registerSubjectChat(r)
   r.get('/teaching/subject-meetings', 'academics.timetable.read', myMeetings)
   r.post('/teaching/subject-meetings/{id}/reply', 'academics.timetable.read', reply)
 }

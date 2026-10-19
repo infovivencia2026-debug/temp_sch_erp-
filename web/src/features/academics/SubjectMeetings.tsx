@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Card, CardHeader, Badge, Button, Input, Select, Textarea, Field, FormGrid, FormNotice, ErrorState, EmptyState, SkeletonTiles } from '@/components/ui'
+import SubjectChat from './SubjectChat'
+import { PageHead, PageBody, Card, CardHeader, TAB_BAR, tabClass, Badge, Button, Input, Select, Textarea, Field, FormGrid, FormNotice, ErrorState, EmptyState, SkeletonTiles } from '@/components/ui'
 
 /* The teacher's side of a subject head's meetings (owner, 2026-10-19):
    when, where and what about, and an answer -- attending, or can't come
@@ -16,16 +17,26 @@ const when = (s: string) => new Date(s).toLocaleString('en-IN', { dateStyle: 'me
 
 export default function SubjectMeetings() {
   const q = useQuery({ queryKey: ['subject-meetings'], queryFn: () => api.get<{ items: Meeting[] }>('/api/v1/teaching/subject-meetings') })
+  const [tab, setTab] = useState<'Meetings' | 'Group chat'>('Meetings')
   return (
     <>
       <PageHead eyebrow="Academics" title="Subject meetings" />
       <PageBody>
+        <div className={TAB_BAR} role="tablist">
+          {(['Meetings', 'Group chat'] as const).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t} className={tabClass(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          ))}
+        </div>
+        <div className="mt-4">
+        {tab === 'Group chat' ? <SubjectChat /> : <>
         <Schedule />
         {q.isLoading ? <SkeletonTiles /> : q.error ? <ErrorState error={q.error} /> : !q.data?.items.length ? (
           <div className="mt-4"><EmptyState title="No meetings" body="Meetings your subject head calls will appear here." /></div>
         ) : (
           <div className="mt-4 space-y-3">{q.data.items.map((m) => <MeetingCard key={m.id} m={m} />)}</div>
         )}
+        </>}
+        </div>
       </PageBody>
     </>
   )
