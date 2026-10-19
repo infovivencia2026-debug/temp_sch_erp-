@@ -121,7 +121,7 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useNotificationFeed()
-  const { readAll, linkFor } = useNotificationActions()
+  const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   if (entries.error) return <ErrorState error={entries.error} />
@@ -184,7 +184,7 @@ export default function TodaysClasses() {
   const unread = notes.data?.unread ?? 0
 
   return (
-    <PageBody top><div className="flex flex-col gap-5">
+    <PageBody top width="full"><div className="flex flex-col gap-5">
       {!inShellHeader && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
@@ -262,9 +262,6 @@ export default function TodaysClasses() {
               <h2 className="text-[16px] font-bold">Notifications</h2>
               {unread > 0 && <span className="text-[13px] text-muted-foreground">{unread} new</span>}
             </div>
-            {unread > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => readAll.mutate()}>Mark all read</Button>
-            )}
           </div>
           <div className="min-h-0 flex-1 lg:overflow-y-auto">
             {notes.isLoading ? (

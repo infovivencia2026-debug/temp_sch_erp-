@@ -179,19 +179,9 @@ export function useNotificationFeed() {
 
 type Feed = { items?: Note[]; unread?: number }
 
-/** Mark all read, and where a notification leads: shared by the bell and the
-    home panels, so both open the same screen for the same row. */
+/** Where a notification leads: shared by the bell and the home panels, so
+    both open the same screen for the same row. */
 export function useNotificationActions() {
-  const readAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    queryKeys: [['notifications']],
-    apply: (old) => {
-      const f = old as Feed
-      const now = new Date().toISOString()
-      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
-    },
-    failure: "Couldn't mark them read",
-  })
   /* Clicking a notification opens the thing it is about.
    *
    * Every row carried a link and nothing used it: the panel listed what had
@@ -255,7 +245,7 @@ export function useNotificationActions() {
     if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
     return undefined
   }
-  return { readAll, linkFor }
+  return { linkFor }
 }
 
 export { dayOf as notificationDay, kindOf as notificationKind }
@@ -314,22 +304,10 @@ export default function Notifications() {
      * asks for it (see App.tsx): the bell is the thing people watch after
      * being told "I have sent it", so coming back to the tab must not show a
      * stale count. The options live in useNotificationFeed. */
-  /* Optimistic (lib/optimistic): the badge clears and the list empties the
-     moment either is pressed; a refusal puts them back with the reason. */
-  const { readAll, linkFor } = useNotificationActions()
-  /* Clear empties the list; Mark all read only quiets the badge. Both were
-     asked for by name: a feed a fortnight long that can only be marked read
-     is a feed that has to be scrolled past every time. */
-  const clearAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
-    queryKeys: [['notifications']],
-    /* The status posts survive the clear, here as on the server. */
-    apply: (old) => {
-      const kept = ((old as Feed).items ?? []).filter((n) => n.kind === 'status')
-      return { ...(old as Feed), unread: 0, items: kept }
-    },
-    failure: "Couldn't clear them",
-  })
+  /* NO MARK-ALL OR CLEAR-ALL (owner, 2026-10-19: "all notifications should go
+     after viewing only; until then they will be there"). A notification
+     leaves the drawer when it is opened, and not before. */
+  const { linkFor } = useNotificationActions()
 
   /* OPENING ONE REMOVES IT, THE WAY ANSWERING A LETTER TAKES IT OFF THE PILE
      (owner, 2026-10-16: "after any message is opened it should disappear
@@ -582,18 +560,6 @@ export default function Notifications() {
                     {unread > 0
                       ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">{unread} new</span>
                       : 'All caught up'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    {unread > 0 && (
-                      <button onClick={() => readAll.mutate()}
-                        className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                        Mark read
-                      </button>
-                    )}
-                    <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[hsl(var(--sys-danger)/0.1)] hover:text-[hsl(var(--sys-danger-ink))] disabled:opacity-50">
-                      {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                    </button>
                   </span>
                 </div>
               )}
