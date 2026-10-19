@@ -38,22 +38,24 @@
     },
     "academics.subject_overview": {
       "name": "Subject overview",
-      "summary": "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.",
+      "summary": "x",
       "section": "academics",
       "sectionName": "Academics",
       "slug": "subject_overview",
       "roles": [
+        "faculty",
         "hod",
         "institution_admin"
       ],
       "keys": [
+        "faculty.academics.subject_overview",
         "hod.academics.subject_overview",
         "institution_admin.academics.subject_overview"
       ],
       "module": "academics",
       "webDir": "academics",
       "planModule": "academics",
-      "apiBase": "C:/Program Files/Git/teaching/subject-overview",
+      "apiBase": "/teaching/subject-overview",
       "readPerm": "academics.timetable.read",
       "writePerm": null,
       "table": null,

@@ -287,6 +287,8 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'academics.attendance.read', 'academics.attendance.write', 'academics.exams.read', 'academics.marks.write',
     'academics.homework.write', 'comms.announcements.write', 'welfare.discipline.write', 'academics.class360.view',
     'academics.reportcards.generate', ...SELF] },
+  subject_head: { name: 'Subject Head', permissions: ['academics.subject_head', 'academics.read', 'academics.timetable.read',
+    'academics.homework.write', 'academics.exams.read', 'comms.announcements.write', ...SELF] },
   class_teacher: { name: 'Class Teacher', permissions: ['status.post', 'students.read', 'students.write', 'academics.read',
     'academics.timetable.read', 'academics.attendance.read', 'academics.attendance.write', 'academics.exams.read',
     'academics.marks.write', 'academics.reportcards.generate', 'academics.homework.write', 'welfare.discipline.write',

@@ -16,3 +16,9 @@ hr	hr.records.staff_records	POST /setup/class-teacher
 hod	hod.academics.subject_overview	PUT /academics/subject-heads
 faculty	faculty.exams.question_papers	POST /exams/question-paper-deadlines
 faculty	faculty.exams.question_papers	POST /exams/question-paper-deadlines/{id}/mark-received
+hod	hod.academics.subject_overview	PUT /academics/subject-heads/members
+hod	hod.academics.subject_overview	PUT /academics/subject-heads/settings
+faculty	faculty.academics.subject_overview	PUT /academics/subject-heads/members
+faculty	faculty.academics.subject_overview	PUT /academics/subject-heads
+faculty	faculty.academics.subject_overview	POST /academics/admin/faculty-allocation
+faculty	faculty.academics.subject_overview	PUT /academics/subject-heads/settings

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 434 features.
+// Roles is the catalog: 24 roles, 435 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -820,6 +820,7 @@ var Roles = []Role{
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "faculty.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
+					{Key: "faculty.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 				},
 			},
 		},

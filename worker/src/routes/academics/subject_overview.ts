@@ -44,8 +44,64 @@ export async function subjectTeachers(c: Ctx, subjectId: string): Promise<string
        WHERE cs.subject_id = ?1 AND sec.academic_year_id = ${currentYear}
       UNION
       SELECT te.teacher_user_id FROM timetable_entries te JOIN class_subjects cs ON cs.id = te.class_subject_id
-       WHERE cs.subject_id = ?1 AND te.teacher_user_id IS NOT NULL AND te.academic_year_id = ${currentYear}`).bind(subjectId))
+       WHERE cs.subject_id = ?1 AND te.teacher_user_id IS NOT NULL AND te.academic_year_id = ${currentYear}
+      UNION
+      SELECT user_id FROM subject_head_members WHERE subject_id = ?1 AND mode = 'add'
+      EXCEPT
+      SELECT user_id FROM subject_head_members WHERE subject_id = ?1 AND mode = 'remove'`).bind(subjectId))
   return r.map((x) => x.u)
+}
+
+/* WHAT A SUBJECT HEAD IS GIVEN, PER SCHOOL (owner, 2026-10-19: "all changes
+   are generic... let us change according to school"). Every part is on until
+   the school turns it off on the Subject heads tab. */
+export const PARTS = ['performance', 'classes', 'timetable', 'notices', 'meetings', 'approvals', 'homework'] as const
+export type Parts = Record<(typeof PARTS)[number], boolean>
+export async function headParts(c: Ctx): Promise<Parts> {
+  const r = await c.db.prepare(`SELECT config FROM module_settings WHERE module = 'subject_heads'`).first<{ config: string }>()
+  let cfg: Record<string, unknown> = {}
+  try { cfg = JSON.parse(r?.config ?? '{}') } catch { /* keep defaults */ }
+  const parts = (cfg.parts ?? {}) as Record<string, unknown>
+  return Object.fromEntries(PARTS.map((k) => [k, parts[k] !== false])) as Parts
+}
+
+async function getSettings(c: Ctx) { return ok({ parts: await headParts(c) }) }
+
+async function saveSettings(c: Ctx) {
+  const b = await readJSON<{ parts?: Record<string, boolean> }>(c.req)
+  const parts = Object.fromEntries(PARTS.map((k) => [k, b.parts?.[k] !== false]))
+  await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'subject_heads', 1, ?)
+      ON CONFLICT (institution_id, module) DO UPDATE SET config = json_set(config, '$.parts', json(?))`)
+    .bind(institutionId(c), JSON.stringify({ parts }), JSON.stringify(parts)).run()
+  return ok({ parts })
+}
+
+/** A teacher under a head: 'add' someone who does not teach it, 'remove' someone who does, null to undo. */
+async function setMember(c: Ctx) {
+  const b = await readJSON<{ subject_id?: string; user_id?: string; mode?: string | null }>(c.req)
+  if (!isUUID(b.subject_id) || !isUUID(b.user_id)) throw badRequest('pick a subject and a teacher')
+  if (!b.mode) await c.db.prepare(`DELETE FROM subject_head_members WHERE subject_id = ? AND user_id = ?`).bind(b.subject_id, b.user_id).run()
+  else {
+    if (b.mode !== 'add' && b.mode !== 'remove') throw badRequest('mode is add or remove')
+    await c.db.prepare(`INSERT INTO subject_head_members (subject_id, user_id, institution_id, mode) VALUES (?, ?, ?, ?)
+        ON CONFLICT (subject_id, user_id) DO UPDATE SET mode = excluded.mode`).bind(b.subject_id, b.user_id, institutionId(c), b.mode).run()
+  }
+  return ok()
+}
+
+/* The Subject Head role follows the headship: given with the first subject,
+   taken away when the person heads nothing. */
+async function syncHeadRole(c: Ctx, userId: string | null) {
+  if (!userId) return
+  const role = await c.db.prepare(`SELECT id FROM roles WHERE key = 'subject_head' LIMIT 1`).first<{ id: string }>()
+  if (!role) return
+  const heads = await c.db.prepare(`SELECT 1 AS x FROM subject_heads WHERE head_user_id = ? LIMIT 1`).bind(userId).first()
+  if (heads) {
+    await c.db.prepare(`INSERT OR IGNORE INTO user_roles (id, institution_id, user_id, role_id, campus_id, created_at) VALUES (?, ?, ?, ?, NULL, ?)`)
+      .bind(uuid(), institutionId(c), userId, role.id, now()).run()
+  } else {
+    await c.db.prepare(`DELETE FROM user_roles WHERE user_id = ? AND role_id = ?`).bind(userId, role.id).run()
+  }
 }
 
 // ---- the office: who heads which subject --------------------------------
@@ -61,13 +117,17 @@ async function listHeads(c: Ctx) {
 async function setHead(c: Ctx) {
   const b = await readJSON<{ subject_id?: string; head_user_id?: string | null }>(c.req)
   if (!isUUID(b.subject_id)) throw badRequest('pick a subject')
+  const before = await c.db.prepare(`SELECT head_user_id FROM subject_heads WHERE subject_id = ?`).bind(b.subject_id).first<{ head_user_id: string }>()
   if (!b.head_user_id) {
     await c.db.prepare(`DELETE FROM subject_heads WHERE subject_id = ?`).bind(b.subject_id).run()
+    await syncHeadRole(c, before?.head_user_id ?? null)
     return ok()
   }
   if (!isUUID(b.head_user_id)) throw badRequest('pick a member of staff')
   await c.db.prepare(`INSERT INTO subject_heads (subject_id, institution_id, head_user_id) VALUES (?, ?, ?)
       ON CONFLICT (subject_id) DO UPDATE SET head_user_id = excluded.head_user_id`).bind(b.subject_id, institutionId(c), b.head_user_id).run()
+  await syncHeadRole(c, b.head_user_id)
+  if (before && before.head_user_id !== b.head_user_id) await syncHeadRole(c, before.head_user_id)
   return ok()
 }
 
@@ -77,7 +137,8 @@ async function overview(c: Ctx) {
   const subjects = await viewableSubjects(c)
   const want = c.url.searchParams.get('subject')
   const subject = subjects.find((s) => s.id === want) ?? subjects[0]
-  if (!subject) return ok({ subjects, subject: null, teachers: [], timetable: [], notices: [], meetings: [], sections: [], can_assign: false, staff: [] })
+  const parts = await headParts(c)
+  if (!subject) return ok({ subjects, subject: null, teachers: [], timetable: [], notices: [], meetings: [], sections: [], can_assign: false, staff: [], parts, pending_plans: [], removed: [] })
   const sid = subject.id
   const ids = await subjectTeachers(c, sid)
   const idj = JSON.stringify(ids)
@@ -118,6 +179,15 @@ async function overview(c: Ctx) {
         FROM lesson_plans lp JOIN class_subjects cs ON cs.id = lp.class_subject_id
        WHERE cs.subject_id = ? AND lp.week_of >= date('now', '-30 days') GROUP BY lp.teacher_user_id`).bind(sid))
 
+  // The teacher's own month: homework set in this subject, days present, days on leave.
+  const hw = await all<{ teacher: string; n: number }>(c.db.prepare(`SELECT h.created_by AS teacher, count(*) AS n FROM homework h
+      JOIN class_subjects cs ON cs.id = h.class_subject_id WHERE cs.subject_id = ? AND h.assigned_on >= date('now', '-30 days') GROUP BY h.created_by`).bind(sid))
+  const att = await all<{ teacher: string; present: number; marked: number }>(c.db.prepare(`SELECT user_id AS teacher,
+        sum(CASE WHEN status IN ('present','late','half_day','on_duty') THEN 1 ELSE 0 END) AS present, count(*) AS marked
+      FROM staff_attendance WHERE user_id IN (SELECT value FROM json_each(?)) AND on_date >= date('now', '-30 days') GROUP BY user_id`).bind(idj))
+  const lv = await all<{ teacher: string; days: number }>(c.db.prepare(`SELECT e.user_id AS teacher, sum(CAST(l.days AS REAL)) AS days FROM leave_requests l
+      JOIN employees e ON e.id = l.employee_id WHERE e.user_id IN (SELECT value FROM json_each(?)) AND l.status = 'approved' AND l.to_date >= date('now', '-30 days')
+      GROUP BY e.user_id`).bind(idj))
   const teachers = people.map((p) => {
     const mine = classes.filter((k) => k.teacher === p.id)
     const sc = scores.filter((s) => s.teacher === p.id && s.avg !== null)
@@ -128,6 +198,9 @@ async function overview(c: Ctx) {
       periods_week: mine.reduce((n, k) => n + k.periods, 0),
       avg: sc.length ? Math.round((sc.reduce((n, s) => n + (s.avg ?? 0), 0) / sc.length) * 10) / 10 : null,
       plans_30d: lp?.total ?? 0, plans_submitted: lp?.submitted ?? 0, plans_delivered: lp?.delivered ?? 0,
+      homework_30d: hw.find((x) => x.teacher === p.id)?.n ?? 0,
+      present_30d: att.find((x) => x.teacher === p.id)?.present ?? null, marked_30d: att.find((x) => x.teacher === p.id)?.marked ?? 0,
+      leave_30d: lv.find((x) => x.teacher === p.id)?.days ?? 0,
     }
   })
 
@@ -192,7 +265,16 @@ async function overview(c: Ctx) {
   const staff = office ? await all(c.db.prepare(`SELECT u.id, u.full_name AS name FROM employees e JOIN users u ON u.id = e.user_id
       WHERE e.status = 'active' ORDER BY u.full_name`)) : []
 
-  return ok({ subjects, subject, teachers, timetable, notices, meetings, sections, can_assign: office, staff })
+  // Lesson plans of this subject waiting for a decision.
+  const pending_plans = parts.approvals ? await all(c.db.prepare(`SELECT lp.id, lp.week_of, lp.objectives, lp.activities, lp.homework, lp.submitted_at,
+        u.full_name AS teacher, cl.name || ' ' || sec.name AS class
+      FROM lesson_plans lp JOIN class_subjects cs ON cs.id = lp.class_subject_id JOIN sections sec ON sec.id = lp.section_id
+      JOIN classes cl ON cl.id = sec.class_id LEFT JOIN users u ON u.id = lp.teacher_user_id
+     WHERE cs.subject_id = ? AND lp.status = 'submitted' ORDER BY lp.submitted_at`).bind(sid)) : []
+  // Teachers the principal took out from under this head, so they can be put back.
+  const removed = await all(c.db.prepare(`SELECT m.user_id AS id, u.full_name AS name FROM subject_head_members m JOIN users u ON u.id = m.user_id
+      WHERE m.subject_id = ? AND m.mode = 'remove' ORDER BY u.full_name`).bind(sid))
+  return ok({ subjects, subject, teachers, timetable, notices, meetings, sections, can_assign: office, staff, parts, pending_plans, removed })
 }
 
 async function createMeeting(c: Ctx) {
@@ -237,7 +319,53 @@ async function deleteMeeting(c: Ctx) {
   return ok()
 }
 
+/** A subject head approves or returns a lesson plan of their subject (owner, 2026-10-19: approvals). */
+async function decidePlan(c: Ctx) {
+  if (!isUUID(c.params.id)) throw badRequest('invalid lesson plan id')
+  const lp = await c.db.prepare(`SELECT cs.subject_id FROM lesson_plans lp JOIN class_subjects cs ON cs.id = lp.class_subject_id WHERE lp.id = ?`)
+    .bind(c.params.id).first<{ subject_id: string }>()
+  if (!lp) throw notFound('lesson plan not found')
+  if (!(await mayHead(c, lp.subject_id))) throw forbidden('you do not head this subject')
+  if (!(await headParts(c)).approvals) throw forbidden('this school has not given subject heads lesson plan approval')
+  const b = await readJSON<{ decision?: string; remarks?: string }>(c.req)
+  if (b.decision !== 'approved' && b.decision !== 'returned') throw badRequest('decision must be approved or returned')
+  if (b.decision === 'returned' && !(b.remarks ?? '').trim()) throw badRequest('say why it is being returned')
+  await c.db.prepare(`UPDATE lesson_plans SET status = ?, remarks = COALESCE(NULLIF(?, ''), remarks), reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?`)
+    .bind(b.decision, (b.remarks ?? '').trim(), c.id.userId, now(), now(), c.params.id).run()
+  return ok()
+}
+
+/* EVERY SUBJECT HEAD AT ONCE, FOR THE PRINCIPAL (owner, 2026-10-19: "all
+   hods performance will be there for institution admin"). One row a subject:
+   its head, teachers, average, chapters done against due, plans waiting,
+   meetings held. */
+async function summary(c: Ctx) {
+  const rows = await all<Record<string, unknown>>(c.db.prepare(`
+    SELECT s.id, s.name, u.full_name AS head,
+      (SELECT count(DISTINCT sst.teacher_user_id) FROM section_subject_teachers sst JOIN class_subjects cs ON cs.id = sst.class_subject_id
+         JOIN sections sec ON sec.id = sst.section_id WHERE cs.subject_id = s.id AND sec.academic_year_id = ${currentYear}) AS teachers,
+      (SELECT round(avg(CAST(m.marks_obtained AS REAL) * 100.0 / NULLIF(CAST(es.max_marks AS REAL), 0)), 1)
+         FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN class_subjects cs ON cs.id = es.class_subject_id
+        WHERE cs.subject_id = s.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND m.marks_obtained <> '') AS avg,
+      (SELECT count(*) FROM syllabus_units su JOIN class_subjects cs ON cs.id = su.class_subject_id WHERE cs.subject_id = s.id AND su.is_active = 1) AS units,
+      (SELECT count(*) FROM syllabus_units su JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE cs.subject_id = s.id AND su.is_active = 1 AND su.ends_on IS NOT NULL AND su.ends_on <= date('now')) AS due,
+      (SELECT count(DISTINCT lpu.syllabus_unit_id) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
+         JOIN class_subjects cs ON cs.id = lp.class_subject_id WHERE cs.subject_id = s.id AND lp.delivered_on IS NOT NULL) AS done,
+      (SELECT count(*) FROM lesson_plans lp JOIN class_subjects cs ON cs.id = lp.class_subject_id WHERE cs.subject_id = s.id AND lp.status = 'submitted') AS plans_waiting,
+      (SELECT count(*) FROM subject_meetings m WHERE m.subject_id = s.id AND m.meets_at >= date('now', '-90 days')) AS meetings
+    FROM subjects s LEFT JOIN subject_heads h ON h.subject_id = s.id LEFT JOIN users u ON u.id = h.head_user_id
+   WHERE EXISTS (SELECT 1 FROM class_subjects cs WHERE cs.subject_id = s.id)
+   ORDER BY (h.head_user_id IS NULL), s.name`))
+  return ok({ items: rows })
+}
+
 export function registerSubjectOverview(r: Router): void {
+  r.get('/academics/subject-heads/settings', OFFICE, getSettings)
+  r.put('/academics/subject-heads/settings', OFFICE, saveSettings)
+  r.put('/academics/subject-heads/members', OFFICE, setMember)
+  r.get('/academics/subject-heads/summary', OFFICE, summary)
+  r.post('/teaching/my-subjects/lesson-plans/{id}/decide', 'academics.timetable.read', decidePlan)
   r.get('/academics/subject-heads', OFFICE, listHeads)
   r.put('/academics/subject-heads', OFFICE, setHead)
   r.get('/teaching/my-subjects', 'academics.timetable.read', overview)

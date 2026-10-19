@@ -51,6 +51,10 @@ const (
 	// four reads, which meant a school could not grant or withhold Class 360 on
 	// its own; this is the dedicated key that lets an admin do exactly that.
 	Class360Read = "academics.class360.view"
+	// SubjectHead marks the person the principal made head of a subject
+	// (Academics -> Subject overview -> Subject heads). It comes only with the
+	// subject_head role, which is given and taken away with the headship.
+	SubjectHead = "academics.subject_head"
 
 	// finance
 	FeesRead      = "finance.fees.read"
@@ -184,6 +188,7 @@ var All = []Permission{
 	{ReportCardsPublish, "academics", "Approve and release report cards to families"},
 	{HomeworkWrite, "academics", "Set homework and review submissions"},
 	{Class360Read, "academics", "Open the Class 360 section overview"},
+	{SubjectHead, "academics", "Head a subject: its teachers, classes, timetable, approvals and meetings"},
 
 	{FeesRead, "finance", "View fee heads and structures"},
 	{FeesWrite, "finance", "Manage fee heads, structures and concessions"},
@@ -443,6 +448,14 @@ var SystemRoles = []Role{
 		StudentsRead, AcademicsRead, TimetableRead,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
 		SelfProfileRead, SelfProfileWrite}},
+	/* SUBJECT HEAD (owner, 2026-10-19): not a department head; the person
+	   heading one subject across every grade. Given automatically when the
+	   principal picks them as a subject's head, removed when they head
+	   nothing, and additive on top of whatever they already are (HOD or
+	   teacher). */
+	{"subject_head", "Subject Head", []string{
+		SubjectHead, AcademicsRead, TimetableRead, HomeworkWrite, ExamsRead,
+		AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
 		StatusPost, // feature:communication.class_status
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,

@@ -121,6 +121,9 @@ const CLASS_TEACHER_ONLY: Record<string, string> = {
   'faculty.my_profile.student_leave_requests': 'academics.class360.view',
   // The same for a head of department (owner, 2026-10-19): Take attendance only when they run a class.
   'hod.attendance.take_attendance': 'academics.attendance.write',
+  // Subject overview only for the people the principal made a subject's head (owner, 2026-10-19).
+  'hod.academics.subject_overview': 'academics.subject_head',
+  'faculty.academics.subject_overview': 'academics.subject_head',
 }
 function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean, perms: ReadonlySet<string>) {
   return section.features.filter(
