@@ -605,6 +605,10 @@ func keysExcept(excluded ...string) []string {
 	}
 	return out
 }
-	CommsMailRead = "comms.mail.read" // feature:communication.inbox
-	CommsMailWrite = "comms.mail.write" // feature:communication.inbox
+
+// Staff Inbox (communication.inbox, communication.mail_addresses).
+const (
+	CommsMailRead   = "comms.mail.read"   // feature:communication.inbox
+	CommsMailWrite  = "comms.mail.write"  // feature:communication.inbox
 	CommsMailManage = "comms.mail.manage" // feature:communication.mail_addresses
+)

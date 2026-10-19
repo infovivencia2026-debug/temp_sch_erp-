@@ -476,13 +476,13 @@
         ]
       },
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0099_feature_inbox.sql",
+      "migration": "worker/migrations/tenant/0099_feature_inbox.sql",
       "files": [
         "shared/api/feature_inbox.ts",
         "web/src/features/comms/Inbox.tsx",
         "worker/src/routes/comms/inbox.ts",
         "worker/test/integration/feature_inbox.test.ts",
-        "worker\\migrations\\tenant\\0099_feature_inbox.sql"
+        "worker/migrations/tenant/0099_feature_inbox.sql"
       ]
     },
     "communication.mail_addresses": {
@@ -523,13 +523,13 @@
         ]
       },
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0100_feature_mail_addresses.sql",
+      "migration": "worker/migrations/tenant/0100_feature_mail_addresses.sql",
       "files": [
         "shared/api/feature_mail_addresses.ts",
         "web/src/features/comms/MailAddresses.tsx",
         "worker/src/routes/comms/mail_addresses.ts",
         "worker/test/integration/feature_mail_addresses.test.ts",
-        "worker\\migrations\\tenant\\0100_feature_mail_addresses.sql"
+        "worker/migrations/tenant/0100_feature_mail_addresses.sql"
       ]
     },
     "help.helpdesk": {
