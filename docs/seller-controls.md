@@ -1,3 +1,4 @@
+| `staff_layout.enabled` (registry `app.staff_layout`) | staff screen layout: text sidebar with collapsible groups, one top bar with greeting, centred search, staff code and today's first/last sign-in; staff only (no row = off) | seller, Controls | yes, with notice | off |
 # Seller controls: every school-level setting
 
 Owner, 2026-10-02: "Seller admin should be able to control everything. Data

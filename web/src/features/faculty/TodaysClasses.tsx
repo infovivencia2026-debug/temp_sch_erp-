@@ -4,6 +4,9 @@ import { api } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
+import { useActiveRole } from '@/lib/catalog'
+import { useLayout } from '@/lib/layout'
+import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
@@ -80,6 +83,7 @@ export default function TodaysClasses() {
   const weekday = todayWeekday()
   const navigate = useNavigate()
   const session = useSession()
+  const activeRole = useActiveRole()
 
   const periods = useQuery({
     /* Every schedule's periods: a week can span classes on different timings. */
@@ -99,18 +103,22 @@ export default function TodaysClasses() {
     queryFn: () => api.get<List<{ date: string; name: string }>>(`/api/v1/calendar/holiday-days?from=${todayIso}&to=${todayIso}`),
     staleTime: 10 * 60_000, retry: false,
   })
+  /* With the school's staff layout on, the greeting and profile are in the
+     shell's top bar (components/StaffShell.tsx), so this screen leaves them out. */
+  const { layout } = useLayout()
+  const inShellHeader = layout !== 'bento' && staffLayoutOn(session, activeRole?.key)
   /* Same key as My pay, so the two share one request. */
   const pay = useQuery({
     queryKey: ['my-pay'],
     queryFn: () => api.get<{ employee_code?: string }>('/api/v1/me/pay'),
-    staleTime: 10 * 60_000, retry: false,
+    staleTime: 10 * 60_000, retry: false, enabled: !inShellHeader,
   })
   /* Same key as the profile's Your sessions card. Empty unless the school
      records session activity; then the line is left out. */
   const activity = useQuery({
     queryKey: ['own-session-activity'],
     queryFn: () => api.get<{ recording: boolean; items: { signed_in_at: string }[] }>('/api/v1/profile/session-activity'),
-    staleTime: 5 * 60_000, retry: false,
+    staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useNotificationFeed()
   const { readAll, linkFor } = useNotificationActions()
@@ -177,7 +185,7 @@ export default function TodaysClasses() {
 
   return (
     <PageBody top><div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {!inShellHeader && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
           <p className="text-[14px] text-muted-foreground">{dateLine}</p>
@@ -190,7 +198,7 @@ export default function TodaysClasses() {
             {signInLine && <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">{signInLine}</p>}
           </div>
         </div>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">

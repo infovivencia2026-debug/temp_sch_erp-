@@ -870,6 +870,39 @@ function registerMeGroup(r: Router) {
       attendance_this_month: { present: num(m?.present), total: num(m?.total) } })
   })
 
+  /* Today's first sign-in and latest activity, read from the CONTROL sessions
+     table every sign-in already writes (auth/session.ts), so it does not need
+     the school's session-activity recording switched on. "Today" is the
+     school's own day. Also the staff code and campus, for the staff header. */
+  r.get('/me/sign-ins/today', 'auth', async (c) => {
+    const tz = c.id.institution?.timezone || 'Asia/Kolkata'
+    const day = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+    const nowIso = now()
+    const todayLocal = day(nowIso)
+    const since = new Date(Date.now() - 36 * 3600_000).toISOString()
+    const instId = c.id.institution?.id ?? null
+    const rows = await c.env.CONTROL.prepare(
+      `SELECT created_at, last_seen_at FROM sessions WHERE user_id = ? AND institution_id IS ? AND last_seen_at >= ?`)
+      .bind(c.id.userId, instId, since).all<{ created_at: string; last_seen_at: string }>()
+    let first: string | null = null
+    let last: string | null = null
+    for (const s of rows.results) {
+      if (day(s.created_at) === todayLocal && (!first || s.created_at < first)) first = s.created_at
+      if (day(s.last_seen_at) === todayLocal && (!last || s.last_seen_at > last)) last = s.last_seen_at
+    }
+    const emp = await c.db.prepare(`SELECT e.employee_code, cp.name AS campus FROM employees e LEFT JOIN campuses cp ON cp.id = e.campus_id
+                                     WHERE e.user_id = ? AND e.status = 'active'`).bind(c.id.userId)
+      .first<{ employee_code: string; campus: string | null }>()
+    return ok({
+      date: todayLocal, timezone: tz,
+      first_sign_in_at: first ? isoSec(first) : null,
+      // The latest touch of any of today's sessions; this request itself when none is recorded yet.
+      last_activity_at: isoSec(last ?? nowIso),
+      employee_code: emp?.employee_code ?? null,
+      campus: emp?.campus ?? null,
+    })
+  })
+
   r.get('/me/pay', 'auth', async (c) => {
     const emp = await c.db.prepare(`SELECT id, employee_code FROM employees WHERE user_id = ? AND status = 'active'`).bind(c.id.userId)
       .first<{ id: string; employee_code: string }>()
