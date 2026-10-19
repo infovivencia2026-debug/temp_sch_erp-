@@ -56,6 +56,8 @@ import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
+import { staffLayoutOn } from '@/lib/staff-layout'
+import { StaffHeaderContent, StaffNavList, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -567,6 +569,10 @@ export function Shell({
     el?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' })
   }, [location.pathname, layout])
   const chromeless = layout === 'bento'
+  /* The school's staff layout (module_settings 'staff_layout'): the same menu
+     and search, drawn as a text sidebar and one top bar. See StaffShell.tsx. */
+  const staffLayout = !chromeless && staffLayoutOn(session, role?.key)
+  const signIns = useTodaySignIns(staffLayout)
   useRootReduceMotion()
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
@@ -745,6 +751,8 @@ export function Shell({
              already closed by default or a rail that is the whole navigation,
              and hiding either would leave nothing to open. */
           railHidden ? 'lg:!hidden' : '',
+          // The staff layout has no icon rail, so a resting tablet uses the drawer.
+          staffLayout && !tabletDrawer && 'md:max-lg:!hidden',
           chromeless ? '!hidden' : ''
         )}
         /* Only while it is a drawer (phone, or the tablet once opened): a fixed
@@ -804,8 +812,8 @@ export function Shell({
             -- marks, focus rings and the labels that escape it -- above the
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
-        <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-1 border-r py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
-                        md:overflow-y-auto">
+        <div className={cn('relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-1 border-r py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:overflow-y-auto',
+                           staffLayout && '!hidden')}>
           {railWorkspaces.map((ws, i) => {
             const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
             const on = ws.slug === activeWs?.slug
@@ -957,7 +965,27 @@ export function Shell({
                 school's colour without repainting the whole application's
                 theme -- a global override would fight text contrast on every
                 screen, and this is the one square that should be the brand. */}
-            {session.institution?.logo_key ? (
+            {staffLayout ? (
+              /* The staff layout's brand block: the logo, the school, the desk, the campus. */
+              <span className="block w-full min-w-0 pr-10">
+                {session.institution?.logo_key && (
+                  <img src={`/api/v1/files/${session.institution.logo_key}?inline=1`} alt=""
+                    className="mb-2 aspect-square h-12 w-12 rounded-lg bg-white object-contain" />
+                )}
+                <span className="block whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-bold uppercase leading-tight tracking-[0.04em]">
+                  {brandName}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1 text-[calc(13px*var(--font-scale,1))] text-secondary-foreground">
+                  <span className="truncate">{role?.name ?? ''}</span>
+                  {catalog.roles.length > 1 && (
+                    <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', switcherOpen && 'rotate-180')} />
+                  )}
+                </span>
+                {signIns.data?.campus && (
+                  <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
+                )}
+              </span>
+            ) : session.institution?.logo_key ? (
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
                 alt=""
@@ -975,7 +1003,7 @@ export function Shell({
                 {session.institution?.short_name?.[0] ?? 'E'}
               </span>
             )}
-            <span className="block w-full min-w-0">
+            {!staffLayout && <span className="block w-full min-w-0">
               <span className="flex items-center gap-1">
                 <span className="whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-semibold leading-tight">
                   {role?.name ?? 'Workspace'}
@@ -992,7 +1020,7 @@ export function Shell({
               <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">
                 {brandName}
               </span>
-            </span>
+            </span>}
           </button>
 
           {switcherOpen && (
@@ -1074,7 +1102,16 @@ export function Shell({
               under somebody who was learning where things live. A menu is
               worth learning precisely because it does not move, and the rail
               is short enough that a habit is one glance down it. */}
-          {(activeWs ? [activeWs] : []).map((ws) => {
+          {staffLayout && role && (
+            <StaffNavList
+              roleKey={role.key}
+              workspaces={railWorkspaces}
+              items={(sec) => visibleFeatures(sec, showPlanned, showAdvanced, permSet)}
+              onNavigate={() => setNavOpen(false)}
+              label={shortLabel}
+            />
+          )}
+          {(activeWs && !staffLayout ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced, permSet).length,
               0,
@@ -1178,9 +1215,29 @@ export function Shell({
               things until somebody presses both. */}
         </nav>
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
-        <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
-          <LayoutSwitch />
-        </div>
+        {staffLayout ? (
+          /* The rail's foot, as one compact row: the staff layout has no rail. */
+          <div className="flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-t px-3 py-2 text-[calc(13px*var(--font-scale,1))]">
+            <HelpButton
+              className="grid size-10 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+              iconClassName="h-4 w-4"
+            />
+            <Link to="/account" data-help-anchor="account" onClick={() => setNavOpen(false)}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Profile
+            </Link>
+            <a href="/logout" onClick={() => buzz('warn')}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Sign out
+            </a>
+            <div className="min-w-0"><BentoSettings placement="sidebar" /></div>
+            <div className="w-full"><LayoutSwitch /></div>
+          </div>
+        ) : (
+          <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
+            <LayoutSwitch />
+          </div>
+        )}
         </div>
       </aside>
 
@@ -1200,7 +1257,33 @@ export function Shell({
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
-        {!chromeless && (
+        {staffLayout && (
+          <header data-paint="topbar" className="chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center">
+            <button
+              ref={openerRef}
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+              aria-controls="shell-nav"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              onClick={() => setNavOpen(true)}
+            >
+              <Menu className="h-6 w-6 md:h-5 md:w-5" />
+            </button>
+            {railHidden && (
+              <button
+                type="button"
+                aria-label="Show navigation"
+                title="Show navigation"
+                className="hidden h-10 w-10 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground lg:grid"
+                onClick={() => toggleRail(false)}
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+            )}
+            <StaffHeaderContent signIns={signIns} />
+          </header>
+        )}
+        {!chromeless && !staffLayout && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {/* Gone only at lg, because from lg up the full sidebar is on the
               screen. On a tablet the 58px rail is visible but the panel behind

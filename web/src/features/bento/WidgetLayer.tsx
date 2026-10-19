@@ -814,22 +814,15 @@ export function WidgetLayer({
     board.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => board.removeEventListener('touchmove', onTouchMove)
   }, [arranging, phone])
-  /* HOLD A CARD FOR ITS MENU; HOLD THE BOARD TO ARRANGE IT.
+  /* A HOLD, ON A CARD OR THE BOARD, ARRANGES IT.
 
      Touch only — a mouse has a right button for this. One finger, cancelled
      by movement past the slop, a second finger, the pointer leaving, or any
      scroll. 450ms, a beat under the platform's own long press, so this
      answers before a browser's link menu would.
 
-     The hold used to enter customize mode from anywhere. The card's "…" is
-     no longer drawn (owner, 2026-10-02: arrow only, menu on long-press), so
-     a hold ON A CARD OR AN APP ICON now opens that card's menu at the
-     finger, and "Customize" in it is the way into the mode from there; a
-     hold on EMPTY board space still enters the mode directly.
-
-     The menu is asked for with a `contextmenu` event on what was pressed —
-     the same event a right-click sends, so the card has one way in
-     (ArrangedWidget's onContextMenu) rather than two.
+     A hold, on a card or on empty board space, goes straight into
+     Customise (owner, 2026-10-08); a card's own menu is on a right-click.
 
      The click that follows the lift is swallowed, in the capture phase,
      because every cell is a link and opening a screen is the opposite of

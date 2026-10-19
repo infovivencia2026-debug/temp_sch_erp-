@@ -87,12 +87,15 @@ function markFor(label: string) {
   return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
 }
 
-export default function NeedsAttention({ name, afterToday, attentionFirst = false }: {
+export default function NeedsAttention({ name, afterToday, attentionFirst = false, noAttention = false }: {
   name?: string
   afterToday?: ReactNode
   /** The staff home: what needs doing at the top, and no Today strip -- the
       page under it carries its own figures (the owner asked for both). */
   attentionFirst?: boolean
+  /** The teacher's home shows no "Needs your attention" box: report cards to
+      publish and papers without marks are the office's queue (owner, 2026-10-19). */
+  noAttention?: boolean
 }) {
   const navigate = useNavigate()
   const role = useActiveRole()
@@ -222,7 +225,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
      the route blanks with no error boundary to catch it. A missing list is
      worth rendering nothing over, not worth taking the page down. */
   const { greeting } = q.data
-  const items = q.data.items ?? []
+  const items = noAttention ? [] : q.data.items ?? []
   const summary = q.data.summary ?? []
 
   /* An attention item names a destination in the abstract — "attendance",

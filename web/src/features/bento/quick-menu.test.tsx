@@ -258,7 +258,8 @@ describe('quick menu: hold, right-click, keyboard', () => {
     expect(document.querySelector('[role="toolbar"]'), 'not customizing').toBeNull()
   })
 
-  it('a hold on a card opens its menu after 450ms; Customize in it enters the mode', async () => {
+  it('a hold on a card enters customize mode after 450ms; the card menu stays on a right-click', async () => {
+    /* Owner, 2026-10-08: "when long press they need to come under customise". */
     await mount()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const link = card('b').querySelector('a')!
@@ -268,30 +269,21 @@ describe('quick menu: hold, right-click, keyboard', () => {
     await act(async () => {
       vi.advanceTimersByTime(440)
     })
-    expect(menu(), 'not before the hold is up').toBeNull()
+    expect(document.querySelector('[role="toolbar"]'), 'not before the hold is up').toBeNull()
     await act(async () => {
       vi.advanceTimersByTime(20)
     })
-    const m = menu()
-    expect(m, 'the hold opened the menu').not.toBeNull()
-    expect(m!.getAttribute('aria-label')).toBe('bento.widgets.more_for:Card B')
-    expect(document.querySelector('[role="toolbar"]'), 'a hold on a card no longer enters the mode').toBeNull()
+    expect(document.querySelector('[role="toolbar"]'), 'the hold entered the mode').not.toBeNull()
+    expect(menu(), 'a hold opens no menu').toBeNull()
 
-    // The click the lift produces is swallowed: the card does not open under its menu.
+    // The click the lift produces is swallowed: the card does not open.
     const click = new MouseEvent('click', { bubbles: true, cancelable: true })
     await act(async () => {
       touch(link, 'pointerup', 40, 40)
       link.dispatchEvent(click)
     })
     expect(click.defaultPrevented).toBe(true)
-    expect(menu()).not.toBeNull()
-
     vi.useRealTimers()
-    await act(async () => {
-      Array.from(menu()!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
-        .find((b) => b.textContent === 'bento.widgets.customize')!.click()
-    })
-    expect(document.querySelector('[role="toolbar"]'), 'Customize is the way into the mode').not.toBeNull()
   })
 
   it('a finger that moves more than 8px is a swipe, not a hold', async () => {

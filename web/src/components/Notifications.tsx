@@ -40,7 +40,7 @@ import { Button, Dialog } from '@/components/ui'
    Anchored to the window rather than to the bell, so it is the same panel at
    every width and does not have to be measured away from the right edge. */
 
-interface Note {
+export interface Note {
   id: string
   kind: string
   title: string
@@ -177,144 +177,11 @@ export function useNotificationFeed() {
   })
 }
 
-export { dayOf as notificationDay, kindOf as notificationKind }
+type Feed = { items?: Note[]; unread?: number }
 
-export default function Notifications() {
-  const [open, setOpen] = useOpenState(false)
-  /* Kept mounted for one animation after the close.
-
-     Unmounting on the click is what makes a panel vanish: the drawer came in
-     over half a second and left in a single frame, which reads as a glitch
-     rather than as leaving. `closing` holds it on screen long enough to slide
-     back out the way it came. */
-  const [closing, setClosing] = useState(false)
-  const [filter, setFilter] = useState('all')
-  const [gallery, setGallery] = useState(false)
-  /* A status picked in the drawer is written outside it: the drawer closes,
-     then the composer opens on its own (it survived nothing inside the drawer). */
-  const [composeReq, setComposeReq] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
-  const [composing, setComposing] = useState<typeof composeReq>(null)
-  useEffect(() => {
-    if (!composeReq) return
-    const t = window.setTimeout(() => { setComposing(composeReq); setComposeReq(null) }, 450)
-    return () => window.clearTimeout(t)
-  }, [composeReq])
-  /* The owner's design: two toggles at the foot of the drawer. */
-  const [onlyUnread, setOnlyUnread] = useState(false)
-  const activeRole = useActiveRole()
-  const [type, setType] = useState<'messages' | 'activity' | null>(null)
-  const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
-  const hubParent = useFeatureHref('parent.academics.homework_academics')
-  const toHub = hubStudent ?? hubParent
-  const statuses = useQuery({
-    queryKey: ['notif-statuses'],
-    queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
-    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
-    enabled: open,
-    retry: false,
-  })
-  
-  const feed = useNotificationFeed()
-  /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
-     *
-     * This was `refetchInterval: 10_000` — precisely the per-screen interval
-     * lib/live.ts opens by arguing against, and the bell is mounted in the
-     * header, so it was on every screen at once. Measured: two independent
-     * ten-second timers, twelve requests a minute out of an idle tab that
-     * nobody was looking at, for ever.
-     *
-     * The revision poll already answers "has anything changed?" for the whole
-     * app and invalidates everything when it has, which refetches this query
-     * because it is mounted. So a notification still arrives without anybody
-     * reloading — it arrives by the one mechanism the product already has,
-     * rather than by a second one that duplicated it.
-     *
-     * `refetchOnWindowFocus` is kept, and is now one of the few queries that
-     * asks for it (see App.tsx): the bell is the thing people watch after
-     * being told "I have sent it", so coming back to the tab must not show a
-     * stale count. The options live in useNotificationFeed. */
-  /* Optimistic (lib/optimistic): the badge clears and the list empties the
-     moment either is pressed; a refusal puts them back with the reason. */
-  type Feed = { items?: Note[]; unread?: number }
-  const readAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    queryKeys: [['notifications']],
-    apply: (old) => {
-      const f = old as Feed
-      const now = new Date().toISOString()
-      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
-    },
-    failure: "Couldn't mark them read",
-  })
-  /* Clear empties the list; Mark all read only quiets the badge. Both were
-     asked for by name: a feed a fortnight long that can only be marked read
-     is a feed that has to be scrolled past every time. */
-  const clearAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
-    queryKeys: [['notifications']],
-    /* The status posts survive the clear, here as on the server. */
-    apply: (old) => {
-      const kept = ((old as Feed).items ?? []).filter((n) => n.kind === 'status')
-      return { ...(old as Feed), unread: 0, items: kept }
-    },
-    failure: "Couldn't clear them",
-  })
-
-  /* OPENING ONE REMOVES IT, THE WAY ANSWERING A LETTER TAKES IT OFF THE PILE
-     (owner, 2026-10-16: "after any message is opened it should disappear
-     from the notifications"). Reading used to leave the row in place, duller
-     but still there, so the only way the drawer ever shrank was the blunt
-     Clear All. Opening a status post is unaffected -- that reads the post
-     itself over in status-api.ts, not this table -- see openNote below. */
-  const dismissOne = useOptimisticMutation<string>({
-    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
-    queryKeys: [['notifications']],
-    apply: (old, id) => {
-      const f = old as Feed
-      const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
-      return {
-        ...f,
-        unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
-        items: (f.items ?? []).filter((n) => n.id !== id),
-      }
-    },
-    failure: "Couldn't clear it",
-  })
-  /* The message being read in full, over the drawer. */
-  const [viewing, setViewing] = useState<Note | null>(null)
-
-  const navigate = useNavigate()
-  // The rings' feed (shared cache with the strip): what each status entry is about.
-  const statusFeed = useStatusFeed(open || closing)
-  const [statusOpen, setStatusOpen] = useState<string | null>(null)
-  const statusHandled = useCallback(() => setStatusOpen(null), [])
-  const postById = new Map<string, StatusItem>()
-  for (const r of statusFeed.data?.rings ?? []) for (const p of r.posts) postById.set(p.id, p)
-  for (const p of statusFeed.data?.gallery ?? []) postById.set(p.id, p)
-
-  const dismiss = useCallback(() => {
-    setClosing(true)
-    setOpen(false)
-  }, [])
-
-  /* The phone's back gesture closes the drawer rather than the app. Routed
-     through `dismiss` so a back press plays the same exit the close button
-     does, instead of the panel vanishing in a frame. */
-  useOverlayHistory(open, dismiss)
-
-  useEffect(() => {
-    if (!open) return
-    // Escape inside the status viewer or a dialog over the drawer closes that, not the drawer.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !viewing && !document.querySelector('.story')) dismiss() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, viewing])
-
-  // Refused, or this account has no feed: show nothing rather than a dead control.
-  if (feed.error) return null
-
-  const items = feed.data?.items ?? []
-
+/** Where a notification leads: shared by the bell and the home panels, so
+    both open the same screen for the same row. */
+export function useNotificationActions() {
   /* Clicking a notification opens the thing it is about.
    *
    * Every row carried a link and nothing used it: the panel listed what had
@@ -378,6 +245,122 @@ export default function Notifications() {
     if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
     return undefined
   }
+  return { linkFor }
+}
+
+export { dayOf as notificationDay, kindOf as notificationKind }
+
+export default function Notifications() {
+  const [open, setOpen] = useOpenState(false)
+  /* Kept mounted for one animation after the close.
+
+     Unmounting on the click is what makes a panel vanish: the drawer came in
+     over half a second and left in a single frame, which reads as a glitch
+     rather than as leaving. `closing` holds it on screen long enough to slide
+     back out the way it came. */
+  const [closing, setClosing] = useState(false)
+  const [filter, setFilter] = useState('all')
+  const [gallery, setGallery] = useState(false)
+  /* A status picked in the drawer is written outside it: the drawer closes,
+     then the composer opens on its own (it survived nothing inside the drawer). */
+  const [composeReq, setComposeReq] = useState<{ file: File | null; asSchool: boolean; mode?: AddMode } | null>(null)
+  const [composing, setComposing] = useState<typeof composeReq>(null)
+  useEffect(() => {
+    if (!composeReq) return
+    const t = window.setTimeout(() => { setComposing(composeReq); setComposeReq(null) }, 450)
+    return () => window.clearTimeout(t)
+  }, [composeReq])
+  /* The owner's design: two toggles at the foot of the drawer. */
+  const [onlyUnread, setOnlyUnread] = useState(false)
+  const activeRole = useActiveRole()
+  const [type, setType] = useState<'messages' | 'activity' | null>(null)
+  const hubStudent = useFeatureHref('student.learning.e_learning_resource_hub')
+  const hubParent = useFeatureHref('parent.academics.homework_academics')
+  const toHub = hubStudent ?? hubParent
+  const statuses = useQuery({
+    queryKey: ['notif-statuses'],
+    queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
+    enabled: open,
+    retry: false,
+  })
+  
+  const feed = useNotificationFeed()
+  /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
+     *
+     * This was `refetchInterval: 10_000` — precisely the per-screen interval
+     * lib/live.ts opens by arguing against, and the bell is mounted in the
+     * header, so it was on every screen at once. Measured: two independent
+     * ten-second timers, twelve requests a minute out of an idle tab that
+     * nobody was looking at, for ever.
+     *
+     * The revision poll already answers "has anything changed?" for the whole
+     * app and invalidates everything when it has, which refetches this query
+     * because it is mounted. So a notification still arrives without anybody
+     * reloading — it arrives by the one mechanism the product already has,
+     * rather than by a second one that duplicated it.
+     *
+     * `refetchOnWindowFocus` is kept, and is now one of the few queries that
+     * asks for it (see App.tsx): the bell is the thing people watch after
+     * being told "I have sent it", so coming back to the tab must not show a
+     * stale count. The options live in useNotificationFeed. */
+  /* NO MARK-ALL OR CLEAR-ALL (owner, 2026-10-19: "all notifications should go
+     after viewing only; until then they will be there"). A notification
+     leaves the drawer when it is opened, and not before. */
+  const { linkFor } = useNotificationActions()
+
+  /* OPENING ONE REMOVES IT, THE WAY ANSWERING A LETTER TAKES IT OFF THE PILE
+     (owner, 2026-10-16: "after any message is opened it should disappear
+     from the notifications"). Reading used to leave the row in place, duller
+     but still there, so the only way the drawer ever shrank was the blunt
+     Clear All. Opening a status post is unaffected -- that reads the post
+     itself over in status-api.ts, not this table -- see openNote below. */
+  const dismissOne = useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
+    queryKeys: [['notifications']],
+    apply: (old, id) => {
+      const f = old as Feed
+      const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
+      return {
+        ...f,
+        unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
+        items: (f.items ?? []).filter((n) => n.id !== id),
+      }
+    },
+    failure: "Couldn't clear it",
+  })
+  /* The message being read in full, over the drawer. */
+  const [viewing, setViewing] = useState<Note | null>(null)
+
+  const navigate = useNavigate()
+  // The rings' feed (shared cache with the strip): what each status entry is about.
+  const statusFeed = useStatusFeed(open || closing)
+  const [statusOpen, setStatusOpen] = useState<string | null>(null)
+  const statusHandled = useCallback(() => setStatusOpen(null), [])
+  const postById = new Map<string, StatusItem>()
+  for (const r of statusFeed.data?.rings ?? []) for (const p of r.posts) postById.set(p.id, p)
+  for (const p of statusFeed.data?.gallery ?? []) postById.set(p.id, p)
+
+  const dismiss = useCallback(() => {
+    setClosing(true)
+    setOpen(false)
+  }, [])
+
+  /* The phone's back gesture closes the drawer rather than the app. Routed
+     through `dismiss` so a back press plays the same exit the close button
+     does, instead of the panel vanishing in a frame. */
+  useOverlayHistory(open, dismiss)
+
+  useEffect(() => {
+    if (!open) return
+    // Escape inside the status viewer or a dialog over the drawer closes that, not the drawer.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !viewing && !document.querySelector('.story')) dismiss() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, viewing])
+
+  const items = feed.data?.items ?? []
+
   const openNote = (n: Note) => {
     /* A status opens the viewer at that post, over the drawer; seeing it
        is what reads the entry (POST /status/posts/{id}/view). */
@@ -435,7 +418,15 @@ export default function Notifications() {
      this account entirely goes here too, so nothing counted is a row the
      drawer could not produce if asked. */
   const reachable = (n: Note) => asParent || !/digest/.test(n.kind)
-  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
+  /* A status entry counts while its post still has something unseen: once the
+     feed is loaded, a post already seen, or one no longer shown, is not new. */
+  const statusUnseen = (n: Note) => {
+    const id = statusPostId(n)
+    if (!id || !statusFeed.data) return true
+    const post = postById.get(id)
+    return !!post && !post.seen
+  }
+  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) && statusUnseen(n) : !/status/.test(n.kind))).length
   /* THE BELL'S OWN NUMBER, OPENED ONTO (owner, 2026-10-15: "I see the
      notification number but I don't see any messages"). The drawer always
      opened on Messages, which is right unless every one of today's unread
@@ -466,6 +457,10 @@ export default function Notifications() {
   }
 
   const shownGroups = groups
+
+  // Refused, or this account has no feed: show nothing rather than a dead control.
+  // Below every hook, so a feed that starts failing never changes the hook order.
+  if (feed.error) return null
 
   return (
     <>
@@ -565,18 +560,6 @@ export default function Notifications() {
                     {unread > 0
                       ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">{unread} new</span>
                       : 'All caught up'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    {unread > 0 && (
-                      <button onClick={() => readAll.mutate()}
-                        className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                        Mark read
-                      </button>
-                    )}
-                    <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[hsl(var(--sys-danger)/0.1)] hover:text-[hsl(var(--sys-danger-ink))] disabled:opacity-50">
-                      {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                    </button>
                   </span>
                 </div>
               )}
