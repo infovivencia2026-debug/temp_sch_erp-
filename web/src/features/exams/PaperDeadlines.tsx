@@ -132,8 +132,8 @@ export default function PaperDeadlines() {
         title="Set a deadline for question papers"
         description="Pick the exam, then ask a subject's teacher for their paper by a date and time. A paper that does not arrive in time shows as a remark on that teacher's record."
       />
-      <div className="px-[var(--card-pad)] pb-3">
-        <div className="w-56">
+      <div className="px-[var(--card-pad)] py-4">
+        <div className="w-full sm:w-56">
           <Select value={examId} onChange={setExamId} placeholder="Which exam"
             options={(exams.data?.items ?? []).map((e: Exam) => ({ value: e.id, label: e.name }))} />
         </div>

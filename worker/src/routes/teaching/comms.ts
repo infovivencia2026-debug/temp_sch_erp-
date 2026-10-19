@@ -1,6 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import { enqueueMany } from '../../services/jobs'
-import { badRequest, created, forbidden, isUUID, notFound, ok, readJSON, now, uuid, uuidParam, int, bool } from '../../http'
+import { HttpError, badRequest, created, forbidden, isUUID, notFound, ok, readJSON, now, uuid, uuidParam, int, bool } from '../../http'
 import { can } from '../../identity'
 import { fullName, institutionId, marks, js, notifyStmt, requireAny, requirePerm, resolveScope, shortName, todayIST, type Scope } from './common'
 
@@ -128,10 +128,25 @@ export function registerFacultyComms(r: Router) {
   r.get('/teaching/report-remarks', P, async (c) => {
     const s = await resolveScope(c)
     const rawSection = c.url.searchParams.get('section_id') ?? '', rawTerm = c.url.searchParams.get('term_id') ?? ''
-    if (rawSection === '' && rawTerm === '') return ok({ items: [], needs: ['section_id', 'term_id'], sections: s.sectionIds })
+    const rawExam = c.url.searchParams.get('exam_id') ?? ''
+    if (rawSection === '' && rawTerm === '' && rawExam === '') return ok({ items: [], needs: ['section_id', 'term_id'], sections: s.sectionIds })
     if (!isUUID(rawSection)) throw badRequest('section_id must be a uuid')
-    if (!isUUID(rawTerm)) throw badRequest('term_id must be a uuid. A remark with no term cannot be printed on the right card')
     if (!reachesSection(s, rawSection)) throw notFound()
+    if (rawExam !== '') {
+      // The card for one exam (FA-1, FA-2, ...): the remark prints on that exam's report card.
+      if (!isUUID(rawExam)) throw badRequest('exam_id must be a uuid')
+      const rows = await c.db.prepare(`SELECT st.id AS student_id, st.admission_no, ${fullName('st')} AS student_name, e.roll_no,
+          rc.class_teacher_remarks AS class_teacher_remark, ctu.full_name AS class_teacher_remark_by, substr(rc.class_teacher_remarks_at,1,10) AS class_teacher_remark_at,
+          rc.principal_remarks AS principal_remark, pu.full_name AS principal_remark_by, substr(rc.principal_remarks_at,1,10) AS principal_remark_at,
+          rc.id IS NOT NULL AS card_exists, COALESCE(rc.is_published, 0) AS is_published,
+          nullif(trim(COALESCE(rc.class_teacher_remarks,'')),'') IS NOT NULL AS has_term_remarks
+          FROM enrollments e JOIN students st ON st.id = e.student_id
+          LEFT JOIN report_cards rc ON rc.student_id = st.id AND rc.exam_id = ?
+          LEFT JOIN users ctu ON ctu.id = rc.class_teacher_remarks_by LEFT JOIN users pu ON pu.id = rc.principal_remarks_by
+          WHERE e.section_id = ? AND e.status = 'active' ORDER BY e.roll_no NULLS LAST, st.admission_no`).bind(rawExam, rawSection).all<Record<string, unknown>>()
+      return ok({ items: rows.results.map((v) => omitNull({ ...v, card_exists: bool(v.card_exists), is_published: bool(v.is_published), has_term_remarks: bool(v.has_term_remarks) })) })
+    }
+    if (!isUUID(rawTerm)) throw badRequest('term_id must be a uuid. A remark with no term cannot be printed on the right card')
     const rows = await c.db.prepare(`SELECT st.id AS student_id, st.admission_no, ${fullName('st')} AS student_name, e.roll_no,
         rc.class_teacher_remarks AS class_teacher_remark, ctu.full_name AS class_teacher_remark_by, substr(rc.class_teacher_remarks_at,1,10) AS class_teacher_remark_at,
         rc.principal_remarks AS principal_remark, pu.full_name AS principal_remark_by, substr(rc.principal_remarks_at,1,10) AS principal_remark_at,
@@ -148,9 +163,10 @@ export function registerFacultyComms(r: Router) {
 
   r.put('/teaching/report-remarks', P, async (c) => {
     requireAny(c, 'welfare.discipline.write', 'comms.announcements.write')
-    const req = await readJSON<{ student_id?: string; term_id?: string; class_teacher_remark?: string | null; principal_remark?: string | null }>(c.req)
+    const req = await readJSON<{ student_id?: string; term_id?: string; exam_id?: string; class_teacher_remark?: string | null; principal_remark?: string | null }>(c.req)
     if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
-    if (!isUUID(req.term_id)) throw badRequest('term_id must be a uuid. A remark with no term cannot be printed on the right card')
+    if (req.exam_id !== undefined && !isUUID(req.exam_id)) throw badRequest('exam_id must be a uuid')
+    if (req.exam_id === undefined && !isUUID(req.term_id)) throw badRequest('term_id must be a uuid. A remark with no term cannot be printed on the right card')
     const remark = typeof req.class_teacher_remark === 'string' ? req.class_teacher_remark : null
     const principal = typeof req.principal_remark === 'string' ? req.principal_remark : null
     if (remark === null && principal === null) throw badRequest('nothing to save')
@@ -165,6 +181,23 @@ export function registerFacultyComms(r: Router) {
       principal_remarks = COALESCE(?, principal_remarks), principal_remarks_by = CASE WHEN ? IS NOT NULL THEN ? ELSE principal_remarks_by END,
       principal_remarks_at = CASE WHEN ? IS NOT NULL THEN ? ELSE principal_remarks_at END`
     const setArgs = [remark, remark, uid, remark, ts, principal, principal, uid, principal, ts]
+    if (req.exam_id !== undefined) {
+      const done = await c.db.prepare(`UPDATE report_cards SET ${sets} WHERE student_id = ? AND exam_id = ?`).bind(...setArgs, req.student_id, req.exam_id).run()
+      if (done.meta.changes > 0) return ok({ saved: true })
+      const exam = await c.db.prepare(`SELECT academic_year_id, term_id FROM exams WHERE id = ?`).bind(req.exam_id).first<{ academic_year_id: string; term_id: string | null }>()
+      if (!exam) throw badRequest('unknown exam')
+      try {
+        // The exam's card, started by its remark; generating the card later fills in the marks on this same row.
+        await c.db.prepare(`INSERT INTO report_cards (id, institution_id, student_id, academic_year_id, exam_id, term_id, enrollment_id, class_teacher_remarks, class_teacher_remarks_by, class_teacher_remarks_at,
+            principal_remarks, principal_remarks_by, principal_remarks_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, (SELECT e.id FROM enrollments e WHERE e.student_id = ? AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`)
+          .bind(uuid(), institutionId(c), req.student_id, exam.academic_year_id, req.exam_id, exam.term_id, req.student_id,
+            remark, remark !== null ? uid : null, remark !== null ? ts : null, principal, principal !== null ? uid : null, principal !== null ? ts : null, ts).run()
+      } catch {
+        throw new HttpError(409, "this child already has another exam's card for the year with no term; set the terms up so each exam gets its own card", { code: 'conflict' })
+      }
+      return ok({ saved: true })
+    }
     const upd = await c.db.prepare(`UPDATE report_cards SET ${sets} WHERE id = (SELECT c.id FROM report_cards c JOIN exams ex ON ex.id = c.exam_id
         WHERE c.student_id = ? AND c.term_id = ? ORDER BY (ex.kind = 'term') DESC, ex.starts_on DESC NULLS LAST LIMIT 1)`).bind(...setArgs, req.student_id, req.term_id).run()
     if (upd.meta.changes > 0) return ok({ saved: true })
