@@ -54,10 +54,8 @@ export const featureIdOf = (sectionSlug: string, featureSlug: string) => section
    are hidden from the catalogue only. */
 export const FEATURE_ROUTES: Record<string, string[]> = {
   'library.books_copies': ['/ops/library', '/ops/digital-library', '/portal/library'],
-  'library.accession_register': ['/ops/library'],
   'library.issue_return': ['/ops/library'],
   'library.reservations': ['/ops/library'],
-  'library.fines': ['/ops/library'],
   'hostel.hostel_rooms': ['/ops/hostel'],
   'hostel.outpasses_mess': ['/ops/hostel'],
   'hostel.night_study': ['/ops/hostel'],
