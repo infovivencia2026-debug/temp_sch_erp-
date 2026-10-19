@@ -69,6 +69,7 @@ function Stat({ label, value, small, tone, onClick, active }: { label: string; v
           {value}
           {small && <small className="text-[11px] font-medium text-muted-foreground">{small}</small>}
         </div>
+        {active && <span className="text-[11.5px] font-medium text-primary">Click again to go back</span>}
       </button>
     )
   }

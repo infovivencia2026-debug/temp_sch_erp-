@@ -222,7 +222,7 @@ export default function MyClasses() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Kpi label="Class average" value={classAvg == null ? '-' : `${classAvg}%`} small={pickedSection?.label} />
           <Kpi label="Avg attendance" value={attAvg == null ? '-' : `${attAvg}%`} small={rangeLabel} />
-          <Kpi label="Pending homework" value={String(pendingHw)} small="Submissions" onClick={() => setShowPending((v) => !v)} active={showPending} />
+          <Kpi label="Pending homework" value={String(pendingHw)} small={showPending ? 'Click again to go back' : 'Submissions'} onClick={() => setShowPending((v) => !v)} active={showPending} />
           <Kpi label="Needs attention" value={String(attention.length)} small="Students" danger={attention.length > 0} />
         </div>
 
@@ -293,7 +293,9 @@ export default function MyClasses() {
             </div>
           </div>
 
-          {shown.length === 0 ? (
+          {/* While Pending homework is open the roster steps aside (owner,
+              2026-10-19: "dont show this when pending homework is clicked"). */}
+          {showPending ? null : shown.length === 0 ? (
             <EmptyState
               title={rows.length === 0 ? 'No children here yet' : 'Nobody in this filter'}
               body={rows.length === 0 ? 'Once the class is assigned and the register is marked, each child appears here.' : 'Choose All students to see the whole class.'}
