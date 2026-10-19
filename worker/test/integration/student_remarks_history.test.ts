@@ -27,3 +27,5 @@ describe('remarks in the student history', () => {
     expect(familyBodies).toContain('Reads aloud well')
     expect(familyBodies).not.toContain('Needs a seat near the front')
 
+  })
+})
