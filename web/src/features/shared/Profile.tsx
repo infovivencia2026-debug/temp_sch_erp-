@@ -6,7 +6,7 @@ import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
 } from '@/components/ui'
-import { useSession } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
 import { TwoFactorCard, MyDevicesCard, MySessionActivityCard } from './SecurityCards'
 
@@ -89,6 +89,8 @@ import { ConcernsCard } from '@/features/me/MyConcerns'
 
 export default function ProfileView() {
   const session = useSession()
+  // Without self.profile.write the record is read-only: the office keeps it.
+  const canEdit = useCan()('self.profile.write')
   const qc = useQueryClient()
   const { data, isLoading, error } = useQuery({
     queryKey: ['profile'],
@@ -223,7 +225,7 @@ export default function ProfileView() {
         tone="primary"
         title="Identity and profile"
         hint="What the school has on record, and how it reaches you"
-        action={editing ? undefined : (
+        action={editing || !canEdit ? undefined : (
           /* A pencil in the card's corner, the way a phone shows "edit"
              (owner, 2026-10-08). The word stays for screen readers. */
           <button type="button" onClick={startEditing} aria-label="Edit" title="Edit"
@@ -237,7 +239,7 @@ export default function ProfileView() {
             A list of label-and-value rows answers "what is my phone number"
             and never answers "whose account am I looking at" -- which is the
             first thing anybody checks on a shared machine. */}
-        {!editing && (
+        {!(editing && canEdit) && (
           <div className="m-5 flex flex-col gap-4 rounded-2xl border bg-surface-sunken/40 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <span
@@ -270,7 +272,7 @@ export default function ProfileView() {
           </div>
         )}
 
-        {editing ? (
+        {editing && canEdit ? (
           <div className="flex flex-col gap-4 p-5 pt-0">
             <Field label="Name">
               <Input value={name} onChange={setName} placeholder="Your full name" />

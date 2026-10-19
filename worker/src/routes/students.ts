@@ -781,13 +781,16 @@ async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
 
 async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
   const id = sid(c)
-  const pred = studentPredicate(await resolveScope(c), 'st')
+  const scope = await resolveScope(c)
+  const pred = studentPredicate(scope, 'st')
+  /* Staff read every remark; a family reads only those marked for the family. */
+  const staff = scope.platformAdmin || scope.allStudents || scope.teaches || scope.sectionIds.length > 0 ? 1 : 0
   const classRow = await c.db.prepare(`SELECT e.class_id FROM enrollments e WHERE e.student_id = ? ORDER BY e.enrolled_on DESC LIMIT 1`).bind(id).first<{ class_id: string }>()
   const okRow = await c.db.prepare(`SELECT 1 AS ok FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first()
   if (!okRow) throw forbiddenMsg('missing permission: this child is not one you can see')
   const today = indiaToday()
 
-  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew] = await batch(c, [
+  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew, remarks] = await batch(c, [
     c.db.prepare(`SELECT e.name AS exam, sub.name AS subject, CAST(m.marks_obtained AS TEXT) AS marks, CAST(es.max_marks AS TEXT) AS max, m.grade,
                          m.is_absent AS absent, e.starts_on AS "on", (m.approved_at IS NOT NULL) AS approved
                     FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams e ON e.id = es.exam_id
@@ -853,6 +856,12 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     FROM transport_allocations ta LEFT JOIN routes rt ON rt.id = ta.route_id LEFT JOIN vehicles v ON v.id = rt.vehicle_id
                     LEFT JOIN employees de ON de.id = v.driver_employee_id LEFT JOIN employees ae ON ae.id = v.attendant_employee_id
                    WHERE ta.student_id = ? AND (ta.valid_to IS NULL OR ta.valid_to >= ?)`).bind(id, today),
+    c.db.prepare(`SELECT sr.id, sr.observed_on, sr.kind, sr.body, COALESCE(sub.name,'') AS subject, COALESCE(u.full_name,'') AS teacher,
+                         NOT sr.visible_to_family AS private
+                    FROM student_remarks sr LEFT JOIN class_subjects cs ON cs.id = sr.class_subject_id
+                    LEFT JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN users u ON u.id = sr.recorded_by
+                   WHERE sr.student_id = ? AND (? = 1 OR sr.visible_to_family = 1)
+                   ORDER BY sr.observed_on DESC, sr.created_at DESC LIMIT 100`).bind(id, staff),
   ])
   type D = StudentFullDetail
   const rows = (r: D1Result) => r.results as Record<string, unknown>[]
@@ -871,6 +880,7 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
     fee_components: rows(components).map((x) => ({ ...(x as unknown as NonNullable<D['fee_components']>[number]), live: bool(x.live) })),
     co_scholastic: as<D['co_scholastic']>(coScholastic),
     invoices: as<D['invoices']>(invoices),
+    remarks: rows(remarks).map((r) => ({ ...(r as unknown as D['remarks'][number]), private: bool(r.private) })),
     class_id: classRow?.class_id ?? null,
   }
 }

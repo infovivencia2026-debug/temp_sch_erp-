@@ -195,7 +195,7 @@ export function registerProfile(r: Router): void {
     return readProfile(c)
   })
 
-  r.post('/profile/password', 'self.profile.write', async (c) => {
+  r.post('/profile/password', 'auth', async (c) => {
     if (await isDayCodeSession(c)) {
       throw new HttpError(403, 'You signed in with the day code. Change your password from a sign-in that used your password, such as on your own phone.', { code: 'day_code_session' })
     }
@@ -216,7 +216,7 @@ export function registerProfile(r: Router): void {
     return ok({ changed: true, other_sessions_revoked: true })
   })
 
-  r.post('/profile/password/skip', 'self.profile.write', async (c) => {
+  r.post('/profile/password/skip', 'auth', async (c) => {
     /* A child's login was issued on a code the class teacher handed out on a printed sheet: the child sets their own, no skipping. */
     if (await studentOnlyAccount(c.db, c.id.userId)) {
       throw new HttpError(403, 'Choose your own password to go on. The one on your slip was printed for your class teacher.', { code: 'password_change_required' })

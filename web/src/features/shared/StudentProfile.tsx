@@ -1788,6 +1788,23 @@ export default function StudentProfile() {
             <Field k="Admitted" v={formatDate(p.admission_date)} />
           </dl>
 
+          <CardHeader title="Teacher remarks" description="What teachers have written about this child, newest first." />
+          <Table
+            head={['Date', 'Kind', 'Subject', 'Remark', 'Teacher']}
+            empty={!(detail.data?.remarks ?? []).length}
+            emptyLabel="No remarks recorded."
+          >
+            {(detail.data?.remarks ?? []).map((r) => (
+              <tr key={r.id}>
+                <Td className="text-muted-foreground">{formatDate(r.observed_on)}</Td>
+                <Td><Badge>{r.private ? `${r.kind} (staff only)` : r.kind}</Badge></Td>
+                <Td>{r.subject || '-'}</Td>
+                <Td>{r.body}</Td>
+                <Td className="text-muted-foreground">{r.teacher || '-'}</Td>
+              </tr>
+            ))}
+          </Table>
+
           {/* BEFORE THIS SYSTEM.
 
               A school that moves onto this platform mid-life brings years the

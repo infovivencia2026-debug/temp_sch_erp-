@@ -802,9 +802,18 @@ async function listStudentProgress(c: Ctx) {
       csFilter = [wantCS]
     }
   }
+  /* All my classes at once: a subject teacher still sees each class only through
+     the subjects they teach in it, row by row (?5 = the sections they are class
+     teacher of, where every subject shows; ?6 = their user id). */
+  const perRow = !sectionId && !wide
+  if (perRow && s.sectionIds.some((x) => !s.classTeacherOf.includes(x))) full = false
+  const ctJSON = perRow ? JSON.stringify(s.classTeacherOf) : ''
+  const MINE = (col: string) => `(?5 = '' OR en.section_id IN (SELECT value FROM json_each(?5)) OR ${col} IN (
+      SELECT class_subject_id FROM section_subject_teachers WHERE teacher_user_id = ?6 AND section_id = en.section_id
+      UNION SELECT class_subject_id FROM timetable_entries WHERE teacher_user_id = ?6 AND section_id = en.section_id))`
   const csJSON = csFilter ? JSON.stringify(csFilter) : ''
-  const ES = `(?3 = '' OR es.class_subject_id IN (SELECT value FROM json_each(?3))) AND (?4 = '' OR es.exam_id = ?4)`
-  const HW = (a: string) => `(?3 = '' OR ${a}.class_subject_id IN (SELECT value FROM json_each(?3)))`
+  const ES = `(?3 = '' OR es.class_subject_id IN (SELECT value FROM json_each(?3))) AND (?4 = '' OR es.exam_id = ?4) AND ${MINE('es.class_subject_id')}`
+  const HW = (a: string) => `(?3 = '' OR ${a}.class_subject_id IN (SELECT value FROM json_each(?3))) AND ${MINE(a + '.class_subject_id')}`
 
   const rows = await c.db.prepare(`
     SELECT st.id AS student_id, st.admission_no,
@@ -840,7 +849,7 @@ async function listStudentProgress(c: Ctx) {
       LEFT JOIN classes cl ON cl.id = sec.class_id
      WHERE st.status = 'active' AND ${where.sql} AND ${secSql}
      ORDER BY cl.name, sec.name, st.first_name
-     LIMIT 600`).bind(rng.fromS, rng.toS, csJSON, examId, ...where.args, ...secArgs).all<Record<string, unknown>>()
+     LIMIT 600`).bind(rng.fromS, rng.toS, csJSON, examId, ctJSON, s.userId, ...where.args, ...secArgs).all<Record<string, unknown>>()
 
   const items = rows.results.map((r) => {
     const v: ProgressRow = {
@@ -901,10 +910,14 @@ async function pendingHomework(c: Ctx) {
      WHERE h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2
        AND h.section_id IN (SELECT value FROM json_each(?3))
        AND (?4 = '' OR h.class_subject_id IN (SELECT value FROM json_each(?4)))
+       AND (?5 = '' OR h.section_id IN (SELECT value FROM json_each(?5)) OR h.class_subject_id IN (
+            SELECT class_subject_id FROM section_subject_teachers WHERE teacher_user_id = ?6 AND section_id = h.section_id
+            UNION SELECT class_subject_id FROM timetable_entries WHERE teacher_user_id = ?6 AND section_id = h.section_id))
        AND NOT EXISTS (SELECT 1 FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.student_id = st.id
                         AND (hs.submitted_at IS NOT NULL OR hs.status NOT IN ('pending', '')))
      ORDER BY h.due_on IS NULL, h.due_on, h.assigned_on DESC, st.first_name
-     LIMIT 3000`).bind(rng.fromS, rng.toS, JSON.stringify(sections), csFilter ? JSON.stringify(csFilter) : '').all<Record<string, unknown>>()
+     LIMIT 3000`).bind(rng.fromS, rng.toS, JSON.stringify(sections), csFilter ? JSON.stringify(csFilter) : '',
+      !sectionId && !wide ? JSON.stringify(s.classTeacherOf) : '', s.userId).all<Record<string, unknown>>()
   const by = new Map<string, { id: string; title: string; subject: string; class: string; assigned_on: string; due_on?: string; students: { id: string; name: string; admission_no: string }[] }>()
   for (const r of rows.results) {
     const id = String(r.id)
