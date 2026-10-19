@@ -200,3 +200,9 @@ SELECT r.id, p.key FROM roles r JOIN permissions p
                  'self.profile.read','self.profile.write','status.post','status.post_school','comms.mail.read','comms.mail.write')
     OR p.key LIKE 'front_office.%'
  WHERE r.key = 'front_office';
+
+-- Admissions staff also receive parents' concerns, with the front desk (owner, 2026-10-20).
+INSERT OR IGNORE INTO permissions (key, module, description) VALUES
+  ('admissions.communication.parent_concerns', 'admissions', 'Parent concerns sent to the front desk: pass to a teacher of the class, see what they resolved, tell the parent.');
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT id, 'admissions.communication.parent_concerns' FROM roles WHERE key = 'admissions';

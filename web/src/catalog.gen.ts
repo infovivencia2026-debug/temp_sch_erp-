@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 439 features. */
+/** 24 roles, 440 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1331,6 +1331,7 @@ export const ROLES: Role[] = [
           { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school.' },
           { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Tell a family their offer is out, what paperwork is still missing, or when the entrance test is, by SMS, WhatsApp or email, to the families behind the applications you choose.' },
           { key: 'admissions.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+          { key: 'admissions.communication.parent_concerns', slug: 'parent_concerns', name: 'Parent concerns', scope: 'institution', tier: 'core', summary: 'Concerns parents send to the front desk. Filter by class, section or student, pass one to that class teacher or subject teacher, see which the teacher has resolved, and tell the parent it is resolved.' },
         ],
       },
       {

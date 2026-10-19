@@ -215,6 +215,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
   'hr.payroll.year_end_payout': screen(() => import('./payroll/YearEndPayout')), // feature:payroll.year_end_payout
   'front_office.communication.parent_concerns': screen(() => import('./comms/ParentConcerns')), // feature:communication.parent_concerns
+  'admissions.communication.parent_concerns': screen(() => import('./comms/ParentConcerns')), // feature:communication.parent_concerns
   'faculty.communication.concerns_from_parents': screen(() => import('./comms/ConcernsFromParents')), // feature:communication.concerns_from_parents
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview

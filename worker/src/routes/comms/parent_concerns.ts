@@ -27,7 +27,7 @@ export async function frontDeskMode(c: Ctx): Promise<boolean> {
 export async function frontDeskPeople(c: Ctx): Promise<{ user_id: string; full_name: string; role: string }[]> {
   const r = await c.db.prepare(`SELECT DISTINCT u.id AS user_id, u.full_name, ro.name AS role FROM users u
       JOIN user_roles ur ON ur.user_id = u.id JOIN roles ro ON ro.id = ur.role_id
-     WHERE u.status = 'active' AND ro.key = 'front_office' ORDER BY u.full_name`).all<{ user_id: string; full_name: string; role: string }>()
+     WHERE u.status = 'active' AND ro.key IN ('front_office', 'admissions') ORDER BY u.full_name`).all<{ user_id: string; full_name: string; role: string }>()
   return r.results
 }
 

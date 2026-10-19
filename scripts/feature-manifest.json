@@ -567,15 +567,17 @@
     },
     "communication.parent_concerns": {
       "name": "Parent concerns",
-      "summary": "Concerns parents send to the front desk. Filter by class, section or student, pass one to that class teacher or subject teacher, see which the teacher has resolved, and tell the parent it is resolved.",
+      "summary": "x",
       "section": "communication",
       "sectionName": "Communication",
       "slug": "parent_concerns",
       "roles": [
-        "front_office"
+        "front_office",
+        "admissions"
       ],
       "keys": [
-        "front_office.communication.parent_concerns"
+        "front_office.communication.parent_concerns",
+        "admissions.communication.parent_concerns"
       ],
       "module": "comms",
       "webDir": "comms",
