@@ -56,13 +56,25 @@ export default function TodaysClasses() {
     queryFn: () => api.call('GET /timetable/entries', { query: { teacher_id: 'me' } }),
   })
 
+  /* A HOLIDAY HAS NO CLASSES (Yajur, 2026-10-19: "if the school is holiday
+     by school calendar why showing this show holiday"). Dussehra ran 9-22
+     Oct and every teacher was still shown five lessons and "Now in session". */
+  const d0 = new Date()
+  const todayIso = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  const hol = useQuery({
+    queryKey: ['holiday-days', 'today', todayIso],
+    queryFn: () => api.get<List<{ date: string; name: string }>>(`/api/v1/calendar/holiday-days?from=${todayIso}&to=${todayIso}`),
+    staleTime: 10 * 60_000, retry: false,
+  })
+  const holiday = hol.data?.items?.[0]?.name
+
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   if (entries.error) return <ErrorState error={entries.error} />
   if (periods.error) return <ErrorState error={periods.error} />
 
   const bell = new Map((periods.data?.items ?? []).map((p) => [p.id, p]))
   const mine = (entries.data?.items ?? [])
-    .filter((e) => e.weekday === weekday)
+    .filter((e) => !holiday && e.weekday === weekday)
     .sort((a, b) => (bell.get(a.period_id)?.sequence ?? 0) - (bell.get(b.period_id)?.sequence ?? 0))
 
   /* "Now" and "next" are read off the clock rather than stored, so the screen
@@ -112,7 +124,7 @@ export default function TodaysClasses() {
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
           <p className="text-[14px] text-muted-foreground">
-            {mine.length === 0 ? 'Nothing is timetabled for you today' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} scheduled on your timetable today`}
+            {holiday ? `Holiday today: ${holiday}. No classes.` : mine.length === 0 ? 'Nothing is timetabled for you today' : `${mine.length} ${mine.length === 1 ? 'lesson' : 'lessons'} scheduled on your timetable today`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
