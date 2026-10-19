@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 432 features. */
+/** 24 roles, 434 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -532,6 +532,7 @@ export const ROLES: Role[] = [
           { key: 'hod.academics.language_subject_allocation', slug: 'language_subject_allocation', name: 'Language subject allocation', scope: 'department', tier: 'core', summary: 'Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content.' },
           { key: 'hod.academics.faculty_allocation', slug: 'faculty_allocation', name: 'Faculty allocation', scope: 'department', tier: 'core', summary: 'Which teacher teaches which subject to which section, across the department, with each teacher\'s total periods shown so the load can be seen while it is being set.' },
           { key: 'hod.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
+          { key: 'hod.academics.subject_meetings', slug: 'subject_meetings', name: 'Subject meetings', scope: 'institution', tier: 'core', summary: 'Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can\'t come with a note.' },
         ],
       },
       {
@@ -764,6 +765,14 @@ export const ROLES: Role[] = [
         workspace: 'My Work',
         features: [
           { key: 'faculty.exams.question_papers', slug: 'question_papers', name: 'Question papers', scope: 'assigned_classes', tier: 'core', summary: 'Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back.' },
+        ],
+      },
+      {
+        slug: 'academics',
+        name: 'Academics',
+        workspace: 'Academics',
+        features: [
+          { key: 'faculty.academics.subject_meetings', slug: 'subject_meetings', name: 'Subject meetings', scope: 'institution', tier: 'core', summary: 'Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can\'t come with a note.' },
         ],
       },
     ],

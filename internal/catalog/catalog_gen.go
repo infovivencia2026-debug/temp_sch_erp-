@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 432 features.
+// Roles is the catalog: 24 roles, 434 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -579,6 +579,7 @@ var Roles = []Role{
 					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
 					{Key: "hod.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set."},
 					{Key: "hod.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
+					{Key: "hod.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
 				},
 			},
 			{
@@ -811,6 +812,14 @@ var Roles = []Role{
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "faculty.exams.question_papers", Slug: "question_papers", Name: "Question papers", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back."},
+				},
+			},
+			{
+				Slug:      "academics",
+				Name:      "Academics",
+				Workspace: "Academics",
+				Features: []Feature{
+					{Key: "faculty.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
 				},
 			},
 		},

@@ -219,6 +219,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.payroll.year_end_payout': screen(() => import('./payroll/YearEndPayout')), // feature:payroll.year_end_payout
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
+  'faculty.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
+  'hod.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.

@@ -18,7 +18,11 @@ interface Teacher {
 }
 interface Slot { weekday: number; period: string; sequence: number; starts_at: string; ends_at: string; class: string; teacher: string | null; room: string | null }
 interface Notice { id: string; title: string; body: string; kind: string; publish_at: string; by_name: string }
-interface Meeting { id: string; title: string; agenda: string | null; meets_at: string; place: string | null; minutes: string | null; by_name: string | null }
+interface Meeting { id: string; title: string; agenda: string | null; meets_at: string; place: string | null; minutes: string | null; by_name: string | null; replies: { name: string; reply: 'yes' | 'no'; note: string | null }[] }
+interface Section {
+  section_id: string; class_subject_id: string; label: string; level: number; teacher_user_id: string | null; teacher: string | null; students: number
+  avg: number | null; pass: number | null; papers: number; units_total: number; units_due: number; units_done: number
+}
 interface Heads {
   subjects: { id: string; name: string; code: string; head_user_id: string | null; head_name: string | null }[]
   staff: { id: string; name: string; code: string | null }[]
@@ -27,10 +31,11 @@ interface Data {
   subjects: { id: string; name: string }[]
   subject: { id: string; name: string } | null
   teachers: Teacher[]; timetable: Slot[]; notices: Notice[]; meetings: Meeting[]
+  sections: Section[]; can_assign: boolean; staff: { id: string; name: string }[]
 }
 
 const DAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const TABS = ['Teachers', 'Timetable', 'Notices', 'Meetings', 'Subject heads'] as const
+const TABS = ['Teachers', 'Classes', 'Timetable', 'Notices', 'Meetings', 'Subject heads'] as const
 const when = (s: string) => new Date(s).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 const pct = (v: number | null) => (v === null ? '—' : `${v}%`)
 
@@ -73,6 +78,7 @@ export default function SubjectOverview() {
             </div>
             <div className="mt-4">
               {tab === 'Teachers' && <Teachers rows={d.teachers} />}
+              {tab === 'Classes' && <Classes rows={d.sections} canAssign={d.can_assign} staff={d.staff} />}
               {tab === 'Timetable' && <Timetable rows={d.timetable} />}
               {tab === 'Notices' && <Notices rows={d.notices} />}
               {tab === 'Subject heads' && heads.data && <HeadsSetup data={heads.data} />}
@@ -179,11 +185,23 @@ function Meetings({ subjectId, rows, teachers }: { subjectId: string; rows: Meet
       </Card>
       <Card>
         <CardHeader title="Meetings" />
-        <Table head={['When', 'Meeting', 'Minutes', '']} empty={!rows.length} emptyLabel="No meetings yet.">
+        <Table head={['When', 'Meeting', 'Replies', 'Minutes', '']} empty={!rows.length} emptyLabel="No meetings yet.">
           {rows.map((m) => (
             <tr key={m.id}>
               <Td className="whitespace-nowrap">{when(m.meets_at)}{m.place && <div className="text-muted-foreground">{m.place}</div>}</Td>
               <Td><div className="font-medium">{m.title}</div>{m.agenda && <div className="whitespace-pre-line text-muted-foreground">{m.agenda}</div>}</Td>
+              <Td>
+                <div className="whitespace-nowrap">
+                  <Badge tone="success">{m.replies.filter((r) => r.reply === 'yes').length} attending</Badge>{' '}
+                  <Badge tone="danger">{m.replies.filter((r) => r.reply === 'no').length} can't come</Badge>
+                </div>
+                {m.replies.map((r) => (
+                  <div key={r.name} className="text-[12.5px] text-muted-foreground">
+                    {r.name}: {r.reply === 'yes' ? 'attending' : `can't come${r.note ? ` (${r.note})` : ''}`}
+                  </div>
+                ))}
+                {teachers > m.replies.length && <div className="text-[12.5px] text-muted-foreground">{teachers - m.replies.length} not answered</div>}
+              </Td>
               <Td>
                 {open === m.id ? (
                   <div className="space-y-2">
@@ -229,6 +247,66 @@ function HeadsSetup({ data }: { data: Heads }) {
             </Td>
           </tr>
         ))}
+      </Table>
+    </Card>
+  )
+}
+
+/* Every class of the subject side by side: marks, pass rate and syllabus
+   covered, so the class that is behind stands out. The principal sets the
+   subject teacher of each class here too. */
+function Classes({ rows, canAssign, staff }: { rows: Section[]; canAssign: boolean; staff: { id: string; name: string }[] }) {
+  const qc = useQueryClient()
+  const assign = useMutation({
+    mutationFn: (v: { section_id: string; class_subject_id: string; teacher_user_id: string }) =>
+      api.post('/api/v1/academics/admin/faculty-allocation', { allocations: [v] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subject-overview'] }),
+  })
+  const marked = rows.filter((r) => r.avg !== null)
+  const mean = marked.length ? marked.reduce((n, r) => n + (r.avg ?? 0), 0) / marked.length : null
+  const behind = (r: Section) => {
+    const why: string[] = []
+    if (mean !== null && r.avg !== null && r.avg < mean - 5) why.push(`marks ${Math.round(mean - r.avg)}% below the subject average`)
+    if (r.units_due > r.units_done) why.push(`${r.units_due - r.units_done} chapter${r.units_due - r.units_done === 1 ? '' : 's'} behind plan`)
+    return why
+  }
+  const opts = [{ value: '', label: 'No teacher' }, ...staff.map((p) => ({ value: p.id, label: p.name }))]
+  return (
+    <Card>
+      <CardHeader title={mean === null ? 'Classes' : `Classes · subject average ${Math.round(mean * 10) / 10}%`} />
+      <FormNotice error={assign.error} />
+      <Table head={['Class', 'Subject teacher', { label: 'Students', align: 'right' }, { label: 'Avg marks', align: 'right' }, { label: 'Pass %', align: 'right' }, 'Syllabus covered', 'Status']}
+        empty={!rows.length} emptyLabel="No class has this subject this year.">
+        {rows.map((r) => {
+          const why = behind(r)
+          const pc = r.units_total ? Math.round((r.units_done / r.units_total) * 100) : null
+          return (
+            <tr key={r.section_id + r.class_subject_id}>
+              <Td className="whitespace-nowrap font-medium">{r.label}</Td>
+              <Td className="min-w-[13rem]">
+                {canAssign ? (
+                  <Select value={r.teacher_user_id ?? ''} options={opts} placeholder="No teacher"
+                    onChange={(v) => assign.mutate({ section_id: r.section_id, class_subject_id: r.class_subject_id, teacher_user_id: v })} />
+                ) : (r.teacher ?? <span className="text-muted-foreground">—</span>)}
+              </Td>
+              <Td className="num">{r.students}</Td>
+              <Td className="num">{pct(r.avg)}</Td>
+              <Td className="num">{pct(r.pass)}</Td>
+              <Td className="min-w-[10rem]">
+                {r.units_total ? (
+                  <>
+                    <div className="h-2 overflow-hidden rounded bg-muted"><div className="h-full bg-primary" style={{ width: `${pc}%` }} /></div>
+                    <div className="mt-1 text-[12.5px] text-muted-foreground">{r.units_done}/{r.units_total} chapters{r.units_due ? ` · ${r.units_due} due by today` : ''}</div>
+                  </>
+                ) : <span className="text-muted-foreground">No syllabus set</span>}
+              </Td>
+              <Td>
+                {why.length ? <Badge tone="danger">Behind</Badge> : r.avg === null && !r.units_total ? <span className="text-muted-foreground">—</span> : <Badge tone="success">On track</Badge>}
+                {why.map((w) => <div key={w} className="text-[12.5px] text-muted-foreground">{w}</div>)}
+              </Td>
+            </tr>
+          )
+        })}
       </Table>
     </Card>
   )

@@ -36,6 +36,7 @@ import type { ClassStatusApi } from './feature_class_status' // feature:communic
 import type { HelpdeskApi } from './feature_helpdesk' // feature:help.helpdesk
 import type { YearEndPayoutApi } from './feature_year_end_payout' // feature:payroll.year_end_payout
 import type { SubjectOverviewApi } from './feature_subject_overview' // feature:academics.subject_overview
+import type { SubjectMeetingsApi } from './feature_subject_meetings' // feature:academics.subject_meetings
 
 export interface Api extends SessionApi, CatalogApi, StudentsApi, AttendanceApi, TimetableApi, FeesApi, ExamsApi,
-  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi {}
+  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi, SubjectMeetingsApi {}

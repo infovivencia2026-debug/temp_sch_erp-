@@ -1,6 +1,41 @@
 {
   "_comment": "Written by scripts/feature.mjs: what `feature:new` added for each feature, so `feature:remove` can take exactly that back out. Do not edit by hand.",
   "features": {
+    "academics.subject_meetings": {
+      "name": "Subject meetings",
+      "summary": "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note.",
+      "section": "academics",
+      "sectionName": "Academics",
+      "slug": "subject_meetings",
+      "roles": [
+        "faculty",
+        "hod"
+      ],
+      "keys": [
+        "faculty.academics.subject_meetings",
+        "hod.academics.subject_meetings"
+      ],
+      "module": "academics",
+      "webDir": "academics",
+      "planModule": "academics",
+      "apiBase": "/teaching/subject-meetings",
+      "readPerm": "academics.timetable.read",
+      "writePerm": null,
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0092_feature_subject_meetings.sql",
+      "files": [
+        "shared/api/feature_subject_meetings.ts",
+        "web/src/features/academics/SubjectMeetings.tsx",
+        "worker/src/routes/academics/subject_meetings.ts",
+        "worker/test/integration/feature_subject_meetings.test.ts",
+        "worker\\migrations\\tenant\\0092_feature_subject_meetings.sql"
+      ]
+    },
     "academics.subject_overview": {
       "name": "Subject overview",
       "summary": "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.",

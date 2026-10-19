@@ -23,7 +23,8 @@ const all = async <T>(s: D1PreparedStatement) => (await s.all<T>()).results
 /** Subjects this caller may look at: the ones they head, or every headed one for the office. */
 async function viewableSubjects(c: Ctx): Promise<{ id: string; name: string }[]> {
   if (can(c.id, OFFICE)) {
-    return all(c.db.prepare(`SELECT s.id, s.name FROM subject_heads h JOIN subjects s ON s.id = h.subject_id ORDER BY s.name`))
+    // Every subject the school teaches, headed or not (owner, 2026-10-19: "show all subjects").
+    return all(c.db.prepare(`SELECT s.id, s.name FROM subjects s WHERE EXISTS (SELECT 1 FROM class_subjects cs WHERE cs.subject_id = s.id) ORDER BY s.name`))
   }
   return all(c.db.prepare(`SELECT s.id, s.name FROM subject_heads h JOIN subjects s ON s.id = h.subject_id WHERE h.head_user_id = ? ORDER BY s.name`).bind(c.id.userId))
 }
@@ -36,7 +37,7 @@ async function mayHead(c: Ctx, subjectId: string): Promise<boolean> {
 const currentYear = `(SELECT id FROM academic_years WHERE is_current = 1 LIMIT 1)`
 
 /** Everyone teaching this subject this year: subject teachers plus whoever the timetable puts in front of it. */
-async function subjectTeachers(c: Ctx, subjectId: string): Promise<string[]> {
+export async function subjectTeachers(c: Ctx, subjectId: string): Promise<string[]> {
   const r = await all<{ u: string }>(c.db.prepare(`
       SELECT sst.teacher_user_id AS u FROM section_subject_teachers sst
         JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN sections sec ON sec.id = sst.section_id
@@ -76,7 +77,7 @@ async function overview(c: Ctx) {
   const subjects = await viewableSubjects(c)
   const want = c.url.searchParams.get('subject')
   const subject = subjects.find((s) => s.id === want) ?? subjects[0]
-  if (!subject) return ok({ subjects, subject: null, teachers: [], timetable: [], notices: [], meetings: [] })
+  if (!subject) return ok({ subjects, subject: null, teachers: [], timetable: [], notices: [], meetings: [], sections: [], can_assign: false, staff: [] })
   const sid = subject.id
   const ids = await subjectTeachers(c, sid)
   const idj = JSON.stringify(ids)
@@ -145,10 +146,53 @@ async function overview(c: Ctx) {
        WHERE a.created_by IN (SELECT value FROM json_each(?)) AND a.publish_at >= date('now', '-60 days')
        ORDER BY a.publish_at DESC LIMIT 50`).bind(idj))
 
-  const meetings = await all(c.db.prepare(`SELECT m.id, m.title, m.agenda, m.meets_at, m.place, m.minutes, u.full_name AS by_name
+  const meetings = await all<Record<string, unknown>>(c.db.prepare(`SELECT m.id, m.title, m.agenda, m.meets_at, m.place, m.minutes, u.full_name AS by_name,
+        (SELECT json_group_array(json_object('name', ru.full_name, 'reply', r.reply, 'note', r.note))
+           FROM subject_meeting_replies r JOIN users ru ON ru.id = r.user_id WHERE r.meeting_id = m.id) AS replies
       FROM subject_meetings m LEFT JOIN users u ON u.id = m.created_by WHERE m.subject_id = ? ORDER BY m.meets_at DESC LIMIT 50`).bind(sid))
+  for (const m of meetings) m.replies = JSON.parse(String(m.replies ?? '[]'))
 
-  return ok({ subjects, subject, teachers, timetable, notices, meetings })
+  /* EVERY CLASS OF THE SUBJECT, SIDE BY SIDE (owner, 2026-10-19: "which
+     section is behind", "syllabus progress per class", and the subject
+     teacher per class, set here rather than hunted for elsewhere). */
+  const secs = await all<{ section_id: string; class_subject_id: string; label: string; level: number; teacher_user_id: string | null; teacher: string | null; students: number }>(c.db.prepare(`
+      SELECT sec.id AS section_id, cs.id AS class_subject_id, cl.name || ' ' || sec.name AS label, cl.level,
+             sst.teacher_user_id, u.full_name AS teacher,
+             (SELECT count(*) FROM enrollments en WHERE en.section_id = sec.id AND en.status = 'active') AS students
+        FROM class_subjects cs JOIN classes cl ON cl.id = cs.class_id
+        JOIN sections sec ON sec.class_id = cl.id AND sec.academic_year_id = ${currentYear}
+        LEFT JOIN section_subject_teachers sst ON sst.section_id = sec.id AND sst.class_subject_id = cs.id
+        LEFT JOIN users u ON u.id = sst.teacher_user_id
+       WHERE cs.subject_id = ? ORDER BY cl.level, sec.name`).bind(sid))
+  const secMarks = await all<{ section_id: string; avg: number; pass: number; papers: number }>(c.db.prepare(`
+      SELECT section_id, round(avg(pct), 1) AS avg, round(100.0 * sum(CASE WHEN pct >= 33 THEN 1 ELSE 0 END) / count(*), 1) AS pass, count(DISTINCT es) AS papers
+        FROM (SELECT en.section_id, es.id AS es, CAST(m.marks_obtained AS REAL) * 100.0 / NULLIF(CAST(es.max_marks AS REAL), 0) AS pct
+                FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN class_subjects cs ON cs.id = es.class_subject_id
+                JOIN enrollments en ON en.student_id = m.student_id AND en.class_id = cs.class_id AND en.status = 'active'
+               WHERE cs.subject_id = ? AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND m.marks_obtained <> '')
+       WHERE pct IS NOT NULL GROUP BY section_id`).bind(sid))
+  const units = await all<{ class_subject_id: string; total: number; due: number }>(c.db.prepare(`
+      SELECT u.class_subject_id, count(*) AS total, sum(CASE WHEN u.ends_on IS NOT NULL AND u.ends_on <= date('now') THEN 1 ELSE 0 END) AS due
+        FROM syllabus_units u JOIN class_subjects cs ON cs.id = u.class_subject_id
+       WHERE cs.subject_id = ? AND u.is_active = 1 GROUP BY u.class_subject_id`).bind(sid))
+  const done = await all<{ section_id: string; class_subject_id: string; done: number }>(c.db.prepare(`
+      SELECT lp.section_id, lp.class_subject_id, count(DISTINCT lpu.syllabus_unit_id) AS done
+        FROM lesson_plans lp JOIN lesson_plan_units lpu ON lpu.lesson_plan_id = lp.id JOIN class_subjects cs ON cs.id = lp.class_subject_id
+       WHERE cs.subject_id = ? AND lp.delivered_on IS NOT NULL GROUP BY lp.section_id, lp.class_subject_id`).bind(sid))
+  const sections = secs.map((s) => {
+    const mk = secMarks.find((x) => x.section_id === s.section_id)
+    const u = units.find((x) => x.class_subject_id === s.class_subject_id)
+    return {
+      ...s, avg: mk?.avg ?? null, pass: mk?.pass ?? null, papers: mk?.papers ?? 0,
+      units_total: u?.total ?? 0, units_due: u?.due ?? 0,
+      units_done: done.find((x) => x.section_id === s.section_id && x.class_subject_id === s.class_subject_id)?.done ?? 0,
+    }
+  })
+  const office = can(c.id, OFFICE)
+  const staff = office ? await all(c.db.prepare(`SELECT u.id, u.full_name AS name FROM employees e JOIN users u ON u.id = e.user_id
+      WHERE e.status = 'active' ORDER BY u.full_name`)) : []
+
+  return ok({ subjects, subject, teachers, timetable, notices, meetings, sections, can_assign: office, staff })
 }
 
 async function createMeeting(c: Ctx) {
@@ -167,7 +211,7 @@ async function createMeeting(c: Ctx) {
   for (const t of await subjectTeachers(c, b.subject_id)) {
     if (t === c.id.userId) continue
     const s = await notifyStmt(c, t, null, 'meeting', `${subj?.name ?? 'Subject'} meeting: ${title}`,
-      `${when}${b.place ? ' · ' + b.place.trim() : ''}${b.agenda ? '\n' + b.agenda.trim() : ''}`, '', 'subject_meeting', id)
+      `${when}${b.place ? ' · ' + b.place.trim() : ''}${b.agenda ? '\n' + b.agenda.trim() : ''}`, '/go/subject_meetings', 'subject_meeting', id)
     if (s) { stmts.push(s); sent++ }
   }
   await c.db.batch(stmts)
