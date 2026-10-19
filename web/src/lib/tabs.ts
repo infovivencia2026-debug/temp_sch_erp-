@@ -1,4 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import type { SessionResponse } from './api'
+import { setSplitAllowed } from './panes'
 
 /* Several screens open at once, the way a browser keeps several pages.
 
@@ -112,12 +114,29 @@ export function claimTabs(userID: string) {
   if (previous !== null && previous !== userID) write([])
 }
 
+/** Whether the school allows tabs and split panes: on unless the vendor
+    switched module_settings 'multitasking' off (settings registry key
+    `app.multitasking`). Off, a screen simply replaces the last one. */
+export function multitaskingAllowed(session: Pick<SessionResponse, 'modules'>): boolean {
+  return !session.modules?.some((m) => m.module === 'multitasking' && !m.enabled)
+}
+
+let multitasking = true
+
+/** Set from the session. Turning it off closes every open tab and the split. */
+export function setMultitasking(on: boolean) {
+  multitasking = on
+  setSplitAllowed(on)
+  if (!on && tabs.length) write([])
+}
+
 /** Open a path, or bring it forward if it is already open.
 
     Matching is on the whole path INCLUDING the query, because two students in
     Student 360 are two different screens and collapsing them into one tab is
     the opposite of what somebody opening both wants. */
 export function openTab(path: string, title: string, activePath: string) {
+  if (!multitasking) return
   const at = tabs.findIndex((t) => t.path === path)
   if (at >= 0) {
     /* Already open: refresh its title, which may have loaded since — unless

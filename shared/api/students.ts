@@ -102,6 +102,8 @@ export interface StudentFullDetail {
     decision_note: string; decided_by: string; asked_by: string; raised_on: string; decided_on: string; fee_head: string
   }[]
   invoices: { invoice_no: string; net_paise: string; paid_paise: string; status: string; issued_on: string }[]
+  /* Teachers' remarks (student_remarks). A family viewer gets only those marked for the family. */
+  remarks: { id: string; observed_on: string; kind: string; body: string; subject: string; teacher: string; private: boolean }[]
   co_scholastic: { area_id: string; area: string; grade: string; remark: string; term: string; graded_by: string; graded_on: string }[]
 }
 

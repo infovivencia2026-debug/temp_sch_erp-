@@ -166,6 +166,19 @@ function StatusThumb({ post, read }: { post?: StatusItem; read: boolean }) {
   )
 }
 
+/** The signed-in user's own feed, shared by the bell and the home panels. */
+export function useNotificationFeed() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.call('GET /portal/notifications'),
+    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    retry: false,
+  })
+}
+
+export { dayOf as notificationDay, kindOf as notificationKind }
+
 export default function Notifications() {
   const [open, setOpen] = useOpenState(false)
   /* Kept mounted for one animation after the close.
@@ -201,10 +214,8 @@ export default function Notifications() {
     retry: false,
   })
   
-  const feed = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.call('GET /portal/notifications'),
-    /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
+  const feed = useNotificationFeed()
+  /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
      *
      * This was `refetchInterval: 10_000` — precisely the per-screen interval
      * lib/live.ts opens by arguing against, and the bell is mounted in the
@@ -221,13 +232,7 @@ export default function Notifications() {
      * `refetchOnWindowFocus` is kept, and is now one of the few queries that
      * asks for it (see App.tsx): the bell is the thing people watch after
      * being told "I have sent it", so coming back to the tab must not show a
-     * stale count. */
-    refetchOnWindowFocus: true,
-    // The count on the bell is the freshest thing on the page; nothing else
-    // should be serving it out of a cache the revision poll has not touched.
-    staleTime: 60_000,
-    retry: false,
-  })
+     * stale count. The options live in useNotificationFeed. */
   /* Optimistic (lib/optimistic): the badge clears and the list empties the
      moment either is pressed; a refusal puts them back with the reason. */
   type Feed = { items?: Note[]; unread?: number }
@@ -304,9 +309,6 @@ export default function Notifications() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, viewing])
-
-  // Refused, or this account has no feed: show nothing rather than a dead control.
-  if (feed.error) return null
 
   const items = feed.data?.items ?? []
 
@@ -461,6 +463,10 @@ export default function Notifications() {
   }
 
   const shownGroups = groups
+
+  // Refused, or this account has no feed: show nothing rather than a dead control.
+  // Below every hook, so a feed that starts failing never changes the hook order.
+  if (feed.error) return null
 
   return (
     <>

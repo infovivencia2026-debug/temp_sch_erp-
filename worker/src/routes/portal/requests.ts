@@ -839,6 +839,15 @@ async function sendPortalMessage(c: Ctx): Promise<Response> {
     // The teacher replying: they must teach the child and the parent must be its guardian,
     // or the thread must already exist between exactly these three.
     teacherID = me
+    // Staff write to families only with the announcements grant; plain subject teachers message staff only.
+    /* Kept for the roles that message families today without that grant: the child's
+       class teacher, and transport staff (bus messages). */
+    const mayWriteFamilies = can(c.id, 'comms.announcements.write') || can(c.id, 'operations.transport.read') ||
+      bool((await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e JOIN sections sec ON sec.id = e.section_id
+          WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id = ?) AS ok`).bind(sid, me).first<{ ok: number }>())?.ok)
+    if (!mayWriteFamilies) {
+      throw new HttpError(403, 'messaging parents needs the comms.announcements.write permission; you can message staff', { code: 'forbidden' })
+    }
     parentID = str(body.parent_user_id)
     if (!isUUID(parentID)) throw badRequest('parent_user_id must be a uuid')
     if (!(await teacherMayWrite(c, sid, teacherID, parentID)) && !(await teacherIsThreadParty(c, sid, teacherID, parentID))) {
