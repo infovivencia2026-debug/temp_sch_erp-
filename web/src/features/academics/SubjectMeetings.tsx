@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Card, Badge, Button, Input, FormNotice, ErrorState, EmptyState, SkeletonTiles } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, Button, Input, Select, Textarea, Field, FormGrid, FormNotice, ErrorState, EmptyState, SkeletonTiles } from '@/components/ui'
 
 /* The teacher's side of a subject head's meetings (owner, 2026-10-19):
    when, where and what about, and an answer -- attending, or can't come
@@ -20,10 +20,11 @@ export default function SubjectMeetings() {
     <>
       <PageHead eyebrow="Academics" title="Subject meetings" />
       <PageBody>
+        <Schedule />
         {q.isLoading ? <SkeletonTiles /> : q.error ? <ErrorState error={q.error} /> : !q.data?.items.length ? (
-          <EmptyState title="No meetings" body="Meetings your subject head calls will appear here." />
+          <div className="mt-4"><EmptyState title="No meetings" body="Meetings your subject head calls will appear here." /></div>
         ) : (
-          <div className="space-y-3">{q.data.items.map((m) => <MeetingCard key={m.id} m={m} />)}</div>
+          <div className="mt-4 space-y-3">{q.data.items.map((m) => <MeetingCard key={m.id} m={m} />)}</div>
         )}
       </PageBody>
     </>
@@ -65,6 +66,49 @@ function MeetingCard({ m }: { m: Meeting }) {
             </div>
           </div>
         )}
+      </div>
+    </Card>
+  )
+}
+
+/* A subject head calls a meeting from here too (owner, 2026-10-19: "let the
+   hod add meeting"). Shown only to someone who heads a subject; it goes to
+   every teacher of that subject. */
+function Schedule() {
+  const qc = useQueryClient()
+  const heads = useQuery({
+    queryKey: ['subject-overview', ''],
+    queryFn: () => api.get<{ subjects: { id: string; name: string }[] }>('/api/v1/teaching/my-subjects'),
+  })
+  const [f, setF] = useState({ subject_id: '', title: '', meets_at: '', place: '', agenda: '' })
+  const [done, setDone] = useState('')
+  const create = useMutation({
+    mutationFn: () => api.post<{ sent: number }>('/api/v1/teaching/my-subjects/meetings', { ...f, subject_id: f.subject_id || subjects[0]?.id, meets_at: new Date(f.meets_at).toISOString() }),
+    onSuccess: (r) => {
+      setDone(`Meeting scheduled and sent to ${r.sent} teacher${r.sent === 1 ? '' : 's'}.`)
+      setF({ subject_id: f.subject_id, title: '', meets_at: '', place: '', agenda: '' })
+      qc.invalidateQueries({ queryKey: ['subject-meetings'] }); qc.invalidateQueries({ queryKey: ['subject-overview'] })
+    },
+  })
+  const subjects = heads.data?.subjects ?? []
+  if (!subjects.length) return null
+  return (
+    <Card>
+      <CardHeader title="Schedule a meeting" />
+      <div className="space-y-3 p-[var(--card-pad)]">
+        <FormGrid>
+          {subjects.length > 1 && (
+            <Field label="Subject"><Select value={f.subject_id || subjects[0].id} onChange={(v) => setF({ ...f, subject_id: v })} options={subjects.map((x) => ({ value: x.id, label: x.name }))} /></Field>
+          )}
+          <Field label="Title"><Input value={f.title} onChange={(v) => setF({ ...f, title: v })} placeholder="e.g. SA-1 paper review" /></Field>
+          <Field label="Date and time"><Input type="datetime-local" value={f.meets_at} onChange={(v) => setF({ ...f, meets_at: v })} /></Field>
+          <Field label="Place"><Input value={f.place} onChange={(v) => setF({ ...f, place: v })} placeholder="e.g. Staff room" /></Field>
+        </FormGrid>
+        <Field label="Agenda"><Textarea value={f.agenda} onChange={(v) => setF({ ...f, agenda: v })} placeholder="What will be discussed" /></Field>
+        <FormNotice error={create.error} ok={done} />
+        <Button disabled={create.isPending || !f.title.trim() || !f.meets_at} onClick={() => { setDone(''); create.mutate() }}>
+          {create.isPending ? 'Sending…' : 'Schedule and send to the subject teachers'}
+        </Button>
       </div>
     </Card>
   )

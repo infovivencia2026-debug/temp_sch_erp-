@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import WeekGrid from '@/components/WeekGrid'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, ErrorState, EmptyState, SkeletonTiles, TAB_BAR, tabClass,
@@ -19,7 +20,7 @@ interface Teacher {
 }
 interface Plan { id: string; week_of: string; objectives: string | null; activities: string | null; homework: string | null; teacher: string | null; class: string }
 type Parts = Record<'performance' | 'classes' | 'timetable' | 'notices' | 'meetings' | 'approvals' | 'homework', boolean>
-interface Slot { weekday: number; period: string; sequence: number; starts_at: string; ends_at: string; class: string; teacher: string | null; room: string | null }
+interface Slot { weekday: number; period_id: string; teacher_user_id: string | null; period: string; sequence: number; starts_at: string; ends_at: string; class: string; teacher: string | null; room: string | null }
 interface Notice { id: string; title: string; body: string; kind: string; publish_at: string; by_name: string }
 interface Meeting { id: string; title: string; agenda: string | null; meets_at: string; place: string | null; minutes: string | null; by_name: string | null; replies: { name: string; reply: 'yes' | 'no'; note: string | null }[] }
 interface Section {
@@ -38,8 +39,7 @@ interface Data {
   parts: Parts; pending_plans: Plan[]; removed: { id: string; name: string }[]
 }
 
-const DAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const TABS = ['All heads', 'Teachers', 'Classes', 'Approvals', 'Timetable', 'Notices', 'Meetings', 'Subject heads'] as const
+const TABS = ['All subjects', 'Teachers', 'Classes', 'Approvals', 'Timetable', 'Notices', 'Meetings', 'Subject heads'] as const
 /* Which school setting turns each tab off for a head. The principal always sees them all. */
 const TAB_PART: Partial<Record<(typeof TABS)[number], keyof Parts>> = {
   Teachers: 'performance', Classes: 'classes', Approvals: 'approvals', Timetable: 'timetable', Notices: 'notices', Meetings: 'meetings',
@@ -49,7 +49,7 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`)
 
 export default function SubjectOverview() {
   const [subject, setSubject] = useState('')
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Teachers')
+  const [tab, setTab] = useState<(typeof TABS)[number] | null>(null)
   const q = useQuery({
     queryKey: ['subject-overview', subject],
     queryFn: () => api.get<Data>(`/api/v1/teaching/my-subjects${subject ? `?subject=${subject}` : ''}`),
@@ -58,15 +58,18 @@ export default function SubjectOverview() {
   // Only the office can set heads; for a HOD this call is refused and the tab stays hidden.
   const heads = useQuery({ queryKey: ['subject-heads'], queryFn: () => api.get<Heads>('/api/v1/academics/subject-heads'), retry: false })
   const office = !!heads.data
-  const tabs = TABS.filter((t) => ((t !== 'Subject heads' && t !== 'All heads') || office) && (office || !TAB_PART[t] || d?.parts[TAB_PART[t]!] !== false))
-  const shown = tabs.includes(tab) ? tab : tabs[0]
+  const tabs = TABS.filter((t) => ((t !== 'Subject heads' && t !== 'All subjects') || office) && (office || !TAB_PART[t] || d?.parts[TAB_PART[t]!] !== false))
+  // The principal opens on every subject at once; a head on their own subject's teachers.
+  const shown = tab && tabs.includes(tab) ? tab : office ? 'All subjects' : tabs.includes('Teachers') ? 'Teachers' : tabs[0]
+  // These two tabs are about every subject, so the page names no single subject and hides the picker.
+  const schoolWide = shown === 'All subjects' || shown === 'Subject heads'
 
   return (
     <>
       <PageHead
         eyebrow="Academics"
-        title={d?.subject ? `${d.subject.name} overview` : 'Subject overview'}
-        actions={d && d.subjects.length > 1 ? (
+        title={schoolWide ? (shown === 'Subject heads' ? 'Subject heads' : 'All subjects') : d?.subject ? `${d.subject.name} overview` : 'Subject overview'}
+        actions={!schoolWide && d && d.subjects.length > 1 ? (
           <div className="w-56">
             <Select value={d.subject?.id ?? ''} onChange={setSubject} options={d.subjects.map((s) => ({ value: s.id, label: s.name }))} />
           </div>
@@ -87,11 +90,11 @@ export default function SubjectOverview() {
               ))}
             </div>
             <div className="mt-4">
-              {shown === 'All heads' && <AllHeads onOpen={(id) => { setSubject(id); setTab('Teachers') }} />}
-              {shown === 'Teachers' && <Teachers rows={d.teachers} subjectId={d.subject.id} office={office} removed={d.removed} staff={d.staff} />}
+              {shown === 'All subjects' && <AllHeads onOpen={(id) => { setSubject(id); setTab('Teachers') }} />}
+              {shown === 'Teachers' && <Teachers rows={d.teachers} subjectId={d.subject.id} office={office} removed={d.removed} staff={d.staff} slots={d.timetable} sections={d.sections} />}
               {shown === 'Approvals' && <Approvals rows={d.pending_plans} />}
               {shown === 'Classes' && <Classes rows={d.sections} canAssign={d.can_assign} staff={d.staff} />}
-              {shown === 'Timetable' && <Timetable rows={d.timetable} />}
+              {shown === 'Timetable' && <Timetable rows={d.timetable} teachers={d.teachers} />}
               {shown === 'Notices' && <Notices rows={d.notices} />}
               {shown === 'Subject heads' && heads.data && <><HeadsSetup data={heads.data} /><div className="mt-4"><PartsSetup /></div></>}
               {shown === 'Meetings' && <Meetings subjectId={d.subject.id} rows={d.meetings} teachers={d.teachers.length} />}
@@ -103,7 +106,9 @@ export default function SubjectOverview() {
   )
 }
 
-function Teachers({ rows, subjectId, office, removed, staff }: { rows: Teacher[]; subjectId: string; office: boolean; removed: { id: string; name: string }[]; staff: { id: string; name: string }[] }) {
+function Teachers({ rows, subjectId, office, removed, staff, slots, sections }: { rows: Teacher[]; subjectId: string; office: boolean; removed: { id: string; name: string }[]; staff: { id: string; name: string }[]; slots: Slot[]; sections: Section[] }) {
+  const [open, setOpen] = useState<string | null>(null)
+  const picked = rows.find((r) => r.id === open)
   const qc = useQueryClient()
   const member = useMutation({
     mutationFn: (v: { user_id: string; mode: 'add' | 'remove' | null }) => api.put('/api/v1/academics/subject-heads/members', { subject_id: subjectId, ...v }),
@@ -112,11 +117,16 @@ function Teachers({ rows, subjectId, office, removed, staff }: { rows: Teacher[]
   const [add, setAdd] = useState('')
   return (
     <div className="space-y-4">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="w-72"><Select value={open ?? ''} onChange={(v) => setOpen(v || null)} options={[{ value: '', label: 'All teachers' }, ...rows.map((r) => ({ value: r.id, label: r.name }))]} /></div>
+      {picked && <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>Back to all teachers</Button>}
+    </div>
+    {picked ? <TeacherView t={picked} slots={slots.filter((x) => x.teacher_user_id === picked.id)} sections={sections.filter((x) => x.teacher_user_id === picked.id)} /> : (
     <Card>
       <Table head={['Teacher', 'Classes (avg marks)', { label: 'Periods / week', align: 'right' }, { label: 'Avg marks', align: 'right' }, { label: 'Lesson plans (30 days)', align: 'right' }, { label: 'Homework (30 days)', align: 'right' }, { label: 'Present (30 days)', align: 'right' }, ...(office ? [''] : [])]}
         empty={!rows.length} emptyLabel="Nobody teaches this subject yet. Set subject teachers or the timetable.">
         {rows.map((t) => (
-          <tr key={t.id}>
+          <tr key={t.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(t.id)} title="Open this teacher's overview">
             <Td className="font-medium">{t.name}{t.phone && <div className="text-[12.5px] font-normal text-muted-foreground">{t.phone}</div>}</Td>
             <Td>
               <div className="flex flex-wrap gap-1">
@@ -128,11 +138,12 @@ function Teachers({ rows, subjectId, office, removed, staff }: { rows: Teacher[]
             <Td className="num">{t.plans_30d ? `${t.plans_submitted}/${t.plans_30d} sent · ${t.plans_delivered} done` : '—'}</Td>
             <Td className="num">{t.homework_30d}</Td>
             <Td className="num">{t.marked_30d ? `${t.present_30d}/${t.marked_30d}` : '—'}{t.leave_30d ? <div className="text-[12.5px] text-muted-foreground">{t.leave_30d} leave</div> : null}</Td>
-            {office && <Td><Button size="sm" variant="ghost" disabled={member.isPending} onClick={() => member.mutate({ user_id: t.id, mode: 'remove' })}>Remove</Button></Td>}
+            {office && <Td><span onClick={(e) => e.stopPropagation()}><Button size="sm" variant="ghost" disabled={member.isPending} onClick={() => member.mutate({ user_id: t.id, mode: 'remove' })}>Remove</Button></span></Td>}
           </tr>
         ))}
       </Table>
     </Card>
+    )}
     {office && (
       <Card>
         <CardHeader title="Teachers under this head" />
@@ -156,22 +167,62 @@ function Teachers({ rows, subjectId, office, removed, staff }: { rows: Teacher[]
   )
 }
 
-function Timetable({ rows }: { rows: Slot[] }) {
+/* One teacher's week in this subject, as the staff-room grid (owner,
+   2026-10-19: "select one person and show their timetable and classes per
+   week, like our theme"). */
+function Timetable({ rows, teachers }: { rows: Slot[]; teachers: Teacher[] }) {
+  const withSlots = teachers.filter((t) => rows.some((r) => r.teacher_user_id === t.id))
+  const [who, setWho] = useState(withSlots[0]?.id ?? '')
+  const mine = rows.filter((r) => r.teacher_user_id === who)
+  return (
+    <div className="space-y-4">
+      <div className="w-72"><Select value={who} onChange={setWho} options={withSlots.map((t) => ({ value: t.id, label: t.name }))} placeholder="Pick a teacher" /></div>
+      {who ? <TeacherWeek slots={mine} /> : <EmptyState title="No periods" body="This subject has no periods on the timetable." />}
+    </div>
+  )
+}
+
+function TeacherWeek({ slots }: { slots: Slot[] }) {
+  const periods = [...new Map(slots.map((s) => [s.period_id, { id: s.period_id, name: s.period, starts_at: s.starts_at, ends_at: s.ends_at, seq: s.sequence }])).values()]
+    .sort((a, b) => a.seq - b.seq)
+  const perClass = new Map<string, number>()
+  for (const s of slots) perClass.set(s.class, (perClass.get(s.class) ?? 0) + 1)
   return (
     <Card>
-      <Table head={['Day', 'Period', 'Time', 'Class', 'Teacher', 'Room']} empty={!rows.length} emptyLabel="This subject has no periods on the timetable.">
-        {rows.map((s, i) => (
-          <tr key={i}>
-            <Td className="font-medium">{DAYS[s.weekday] ?? s.weekday}</Td>
-            <Td>{s.period}</Td>
-            <Td className="whitespace-nowrap">{s.starts_at.slice(0, 5)}–{s.ends_at.slice(0, 5)}</Td>
-            <Td>{s.class}</Td>
-            <Td>{s.teacher ?? '—'}</Td>
-            <Td>{s.room ?? '—'}</Td>
-          </tr>
-        ))}
-      </Table>
+      <CardHeader title={`${slots.length} periods a week`} />
+      <div className="flex flex-wrap gap-1.5 px-[var(--card-pad)] pt-3">
+        {[...perClass.entries()].map(([k, n]) => <Badge key={k}>{k} · {n}/week</Badge>)}
+      </div>
+      <div className="p-[var(--card-pad)]">
+        <WeekGrid periods={periods} entries={slots.map((s) => ({ weekday: s.weekday, period_id: s.period_id, title: s.class, detail: s.room }))} empty="No periods for this teacher." />
+      </div>
     </Card>
+  )
+}
+
+/* Everything about one teacher of the subject on one page. */
+function TeacherView({ t, slots, sections }: { t: Teacher; slots: Slot[]; sections: Section[] }) {
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader title={t.name} />
+        <div className="grid grid-cols-2 gap-3 p-[var(--card-pad)] text-[14px] sm:grid-cols-3 lg:grid-cols-6">
+          {([
+            ['Phone', t.phone ?? '—'], ['Periods a week', String(t.periods_week)], ['Average marks', pct(t.avg)],
+            ['Lesson plans (30 days)', t.plans_30d ? `${t.plans_submitted}/${t.plans_30d} sent, ${t.plans_delivered} done` : '—'],
+            ['Homework (30 days)', String(t.homework_30d)],
+            ['Present (30 days)', t.marked_30d ? `${t.present_30d}/${t.marked_30d}${t.leave_30d ? ` · ${t.leave_30d} leave` : ''}` : '—'],
+          ] as [string, string][]).map(([k, v]) => (
+            <div key={k} className="rounded-lg border p-3">
+              <div className="text-[12.5px] text-muted-foreground">{k}</div>
+              <div className="mt-1 font-semibold">{v}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Classes rows={sections} canAssign={false} staff={[]} />
+      <TeacherWeek slots={slots} />
+    </div>
   )
 }
 

@@ -206,7 +206,7 @@ async function overview(c: Ctx) {
 
   // This subject's timetable, every class.
   const timetable = await all(c.db.prepare(`
-      SELECT te.weekday, p.name AS period, p.sequence, p.starts_at, p.ends_at, cl.name || ' ' || sec.name AS class, cl.level, u.full_name AS teacher, te.room
+      SELECT te.weekday, te.period_id, te.teacher_user_id, p.name AS period, p.sequence, p.starts_at, p.ends_at, cl.name || ' ' || sec.name AS class, cl.level, u.full_name AS teacher, te.room
         FROM timetable_entries te JOIN class_subjects cs ON cs.id = te.class_subject_id
         JOIN periods p ON p.id = te.period_id JOIN sections sec ON sec.id = te.section_id JOIN classes cl ON cl.id = sec.class_id
         LEFT JOIN users u ON u.id = te.teacher_user_id

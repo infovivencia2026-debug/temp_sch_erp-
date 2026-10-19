@@ -11,7 +11,9 @@ import { subjectTeachers } from './subject_overview'
 async function myMeetings(c: Ctx) {
   const subs = await c.db.prepare(`SELECT DISTINCT subject_id FROM subject_meetings WHERE meets_at >= date('now', '-30 days')`).all<{ subject_id: string }>()
   const mine: string[] = []
-  for (const s of subs.results) if ((await subjectTeachers(c, s.subject_id)).includes(c.id.userId)) mine.push(s.subject_id)
+  const headed = new Set((await c.db.prepare(`SELECT subject_id FROM subject_heads WHERE head_user_id = ?`).bind(c.id.userId).all<{ subject_id: string }>()).results.map((x) => x.subject_id))
+  // A head sees the meetings they called too, not only the ones of subjects they teach.
+  for (const s of subs.results) if (headed.has(s.subject_id) || (await subjectTeachers(c, s.subject_id)).includes(c.id.userId)) mine.push(s.subject_id)
   if (!mine.length) return ok({ items: [] })
   const r = await c.db.prepare(`SELECT m.id, m.title, m.agenda, m.meets_at, m.place, m.minutes, s.name AS subject, u.full_name AS by_name, r.reply, r.note
       FROM subject_meetings m JOIN subjects s ON s.id = m.subject_id LEFT JOIN users u ON u.id = m.created_by
