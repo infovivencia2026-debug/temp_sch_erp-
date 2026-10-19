@@ -7,6 +7,8 @@ import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { DEFAULT_ICON, SECTION_ICONS, featureIcon } from '@/features/bento/feature-icons'
+import '@/components/feature-glyph.css'
 import { PersonAvatar } from './ChatScreen'
 import { CommandSearch } from './CommandSearch'
 import Notifications from './Notifications'
@@ -27,11 +29,12 @@ export function useTodaySignIns(on: boolean) {
 }
 
 const groupKey = (slug: string) => `erp.navGroup.${slug}`
+/* Closed until opened (owner, 2026-10-19: "as default close all dropdowns"). */
 function readOpen(slug: string): boolean {
-  try { return localStorage.getItem(groupKey(slug)) !== 'closed' } catch { return true }
+  try { return localStorage.getItem(groupKey(slug)) === 'open' } catch { return false }
 }
 
-function Group({ slug, name, children }: { slug: string; name: string; children: React.ReactNode }) {
+function Group({ slug, section, name, children }: { slug: string; section: string; name: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(() => readOpen(slug))
   const toggle = () => {
     const next = !open
@@ -44,7 +47,10 @@ function Group({ slug, name, children }: { slug: string; name: string; children:
         className="flex min-h-[calc(32px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
                    text-[calc(11.5px*var(--font-scale,1))] font-semibold uppercase tracking-[0.09em] text-muted-foreground
                    transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <span className="truncate">{name}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span aria-hidden className="msr msr-sm shrink-0 normal-case tracking-normal">{SECTION_ICONS[section] ?? DEFAULT_ICON}</span>
+          <span className="truncate">{name}</span>
+        </span>
         <ChevronDown aria-hidden className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-150', !open && '-rotate-90')} />
       </button>
       {open && <div className="flex flex-col">{children}</div>}
@@ -69,14 +75,15 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         if (!list.length) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
         return (
-          <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={title}>
+          <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}>
             {list.map((f) => (
               <NavLink key={f.key} to={featurePath(roleKey, section.slug, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => cn(
-                  'flex min-h-[calc(36px*var(--font-scale,1))] items-center rounded-sm px-2.5 py-1 text-[calc(14px*var(--font-scale,1))] transition-colors',
+                  'flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 py-1 text-[calc(14px*var(--font-scale,1))] transition-colors',
                   isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                   !f.live && !isActive && 'text-muted-foreground/70',
                 )}>
+                <span aria-hidden className="msr msr-sm shrink-0">{featureIcon(f.slug, section.slug)}</span>
                 <span className="truncate">{label(f.name)}</span>
               </NavLink>
             ))}
