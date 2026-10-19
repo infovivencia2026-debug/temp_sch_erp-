@@ -154,14 +154,15 @@ const OVERLAPPING: [string, string, string][] = [
   ['admissions', 'front_office', 'Admissions already contains the four front-desk registers. Give front_office alone to somebody who only works the desk, or admissions alone to somebody who does both.'],
   ['institution_admin', 'hostel_warden', "The principal's workspace already holds the whole hostel section. Give hostel_warden alone to the person who runs the hostel; a principal who also does so already has every register from their own role."],
 ]
-function checkGrantable(keys: string[], platformAdmin: boolean): void {
+function checkGrantable(keys: string[], platformAdmin: boolean, alreadyHeld: ReadonlySet<string> = new Set()): void {
   const held = new Set(keys)
   for (const [a, b, remedy] of OVERLAPPING) {
     if (held.has(a) && held.has(b)) throw forbidden('a person cannot hold both ' + a + ' and ' + b + '. They draw the same screens. ' + remedy)
   }
   for (const k of keys) {
     if (PLATFORM_ONLY_ROLES.has(k) && !platformAdmin) throw forbidden('only a platform operator can grant the ' + k + ' role')
-    if (k in DERIVED_ROLES) throw forbidden('the ' + k + ' role is granted by ' + DERIVED_ROLES[k] + ', not from this screen')
+    // Kept as it is (a class teacher's roles saved again) is fine; only granting it here is not.
+    if (k in DERIVED_ROLES && !alreadyHeld.has(k)) throw forbidden('the ' + k + ' role is granted by ' + DERIVED_ROLES[k] + ', not from this screen')
   }
 }
 
@@ -574,7 +575,8 @@ export function registerAdminUsers(r: Router): void {
     const target = c.params.id
     const req = await readJSON<{ role_keys?: string[]; campus_ids?: string[] }>(c.req)
     const keys = req.role_keys ?? []
-    checkGrantable(keys, c.id.platformAdmin)
+    const current = await c.db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(target).all<{ key: string }>()
+    checkGrantable(keys, c.id.platformAdmin, new Set(current.results.map((r) => r.key)))
     if (keys.length === 0) throw badRequest('a user needs at least one role; suspend the account instead')
     const campusIds = await resolveCampusIDs(c, req.campus_ids)
     if (target === c.id.userId && !keys.some((k) => ['institution_admin', 'super_admin', 'it_admin'].includes(k))) {
