@@ -30,7 +30,7 @@ import { StudentQuiz } from './StudentQuiz'
    and comments; quizzes are taken here against the clock. A parent opening
    this reads it; only the child's own login does the work. */
 
-interface CourseRow { class_subject_id: string; subject: string; teacher?: string | null; added?: number | boolean; lessons: number; completed: number; to_do: number; quizzes_open: number }
+interface CourseRow { class_subject_id: string; subject: string; teacher?: string | null; uploaded_by?: string | null; added?: number | boolean; lessons: number; completed: number; to_do: number; quizzes_open: number }
 interface Assignment {
   id: string; title: string; instructions?: string | null; due_on?: string | null; max_marks?: number | null; rubric: RubricRow[] | null
   allow_submission: boolean; status: string; submitted_at?: string | null; text_answer?: string | null; file_id?: string | null; file_name?: string | null
@@ -187,6 +187,8 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                       )}
                       </span>
                       <span className="block text-[18px] font-semibold leading-tight [overflow-wrap:anywhere]">{c.subject}</span>
+                      {/* Who put it up (owner, 2026-10-19). */}
+                      {(c.uploaded_by || c.teacher) && <span className="block text-[12px] text-muted-foreground">By {c.uploaded_by || c.teacher}</span>}
                       {/* WHAT IS IN IT, AND WHAT IS LEFT (owner, 2026-10-10:
                           "show like this how many vds are there and text show
                           that there is a vd should complete").

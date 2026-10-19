@@ -865,6 +865,109 @@ async function listStudentProgress(c: Ctx) {
   return ok({ items, full })
 }
 
+/* ONLY THE HOMEWORK STILL OWED, AND BY WHOM (Yajur, 2026-10-19: "highlight
+   here ONLY PENDING HOMEWORK WITH LISTED STUDENTS"). The same class, subject
+   and dates as the roster; a subject teacher sees only their own subjects. */
+async function pendingHomework(c: Ctx) {
+  const s = await resolveScope(c)
+  const rng = resolveRange(c)
+  const q = c.url.searchParams
+  const sectionId = q.get('section_id') ?? ''
+  const wantCS = q.get('class_subject_id') ?? ''
+  const wide = s.allStudents || s.anySection || s.platformAdmin
+  let sections: string[]
+  let csFilter: string[] | null = null
+  if (sectionId) {
+    if (!wide && !s.sectionIds.includes(sectionId)) throw notFound('section')
+    sections = [sectionId]
+    if (!(wide || s.classTeacherOf.includes(sectionId))) csFilter = await mySubjectsIn(c, s.userId, sectionId)
+  } else sections = s.sectionIds
+  if (wantCS) {
+    if (csFilter && !csFilter.includes(wantCS)) throw notFound('subject')
+    csFilter = [wantCS]
+  }
+  if (sections.length === 0) return ok({ items: [] })
+  const rows = await c.db.prepare(`
+    SELECT h.id, h.title, COALESCE(sb.name, '') AS subject, h.assigned_on, h.due_on,
+           c2.name || '-' || sec.name AS class, st.id AS student_id,
+           st.first_name || COALESCE(' ' || st.last_name, '') AS student, st.admission_no
+      FROM homework h
+      JOIN sections sec ON sec.id = h.section_id
+      JOIN classes c2 ON c2.id = sec.class_id
+      LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id
+      LEFT JOIN subjects sb ON sb.id = cs.subject_id
+      JOIN enrollments en ON en.section_id = h.section_id AND en.status = 'active'
+      JOIN students st ON st.id = en.student_id AND st.status = 'active'
+     WHERE h.is_published = 1 AND h.assigned_on BETWEEN ?1 AND ?2
+       AND h.section_id IN (SELECT value FROM json_each(?3))
+       AND (?4 = '' OR h.class_subject_id IN (SELECT value FROM json_each(?4)))
+       AND NOT EXISTS (SELECT 1 FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.student_id = st.id
+                        AND (hs.submitted_at IS NOT NULL OR hs.status NOT IN ('pending', '')))
+     ORDER BY h.due_on IS NULL, h.due_on, h.assigned_on DESC, st.first_name
+     LIMIT 3000`).bind(rng.fromS, rng.toS, JSON.stringify(sections), csFilter ? JSON.stringify(csFilter) : '').all<Record<string, unknown>>()
+  const by = new Map<string, { id: string; title: string; subject: string; class: string; assigned_on: string; due_on?: string; students: { id: string; name: string; admission_no: string }[] }>()
+  for (const r of rows.results) {
+    const id = String(r.id)
+    let h = by.get(id)
+    if (!h) {
+      h = { id, title: String(r.title), subject: String(r.subject), class: String(r.class), assigned_on: String(r.assigned_on), due_on: r.due_on ? String(r.due_on) : undefined, students: [] }
+      by.set(id, h)
+    }
+    h.students.push({ id: String(r.student_id), name: String(r.student), admission_no: String(r.admission_no ?? '') })
+  }
+  return ok({ items: [...by.values()] })
+}
+
+/* ONE CHILD'S HOMEWORK AND PAPERS (Yajur, 2026-10-19: "make clickable
+   homework ... that particular selected person submitted or not all history"
+   and "highlight overall marks ... with exam name and max marks"). The same
+   rule as the roster: a class teacher sees every subject, a subject teacher
+   only their own. */
+async function studentProgressDetail(c: Ctx) {
+  const s = await resolveScope(c)
+  const q = c.url.searchParams
+  const studentId = q.get('student_id') ?? ''
+  if (!isUUID(studentId)) throw badRequest('student_id is required')
+  const en = await c.db.prepare(`SELECT section_id FROM enrollments WHERE student_id = ? AND status = 'active' LIMIT 1`).bind(studentId).first<{ section_id: string }>()
+  if (!en) throw notFound('student')
+  const wide = s.allStudents || s.anySection || s.platformAdmin
+  if (!wide && !s.sectionIds.includes(en.section_id)) throw notFound('student')
+  const full = wide || s.classTeacherOf.includes(en.section_id)
+  const csJSON = full ? '' : JSON.stringify(await mySubjectsIn(c, s.userId, en.section_id))
+  const homework = await c.db.prepare(`
+    SELECT h.id, h.title, COALESCE(sb.name, '') AS subject, h.assigned_on, h.due_on,
+           hs.submitted_at, COALESCE(hs.status, '') AS status, hs.marks, h.max_marks
+      FROM homework h
+      LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id
+      LEFT JOIN subjects sb ON sb.id = cs.subject_id
+      LEFT JOIN homework_submissions hs ON hs.homework_id = h.id AND hs.student_id = ?1
+     WHERE h.section_id = ?2 AND h.is_published = 1
+       AND (?3 = '' OR h.class_subject_id IN (SELECT value FROM json_each(?3)))
+     ORDER BY h.assigned_on DESC LIMIT 300`).bind(studentId, en.section_id, csJSON).all<Record<string, unknown>>()
+  const papers = await c.db.prepare(`
+    SELECT ex.name AS exam, sb.name AS subject, substr(es.exam_date, 1, 10) AS exam_date,
+           CAST(es.max_marks AS REAL) AS max_marks, CAST(m.marks_obtained AS REAL) AS obtained, m.is_absent
+      FROM marks m
+      JOIN exam_subjects es ON es.id = m.exam_subject_id
+      JOIN exams ex ON ex.id = es.exam_id
+      JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN subjects sb ON sb.id = cs.subject_id
+     WHERE m.student_id = ?1 AND (?2 = '' OR es.class_subject_id IN (SELECT value FROM json_each(?2)))
+     ORDER BY es.exam_date DESC, ex.name, sb.name`).bind(studentId, csJSON).all<Record<string, unknown>>()
+  return ok({
+    full,
+    homework: homework.results.map((h) => ({
+      id: h.id, title: h.title, subject: h.subject, assigned_on: h.assigned_on, due_on: h.due_on ?? undefined,
+      submitted: h.submitted_at != null || (h.status !== '' && h.status !== 'pending'),
+      submitted_at: h.submitted_at ?? undefined, marks: h.marks ?? undefined, max_marks: h.max_marks ?? undefined,
+    })),
+    papers: papers.results.map((p) => ({
+      exam: p.exam, subject: p.subject, exam_date: p.exam_date ?? undefined, max_marks: n(p.max_marks),
+      obtained: p.obtained == null ? undefined : n(p.obtained), absent: n(p.is_absent) === 1,
+    })),
+  })
+}
+
 /** The class-subjects a teacher teaches in one section: assigned, or on the timetable. */
 async function mySubjectsIn(c: Ctx, userId: string, sectionId: string): Promise<string[]> {
   const rows = await c.db.prepare(`
@@ -957,6 +1060,8 @@ export function registerDashboards(r: Router): void {
   r.get('/teaching/parent-messages/thread', 'academics.timetable.read', listTeacherParentMessages)
   r.get('/teaching/progress', 'academics.timetable.read', listStudentProgress)
   r.get('/teaching/progress/options', 'academics.timetable.read', progressOptions)
+  r.get('/teaching/progress/student', 'academics.timetable.read', studentProgressDetail)
+  r.get('/teaching/progress/pending-homework', 'academics.timetable.read', pendingHomework)
   r.get('/teaching/parent-contacts', 'academics.timetable.read', listParentContacts)
 
   /* THE SAME TWO READS, FOR THE OFFICE THAT RUNS THE BUSES.
