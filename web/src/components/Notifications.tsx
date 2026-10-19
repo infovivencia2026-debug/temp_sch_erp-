@@ -432,7 +432,15 @@ export default function Notifications() {
      this account entirely goes here too, so nothing counted is a row the
      drawer could not produce if asked. */
   const reachable = (n: Note) => asParent || !/digest/.test(n.kind)
-  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
+  /* A status entry counts while its post still has something unseen: once the
+     feed is loaded, a post already seen, or one no longer shown, is not new. */
+  const statusUnseen = (n: Note) => {
+    const id = statusPostId(n)
+    if (!id || !statusFeed.data) return true
+    const post = postById.get(id)
+    return !!post && !post.seen
+  }
+  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) && statusUnseen(n) : !/status/.test(n.kind))).length
   /* THE BELL'S OWN NUMBER, OPENED ONTO (owner, 2026-10-15: "I see the
      notification number but I don't see any messages"). The drawer always
      opened on Messages, which is right unless every one of today's unread
