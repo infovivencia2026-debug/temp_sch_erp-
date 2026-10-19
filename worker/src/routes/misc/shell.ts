@@ -256,6 +256,8 @@ async function setupIncomplete(c: Ctx): Promise<boolean> {
 
 const STUDENT_HIDDEN_SECTIONS = new Set(['alumni', 'fees'])
 
+const QUESTION_MAKER = new Set(['faculty.question_papers_online_tests.ai_examcell_paper_generator', 'faculty.question_papers_online_tests.question_bank_management'])
+
 export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const sc = await resolveScope(c)
   const ent = await entitlementFor(c)
@@ -330,7 +332,11 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     if (STAGE_KEYS.has(f.key) && !(await stageAllowed(f.key))) return false
     return true
   }
-  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: f.tier, in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
+  /* Question maker (setting `academics.question_maker_in_menu`): the AI paper
+     generator and the question bank sit in the normal menu, not behind Show advanced. */
+  const qmaker = !!(await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'question_maker_in_menu'`).first<{ enabled: number }>())?.enabled
+  const tierOf = (f: CatalogFeature) => (qmaker && QUESTION_MAKER.has(f.key) ? 'core' : f.tier)
+  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: tierOf(f), in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
 
   type Sec = { slug: string; name: string; workspace: string; features: ReturnType<typeof feat>[] }
   type Role = { key: string; name: string; sections: Sec[] }

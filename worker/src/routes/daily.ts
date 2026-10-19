@@ -748,10 +748,19 @@ async function finishAbsenceSection(c: Ctx): Promise<Response> {
 }
 
 // ================================================================= class 360
+/** Sections Class 360 opens. With the school setting `academics.class360_own_class`
+    (module_settings 'class360_own_class') on, a class teacher sees only the
+    section(s) she is class teacher of, not every section she teaches. */
+async function class360Sections(c: Ctx, res: Resolved): Promise<string[]> {
+  if (res.classTeacherOf.length === 0) return res.sectionIds
+  const row = await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'class360_own_class'`).first<{ enabled: number }>()
+  return row?.enabled ? res.classTeacherOf : res.sectionIds
+}
+
 function registerClass360(r: Router) {
   r.get('/class/sections', 'academics.class360.view', async (c) => {
     const res = await resolveScope(c)
-    const sl = inList('sec.id', res.sectionIds)
+    const sl = inList('sec.id', await class360Sections(c, res))
     const rows = await c.db.prepare(`
       SELECT sec.id AS section_id, c.name AS class, sec.name AS section,
              (SELECT count(*) FROM enrollments e WHERE e.section_id = sec.id AND e.status = 'active') AS students_count,
@@ -767,7 +776,7 @@ function registerClass360(r: Router) {
     const sectionId = c.params.sectionId
     if (!isUUID(sectionId)) throw badRequest('invalid section id')
     const res = await resolveScope(c)
-    if (!res.allStudents && !res.sectionIds.includes(sectionId)) throw notFound('resource not found')
+    if (!res.allStudents && !(await class360Sections(c, res)).includes(sectionId)) throw notFound('resource not found')
 
     const head = await c.db.prepare(`
       SELECT sec.id, c.name AS class, sec.name AS section, sec.class_id,

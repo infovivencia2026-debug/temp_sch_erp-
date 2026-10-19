@@ -786,7 +786,8 @@ async function listStudentProgress(c: Ctx) {
   const sectionId = q.get('section_id') ?? ''
   const wantCS = q.get('class_subject_id') ?? ''
   const examId = q.get('exam_id') ?? ''
-  const wide = s.allStudents || s.anySection || s.platformAdmin
+  // Marking any section's register (attendance.write.any) is not a reason to see every class's progress.
+  const wide = s.allStudents || s.platformAdmin
   let secSql = '1'
   const secArgs: string[] = []
   let csFilter: string[] | null = null
@@ -883,7 +884,7 @@ async function pendingHomework(c: Ctx) {
   const q = c.url.searchParams
   const sectionId = q.get('section_id') ?? ''
   const wantCS = q.get('class_subject_id') ?? ''
-  const wide = s.allStudents || s.anySection || s.platformAdmin
+  const wide = s.allStudents || s.platformAdmin
   let sections: string[]
   let csFilter: string[] | null = null
   if (sectionId) {
@@ -943,7 +944,7 @@ async function studentProgressDetail(c: Ctx) {
   if (!isUUID(studentId)) throw badRequest('student_id is required')
   const en = await c.db.prepare(`SELECT section_id FROM enrollments WHERE student_id = ? AND status = 'active' LIMIT 1`).bind(studentId).first<{ section_id: string }>()
   if (!en) throw notFound('student')
-  const wide = s.allStudents || s.anySection || s.platformAdmin
+  const wide = s.allStudents || s.platformAdmin
   if (!wide && !s.sectionIds.includes(en.section_id)) throw notFound('student')
   const full = wide || s.classTeacherOf.includes(en.section_id)
   const csJSON = full ? '' : JSON.stringify(await mySubjectsIn(c, s.userId, en.section_id))
@@ -1021,7 +1022,7 @@ async function listParentContacts(c: Ctx) {
    subjects they teach in it, and the exams that have papers for that class. */
 async function progressOptions(c: Ctx) {
   const s = await resolveScope(c)
-  const wide = s.allStudents || s.anySection || s.platformAdmin
+  const wide = s.allStudents || s.platformAdmin
   const secF = wide ? { sql: '1', args: [] as string[] } : inList('sec.id', s.sectionIds)
   const [secs, subs, exams] = await c.db.batch([
     c.db.prepare(`SELECT sec.id, cl.name AS class_name, sec.name FROM sections sec JOIN classes cl ON cl.id = sec.class_id
