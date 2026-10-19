@@ -2757,7 +2757,10 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
        or a permission key like hr.payroll.write (owner, 2026-10-08: "looks
        ugly"). */
     const refused = status === 403 || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
-    const said = refused ? '' : raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
+    /* A refusal the server explains in words ("this support session can only
+       look") is shown; only a bare "forbidden" or a permission key is replaced. */
+    const bare = /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw) || !raw.includes(' ')
+    const said = refused && bare ? '' : raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
     const msg = said
       || (status === 401 ? 'Your session has ended. Sign in again.'
         : refused ? 'Your login is not allowed to do this. Ask the school admin if you need it.'
