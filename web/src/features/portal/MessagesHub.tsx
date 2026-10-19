@@ -1,4 +1,5 @@
 import { screen } from '@/lib/screen'
+import { useSession } from '@/lib/session'
 import ScreenTabs from './ScreenTabs'
 
 /* Messages: everything the school and the family say to each other, on one
@@ -13,5 +14,10 @@ const TABS = [
 ]
 
 export default function MessagesHub() {
-  return <ScreenTabs label="Messages" tabs={TABS} />
+  /* A school that has switched off "Teachers message parents directly"
+     (Settings -> Communication) gives families no Message teacher tab
+     either: the line is closed from both ends. */
+  const session = useSession()
+  const parentDMs = !session.modules?.some((m) => m.module === 'teacher_parent_messages' && !m.enabled)
+  return <ScreenTabs label="Messages" tabs={parentDMs ? TABS : TABS.filter((t) => t.key !== 'teacher')} />
 }
