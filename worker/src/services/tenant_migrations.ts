@@ -98,4 +98,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 98, name: 'feature_inbox', checksum: '39b35c2b415bda29232069fa93585af097c2689747fdce08ef4418fd43190991' },
   { version: 99, name: 'feature_mail_addresses', checksum: 'e1dda6ae8c0a10276a547062eca67464611ca5108d62655bf5dd4127d389fda3' },
   { version: 100, name: 'staff_mail', checksum: '9f4af8ac110bfc7e7d213d14e90e315af8a385a50767b82897655a961381c87f' },
+  { version: 101, name: 'exam_controller_deadline_perm', checksum: 'ba228b27bbb4af2ecb9e0d6bc9d4802980e7145448e5fe4dc3571402ccf2e6f3' },
 ]
