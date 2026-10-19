@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
+import {
+  BookOpen, Bus, CalendarDays, ChevronDown, ClipboardCheck, Contact, Dot, FileText, Home, ListChecks,
+  MessageSquare, MessageSquareText, NotebookPen, Plane, Settings2, UserRound, Users, Wallet, type LucideIcon,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { DEFAULT_ICON, SECTION_ICONS, featureIcon } from '@/features/bento/feature-icons'
-import '@/components/feature-glyph.css'
 import { PersonAvatar } from './ChatScreen'
 import { CommandSearch } from './CommandSearch'
 import Notifications from './Notifications'
@@ -28,22 +29,29 @@ export function useTodaySignIns(on: boolean) {
   })
 }
 
-/* Round coloured plates with a white glyph, the way Settings draws its rows
-   (owner, 2026-10-19: "all side panel icons like this"). The colour comes
-   from the slug, so a screen keeps its colour wherever it appears. */
-const PLATE_COLOURS = ['#5856d6', '#ff9500', '#30b0c7', '#34c759', '#007aff', '#af52de', '#ff2d55', '#0284c7', '#ff3b30', '#a2845e']
-function plateColour(slug: string): string {
-  let h = 0
-  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return PLATE_COLOURS[h % PLATE_COLOURS.length]
-}
-function Plate({ glyph, slug, size = 26 }: { glyph: string; slug: string; size?: number }) {
-  return (
-    <span aria-hidden className="grid shrink-0 place-items-center rounded-full text-white"
-      style={{ width: size, height: size, background: plateColour(slug) }}>
-      <span className="msr msr-sm normal-case tracking-normal" style={{ fontSize: Math.round(size * 0.6) }}>{glyph}</span>
-    </span>
-  )
+/* Minimal line icons (owner, 2026-10-19: "use lined minimal icons"), chosen
+   from what the group or screen is called; anything unmatched gets a plain dot. */
+const LINE_ICONS: [RegExp, LucideIcon][] = [
+  [/home|today|dashboard|overview/, Home],
+  [/timetable|calendar|schedule|period/, CalendarDays],
+  [/attendance|absen|register/, ClipboardCheck],
+  [/mark|grade|assessment|exam|result|report card|cce|question|paper/, FileText],
+  [/homework|assignment|classwork|submission/, NotebookPen],
+  [/class|student|progress|360|behaviour|detail/, Users],
+  [/remark|anecdot|ptm|note/, MessageSquareText],
+  [/message|communication|chat|status|circular|notice|concern|complaint/, MessageSquare],
+  [/leave/, Plane],
+  [/pay|salary|fee|finance|account/, Wallet],
+  [/task|work|approval/, ListChecks],
+  [/profile|my |self/, UserRound],
+  [/staff|teacher|hr|people/, Contact],
+  [/library|book|lms|learn|course|syllabus/, BookOpen],
+  [/transport|bus|route/, Bus],
+  [/setting|setup|rule|config/, Settings2],
+]
+function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
+  const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? Dot
+  return <Icon aria-hidden className="shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
 }
 
 const groupKey = (slug: string) => `erp.navGroup.${slug}`
@@ -60,18 +68,19 @@ function Group({ slug, section, name, children }: { slug: string; section: strin
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
   return (
-    <div className="pt-3 first:pt-1">
+    <div className="pt-1">
       <button type="button" onClick={toggle} aria-expanded={open}
-        className="flex min-h-[calc(32px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
-                   text-[calc(11.5px*var(--font-scale,1))] font-semibold uppercase tracking-[0.09em] text-muted-foreground
-                   transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <span className="flex min-w-0 items-center gap-2">
-          <Plate glyph={SECTION_ICONS[section] ?? DEFAULT_ICON} slug={section} size={22} />
+        className="flex min-h-[calc(38px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
+                   text-[calc(14px*var(--font-scale,1))] font-semibold text-foreground
+                   transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <LineIcon name={`${section} ${name}`} size={18} />
           <span className="truncate">{name}</span>
         </span>
-        <ChevronDown aria-hidden className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-150', !open && '-rotate-90')} />
+        <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !open && '-rotate-90')} />
       </button>
-      {open && <div className="flex flex-col">{children}</div>}
+      {/* One level in, under a guide line, so a screen reads as part of its group. */}
+      {open && <div className="ml-[19px] flex flex-col border-l pl-2">{children}</div>}
     </div>
   )
 }
@@ -97,11 +106,11 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
             {list.map((f) => (
               <NavLink key={f.key} to={featurePath(roleKey, section.slug, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => cn(
-                  'flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 py-1 text-[calc(14px*var(--font-scale,1))] transition-colors',
+                  'flex min-h-[calc(34px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
                   isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                   !f.live && !isActive && 'text-muted-foreground/70',
                 )}>
-                <Plate glyph={featureIcon(f.slug, section.slug)} slug={f.slug} />
+                <LineIcon name={`${f.slug} ${f.name}`} size={15} />
                 <span className="truncate">{label(f.name)}</span>
               </NavLink>
             ))}
