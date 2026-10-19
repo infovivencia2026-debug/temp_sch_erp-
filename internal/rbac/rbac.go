@@ -155,6 +155,9 @@ const (
 	StatusPostSchool   = "status.post_school" // feature:communication.class_status
 	HelpDeskRead       = "help.desk.read"     // feature:help.helpdesk
 	HelpDeskWrite      = "help.desk.write"    // feature:help.helpdesk
+	CommsMailRead      = "comms.mail.read"    // feature:communication.inbox
+	CommsMailWrite     = "comms.mail.write"   // feature:communication.inbox
+	CommsMailManage    = "comms.mail.manage"  // feature:communication.mail_addresses
 )
 
 // Permission is a seedable row.
@@ -264,9 +267,9 @@ var All = []Permission{
 	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
 	{HelpDeskRead, "help", "View Helpdesk"},                                                                     // feature:help.helpdesk
 	{HelpDeskWrite, "help", "Manage Helpdesk"},                                                                  // feature:help.helpdesk
-	{CommsMailRead, "comms", "View Inbox"},                                                                      // feature:communication.inbox
-	{CommsMailWrite, "comms", "Manage Inbox"},                                                                   // feature:communication.inbox
-	{CommsMailManage, "comms", "View Mail addresses"},                                                           // feature:communication.mail_addresses
+	{CommsMailRead, "comms", "View Inbox"}, // feature:communication.inbox
+	{CommsMailWrite, "comms", "Manage Inbox"}, // feature:communication.inbox
+	{CommsMailManage, "comms", "View Mail addresses"}, // feature:communication.mail_addresses
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -410,7 +413,7 @@ var SystemRoles = []Role{
 	// which carries it, so Take attendance shows for them and no one else.
 	{"hod", "HOD / Department Head", []string{
 		CommsMailWrite, // feature:communication.inbox
-		CommsMailRead,  // feature:communication.inbox
+		CommsMailRead, // feature:communication.inbox
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
 		AttendanceRead, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
@@ -471,9 +474,14 @@ var SystemRoles = []Role{
 	// widens the rows they return. This role held the widener without the
 	// opener, so its institution-wide attendance access resolved to a 403 on
 	// every attendance endpoint and the .all grant did nothing at all.
+	// ExamsApprove (owner, 2026-10-19: "there is a role Examination
+	// Controller... for that person that feature should be there" --
+	// scheduling a question-paper deadline is gated on ExamsApprove, the
+	// same permission question-paper approval already uses, and this
+	// role never held it, so its own exam screen had no deadline panel.
 	{"exam_controller", "Examination Controller", []string{
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
-		AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
+		AcademicsRead, ExamsRead, ExamsWrite, ExamsApprove, MarksWrite,
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
@@ -600,9 +608,3 @@ func keysExcept(excluded ...string) []string {
 	}
 	return out
 }
-
-const (
-	CommsMailRead   = "comms.mail.read"   // feature:communication.inbox
-	CommsMailWrite  = "comms.mail.write"  // feature:communication.inbox
-	CommsMailManage = "comms.mail.manage" // feature:communication.mail_addresses
-)

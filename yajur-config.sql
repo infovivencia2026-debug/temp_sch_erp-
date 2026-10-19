@@ -156,6 +156,15 @@ DELETE FROM role_permissions WHERE permission_key = 'self.profile.write'
    AND role_id IN (SELECT id FROM roles WHERE key NOT IN ('student', 'parent', 'seller_admin'));
 UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE key NOT IN ('student', 'parent', 'seller_admin');
 
+-- Owner, 2026-10-19: Question maker (AI paper generator + question bank) for
+-- all teaching staff by default, in the normal menu. Admins can tick it for
+-- other roles in Logins & access -> Roles -> Features.
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT r.id, k.column1 FROM roles r, (VALUES ('faculty.question_papers_online_tests.ai_examcell_paper_generator'), ('faculty.question_papers_online_tests.question_bank_management')) k
+ WHERE r.key IN ('faculty', 'class_teacher', 'hod', 'subject_head');
+INSERT INTO module_settings (institution_id, module, enabled)
+SELECT id, 'question_maker_in_menu', 1 FROM institutions WHERE 1 LIMIT 1
+ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1;
 -- ---------------------------------------------------------------------------
 -- Parent concerns go through the front desk (owner, 2026-10-20). Parents may
 -- send a concern only to the front desk staff, named; the front desk passes
