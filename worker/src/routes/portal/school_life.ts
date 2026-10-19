@@ -976,6 +976,18 @@ async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[];
   const user = c.id.userId
   const hidden = can(c.id, LEAVE_APPROVE) ? [] : ['leave_request']
   const hiddenSql = `AND n.kind NOT IN (${marks(hidden)})`
+  /* A STATUS THAT HAS GONE IS NOT NEW (Yajur, 2026-10-19: "if any message
+     or status is view dont show 1"). Opening a status already marks its bell
+     entry read; one that expired before anybody opened it stayed "1 new" for
+     ever, on a card that said "No longer showing". Read once nothing from
+     that poster is still showing. */
+  try {
+    await c.db.prepare(`UPDATE notifications SET read_at = ?2
+        WHERE user_id = ?1 AND kind = 'status' AND source_kind = 'status' AND read_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM status_posts p WHERE p.status = 'live' AND (p.pinned = 1 OR p.expires_at > ?2)
+                           AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = notifications.source_id)`)
+      .bind(user, now()).run()
+  } catch { /* no statuses here */ }
   const list = c.db.prepare(`
       SELECT n.id, n.kind, n.title, n.body, n.link, n.student_id, ${shortName('st')} AS student_name,
              n.created_at, n.read_at
