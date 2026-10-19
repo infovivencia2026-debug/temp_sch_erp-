@@ -167,6 +167,13 @@ var Groups = []Group{
 		ScopeNote: "The structure itself is school-wide; what it contains is scoped elsewhere.",
 	},
 	{
+		Key: "subject_head", Name: "Subject head", Band: BandCore,
+		Blurb:     "Heading a subject: its teachers, classes, timetable, approvals and meetings. Given and taken away with the headship.",
+		View:      []string{SubjectHead},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The subjects this person heads.",
+	},
+	{
 		Key: "timetable", Name: "Timetable", Band: BandCore,
 		Blurb:     "The period grid, teacher allocation and substitutions.",
 		View:      []string{TimetableRead},

@@ -63,7 +63,9 @@ func grantableRoles() map[string]map[[2]string]bool {
 				   are. Only this one feature, not the whole communication
 				   section — circulars and grievances are genuinely a
 				   principal's work and not a teacher's. */
-				if f.Slug == "messages" {
+				/* The Inbox likewise: every member of staff has their own mailbox,
+				   held as a person, whatever role they hold. */
+				if f.Slug == "messages" || f.Slug == "inbox" {
 					continue
 				}
 				set[[2]string{sec.Slug, f.Slug}] = true
