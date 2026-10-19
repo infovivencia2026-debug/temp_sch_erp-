@@ -923,13 +923,14 @@ async function runPayroll(c: Ctx) {
        ORDER BY e.employee_code`).bind(key, `${key}-01`).all<{ id: string; code: string; name: string; ctc_paise: number; marked: string | null }>()).results
     const gap = rows.map((g) => {
       const have = new Set((g.marked ?? '').split(',').map((x) => x.slice(0, 10)))
-      return { ...g, missing: workDays.filter((d) => !have.has(d)).length }
+      const days = workDays.filter((d) => !have.has(d))
+      return { ...g, missing: days.length, days }
     }).filter((g) => g.missing > 0 && !excluded.has(g.id))
     if (gap.length > 0) {
       throw new HttpError(409,
         `${gap.length} staff have working days with no attendance marked this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
         { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.reduce((a, g) => a + g.missing, 0),
-          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, unmarked_days: g.missing, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
+          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, unmarked_days: g.missing, unmarked_dates: g.days, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
     }
   }
 

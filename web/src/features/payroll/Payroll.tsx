@@ -48,7 +48,7 @@ function lopReasons(w: Payslip['why']): string[] {
   if (w.free_leave_used) out.push(`${w.free_leave_used} forgiven`)
   return out
 }
-interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number; unmarked_days?: number }
+interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number; unmarked_days?: number; unmarked_dates?: string[] }
 interface Unmarked { staff_with_no_marks: number; unmarked_days: number; staff?: UnmarkedStaff[] }
 
 const MONTHS = ['January','February','March','April','May','June',
@@ -315,7 +315,7 @@ export default function Payroll() {
         {unmarked && (
           <Card>
             <CardHeader
-              title={`${unmarked.staff_with_no_marks} ${unmarked.staff_with_no_marks === 1 ? 'person has' : 'people have'} no attendance this month`}
+              title={`${unmarked.staff_with_no_marks} ${unmarked.staff_with_no_marks === 1 ? 'person has' : 'people have'} days with no attendance marked`}
               description="Nobody marked their register, so they would be paid in full with no loss of pay. Untick anyone who should not be paid this month, or mark their attendance first on Staff register."
             />
             {(unmarked.staff ?? []).length > 0 && (
@@ -328,7 +328,15 @@ export default function Payroll() {
                     </Td>
                     <Td className="font-mono text-[12px]">{s.code}</Td>
                     <Td className="font-medium">{s.name}</Td>
-                    <Td className="tabular-nums">{s.unmarked_days ?? '-'}</Td>
+                    <Td className="tabular-nums">
+                      {s.unmarked_days ?? '-'}
+                      {/* Which days (owner, 2026-10-19: "show how many days didnt mark"). */}
+                      {!!s.unmarked_dates?.length && (
+                        <span className="ml-2 text-[12px] text-muted-foreground">
+                          {s.unmarked_dates.map((d) => Number(d.slice(8, 10))).join(', ')}
+                        </span>
+                      )}
+                    </Td>
                     <Td className="tabular-nums">{s.monthly_paise ? formatPaise(s.monthly_paise) : '-'}</Td>
                   </tr>
                 ))}
