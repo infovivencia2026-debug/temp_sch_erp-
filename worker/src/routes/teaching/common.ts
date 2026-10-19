@@ -57,8 +57,11 @@ export async function resolveScope(c: Ctx): Promise<Scope> {
 
 async function resolveUncached(c: Ctx): Promise<Scope> {
   const id = c.id
+  // A platform admin acting outside any school (the seller console, a support
+  // login's ticket queue) has no institutionId: institutionId(c) throws for
+  // that case, so it is read only once a school is known to be in scope.
   const s: Scope = {
-    userId: id.userId, institutionId: institutionId(c), platformAdmin: id.platformAdmin,
+    userId: id.userId, institutionId: id.institution ? institutionId(c) : '', platformAdmin: id.platformAdmin,
     campusIds: [], departmentIds: [], sectionIds: [], classTeacherOf: [], studentIds: [], teaches: false,
     allStudents: can(id, 'students.read.all'), allAttendance: can(id, 'academics.attendance.read.all'),
     anySection: can(id, 'academics.attendance.write.any'), allCampuses: false,
