@@ -1,7 +1,7 @@
 import type { Ctx, Router } from '../router'
 import { HttpError, badRequest, bool, created, isUUID, ok, readJSON, uuid, now } from '../http'
 import {
-  SECTION_SET_SQL, academicYearStart, batch, can, coded, forbiddenMsg, indiaToday, inst, isClassTeacherOf,
+  academicYearStart, batch, can, coded, forbiddenMsg, indiaToday, inst, isClassTeacherOf,
   isForeignKeyViolation, nullStr, parseJSON, resolveScope, str, workingYearSQL,
 } from './students/common'
 import { registerAdminAcademics } from './academics/admin'
@@ -234,7 +234,7 @@ async function listSections(c: Ctx) {
     if (m === 'class_teacher') { mine = 'sec.class_teacher_id = ?'; args.push(c.id.userId) }
     else if (!scope.anySection) {
       if (ids.length === 0) mine = '0'
-      else { mine = `sec.id IN (${SECTION_SET_SQL})`; args.push(c.id.userId, c.id.userId, c.id.userId, c.id.userId) }
+      else { mine = `sec.id IN (SELECT value FROM json_each(?))`; args.push(JSON.stringify(ids)) }
     }
   }
   const rows = await c.db.prepare(`
@@ -252,9 +252,10 @@ async function listSubjects(c: Ctx) {
   if (c.url.searchParams.get('mine') === 'true') {
     const scope = await resolveScope(c)
     if (!scope.anySection && !scope.platformAdmin) {
-      args.push(c.id.userId, c.id.userId)
+      args.push(c.id.userId, c.id.userId, c.id.userId)
       where = `(EXISTS (SELECT 1 FROM class_subjects cs JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id WHERE cs.subject_id = subjects.id AND sst.teacher_user_id = ?)
-             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = ?))`
+             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = ?)
+             OR EXISTS (SELECT 1 FROM subject_heads h WHERE h.subject_id = subjects.id AND h.head_user_id = ?))`
     }
   }
   const rows = await c.db.prepare(`SELECT id, name, code, is_scholastic FROM subjects WHERE ${where} ORDER BY name`).bind(...args).all<Record<string, unknown>>()

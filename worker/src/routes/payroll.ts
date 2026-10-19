@@ -6,6 +6,7 @@ import { school } from './school'
 import { requireFresh } from './fees/common'
 import { MONTHS, coded, daysInMonth, dateOf, inList, items, js, minuteOf, nameOf, nowIST, num, numOr0, pad2, requireOpenMonth,
   resolveScope, str, todayIST, uuidsOf } from './exams/common'
+import { staffHolidays } from './daily'
 import { staffHolidayChecker } from './hr/staff_holidays'
 
 /* Port of the /communication, /timetable-admin, /compliance and /payroll
@@ -897,19 +898,38 @@ async function runPayroll(c: Ctx) {
     /* Only people this run would pay: staff with no salary in force are not
        paid at all, so their empty register is not a question. Each is named,
        with the pay they would get in full, so the choice is about people. */
-    const gap = (await c.db.prepare(`
-      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name, ss.ctc_paise
+    /* EVERY WORKING DAY, NOT ANY DAY (Yajur, 2026-10-19: "after mark
+       attendance ... dont show names if they didnt mark whole month still
+       show that"). Someone was listed only with no mark at all in the month,
+       so one marked day took them off the list with three weeks still empty.
+       Now: listed while any working day so far -- Sundays and school
+       holidays left out -- has no mark, and gone once every one has. */
+    const lastDay = `${key}-${pad2(daysInMonth(year, month))}`
+    const upTo = todayIST() < lastDay ? todayIST() : lastDay
+    const hol = await staffHolidays(c.db, `${key}-01`, upTo)
+    const workDays: string[] = []
+    for (let d = 1; d <= daysInMonth(year, month); d++) {
+      const day = `${key}-${pad2(d)}`
+      if (day > upTo) break
+      if (new Date(day + 'T00:00:00Z').getUTCDay() === 0 || hol.has(day)) continue
+      workDays.push(day)
+    }
+    const rows = (await c.db.prepare(`
+      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name, ss.ctc_paise,
+             (SELECT group_concat(sa.on_date) FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1 AND sa.status IS NOT NULL) AS marked
         FROM employees e
         JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?2 AND (ss.effective_to IS NULL OR ss.effective_to >= ?2)
        WHERE e.status = 'active' AND e.user_id IS NOT NULL
-         AND NOT EXISTS (SELECT 1 FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1)
-       ORDER BY e.employee_code`).bind(key, `${key}-01`).all<{ id: string; code: string; name: string; ctc_paise: number }>()).results
-      .filter((g) => !excluded.has(g.id))
+       ORDER BY e.employee_code`).bind(key, `${key}-01`).all<{ id: string; code: string; name: string; ctc_paise: number; marked: string | null }>()).results
+    const gap = rows.map((g) => {
+      const have = new Set((g.marked ?? '').split(',').map((x) => x.slice(0, 10)))
+      return { ...g, missing: workDays.filter((d) => !have.has(d)).length }
+    }).filter((g) => g.missing > 0 && !excluded.has(g.id))
     if (gap.length > 0) {
       throw new HttpError(409,
-        `${gap.length} staff have no attendance marked for this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
-        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.length * daysInMonth(year, month),
-          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
+        `${gap.length} staff have working days with no attendance marked this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
+        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.reduce((a, g) => a + g.missing, 0),
+          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, unmarked_days: g.missing, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
     }
   }
 

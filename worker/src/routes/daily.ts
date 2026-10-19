@@ -1677,7 +1677,8 @@ async function publishHomework(c: Ctx): Promise<Response> {
   const kind = req.kind || 'homework'
   if (!WORK_KINDS[kind]) throw badRequest('type of work must be one of: homework, classwork, assignment, project')
   const res = await resolveScope(c)
-  if (!canMarkSection(res, sectionId)) throw forbidden('missing permission: homework for this section')
+  // Homework: any section the person teaches or heads the subject of, not only their own class.
+  if (!canMarkSection(res, sectionId) && !res.sectionIds.includes(sectionId)) throw forbidden('missing permission: homework for this section')
   const allow = req.allow_submission ?? true
 
   let classSubject: string | null = nul(req.class_subject_id ?? '')

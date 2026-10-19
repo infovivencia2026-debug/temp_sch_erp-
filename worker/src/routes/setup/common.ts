@@ -275,7 +275,7 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'access.roles.write', 'access.sessions.revoke', 'admin.audit.read', 'admin.jobs.read', 'admin.jobs.enqueue',
     'institution.integrations.write', 'institution.settings.write', 'institution.read', ...SELF] },
   hod: { name: 'HOD / Department Head', permissions: ['students.read', 'academics.read', 'academics.write',
-    'academics.timetable.read', 'academics.timetable.write', 'academics.attendance.read', 'academics.attendance.write',
+    'academics.timetable.read', 'academics.timetable.write', 'academics.attendance.read',
     'academics.homework.write', 'academics.exams.read', 'academics.exams.approve', 'academics.marks.write',
     'admin.reports.read', 'hr.employees.read', 'hr.leave.approve', 'comms.announcements.write', 'academics.class360.view',
     'comms.messages.read.all', ...SELF] },

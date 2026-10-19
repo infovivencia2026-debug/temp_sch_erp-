@@ -397,9 +397,12 @@ var SystemRoles = []Role{
 	   HomeworkWrite and AttendanceWrite are what the classroom half of the job
 	   needs. Every HOD in an Indian school still has a timetable; a role that
 	   assumes otherwise describes an administrator, not a head of department. */
+	// No AttendanceWrite (owner, 2026-10-19: "no need of attendance if they are
+	// not a class teacher"): a HOD who runs a class also holds Class Teacher,
+	// which carries it, so Take attendance shows for them and no one else.
 	{"hod", "HOD / Department Head", []string{
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
-		AttendanceRead, AttendanceWrite, HomeworkWrite,
+		AttendanceRead, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
 		EmployeesRead, LeaveApprove, AnnouncementsWrite, Class360Read,
 		/* What their own teachers said to families, and what families said
