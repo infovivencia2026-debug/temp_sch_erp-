@@ -28,6 +28,24 @@ export function useTodaySignIns(on: boolean) {
   })
 }
 
+/* Round coloured plates with a white glyph, the way Settings draws its rows
+   (owner, 2026-10-19: "all side panel icons like this"). The colour comes
+   from the slug, so a screen keeps its colour wherever it appears. */
+const PLATE_COLOURS = ['#5856d6', '#ff9500', '#30b0c7', '#34c759', '#007aff', '#af52de', '#ff2d55', '#0284c7', '#ff3b30', '#a2845e']
+function plateColour(slug: string): string {
+  let h = 0
+  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return PLATE_COLOURS[h % PLATE_COLOURS.length]
+}
+function Plate({ glyph, slug, size = 26 }: { glyph: string; slug: string; size?: number }) {
+  return (
+    <span aria-hidden className="grid shrink-0 place-items-center rounded-full text-white"
+      style={{ width: size, height: size, background: plateColour(slug) }}>
+      <span className="msr msr-sm normal-case tracking-normal" style={{ fontSize: Math.round(size * 0.6) }}>{glyph}</span>
+    </span>
+  )
+}
+
 const groupKey = (slug: string) => `erp.navGroup.${slug}`
 /* Closed until opened (owner, 2026-10-19: "as default close all dropdowns"). */
 function readOpen(slug: string): boolean {
@@ -48,7 +66,7 @@ function Group({ slug, section, name, children }: { slug: string; section: strin
                    text-[calc(11.5px*var(--font-scale,1))] font-semibold uppercase tracking-[0.09em] text-muted-foreground
                    transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className="msr msr-sm shrink-0 normal-case tracking-normal">{SECTION_ICONS[section] ?? DEFAULT_ICON}</span>
+          <Plate glyph={SECTION_ICONS[section] ?? DEFAULT_ICON} slug={section} size={22} />
           <span className="truncate">{name}</span>
         </span>
         <ChevronDown aria-hidden className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-150', !open && '-rotate-90')} />
@@ -83,7 +101,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
                   isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                   !f.live && !isActive && 'text-muted-foreground/70',
                 )}>
-                <span aria-hidden className="msr msr-sm shrink-0">{featureIcon(f.slug, section.slug)}</span>
+                <Plate glyph={featureIcon(f.slug, section.slug)} slug={f.slug} />
                 <span className="truncate">{label(f.name)}</span>
               </NavLink>
             ))}
