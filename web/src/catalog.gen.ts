@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 435 features. */
+/** 24 roles, 418 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -128,9 +128,7 @@ export const ROLES: Role[] = [
         workspace: 'Institution Setup',
         features: [
           { key: 'super_admin.institution_setup.institutions_campuses', slug: 'institutions_campuses', name: 'Institutions & campuses', scope: 'platform', tier: 'core', summary: 'Create/edit institution and campuses; address, timezone, academic model, contact details and status.' },
-          { key: 'super_admin.institution_setup.academic_year_defaults', slug: 'academic_year_defaults', name: 'Academic year defaults', scope: 'platform', tier: 'core', summary: 'Set active academic year/term defaults per campus; actual academic structure remains with institution admins.' },
           { key: 'super_admin.institution_setup.branding', slug: 'branding', name: 'Branding', scope: 'platform', tier: 'core', summary: 'Logo, institution name, colors and portal identity per tenant/campus.' },
-          { key: 'super_admin.institution_setup.school_settings', slug: 'school_settings', name: 'School settings', scope: 'institution', tier: 'core', summary: 'Institution profile, campuses, academic year and numbering.' },
         ],
       },
       {
@@ -142,7 +140,6 @@ export const ROLES: Role[] = [
           { key: 'super_admin.access_security.roles_permissions', slug: 'roles_permissions', name: 'Roles & permissions', scope: 'platform', tier: 'core', summary: 'Assign roles and define data scope such as institution, campus, department, class or self.' },
           { key: 'super_admin.access_security.login_session_audit', slug: 'login_session_audit', name: 'Login & session audit', scope: 'platform', tier: 'core', summary: 'View login history, active sessions and suspicious access.' },
           { key: 'super_admin.access_security.sso_mfa', slug: 'sso_mfa', name: 'SSO / MFA', scope: 'platform', tier: 'core', summary: 'Configure single sign-on and multi-factor authentication when required.' },
-          { key: 'super_admin.access_security.user_directory', slug: 'user_directory', name: 'User directory', scope: 'institution', tier: 'core', summary: 'Create, search, suspend and reset accounts across the school.' },
         ],
       },
       {
@@ -199,7 +196,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'super_admin.statutory_boards.sqaa_framework_management', slug: 'sqaa_framework_management', name: 'SQAA Framework Management', scope: 'platform', tier: 'advanced', summary: 'Configure School Quality Assessment and Assurance standards and self-assessment checklists.' },
           { key: 'super_admin.statutory_boards.udise_data_sync', slug: 'udise_data_sync', name: 'UDISE+ Data Sync', scope: 'platform', tier: 'advanced', summary: 'Map school, student, teacher and facility fields to the UDISE+ return format and validate data integrity before submission.' },
-          { key: 'super_admin.statutory_boards.apaar_id_provisioning', slug: 'apaar_id_provisioning', name: 'APAAR ID Provisioning', scope: 'platform', tier: 'advanced', summary: 'Generate and reconcile APAAR (One Nation One Student) IDs against Aadhaar and the UDISE+ register.' },
           { key: 'super_admin.statutory_boards.digilocker_issuer_integration', slug: 'digilocker_issuer_integration', name: 'DigiLocker Issuer Integration', scope: 'platform', tier: 'advanced', summary: 'Not buildable here: needs NeGD issuer onboarding and DigiLocker\'s pull API credentials, which this deployment does not hold. Push transfer certificates, report cards and mark sheets as verifiable documents.' },
           { key: 'super_admin.statutory_boards.board_affiliation_disclosure', slug: 'board_affiliation_disclosure', name: 'Board Affiliation & Disclosure', scope: 'platform', tier: 'core', summary: 'Maintain CBSE/ICSE/State affiliation numbers, mandatory public disclosure documents and renewal dates.' },
           { key: 'super_admin.statutory_boards.state_board_configuration', slug: 'state_board_configuration', name: 'State Board Configuration', scope: 'platform', tier: 'advanced', summary: 'Select the state education board (BSE Telangana SSC, TSBIE Intermediate, CBSE, ICSE) and its grading and assessment rules.' },
@@ -214,7 +210,6 @@ export const ROLES: Role[] = [
         workspace: 'Platform Setup',
         features: [
           { key: 'super_admin.operations.data_backup_restore', slug: 'data_backup_restore', name: 'Data Backup & Restore', scope: 'platform', tier: 'core', summary: 'The backup policy each school is held to (how often, how long kept) and the register of backups reported against it, with a warning when the newest restore point is older than the policy allows. Restores are done by the operator, not from this screen.' },
-          { key: 'super_admin.operations.system_health_integration_alerts', slug: 'system_health_integration_alerts', name: 'System Health & Integration Alerts', scope: 'platform', tier: 'core', summary: 'Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors.' },
         ],
       },
       {
@@ -270,7 +265,6 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.students.student_photographs', slug: 'student_photographs', name: 'Student photographs', scope: 'institution', tier: 'core', summary: 'The photographer\'s folder attached to children in one go, matched by admission number. Photographs print on the ID card and on the report card.' },
           { key: 'institution_admin.students.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from.' },
           { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
-          { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
           { key: 'institution_admin.students.groups_lists', slug: 'groups_lists', name: 'Groups & lists', scope: 'institution', tier: 'core', summary: 'The school\'s own groupings, the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.' },
           { key: 'institution_admin.students.class_360', slug: 'class_360', name: 'Class 360', scope: 'institution', tier: 'core', summary: 'One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status, with quick actions to mark attendance, enter marks, edit or move a student.' },
         ],
@@ -344,7 +338,6 @@ export const ROLES: Role[] = [
         workspace: 'Reports',
         features: [
           { key: 'institution_admin.standard.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Core enrollment, attendance, academic, fee and staff reports.' },
-          { key: 'institution_admin.standard.attendance_overview', slug: 'attendance_overview', name: 'Attendance Overview', scope: 'institution', tier: 'core', summary: 'School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.' },
           { key: 'institution_admin.standard.fee_collection', slug: 'fee_collection', name: 'Fee Collection', scope: 'institution', tier: 'core', summary: 'Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.' },
           { key: 'institution_admin.standard.returns_readiness', slug: 'returns_readiness', name: 'Returns readiness', scope: 'institution', tier: 'core', summary: 'What UDISE+, APAAR, the RTE register and the staff training return still need from this school, counted today and named by the screen it is filled on, so nothing is found missing in the month the return is due.' },
           { key: 'institution_admin.standard.scheduled_digests', slug: 'scheduled_digests', name: 'Scheduled digests', scope: 'institution', tier: 'core', summary: 'Turn the daily and weekly report digest on or off, choose which reports it carries, attendance, fees, admissions, staff, and which channels each goes out on. Board members and admins receive it automatically.' },
@@ -355,7 +348,6 @@ export const ROLES: Role[] = [
         name: 'Staff',
         workspace: 'Staff',
         features: [
-          { key: 'institution_admin.staff.leaves_subs', slug: 'leaves_subs', name: 'Leaves & Subs', scope: 'institution', tier: 'core', summary: 'Leave the department heads have passed up, and long leave that needs the principal\'s signature. Shows who is away today across the school and which periods are still uncovered.' },
           { key: 'institution_admin.staff.roles_permissions', slug: 'roles_permissions', name: 'Roles & permissions', scope: 'institution', tier: 'core', summary: 'Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it.' },
           { key: 'institution_admin.staff.logins_access', slug: 'logins_access', name: 'Logins & access', scope: 'institution', tier: 'core', summary: 'Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person.' },
           { key: 'institution_admin.staff.privacy', slug: 'privacy', name: 'Privacy', scope: 'institution', tier: 'core', summary: 'Who hears about a child (the primary guardian only, or every linked adult), whether a new login\'s password travels by email only, and where a guardian\'s portal access is ended or blocked. Links the privacy notice families are shown.' },
@@ -787,21 +779,14 @@ export const ROLES: Role[] = [
         name: 'Library',
         workspace: 'Library',
         features: [
-          { key: 'librarian.library.book_cataloging_accession_register', slug: 'book_cataloging_accession_register', name: 'Book Cataloging & Accession Register', scope: 'campus', tier: 'core', summary: 'Maintain master book register, ISBN numbers, author, publisher, genre, and rack location.' },
-          { key: 'librarian.library.barcode_spine_label_printing', slug: 'barcode_spine_label_printing', name: 'Barcode & Spine Label Printing', scope: 'campus', tier: 'core', summary: 'Generate and print custom barcode labels and spine call tags for library books.' },
-          { key: 'librarian.library.book_issue_return_terminal', slug: 'book_issue_return_terminal', name: 'Book Issue & Return Terminal', scope: 'campus', tier: 'core', summary: 'Scan student ID and book barcode to issue or return books in <5 seconds.' },
-          { key: 'librarian.library.book_reservation_queue', slug: 'book_reservation_queue', name: 'Book Reservation Queue', scope: 'campus', tier: 'core', summary: 'Auto-notify students when a reserved book is returned and available for collection.' },
           { key: 'librarian.library.fine_penalty_summary', slug: 'fine_penalty_summary', name: 'Fine & Penalty Summary', scope: 'campus', tier: 'core', summary: 'Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed.' },
           { key: 'librarian.library.opac_digital_book_search', slug: 'opac_digital_book_search', name: 'OPAC Digital Book Search', scope: 'campus', tier: 'core', summary: 'Online Public Access Catalog for students to search book availability and reserve books.' },
           { key: 'librarian.library.digital_library_usage', slug: 'digital_library_usage', name: 'Digital Library Usage', scope: 'campus', tier: 'core', summary: 'Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month.' },
           { key: 'librarian.library.annual_book_stock_verification', slug: 'annual_book_stock_verification', name: 'Annual Book Stock Verification', scope: 'campus', tier: 'core', summary: 'The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year\'s stock record.' },
           { key: 'librarian.library.new_session_textbook_orders', slug: 'new_session_textbook_orders', name: 'New Session Textbook Orders', scope: 'campus', tier: 'advanced', summary: 'Next year\'s textbook requirement, class by class against the roll, for the principal to approve before it is ordered.' },
           { key: 'librarian.library.books_copies', slug: 'books_copies', name: 'Books & copies', scope: 'campus', tier: 'core', summary: 'Titles, editions and the individual copies held against each.' },
-          { key: 'librarian.library.accession_register', slug: 'accession_register', name: 'Accession register', scope: 'campus', tier: 'core', summary: 'The statutory accession register, with barcode and spine label printing.' },
-          { key: 'librarian.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
           { key: 'librarian.library.reservations', slug: 'reservations', name: 'Reservations', scope: 'campus', tier: 'core', summary: 'Holds placed by students and staff, and who is next in the queue.' },
           { key: 'librarian.library.reading_levels', slug: 'reading_levels', name: 'Reading levels', scope: 'campus', tier: 'core', summary: 'Each child\'s measured reading level and when it was measured, who has never been measured or is overdue, and how many titles the library holds at each level, so a child is handed a book they can read.' },
-          { key: 'librarian.library.fines', slug: 'fines', name: 'Fines', scope: 'campus', tier: 'core', summary: 'Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it.' },
         ],
       },
       {
@@ -1289,7 +1274,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'admissions.enquiries.enquiries', slug: 'enquiries', name: 'Enquiries', scope: 'institution', tier: 'core', summary: 'Every enquiry the school has taken, walk-in, telephone, website or referral, with the child, the class sought, the parent\'s number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there.' },
           { key: 'admissions.enquiries.assign_leads', slug: 'assign_leads', name: 'Assign Leads', scope: 'institution', tier: 'core', summary: 'Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once, so a Monday morning\'s forty enquiries are shared out in one action rather than opened one at a time.' },
-          { key: 'admissions.enquiries.follow_up_calls', slug: 'follow_up_calls', name: 'Follow-up Calls', scope: 'institution', tier: 'core', summary: 'The calls you owe parents today about their enquiry: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row.' },
           { key: 'admissions.enquiries.24_7_admission_chatbot', slug: '24_7_admission_chatbot', name: '24/7 Admission Chatbot', scope: 'institution', tier: 'optional', summary: 'Not buildable here: answering tuition and syllabus questions needs a language model this deployment does not have; the public enquiry form already captures leads. Web widget chatbot.' },
           { key: 'admissions.enquiries.ai_voice_agent_integration', slug: 'ai_voice_agent_integration', name: 'AI Voice Agent Integration', scope: 'institution', tier: 'optional', summary: 'Not buildable here: outbound voice calls need a telephony vendor and a speech model, neither of which this deployment holds. Confirm entrance exam attendance or follow up by call.' },
           { key: 'admissions.enquiries.campus_visits', slug: 'campus_visits', name: 'Campus Visits', scope: 'institution', tier: 'core', summary: 'Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice.' },
@@ -1675,14 +1659,6 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'parent.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'children', tier: 'core', summary: 'Your child\'s day on one page: attendance, fees, homework and what the school has said, with anything waiting on you at the top. Switch children from the same page if you have more than one.' },
-        ],
-      },
-      {
-        slug: 'attendance',
-        name: 'Attendance',
-        workspace: 'My Child',
-        features: [
-          { key: 'parent.attendance.attendance', slug: 'attendance', name: 'Attendance', scope: 'children', tier: 'core', summary: 'Daily/monthly attendance and absence history for the selected child.' },
         ],
       },
       {

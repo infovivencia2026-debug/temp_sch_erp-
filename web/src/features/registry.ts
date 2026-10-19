@@ -93,7 +93,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      step will look for it where they last saw it. */
   'institution_admin.getting_started.school_setup': screen(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': screen(() => import('./setup/Wizard')),
-  'super_admin.institution_setup.academic_year_defaults': screen(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': screen(() => import('./setup/ImportStudents')),
   'institution_admin.students.certificates_transfers': screen(() => import('./lifecycle/Certificates')),
   // The desk builds the application form the city fills in.
@@ -147,7 +146,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.staff.branding': screen(() => import('./super_admin/Branding')),
   'super_admin.platform_configuration.module_configuration': screen(() => import('./super_admin/ModuleConfiguration')),
   'super_admin.access_security.login_session_audit': screen(() => import('./super_admin/SessionAudit')),
-  'super_admin.operations.system_health_integration_alerts': screen(() => import('./shared/Jobs')),
   // Approvals — one queue for leave, corrections and concessions.
   'institution_admin.approvals.approvals': screen(() => import('./workflow/Approvals')),
 
@@ -191,7 +189,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
 
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.standard.attendance_overview': screen(() => import('./principal/AttendanceMonitoring')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
   'faculty.home.my_calendar': screen(() => import('./faculty/MyCalendar')),
 
@@ -274,11 +271,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      entry for something that is not a screen — the notifications already
      arrive, on the bell and on the phone, and a page about them tells somebody
      what is already happening to them. */
-  'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'admissions.reports.admission_reports': screen(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.admissions_pipeline': screen(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': screen(() => import('./exams/Gradebook')),
-  'institution_admin.students.academic_performance': screen(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': screen(() => import('./portal/StudentResults')),
   'parent.academics.results_report_cards': screen(() => import('./portal/Results')),
   'student.exams_results.hall_ticket': screen(() => import('./exams/HallTicket')),
@@ -313,7 +308,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Circulars · Message teacher · Concerns, as tabs of one row (MessagesHub).
   'parent.messages.communication': screen(() => import('./portal/MessagesHub')),
   'super_admin.statutory_boards.udise_data_sync': screen(() => import('./compliance/UDISE')),
-  'super_admin.statutory_boards.apaar_id_provisioning': screen(() => import('./compliance/UDISE')),
 
   /* --- the six workspaces added for roles that had permissions and no menu --
 
@@ -365,7 +359,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the system rather than the question; two had no entry on this menu at
      all, so a principal could not see who was away or who was behind on fees
      without borrowing HR's or the accountant's screen. */
-  'institution_admin.staff.leaves_subs': screen(() => import('./workflow/Approvals')),
   'institution_admin.fees.fee_default': screen(() => import('./finance/Defaulters')),
   'institution_admin.communication.messages': screen(() => import('./comms/StaffMessages')),
   /* The other end of the same conversation.
@@ -463,19 +456,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      circulation list and the overdue list are tabs rather than three menu
      entries that would each open the same data. */
   'librarian.library.books_copies': screen(() => import('./operations/Library')),
-  'librarian.library.book_cataloging_accession_register': screen(() => import('./operations/Library')),
-  'librarian.library.accession_register': screen(() => import('./operations/Library')),
-  'librarian.library.issue_return': screen(() => import('./operations/Library')),
-  'librarian.library.book_issue_return_terminal': screen(() => import('./operations/Library')),
-  'librarian.library.fines': screen(() => import('./operations/Library')),
   // opac_digital_book_search is the digital catalogue: see digital-library-keys.ts.
 
   /* The rest of a librarian's year, kept off the issue counter: the hold
      queue, the annual stock audit, the textbook indent and the label sheet.
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
   'librarian.library.reservations': screen(() => import('./operations/LibraryDesk')),
-  'librarian.library.book_reservation_queue': screen(() => import('./operations/LibraryDesk')),
-  'librarian.library.barcode_spine_label_printing': screen(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
      existed for this and only the list had a caller, so an application could
@@ -486,7 +472,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries': screen(() => import('./admissions/Enquiries')),
-  'admissions.enquiries.follow_up_calls': screen(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': screen(() => import('./hr/Leave')),
@@ -558,8 +543,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      alerts — so the section listed seven doors into one room. */
   'super_admin.dashboard.dashboard': screen(() => import('./super_admin/PlatformDashboard')),
   'super_admin.dashboard.system_health': screen(() => import('./shared/Jobs')),
-  'super_admin.access_security.user_directory': screen(() => import('./super_admin/Users')),
-  'super_admin.institution_setup.school_settings': screen(() => import('./setup/Wizard')),
 
   /* Domains built in parallel hand over their own key map rather than editing
      this file, so several screens can land at once without several agents

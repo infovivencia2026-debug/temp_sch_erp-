@@ -80,23 +80,23 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 435 features.
+// Roles is the catalog: 24 roles, 418 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
 		Name: "Seller Admin",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "seller_admin.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used, with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once."},
 				},
 			},
 			{
-				Slug:      "schools",
-				Name:      "Schools",
+				Slug: "schools",
+				Name: "Schools",
 				Workspace: "Schools",
 				Features: []Feature{
 					{Key: "seller_admin.schools.schools", Slug: "schools", Name: "Schools", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support."},
@@ -106,8 +106,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "delivery",
-				Name:      "Delivery",
+				Slug: "delivery",
+				Name: "Delivery",
 				Workspace: "Settings",
 				Features: []Feature{
 					{Key: "seller_admin.delivery.password_reset_delivery", Slug: "password_reset_delivery", Name: "Password Reset Delivery", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own email server and SMS channel, through which every school's password-reset links are sent. A school configures nothing for its staff and parents to get back in."},
@@ -115,8 +115,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "subscriptions_billing",
-				Name:      "Subscriptions & Billing",
+				Slug: "subscriptions_billing",
+				Name: "Subscriptions & Billing",
 				Workspace: "Subscriptions & Billing",
 				Features: []Feature{
 					{Key: "seller_admin.subscriptions_billing.plans_pricing", Slug: "plans_pricing", Name: "Plans & Pricing", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Define plans with a student cap, included modules and an annual or per-student price."},
@@ -126,16 +126,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "entitlements",
-				Name:      "Entitlements",
+				Slug: "entitlements",
+				Name: "Entitlements",
 				Workspace: "Entitlements",
 				Features: []Feature{
 					{Key: "seller_admin.entitlements.module_entitlement_matrix", Slug: "module_entitlement_matrix", Name: "Module Entitlement Matrix", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Which modules each plan and each school may use; switching one off hides it from that school's navigation."},
 				},
 			},
 			{
-				Slug:      "usage_health",
-				Name:      "Usage & Health",
+				Slug: "usage_health",
+				Name: "Usage & Health",
 				Workspace: "Usage & Health",
 				Features: []Feature{
 					{Key: "seller_admin.usage_health.adoption_metrics", Slug: "adoption_metrics", Name: "Adoption Metrics", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Sign-ins, active users and transactions per school per week, the leading indicator of renewal."},
@@ -144,8 +144,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "support",
-				Name:      "Support",
+				Slug: "support",
+				Name: "Support",
 				Workspace: "Support",
 				Features: []Feature{
 					{Key: "seller_admin.support.support", Slug: "support", Name: "Support", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Tickets raised by schools, with the tenant, severity, owner and time open."},
@@ -161,8 +161,8 @@ var Roles = []Role{
 		Name: "Super Admin",
 		Sections: []Section{
 			{
-				Slug:      "dashboard",
-				Name:      "Dashboard",
+				Slug: "dashboard",
+				Name: "Dashboard",
 				Workspace: "Dashboard",
 				Features: []Feature{
 					{Key: "super_admin.dashboard.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Every campus on one page, roll, staff, attendance taken today, fees collected and outstanding, ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it."},
@@ -170,31 +170,28 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "institution_setup",
-				Name:      "Institution Setup",
+				Slug: "institution_setup",
+				Name: "Institution Setup",
 				Workspace: "Institution Setup",
 				Features: []Feature{
 					{Key: "super_admin.institution_setup.institutions_campuses", Slug: "institutions_campuses", Name: "Institutions & campuses", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create/edit institution and campuses; address, timezone, academic model, contact details and status."},
-					{Key: "super_admin.institution_setup.academic_year_defaults", Slug: "academic_year_defaults", Name: "Academic year defaults", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Set active academic year/term defaults per campus; actual academic structure remains with institution admins."},
 					{Key: "super_admin.institution_setup.branding", Slug: "branding", Name: "Branding", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Logo, institution name, colors and portal identity per tenant/campus."},
-					{Key: "super_admin.institution_setup.school_settings", Slug: "school_settings", Name: "School settings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Institution profile, campuses, academic year and numbering."},
 				},
 			},
 			{
-				Slug:      "access_security",
-				Name:      "Access & Security",
+				Slug: "access_security",
+				Name: "Access & Security",
 				Workspace: "Access & Security",
 				Features: []Feature{
 					{Key: "super_admin.access_security.users", Slug: "users", Name: "Users", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create, activate, suspend and search users."},
 					{Key: "super_admin.access_security.roles_permissions", Slug: "roles_permissions", Name: "Roles & permissions", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Assign roles and define data scope such as institution, campus, department, class or self."},
 					{Key: "super_admin.access_security.login_session_audit", Slug: "login_session_audit", Name: "Login & session audit", Scope: Scope("platform"), Tier: Tier("core"), Summary: "View login history, active sessions and suspicious access."},
 					{Key: "super_admin.access_security.sso_mfa", Slug: "sso_mfa", Name: "SSO / MFA", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Configure single sign-on and multi-factor authentication when required."},
-					{Key: "super_admin.access_security.user_directory", Slug: "user_directory", Name: "User directory", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Create, search, suspend and reset accounts across the school."},
 				},
 			},
 			{
-				Slug:      "platform_configuration",
-				Name:      "Platform Configuration",
+				Slug: "platform_configuration",
+				Name: "Platform Configuration",
 				Workspace: "Platform Configuration",
 				Features: []Feature{
 					{Key: "super_admin.platform_configuration.module_configuration", Slug: "module_configuration", Name: "Module configuration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Enable/disable modules by institution so users only see what their institution uses."},
@@ -206,8 +203,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "campuses_academic_year",
-				Name:      "Campuses & Academic Year",
+				Slug: "campuses_academic_year",
+				Name: "Campuses & Academic Year",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.campuses_academic_year.franchise_management", Slug: "franchise_management", Name: "Franchise Management", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Centralized administrative oversight, asset sharing, and brand compliance for franchise chains."},
@@ -216,8 +213,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "messaging",
-				Name:      "Messaging",
+				Slug: "messaging",
+				Name: "Messaging",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.messaging.sms_gateway_integration", Slug: "sms_gateway_integration", Name: "SMS Gateway Integration", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Configure gateway API credentials, sender IDs, DLTI templates, and SMS delivery logs."},
@@ -227,8 +224,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "payments_devices",
-				Name:      "Payments & Devices",
+				Slug: "payments_devices",
+				Name: "Payments & Devices",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.payments_devices.payment_gateway_connectors", Slug: "payment_gateway_connectors", Name: "Payment Gateway Connectors", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Merchant keys for Razorpay, Paytm, CCAvenue, BillDesk and Easebuzz, per school or for every school, stored sealed. A record for the day a checkout is wired; no payment is taken through the product yet."},
@@ -240,13 +237,12 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "statutory_boards",
-				Name:      "Statutory & Boards",
+				Slug: "statutory_boards",
+				Name: "Statutory & Boards",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.statutory_boards.sqaa_framework_management", Slug: "sqaa_framework_management", Name: "SQAA Framework Management", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Configure School Quality Assessment and Assurance standards and self-assessment checklists."},
 					{Key: "super_admin.statutory_boards.udise_data_sync", Slug: "udise_data_sync", Name: "UDISE+ Data Sync", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Map school, student, teacher and facility fields to the UDISE+ return format and validate data integrity before submission."},
-					{Key: "super_admin.statutory_boards.apaar_id_provisioning", Slug: "apaar_id_provisioning", Name: "APAAR ID Provisioning", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Generate and reconcile APAAR (One Nation One Student) IDs against Aadhaar and the UDISE+ register."},
 					{Key: "super_admin.statutory_boards.digilocker_issuer_integration", Slug: "digilocker_issuer_integration", Name: "DigiLocker Issuer Integration", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Not buildable here: needs NeGD issuer onboarding and DigiLocker's pull API credentials, which this deployment does not hold. Push transfer certificates, report cards and mark sheets as verifiable documents."},
 					{Key: "super_admin.statutory_boards.board_affiliation_disclosure", Slug: "board_affiliation_disclosure", Name: "Board Affiliation & Disclosure", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Maintain CBSE/ICSE/State affiliation numbers, mandatory public disclosure documents and renewal dates."},
 					{Key: "super_admin.statutory_boards.state_board_configuration", Slug: "state_board_configuration", Name: "State Board Configuration", Scope: Scope("platform"), Tier: Tier("advanced"), Summary: "Select the state education board (BSE Telangana SSC, TSBIE Intermediate, CBSE, ICSE) and its grading and assessment rules."},
@@ -256,17 +252,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "operations",
-				Name:      "Operations",
+				Slug: "operations",
+				Name: "Operations",
 				Workspace: "Platform Setup",
 				Features: []Feature{
 					{Key: "super_admin.operations.data_backup_restore", Slug: "data_backup_restore", Name: "Data Backup & Restore", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The backup policy each school is held to (how often, how long kept) and the register of backups reported against it, with a warning when the newest restore point is older than the policy allows. Restores are done by the operator, not from this screen."},
-					{Key: "super_admin.operations.system_health_integration_alerts", Slug: "system_health_integration_alerts", Name: "System Health & Integration Alerts", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Monitor failed Webhooks, payment gateway time-outs, SMS delivery failures, and API errors."},
 				},
 			},
 			{
-				Slug:      "ai_automation",
-				Name:      "AI & Automation",
+				Slug: "ai_automation",
+				Name: "AI & Automation",
 				Workspace: "AI & Automation",
 				Features: []Feature{
 					{Key: "super_admin.ai_automation.predictive_dropout_risk_engine", Slug: "predictive_dropout_risk_engine", Name: "Predictive Dropout Risk Engine", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Rules, not a model: attendance under 75% in the last 30 days, a fee more than a month late, the last exam below pass. Counted per school; at risk on two of three. Names are read inside the school."},
@@ -283,16 +278,16 @@ var Roles = []Role{
 		Name: "Institution Admin / Principal",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "institution_admin.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school on one page: the numbers at the top, what needs the principal today in the middle, and the day's events and cover at the foot."},
 				},
 			},
 			{
-				Slug:      "getting_started",
-				Name:      "Getting Started",
+				Slug: "getting_started",
+				Name: "Getting Started",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "institution_admin.getting_started.school_setup", Slug: "school_setup", Name: "School setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every step of setting the school up, in the order each one depends on the last: the year, classes, sections, subjects, the school day, staff, students, grading, fees and exams. Shows what is done, what is left, and what each remaining step unlocks."},
@@ -301,38 +296,37 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "approvals",
-				Name:      "Approvals",
+				Slug: "approvals",
+				Name: "Approvals",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "institution_admin.approvals.approvals", Slug: "approvals", Name: "Approvals", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everything waiting on a signature, leave, attendance corrections, fee concessions, in one queue rather than one queue per module."},
 				},
 			},
 			{
-				Slug:      "students",
-				Name:      "Students",
+				Slug: "students",
+				Name: "Students",
 				Workspace: "Students",
 				Features: []Feature{
 					{Key: "institution_admin.students.student_360", Slug: "student_360", Name: "Student 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One child, whole: attendance, marks, fees, conduct and who to ring, on one page. The screen a school opens when a parent is at the desk."},
 					{Key: "institution_admin.students.student_photographs", Slug: "student_photographs", Name: "Student photographs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The photographer's folder attached to children in one go, matched by admission number. Photographs print on the ID card and on the report card."},
 					{Key: "institution_admin.students.certificates_transfers", Slug: "certificates_transfers", Name: "Certificates & transfers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from."},
 					{Key: "institution_admin.students.class_promotion", Slug: "class_promotion", Name: "Class Promotion", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child's history survives the promotion."},
-					{Key: "institution_admin.students.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
 					{Key: "institution_admin.students.groups_lists", Slug: "groups_lists", Name: "Groups & lists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own groupings, the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class."},
 					{Key: "institution_admin.students.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status, with quick actions to mark attendance, enter marks, edit or move a student."},
 				},
 			},
 			{
-				Slug:      "admissions",
-				Name:      "Admissions",
+				Slug: "admissions",
+				Name: "Admissions",
 				Workspace: "Students",
 				Features: []Feature{
 					{Key: "institution_admin.admissions.admissions_pipeline", Slug: "admissions_pipeline", Name: "Admissions Pipeline", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries, applications and confirmed admissions for the coming session, and the conversion between them. Growth, and where it is being lost."},
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "institution_admin.academics.master_timetable", Slug: "master_timetable", Name: "Master Timetable", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The whole school's week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty."},
@@ -351,8 +345,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "examinations",
-				Name:      "Examinations",
+				Slug: "examinations",
+				Name: "Examinations",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "institution_admin.examinations.performance_overview", Slug: "performance_overview", Name: "Performance overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Pass rate, subject performance, at-risk students and backlog summary."},
@@ -362,8 +356,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Finance",
 				Features: []Feature{
 					{Key: "institution_admin.fees.fee_dashboard", Slug: "fee_dashboard", Name: "Fee Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting."},
@@ -373,8 +367,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "institution_admin.communication.all_messages", Slug: "all_messages", Name: "All messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every conversation in the school on one desk, parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement, with a count of what is still waiting for the school's reply. A parent thread can be answered from here; counselling is counted, never read."},
@@ -386,23 +380,21 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "standard",
-				Name:      "Standard",
+				Slug: "standard",
+				Name: "Standard",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
-					{Key: "institution_admin.standard.attendance_overview", Slug: "attendance_overview", Name: "Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
 					{Key: "institution_admin.standard.fee_collection", Slug: "fee_collection", Name: "Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
 					{Key: "institution_admin.standard.returns_readiness", Slug: "returns_readiness", Name: "Returns readiness", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What UDISE+, APAAR, the RTE register and the staff training return still need from this school, counted today and named by the screen it is filled on, so nothing is found missing in the month the return is due."},
 					{Key: "institution_admin.standard.scheduled_digests", Slug: "scheduled_digests", Name: "Scheduled digests", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Turn the daily and weekly report digest on or off, choose which reports it carries, attendance, fees, admissions, staff, and which channels each goes out on. Board members and admins receive it automatically."},
 				},
 			},
 			{
-				Slug:      "staff",
-				Name:      "Staff",
+				Slug: "staff",
+				Name: "Staff",
 				Workspace: "Staff",
 				Features: []Feature{
-					{Key: "institution_admin.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
 					{Key: "institution_admin.staff.roles_permissions", Slug: "roles_permissions", Name: "Roles & permissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it."},
 					{Key: "institution_admin.staff.logins_access", Slug: "logins_access", Name: "Logins & access", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person."},
 					{Key: "institution_admin.staff.privacy", Slug: "privacy", Name: "Privacy", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who hears about a child (the primary guardian only, or every linked adult), whether a new login's password travels by email only, and where a guardian's portal access is ended or blocked. Links the privacy notice families are shown."},
@@ -413,8 +405,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "exams",
-				Name:      "Exams",
+				Slug: "exams",
+				Name: "Exams",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "institution_admin.exams.question_paper_approval", Slug: "question_paper_approval", Name: "Question paper approval", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every paper waiting to be read, across the school, with who set it and when the exam is."},
@@ -422,8 +414,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "hostel",
-				Name:      "Hostel",
+				Slug: "hostel",
+				Name: "Hostel",
 				Workspace: "Hostel",
 				Features: []Feature{
 					{Key: "institution_admin.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Blocks, rooms and who sleeps where, with the roll call taken against it."},
@@ -435,16 +427,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "channel_setup",
-				Name:      "Channel Setup",
+				Slug: "channel_setup",
+				Name: "Channel Setup",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "institution_admin.channel_setup.message_channels", Slug: "message_channels", Name: "Message Channels", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own email, SMS and WhatsApp senders, the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent's empty inbox."},
 				},
 			},
 			{
-				Slug:      "attendance_devices",
-				Name:      "Attendance Devices",
+				Slug: "attendance_devices",
+				Name: "Attendance Devices",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.attendance_devices.biometric_readers", Slug: "biometric_readers", Name: "Biometric Readers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The fingerprint readers this school runs: the serial each one reports, whether it is trusted yet, when it last spoke, and punches from a finger nobody claims."},
@@ -456,8 +448,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "stores",
-				Name:      "Stores",
+				Slug: "stores",
+				Name: "Stores",
 				Workspace: "Stores",
 				Features: []Feature{
 					{Key: "institution_admin.stores.store_catalogue", Slug: "store_catalogue", Name: "Store catalogue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school store as families see it: every active product with price and stock, display only, alongside the stock and issuance screens."},
@@ -465,8 +457,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "analysis",
-				Name:      "Analysis",
+				Slug: "analysis",
+				Name: "Analysis",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "institution_admin.analysis.custom_report_builder", Slug: "custom_report_builder", Name: "Custom Report Builder", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it."},
@@ -475,32 +467,32 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "department",
-				Name:      "Department",
+				Slug: "department",
+				Name: "Department",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.department.department_academics", Slug: "department_academics", Name: "Department academics", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Each department's subjects, sections and teachers, and how far its syllabus has got."},
 				},
 			},
 			{
-				Slug:      "evaluation",
-				Name:      "Evaluation",
+				Slug: "evaluation",
+				Name: "Evaluation",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "institution_admin.evaluation.appraisals", Slug: "appraisals", Name: "Appraisals", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Run a 360-degree review cycle: peers, students and the principal answer the same questions, and each teacher's results are released once enough people have answered to keep them anonymous."},
 				},
 			},
 			{
-				Slug:      "statutory_returns",
-				Name:      "Statutory Returns",
+				Slug: "statutory_returns",
+				Name: "Statutory Returns",
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
 				},
 			},
 			{
-				Slug:      "help",
-				Name:      "Help",
+				Slug: "help",
+				Name: "Help",
 				Workspace: "Help",
 				Features: []Feature{
 					{Key: "institution_admin.help.helpdesk", Slug: "helpdesk", Name: "Helpdesk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child."},
@@ -513,16 +505,16 @@ var Roles = []Role{
 		Name: "Board / Trustee",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "board_member.home.where_the_money_goes", Slug: "where_the_money_goes", Name: "Where the money goes", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every campus on one sheet: what came in over the period, what is still owed, what went out in salaries, and how many children and staff that was for. Read-only, the whole school, for the people who sign off rather than operate."},
 				},
 			},
 			{
-				Slug:      "money",
-				Name:      "Money",
+				Slug: "money",
+				Name: "Money",
 				Workspace: "Money",
 				Features: []Feature{
 					{Key: "board_member.money.fee_overview", Slug: "fee_overview", Name: "Fee overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Expected against collected for the period, and the gap between them, for the school as a whole."},
@@ -530,16 +522,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "board_member.reports.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every export the school produces, fees, attendance, payroll, downloadable as they are, for the board pack."},
 				},
 			},
 			{
-				Slug:      "audit",
-				Name:      "Audit",
+				Slug: "audit",
+				Name: "Audit",
 				Workspace: "Audit",
 				Features: []Feature{
 					{Key: "board_member.audit.audit_trail", Slug: "audit_trail", Name: "Audit trail", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who changed what, when. A board reads this to trust the numbers above it, not to chase anybody."},
@@ -552,16 +544,16 @@ var Roles = []Role{
 		Name: "HOD / Department Head",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "hod.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("department"), Tier: Tier("core"), Summary: "Your department before nine o'clock: who is out and how many of their periods nobody is covering, what is waiting on your decision, and which of your registers have not been taken."},
 				},
 			},
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Timetable",
 				Features: []Feature{
 					{Key: "hod.timetable.class_timetable", Slug: "class_timetable", Name: "Class timetable", Scope: Scope("department"), Tier: Tier("core"), Summary: "Build and change the timetable for any class or section in the department: pick the class, drop a subject and a teacher into a period, and publish. This is the head of department's own copy of the whole-school grid, narrowed to the classes they are responsible for."},
@@ -572,8 +564,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "hod.academics.language_subject_allocation", Slug: "language_subject_allocation", Name: "Language subject allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which language each student takes as L1 and as L2, set for one student or for a whole list at once. Sits here and with the principal because it decides section grouping, not lesson content."},
@@ -583,8 +575,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "staff",
-				Name:      "Staff",
+				Slug: "staff",
+				Name: "Staff",
 				Workspace: "Staff",
 				Features: []Feature{
 					{Key: "hod.staff.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("department"), Tier: Tier("core"), Summary: "Write a remark about a teacher in the department, and read the remarks others have written about them. The teacher sees it on their own screen."},
@@ -592,8 +584,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "hod.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Own details and password."},
@@ -602,16 +594,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "Department Workspace",
 				Features: []Feature{
 					{Key: "hod.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark the register for the classes they teach."},
 				},
 			},
 			{
-				Slug:      "teaching",
-				Name:      "Teaching",
+				Slug: "teaching",
+				Name: "Teaching",
 				Workspace: "Department Workspace",
 				Features: []Feature{
 					{Key: "hod.teaching.homework_classwork", Slug: "homework_classwork", Name: "Homework / classwork", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Set and grade homework for their own classes, and see who has turned it in."},
@@ -619,8 +611,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "marks_report_cards",
-				Name:      "Marks & Report Cards",
+				Slug: "marks_report_cards",
+				Name: "Marks & Report Cards",
 				Workspace: "Department Workspace",
 				Features: []Feature{
 					{Key: "hod.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter exam marks for the papers they teach."},
@@ -628,8 +620,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Department Workspace",
 				Features: []Feature{
 					{Key: "hod.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Notices home to the classes they teach, and the thread with a parent about one child."},
@@ -637,8 +629,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "exams",
-				Name:      "Exams",
+				Slug: "exams",
+				Name: "Exams",
 				Workspace: "Department Workspace",
 				Features: []Feature{
 					{Key: "hod.exams.question_paper_approval", Slug: "question_paper_approval", Name: "Question paper approval", Scope: Scope("department"), Tier: Tier("core"), Summary: "Papers your teachers have sent for approval before an exam: open the paper, approve it for printing, or send it back with the reason. The teacher is told either way, and who approved it is kept."},
@@ -652,16 +644,16 @@ var Roles = []Role{
 		Name: "Examination Controller",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "exam_controller.home.exam_desk", Slug: "exam_desk", Name: "Exam desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The exams on the calendar, how far marks entry has got, and which papers are still short. The first screen of the exam office's day."},
 				},
 			},
 			{
-				Slug:      "examinations",
-				Name:      "Examinations",
+				Slug: "examinations",
+				Name: "Examinations",
 				Workspace: "Examinations",
 				Features: []Feature{
 					{Key: "exam_controller.examinations.exams_papers", Slug: "exams_papers", Name: "Exams & papers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Schedule an exam, add the papers on it, and see what has been published."},
@@ -671,16 +663,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "exam_controller.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "exam_controller.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
@@ -695,8 +687,8 @@ var Roles = []Role{
 		Name: "Faculty / Teacher",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "faculty.home.todays_classes", Slug: "todays_classes", Name: "Today's classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Next/current classes with one-click Take Attendance, Open Class and Add Homework actions."},
@@ -705,8 +697,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_classes",
-				Name:      "My Classes",
+				Slug: "my_classes",
+				Name: "My Classes",
 				Workspace: "My Classes",
 				Features: []Feature{
 					{Key: "faculty.my_classes.student_progress", Slug: "student_progress", Name: "Student progress", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "View attendance and academic progress for students taught/mentored by the faculty member."},
@@ -716,8 +708,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "My Classes",
 				Features: []Feature{
 					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
@@ -729,8 +721,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "teaching",
-				Name:      "Teaching",
+				Slug: "teaching",
+				Name: "Teaching",
 				Workspace: "Teaching",
 				Features: []Feature{
 					{Key: "faculty.teaching.homework_classwork", Slug: "homework_classwork", Name: "Homework / classwork", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Create homework/classwork with due date, attachments and instructions."},
@@ -740,8 +732,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Teaching",
 				Features: []Feature{
 					{Key: "faculty.timetable.my_timetable", Slug: "my_timetable", Name: "My timetable", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Daily/weekly teaching schedule, rooms/labs and substitutions."},
@@ -749,8 +741,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "marks_report_cards",
-				Name:      "Marks & Report Cards",
+				Slug: "marks_report_cards",
+				Name: "Marks & Report Cards",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter internal/exam marks for assigned subjects; validate before submission."},
@@ -758,8 +750,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "assessment_schemes",
-				Name:      "Assessment Schemes",
+				Slug: "assessment_schemes",
+				Name: "Assessment Schemes",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.assessment_schemes.cce_formative_assessment_entry", Slug: "cce_formative_assessment_entry", Name: "CCE Formative Assessment Entry", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Record FA1 to FA4 formative marks out of 20 covering written work, project, slip test and participation."},
@@ -767,8 +759,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "question_papers_online_tests",
-				Name:      "Question Papers & Online Tests",
+				Slug: "question_papers_online_tests",
+				Name: "Question Papers & Online Tests",
 				Workspace: "Assessments",
 				Features: []Feature{
 					{Key: "faculty.question_papers_online_tests.question_bank_management", Slug: "question_bank_management", Name: "Question Bank Management", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create objective/subjective question banks tagged by chapter, difficulty, and Bloom's level."},
@@ -778,8 +770,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "faculty.communication.communication", Slug: "communication", Name: "Communication", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Announcements/messages to assigned classes, students or parents based on policy."},
@@ -793,8 +785,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "faculty.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Apply for leave, view approval status, attendance and personal documents."},
@@ -807,16 +799,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "exams",
-				Name:      "Exams",
+				Slug: "exams",
+				Name: "Exams",
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "faculty.exams.question_papers", Slug: "question_papers", Name: "Question papers", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back."},
 				},
 			},
 			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "faculty.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
@@ -830,38 +822,31 @@ var Roles = []Role{
 		Name: "Librarian",
 		Sections: []Section{
 			{
-				Slug:      "library",
-				Name:      "Library",
+				Slug: "library",
+				Name: "Library",
 				Workspace: "Library",
 				Features: []Feature{
-					{Key: "librarian.library.book_cataloging_accession_register", Slug: "book_cataloging_accession_register", Name: "Book Cataloging & Accession Register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Maintain master book register, ISBN numbers, author, publisher, genre, and rack location."},
-					{Key: "librarian.library.barcode_spine_label_printing", Slug: "barcode_spine_label_printing", Name: "Barcode & Spine Label Printing", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Generate and print custom barcode labels and spine call tags for library books."},
-					{Key: "librarian.library.book_issue_return_terminal", Slug: "book_issue_return_terminal", Name: "Book Issue & Return Terminal", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Scan student ID and book barcode to issue or return books in <5 seconds."},
-					{Key: "librarian.library.book_reservation_queue", Slug: "book_reservation_queue", Name: "Book Reservation Queue", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Auto-notify students when a reserved book is returned and available for collection."},
 					{Key: "librarian.library.fine_penalty_summary", Slug: "fine_penalty_summary", Name: "Fine & Penalty Summary", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Fines collected and fines still outstanding, as totals. A principal does not work a fine out; they want to know what the library is owed."},
 					{Key: "librarian.library.opac_digital_book_search", Slug: "opac_digital_book_search", Name: "OPAC Digital Book Search", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Online Public Access Catalog for students to search book availability and reserve books."},
 					{Key: "librarian.library.digital_library_usage", Slug: "digital_library_usage", Name: "Digital Library Usage", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Whether the e-books and journals the school pays for are being opened: active readers and how engagement is moving month to month."},
 					{Key: "librarian.library.annual_book_stock_verification", Slug: "annual_book_stock_verification", Name: "Annual Book Stock Verification", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The yearly count: what is on the shelves, what is missing, what is damaged, and the signature that closes the year's stock record."},
 					{Key: "librarian.library.new_session_textbook_orders", Slug: "new_session_textbook_orders", Name: "New Session Textbook Orders", Scope: Scope("campus"), Tier: Tier("advanced"), Summary: "Next year's textbook requirement, class by class against the roll, for the principal to approve before it is ordered."},
 					{Key: "librarian.library.books_copies", Slug: "books_copies", Name: "Books & copies", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Titles, editions and the individual copies held against each."},
-					{Key: "librarian.library.accession_register", Slug: "accession_register", Name: "Accession register", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The statutory accession register, with barcode and spine label printing."},
-					{Key: "librarian.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 					{Key: "librarian.library.reservations", Slug: "reservations", Name: "Reservations", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Holds placed by students and staff, and who is next in the queue."},
 					{Key: "librarian.library.reading_levels", Slug: "reading_levels", Name: "Reading levels", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Each child's measured reading level and when it was measured, who has never been measured or is overdue, and how many titles the library holds at each level, so a child is handed a book they can read."},
-					{Key: "librarian.library.fines", Slug: "fines", Name: "Fines", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Overdue fines accrued, collected and waived, at the daily rate the school sets here. A fine is fixed when the book comes back; mark it paid or waive it."},
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "librarian.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "librarian.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -875,16 +860,16 @@ var Roles = []Role{
 		Name: "Transport Manager",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "transport_manager.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The transport office on one page: how many buses are out, what has finished, and the handful of things wanting doing before the phone rings."},
 				},
 			},
 			{
-				Slug:      "transport",
-				Name:      "Transport",
+				Slug: "transport",
+				Name: "Transport",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "transport_manager.transport.driver_phone_tracker", Slug: "driver_phone_tracker", Name: "Driver Phone Tracker", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Turn a driver''s own phone into the bus''s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login, there is no hardware to buy."},
@@ -906,24 +891,24 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "transport_manager.reports.transport_reports", Slug: "transport_reports", Name: "Transport reports", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The sheets a transport office is asked for, ready made: who rides what, the fleet and its papers, attendance, fuel and incidents. Prints, and exports to a spreadsheet."},
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "transport_manager.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "transport_manager.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -937,24 +922,24 @@ var Roles = []Role{
 		Name: "Operations Staff",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "operations.home.operations_desk", Slug: "operations_desk", Name: "Operations desk", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Stock below its reorder level, buses and the papers about to lapse, library books overdue, and hostel beds free."},
 				},
 			},
 			{
-				Slug:      "stores",
-				Name:      "Stores",
+				Slug: "stores",
+				Name: "Stores",
 				Workspace: "Stores",
 				Features: []Feature{
 					{Key: "operations.stores.stock_movements", Slug: "stock_movements", Name: "Stock & movements", Scope: Scope("campus"), Tier: Tier("core"), Summary: "What is on hand against its reorder level, and recording an issue or a receipt."},
 				},
 			},
 			{
-				Slug:      "transport",
-				Name:      "Transport",
+				Slug: "transport",
+				Name: "Transport",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "operations.transport.vehicles_routes", Slug: "vehicles_routes", Name: "Vehicles & routes", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The vehicle register, the routes and their stops, and the driver phones paired as trackers."},
@@ -962,32 +947,32 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "library",
-				Name:      "Library",
+				Slug: "library",
+				Name: "Library",
 				Workspace: "Library",
 				Features: []Feature{
 					{Key: "operations.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
 				},
 			},
 			{
-				Slug:      "hostel",
-				Name:      "Hostel",
+				Slug: "hostel",
+				Name: "Hostel",
 				Workspace: "Hostel",
 				Features: []Feature{
 					{Key: "operations.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Rooms, beds and who is in them; put a boarder in a free bed."},
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "operations.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "operations.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
@@ -1002,24 +987,24 @@ var Roles = []Role{
 		Name: "Driver / Bus Attendant",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "driver.home.my_run", Slug: "my_run", Name: "My run", Scope: Scope("self"), Tier: Tier("core"), Summary: "The bus you are on, the route and its stops, whether today's pre-trip check went in, and where to get the bus app."},
 				},
 			},
 			{
-				Slug:      "transport",
-				Name:      "Transport",
+				Slug: "transport",
+				Name: "Transport",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "driver.transport.my_bus_route", Slug: "my_bus_route", Name: "My bus & route", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your bus, its papers, the stops in order with pickup and drop times, the riders at each, and the last fortnight's checks."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "driver.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
@@ -1034,16 +1019,16 @@ var Roles = []Role{
 		Name: "Nurse / Clinic",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "nurse.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clinic's day on one page: who has come in, what has been given, and the children whose file says something before anyone opens it."},
 				},
 			},
 			{
-				Slug:      "clinic",
-				Name:      "Clinic",
+				Slug: "clinic",
+				Name: "Clinic",
 				Workspace: "Clinic",
 				Features: []Feature{
 					{Key: "nurse.clinic.visits_medication", Slug: "visits_medication", Name: "Visits & medication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Today's register: each child who came in, what was wrong, what was done, and the medication register beside it, with who allowed each dose."},
@@ -1052,16 +1037,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "nurse.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "nurse.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1075,16 +1060,16 @@ var Roles = []Role{
 		Name: "Counsellor",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "counsellor.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The conversations open with families, the concerns teachers wrote this week, and the children whose health file flags something."},
 				},
 			},
 			{
-				Slug:      "counselling",
-				Name:      "Counselling",
+				Slug: "counselling",
+				Name: "Counselling",
 				Workspace: "Counselling",
 				Features: []Feature{
 					{Key: "counsellor.counselling.family_conversations", Slug: "family_conversations", Name: "Family conversations", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Private threads with a child's family. Who can read one is a named list and nothing else."},
@@ -1093,16 +1078,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "counsellor.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "counsellor.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1116,16 +1101,16 @@ var Roles = []Role{
 		Name: "Discipline Officer",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "discipline_officer.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Incidents still open, the serious ones, and what was written about conduct this week."},
 				},
 			},
 			{
-				Slug:      "discipline",
-				Name:      "Discipline",
+				Slug: "discipline",
+				Name: "Discipline",
 				Workspace: "Discipline",
 				Features: []Feature{
 					{Key: "discipline_officer.discipline.conduct_notes", Slug: "conduct_notes", Name: "Conduct notes", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Badges and demerits: record praise or a concern against a child, and read what others have written."},
@@ -1133,16 +1118,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "discipline_officer.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "discipline_officer.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1156,16 +1141,16 @@ var Roles = []Role{
 		Name: "Hostel Warden",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "hostel_warden.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Passes waiting on you, who is out and late back, beds against boarders, and complaints still open."},
 				},
 			},
 			{
-				Slug:      "hostel",
-				Name:      "Hostel",
+				Slug: "hostel",
+				Name: "Hostel",
 				Workspace: "Hostel",
 				Features: []Feature{
 					{Key: "hostel_warden.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Blocks, rooms and who sleeps where, with a free bed to put a child in."},
@@ -1176,16 +1161,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "hostel_warden.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "hostel_warden.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1199,16 +1184,16 @@ var Roles = []Role{
 		Name: "Activity / Sports Coordinator",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "activity_coord.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs and teams running, how full each is, and the achievements waiting to be published."},
 				},
 			},
 			{
-				Slug:      "activities",
-				Name:      "Activities",
+				Slug: "activities",
+				Name: "Activities",
 				Workspace: "Activities",
 				Features: []Feature{
 					{Key: "activity_coord.activities.clubs_activities", Slug: "clubs_activities", Name: "Clubs & activities", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs, coaching and electives the school runs, when each meets, what it costs and who is in it."},
@@ -1217,16 +1202,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "activity_coord.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "activity_coord.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1240,16 +1225,16 @@ var Roles = []Role{
 		Name: "Accounts & Finance",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "finance.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected today, collected this month, what is still outstanding, and the handful of things that need somebody this morning."},
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.fees.take_fee_payment", Slug: "take_fee_payment", Name: "Take fee payment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen."},
@@ -1261,8 +1246,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "campus_money",
-				Name:      "Campus Money",
+				Slug: "campus_money",
+				Name: "Campus Money",
 				Workspace: "Campus Money",
 				Features: []Feature{
 					{Key: "finance.campus_money.cafeteria_store_sales", Slug: "cafeteria_store_sales", Name: "Cafeteria & store sales", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A till for the canteen and one for the store: record what a student bought for lunch, a book or a uniform, and close the drawer at the end of the day against what it should hold."},
@@ -1271,8 +1256,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "accounts",
-				Name:      "Accounts",
+				Slug: "accounts",
+				Name: "Accounts",
 				Workspace: "Accounts",
 				Features: []Feature{
 					{Key: "finance.accounts.approve_pay_salaries", Slug: "approve_pay_salaries", Name: "Approve & pay salaries", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What HR calculated for the month, read before the money moves, and then the bank file that releases it. Finance approves and pays; HR decides the numbers."},
@@ -1281,8 +1266,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "banking_reports",
-				Name:      "Banking & Reports",
+				Slug: "banking_reports",
+				Name: "Banking & Reports",
 				Workspace: "Banking & Reports",
 				Features: []Feature{
 					{Key: "finance.banking_reports.fixed_reports", Slug: "fixed_reports", Name: "Fixed reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The sheets an accountant asks for by name: the cheque deposit dashboard, the bank pay-in slip for a day, outstanding as at a month end class by class, each child's fee plan head by head, the month-wise consolidated statement, parent bank details for refunds and scholarships, and what card swipes cost. Each one prints and exports."},
@@ -1291,16 +1276,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "finance.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "finance.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1308,8 +1293,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "student_dues",
-				Name:      "Student Dues",
+				Slug: "student_dues",
+				Name: "Student Dues",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.student_dues.automated_fee_reminders", Slug: "automated_fee_reminders", Name: "Automated Fee Reminders", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending."},
@@ -1322,29 +1307,28 @@ var Roles = []Role{
 		Name: "Admissions & Front Office",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "admissions.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "New enquiries, applications received, offers pending and enrolment conversion, with the follow-ups due today underneath."},
 				},
 			},
 			{
-				Slug:      "enquiries",
-				Name:      "Enquiries",
+				Slug: "enquiries",
+				Name: "Enquiries",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.enquiries.enquiries", Slug: "enquiries", Name: "Enquiries", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every enquiry the school has taken, walk-in, telephone, website or referral, with the child, the class sought, the parent's number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there."},
 					{Key: "admissions.enquiries.assign_leads", Slug: "assign_leads", Name: "Assign Leads", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once, so a Monday morning's forty enquiries are shared out in one action rather than opened one at a time."},
-					{Key: "admissions.enquiries.follow_up_calls", Slug: "follow_up_calls", Name: "Follow-up Calls", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The calls you owe parents today about their enquiry: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row."},
 					{Key: "admissions.enquiries.24_7_admission_chatbot", Slug: "24_7_admission_chatbot", Name: "24/7 Admission Chatbot", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Not buildable here: answering tuition and syllabus questions needs a language model this deployment does not have; the public enquiry form already captures leads. Web widget chatbot."},
 					{Key: "admissions.enquiries.ai_voice_agent_integration", Slug: "ai_voice_agent_integration", Name: "AI Voice Agent Integration", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Not buildable here: outbound voice calls need a telephony vendor and a speech model, neither of which this deployment holds. Confirm entrance exam attendance or follow up by call."},
 					{Key: "admissions.enquiries.campus_visits", Slug: "campus_visits", Name: "Campus Visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice."},
 				},
 			},
 			{
-				Slug:      "applications",
-				Name:      "Applications",
+				Slug: "applications",
+				Name: "Applications",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.applications.application_forms", Slug: "application_forms", Name: "Application Forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered."},
@@ -1355,8 +1339,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "admissions.reports.admission_reports", Slug: "admission_reports", Name: "Admission reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Enquiries, applications and admissions with the conversion between them, the numbers a management committee asks for. Exports to a spreadsheet."},
@@ -1364,8 +1348,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "admissions.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school."},
@@ -1373,8 +1357,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "admissions.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1382,8 +1366,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "admissions",
-				Name:      "Admissions",
+				Slug: "admissions",
+				Name: "Admissions",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "admissions.admissions.fee_enrollment", Slug: "fee_enrollment", Name: "Fee & Enrollment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The admitted queue, and the money that settles before a child becomes a student: what the class costs, the concession agreed at the desk, the principal's decision on it, and the demand raised once that is settled."},
@@ -1392,8 +1376,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "front_desk",
-				Name:      "Front Desk",
+				Slug: "front_desk",
+				Name: "Front Desk",
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "admissions.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen."},
@@ -1406,24 +1390,24 @@ var Roles = []Role{
 		Name: "Receptionist / Front Office",
 		Sections: []Section{
 			{
-				Slug:      "front_desk",
-				Name:      "Front Desk",
+				Slug: "front_desk",
+				Name: "Front Desk",
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "front_office.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen."},
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "front_office.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "front_office.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1437,16 +1421,16 @@ var Roles = []Role{
 		Name: "HR & Payroll",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "hr.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is away today and whose classes need covering, what paperwork is lapsing or missing, and the three jobs a day is mostly made of."},
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "Attendance & Leave",
 				Features: []Feature{
 					{Key: "hr.attendance.staff_register", Slug: "staff_register", Name: "Staff register", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Today's attendance for every active member of staff, marked in one pass."},
@@ -1458,8 +1442,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "leave",
-				Name:      "Leave",
+				Slug: "leave",
+				Name: "Leave",
 				Workspace: "Attendance & Leave",
 				Features: []Feature{
 					{Key: "hr.leave.leave", Slug: "leave", Name: "Leave", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave balances, requests, approvals and holiday calendar."},
@@ -1467,8 +1451,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "hiring_training",
-				Name:      "Hiring & Training",
+				Slug: "hiring_training",
+				Name: "Hiring & Training",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.hiring_training.staff_hiring", Slug: "staff_hiring", Name: "Staff hiring", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Create job openings, track the people who apply and the demo lesson that decides, and turn a hire into a staff record without anybody typing the details a second time."},
@@ -1477,24 +1461,24 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "reports",
-				Name:      "Reports",
+				Slug: "reports",
+				Name: "Reports",
 				Workspace: "Reports",
 				Features: []Feature{
 					{Key: "hr.reports.staff_analytics_reports", Slug: "staff_analytics_reports", Name: "Staff analytics & reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal."},
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "hr.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "hr.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1502,8 +1486,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "records",
-				Name:      "Records",
+				Slug: "records",
+				Name: "Records",
 				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.records.staff_records", Slug: "staff_records", Name: "Staff 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here."},
@@ -1511,16 +1495,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "onboarding_exit",
-				Name:      "Onboarding & Exit",
+				Slug: "onboarding_exit",
+				Name: "Onboarding & Exit",
 				Workspace: "Employees",
 				Features: []Feature{
 					{Key: "hr.onboarding_exit.staff_joinings_exits", Slug: "staff_joinings_exits", Name: "Staff joinings & exits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One page, four tabs: the KYC and documents a new appointment depends on; the resignation, notice period and department-by-department clearance an exit runs through; the appointment, experience and relieving letters issued along the way; and transfers between campuses or departments. The final settlement stays locked until every department has signed."},
 				},
 			},
 			{
-				Slug:      "payroll",
-				Name:      "Payroll",
+				Slug: "payroll",
+				Name: "Payroll",
 				Workspace: "Payroll",
 				Features: []Feature{
 					{Key: "hr.payroll.monthly_payroll", Slug: "monthly_payroll", Name: "Monthly payroll", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Run the month's salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee's days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them."},
@@ -1530,24 +1514,24 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "tasks",
-				Name:      "Tasks",
+				Slug: "tasks",
+				Name: "Tasks",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.tasks.staff_tasks", Slug: "staff_tasks", Name: "Staff tasks", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Hand a job to a member of staff with a due date, watch it move from open to done, and read the report of who has what open and overdue. The Reporting managers tab says who each person answers to, which is where their leave request goes first."},
 				},
 			},
 			{
-				Slug:      "handbook",
-				Name:      "Handbook",
+				Slug: "handbook",
+				Name: "Handbook",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.handbook.staff_handbook", Slug: "staff_handbook", Name: "Staff handbook", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's policies for staff: publish one with the full document attached, every member of staff is asked to read and acknowledge it, and HR sees who has not yet signed."},
 				},
 			},
 			{
-				Slug:      "welfare",
-				Name:      "Welfare",
+				Slug: "welfare",
+				Name: "Welfare",
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.welfare.staff_welfare", Slug: "staff_welfare", Name: "Staff welfare", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week."},
@@ -1560,16 +1544,16 @@ var Roles = []Role{
 		Name: "IT Administrator",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "it_admin.home.systems_desk", Slug: "systems_desk", Name: "Systems desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Logins, who is signed in now, the job queues and what the audit log recorded today."},
 				},
 			},
 			{
-				Slug:      "access",
-				Name:      "Access",
+				Slug: "access",
+				Name: "Access",
 				Workspace: "Access",
 				Features: []Feature{
 					{Key: "it_admin.access.users", Slug: "users", Name: "Users", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every login in the school: create one, reset a password, disable an account, move roles between people."},
@@ -1578,8 +1562,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "systems",
-				Name:      "Systems",
+				Slug: "systems",
+				Name: "Systems",
 				Workspace: "Systems",
 				Features: []Feature{
 					{Key: "it_admin.systems.audit_log", Slug: "audit_log", Name: "Audit log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who changed what, when, from where."},
@@ -1588,16 +1572,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "communication",
-				Name:      "Communication",
+				Slug: "communication",
+				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "it_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
-				Slug:      "my_profile",
-				Name:      "My Profile",
+				Slug: "my_profile",
+				Name: "My Profile",
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "it_admin.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
@@ -1612,8 +1596,8 @@ var Roles = []Role{
 		Name: "LMS Admin",
 		Sections: []Section{
 			{
-				Slug:      "lms",
-				Name:      "LMS",
+				Slug: "lms",
+				Name: "LMS",
 				Workspace: "LMS",
 				Features: []Feature{
 					{Key: "lms_admin.lms.courses", Slug: "courses", Name: "Courses & material", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it."},
@@ -1626,8 +1610,8 @@ var Roles = []Role{
 		Name: "Student",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "student.home.my_day", Slug: "my_day", Name: "My day", Scope: Scope("self"), Tier: Tier("core"), Summary: "Next class, attendance %, assignments due, upcoming exam, fee due and latest announcement."},
@@ -1635,32 +1619,32 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "timetable",
-				Name:      "Timetable",
+				Slug: "timetable",
+				Name: "Timetable",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.timetable.timetable", Slug: "timetable", Name: "Timetable", Scope: Scope("self"), Tier: Tier("core"), Summary: "Daily/weekly class timetable and exam timetable."},
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
+				Slug: "attendance",
+				Name: "Attendance",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("self"), Tier: Tier("core"), Summary: "Overall, subject-wise and date-wise attendance; leave/correction request if institution allows."},
 				},
 			},
 			{
-				Slug:      "homework",
-				Name:      "Homework",
+				Slug: "homework",
+				Name: "Homework",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.homework.homework_assignments", Slug: "homework_assignments", Name: "Homework & assignments", Scope: Scope("self"), Tier: Tier("core"), Summary: "View due/overdue/submitted work; submit files/text where enabled."},
 				},
 			},
 			{
-				Slug:      "learning",
-				Name:      "Learning",
+				Slug: "learning",
+				Name: "Learning",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.learning.e_learning_resource_hub", Slug: "e_learning_resource_hub", Name: "LMS", Scope: Scope("self"), Tier: Tier("core"), Summary: "Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links."},
@@ -1668,8 +1652,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "exams_results",
-				Name:      "Exams & Results",
+				Slug: "exams_results",
+				Name: "Exams & Results",
 				Workspace: "Academics",
 				Features: []Feature{
 					{Key: "student.exams_results.exams_grades", Slug: "exams_grades", Name: "Exams & grades", Scope: Scope("self"), Tier: Tier("core"), Summary: "Exam schedule, marks, grades, published results and report cards."},
@@ -1678,16 +1662,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "student.fees.fees", Slug: "fees", Name: "Fees", Scope: Scope("self"), Tier: Tier("core"), Summary: "Current dues, fee history, payment status, online payment and receipts."},
 				},
 			},
 			{
-				Slug:      "notices_calendar",
-				Name:      "Notices & Calendar",
+				Slug: "notices_calendar",
+				Name: "Notices & Calendar",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "student.notices_calendar.calendar", Slug: "calendar", Name: "Calendar", Scope: Scope("self"), Tier: Tier("core"), Summary: "Academic calendar, holidays, events and deadlines."},
@@ -1695,16 +1679,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "requests",
-				Name:      "Requests",
+				Slug: "requests",
+				Name: "Requests",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "student.requests.requests", Slug: "requests", Name: "Requests", Scope: Scope("self"), Tier: Tier("core"), Summary: "Ask the office for a document, bonafide, transfer certificate, conduct certificate, a duplicate ID card, and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given."},
 				},
 			},
 			{
-				Slug:      "profile",
-				Name:      "Profile",
+				Slug: "profile",
+				Name: "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
 					{Key: "student.profile.my_id_card", Slug: "my_id_card", Name: "My ID card", Scope: Scope("self"), Tier: Tier("optional"), Summary: "Your own school identity card: photo, name, admission number, class and the emergency contact, with the QR a gate reader scans. Tapping it on an NFC reader needs the school to have one; the card itself is here either way."},
@@ -1717,24 +1701,16 @@ var Roles = []Role{
 		Name: "Parent / Guardian",
 		Sections: []Section{
 			{
-				Slug:      "home",
-				Name:      "Home",
+				Slug: "home",
+				Name: "Home",
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "parent.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's day on one page: attendance, fees, homework and what the school has said, with anything waiting on you at the top. Switch children from the same page if you have more than one."},
 				},
 			},
 			{
-				Slug:      "attendance",
-				Name:      "Attendance",
-				Workspace: "My Child",
-				Features: []Feature{
-					{Key: "parent.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("children"), Tier: Tier("core"), Summary: "Daily/monthly attendance and absence history for the selected child."},
-				},
-			},
-			{
-				Slug:      "academics",
-				Name:      "Academics",
+				Slug: "academics",
+				Name: "Academics",
 				Workspace: "My Child",
 				Features: []Feature{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
@@ -1744,8 +1720,8 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "fees",
-				Name:      "Fees",
+				Slug: "fees",
+				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "parent.fees.fees_payments", Slug: "fees_payments", Name: "Fees & payments", Scope: Scope("children"), Tier: Tier("core"), Summary: "Dues, installments, online payment and payment history, with a Receipts tab holding every payment the school has banked, to save as a PDF or print on the school's letterhead."},
@@ -1753,24 +1729,24 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "my_childs_bus",
-				Name:      "My Child's Bus",
+				Slug: "my_childs_bus",
+				Name: "My Child's Bus",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "parent.my_childs_bus.live_bus_tracking", Slug: "live_bus_tracking", Name: "Live bus tracking", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's bus: the route, the vehicle, their stop and when it is due, and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus."},
 				},
 			},
 			{
-				Slug:      "alerts_preferences",
-				Name:      "Alerts & Preferences",
+				Slug: "alerts_preferences",
+				Name: "Alerts & Preferences",
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "parent.alerts_preferences.parent_bus_proximity_radius_customizer", Slug: "parent_bus_proximity_radius_customizer", Name: "Parent Bus Proximity Radius Customizer", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away)."},
 				},
 			},
 			{
-				Slug:      "messages",
-				Name:      "Messages",
+				Slug: "messages",
+				Name: "Messages",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Three tabs on one screen: circulars and announcements from the school, a message to your child's class teacher, and any concern you have raised, what you asked, who is handling it and their reply."},
@@ -1778,40 +1754,40 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "school_life",
-				Name:      "School Life",
+				Slug: "school_life",
+				Name: "School Life",
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.school_life.calendar_ptm", Slug: "calendar_ptm", Name: "Calendar & PTM", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exams, holidays, events, parent-teacher meetings and booking where enabled."},
 				},
 			},
 			{
-				Slug:      "documents",
-				Name:      "Documents",
+				Slug: "documents",
+				Name: "Documents",
 				Workspace: "Documents",
 				Features: []Feature{
 					{Key: "parent.documents.certificate_requests", Slug: "certificate_requests", Name: "Certificate requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Ask the office for a document about your child, bonafide, transfer certificate, conduct certificate, a duplicate ID card, and follow each request until the signed copy is ready to download."},
 				},
 			},
 			{
-				Slug:      "leave_absence",
-				Name:      "Leave & Absence",
+				Slug: "leave_absence",
+				Name: "Leave & Absence",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.leave_absence.apply_student_leave", Slug: "apply_student_leave", Name: "Apply Student Leave", Scope: Scope("children"), Tier: Tier("core"), Summary: "Report absence or apply for leave on one screen: a one-tap reason for tomorrow, or a longer leave application with a medical certificate, and follow each until it is answered."},
 				},
 			},
 			{
-				Slug:      "consent_permissions",
-				Name:      "Consent & Permissions",
+				Slug: "consent_permissions",
+				Name: "Consent & Permissions",
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Permission Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every slip the school needs signed, trips, medical, photography, data, with what you have already agreed to and when. Signing is one tap and the record is kept."},
 				},
 			},
 			{
-				Slug:      "profile",
-				Name:      "Profile",
+				Slug: "profile",
+				Name: "Profile",
 				Workspace: "Profile",
 				Features: []Feature{
 					{Key: "parent.profile.digital_student_id_card_view", Slug: "digital_student_id_card_view", Name: "Digital Student ID Card View", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Access child's digital student ID card with QR code directly within the mobile app."},
@@ -1820,16 +1796,16 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "admissions",
-				Name:      "Admissions",
+				Slug: "admissions",
+				Name: "Admissions",
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "parent.admissions.admission_status", Slug: "admission_status", Name: "Admission status", Scope: Scope("self"), Tier: Tier("core"), Summary: "Follow your own admission from the enquiry onwards: the application, the documents still wanted, the test and the decision."},
 				},
 			},
 			{
-				Slug:      "store",
-				Name:      "Store",
+				Slug: "store",
+				Name: "Store",
 				Workspace: "Store",
 				Features: []Feature{
 					{Key: "parent.store.product_catalogue", Slug: "product_catalogue", Name: "Product catalogue", Scope: Scope("self"), Tier: Tier("core"), Summary: "The school store, to browse, uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter."},
