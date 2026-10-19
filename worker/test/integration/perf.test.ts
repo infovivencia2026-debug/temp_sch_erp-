@@ -66,10 +66,11 @@ async function measure(who: Who, path: string) {
 const cases: [string, Who, string, number, number][] = [
   // +1 tenant statement on every row (2026-10-12): sign-in now also reads feature_blocks,
   // the bulk features-off list (fe4104ab), once per request.
-  ['bootstrap, admin', 'admin', '/bootstrap', 53, 5],
-  ['bootstrap, teacher', 'teacher', '/bootstrap', 30, 5],
-  ['bootstrap, parent', 'parent', '/bootstrap', 24, 5],
-  ['bootstrap, student', 'student', '/bootstrap', 24, 5],
+  // +1 on every bootstrap row (2026-10-19): the catalogue reads the question_maker_in_menu setting (bd52b31e).
+  ['bootstrap, admin', 'admin', '/bootstrap', 54, 5],
+  ['bootstrap, teacher', 'teacher', '/bootstrap', 31, 5],
+  ['bootstrap, parent', 'parent', '/bootstrap', 25, 5],
+  ['bootstrap, student', 'student', '/bootstrap', 25, 5],
   ['portal notifications, parent', 'parent', '/portal/notifications', 17, 4],
   ['portal notifications, student', 'student', '/portal/notifications', 17, 4],
   // +1 each for the hearts (one aggregate over status_likes); the teacher's
