@@ -184,3 +184,19 @@ INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
 SELECT id, 'front_office.communication.parent_concerns' FROM roles WHERE key = 'front_office';
 INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
 SELECT id, 'faculty.communication.concerns_from_parents' FROM roles WHERE key IN ('faculty', 'class_teacher');
+
+-- ---------------------------------------------------------------------------
+-- Receptionist / Front Office role for Yajur (owner, 2026-10-20): the front
+-- desk that receives parents' concerns. Same grants a new school gets.
+INSERT INTO roles (id, institution_id, key, name, is_system, is_default, created_at)
+SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
+       i.id, 'front_office', 'Receptionist / Front Office', 1, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  FROM institutions i
+ WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.institution_id = i.id AND r.key = 'front_office');
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission_key)
+SELECT r.id, p.key FROM roles r JOIN permissions p
+    ON p.key IN ('academics.read','admissions.read','students.read','office.front_desk.read','office.front_desk.write',
+                 'self.profile.read','self.profile.write','status.post','status.post_school','comms.mail.read','comms.mail.write')
+    OR p.key LIKE 'front_office.%'
+ WHERE r.key = 'front_office';
