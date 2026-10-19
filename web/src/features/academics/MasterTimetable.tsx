@@ -13,6 +13,7 @@ import BulkImport from '@/components/BulkImport'
 import SectionGrid from './SectionGrid'
 import ClassTimings from './ClassTimings'
 import { WEEKDAYS, cn } from '@/lib/utils'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* institution_admin.academics.master_timetable_generation
  *
@@ -924,6 +925,12 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
   const [weekday, setWeekday] = useState(String(entry.weekday))
   const [periodID, setPeriodID] = useState(entry.period_id)
   const [room, setRoom] = useState(entry.room ?? '')
+  // Shift the teacher too, not only the period (owner, 2026-10-19: "let
+  // them shift the periods also or teachers"). The clash check is the
+  // server's own (teacherBusy) -- this just offers the whole staff roster
+  // and lets the PUT below refuse a double-booking.
+  const [teacherID, setTeacherID] = useState(entry.teacher_id ?? '')
+  const roster = useEmployeeRoster()
 
   const move = useMutation({
     mutationFn: () =>
@@ -931,6 +938,7 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
         weekday: Number(weekday),
         period_id: periodID,
         room,
+        teacher_id: teacherID,
       }),
     onSuccess: onDone,
   })
@@ -959,6 +967,16 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
           placeholder="Room"
           srLabel={`Room for ${entry.subject_name}`}
         />
+        <div className="w-48">
+          <Select
+            value={teacherID}
+            onChange={setTeacherID}
+            placeholder="No teacher"
+            options={(roster.data?.items ?? []).map((t) => ({
+              value: t.id, label: t.full_name ?? t.name ?? t.employee_code ?? t.id,
+            }))}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={move.isPending} onClick={() => move.mutate()}>
