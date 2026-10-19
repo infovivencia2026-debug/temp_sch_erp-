@@ -425,12 +425,14 @@ async function getMyWork(c: Ctx) {
         JOIN enrollments     e ON e.section_id = sec.id AND e.status = 'active'
         LEFT JOIN marks      m ON m.exam_subject_id = es.id AND m.student_id = e.student_id
        WHERE sec.id IN (${marks(sections)})
+         -- Only a paper with a date that has passed: no date, no exam to mark.
+         AND es.exam_date IS NOT NULL AND substr(es.exam_date, 1, 10) <= ?
          AND EXISTS (SELECT 1 FROM section_subject_teachers t
                       WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)
        GROUP BY ex.name, sub.name, c.name, sec.name, ex.ends_on
       HAVING count(DISTINCT m.student_id) < count(DISTINCT e.student_id)
        ORDER BY ex.ends_on IS NULL, ex.ends_on
-       LIMIT 100`).bind(today, js(sections), u).all<Record<string, unknown>>()
+       LIMIT 100`).bind(today, js(sections), today, u).all<Record<string, unknown>>()
     for (const r of rows.results) {
       const expected = n(r.expected), entered = n(r.entered)
       const it: WorkItem = {

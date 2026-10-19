@@ -54,7 +54,14 @@ export default function Gradebook() {
   // single worst thing left in the interface.
   const papers = useQuery({
     queryKey: ['exam-subjects'],
-    queryFn: () => api.get<List<Paper>>('/api/v1/exams/subjects'),
+    /* ONLY A PAPER WITH A DATE (Yajur, 2026-10-19: "if a subject dont
+       schedule a exam like date and time than why showing this to enter").
+       A subject with no date on the date sheet has no exam, so there is
+       nothing to mark; it is not offered. */
+    queryFn: async () => {
+      const r = await api.get<List<Paper>>('/api/v1/exams/subjects')
+      return { ...r, items: (r.items ?? []).filter((p) => !!p.exam_date) }
+    },
   })
   /* What the paper is out of, and which scale grades it — before any mark.
    *
@@ -453,7 +460,7 @@ export default function Gradebook() {
             body={
               papers.data?.items.length
                 ? 'Pick a paper above to start entering marks.'
-                : 'No exam papers exist yet. Create an exam in setup first.'
+                : 'No exam is scheduled for your subjects yet, so there are no marks to enter. A paper appears here once it has a date on the date sheet.'
             }
           />
         ) : book.isLoading ? (
