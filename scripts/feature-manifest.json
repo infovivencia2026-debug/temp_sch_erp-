@@ -27,13 +27,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0092_feature_subject_meetings.sql",
+      "migration": "worker/migrations/tenant/0092_feature_subject_meetings.sql",
       "files": [
         "shared/api/feature_subject_meetings.ts",
         "web/src/features/academics/SubjectMeetings.tsx",
         "worker/src/routes/academics/subject_meetings.ts",
         "worker/test/integration/feature_subject_meetings.test.ts",
-        "worker\\migrations\\tenant\\0092_feature_subject_meetings.sql"
+        "worker/migrations/tenant/0092_feature_subject_meetings.sql"
       ]
     },
     "academics.subject_overview": {
@@ -64,13 +64,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0090_feature_subject_overview.sql",
+      "migration": "worker/migrations/tenant/0090_feature_subject_overview.sql",
       "files": [
         "shared/api/feature_subject_overview.ts",
         "web/src/features/academics/SubjectOverview.tsx",
         "worker/src/routes/academics/subject_overview.ts",
         "worker/test/integration/feature_subject_overview.test.ts",
-        "worker\\migrations\\tenant\\0090_feature_subject_overview.sql"
+        "worker/migrations/tenant/0090_feature_subject_overview.sql"
       ]
     },
     "communication.class_status": {
@@ -237,13 +237,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0087_feature_year_end_payout.sql",
+      "migration": "worker/migrations/tenant/0087_feature_year_end_payout.sql",
       "files": [
         "shared/api/feature_year_end_payout.ts",
         "web/src/features/payroll/YearEndPayout.tsx",
         "worker/src/routes/payroll/year_end_payout.ts",
         "worker/test/integration/year_end_payout.test.ts",
-        "worker\\migrations\\tenant\\0087_feature_year_end_payout.sql"
+        "worker/migrations/tenant/0087_feature_year_end_payout.sql"
       ]
     }
   }
