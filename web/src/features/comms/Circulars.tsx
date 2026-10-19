@@ -696,7 +696,7 @@ function FamilyNotices({ rows, onAck, acking }: {
                   </div>
                 )
               ) : (
-                'Notices are one-way. To reply, write to the class teacher under Message teacher.'
+                'Notices are one-way.'
               )
             }
           />

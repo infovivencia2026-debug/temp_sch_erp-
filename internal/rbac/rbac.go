@@ -155,6 +155,9 @@ const (
 	StatusPostSchool   = "status.post_school" // feature:communication.class_status
 	HelpDeskRead       = "help.desk.read"     // feature:help.helpdesk
 	HelpDeskWrite      = "help.desk.write"    // feature:help.helpdesk
+	CommsMailRead      = "comms.mail.read"    // feature:communication.inbox
+	CommsMailWrite     = "comms.mail.write"   // feature:communication.inbox
+	CommsMailManage    = "comms.mail.manage"  // feature:communication.mail_addresses
 )
 
 // Permission is a seedable row.
@@ -645,10 +648,3 @@ func keysExcept(excluded ...string) []string {
 	}
 	return out
 }
-
-// Staff Inbox (communication.inbox, communication.mail_addresses).
-const (
-	CommsMailRead   = "comms.mail.read"   // feature:communication.inbox
-	CommsMailWrite  = "comms.mail.write"  // feature:communication.inbox
-	CommsMailManage = "comms.mail.manage" // feature:communication.mail_addresses
-)

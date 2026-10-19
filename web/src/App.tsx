@@ -367,7 +367,7 @@ function FeatureRoute() {
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
         {homeLanding && (
-          <PageBody>
+          <PageBody width={feature.key === 'faculty.home.todays_classes' ? 'full' : undefined}>
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} noAttention={feature.key === 'faculty.home.todays_classes'} />
           </PageBody>
         )}
