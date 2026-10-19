@@ -42,6 +42,11 @@ export const FEATURE_ICONS: Record<string, string> = {
   board_members: 'groups', // Board members
   class_360: 'hub', // Class 360
   student_absentees: 'person_off', // Student absentees
+  inbox: 'inbox', // Inbox (a staff member's own school email)
+  mail_addresses: 'manage_accounts', // Mail addresses
+  subject_overview: 'insights', // Subject overview
+  subject_meetings: 'meeting_room', // Subject meetings
+  year_end_payout: 'savings', // Year-end payout
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
   scheduled_digests: 'schedule', // Scheduled digests

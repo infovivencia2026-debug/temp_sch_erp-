@@ -19,7 +19,7 @@ import {
   Maximize2, Pencil, Printer, RefreshCw, X} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
-import { useCan } from '@/lib/session'
+import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
@@ -721,7 +721,9 @@ function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState('')
   const [draft, setDraft] = useState('')
-  const mayRename = useCan()('institution.settings.write')
+  /* Outside SessionProvider (a bare test mount) nobody may rename. */
+  const session = useSessionIfAny()
+  const mayRename = !!session && (session.user?.platform_admin === true || session.permissions.includes('institution.settings.write'))
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   useEffect(() => {

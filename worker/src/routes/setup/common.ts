@@ -295,7 +295,7 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'academics.class360.view', ...SELF] },
   exam_controller: { name: 'Examination Controller', permissions: ['comms.mail.write', 'comms.mail.read', 'students.read', 'students.read.all',
     'academics.attendance.read', 'academics.attendance.read.all', 'academics.read', 'academics.exams.read',
-    'academics.exams.write', 'academics.marks.write', 'academics.reportcards.generate', 'admin.reports.read',
+    'academics.exams.write', 'academics.exams.approve', 'academics.marks.write', 'academics.reportcards.generate', 'admin.reports.read',
     'academics.class360.view', ...SELF] },
   finance: { name: 'Accounts & Finance', permissions: ['comms.mail.write', 'comms.mail.read', 'academics.read', 'students.read', 'students.read.all',
     'finance.fees.read', 'finance.fees.write', 'finance.invoices.read', 'finance.invoices.write', 'finance.payments.read',
