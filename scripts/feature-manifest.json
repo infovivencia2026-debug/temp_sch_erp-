@@ -181,13 +181,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0102_feature_concerns_from_parents.sql",
+      "migration": "worker/migrations/tenant/0103_feature_concerns_from_parents.sql",
       "files": [
         "shared/api/feature_concerns_from_parents.ts",
         "web/src/features/comms/ConcernsFromParents.tsx",
         "worker/src/routes/comms/concerns_from_parents.ts",
         "worker/test/integration/feature_concerns_from_parents.test.ts",
-        "worker\\migrations\\tenant\\0102_feature_concerns_from_parents.sql"
+        "worker/migrations/tenant/0103_feature_concerns_from_parents.sql"
       ]
     },
     "communication.inbox": {
@@ -589,13 +589,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0101_feature_parent_concerns.sql",
+      "migration": "worker/migrations/tenant/0102_feature_parent_concerns.sql",
       "files": [
         "shared/api/feature_parent_concerns.ts",
         "web/src/features/comms/ParentConcerns.tsx",
         "worker/src/routes/comms/parent_concerns.ts",
         "worker/test/integration/feature_parent_concerns.test.ts",
-        "worker\\migrations\\tenant\\0101_feature_parent_concerns.sql"
+        "worker/migrations/tenant/0102_feature_parent_concerns.sql"
       ]
     },
     "help.helpdesk": {
