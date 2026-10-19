@@ -181,7 +181,9 @@
         "admissions",
         "front_office",
         "hr",
-        "it_admin"
+        "it_admin",
+        "board_member",
+        "lms_admin"
       ],
       "keys": [
         "institution_admin.communication.inbox",
@@ -201,12 +203,14 @@
         "admissions.communication.inbox",
         "front_office.communication.inbox",
         "hr.communication.inbox",
-        "it_admin.communication.inbox"
+        "it_admin.communication.inbox",
+        "board_member.communication.inbox",
+        "lms_admin.communication.inbox"
       ],
       "module": "comms",
       "webDir": "comms",
       "planModule": "communication",
-      "apiBase": "/comms/mail",
+      "apiBase": "C:/Program Files/Git/comms/mail",
       "readPerm": "comms.mail.read",
       "writePerm": "comms.mail.write",
       "table": null,
@@ -293,6 +297,14 @@
           "comms.mail.write"
         ],
         "it_admin": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "board_member": [
+          "comms.mail.read",
+          "comms.mail.write"
+        ],
+        "lms_admin": [
           "comms.mail.read",
           "comms.mail.write"
         ]
@@ -473,6 +485,18 @@
           "go",
           "static_data",
           "setup_common"
+        ],
+        "board_member comms.mail.read": [
+          "go"
+        ],
+        "board_member comms.mail.write": [
+          "go"
+        ],
+        "lms_admin comms.mail.read": [
+          "go"
+        ],
+        "lms_admin comms.mail.write": [
+          "go"
         ]
       },
       "addedSectionModule": false,
@@ -480,9 +504,9 @@
       "files": [
         "shared/api/feature_inbox.ts",
         "web/src/features/comms/Inbox.tsx",
+        "worker/migrations/tenant/0099_feature_inbox.sql",
         "worker/src/routes/comms/inbox.ts",
-        "worker/test/integration/feature_inbox.test.ts",
-        "worker/migrations/tenant/0099_feature_inbox.sql"
+        "worker/test/integration/feature_inbox.test.ts"
       ]
     },
     "communication.mail_addresses": {

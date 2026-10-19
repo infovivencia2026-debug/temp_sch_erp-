@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 437 features. */
+/** 24 roles, 439 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -490,6 +490,14 @@ export const ROLES: Role[] = [
         workspace: 'Audit',
         features: [
           { key: 'board_member.audit.audit_trail', slug: 'audit_trail', name: 'Audit trail', scope: 'institution', tier: 'core', summary: 'Who changed what, when. A board reads this to trust the numbers above it, not to chase anybody.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'board_member.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
     ],
@@ -1580,6 +1588,14 @@ export const ROLES: Role[] = [
         workspace: 'LMS',
         features: [
           { key: 'lms_admin.lms.courses', slug: 'courses', name: 'Courses & material', scope: 'institution', tier: 'core', summary: 'Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'lms_admin.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
         ],
       },
     ],

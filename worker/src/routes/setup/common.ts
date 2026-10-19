@@ -261,10 +261,10 @@ const SELF = ['self.profile.read', 'self.profile.write']
 /** internal/rbac SystemRoles: the capability grants each built-in role carries. */
 export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] | 'all' }> = {
   /* Runs the school's LMS: every course, lesson, assignment and quiz, for any section. Grantable beside Teacher or Principal. */
-  lms_admin: { name: 'LMS Admin', permissions: ['students.read', 'students.read.all', 'academics.read', 'academics.timetable.read',
+  lms_admin: { name: 'LMS Admin', permissions: ['comms.mail.write', 'comms.mail.read', 'students.read', 'students.read.all', 'academics.read', 'academics.timetable.read',
     'academics.homework.write', ...SELF] },
   institution_admin: { name: 'Institution Admin / Principal', permissions: 'all' },
-  vice_principal: { name: 'Vice Principal / Academic Coordinator', permissions: [
+  vice_principal: { name: 'Vice Principal / Academic Coordinator', permissions: ['comms.mail.read', 'comms.mail.write', 
     'admissions.read', 'admissions.approve', 'students.read', 'students.read.all', 'academics.read', 'academics.write',
     'academics.timetable.read', 'academics.timetable.write', 'academics.attendance.read', 'academics.attendance.read.all',
     'academics.attendance.write', 'academics.attendance.write.any', 'academics.exams.read', 'academics.exams.write',
@@ -287,9 +287,9 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'academics.attendance.read', 'academics.attendance.write', 'academics.exams.read', 'academics.marks.write',
     'academics.homework.write', 'comms.announcements.write', 'welfare.discipline.write', 'academics.class360.view',
     'academics.reportcards.generate', ...SELF] },
-  subject_head: { name: 'Subject Head', permissions: ['academics.subject_head', 'academics.read', 'academics.timetable.read',
+  subject_head: { name: 'Subject Head', permissions: ['comms.mail.read', 'comms.mail.write', 'academics.subject_head', 'academics.read', 'academics.timetable.read',
     'academics.homework.write', 'academics.exams.read', 'comms.announcements.write', ...SELF] },
-  class_teacher: { name: 'Class Teacher', permissions: ['status.post', 'students.read', 'students.write', 'academics.read',
+  class_teacher: { name: 'Class Teacher', permissions: ['comms.mail.read', 'comms.mail.write', 'status.post', 'students.read', 'students.write', 'academics.read',
     'academics.timetable.read', 'academics.attendance.read', 'academics.attendance.write', 'academics.exams.read',
     'academics.marks.write', 'academics.reportcards.generate', 'academics.homework.write', 'welfare.discipline.write',
     'academics.class360.view', ...SELF] },
@@ -306,7 +306,7 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'operations.transport.read', ...SELF] },
   front_office: { name: 'Receptionist / Front Office', permissions: ['comms.mail.write', 'comms.mail.read', 'status.post', 'status.post_school', 'academics.read', 'admissions.read', 'students.read',
     'office.front_desk.read', 'office.front_desk.write', ...SELF] },
-  board_member: { name: 'Board / Trustee', permissions: ['institution.read', 'academics.read', 'finance.fees.read',
+  board_member: { name: 'Board / Trustee', permissions: ['comms.mail.write', 'comms.mail.read', 'institution.read', 'academics.read', 'finance.fees.read',
     'finance.invoices.read', 'finance.payments.read', 'finance.wallet.read', 'hr.payroll.read', 'operations.inventory.read',
     'admin.reports.read', 'admin.audit.read', 'admin.jobs.read', ...SELF] },
   hr: { name: 'HR & Payroll', permissions: ['comms.mail.write', 'comms.mail.read', 'academics.read', 'hr.employees.read', 'hr.employees.write', 'hr.payroll.read',
