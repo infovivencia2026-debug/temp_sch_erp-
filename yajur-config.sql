@@ -96,3 +96,39 @@ UPDATE roles SET customised_at = COALESCE(customised_at, strftime('%Y-%m-%dT%H:%
 INSERT INTO module_settings (institution_id, module, enabled)
 SELECT id, 'teacher_parent_messages', 0 FROM institutions WHERE 1 LIMIT 1
 ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 0;
+
+-- ---------------------------------------------------------------------------
+-- Trim to the owner's lists exactly (owner, 2026-10-19: "I see more").
+-- Grants only: every screen stays in the system and an admin can switch it
+-- back on in Logins & access -> Roles.
+-- Class Teacher: the class-teacher list plus the 14 subject-teacher screens.
+-- Kept capabilities: attendance (any section), report cards, marks,
+-- homework, class notices to parents, students.write, class360.view (it
+-- gates Student leave requests). Dropped: self.profile.write (profile is
+-- read-only) and academics.attendance.read.all (Absentee follow-up is the
+-- office's).
+DELETE FROM role_permissions
+ WHERE role_id IN (SELECT id FROM roles WHERE key = 'class_teacher')
+   AND permission_key NOT IN (
+     'status.post', 'students.read', 'students.write', 'academics.read', 'academics.timetable.read',
+     'academics.exams.read', 'academics.marks.write', 'academics.homework.write', 'welfare.discipline.write',
+     'self.profile.read', 'academics.attendance.read', 'academics.attendance.write', 'academics.attendance.write.any',
+     'academics.reportcards.generate', 'academics.class360.view', 'comms.announcements.write',
+     'faculty.attendance.take_attendance', 'faculty.attendance.take_attendance_school',
+     'faculty.marks_report_cards.marks_entry', 'faculty.marks_report_cards.report_cards',
+     'faculty.communication.classroom_communication', 'faculty.communication.remarks',
+     'faculty.communication.anecdotal_records', 'faculty.communication.class_teacher_remarks',
+     'faculty.communication.messages', 'faculty.communication.class_status',
+     'faculty.my_profile.student_leave_requests', 'faculty.teaching.homework_classwork',
+     'faculty.teaching.assignments_submissions', 'faculty.assessment_schemes.cce_formative_assessment_entry',
+     'faculty.assessment_schemes.cce_summative_assessment_entry', 'faculty.timetable.my_timetable',
+     'faculty.home.todays_classes', 'faculty.my_classes.student_progress', 'faculty.my_classes.behaviour',
+     'faculty.my_profile.leave_self_service', 'faculty.my_profile.my_pay', 'faculty.my_profile.my_tasks',
+     'faculty.my_profile.profile', 'faculty.exams.question_papers');
+-- Faculty: drop the class-teacher extras nobody asked for (a class teacher
+-- holds Faculty too, so these showed up in their menu).
+DELETE FROM role_permissions
+ WHERE role_id IN (SELECT id FROM roles WHERE key = 'faculty')
+   AND permission_key IN ('faculty.attendance.absentee_followup', 'faculty.attendance.attendance_correction',
+     'faculty.attendance.offline_attendance_diary_capture', 'faculty.attendance.student_absentees',
+     'faculty.my_classes.student_details', 'faculty.my_classes.class_360');
