@@ -966,8 +966,12 @@ export function Shell({
                 theme -- a global override would fight text contrast on every
                 screen, and this is the one square that should be the brand. */}
             {staffLayout ? (
-              /* The staff layout's brand block: the school, the desk, the campus. */
+              /* The staff layout's brand block: the logo, the school, the desk, the campus. */
               <span className="block w-full min-w-0 pr-10">
+                {session.institution?.logo_key && (
+                  <img src={`/api/v1/files/${session.institution.logo_key}?inline=1`} alt=""
+                    className="mb-2 aspect-square h-12 w-12 rounded-lg bg-white object-contain" />
+                )}
                 <span className="block whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-bold uppercase leading-tight tracking-[0.04em]">
                   {brandName}
                 </span>
