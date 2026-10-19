@@ -75,13 +75,13 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
     queryFn: () => api.get<{ items: Day[] }>(
       `/api/v1/setup/staff-hours/${employeeId}?month=${month}`),
   })
-  if (q.isLoading) return <div className="p-4"><SkeletonTable rows={4} /></div>
-  if (q.error) return <div className="p-4"><ErrorState error={q.error} /></div>
-
   /* This screen draws its own table -- the row is a day, not a record -- so
      it takes the chooser from the shared component rather than being
      rewritten around it. Same control, same stored setting. */
   const cols = useColumnChooser(HOUR_COLS)
+  if (q.isLoading) return <div className="p-4"><SkeletonTable rows={4} /></div>
+  if (q.error) return <div className="p-4"><ErrorState error={q.error} /></div>
+
   return (
     <div className="overflow-x-auto p-4">
       {cols.style}

@@ -158,6 +158,8 @@ FEATURE_SLUG_OVERRIDE = {
     "Take attendance (whole school)": "take_attendance_school",
     # Owner renames (2026-10-03), keys kept: grants and links key on the old slugs.
     "My students": "student_details",
+    # Owner rename (2026-10-19), key kept.
+    "Complaints": "grievances",
     "My planner": "digital_diary_schedule",
     "Exam seating plan": "hall_ticket_issue",
     "LMS": "e_learning_resource_hub",  # feature:learning.e_learning_resource_hub (renamed by feature:rename, key kept)

@@ -323,6 +323,13 @@ async function posterName(c: Ctx, p: PostRow): Promise<string> {
 
 const sourceOf = (p: Pick<PostRow, 'as_school' | 'posted_by'>) => (p.as_school ? 'school' : p.posted_by)
 
+/* A post that is no longer live (expired, kept in the gallery) has nothing new
+   left to show, so opening it reads the poster's bell entry outright. */
+async function readBell(c: Ctx, userId: string, source: string): Promise<void> {
+  await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
+    .bind(now(), userId, source).run()
+}
+
 async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   const people = await audience(c, p.id, p.posted_by)
   if (!people.length) return 0
@@ -698,7 +705,8 @@ export function registerClassStatus(r: Router): void {
        because all it can do is mark its OWN bell entry read. */
     if (await signed(c, c.params.id) === 'l') {
       const p = await signedPost(c, c.params.id)
-      if (p.posted_by === c.id.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
+      if (p.posted_by === c.id.userId) return ok({ id: p.id, counted: false })
+      if (p.status !== 'live') { await readBell(c, c.id.userId, sourceOf(p)); return ok({ id: p.id, counted: false }) }
       const family = c.id.roles.some((r) => r === 'parent' || r === 'student')
       const stmts = [
         c.db.prepare(`INSERT OR IGNORE INTO status_views (post_id, user_id, student_id, viewed_at) VALUES (?1, ?2, ${family ? `(
@@ -717,7 +725,8 @@ export function registerClassStatus(r: Router): void {
     await policyOn(c)
     const v = await viewer(c)
     const p = await seeable(c, v, c.params.id)
-    if (p.posted_by === v.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
+    if (p.posted_by === v.userId) return ok({ id: p.id, counted: false })
+    if (p.status !== 'live') { await readBell(c, v.userId, sourceOf(p)); return ok({ id: p.id, counted: false }) }
     // The child through whom a parent is in this audience, for the poster's list.
     const kid = v.kids.length ? await c.db.prepare(`SELECT e.student_id FROM enrollments e WHERE e.status = 'active' AND e.student_id IN (${marks()})
         AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ? AND (t.kind = 'school' OR (t.kind = 'class' AND t.target_id = e.class_id)

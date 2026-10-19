@@ -93,12 +93,12 @@ describe('exam parts', () => {
       { id: w.id, name: 'Written', max_marks: 85 }, { id: n.id, name: 'Notebook', max_marks: 5 }, { id: p.id, name: 'Project work', max_marks: 10 },
     ] })
     expect(status).toBe(200)
-    expect(await maxOf(PAPER)).toBe(100)
+    expect(await maxOf(PAPER)).toBe(200) // Subject marks (100) stays: it is always a part
     expect(await marksOf(PAPER, IDS.child)).toBe(86) // 72 + 9 + 5, Overall gone
     const left = (await E.TENANT_TEST.prepare(`SELECT COUNT(*) AS n FROM mark_parts WHERE part_id = ?`).bind(parts[3].id).first<{ n: number }>())!.n
     expect(left).toBe(0)
     const now = (await api('teacher', 'GET', `/exams/${EXAM}/parts`)).body.items
-    expect(now.map((x: { name: string }) => x.name)).toEqual(['Written', 'Notebook', 'Project work'])
+    expect(now.map((x: { name: string }) => x.name).filter((n: string) => n !== 'Subject marks')).toEqual(['Written', 'Notebook', 'Project work'])
   })
 
   it('the report card shows the total only, not the parts (owner, 2026-10-13)', async () => {
