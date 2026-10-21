@@ -15,9 +15,10 @@ import {
   Baby, NotebookPen, Receipt, PiggyBank, HandCoins, IdCard, Contact, ConciergeBell, Lock,
   LayoutDashboard, Cog, BedDouble, Briefcase, School as SchoolIcon, UserCog, ListTodo, SlidersHorizontal,
   Compass, Shapes, Puzzle, Layers, Flag, Star, Gem, Leaf, Feather, Anchor, Globe, Lightbulb, Target,
-  Trophy, Palette, Music, Microscope, Utensils, HeartPulse, Shirt, Warehouse, Store,
+  Trophy, Palette, Music, Microscope, Utensils, HeartPulse, Shirt, Warehouse, Store, ArrowLeft, ChevronRight,
 } from 'lucide-react'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
+import { useSessionIfAny } from '@/lib/session'
 import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
 import { FeatureGlyph } from '@/components/FeatureGlyph'
@@ -369,6 +370,15 @@ export function BentoLauncher({
   )
   const pinSet = useMemo(() => new Set(pinKeys), [pinKeys])
 
+  /* FOLDERS, AS IN A FILE EXPLORER (school setting `app.focus_folders`, for
+     teaching workspaces): each workspace is a folder; opening one shows its
+     screens under a path with a way back, instead of every screen at once. */
+  const session = useSessionIfAny()
+  const explorer = (role.key === 'faculty' || role.key === 'hod') &&
+    !!session?.modules?.some((m) => m.module === 'focus_folders' && m.enabled)
+  const [folder, setFolder] = useState<string | null>(null)
+  useEffect(() => { if (!open) setFolder(null) }, [open])
+
   const groups = useMemo(() => {
     const out: { name: string; rows: Row[] }[] = []
     for (const r of rows) {
@@ -387,12 +397,20 @@ export function BentoLauncher({
          has just said so, and the line it took is the name's second line. */
       return hits.slice(0, RESULT_LIMIT).map((h, i) => ({ id: `q:${h.doc.key}`, r: h.doc, context: false, runs: h.runs, pop: i }))
     }
+    // Folders: inside one, only its screens; at the top, the folders are buttons of their own.
+    if (explorer) {
+      const g = groups.find((x) => x.name === folder)
+      return g ? g.rows.map((r) => ({ id: `all:${r.key}`, r, context: false })) : [
+        ...pinned.map((r) => ({ id: `pin:${r.key}`, r, context: false })),
+        ...recents.map((r) => ({ id: `recent:${r.key}`, r, context: true })),
+      ]
+    }
     return [
       ...pinned.map((r) => ({ id: `pin:${r.key}`, r, context: false })),
       ...recents.map((r) => ({ id: `recent:${r.key}`, r, context: true })),
       ...groups.flatMap((g) => g.rows.map((r) => ({ id: `all:${r.key}`, r, context: false }))),
     ]
-  }, [needle, hits, pinned, recents, groups])
+  }, [needle, hits, pinned, recents, groups, explorer, folder])
 
   /* RESULTS, GROUPED BY WORKSPACE, BEST FIRST.
 
@@ -1010,7 +1028,37 @@ export function BentoLauncher({
                   {draw(slots.filter((s) => s.id.startsWith('recent:')), true)}
                 </section>
               )}
-              {groups.map((g) => {
+              {explorer && (folder === null ? (
+                <section className="lch-section" data-band="all">
+                  <Label icon={FolderTree} label={t('bento.launcher.folders')} />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {groups.map((g) => {
+                      const Mark = markFor(g.name)
+                      return (
+                        <button key={g.name} type="button" onClick={() => setFolder(g.name)}
+                          className="flex min-h-[44px] items-center gap-3 rounded-md bg-[color-mix(in_srgb,var(--ink-here)_6%,transparent)] px-3 py-3 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]">
+                          <Mark className="size-5 shrink-0" style={{ color: `var(--dom-${hueFor(g.name)}, currentColor)` }} aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{g.name}</span>
+                          <span className="text-[12px] opacity-70">{g.rows.length}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : (
+                <section className="lch-section" data-band="all" data-workspace={folder}>
+                  <nav aria-label={t('bento.launcher.folders')} className="mb-3 flex items-center gap-2 text-[13.5px]">
+                    <button type="button" onClick={() => setFolder(null)}
+                      className="inline-flex min-h-[40px] items-center gap-1 rounded-md px-2 hover:bg-[color-mix(in_srgb,var(--ink-here)_10%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]">
+                      <ArrowLeft className="size-4" aria-hidden="true" /> {t('bento.launcher.folders')}
+                    </button>
+                    <ChevronRight className="size-3.5 opacity-60" aria-hidden="true" />
+                    <span className="truncate font-medium">{folder}</span>
+                  </nav>
+                  {draw(slots)}
+                </section>
+              ))}
+              {!explorer && groups.map((g) => {
                 const Mark = markFor(g.name)
                 return (
                   <section key={g.name} className="lch-section" data-band="all" data-workspace={g.name}>
