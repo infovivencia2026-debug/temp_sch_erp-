@@ -13,6 +13,7 @@ import type { FeatureItem } from './featureCatalog'
    the children (or parents) ticked in the list, this whole class or section,
    or the whole school. Stored as feature_blocks; sign-in takes the keys away. */
 
+type Who = 'selected' | 'here' | 'school'
 type Block = { id: string; portal: 'student' | 'parent'; feature_key: string; scope: string; target_id: string; target_name: string }
 
 export function BulkFeatures({
