@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
-import { Button, Dialog } from '@/components/ui'
+import { Badge, Button, Dialog } from '@/components/ui'
+import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
 
 /* The bell in the header, and the panel it opens.
 
@@ -49,6 +50,8 @@ export interface Note {
   student_name?: string
   created_at: string
   read_at?: string
+  /** Work owed (server-computed): stays until done, shown "Pending". */
+  pending?: boolean
 }
 
 /* What sort of thing happened, at a glance.
@@ -127,10 +130,21 @@ function timeOf(iso: string): string {
 }
 
 /* The post a status notification is about: its link is "/?status=<id>". */
-function statusPostId(n: Note): string | null {
-  if (n.kind !== 'status' || !n.link) return null
-  const m = /[?&]status=([0-9a-f-]{36})/i.exec(n.link)
-  return m ? m[1].toLowerCase() : null
+const statusPostId = (n: Note): string | null => statusPostIdOf(n)
+
+/** The rows the bell and the teacher home panel both show (lib/notification-shown):
+    a status whose post has gone is left out, and work owed leads. */
+export function useShownNotes(): { items: Note[]; isLoading: boolean; error: unknown } {
+  const feed = useNotificationFeed()
+  const statusFeed = useStatusFeed()
+  let live: Set<string> | null = null
+  if (statusFeed.data) {
+    live = new Set()
+    for (const r of statusFeed.data.rings ?? []) for (const p of r.posts) live.add(p.id.toLowerCase())
+    for (const p of statusFeed.data.gallery ?? []) live.add(p.id.toLowerCase())
+  }
+  const items = pendingFirst((feed.data?.items ?? []).filter((n) => noteShown(n, live)))
+  return { items, isLoading: feed.isLoading, error: feed.error }
 }
 
 function seconds(n?: number): string {
@@ -359,7 +373,8 @@ export default function Notifications() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, viewing])
 
-  const items = feed.data?.items ?? []
+  const shown = useShownNotes()
+  const items = shown.items
 
   const openNote = (n: Note) => {
     /* A status opens the viewer at that post, over the drawer; seeing it
@@ -367,6 +382,8 @@ export default function Notifications() {
     const post = statusPostId(n)
     if (post && postById.has(post)) {
       setStatusOpen(post)
+      // Opened is gone, for a status too (the server also drops it on view).
+      dismissOne.mutate(n.id)
       return
     }
     /* Everything else opens in full, here. A press used to shut the drawer
@@ -707,12 +724,13 @@ export default function Notifications() {
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="flex items-baseline justify-between gap-2">
-                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{n.title}</span>
+                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at && !n.pending ? 'font-semibold' : 'font-bold')}>{n.title}</span>
                                 <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
                               </span>
                               <span className="block text-[11.5px] font-medium text-primary">
                                 <span className="capitalize">{label}</span>{n.student_name ? ` · ${n.student_name}` : ''}
                               </span>
+                              {n.pending && <Badge tone="warning" className="mt-1">Pending</Badge>}
                               {n.body && (
                                 <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{n.body}</span>
                               )}

@@ -323,10 +323,9 @@ async function posterName(c: Ctx, p: PostRow): Promise<string> {
 
 const sourceOf = (p: Pick<PostRow, 'as_school' | 'posted_by'>) => (p.as_school ? 'school' : p.posted_by)
 
-/* A post that is no longer live (expired, kept in the gallery) has nothing new
-   left to show, so opening it reads the poster's bell entry outright. */
+/* Opening a poster's post removes their bell entry (read and dismissed). */
 async function readBell(c: Ctx, userId: string, source: string): Promise<void> {
-  await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
+  await c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?1), dismissed_at = ?1 WHERE user_id = ?2 AND kind = 'status' AND source_kind = 'status' AND source_id = ?3 AND dismissed_at IS NULL`)
     .bind(now(), userId, source).run()
 }
 
@@ -715,10 +714,9 @@ export function registerClassStatus(r: Router): void {
                AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ?1 AND (t.kind = 'school' OR (t.kind = 'class' AND t.target_id = e.class_id) OR (t.kind = 'section' AND t.target_id = e.section_id)))
              LIMIT 1)` : 'NULL'}, ?3)`).bind(p.id, c.id.userId, now()),
       ]
-      if (c.url.searchParams.get('last') === '1') {
-        stmts.push(c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
-          .bind(now(), c.id.userId, sourceOf(p)))
-      }
+      // Opened is gone: the poster's bell entry leaves on any view.
+      stmts.push(c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?1), dismissed_at = ?1 WHERE user_id = ?2 AND kind = 'status' AND source_kind = 'status' AND source_id = ?3 AND dismissed_at IS NULL`)
+        .bind(now(), c.id.userId, sourceOf(p)))
       const res = await c.db.batch(stmts)
       return ok({ id: p.id, counted: (res[0].meta.changes ?? 0) > 0 })
     }
@@ -733,16 +731,9 @@ export function registerClassStatus(r: Router): void {
           OR (t.kind = 'section' AND t.target_id = e.section_id))) LIMIT 1`).bind(js(v.kids.map((k) => k.student_id)), p.id).first<{ student_id: string }>() : null
     const res = await c.db.prepare(`INSERT OR IGNORE INTO status_views (post_id, user_id, student_id, viewed_at) VALUES (?, ?, ?, ?)`)
       .bind(p.id, v.userId, kid?.student_id ?? null, now()).run()
-    // Every live post of this poster seen: their bell entry is read.
-    const vis = visible(v)
-    const left = await c.db.prepare(`SELECT count(*) AS n FROM status_posts p WHERE p.status = 'live' AND p.expires_at > ?
-        AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = ?
-        AND NOT EXISTS (SELECT 1 FROM status_views sv WHERE sv.post_id = p.id AND sv.user_id = ?) AND ${vis.sql}`)
-      .bind(now(), sourceOf(p), v.userId, ...vis.args).first<{ n: number }>()
-    if (!left?.n) {
-      await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
-        .bind(now(), v.userId, sourceOf(p)).run()
-    }
+    /* OPENED IS GONE, for a status too (Yajur, 2026-10-21): seeing a post
+       removes that poster's bell entry; their next post brings it back. */
+    await readBell(c, v.userId, sourceOf(p))
     return ok({ id: p.id, counted: (res.meta.changes ?? 0) > 0 })
   })
 

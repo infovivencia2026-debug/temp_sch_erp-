@@ -11,6 +11,8 @@ export interface Notification {
   /** IST, "YYYY-MM-DD HH:MM". */
   created_at: string
   read_at?: string
+  /** Work still owed (parent concern, deadline, leave to approve, parent awaiting reply): stays until done. */
+  pending?: boolean
 }
 
 export interface NotificationsApi {

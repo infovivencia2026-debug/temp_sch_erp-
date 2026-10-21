@@ -10,7 +10,7 @@ import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
-  notificationDay, notificationKind, useNotificationActions, useNotificationFeed, type Note,
+  notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
 
 /* A teacher's own day, from their own timetable.
@@ -62,8 +62,6 @@ function ago(iso: string): string {
   return notificationDay(iso)
 }
 
-/** Work owed, which stays in the list until done (see the server's notification list). */
-const URGENT: Record<string, string> = { 'concern.support_ticket': 'Parent concern', question_paper_deadline: 'Deadline' }
 
 /* The left edge of a notification says what family it is from. */
 const KIND_EDGE: Record<string, string> = {
@@ -123,7 +121,7 @@ export default function TodaysClasses() {
     queryFn: () => api.get<{ recording: boolean; items: { signed_in_at: string }[] }>('/api/v1/profile/session-activity'),
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
-  const notes = useNotificationFeed()
+  const notes = useShownNotes()
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -187,8 +185,8 @@ export default function TodaysClasses() {
       ? `Signed in ${clock(signIns[0])}`
       : `First sign-in ${clock(signIns[0])} · last ${clock(signIns[signIns.length - 1])}`
 
-  const noteItems: Note[] = notes.data?.items ?? []
-  const unread = notes.data?.unread ?? 0
+  const noteItems: Note[] = notes.items
+  const unread = notes.items.filter((n) => !n.read_at).length
 
   return (
     <PageBody top width="full"><div className="flex flex-col gap-5">
@@ -281,16 +279,16 @@ export default function TodaysClasses() {
               <ul className="flex flex-col gap-2 p-3">
                 {/* Work owed first, and marked: a parent concern and a paper due
                     stay until done, so they lead the list and carry a tag. */}
-                {[...noteItems].sort((a, b) => Number(!!URGENT[b.kind]) - Number(!!URGENT[a.kind])).map((n) => {
+                {noteItems.map((n) => {
                   const link = linkFor(n)
                   const family = notificationKind(n.kind).label
-                  const urgent = URGENT[n.kind]
+                  const urgent = n.pending
                   return (
                     <li key={n.id}
                       className={cn('flex items-start gap-3 rounded-lg border px-3 py-2.5',
                         urgent ? 'border-l-4 border-l-warning bg-warning/10' : cn('border-l-2', KIND_EDGE[family] ?? 'border-l-muted-foreground'))}>
                       <div className="min-w-0 flex-1">
-                        {urgent && <Badge tone="warning" className="mb-1">{urgent}</Badge>}
+                        {urgent && <Badge tone="warning" className="mb-1">Pending</Badge>}
                         <div className="flex items-baseline justify-between gap-2">
                           <p className={cn('min-w-0 truncate text-[14px]', n.read_at && !urgent ? 'font-medium' : 'font-semibold')}>{n.title}</p>
                           <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
