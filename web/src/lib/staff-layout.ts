@@ -15,6 +15,8 @@ export function staffLayoutOn(session: Pick<SessionResponse, 'modules'>, roleKey
 
 export interface TodaySignIns {
   date: string
+  /** The school's IANA timezone; the times are shown in it. */
+  timezone: string
   first_sign_in_at: string | null
   last_activity_at: string
   employee_code: string | null

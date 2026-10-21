@@ -127,10 +127,12 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   )
 }
 
-function clock(iso: string | null | undefined): string | null {
+/* In the school's timezone, not the browser's: a header read on a laptop set
+   to UTC showed 04:31 for a 10:01 sign-in. */
+function clock(iso: string | null | undefined, timeZone: string | undefined): string | null {
   if (!iso) return null
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
 }
 
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
@@ -143,8 +145,8 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
   const first = fullName.split(/\s+/)[0]
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const d = signIns.data
-  const firstAt = clock(d?.first_sign_in_at)
-  const lastAt = clock(d?.last_activity_at)
+  const firstAt = clock(d?.first_sign_in_at, d?.timezone)
+  const lastAt = clock(d?.last_activity_at, d?.timezone)
   const times = firstAt && lastAt ? `First ${firstAt} · Last ${lastAt}` : lastAt ? `Last ${lastAt}` : null
   return (
     <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">

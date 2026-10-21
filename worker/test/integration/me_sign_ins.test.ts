@@ -1,5 +1,6 @@
-/* GET /me/sign-ins/today (routes/daily.ts): today's first sign-in and latest
-   activity from the CONTROL sessions table, with the session-activity
+/* GET /me/sign-ins/today (routes/daily.ts): today's first sign-in (or first
+   request on a session from an earlier day) and latest activity from the
+   CONTROL sessions table, with the session-activity
    recording module left off; plus the staff code for the staff header. */
 import { describe, it, expect, beforeAll } from 'vitest'
 import { seed, api, signIn, E, IDS, USERS } from './fixture'
@@ -33,5 +34,23 @@ describe('GET /me/sign-ins/today', () => {
     expect(r.status).toBe(200)
     expect(r.body.first_sign_in_at).toBeNull()
     expect(Date.now() - Date.parse(r.body.last_activity_at)).toBeLessThan(60_000)
+  })
+
+  it('reports the first request today on a session signed in yesterday, in the school day', async () => {
+    const tz = 'Asia/Kolkata'
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
+    // One minute before the school's midnight: yesterday locally, well inside the idle limit.
+    const lateYesterday = new Date(Date.parse(`${today}T00:00:00+05:30`) - 60_000).toISOString()
+    await E.CONTROL.prepare(`UPDATE sessions SET created_at = ?, last_seen_at = ?, day_first_seen_at = NULL WHERE user_id = ?`)
+      .bind(new Date(Date.now() - 30 * 3600_000).toISOString(), lateYesterday, IDS.teacher).run()
+    const before = Date.now()
+    const r = await api('teacher', 'GET', '/me/sign-ins/today')
+    expect(r.status).toBe(200)
+    expect(r.body.timezone).toBe(tz)
+    expect(r.body.first_sign_in_at).not.toBeNull()
+    expect(Date.parse(r.body.first_sign_in_at)).toBeGreaterThanOrEqual(before - 1000)
+    // Later requests keep the same first time.
+    const again = await api('teacher', 'GET', '/me/sign-ins/today')
+    expect(again.body.first_sign_in_at).toBe(r.body.first_sign_in_at)
   })
 })

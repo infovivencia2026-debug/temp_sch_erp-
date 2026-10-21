@@ -6,6 +6,7 @@ import {
   HttpError, badRequest, bool, forbidden, notFound, ok, created, readJSON, uuid, uuidParam, uuidQuery, isUUID, now,
 } from '../http'
 import { json } from '../env'
+import { schoolDay } from '../auth/session'
 import { school } from './school'
 import { enqueue, queueOf, QUEUES } from '../services/jobs'
 import { allPeriods, periodsForSection, periodsOfSchedule, scheduleOfClass, schoolDayPeriods, sectionScheduleSQL } from './scheduling/bell'
@@ -419,8 +420,10 @@ function registerAttendance(r: Router) {
     const q = c.url.searchParams
     const on = q.get('on_date') || today()
     const res = await resolveScope(c)
-    const pred = attendancePred(res, 'sa')
     const section = nul(q.get('section_id') ?? ''), student = nul(q.get('student_id') ?? '')
+    /* One section's register, asked by someone who may mark it: they see what
+       is already recorded there, or a re-save would overwrite marks shown blank. */
+    const pred = section && canMarkSection(res, section) ? { sql: 'TRUE', args: [] as string[] } : attendancePred(res, 'sa')
     const rows = await c.db.prepare(`
       SELECT sa.id, sa.student_id, ${fullName3('st')} AS student_name, st.admission_no, sa.section_id,
              sa.on_date, sa.status, sa.minutes_late, sa.remarks
@@ -885,18 +888,23 @@ function registerMeGroup(r: Router) {
      school's own day. Also the staff code and campus, for the staff header. */
   r.get('/me/sign-ins/today', 'auth', async (c) => {
     const tz = c.id.institution?.timezone || 'Asia/Kolkata'
-    const day = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+    const day = (iso: string) => schoolDay(iso, tz)
     const nowIso = now()
     const todayLocal = day(nowIso)
     const since = new Date(Date.now() - 36 * 3600_000).toISOString()
     const instId = c.id.institution?.id ?? null
     const rows = await c.env.CONTROL.prepare(
-      `SELECT created_at, last_seen_at FROM sessions WHERE user_id = ? AND institution_id IS ? AND last_seen_at >= ?`)
-      .bind(c.id.userId, instId, since).all<{ created_at: string; last_seen_at: string }>()
+      `SELECT created_at, last_seen_at, day_first_seen_at FROM sessions WHERE user_id = ? AND institution_id IS ? AND last_seen_at >= ?`)
+      .bind(c.id.userId, instId, since).all<{ created_at: string; last_seen_at: string; day_first_seen_at: string | null }>()
+    /* First = the earliest of today's sign-ins and today's first request on a
+       session signed in on an earlier day (stamped by auth/session.ts).
+       Last = the latest touch of any session today. */
     let first: string | null = null
     let last: string | null = null
     for (const s of rows.results) {
-      if (day(s.created_at) === todayLocal && (!first || s.created_at < first)) first = s.created_at
+      for (const t of [s.created_at, s.day_first_seen_at]) {
+        if (t && day(t) === todayLocal && (!first || t < first)) first = t
+      }
       if (day(s.last_seen_at) === todayLocal && (!last || s.last_seen_at > last)) last = s.last_seen_at
     }
     const emp = await c.db.prepare(`SELECT e.employee_code, cp.name AS campus FROM employees e LEFT JOIN campuses cp ON cp.id = e.campus_id

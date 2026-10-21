@@ -130,8 +130,12 @@ async function listStudents(c: Ctx): Promise<Page<Student>> {
   if (q.get('mine') === 'class_teacher') {
     sectionId = sectionId && scope.classTeacherOf.includes(sectionId) ? sectionId : (scope.classTeacherOf[0] ?? '00000000-0000-0000-0000-000000000000')
   }
-  const pred = studentPredicate(scope, 'st')
-  const fp = await filterFingerprint(status, search, sectionId ?? '', classId ?? '', yearId ?? '', String(newThisYear), pred.sql, pred.args.join(' '))
+  /* Whoever may mark any section's register (academics.attendance.write.any)
+     gets that section's whole roll. Without it a class teacher picking another
+     class saw only the children they also teach: on Yajur, 0 of 22 in a
+     Grade 4 section (owner, 2026-10-21). */
+  const pred = sectionId && scope.anySection ? { sql: '1', args: [] } : studentPredicate(scope, 'st')
+  const fp =await filterFingerprint(status, search, sectionId ?? '', classId ?? '', yearId ?? '', String(newThisYear), pred.sql, pred.args.join(' '))
   const cur = decodeCursor(q.get('cursor') ?? '', fp)
   let withTotal = cur === null
   if (q.get('with_total') === '1') withTotal = true
