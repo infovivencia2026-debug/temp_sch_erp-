@@ -5,6 +5,7 @@ import { badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, u
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
   numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
 import { defaultReportCardHTML } from './exams/template'
+import { registerQuestionMaker } from './exams/qmaker'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
 import { DOC_PRINT_CSS, SchoolPDF, documentHTML, inr, logoBytes, schoolFacts, type SchoolFacts } from '../services/document'
 import { putObject, sha256, uploadKey } from '../services/files'
@@ -31,6 +32,7 @@ const NAME = nameOf('st')
 
 export function registerExams(r: Router): void {
   registerExamGroup(r)
+  registerQuestionMaker(r)
   registerHpc(r)
   registerLifecycle(r)
 }
@@ -1226,7 +1228,7 @@ async function listQuestionPapers(c: Ctx) {
   if (status !== '') { where.push('qp.status = ?'); args.push(status) }
   const rows = await c.db.prepare(`
     SELECT qp.id, ex.name AS exam_name, es.exam_date, c.name AS class, sub.name AS subject,
-           CAST(es.max_marks AS TEXT) AS max_marks, es.duration_minutes, qp.file_id, qp.notes, qp.status,
+           CAST(es.max_marks AS TEXT) AS max_marks, es.duration_minutes, qp.file_id, qp.doc IS NOT NULL AS has_doc, qp.notes, qp.status,
            COALESCE(u.full_name, 'a teacher') AS set_by, ${minuteOf('qp.submitted_at')} AS submitted_at,
            rv.full_name AS reviewed_by, qp.review_note, qp.submitted_by = ?1 AS mine
       FROM question_papers qp
@@ -1242,7 +1244,7 @@ async function listQuestionPapers(c: Ctx) {
   return ok({
     items: rows.results.map((v) => ({
       id: v.id, exam_name: v.exam_name, exam_date: v.exam_date ?? null, class: v.class, subject: v.subject,
-      max_marks: str(v.max_marks), duration_minutes: v.duration_minutes ?? null, file_id: v.file_id ?? null,
+      max_marks: str(v.max_marks), duration_minutes: v.duration_minutes ?? null, file_id: v.file_id ?? null, has_doc: bool(v.has_doc),
       notes: v.notes ?? null, status: v.status, set_by: v.set_by, submitted_at: str(v.submitted_at),
       reviewed_by: v.reviewed_by ?? null, review_note: v.review_note ?? null, mine: bool(v.mine),
     })),
@@ -1273,7 +1275,7 @@ async function submitQuestionPaper(c: Ctx) {
   await c.db.prepare(`
     INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
     VALUES (?1, ?2, ?3, ?4, NULLIF(?5,''), ?6, ?7, ?8, ?7)
-    ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, notes = excluded.notes, submitted_by = excluded.submitted_by,
+    ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, doc = NULL, draft_id = NULL, notes = excluded.notes, submitted_by = excluded.submitted_by,
       submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
   return ok({ status })
