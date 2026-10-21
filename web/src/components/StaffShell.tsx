@@ -153,8 +153,9 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
   return (
     <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
       <div className="min-w-0">
-        <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{greet}{first ? `, ${first}` : ''}</p>
-        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{dateLine}</p>
+        {/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
+        <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
+        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p>
       </div>
       <div className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
         <CommandSearch wide fill />

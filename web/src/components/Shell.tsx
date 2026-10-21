@@ -1266,7 +1266,8 @@ export function Shell({
               aria-label="Open navigation"
               aria-expanded={navOpen}
               aria-controls="shell-nav"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
+              className="order-last grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
               onClick={() => setNavOpen(true)}
             >
               <Menu className="h-6 w-6 md:h-5 md:w-5" />
