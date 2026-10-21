@@ -332,13 +332,13 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     if (STAGE_KEYS.has(f.key) && !(await stageAllowed(f.key))) return false
     return true
   }
-  /* Question maker (setting `academics.question_maker_in_menu`): the AI paper
-     generator and the question bank sit in the normal menu, not behind Show advanced. */
+  /* Question maker (setting `academics.question_maker_in_menu`): the paper
+     generator and the question bank open as tabs of Question papers, so they
+     leave the menu as screens of their own; the grants stay, and gate the tabs. */
   // Asked only of a person in a school who holds one of the two screens: no read for families or platform staff.
   const qmaker = !!c.id.institution && !c.id.platformAdmin && [...QUESTION_MAKER].some((k) => can(c.id, k)) &&
     !!(await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'question_maker_in_menu'`).first<{ enabled: number }>())?.enabled
-  const tierOf = (f: CatalogFeature) => (qmaker && QUESTION_MAKER.has(f.key) ? 'core' : f.tier)
-  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: tierOf(f), in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
+  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: f.tier, in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
 
   type Sec = { slug: string; name: string; workspace: string; features: ReturnType<typeof feat>[] }
   type Role = { key: string; name: string; sections: Sec[] }
@@ -425,6 +425,10 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
         else host.sections.push({ slug, name: g.name, workspace: host.name, features: g.features })
       }
     }
+  }
+
+  if (qmaker) {
+    for (const ro of roles) for (const s of ro.sections) s.features = s.features.filter((f) => !QUESTION_MAKER.has(f.key))
   }
 
   /* ABSENTEE FOLLOW-UP IS THE OFFICE'S, NOT A TEACHER'S (the owner's rule):
