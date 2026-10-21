@@ -988,6 +988,20 @@ async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[];
                            AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = notifications.source_id)`)
       .bind(user, now()).run()
   } catch { /* no statuses here */ }
+  /* WORK STAYS UNTIL IT IS DONE (Yajur, 2026-10-21): a parent concern passed
+     to this person, and a question paper they owe, leave the bell when the
+     concern is marked resolved and when the paper has been sent, not when
+     they are opened. Asked only of teaching staff, the people these go to. */
+  if (can(c.id, 'academics.timetable.read')) try {
+    await c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
+        WHERE user_id = ?1 AND dismissed_at IS NULL AND (
+          (kind = 'concern.support_ticket' AND EXISTS (SELECT 1 FROM support_tickets t WHERE t.id = notifications.source_id AND (t.status IN ('resolved', 'closed')
+             OR EXISTS (SELECT 1 FROM grievance_updates gu WHERE gu.ticket_id = t.id AND gu.kind = 'teacher_resolved'))))
+          OR (kind = 'question_paper_deadline' AND (
+             EXISTS (SELECT 1 FROM question_papers qp WHERE qp.exam_subject_id = notifications.source_id AND qp.status IN ('submitted', 'approved'))
+             OR EXISTS (SELECT 1 FROM question_paper_deadlines d WHERE d.exam_subject_id = notifications.source_id AND d.teacher_user_id = ?1 AND d.manually_received_at IS NOT NULL))))`)
+      .bind(user, now()).run()
+  } catch { /* a school without these tables yet */ }
   const list = c.db.prepare(`
       SELECT n.id, n.kind, n.title, n.body, n.link, n.student_id, ${shortName('st')} AS student_name,
              n.created_at, n.read_at
@@ -1040,6 +1054,11 @@ async function dismissNotification(c: Ctx): Promise<Response> {
   const noteID = c.params.id
   if (!isUUID(noteID)) throw badRequest('invalid notification id')
   const ts = now()
+  // A concern or a paper owed is only read here; it leaves when the work is done (see the list).
+  const kept = await c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?)
+      WHERE id = ? AND user_id = ? AND dismissed_at IS NULL AND kind IN ('concern.support_ticket', 'question_paper_deadline')`)
+    .bind(ts, noteID, c.id.userId).run()
+  if (kept.meta.changes === 1) return ok({ status: 'read' })
   const res = await c.db.prepare(`UPDATE notifications SET dismissed_at = ?, read_at = COALESCE(read_at, ?)
                                    WHERE id = ? AND user_id = ? AND dismissed_at IS NULL`)
     .bind(ts, ts, noteID, c.id.userId).run()

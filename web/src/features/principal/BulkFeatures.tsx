@@ -16,6 +16,8 @@ import type { FeatureItem } from './featureCatalog'
 type Who = 'selected' | 'here' | 'school'
 type Block = { id: string; portal: 'student' | 'parent'; feature_key: string; scope: string; target_id: string; target_name: string }
 
+type Who = 'selected' | 'here' | 'school'
+
 export function BulkFeatures({
   portal, selected, here, onClose,
 }: {
