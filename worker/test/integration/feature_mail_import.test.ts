@@ -75,6 +75,16 @@ describe('import', () => {
     expect(n!.n).toBe(0)
   })
 
+  it('matches a name in any order, or the words of the email id', async () => {
+    const p = await api('admin', 'POST', '/comms/mail-addresses/import/preview', {
+      rows: [
+        { line: 1, code: 'X1', name: 'Admin Asha', email: `a1@${DOMAIN}` },
+        { line: 2, code: 'X2', name: 'Someone', email: `asha.admin@${DOMAIN}` },
+      ],
+    })
+    expect(p.body.rows.map((r: any) => r.user_id)).toEqual([IDS.admin, IDS.admin])
+  })
+
   it('flags an address used twice or held by someone else', async () => {
     const twice = await api('admin', 'POST', '/comms/mail-addresses/import/preview', {
       rows: [{ line: 1, code: 'E01', name: '', email: `same@${DOMAIN}` }, { line: 2, code: '', name: 'Asha Admin', email: `same@${DOMAIN}` }],
