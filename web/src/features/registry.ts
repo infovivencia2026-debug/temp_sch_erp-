@@ -221,9 +221,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
   'hod.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
   'faculty.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
-  /* Attendance — three separate menu tiles, one screen each: Take attendance,
-     Present & absent and Absentee follow-up. Each is scoped server-side, so a
-     class teacher gets their sections and a read.all holder gets the school.
   'institution_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'hod.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'exam_controller.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
@@ -245,6 +242,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
   'board_member.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'lms_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  /* Attendance — three separate menu tiles, one screen each: Take attendance,
+     Present & absent and Absentee follow-up. Each is scoped server-side, so a
+     class teacher gets their sections and a read.all holder gets the school.
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   /* Same register, wider reach. Which sections it offers is decided by the
