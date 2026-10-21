@@ -16,7 +16,8 @@
 # if any did, so the run shows red.
 #
 # SECRETS (Settings > Secrets and variables > Actions):
-#   CLOUDFLARE_API_TOKEN   Account > D1 > Read (export needs read only).
+#   CLOUDFLARE_API_TOKEN   Account > D1 > Edit. Read is not enough: an export
+#                          starts an export job, which Cloudflare treats as a write.
 #   CLOUDFLARE_ACCOUNT_ID  The account id.
 #   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
 #                          Already set for nightly-backup.yml; reused.
