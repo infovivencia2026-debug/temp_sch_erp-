@@ -190,7 +190,10 @@ function FeatureGroup({ name, held, total, forceOpen, children }: {
   return (
     <Card className="min-w-0">
       <button type="button" onClick={() => setOpen(!shown)} aria-expanded={shown}
-        className={cn('flex min-h-[44px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[40px]', shown && 'border-b')}>
+        /* m-0: a button straight inside .card otherwise gets the card's side and
+           bottom margins (index.css), which pushed this full-width header off the
+           card's right edge and left a gap under it. */
+        className={cn('m-0 flex min-h-[44px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[40px]', shown && 'border-b')}>
         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{name}</span>
         <Badge tone={held ? 'primary' : 'neutral'}>{held} / {total} held</Badge>
         <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !shown && '-rotate-90')} />
