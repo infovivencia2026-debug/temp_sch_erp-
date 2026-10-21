@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
-import { Badge, Card, Select, SEG_BAR, segClass } from '@/components/ui'
+import { Badge, Card, Select, Switch, SEG_BAR, segClass } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { cn } from '@/lib/utils'
 
@@ -28,174 +27,133 @@ export interface FeatureItem {
    subject_overview also shares one component across three workspaces but is
    scoped to the subjects a person heads, so it stays with its workspace. */
 const GENERAL_SLUGS = ['inbox', 'messages', 'leave_self_service', 'my_pay']
-const GENERAL = 'general'
 
-/** One row in the editor: a single key, or a General screen covering many. */
+/** One screen as the person sees it: a single key, or a General screen covering many. */
 interface Entry {
   id: string
   name: string
   summary: string
-  unlocks: string[]
-  where: string
-  group: string
+  workspace: string
   keys: string[]
 }
 
-function entries(items: FeatureItem[]): { list: Entry[]; groups: { key: string; name: string }[] } {
-  const list: Entry[] = []
-  const general = new Map<string, Entry>()
-  const groups = [{ key: GENERAL, name: 'General' }]
+function entries(items: FeatureItem[]): Entry[] {
+  const general: Entry[] = []
+  const rest: Entry[] = []
   for (const f of items) {
     const slug = f.key.split('.').pop() ?? ''
     if (GENERAL_SLUGS.includes(slug)) {
-      const e = general.get(slug)
-      if (e) { e.keys.push(f.key); for (const u of f.unlocks) if (!e.unlocks.includes(u)) e.unlocks.push(u); continue }
-      const g: Entry = { id: slug, name: f.name, summary: f.summary, unlocks: [...f.unlocks], where: 'Every workspace', group: GENERAL, keys: [f.key] }
-      general.set(slug, g)
-      list.push(g)
+      const e = general.find((g) => g.id === slug)
+      if (e) e.keys.push(f.key)
+      else general.push({ id: slug, name: f.name, summary: f.summary, workspace: 'General', keys: [f.key] })
       continue
     }
-    if (!groups.some((g) => g.key === f.role_key)) groups.push({ key: f.role_key, name: f.role_name })
-    list.push({ id: f.key, name: f.name, summary: f.summary, unlocks: f.unlocks, where: f.section, group: f.role_key, keys: [f.key] })
+    rest.push({ id: f.key, name: f.name, summary: f.summary, workspace: f.role_name, keys: [f.key] })
   }
-  return { list, groups: groups.filter((g) => list.some((e) => e.group === g.key)) }
+  return [...general, ...rest]
 }
 
-type Status = 'all' | 'held' | 'role' | 'direct' | 'none'
-const STATUSES: { key: Status; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'held', label: 'Held' },
-  { key: 'role', label: 'From roles' },
-  { key: 'direct', label: 'Given directly' },
-  { key: 'none', label: 'Not held' },
-]
+type Status = 'all' | 'active' | 'role' | 'direct' | 'none'
 
-/* Every built feature and how this person holds it: through a role (ticked,
-   locked: the role is what to change), given directly (ticked, removable), or
-   not at all. `roleGrants` maps a key to the names of the roles granting it;
-   `direct` is the direct set being edited. */
-export function FeatureAccess({ items, roleGrants, direct, onChange }: {
+/* Every built feature as one flat list, each with a switch: on means the
+   person can open it. From a role: on and locked, the role is what to change.
+   Direct: on, can be turned off. Inactive: off, turning it on grants it to
+   this person directly. `roleGrants` maps a key to the names of the roles
+   granting it; `direct` is their direct set. `header` receives the counts so
+   the card above can say how many they hold. */
+export function FeatureAccess({ items, roleGrants, direct, busy, onChange, header }: {
   items: FeatureItem[]
   roleGrants: Map<string, string[]>
   direct: Set<string>
+  busy: boolean
   onChange: (keys: string[], on: boolean) => void
+  header: (held: number, total: number) => ReactNode
 }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<Status>('all')
-  const [group, setGroup] = useState('')
-  const { list, groups } = entries(items)
+  const [workspace, setWorkspace] = useState('')
+  const list = entries(items)
+  const workspaces = [...new Set(list.map((e) => e.workspace))]
 
   const fromRoles = (e: Entry) => [...new Set(e.keys.flatMap((k) => roleGrants.get(k) ?? []))]
-  const stateOf = (e: Entry): Exclude<Status, 'all' | 'held'> =>
+  const stateOf = (e: Entry): Exclude<Status, 'all' | 'active'> =>
     fromRoles(e).length ? 'role' : e.keys.some((k) => direct.has(k)) ? 'direct' : 'none'
+  const count = (s: Status) => list.filter((e) => s === 'all' || (s === 'active' ? stateOf(e) !== 'none' : stateOf(e) === s)).length
+  const tabs: { key: Status; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: `Active (${count('active')})` },
+    { key: 'role', label: `From role (${count('role')})` },
+    { key: 'direct', label: `Direct (${count('direct')})` },
+    { key: 'none', label: `Inactive (${count('none')})` },
+  ]
 
   const q = search.trim().toLowerCase()
   const shown = list.filter((e) => {
-    if (group && e.group !== group) return false
+    if (workspace && e.workspace !== workspace) return false
     const s = stateOf(e)
-    if (status === 'held' ? s === 'none' : status !== 'all' && s !== status) return false
-    return !q || e.name.toLowerCase().includes(q) || e.summary.toLowerCase().includes(q) || e.where.toLowerCase().includes(q)
+    if (status === 'active' ? s === 'none' : status !== 'all' && s !== status) return false
+    return !q || e.name.toLowerCase().includes(q) || e.summary.toLowerCase().includes(q) || e.workspace.toLowerCase().includes(q)
   })
-  const filtering = q !== '' || status !== 'all' || group !== ''
 
   return (
     <div className="min-w-0 space-y-3">
-      {/* Every control fits a 360px screen: the search shrinks, and the status
-          buttons scroll sideways inside their own strip rather than pushing the
-          whole list off the edge. */}
-      <div className="sticky top-0 z-10 flex min-w-0 flex-wrap items-center gap-2 bg-card pb-2 pt-1">
-        <SearchBox value={search} onChange={setSearch} placeholder="Search features" className="w-full min-w-0 flex-1 sm:min-w-[200px]" />
-        <div className="w-full sm:w-56">
-          <Select
-            value={group}
-            onChange={setGroup}
-            options={[{ value: '', label: 'Every workspace' }, ...groups.map((g) => ({ value: g.key, label: g.name }))]}
-          />
+      {header(count('active'), list.length)}
+      <div className="rounded-xl border border-warning/30 bg-warning/[0.07] px-4 py-3 text-[13px]">
+        Access normally comes from roles. Use this screen only for one-off extras.
+      </div>
+      <Card className="min-w-0">
+        <div className="flex min-w-0 flex-wrap gap-2 p-[var(--card-pad)]">
+          <SearchBox value={search} onChange={setSearch} placeholder="Search features" className="w-full min-w-0 flex-1 sm:min-w-[200px]" />
+          <div className="w-full sm:w-56">
+            <Select value={workspace} onChange={setWorkspace} options={[{ value: '', label: 'All workspaces' }, ...workspaces.map((w) => ({ value: w, label: w }))]} />
+          </div>
         </div>
-        <div className="max-w-full overflow-x-auto">
+      </Card>
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0 flex-1 overflow-x-auto">
           <div className={SEG_BAR} role="group" aria-label="Show">
-            {STATUSES.map((s) => (
+            {tabs.map((s) => (
               <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => setStatus(s.key)} className={cn(segClass(status === s.key), 'whitespace-nowrap')}>
                 {s.label}
               </button>
             ))}
           </div>
         </div>
-        <span className="text-[12.5px] text-muted-foreground">
-          {filtering ? `${shown.length} of ${list.length}` : `${list.length} features`}
-        </span>
+        <span className="shrink-0 text-[12.5px] text-muted-foreground">{list.length} total</span>
       </div>
-
-      {groups.map((g) => {
-        const rows = shown.filter((e) => e.group === g.key)
-        if (!rows.length) return null
-        const all = list.filter((e) => e.group === g.key)
-        return (
-          <FeatureGroup key={g.key} name={g.name} held={all.filter((e) => stateOf(e) !== 'none').length} total={all.length} forceOpen={filtering}>
-            {rows.map((e) => {
+      <Card className="min-w-0">
+        {shown.length === 0 ? (
+          <p className="p-[var(--card-pad)] text-[13px] text-muted-foreground">No features match.</p>
+        ) : (
+          <ul className="divide-y">
+            {shown.map((e) => {
               const s = stateOf(e)
-              const on = s !== 'none'
               const roles = fromRoles(e)
               return (
-                <button
-                  key={e.id}
-                  type="button"
-                  disabled={s === 'role'}
-                  title={s === 'role' ? 'Held through a role. Change the roles above to remove it.' : undefined}
-                  onClick={() => onChange(e.keys, s === 'none')}
-                  className={cn(
-                    'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                    s === 'role' ? 'cursor-default bg-muted/50' : on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
-                  )}
-                >
-                  <span className={cn('mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border', on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
-                    {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[14px] font-medium">{e.name}</span>
-                    <span className="block truncate text-[12px] text-muted-foreground">{e.where}</span>
-                    <span className="mt-1 block">
-                      {s === 'role'
-                        ? <Badge tone="success">From role: {roles.join(', ')}</Badge>
-                        : s === 'direct'
-                          ? <Badge tone="primary">Given directly</Badge>
-                          : <Badge tone="neutral">Not held</Badge>}
+                <li key={e.id} className="flex min-w-0 items-center gap-3 px-[var(--card-pad)] py-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-medium">{e.name}</span>
+                    <span className="block truncate text-[12.5px] text-muted-foreground">
+                      {s === 'role' ? `From ${roles.join(', ')}` : e.summary || e.workspace}
                     </span>
-                    {e.unlocks.length > 0 && (
-                      <span className="mt-0.5 block text-[12px] text-muted-foreground">Also grants: {e.unlocks.join(', ')}</span>
-                    )}
+                    <span className="block truncate text-[12px] text-muted-foreground">{e.workspace}</span>
                   </span>
-                </button>
+                  <Badge tone={s === 'role' ? 'success' : s === 'direct' ? 'primary' : 'neutral'}>
+                    {s === 'role' ? 'From role' : s === 'direct' ? 'Direct' : 'Inactive'}
+                  </Badge>
+                  <Switch
+                    on={s !== 'none'}
+                    disabled={s === 'role' || busy}
+                    label={e.name}
+                    title={s === 'role' ? 'Given by a role. Change their roles to remove it.' : undefined}
+                    onChange={(on) => onChange(e.keys, on)}
+                  />
+                </li>
               )
             })}
-          </FeatureGroup>
-        )
-      })}
-      {shown.length === 0 && <p className="text-[13px] text-muted-foreground">No features match.</p>}
+          </ul>
+        )}
+      </Card>
     </div>
-  )
-}
-
-/** A workspace card with how many of its features are held. Closed by
-    default; `forceOpen` opens it while a search or filter has hits inside. */
-function FeatureGroup({ name, held, total, forceOpen, children }: {
-  name: string
-  held: number
-  total: number
-  forceOpen: boolean
-  children: ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const shown = open || forceOpen
-  return (
-    <Card className="min-w-0">
-      <button type="button" onClick={() => setOpen(!shown)} aria-expanded={shown}
-        className={cn('flex min-h-[44px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[40px]', shown && 'border-b')}>
-        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{name}</span>
-        <Badge tone={held ? 'primary' : 'neutral'}>{held} / {total} held</Badge>
-        <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !shown && '-rotate-90')} />
-      </button>
-      {shown && <div className="grid gap-1.5 p-[var(--card-pad)] sm:grid-cols-2">{children}</div>}
-    </Card>
   )
 }

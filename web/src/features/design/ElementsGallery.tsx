@@ -5,7 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Checkbox, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
+  ConfirmButton, Checkbox, Switch, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
   EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, tabClass,
   SEG_BAR, segClass, Dialog, ExportTable, type ActiveRange,
 } from '@/components/ui'
@@ -172,6 +172,8 @@ function Gallery() {
               <Field label="Checkbox" wide>
                 <Checkbox checked={chk} onChange={setChk} label="Send an SMS as well" hint="Costs one credit per parent" />
                 <Checkbox checked={chk2} onChange={setChk2} label={TE} />
+                <Switch on={chk} onChange={setChk} label="Send an SMS as well" />
+                <Switch on disabled onChange={setChk} label="Held through a role" />
               </Field>
             </FormGrid>
           </Card>

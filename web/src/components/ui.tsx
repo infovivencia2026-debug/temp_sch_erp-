@@ -2056,6 +2056,43 @@ export function Checkbox({
    mouse user reads at a glance stays dense. */
 const COARSE_ROW = '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[15px]'
 
+/* An on/off switch. ON is the system green (.sys-switch in
+   styles/color-system.css). 44px tap area on phones, 40px on desktop. */
+export function Switch({
+  on,
+  onChange,
+  label,
+  disabled,
+  title,
+}: {
+  on: boolean
+  onChange: (v: boolean) => void
+  /** The accessible name: a switch beside a row's text still needs its own. */
+  label: string
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className="m-0 inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 sm:h-10"
+    >
+      <span
+        aria-hidden="true"
+        className={cn('sys-switch relative h-6 w-10 rounded-full border transition-colors duration-150', on ? 'bg-primary' : 'border-border bg-muted')}
+      >
+        <span className={cn('absolute top-[3px] size-4 rounded-full bg-card shadow-sm transition-[left] duration-150', on ? 'left-[19px]' : 'left-[3px]')} />
+      </span>
+    </button>
+  )
+}
+
 export function Select({
   value,
   onChange,
