@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, CalendarDays, ChevronDown, ClipboardCheck, Contact, Dot, FileText, Home, ListChecks,
-  MessageSquare, MessageSquareText, NotebookPen, Plane, Settings2, UserRound, Users, Wallet, type LucideIcon,
+  MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath, type ApiSection } from '@/lib/catalog'
@@ -36,6 +36,7 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/timetable|calendar|schedule|period/, CalendarDays],
   [/attendance|absen|register/, ClipboardCheck],
   [/mark|grade|assessment|exam|result|report card|cce|question|paper/, FileText],
+  [/teaching|teach|lesson/, Presentation],
   [/homework|assignment|classwork|submission/, NotebookPen],
   [/class|student|progress|360|behaviour|detail/, Users],
   [/remark|anecdot|ptm|note/, MessageSquareText],
@@ -54,7 +55,8 @@ function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
   return <Icon aria-hidden className="shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
 }
 
-const groupKey = (slug: string) => `erp.navGroup.${slug}`
+/* v2: a group someone opened under the old open-by-default rule starts closed again. */
+const groupKey = (slug: string) => `erp.navGroup.v2.${slug}`
 /* Closed until opened (owner, 2026-10-19: "as default close all dropdowns"). */
 function readOpen(slug: string): boolean {
   try { return localStorage.getItem(groupKey(slug)) === 'open' } catch { return false }

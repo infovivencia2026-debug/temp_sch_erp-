@@ -51,7 +51,8 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
      Other roles with this screen keep it as it was. */
   const teacherView = useActiveRole()?.key === 'faculty'
   const [sectionId, setSectionId] = useState('')
-  const [onDate, setOnDate] = useState(() => new Date().toISOString().slice(0, 10))
+  // Today on this device's calendar (toISOString is UTC, which is yesterday before 05:30 in India).
+  const [onDate, setOnDate] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [draft, setDraft] = useState<Record<string, Status>>({})
 
   /* Whether this account keeps the register for the whole school, which is
@@ -239,13 +240,14 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))}
             /></div>
-            <Input
+            {/* A teacher marks today; the date picker is the office's (Yajur, 2026-10-21). */}
+            {!teacherView && <Input
               type="date"
               value={onDate}
               onChange={(v) => { setOnDate(v); setDraft({}) }}
               srLabel="Date"
               className="w-full sm:w-auto"
-            />
+            />}
             {!teacherView && can('academics.attendance.write') && (
               <ImportButton
                 entity="attendance"
