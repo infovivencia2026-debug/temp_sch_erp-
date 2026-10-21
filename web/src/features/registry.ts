@@ -243,6 +243,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'it_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
+  'board_member.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'lms_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   /* Same register, wider reach. Which sections it offers is decided by the

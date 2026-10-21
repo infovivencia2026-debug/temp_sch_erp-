@@ -151,7 +151,6 @@ const DERIVED_ROLES: Record<string, string> = {
 }
 const OVERLAPPING: [string, string, string][] = [
   ['hod', 'faculty', 'A head of department who teaches gets marks entry, homework and the register from the hod role as soon as somebody allocates them a subject in Faculty allocation.'],
-  ['admissions', 'front_office', 'Admissions already contains the four front-desk registers. Give front_office alone to somebody who only works the desk, or admissions alone to somebody who does both.'],
   ['institution_admin', 'hostel_warden', "The principal's workspace already holds the whole hostel section. Give hostel_warden alone to the person who runs the hostel; a principal who also does so already has every register from their own role."],
 ]
 function checkGrantable(keys: string[], platformAdmin: boolean, alreadyHeld: ReadonlySet<string> = new Set()): void {

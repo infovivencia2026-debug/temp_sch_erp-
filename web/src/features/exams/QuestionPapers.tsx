@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, TAB_BAR, tabClass,
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
 import PaperDeadlines from './PaperDeadlines'
+import PaperFromBlueprint from '../faculty/PaperFromBlueprint'
+import QuestionBank from '../faculty/QuestionBank'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* The paper, read before it is printed.
@@ -68,6 +71,10 @@ export default function QuestionPapers() {
   const [done, setDone] = useState('')
   const [returning, setReturning] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  // Question maker (owner, 2026-10-19): papers made, banked and sent from this one screen.
+  const can = useCan()
+  const maker = can('faculty.question_papers_online_tests.ai_examcell_paper_generator') || can('faculty.question_papers_online_tests.question_bank_management')
+  const [tab, setTab] = useState<'papers' | 'maker' | 'bank'>('papers')
 
   // Composing a new one.
   const [slot, setSlot] = useState('')
@@ -161,6 +168,14 @@ export default function QuestionPapers() {
         }
       />
       <PageBody>
+        {maker && (
+          <div className={TAB_BAR} role="tablist">
+            {([['papers', 'Papers'], ['maker', 'Question maker'], ['bank', 'Question bank']] as const).map(([k, t]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tabClass(tab === k)} onClick={() => setTab(k)}>{t}</button>
+            ))}
+          </div>
+        )}
+        {tab === 'maker' ? <PaperFromBlueprint embedded slots={slots.data?.items ?? []} /> : tab === 'bank' ? <QuestionBank embedded /> : (<>
         {done && <FormNotice ok={done} />}
         {(submit.error || decide.error) && (
           <FormNotice error={submit.error ?? decide.error} />
@@ -397,6 +412,7 @@ export default function QuestionPapers() {
             </>
           )}
         </Card>
+        </>)}
       </PageBody>
     </>
   )

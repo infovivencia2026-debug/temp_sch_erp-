@@ -1,5 +1,6 @@
+import { EmbeddedBody, EmbeddedHead } from '../exams/embedded'
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NavLink } from 'react-router-dom'
 import { Plus, Shuffle, Sparkles, Trash2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -53,9 +54,55 @@ interface Paper {
   short: number
 }
 
-const blankRow: Row = { difficulty: '', kind: '', syllabus_unit_id: '', marks: '', count: '5' }
+/* The made paper, sent to the examination branch for one exam paper: the
+   server prints it on the letterhead and submits it like an uploaded one. */
+function SendMade({ paper, slots }: { paper: Paper; slots: MakerSlot[] }) {
+  const qc = useQueryClient()
+  const open = slots.filter((s) => s.status !== 'submitted' && s.status !== 'approved')
+  const [slot, setSlot] = useState('')
+  const send = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/exams/question-papers/made', {
+        exam_subject_id: slot,
+        sections: paper.sections.map((s) => ({ marks: s.row.marks, questions: s.questions.map((q) => ({ stem: q.stem, options: q.options })) })),
+      }),
+    onSuccess: () => {
+      setSlot('')
+      qc.invalidateQueries({ queryKey: ['question-paper-slots'] })
+      qc.invalidateQueries({ queryKey: ['question-papers'] })
+      qc.invalidateQueries({ queryKey: ['my-paper-deadlines'] })
+    },
+  })
+  return (
+    <Card className="print:hidden">
+      <CardHeader title="Send to examination branch" description="The paper is printed on the school letterhead and sent for approval, the same as an uploaded one." />
+      <div className="flex flex-wrap items-end gap-3 px-5 py-4">
+        <div className="w-full sm:w-80">
+          <Field label="For which exam paper" required>
+            <Select value={slot} onChange={setSlot}
+              placeholder={open.length ? 'Choose' : 'No exam papers waiting for a paper'}
+              options={open.map((s) => ({ value: s.exam_subject_id, label: `${s.exam_name} · ${s.class} · ${s.subject}` }))} />
+          </Field>
+        </div>
+        <Button disabled={!slot || send.isPending} onClick={() => send.mutate()}>
+          {send.isPending ? 'Sending…' : 'Send to examination branch'}
+        </Button>
+      </div>
+      <div className="px-5 pb-4">
+        <FormNotice error={send.error} ok={send.isSuccess ? 'Sent for approval.' : undefined} />
+      </div>
+    </Card>
+  )
+}
 
-export default function PaperFromBlueprint() {
+const blankRow: Row ={ difficulty: '', kind: '', syllabus_unit_id: '', marks: '', count: '5' }
+
+/** An exam paper the made paper can be sent for (from Question papers). */
+export interface MakerSlot { exam_subject_id: string; exam_name: string; class: string; subject: string; status: string | null }
+
+export default function PaperFromBlueprint({ embedded = false, slots = [] }: { embedded?: boolean; slots?: MakerSlot[] } = {}) {
+  const Head = embedded ? EmbeddedHead : PageHead
+  const Body = embedded ? EmbeddedBody : PageBody
   const subjects = useTeachingSubjects()
   const [subject, setSubject] = useState('')
   const [rows, setRows] = useState<Row[]>([{ ...blankRow }])
@@ -100,12 +147,12 @@ export default function PaperFromBlueprint() {
 
   return (
     <>
-      <PageHead
+      <Head
         eyebrow="Assessments"
         title="Paper from blueprint"
         actions={paper ? <PrintButton label="Print the paper" /> : undefined}
       />
-      <PageBody>
+      <Body>
         <Card className="print:hidden">
           <CardHeader
             title="Blueprint"
@@ -163,12 +210,16 @@ export default function PaperFromBlueprint() {
                 <Button disabled={!ready || draw.isPending} onClick={() => draw.mutate()}>
                   <Shuffle className="h-3.5 w-3.5" /> {paper ? 'Redraw' : 'Draw the paper'}
                 </Button>
-                <NavLink
-                  to={featurePath('faculty', 'question_papers_online_tests', 'question_bank_management')}
-                  className="inline-flex items-center gap-1 text-[13px] text-muted-foreground underline"
-                >
-                  <Sparkles className="h-3.5 w-3.5" /> No questions? Generate from a lesson
-                </NavLink>
+                {embedded ? (
+                  <span className="text-[13px] text-muted-foreground">No questions? Add them in the Question bank tab.</span>
+                ) : (
+                  <NavLink
+                    to={featurePath('faculty', 'question_papers_online_tests', 'question_bank_management')}
+                    className="inline-flex items-center gap-1 text-[13px] text-muted-foreground underline"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> No questions? Generate from a lesson
+                  </NavLink>
+                )}
               </div>
             </div>
           )}
@@ -221,7 +272,9 @@ export default function PaperFromBlueprint() {
             )}
           </Card>
         )}
-      </PageBody>
+
+        {embedded && paper && paper.questions > 0 && <SendMade paper={paper} slots={slots} />}
+      </Body>
     </>
   )
 }

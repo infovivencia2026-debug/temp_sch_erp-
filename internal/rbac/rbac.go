@@ -362,7 +362,7 @@ var SystemRoles = []Role{
 	// feature alone does not carry that, and a hand edit to the generated
 	// provision_seed.ts was wiped on the next regeneration (2026-10-15), so the
 	// grant lives here, where scripts/d1/tenant_seed reads it.
-	{"lms_admin", "LMS Admin", []string{"academics.timetable.read"}},
+	{"lms_admin", "LMS Admin", []string{CommsMailRead, CommsMailWrite, "academics.timetable.read"}},
 	{"seller_admin", "Seller Admin", SellerAdminPermissions},
 	{"support_admin", "Support Admin", SupportAdminPermissions},
 	{"institution_admin", "Institution Admin / Principal", keysExcept(PlatformTenantsRW, PlatformPlansRW)},
@@ -372,6 +372,8 @@ var SystemRoles = []Role{
 	// Larger schools were previously forced to hand out institution_admin for
 	// this, which is every fee record and every salary as a side effect.
 	{"vice_principal", "Vice Principal / Academic Coordinator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		// A joining is an academic and pastoral decision as much as a
 		// financial one, and a vice principal already carries the timetable
 		// and the roll it lands in.
@@ -389,6 +391,8 @@ var SystemRoles = []Role{
 		Class360Read,
 		SelfProfileRead, SelfProfileWrite}},
 	{"it_admin", "IT Administrator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		UsersRead, UsersWrite, RolesRead, RolesWrite, SessionsRevoke,
 		AuditRead, JobsRead, JobsEnqueue, IntegrationsWrite, SettingsWrite,
 		InstitutionRead, SelfProfileRead, SelfProfileWrite}},
@@ -427,6 +431,8 @@ var SystemRoles = []Role{
 	// Operations covers every specialism; the sub-role a user actually performs
 	// is decided by which of these they are granted, not by a separate role.
 	{"operations", "Operations Staff", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll,
 		LibraryRead, LibraryWrite, TransportRead, TransportWrite,
 		HostelRead, HostelWrite, InventoryRead, InventoryWrite, AssetsWrite,
@@ -463,9 +469,13 @@ var SystemRoles = []Role{
 	   nothing, and additive on top of whatever they already are (HOD or
 	   teacher). */
 	{"subject_head", "Subject Head", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		SubjectHead, AcademicsRead, TimetableRead, HomeworkWrite, ExamsRead,
 		AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		StatusPost, // feature:communication.class_status
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,
 		AttendanceRead, AttendanceWrite, ExamsRead, MarksWrite,
@@ -481,6 +491,8 @@ var SystemRoles = []Role{
 	// same permission question-paper approval already uses, and this
 	// role never held it, so its own exam screen had no deadline panel.
 	{"exam_controller", "Examination Controller", []string{
+		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, // feature:communication.inbox
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
 		AcademicsRead, ExamsRead, ExamsWrite, ExamsApprove, MarksWrite,
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
@@ -522,6 +534,8 @@ var SystemRoles = []Role{
 	// The receptionist could read the school and write nothing, which made the
 	// role unable to do the one job it has: sign a visitor in.
 	{"front_office", "Receptionist / Front Office", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, AdmissionsRead, StudentsRead, FrontDeskRead, FrontDeskWrite,
 		/* The receptionist is who puts the school's own notices up, so the
 		   front office posts as the school in Class Status. StatusPost is the
@@ -567,6 +581,8 @@ var SystemRoles = []Role{
 	   collection without a purpose. Students, attendance and the staff list
 	   come off. */
 	{"board_member", "Board / Trustee", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		InstitutionRead, AcademicsRead,
 		FeesRead, InvoicesRead, PaymentsRead, WalletRead, PayrollRead, InventoryRead,
 		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
@@ -575,21 +591,37 @@ var SystemRoles = []Role{
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},
 	{"librarian", "Librarian", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, LibraryRead, LibraryWrite, SelfProfileRead, SelfProfileWrite}},
 	{"hostel_warden", "Hostel Warden", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, HostelRead, HostelWrite, DisciplineWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	{"transport_manager", "Transport Manager", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, TransportRead, TransportWrite, SelfProfileRead, SelfProfileWrite}},
 	{"driver", "Driver / Bus Attendant", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		TransportRead, SelfProfileRead, SelfProfileWrite}},
 	{"counsellor", "Counsellor", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, CounselingRead, HealthRead, SelfProfileRead, SelfProfileWrite}},
 	{"nurse", "Nurse / Clinic", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, HealthRead, HealthWrite, SelfProfileRead, SelfProfileWrite}},
 	{"discipline_officer", "Discipline Officer", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, DisciplineWrite, SelfProfileRead, SelfProfileWrite}},
 	{"activity_coord", "Activity / Sports Coordinator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"student", "Student", []string{
 		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},

@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 439 features.
+// Roles is the catalog: 24 roles, 441 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -537,6 +537,14 @@ var Roles = []Role{
 				Workspace: "Audit",
 				Features: []Feature{
 					{Key: "board_member.audit.audit_trail", Slug: "audit_trail", Name: "Audit trail", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who changed what, when. A board reads this to trust the numbers above it, not to chase anybody."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "board_member.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 		},
@@ -1629,6 +1637,14 @@ var Roles = []Role{
 				Workspace: "LMS",
 				Features: []Feature{
 					{Key: "lms_admin.lms.courses", Slug: "courses", Name: "Courses & material", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "lms_admin.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 				},
 			},
 		},
