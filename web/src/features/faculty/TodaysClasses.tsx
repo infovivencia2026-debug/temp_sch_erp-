@@ -63,6 +63,10 @@ function ago(iso: string): string {
 }
 
 /* The left edge of a notification says what family it is from. */
+/** Work owed, which stays in the list until done (see the server's notification list). */
+const URGENT: Record<string, string> = { 'concern.support_ticket': 'Parent concern', question_paper_deadline: 'Deadline' }
+
+/* The left edge of a notification says what family it is from. */
 const KIND_EDGE: Record<string, string> = {
   Fees: 'border-l-warning',
   Messages: 'border-l-primary',
@@ -276,16 +280,20 @@ export default function TodaysClasses() {
               <EmptyState title="No notifications" body="New notices and messages for you appear here." />
             ) : (
               <ul className="flex flex-col gap-2 p-3">
-                {noteItems.map((n) => {
+                {/* Work owed first, and marked: a parent concern and a paper due
+                    stay until done, so they lead the list and carry a tag. */}
+                {[...noteItems].sort((a, b) => Number(!!URGENT[b.kind]) - Number(!!URGENT[a.kind])).map((n) => {
                   const link = linkFor(n)
                   const family = notificationKind(n.kind).label
+                  const urgent = URGENT[n.kind]
                   return (
                     <li key={n.id}
-                      className={cn('flex items-start gap-3 rounded-lg border border-l-2 px-3 py-2.5',
-                        KIND_EDGE[family] ?? 'border-l-muted-foreground')}>
+                      className={cn('flex items-start gap-3 rounded-lg border px-3 py-2.5',
+                        urgent ? 'border-l-4 border-l-warning bg-warning/10' : cn('border-l-2', KIND_EDGE[family] ?? 'border-l-muted-foreground'))}>
                       <div className="min-w-0 flex-1">
+                        {urgent && <Badge tone="warning" className="mb-1">{urgent}</Badge>}
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className={cn('min-w-0 truncate text-[14px]', n.read_at ? 'font-medium' : 'font-semibold')}>{n.title}</p>
+                          <p className={cn('min-w-0 truncate text-[14px]', n.read_at && !urgent ? 'font-medium' : 'font-semibold')}>{n.title}</p>
                           <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
                         </div>
                         {n.body && <p className="truncate text-[13px] text-muted-foreground">{n.body}</p>}
