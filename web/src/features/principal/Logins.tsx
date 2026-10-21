@@ -18,6 +18,7 @@ import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
 import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard, downloadLogins, printSlips } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
+import { groupByRole, RoleGroup, type FeatureItem } from './featureCatalog'
 
 /* Who can sign in to this school.
 
@@ -1409,36 +1410,24 @@ export function PortalFeatures({
   const roleKeys = new Set(current.data?.role_keys ?? [])
   const picked = new Set(direct ?? [])
 
-  /* Only this portal's own features, decided here rather than by the person
-     reading the list. A feature reaches the list if any of its variant keys
-     belongs to the namespace; the key we grant is that variant, never the
-     catalogue's canonical one, which may belong to a staff workspace that
-     happens to share the feature's name. */
-  const all = (features.data?.items ?? [])
-    .map((f) => ({ f, grant: f.keys.find((k) => k.startsWith(ns)) }))
-    .filter((x): x is { f: FeatureItem; grant: string } => Boolean(x.grant))
+  /* Only this portal's own screens, by exact key: the portal is one workspace,
+     so a same-named staff screen never reaches this list. */
+  const all = (features.data?.items ?? []).filter((f) => f.key.startsWith(ns))
 
   const q = search.trim().toLowerCase()
   const shown = q
-    ? all.filter((x) => x.f.name.toLowerCase().includes(q) || x.f.summary.toLowerCase().includes(q))
+    ? all.filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q))
     : all
 
   // From the role, from this screen, or not at all.
-  const held = (x: { f: FeatureItem; grant: string }) =>
-    x.f.keys.some((k) => k.startsWith(ns) && roleKeys.has(k))
-  const granted = (x: { f: FeatureItem; grant: string }) =>
-    x.f.keys.some((k) => k.startsWith(ns) && picked.has(k))
+  const held = (f: FeatureItem) => roleKeys.has(f.key)
+  const granted = (f: FeatureItem) => picked.has(f.key)
 
-  const toggle = (x: { f: FeatureItem; grant: string }) =>
+  const toggle = (f: FeatureItem) =>
     setDirect((prev) => {
       const set = new Set(prev ?? [])
-      if (granted(x)) {
-        // Off clears every variant in THIS portal, so a feature granted under
-        // an older key does not survive as a half-revoked grant.
-        for (const k of x.f.keys) if (k.startsWith(ns)) set.delete(k)
-      } else {
-        set.add(x.grant)
-      }
+      if (set.has(f.key)) set.delete(f.key)
+      else set.add(f.key)
       return [...set]
     })
 
@@ -1487,7 +1476,7 @@ export function PortalFeatures({
               const on = fromRole || granted(x)
               return (
                 <button
-                  key={x.grant}
+                  key={x.key}
                   type="button"
                   disabled={fromRole}
                   onClick={() => !fromRole && toggle(x)}
@@ -1509,9 +1498,9 @@ export function PortalFeatures({
                     {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[14px]">{x.f.name}</span>
-                    {x.f.summary && (
-                      <span className="block text-[12.5px] text-muted-foreground">{x.f.summary}</span>
+                    <span className="block text-[14px]">{x.name}</span>
+                    {x.summary && (
+                      <span className="block text-[12.5px] text-muted-foreground">{x.summary}</span>
                     )}
                     {fromRole && (
                       <span className="block text-[12px] text-muted-foreground">from their role</span>
@@ -1551,19 +1540,6 @@ interface UserPerms {
   user_id: string
   role_keys: string[]
   direct_keys: string[]
-}
-
-// One grantable feature in the "Individual features" exception editor, as served
-// by GET /api/v1/admin/features — a flat list de-duplicated by name. `key` is the
-// canonical variant to grant; `keys` are ALL variant keys sharing this name, so
-// the feature reads as "held" if the account holds any of them and revoking
-// clears every variant.
-interface FeatureItem {
-  key: string
-  keys: string[]
-  name: string
-  summary: string
-  unlocks: string[]
 }
 
 const MODULE_LABEL: Record<string, string> = {
@@ -1677,35 +1653,25 @@ function PermissionOverrides({
 
   /* The individual-feature exception editor. A grant here is a catalog feature
      key held directly, seeded from the same direct set (so it saves in the one
-     PUT alongside the capability picks above and never overwrites them). The
-     list is flat and de-duplicated by name, searchable by name (ranked first)
-     or summary — it is long. */
+     PUT alongside the capability picks above and never overwrites them). One
+     row per catalogue key, grouped by the workspace it lives in, so the same
+     name in two workspaces is two separate choices. Search runs across every
+     group (name matches ranked first) and opens the groups with hits. */
   const featureItems = features.data?.items ?? []
   const q = featureSearch.trim().toLowerCase()
   const shownFeatures = q
     ? featureItems
-        .filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q))
-        // Name matches rank above summary-only matches; order is otherwise stable.
+        .filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q) || f.role_name.toLowerCase().includes(q))
         .sort((a, b) => {
           const an = a.name.toLowerCase().includes(q) ? 0 : 1
           const bn = b.name.toLowerCase().includes(q) ? 0 : 1
           return an - bn
         })
     : featureItems
-
-  // A feature is held if the account holds ANY of its variant keys.
-  const featureHeld = (f: FeatureItem) => f.keys.some((k) => picked.has(k))
-  // Toggle ON adds the canonical key; toggle OFF removes every variant key.
-  const toggleFeature = (f: FeatureItem) =>
-    setDirect((prev) => {
-      const set = new Set(prev ?? [])
-      if (featureHeld(f)) {
-        for (const k of f.keys) set.delete(k)
-      } else {
-        set.add(f.key)
-      }
-      return [...set]
-    })
+  const allGroups = groupByRole(featureItems)
+  const shownGroups = groupByRole(shownFeatures)
+  const heldIn = (role: string) =>
+    allGroups.find((g) => g.role_key === role)?.items.filter((f) => picked.has(f.key)).length ?? 0
 
   return (
     <div className="flex flex-col border-t pt-5">
@@ -1830,14 +1796,24 @@ function PermissionOverrides({
                   : `${features.data?.items.length ?? 0} features`}
               </span>
             </div>
+            <div className="rounded-xl border px-2 empty:hidden">
+            {shownGroups.map((g) => (
+              <RoleGroup
+                key={g.role_key}
+                name={g.role_name}
+                held={heldIn(g.role_key)}
+                total={allGroups.find((a) => a.role_key === g.role_key)?.items.length ?? g.items.length}
+                forceOpen={q !== ''}
+              >
             <div className="grid gap-1.5 sm:grid-cols-2">
-              {shownFeatures.map((f) => {
-                const on = featureHeld(f)
+              {g.items.map((f) => {
+                /* Held, granted and revoked by this exact key only. */
+                const on = picked.has(f.key)
                 return (
                   <button
                     key={f.key}
                     type="button"
-                    onClick={() => toggleFeature(f)}
+                    onClick={() => toggle(f.key)}
                     className={cn(
                       'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
                       on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
@@ -1853,6 +1829,9 @@ function PermissionOverrides({
                     </span>
                     <span className="min-w-0">
                       <span className="block text-[14px] font-medium">{f.name}</span>
+                      <span className="block truncate text-[12px] text-muted-foreground">
+                        {f.role_name} · {f.section}
+                      </span>
                       {f.summary && (
                         <span className="mt-0.5 block text-[12px] text-muted-foreground">
                           {f.summary}
@@ -1867,6 +1846,9 @@ function PermissionOverrides({
                   </button>
                 )
               })}
+            </div>
+              </RoleGroup>
+            ))}
             </div>
             {shownFeatures.length === 0 && (
               <p className="text-[13px] text-muted-foreground">No features match.</p>
