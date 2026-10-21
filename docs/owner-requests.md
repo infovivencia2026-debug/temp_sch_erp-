@@ -126,3 +126,4 @@ Last checked: 2026-10-02.
 - Tinted stat tiles: label and icon too faint in dark.
 - 2026-10-21 Inbox on for every staff login by default, like notifications (no role grant needed); parents and students have none. Status: done.
 - 2026-10-21 Bell + teacher home notifications: opening a status removes its entry; a status whose post expired (not pinned) or was deleted is no longer listed; parent concerns, question paper deadlines, leave approvals and parent messages awaiting the teacher's reply stay, tagged Pending, until resolved/submitted/decided/replied; bell and home panel show the same set. Status: done.
+- 2026-10-21 Reports (principal/admin Data exports): attendance downloads added there too: one day every section (date picker) and last 90 days; same endpoints and scope as the register, which keeps them for admin/office. Status: done.
