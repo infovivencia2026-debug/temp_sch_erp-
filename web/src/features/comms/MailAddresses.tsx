@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { buzz } from '@/lib/haptics'
+import { useToast } from '@/components/Toast'
 import { readMailImportCsv, type MailImportPreview, type MailImportResult, type MailImportRow, type StaffMailAddress } from '@shared/api/feature_mail_addresses'
 import { parseCsv } from '@/components/BulkImport'
 import {
@@ -110,9 +112,10 @@ export default function MailAddresses() {
 function AddressDialog({ person, domain, onClose }: { person: StaffMailAddress; domain: string; onClose: () => void }) {
   const qc = useQueryClient()
   const [local, setLocal] = useState(person.address ? person.address.split('@')[0] : '')
+  const toast = useToast()
   const save = useMutation({
     mutationFn: () => api.call('PUT /comms/mail-addresses/{user_id}', { params: { user_id: person.user_id }, body: { local_part: local.trim() } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail-addresses'] }); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail-addresses'] }); buzz('tap'); toast.ok('Saved'); onClose() },
   })
   return (
     <Dialog
@@ -159,6 +162,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   const [readError, setReadError] = useState('')
   const [plan, setPlan] = useState<MailImportPreview | null>(null)
   const [assigned, setAssigned] = useState<number | null>(null)
+  const toast = useToast()
 
   const preview = useMutation({
     mutationFn: (r: MailImportRow[]) => api.call('POST /comms/mail-addresses/import/preview', { body: { rows: r } }),
@@ -170,7 +174,10 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   })
   const apply = useMutation({
     mutationFn: () => api.call('POST /comms/mail-addresses/import', { body: { rows: rows! } }),
-    onSuccess: (res) => { setPlan(res); setAssigned(res.assigned); qc.invalidateQueries({ queryKey: ['mail-addresses'] }) },
+    onSuccess: (res) => {
+      setPlan(res); setAssigned(res.assigned); qc.invalidateQueries({ queryKey: ['mail-addresses'] })
+      buzz('tap'); toast.ok(`Saved. ${res.assigned} ${res.assigned === 1 ? 'address' : 'addresses'} assigned`)
+    },
   })
 
   async function onFile(file: File | undefined) {
