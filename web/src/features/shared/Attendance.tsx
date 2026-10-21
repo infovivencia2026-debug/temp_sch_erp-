@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody, Input } from '@/components/ui'
-import { SearchBox, Showing, useSearch } from '@/components/rows'
+import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
+import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
+import { useActiveRole } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useOptimisticMutation } from '@/lib/optimistic'
@@ -33,17 +35,21 @@ const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
   half_day: 'primary', leave: 'neutral', holiday: 'neutral',
 }
 
-/* Each row tinted by its mark, so a register reads at a glance. */
-const ROW_TINT: Partial<Record<Status, string>> = { present: 'bg-success/10', absent: 'bg-destructive/10' }
-
 /* `embedded` is passed by the Attendance hub, which wraps this screen as a tab
    beside the monitor and follow-up. This screen has no PageHead of its own — it
    is a single Card — so there is nothing to suppress; the prop is accepted for a
    uniform signature across the three tab bodies and defaults to false so the
    standalone route (Class 360's Mark-attendance button) is unaffected. */
+/* Each row tinted by its mark in a teacher's register, so it reads at a glance. */
+const ROW_TINT: Partial<Record<Status, string>> = { present: 'bg-success/10', absent: 'bg-destructive/10' }
+
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   void embedded
   const can = useCan()
+  /* A teacher's register (Yajur, 2026-10-21): no import or exports here (those
+     live in Reports), clear Mark all buttons and rows tinted by their mark.
+     Other roles with this screen keep it as it was. */
+  const teacherView = useActiveRole()?.key === 'faculty'
   const [sectionId, setSectionId] = useState('')
   const [onDate, setOnDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [draft, setDraft] = useState<Record<string, Status>>({})
@@ -222,10 +228,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         title="Attendance register"
         description={sectionId ? `${students.length} students` : 'Choose a section to begin'}
         action={
-          /* Section and date only: importing and exporting registers live in
-             Reports (owner, 2026-10-21). */
-          <div className="grid w-full grid-cols-1 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap [&>*]:min-w-0 [&_button]:w-full sm:[&_button]:w-auto">
-            <div><Select
+          /* A tidy two-column grid on a phone: the five controls used to
+             wrap into a ragged staircase of odd widths. */
+          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap [&>*]:min-w-0 [&_button]:w-full sm:[&_button]:w-auto">
+            <div className="col-span-2 sm:col-span-1"><Select
               value={sectionId}
               onChange={(v) => { setSectionId(v); setDraft({}) }}
               placeholder="Select section"
@@ -240,6 +246,28 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               srLabel="Date"
               className="w-full sm:w-auto"
             />
+            {!teacherView && can('academics.attendance.write') && (
+              <ImportButton
+                entity="attendance"
+                title="Import attendance"
+                hint="One row per student per day, with the mark. Back-filling a term's registers from a sheet rather than a screen."
+              />
+            )}
+            {/* THE DAY, EVERY SECTION. The one file a school actually asks
+                for: this date, every section this person can see, every
+                child on the rolls, marked or "not marked". Served by the
+                register's own endpoint under the register's own scope, so a
+                class teacher gets their sections and the office the school. */}
+            {!teacherView && <Button
+              variant="outline"
+              onClick={() => window.location.assign(`/api/v1/attendance/day.csv?on_date=${onDate}`)}
+              title={`Every section for ${onDate}, as a spreadsheet`}
+            >
+              <span className="sm:hidden">Export day</span><span className="hidden sm:inline">Export day (all sections)</span>
+            </Button>}
+            {/* The whole register the school's scope allows, not just the
+                section on screen — what an inspector asks for by date. */}
+            {!teacherView && <ExportButton name="attendance" label="Export 90 days" />}
           </div>
         }
       />
@@ -256,8 +284,18 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         <>
           {can('academics.attendance.write') && (
             <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-              <Button variant="outline" onClick={() => markAll('present')}>Mark all present</Button>
-              <Button variant="outline" onClick={() => markAll('absent')}>Mark all absent</Button>
+              {teacherView ? (
+                <>
+                  <Button variant="outline" onClick={() => markAll('present')}>Mark all present</Button>
+                  <Button variant="outline" onClick={() => markAll('absent')}>Mark all absent</Button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs text-muted-foreground">Mark all:</span>
+                  <Button variant="ghost" onClick={() => markAll('present')}>Present</Button>
+                  <Button variant="ghost" onClick={() => markAll('absent')}>Absent</Button>
+                </>
+              )}
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 {save.isSuccess && !dirty && <span className="text-xs text-success">Saved</span>}
                 <Button
@@ -300,6 +338,17 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
           <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
             <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
             <Showing shown={shown.length} total={students.length} noun="students" />
+            {/* The register as it stands, which is what a school hands to an
+                inspector asking who was in on a given day. */}
+            {!teacherView && <ExportRows
+              rows={students}
+              name="attendance"
+              columns={[
+                { header: 'Admission no', value: (s) => s.admission_no },
+                { header: 'Student', value: (s) => s.full_name },
+                { header: 'Mark', value: (s) => existing.get(s.id) ?? draft[s.id] ?? 'not marked' },
+              ]}
+            />}
           </div>
           {/* The running count, so a teacher sees the class add up as they mark
               and catches a half-done register before saving it. Present and
@@ -338,7 +387,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               const saved = existing.get(s.id)
               const value = draft[s.id] ?? (saved as Status | undefined) ?? ''
               return (
-                <tr key={s.id} className={value ? ROW_TINT[value] : undefined}>
+                <tr key={s.id} className={teacherView && value ? ROW_TINT[value] : undefined}>
                   <Td className="font-mono text-xs">{s.admission_no}</Td>
                   <Td className="font-medium">
                     {s.full_name}
