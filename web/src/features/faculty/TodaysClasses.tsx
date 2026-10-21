@@ -62,7 +62,6 @@ function ago(iso: string): string {
   return notificationDay(iso)
 }
 
-/* The left edge of a notification says what family it is from. */
 /** Work owed, which stays in the list until done (see the server's notification list). */
 const URGENT: Record<string, string> = { 'concern.support_ticket': 'Parent concern', question_paper_deadline: 'Deadline' }
 
