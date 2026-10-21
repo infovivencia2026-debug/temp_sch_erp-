@@ -376,7 +376,7 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
        person holds the key for their own workspace and no other.
 
        It stops being invisible the moment a feature is granted directly.
-       /admin/features groups the tick boxes by NAME and grants every key with
+       /admin/features used to group the tick boxes by NAME and grant every key with
        that name, so one tick on "Present & absent" writes both keys, and this
        list then drew a row for each: the same screen twice in the sidebar,
        under the same words, going to the same place.

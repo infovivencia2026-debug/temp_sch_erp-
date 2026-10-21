@@ -885,9 +885,8 @@ export function registerAdminUsers(r: Router): void {
   r.get('/admin/features', 'access.users.read', () => {
     const desc = new Map(PERMISSIONS.map((p) => [p.key, p.description]))
     const skip = new Set(['dashboard', 'home', 'my_day', 'todays_classes', 'my_work', 'my_calendar', 'my_run'])
-    type Item = { name: string; summary: string; unlocks: string[]; key: string; keys: string[] }
+    type Item = { key: string; name: string; summary: string; unlocks: string[]; role_key: string; role_name: string; section: string }
     const items: Item[] = []
-    const idx = new Map<string, Item>()
     /* ONLY SCREENS THAT EXIST.
 
        This offered every entry in the catalogue -- about 590 tiles -- and only
@@ -900,17 +899,21 @@ export function registerAdminUsers(r: Router): void {
 
        It also made the list twice as long as it needed to be, in alphabetical
        order, which is why "Take attendance" could not be found without
-       searching for it. */
+       searching for it.
+
+       ONE ITEM PER KEY, NOT PER NAME (owner, 2026-10-21). "Take attendance"
+       under faculty is a teacher's register; under institution_admin it is the
+       office register with import and export. Merged by name, a tick granted
+       whichever came first, "held" lit for any of them and revoking cleared
+       all. Each item now names the workspace it lives in so the editor can
+       show and grant exactly one; catalogue order (role, then section). */
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
       if (!IMPLEMENTED_FEATURES.has(f.key)) continue
       if (skip.has(featureSlug(f.key)) || f.name === '') continue
-      let it = idx.get(f.name)
-      if (!it) { it = { name: f.name, summary: f.summary, unlocks: [], key: f.key, keys: [] }; idx.set(f.name, it); items.push(it) }
-      if (it.summary === '' && f.summary !== '') it.summary = f.summary
-      if (!it.keys.includes(f.key)) it.keys.push(f.key)
-      for (const cap of FEATURE_UNLOCKS[featureSlug(f.key)] ?? []) { const d = desc.get(cap) || cap; if (!it.unlocks.includes(d)) it.unlocks.push(d) }
+      const unlocks: string[] = []
+      for (const cap of FEATURE_UNLOCKS[featureSlug(f.key)] ?? []) { const d = desc.get(cap) || cap; if (!unlocks.includes(d)) unlocks.push(d) }
+      items.push({ key: f.key, name: f.name, summary: f.summary, unlocks, role_key: role.key, role_name: role.name, section: sec.name })
     }
-    items.sort((a, b) => { const x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0 })
     return ok({ items })
   })
 
