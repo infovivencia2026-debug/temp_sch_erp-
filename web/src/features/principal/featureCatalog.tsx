@@ -99,9 +99,12 @@ export function FeatureAccess({ items, roleGrants, direct, onChange }: {
   const filtering = q !== '' || status !== 'all' || group !== ''
 
   return (
-    <div className="space-y-3">
-      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-2 bg-card px-1 pb-2 pt-1">
-        <SearchBox value={search} onChange={setSearch} placeholder="Search features" className="min-w-[200px] flex-1" />
+    <div className="min-w-0 space-y-3">
+      {/* Every control fits a 360px screen: the search shrinks, and the status
+          buttons scroll sideways inside their own strip rather than pushing the
+          whole list off the edge. */}
+      <div className="sticky top-0 z-10 flex min-w-0 flex-wrap items-center gap-2 bg-card pb-2 pt-1">
+        <SearchBox value={search} onChange={setSearch} placeholder="Search features" className="w-full min-w-0 flex-1 sm:min-w-[200px]" />
         <div className="w-full sm:w-56">
           <Select
             value={group}
@@ -109,12 +112,14 @@ export function FeatureAccess({ items, roleGrants, direct, onChange }: {
             options={[{ value: '', label: 'Every workspace' }, ...groups.map((g) => ({ value: g.key, label: g.name }))]}
           />
         </div>
-        <div className={SEG_BAR} role="group" aria-label="Show">
-          {STATUSES.map((s) => (
-            <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => setStatus(s.key)} className={segClass(status === s.key)}>
-              {s.label}
-            </button>
-          ))}
+        <div className="max-w-full overflow-x-auto">
+          <div className={SEG_BAR} role="group" aria-label="Show">
+            {STATUSES.map((s) => (
+              <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => setStatus(s.key)} className={cn(segClass(status === s.key), 'whitespace-nowrap')}>
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
         <span className="text-[12.5px] text-muted-foreground">
           {filtering ? `${shown.length} of ${list.length}` : `${list.length} features`}
@@ -183,7 +188,7 @@ function FeatureGroup({ name, held, total, forceOpen, children }: {
   const [open, setOpen] = useState(false)
   const shown = open || forceOpen
   return (
-    <Card>
+    <Card className="min-w-0">
       <button type="button" onClick={() => setOpen(!shown)} aria-expanded={shown}
         className={cn('flex min-h-[44px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[40px]', shown && 'border-b')}>
         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{name}</span>
