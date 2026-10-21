@@ -10,7 +10,6 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
   Field, FormGrid, FormNotice, Dialog,
 } from '@/components/ui'
-import { SearchBox } from '@/components/rows'
 import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
@@ -18,7 +17,7 @@ import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
 import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard, downloadLogins, printSlips } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
-import { groupByRole, RoleGroup, type FeatureItem } from './featureCatalog'
+import { FeatureAccess, type FeatureItem } from './featureCatalog'
 
 /* Who can sign in to this school.
 
@@ -1231,7 +1230,7 @@ function AccountForm({
           </FormGrid>
         )}
 
-        <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
+        <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} automatic={AUTOMATIC_ROLES} />
 
         {/* Campuses, only when there is more than one to choose from — a
             single-campus school has nothing to pick and the row would be noise.
@@ -1536,6 +1535,13 @@ interface PermCatalogItem {
   module: string
   description: string
 }
+/* Roles the school's records give, not this screen: the server refuses to
+   grant class_teacher here, and subject_head follows Subjects. */
+const AUTOMATIC_ROLES: Record<string, string> = {
+  class_teacher: 'naming them class teacher of a section',
+  subject_head: 'naming them head of a subject',
+}
+
 interface UserPerms {
   user_id: string
   role_keys: string[]
@@ -1581,8 +1587,6 @@ function PermissionOverrides({
     queryKey: ['feature-catalog'],
     queryFn: () => api.get<List<FeatureItem>>('/api/v1/admin/features'),
   })
-  // The feature-tile search. Local to this editor; the tile list is long.
-  const [featureSearch, setFeatureSearch] = useState('')
 
   // The direct set the editor is building. Seeded once the account's current
   // grants arrive; a plain Set kept in a piece of state keyed off the load.
@@ -1600,6 +1604,11 @@ function PermissionOverrides({
     .filter((r) => pickedSet.has(r.key))
     .flatMap((r) => r.permission_keys ?? [])
   const roleKeys = new Set(liveRoleKeys.length ? liveRoleKeys : current.data?.role_keys ?? [])
+  /* Key -> the names of the ticked roles granting it, for "From role: ...". */
+  const roleGrants = new Map<string, string[]>()
+  if (liveRoleKeys.length) {
+    for (const r of roles) if (pickedSet.has(r.key)) for (const k of r.permission_keys ?? []) roleGrants.set(k, [...(roleGrants.get(k) ?? []), r.name])
+  } else for (const k of roleKeys) roleGrants.set(k, ['their roles'])
   const picked = new Set(direct ?? [])
 
   const save = useMutation({
@@ -1651,28 +1660,12 @@ function PermissionOverrides({
 
   const extraCount = (direct ?? []).filter((k) => !roleKeys.has(k)).length
 
-  /* The individual-feature exception editor. A grant here is a catalog feature
-     key held directly, seeded from the same direct set (so it saves in the one
-     PUT alongside the capability picks above and never overwrites them). One
-     row per catalogue key, grouped by the workspace it lives in, so the same
-     name in two workspaces is two separate choices. Search runs across every
-     group (name matches ranked first) and opens the groups with hits. */
-  const featureItems = features.data?.items ?? []
-  const q = featureSearch.trim().toLowerCase()
-  const shownFeatures = q
-    ? featureItems
-        .filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q) || f.role_name.toLowerCase().includes(q))
-        .sort((a, b) => {
-          const an = a.name.toLowerCase().includes(q) ? 0 : 1
-          const bn = b.name.toLowerCase().includes(q) ? 0 : 1
-          return an - bn
-        })
-    : featureItems
-  const allGroups = groupByRole(featureItems)
-  const shownGroups = groupByRole(shownFeatures)
-  const heldIn = (role: string) =>
-    allGroups.find((g) => g.role_key === role)?.items.filter((f) => picked.has(f.key)).length ?? 0
-
+  const setFeatures = (keys: string[], on: boolean) =>
+    setDirect((prev) => {
+      const set = new Set(prev ?? [])
+      for (const k of keys) if (on) set.add(k); else set.delete(k)
+      return [...set]
+    })
   return (
     <div className="flex flex-col border-t pt-5">
       <div className="mb-2 flex items-baseline justify-between">
@@ -1760,7 +1753,8 @@ function PermissionOverrides({
             Normal access should come from a role, which carries a whole workspace. Use this only
             for a one-off: switch on a single menu tile &middot; Take attendance, Class 360,
             Student 360, for this one account. Enabling a tile also grants the capabilities the
-            screen needs, noted under each.
+            screen needs, noted under each. A feature marked From role comes with a role above;
+            to take it away, change the roles.
           </p>
         </div>
 
@@ -1769,91 +1763,7 @@ function PermissionOverrides({
         ) : features.error ? (
           <FormNotice error={features.error} />
         ) : (
-          <>
-            {/* THE SEARCH STAYS WHERE IT CAN BE REACHED.
-
-                There are several hundred of these tiles, in two columns, in
-                alphabetical order. The box that narrows them scrolled away
-                with the heading after the first screenful -- so by the time
-                somebody was far enough down to want it, the only way back to
-                it was to scroll all the way up, and the obvious conclusion was
-                that there is no search. It sticks to the top of the list it
-                filters, which is the one place it is any use.
-
-                A count beside it, because "Take attendance" matching two tiles
-                and matching none look identical when the answer is below the
-                fold. */}
-            <div className="sticky top-0 z-10 -mx-1 mb-3 flex flex-wrap items-center gap-2 bg-card px-1 pb-3 pt-1">
-              <SearchBox
-                value={featureSearch}
-                onChange={setFeatureSearch}
-                placeholder="Search features by name"
-                className="min-w-[220px] flex-1"
-              />
-              <span className="shrink-0 text-[12.5px] text-muted-foreground">
-                {featureSearch.trim()
-                  ? `${shownFeatures.length} of ${features.data?.items.length ?? 0}`
-                  : `${features.data?.items.length ?? 0} features`}
-              </span>
-            </div>
-            <div className="rounded-xl border px-2 empty:hidden">
-            {shownGroups.map((g) => (
-              <RoleGroup
-                key={g.role_key}
-                name={g.role_name}
-                held={heldIn(g.role_key)}
-                total={allGroups.find((a) => a.role_key === g.role_key)?.items.length ?? g.items.length}
-                forceOpen={q !== ''}
-              >
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {g.items.map((f) => {
-                /* Held, granted and revoked by this exact key only. */
-                const on = picked.has(f.key)
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => toggle(f.key)}
-                    className={cn(
-                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                      on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
-                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                      )}
-                    >
-                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-medium">{f.name}</span>
-                      <span className="block truncate text-[12px] text-muted-foreground">
-                        {f.role_name} · {f.section}
-                      </span>
-                      {f.summary && (
-                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                          {f.summary}
-                        </span>
-                      )}
-                      {f.unlocks.length > 0 && (
-                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                          Also grants: {f.unlocks.join(', ')}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-              </RoleGroup>
-            ))}
-            </div>
-            {shownFeatures.length === 0 && (
-              <p className="text-[13px] text-muted-foreground">No features match.</p>
-            )}
-          </>
+          <FeatureAccess items={features.data?.items ?? []} roleGrants={roleGrants} direct={picked} onChange={setFeatures} />
         )}
       </div>
 

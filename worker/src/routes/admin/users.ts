@@ -882,7 +882,7 @@ export function registerAdminUsers(r: Router): void {
     items: PERMISSIONS.filter((p) => c.id.platformAdmin || (p.key !== 'platform.tenants.write' && p.key !== 'platform.plans.write')),
   }))
 
-  r.get('/admin/features', 'access.users.read', () => {
+  r.get('/admin/features', 'access.users.read', (c) => {
     const desc = new Map(PERMISSIONS.map((p) => [p.key, p.description]))
     const skip = new Set(['dashboard', 'home', 'my_day', 'todays_classes', 'my_work', 'my_calendar', 'my_run'])
     type Item = { key: string; name: string; summary: string; unlocks: string[]; role_key: string; role_name: string; section: string }
@@ -908,6 +908,8 @@ export function registerAdminUsers(r: Router): void {
        all. Each item now names the workspace it lives in so the editor can
        show and grant exactly one; catalogue order (role, then section). */
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
+      // The vendor's workspaces (Seller Admin, Super Admin) are not a school's to hand out.
+      if (PLATFORM_ONLY_ROLES.has(role.key) && !c.id.platformAdmin) continue
       if (!IMPLEMENTED_FEATURES.has(f.key)) continue
       if (skip.has(featureSlug(f.key)) || f.name === '') continue
       const unlocks: string[] = []
