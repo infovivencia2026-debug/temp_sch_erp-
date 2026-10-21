@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Paperclip, Reply, ReplyAll, Star } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
-import type { MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
+import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
 import {
   PageHead, PageBody, Card, Badge, Button, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice,
   Input, Loading, Textarea, TAB_BAR, tabClass, SEG_BAR, segClass,
 } from '@/components/ui'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
+import { buzz } from '@/lib/haptics'
 
 /* A member of staff's own school email (worker/src/routes/comms/inbox.ts).
    Only the signed-in person's mailbox is ever fetched. HTML mail is shown in
@@ -128,6 +130,7 @@ export default function Inbox() {
               Your address: <span className="font-medium text-foreground">{b.address}</span>
               {!canSend && <Badge tone="warning" className="ms-2">Switched off by the office</Badge>}
             </p>
+            <MailboxStrip />
             <div className={TAB_BAR} role="tablist">
               {TABS.map((t) => (
                 <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)}
@@ -297,6 +300,109 @@ function Compose({ draft, from, onClose }: { draft: Draft; from: string; onClose
         <Field label="Subject"><Input value={d.subject} onChange={set('subject')} /></Field>
         <Field label="Message"><Textarea value={d.text} onChange={set('text')} rows={8} maxRows={20} aria-label="Message" /></Field>
         <FormNotice error={send.error} />
+      </div>
+    </Dialog>
+  )
+}
+
+/* The person's own mailbox on the school's mail server: once connected, mail
+   is sent through it as them, and old mail can be copied in. Hidden until the
+   office has set the server. */
+function MailboxStrip() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const conn = useQuery({
+    queryKey: ['mail', 'connection'],
+    queryFn: () => api.call('GET /comms/mail/connection'),
+    refetchInterval: (q) => (q.state.data && (q.state.data.import.state === 'queued' || q.state.data.import.state === 'running') ? 3000 : false),
+  })
+  const importing = useMutation({
+    mutationFn: () => api.call('POST /comms/mail/connection/import'),
+    onSuccess: (c) => qc.setQueryData(['mail', 'connection'], c),
+  })
+  const c = conn.data
+  // Copied mail shows in the list as soon as the copy finishes.
+  const state = c?.import.state
+  const was = useRef(state)
+  useEffect(() => {
+    if (was.current && was.current !== 'done' && state === 'done') qc.invalidateQueries({ queryKey: ['mail', 'list'] })
+    was.current = state
+  }, [state, qc])
+  if (!c || (!c.server_ready && !c.connected)) return null
+  const im = c.import
+  const busy = im.state === 'queued' || im.state === 'running'
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
+        <span className="text-muted-foreground">Your mailbox:</span>
+        {c.connected ? <Badge tone="success">Connected</Badge> : <span>Not connected. Mail you send goes out through the school's channel.</span>}
+        <Button size="sm" variant={c.connected ? 'ghost' : 'secondary'} onClick={() => setOpen(true)}>{c.connected ? 'Mailbox settings' : 'Connect your mailbox'}</Button>
+        {c.connected && (
+          <Button size="sm" variant="ghost" pending={importing.isPending} disabled={busy} needsNetwork onClick={() => importing.mutate()}>
+            {im.state === 'none' ? 'Import old mail' : 'Import again'}
+          </Button>
+        )}
+      </div>
+      {c.connected && im.state !== 'none' && <ImportLine c={c} />}
+      <FormNotice error={importing.error} />
+      {open && <ConnectDialog c={c} onClose={() => setOpen(false)} />}
+    </div>
+  )
+}
+
+function ImportLine({ c }: { c: MailConnection }) {
+  const im = c.import
+  const of = im.total ? ` ${im.done} of ${im.total}` : ''
+  if (im.state === 'queued') return <p className="text-[13px] text-muted-foreground">Old mail: waiting to start.</p>
+  if (im.state === 'running') return <p className="text-[13px] text-muted-foreground">Old mail: copying{of}. You can leave this screen; it carries on.</p>
+  if (im.state === 'done') return <p className="text-[13px] text-muted-foreground">Old mail: copied{of}{im.updated_at ? `, ${formatDateTime(im.updated_at)}` : ''}. Import again to bring in mail that arrived on the server since.</p>
+  return <p className="text-[13px] text-destructive">Old mail: stopped{im.total ? ` after ${im.done} of ${im.total}` : ''}: {im.error} Press Import again to carry on.</p>
+}
+
+function ConnectDialog({ c, onClose }: { c: MailConnection; onClose: () => void }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [password, setPassword] = useState('')
+  const [tested, setTested] = useState(false)
+  const test = useMutation({
+    mutationFn: () => api.call('POST /comms/mail/connection/test', { body: password ? { password } : {} }),
+    onSuccess: () => setTested(true),
+    onMutate: () => setTested(false),
+  })
+  const save = useMutation({
+    mutationFn: () => api.call('PUT /comms/mail/connection', { body: { password } }),
+    onSuccess: (v) => { qc.setQueryData(['mail', 'connection'], v); buzz('tap'); toast.ok('Mailbox connected'); onClose() },
+  })
+  const disconnect = useMutation({
+    mutationFn: () => api.call('DELETE /comms/mail/connection'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail', 'connection'] }); onClose() },
+  })
+  return (
+    <Dialog
+      onClose={onClose}
+      title={c.connected ? 'Your mailbox' : 'Connect your mailbox'}
+      description="Sign in once with your own mailbox password. Your mail is then sent through the school mail server as you, and you can copy your old mail in. Only you can use this; the office cannot see the password."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" pending={test.isPending} needsNetwork disabled={!password && !c.connected} onClick={() => test.mutate()}>Test</Button>
+          <Button pending={save.isPending} needsNetwork disabled={!password} onClick={() => save.mutate()}>Save</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Field label="Address"><Input value={c.address ?? ''} onChange={() => {}} disabled /></Field>
+        <Field label={c.connected ? 'New password' : 'Mailbox password'} hint={c.connected ? 'Leave empty and press Test to check the saved one.' : undefined}>
+          <Input value={password} onChange={(v) => { setPassword(v); setTested(false) }} type="password" autoComplete="current-password" />
+        </Field>
+        <FormNotice error={test.error ?? save.error ?? disconnect.error} ok={tested ? 'Signed in to the mail server.' : undefined} />
+        {c.connected && (
+          <div className="border-t pt-3">
+            <ConfirmButton tone="danger" confirmLabel="Disconnect" question="The saved password is deleted. Mail already copied stays in your Inbox." onConfirm={() => disconnect.mutate()}>
+              Disconnect
+            </ConfirmButton>
+          </div>
+        )}
       </div>
     </Dialog>
   )

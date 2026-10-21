@@ -10,7 +10,19 @@ export interface StaffMailAddress {
   status: 'active' | 'disabled' | null
 }
 
+/** The school's own mail server, which each person's connected mailbox uses. Empty host = not set. */
+export interface MailServerSettings {
+  imap_host: string
+  imap_port: number
+  smtp_host: string
+  smtp_port: number
+  /** tls: implicit TLS, usually port 465. starttls: usually port 587. */
+  smtp_security: 'tls' | 'starttls'
+}
+
 export interface MailAddressesApi {
+  'GET /comms/mail-addresses/server': { res: MailServerSettings }
+  'PUT /comms/mail-addresses/server': { body: MailServerSettings; res: MailServerSettings }
   'GET /comms/mail-addresses': { res: { domain: string | null; items: StaffMailAddress[] } }
   'PUT /comms/mail-addresses/domain': { body: { domain: string }; res: { domain: string } }
   'PUT /comms/mail-addresses/{user_id}': { body: { local_part?: string; status?: 'active' | 'disabled' }; res: StaffMailAddress }

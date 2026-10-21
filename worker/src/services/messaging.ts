@@ -363,7 +363,7 @@ export function buildProvider(channel: string, rawCfg: unknown, secret: string):
 
 // --- sealed credentials (same format as routes/admin/providers.ts) --------
 
-async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
+export async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
   if (!sealed) return ''
   const bytes = sealed instanceof Uint8Array ? sealed : new Uint8Array(sealed as ArrayBuffer | number[])
   if (bytes.length === 0) return ''

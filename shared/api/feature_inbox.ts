@@ -57,6 +57,26 @@ export interface MailSendInput {
   reply_to_id?: string
 }
 
+/** The person's own mailbox on the school's mail server. The password is never sent back. */
+export interface MailConnection {
+  /** The school has set its mail server (Communication > Mail addresses). */
+  server_ready: boolean
+  /** The address the person signs in with: their school address. */
+  address: string | null
+  connected: boolean
+  connected_at: string | null
+  import: MailImportStatus
+}
+
+export interface MailImportStatus {
+  state: 'none' | 'queued' | 'running' | 'done' | 'failed'
+  /** Messages gone through so far in this run (copied or already here). */
+  done: number
+  total: number
+  error: string | null
+  updated_at: string | null
+}
+
 export interface InboxApi {
   'GET /comms/mail/box': { res: MailboxInfo }
   'GET /comms/mail': { query: { folder?: MailFolder; q?: string; starred?: boolean; limit?: number; offset?: number }; res: MailPage }
@@ -66,4 +86,13 @@ export interface InboxApi {
   'POST /comms/mail/{id}/restore': { res: Ok }
   'DELETE /comms/mail/{id}': { res: Ok }
   'POST /comms/mail/send': { body: MailSendInput; res: { id: string } }
+  'GET /comms/mail/connection': { res: MailConnection }
+  /** Signs in to the mail server with this password (or the saved one) and out again. Saves nothing. */
+  'POST /comms/mail/connection/test': { body: { password?: string }; res: Ok }
+  /** Signs in with the password, then keeps it sealed. */
+  'PUT /comms/mail/connection': { body: { password: string }; res: MailConnection }
+  /** Forgets the password. Mail already copied stays. */
+  'DELETE /comms/mail/connection': { res: Ok }
+  /** Copies old mail from the server: Inbox and Sent. Carries on from where the last copy stopped. */
+  'POST /comms/mail/connection/import': { res: MailConnection }
 }

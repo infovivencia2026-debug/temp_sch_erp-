@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { buzz } from '@/lib/haptics'
 import { useToast } from '@/components/Toast'
-import { readMailImportCsv, type MailImportPreview, type MailImportResult, type MailImportRow, type StaffMailAddress } from '@shared/api/feature_mail_addresses'
+import { readMailImportCsv, type MailImportPreview, type MailImportResult, type MailImportRow, type MailServerSettings, type StaffMailAddress } from '@shared/api/feature_mail_addresses'
 import { parseCsv } from '@/components/BulkImport'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Dialog, ErrorState, Field, FormNotice, Input, Loading, Table, Td,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, Dialog, ErrorState, Field, FormNotice, Input, Loading, Table, Td, SEG_BAR, segClass,
 } from '@/components/ui'
 
 /* The school's mail domain and each member of staff's address
@@ -66,6 +66,8 @@ export default function MailAddresses() {
             </div>
           </Card>
 
+          <MailServerCard />
+
           <Card>
             <CardHeader title="Staff" action={
               <div className="flex items-center gap-2">
@@ -106,6 +108,53 @@ export default function MailAddresses() {
       {editing && current && <AddressDialog person={editing} domain={current} onClose={() => setEditing(null)} />}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </>
+  )
+}
+
+/* The school's own mail server. Each member of staff connects their own
+   mailbox to it from their Inbox, with their own password; no password is
+   kept here. */
+function MailServerCard() {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const q = useQuery({ queryKey: ['mail-addresses', 'server'], queryFn: () => api.call('GET /comms/mail-addresses/server') })
+  const [edit, setEdit] = useState<MailServerSettings | null>(null)
+  const save = useMutation({
+    mutationFn: (v: MailServerSettings) => api.call('PUT /comms/mail-addresses/server', { body: v }),
+    onSuccess: (v) => { qc.setQueryData(['mail-addresses', 'server'], v); setEdit(null); buzz('tap'); toast.ok('Saved') },
+  })
+  const v = edit ?? q.data
+  const set = <K extends keyof MailServerSettings>(k: K) => (x: MailServerSettings[K]) => setEdit({ ...v!, [k]: x })
+  const port = (k: 'imap_port' | 'smtp_port') => (x: string) => set(k)(Number(x.replace(/\D/g, '')) || 0)
+  return (
+    <Card>
+      <CardHeader title="School mail server" />
+      <div className="space-y-3 px-[var(--card-pad)] py-4">
+        <p className="text-[13px] text-muted-foreground">
+          With these set, each member of staff can connect their own mailbox on Communication &gt; Inbox with their own password. Their mail is then sent through this server as them, and they can copy their old mail in.
+        </p>
+        {q.isError ? <ErrorState error={q.error} /> : !v ? <Loading shape="inline" /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+              <Field label="IMAP server" hint="For copying old mail. Secure connection (SSL/TLS)."><Input value={v.imap_host} onChange={set('imap_host')} placeholder="mail.example.org" autoComplete="off" /></Field>
+              <Field label="IMAP port"><Input value={String(v.imap_port || '')} onChange={port('imap_port')} type="number" min={1} max={65535} autoComplete="off" /></Field>
+              <Field label="SMTP server" hint="For sending."><Input value={v.smtp_host} onChange={set('smtp_host')} placeholder="mail.example.org" autoComplete="off" /></Field>
+              <Field label="SMTP port"><Input value={String(v.smtp_port || '')} onChange={port('smtp_port')} type="number" min={1} max={65535} autoComplete="off" /></Field>
+            </div>
+            <div className={SEG_BAR} role="radiogroup" aria-label="SMTP security">
+              <button type="button" role="radio" aria-checked={v.smtp_security === 'tls'} className={segClass(v.smtp_security === 'tls')}
+                onClick={() => setEdit({ ...v, smtp_security: 'tls', smtp_port: v.smtp_port === 587 ? 465 : v.smtp_port })}>SSL/TLS (465)</button>
+              <button type="button" role="radio" aria-checked={v.smtp_security === 'starttls'} className={segClass(v.smtp_security === 'starttls')}
+                onClick={() => setEdit({ ...v, smtp_security: 'starttls', smtp_port: v.smtp_port === 465 ? 587 : v.smtp_port })}>STARTTLS (587)</button>
+            </div>
+            <div>
+              <Button variant="secondary" pending={save.isPending} disabled={!edit} onClick={() => edit && save.mutate(edit)}>Save server</Button>
+            </div>
+            <FormNotice error={save.error} />
+          </>
+        )}
+      </div>
+    </Card>
   )
 }
 
