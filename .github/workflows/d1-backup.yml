@@ -1,0 +1,113 @@
+# Nightly export of every live D1 database (CONTROL and each school) to R2.
+#
+# WHY. Since the move to Cloudflare the schools' data lives in D1, and the only
+# copy outside the live databases was D1's own Time Travel (30 days, restore in
+# place). nightly-backup.yml dumps the retired Neon database, not these. This
+# keeps our own dated SQL exports in the private R2 bucket, so a database can
+# be rebuilt elsewhere or a single table read back without touching the live one.
+#
+# WHAT. For every d1_databases entry in worker/wrangler.jsonc (so a school added
+# by provision-school.sh is included without editing this file):
+#   wrangler d1 export <name> --remote  ->  gzip  ->  verify it is a non-empty
+#   gzip holding CREATE TABLE  ->  R2 d1-backups/<name>/<UTC stamp>.sql.gz
+#   ->  list it back and compare the byte count  ->  delete exports older than
+#   RETAIN_DAYS under that database's prefix.
+# A failure on one database does not stop the others; the job fails at the end
+# if any did, so the run shows red.
+#
+# SECRETS (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN   Account > D1 > Read (export needs read only).
+#   CLOUDFLARE_ACCOUNT_ID  The account id.
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+#                          Already set for nightly-backup.yml; reused.
+name: d1-backup
+
+on:
+  schedule:
+    - cron: "30 20 * * *"   # 02:00 IST, after the school day's writes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-backup
+  cancel-in-progress: false
+
+env:
+  R2_PREFIX: d1-backups
+  RETAIN_DAYS: "30"
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install wrangler
+        working-directory: worker
+        run: npm ci --legacy-peer-deps
+
+      - name: Export every D1 database to R2
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -uo pipefail
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_ACCOUNT_ID R2_BUCKET; do
+            [ -n "${!v:-}" ] || { echo "::error::secret for $v is not set"; exit 1; }
+          done
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          s3() { aws s3 --endpoint-url "$endpoint" "$@"; }
+          stamp=$(date -u +%Y-%m-%dT%H%M)
+          cutoff=$(date -u -d "-${RETAIN_DAYS} days" +%Y-%m-%d)
+          dbs=$(grep -o '"database_name": *"[^"]*"' wrangler.jsonc | sed 's/.*: *"//;s/"$//')
+          [ -n "$dbs" ] || { echo "::error::no d1_databases found in wrangler.jsonc"; exit 1; }
+          failed=""
+          for db in $dbs; do
+            echo "::group::$db"
+            out="$RUNNER_TEMP/$db.sql"
+            if ! npx wrangler d1 export "$db" --remote --output "$out" >/dev/null; then
+              echo "::error::$db: export failed"; failed="$failed $db"; echo "::endgroup::"; continue
+            fi
+            if ! grep -q 'CREATE TABLE' "$out"; then
+              echo "::error::$db: export has no CREATE TABLE"; failed="$failed $db"; echo "::endgroup::"; continue
+            fi
+            gzip -9 "$out"
+            gz="$out.gz"; key="${R2_PREFIX}/${db}/${stamp}.sql.gz"
+            size=$(stat -c %s "$gz")
+            if ! s3 cp "$gz" "s3://${R2_BUCKET}/${key}" --only-show-errors; then
+              echo "::error::$db: upload failed"; failed="$failed $db"; echo "::endgroup::"; continue
+            fi
+            listed=$(s3 ls "s3://${R2_BUCKET}/${key}" | awk '{print $3}')
+            if [ "$listed" != "$size" ]; then
+              echo "::error::$db: uploaded $size bytes, listed ${listed:-nothing}"; failed="$failed $db"; echo "::endgroup::"; continue
+            fi
+            echo "verified: $key ($size bytes)"
+            # Retention: exports are named by date, so the name says how old it is.
+            s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/${db}/" | awk '{print $4}' | while read -r f; do
+              d=${f:0:10}
+              if [ -n "$d" ] && [[ "$d" < "$cutoff" ]]; then
+                s3 rm "s3://${R2_BUCKET}/${R2_PREFIX}/${db}/${f}" --only-show-errors && echo "removed old: $f"
+              fi
+            done
+            rm -f "$gz"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::backup failed for:$failed"; exit 1
+          fi
+          echo "all D1 databases exported to s3://${R2_BUCKET}/${R2_PREFIX}/"
