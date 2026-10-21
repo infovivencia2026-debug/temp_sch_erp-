@@ -122,3 +122,4 @@ Last checked: 2026-10-02.
 - Four Work-layout pages scroll slightly sideways on phones (My students, My classes, My pay, Background jobs).
 - "Hold a card to customize" hint sits half behind the dock.
 - Tinted stat tiles: label and icon too faint in dark.
+- 2026-10-21 Inbox on for every staff login by default, like notifications (no role grant needed); parents and students have none. Status: done.

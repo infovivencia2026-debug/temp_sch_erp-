@@ -14,8 +14,11 @@ import { HttpError, badRequest, clampInt, conflict, forbidden, like, notFound, r
 import type { MailFolder, MailMessage, MailPerson, MailSummary, MailSendInput } from '@shared/api/feature_inbox'
 import { MAX_TEXT, angle, domainOf, isAddress, mailProvider, newMessageId, snippetOf } from '../../services/mail'
 
-const READ = 'comms.mail.read'
-const WRITE = 'comms.mail.write'
+/* Every member of staff has an inbox, like notifications (owner, 2026-10-21):
+   no role grant is needed, only a staff role. Families and students have none. */
+const READ = 'auth'
+const WRITE = 'auth'
+const NOT_STAFF = new Set(['parent', 'student'])
 const FOLDERS: MailFolder[] = ['inbox', 'sent', 'trash']
 const MAX_RECIPIENTS = 50
 
@@ -29,6 +32,7 @@ interface Row {
 /** The signed-in person; a platform account acting in a school has no mailbox there. */
 function owner(c: Ctx): string {
   if (c.id.platformAdmin) throw forbidden('a platform account has no mailbox in a school')
+  if (!c.id.roles.some((r) => !NOT_STAFF.has(r))) throw forbidden('only staff have a school mailbox')
   return c.id.userId
 }
 
