@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, CalendarDays, ChevronDown, ClipboardCheck, Contact, Dot, FileText, Home, ListChecks,
-  MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
+  Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath, type ApiSection } from '@/lib/catalog'
@@ -40,6 +40,7 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/homework|assignment|classwork|submission/, NotebookPen],
   [/class|student|progress|360|behaviour|detail/, Users],
   [/remark|anecdot|ptm|note/, MessageSquareText],
+  [/inbox|mail/, Mail],
   [/message|communication|chat|status|circular|notice|concern|complaint/, MessageSquare],
   [/leave/, Plane],
   [/pay|salary|fee|finance|account/, Wallet],
