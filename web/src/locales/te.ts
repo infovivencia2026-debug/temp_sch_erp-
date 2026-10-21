@@ -2367,6 +2367,7 @@ export const te: Partial<Messages> = {
   'bento.widgets.moved_to': '{label} {total}లో {n} స్థానానికి తరలించబడింది',
   'bento.widgets.removed_card': '{label} తీసివేయబడింది. టూల్‌బార్‌లో అన్‌డు ఉంది.',
   'bento.launcher.pinned': 'పిన్ చేయబడింది',
+  'bento.launcher.folders': 'అన్ని ఫీచర్లు',
   'bento.launcher.pin': 'పిన్',
   'bento.launcher.unpin': 'అన్‌పిన్',
   'bento.launcher.more_for': '{name} కోసం మరిన్ని',
