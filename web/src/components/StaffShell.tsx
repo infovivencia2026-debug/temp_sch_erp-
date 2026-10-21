@@ -95,9 +95,15 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   onNavigate: () => void
   label: (name: string) => string
 }) {
+  /* Question papers just above My profile, and My profile last (Yajur, 2026-10-21). */
+  const LAST = ['exams', 'my_profile']
+  const rank = (slug: string) => LAST.indexOf(slug)
+  const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
+    .map((g, i) => ({ ...g, i }))
+    .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)
   return (
     <>
-      {workspaces.flatMap((ws) => ws.sections.map((section) => {
+      {groups.map(({ ws, section }) => {
         const list = items(section)
         if (!list.length) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
@@ -116,7 +122,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
             ))}
           </Group>
         )
-      }))}
+      })}
     </>
   )
 }
