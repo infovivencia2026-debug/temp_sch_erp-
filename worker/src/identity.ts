@@ -53,7 +53,7 @@ export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContex
   } catch {
     row = await sessionStmt(env, hash).first<Session>()
   }
-  const s = await liveSession(env, row, ctx)
+  const s = await liveSession(env, row, ctx, home?.timezone || undefined)
   if (!s) return null
   const key = cacheKey(hash, acting)
   const ttl = cacheTtl(env)
