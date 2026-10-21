@@ -94,6 +94,8 @@ export function registerMailAddresses(r: Router): void {
 }
 
 const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+/** A name's words, two letters or more (initials dropped), for order-free matching. */
+const nameWords = (s: string) => (s.toLowerCase().match(/[a-z]{2,}/g) ?? [])
 const MAX_IMPORT = 2000
 
 /** Reads only line, code, name and email from each row; anything else in the
@@ -152,6 +154,17 @@ async function planImport(c: Ctx, rows: MailImportRow[]): Promise<MailImportPrev
     else {
       const named = r.name ? byName.get(norm(r.name)) : undefined
       if (named?.length === 1) { match = named[0]; by = 'name' }
+      else {
+        // Names are written in any order and with extra words ("Sarada Sriramoju"
+        // for "SRIRAMOJU SARADA"); then the parts of the email id. Only a single
+        // person holding every word counts.
+        const at = r.email.indexOf('@')
+        for (const words of [nameWords(r.name), nameWords(at > 0 ? r.email.slice(0, at) : '')]) {
+          if (!words.length) continue
+          const hits = staff.results.filter((s) => { const have = new Set(nameWords(s.full_name)); return words.every((w) => have.has(w)) })
+          if (hits.length === 1) { match = hits[0]; by = 'name'; break }
+        }
+      }
     }
     const out = { ...r, user_id: match?.user_id ?? null, full_name: match?.full_name ?? null, matched_by: by, current: match?.address ?? null }
     const at = r.email.lastIndexOf('@')
