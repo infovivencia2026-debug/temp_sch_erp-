@@ -1166,7 +1166,7 @@ function registerWorkflow(r: Router) {
              COALESCE(sa.check_in, bp.first_punch) AS check_in,
              /* A tap within five minutes of the first is the same arrival: a double
                 tap at the reader, not an in and an out three seconds apart. */
-             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 5.0 / 1440 THEN bp.last_punch END) AS check_out
+             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch END) AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
         LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
