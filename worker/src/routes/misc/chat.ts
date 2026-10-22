@@ -288,7 +288,7 @@ export function registerChat(r: Router): void {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, date('now'), ?)`).bind(newId, inst, subject, c.id.userId, role, student, kind, body, now()),
     ]
     const n = await notifyStmt(c, subject, null, 'staff_remark', 'A remark about your work', clip240(body) + ' - ' + c.id.fullName,
-      '/faculty/my_profile/remarks_about_me', 'staff_remark', newId)
+      '/go/my_profile/remarks_about_me', 'staff_remark', newId)
     if (n) stmts.push(n)
     await c.db.batch(stmts)
     return created({ id: newId, author_role: role })

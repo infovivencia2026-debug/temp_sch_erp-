@@ -18,6 +18,7 @@ import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
 import { Badge, Button, Dialog } from '@/components/ui'
 import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
+import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
 /* The bell in the header, and the panel it opens.
 
@@ -231,34 +232,27 @@ export function useNotificationActions() {
   const circularHref = useFeatureHrefAny([
     'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
   ])
-  const fallback: Record<string, string | undefined> = {
-    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
-    fee: useFeatureHref('parent.fees.fees_payments'),
-    attendance: useFeatureHref('parent.attendance.attendance'),
-    homework: useFeatureHref('parent.academics.homework_academics'),
-    result: useFeatureHref('parent.academics.results_report_cards'),
-    message: messagesHref,
+  /* Each destination under every role that receives it, first held wins
+     (lib/notification-link.ts maps the kind to the destination). */
+  const hrefs: NoteHrefs = {
+    messages: messagesHref,
     circular: circularHref,
+    status: useFeatureHref('faculty.communication.class_status'),
+    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
+    fee: useFeatureHrefAny(['parent.fees.fees_payments', 'student.fees.fees', 'finance.fees.take_fee_payment', 'institution_admin.standard.fee_collection']),
+    attendance: useFeatureHrefAny(['parent.home.dashboard', 'student.attendance.attendance', 'faculty.attendance.take_attendance', 'hod.attendance.take_attendance']),
+    homework: useFeatureHrefAny(['parent.academics.homework_academics', 'student.homework.homework_assignments', 'faculty.teaching.homework_classwork', 'hod.teaching.homework_classwork']),
+    result: useFeatureHrefAny(['parent.academics.results_report_cards', 'student.exams_results.exams_grades', 'faculty.marks_report_cards.report_cards', 'hod.marks_report_cards.report_cards', 'exam_controller.examinations.report_cards', 'institution_admin.examinations.exams_results']),
+    timetable: useFeatureHrefAny(['parent.academics.timetable', 'student.timetable.timetable', 'faculty.timetable.my_timetable', 'hod.timetable.my_timetable']),
+    concern: useFeatureHrefAny(['faculty.communication.concerns_from_parents', 'front_office.communication.parent_concerns', 'institution_admin.communication.grievances', 'hr.welfare.staff_welfare']) ?? '/concerns',
+    questionPapers: useFeatureHrefAny(['faculty.exams.question_papers', 'exam_controller.examinations.exams_papers', 'hod.exams.question_paper_approval', 'institution_admin.exams.question_paper_approval']),
+    leaveApprovals: useFeatureHrefAny(['institution_admin.approvals.approvals', 'hr.leave.leave', 'hod.staff.leaves_subs', 'faculty.my_profile.student_leave_requests']),
+    leaveSelf: useFeatureHrefAny(['faculty.my_profile.leave_self_service', 'hod.my_profile.leave_self_service', 'hr.my_profile.leave_self_service', 'front_office.my_profile.leave_self_service', 'finance.my_profile.leave_self_service', 'parent.leave_absence.apply_student_leave']),
+    calendar: useFeatureHrefAny(['parent.school_life.calendar_ptm', 'student.notices_calendar.calendar', 'faculty.home.my_calendar', 'institution_admin.academics.school_calendar']),
+    certificates: useFeatureHrefAny(['parent.documents.certificate_requests', 'student.requests.requests']),
+    reports: useFeatureHrefAny(['institution_admin.standard.reports', 'board_member.reports.reports']),
   }
-  const linkFor = (n: Note): string | undefined => {
-    /* The digest rows (fee_due, attendance) carry the API-shaped link Go
-       writes, "/portal/fees" and "/portal/attendance". No screen lives there,
-       so following it fell through to the dashboard; the kind names the
-       screen instead. Every other link is a /go/ or screen path already. */
-    if (n.link && !n.link.startsWith('/portal/')) return n.link
-    const k = n.kind.toLowerCase()
-    if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
-    if (k.startsWith('fee')) return fallback.fee
-    if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
-    if (k.startsWith('homework')) return fallback.homework
-    if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
-    // A broadcast or a direct message carries its kind as the template code
-    // (payroll.payslip, fee_reminder, ...) and most of those already matched
-    // a branch above; the two literal, kindless cases are message and chat.
-    if (k === 'message' || k === 'chat' || k.startsWith('message_') || k.startsWith('chat_')) return fallback.message
-    if (k.startsWith('circular') || k.startsWith('announcement')) return fallback.circular
-    return undefined
-  }
+  const linkFor = (n: Note): string | undefined => noteDestination(n, hrefs)
   return { linkFor }
 }
 
@@ -376,14 +370,25 @@ export default function Notifications() {
   const shown = useShownNotes()
   const items = shown.items
 
-  const openNote = (n: Note) => {
+  /* Work owed (n.pending) stays until it is done, whatever is pressed. */
+  const openNote = (n: Note, keepPending = false) => {
+    const drop = () => { if (!(keepPending && n.pending)) dismissOne.mutate(n.id) }
     /* A status opens the viewer at that post, over the drawer; seeing it
        is what reads the entry (POST /status/posts/{id}/view). */
     const post = statusPostId(n)
     if (post && postById.has(post)) {
       setStatusOpen(post)
       // Opened is gone, for a status too (the server also drops it on view).
-      dismissOne.mutate(n.id)
+      drop()
+      return
+    }
+    if (keepPending) {
+      /* View: straight to the screen it is about. Read in full only when
+         there is no such screen for this reader. */
+      const link = linkFor(n)
+      if (link) { drop(); leaveTo(link); return }
+      setViewing(n)
+      drop()
       return
     }
     /* Everything else opens in full, here. A press used to shut the drawer
@@ -396,10 +401,13 @@ export default function Notifications() {
   }
   const viewingLink = viewing ? linkFor(viewing) : undefined
   const follow = () => {
-    const link = viewingLink
     setViewing(null)
+    if (viewingLink) leaveTo(viewingLink)
+    else dismiss()
+  }
+  /* Shut the drawer (and any dialog over it), then go to the screen. */
+  function leaveTo(link: string) {
     dismiss()
-    if (!link) return
     /* Two overlays shut at once, and each hands its history entry back
        asynchronously (lib/overlay-history). Going to the screen before both
        have gone would let one of those Backs eat the navigation instead. */
@@ -693,8 +701,9 @@ export default function Notifications() {
                           const [who] = n.title.split(' added a status')
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
-                            <button key={n.id} type="button" onClick={() => openNote(n)}
-                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-[transform,background-color,box-shadow,color] hover:shadow-md',
+                            <div key={n.id} className="relative">
+                            <button type="button" onClick={() => openNote(n)}
+                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-[transform,background-color,box-shadow,color] hover:shadow-md pb-12',
                                 n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                               <StatusThumb post={post} read={!!n.read_at} />
                               <span className="min-w-0 flex-1">
@@ -712,11 +721,14 @@ export default function Notifications() {
                                 {!post && statusFeed.data && <span className="mt-1 block text-[11.5px] text-muted-foreground">No longer showing</span>}
                               </span>
                             </button>
+                              <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
+                            </div>
                           )
                         }
                         return (
-                          <button key={n.id} type="button" onClick={() => openNote(n)}
-                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30',
+                          <div key={n.id} className="relative">
+                          <button type="button" onClick={() => openNote(n)}
+                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30 pb-12',
                               n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                             <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
                               n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
@@ -736,6 +748,8 @@ export default function Notifications() {
                               )}
                             </span>
                           </button>
+                            <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
+                          </div>
                         )
                       })}
                     </div>

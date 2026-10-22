@@ -1900,7 +1900,7 @@ async function submitHomework(c: Ctx): Promise<Response> {
   if (hw.teacher && hw.teacher !== c.id.userId) {
     const d = new Date()
     stmts.push(notifyStmt(c, hw.teacher, target, 'homework_submitted', `${hw.child} turned in ${hw.title}`,
-      `Submitted ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]}. Open the diary to mark it.`, '/faculty/teaching/homework_classwork', 'homework', hid))
+      `Submitted ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]}. Open the diary to mark it.`, '/go/teaching/homework_classwork', 'homework', hid))
   }
   await c.db.batch(stmts)
   return ok({ submitted: true })
