@@ -30,6 +30,35 @@ export function registerOffice(r: Router) {
     return ok({ items: rows.results.map((v) => omitNull({ ...v, inside: bool(v.inside) })) })
   })
 
+  /* An existing parent walking in: the desk types a name or a phone and picks
+     them, so the pass carries their phone and their child. This school's
+     guardians only, and only what the pass needs: name, phone, children. */
+  r.get('/office/visitors/parents', READ, async (c) => {
+    const term = (c.url.searchParams.get('q') ?? '').trim()
+    if (term.length < 2) return ok({ items: [] })
+    const inst = school(c).id
+    const like = '%' + term.toLowerCase().replace(/[\\%_]/g, (m) => '\\' + m) + '%'
+    const digits = term.replace(/\D/g, '')
+    const rows = await c.db.prepare(`
+      SELECT g.id, g.full_name AS name, g.phone, st.id AS student_id,
+             NULLIF(${fullName('st.first_name', 'st.last_name')}, '') AS student_name,
+             TRIM(COALESCE(cl.name, '') || ' ' || COALESCE(sec.name, '')) AS class
+        FROM guardians g
+        JOIN student_guardians sg ON sg.guardian_id = g.id AND sg.institution_id = g.institution_id
+        JOIN students st ON st.id = sg.student_id AND st.institution_id = g.institution_id
+        LEFT JOIN enrollments en ON en.id = (SELECT e2.id FROM enrollments e2 WHERE e2.student_id = st.id AND e2.status = 'active' ORDER BY e2.enrolled_on DESC LIMIT 1)
+        LEFT JOIN classes cl ON cl.id = en.class_id LEFT JOIN sections sec ON sec.id = en.section_id
+       WHERE g.institution_id = ? AND (lower(g.full_name) LIKE ? ESCAPE '\\' OR (? <> '' AND length(?) >= 3 AND replace(replace(replace(COALESCE(g.phone, ''), ' ', ''), '-', ''), '+', '') LIKE '%' || ? || '%'))
+       ORDER BY g.full_name, g.id, st.first_name LIMIT 60`).bind(inst, like, digits, digits, digits).all<{ id: string; name: string; phone: string | null; student_id: string; student_name: string | null; class: string }>()
+    const by = new Map<string, { id: string; name: string; phone?: string; children: { id: string; name: string; class?: string }[] }>()
+    for (const r of rows.results) {
+      let g = by.get(r.id)
+      if (!g) { g = { id: r.id, name: r.name, ...(r.phone ? { phone: r.phone } : {}), children: [] }; by.set(r.id, g) }
+      g.children.push({ id: r.student_id, name: r.student_name ?? '', ...(r.class ? { class: r.class } : {}) })
+    }
+    return ok({ items: [...by.values()].slice(0, 10) })
+  })
+
   r.post('/office/visitors', WRITE, async (c) => {
     const req = await readJSON(c.req)
     const name = str(req.full_name), purpose = str(req.purpose), phone = str(req.phone)
@@ -39,15 +68,17 @@ export function registerOffice(r: Router) {
         AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?)`).bind(name, phone, phone, today, today).first<{ reason: string }>()
     if (block && block.reason !== '') throw new HttpError(409, 'this person is on the block list: ' + block.reason, { code: 'blocked' })
     const host = optUUID(req.host_employee_id, 'host_employee_id'), student = optUUID(req.student_id, 'student_id')
+    const guardian = optUUID(req.guardian_id, 'guardian_id')
+    if (guardian && !(await c.db.prepare(`SELECT 1 FROM guardians WHERE id = ? AND institution_id = ?`).bind(guardian, inst).first())) throw badRequest('that parent is not in this school')
     // The day's next pass number, from the numeric passes issued today.
     const last = await c.db.prepare(`SELECT COALESCE(max(CAST(pass_no AS INTEGER)), 0) AS n FROM visitors WHERE institution_id = ? AND on_date = ? AND pass_no GLOB '[0-9]*' AND pass_no NOT GLOB '*[^0-9]*'`)
       .bind(inst, today).first<{ n: number }>()
     const pass = String((last?.n ?? 0) + 1).padStart(3, '0')
     const id = uuid()
     try {
-      await c.db.prepare(`INSERT INTO visitors (id, institution_id, pass_no, full_name, phone, id_type, id_last4, purpose, host_employee_id, student_id, vehicle_no, remarks, issued_by, on_date, in_at)
-        VALUES (?,?,?,?,NULLIF(?,''),NULLIF(?,''),NULLIF(?,''),?,?,?,NULLIF(?,''),NULLIF(?,''),?,?,?)`)
-        .bind(id, inst, pass, name, phone, str(req.id_type), str(req.id_last4), purpose, host, student, str(req.vehicle_no), str(req.remarks), c.id.userId, today, now()).run()
+      await c.db.prepare(`INSERT INTO visitors (id, institution_id, pass_no, full_name, phone, id_type, id_last4, purpose, host_employee_id, student_id, guardian_id, vehicle_no, remarks, issued_by, on_date, in_at)
+        VALUES (?,?,?,?,NULLIF(?,''),NULLIF(?,''),NULLIF(?,''),?,?,?,?,NULLIF(?,''),NULLIF(?,''),?,?,?)`)
+        .bind(id, inst, pass, name, phone, str(req.id_type), str(req.id_last4), purpose, host, student, guardian, str(req.vehicle_no), str(req.remarks), c.id.userId, today, now()).run()
     } catch (e) { bad(e) }
     return created({ id, pass_no: pass })
   })
