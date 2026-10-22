@@ -2165,6 +2165,17 @@
 .btn:active:not(:disabled) {
   box-shadow: var(--elev-press);
 }
+/* ROWS DO NOT SCALE (owner, 2026-10-22). The rule above matched a settings
+   row because the row IS a <button>: the whole row shrank 2% inside its
+   grouped card, so its wash sat inset from the card edge, crossed the
+   hairline above and missed the card's rounded corners. Rows, list items
+   and menu items keep their full width and answer with the wash instead.
+   Same specificity as the rule above and later, so it wins. */
+:where([data-row], .responsive-table tbody tr, .bento-sheet__row,
+       [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'],
+       [role='option'], .parent-list__row a):active:not(:disabled) {
+  transform: none;
+}
 
 /* A card presses only where it opens something -- one with a cue, or one
    that IS a link or a button. A static card that gave under the finger
@@ -3923,21 +3934,29 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .45) 50%, transparent 70%);
   background-size: 250% 100%; background-position: 150% 0; opacity: 0;
 }
+@media (hover: hover) {
 .rail-tile:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.08) saturate(1.1); z-index: 5;
   transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile, hsl(var(--primary))) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / .3); }
+}
+@media (hover: hover) {
 .rail-tile:hover::before { opacity: 1; animation: rail-sheen 700ms ease forwards; }
+}
 /* The neighbours lift less than they did: at 1.12 beside a 1.28 the two
    sizes were far enough apart that the pointer crossing a boundary looked
    like a step rather than a swell. */
+@media (hover: hover) {
 .rail-tile:hover + .rail-tile,
 .rail-tile:has(+ .rail-tile:hover) { transform: scale(1.07) translateX(1px); }
+}
 /* The icon leans while the pointer is on it and comes back when it leaves.
    It used to play a one-shot keyframe on :hover, and a keyframe tied to
    :hover is cancelled the moment the pointer moves off: the icon snapped
    upright from mid-tilt. A transition turns round from wherever it is. */
 .rail-tile svg { transition: transform 340ms cubic-bezier(.33, 1, .68, 1); }
+@media (hover: hover) {
 .rail-tile:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
 @keyframes rail-sheen { to { background-position: -50% 0; } }
 @media (prefers-reduced-motion: reduce) {
   .rail-tile, .rail-tile:hover, .rail-tile:hover + .rail-tile, .rail-tile:has(+ .rail-tile:hover) { transform: none; }
@@ -3973,19 +3992,29 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   will-change: transform;
 }
 .rail-foot > div > button:first-child { --tile: hsl(var(--primary)); }
+@media (hover: hover) {
 .rail-foot > div > button:first-child:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.1); transition-duration: 220ms, 200ms, 200ms; }
+}
 .rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 360ms cubic-bezier(.33, 1, .68, 1); }
+@media (hover: hover) {
 .rail-foot > div > button:first-child:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
 .rail-foot > div > button:first-child svg { width: 20px; height: 20px; }
 .rail-foot > button svg, .rail-foot > a svg { width: 20px; height: 20px; }
+@media (hover: hover) {
 .rail-foot > button:hover, .rail-foot > a:hover {
   transform: scale(1.18) translateX(2px); filter: brightness(1.1) saturate(1.1); z-index: 5;
   transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile) 75%, transparent);
 }
+}
+@media (hover: hover) {
 .rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
+@media (hover: hover) {
 .rail-foot > :is(button, a):hover + :is(button, a),
 .rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.07) translateX(1px); }
+}
 .rail-foot > button[aria-label*="otification" i], .rail-foot > button[aria-label*="lert" i] { --tile: var(--dom-warning, hsl(var(--warning))); }
 .rail-foot > button[aria-label^="Row height"] { --tile: var(--dom-attendance, hsl(var(--primary))); }
 .rail-foot > a[href="/account"] { --tile: var(--dom-staff, hsl(var(--primary))); }
@@ -4086,7 +4115,9 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background: hsl(var(--card));
   box-shadow: 0 1px 2px hsl(var(--foreground) / .06), 0 4px 14px -6px hsl(var(--foreground) / .18);
 }
+@media (hover: hover) {
 .search-pill:hover { box-shadow: 0 2px 4px hsl(var(--foreground) / .08), 0 8px 22px -8px hsl(var(--foreground) / .24); transform: translateY(-1px); }
+}
 .dark .search-pill { background: hsl(var(--foreground) / .08); box-shadow: 0 4px 14px -6px rgb(0 0 0 / .6); }
 /* In the Focus dock the pill sits on a white bar: tint it with the school's
    colour so the way to search is the first thing the eye finds there. */
@@ -4095,13 +4126,17 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   color: hsl(var(--primary));
   box-shadow: inset 0 0 0 1px hsl(var(--primary) / .0), 0 2px 8px -4px hsl(var(--primary) / .45);
 }
+@media (hover: hover) {
 .bento-dock .search-pill:hover { background: hsl(var(--primary) / .16); }
+}
 /* On a phone the header search is one icon among icons (menu, bell,
    account): the white lifted circle next to bare glyphs read as a stray
    blob, so there it is a bare glyph too. */
 @media (max-width: 639.98px) {
   header .search-pill, .dark header .search-pill { background: transparent; box-shadow: none; }
+@media (hover: hover) {
   header .search-pill:hover { transform: none; box-shadow: none; background: hsl(var(--foreground) / .06); }
+}
 }
 
 /* MINIMAL AGAIN (owner, 2026-09-28): plain line icons, no coloured tiles.
@@ -4114,12 +4149,14 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: none !important;
 }
 .rail-tile::before { display: none; }
+@media (hover: hover) {
 .rail-tile:hover,
 .rail-foot > button:hover, .rail-foot > a:hover, .rail-foot > div > button:first-child:hover {
   background: hsl(var(--surface-hover, var(--muted))) !important;
   color: hsl(var(--foreground)) !important;
   box-shadow: none !important;
   filter: none !important;
+}
 }
 .rail-tile-on, .rail-tile:focus-visible {
   background: hsl(var(--surface-hover, var(--muted))) !important;
@@ -4816,7 +4853,9 @@ input[type='color'] {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+@media (hover: hover) {
 input[type='color']:hover { transform: scale(1.06); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); }
+}
 input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 input[type='color']::-webkit-color-swatch { border: none; border-radius: 999px; }
 input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }

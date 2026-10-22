@@ -331,6 +331,16 @@ function Gallery() {
               <SliderRow label="Text size" value={slide} min={0.85} max={1.3} step={0.05} onChange={setSlide} />
             </Rows>
           </Card>
+          <Card className="overflow-hidden">
+            {/* Press the first and last rows: the wash runs edge to edge and
+                follows the card's corners; the row never shrinks; on touch it
+                is gone when the finger lifts (hover only on hover devices). */}
+            <Rows>
+              <NavRow label="Press state, first row" icon={<Bell className="h-4 w-4" />} onClick={() => {}} />
+              <NavRow label="Press state, middle row" icon={<Palette className="h-4 w-4" />} onClick={() => {}} />
+              <NavRow label="Press state, last row" icon={<Settings className="h-4 w-4" />} onClick={() => {}} />
+            </Rows>
+          </Card>
         </Section>
 
 
