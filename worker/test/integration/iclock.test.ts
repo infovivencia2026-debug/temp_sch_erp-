@@ -36,6 +36,15 @@ it('stores each punch once and marks the day present, in and out', async () => {
   expect(a!.check_in < a!.check_out).toBe(true)
 })
 
+it('a second tap minutes after arriving is not the time they left', async () => {
+  const body = '7\t2026-10-13 08:43:19\t0\t1\t0\t0\n7\t2026-10-13 08:52:07\t0\t1\t0\t0\n'
+  await call(`/iclock/cdata?SN=${SN}&table=ATTLOG&Stamp=3`, { method: 'POST', body })
+  const a = await T().prepare(`SELECT check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date = '2026-10-13'`).bind(IDS.teacher)
+    .first<{ check_in: string; check_out: string | null }>()
+  expect(a!.check_in).toBeTruthy()
+  expect(a!.check_out).toBeNull()
+})
+
 it('Fetch history: the next check-in asks once for everything, and the answer is stored', async () => {
   const dev = (await T().prepare(`SELECT id FROM biometric_devices WHERE serial = ?`).bind(SN).first<{ id: string }>())!.id
   await T().prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, '{}')`).bind(IDS.school, `biometric_history:${dev}`).run()
