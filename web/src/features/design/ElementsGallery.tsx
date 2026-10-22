@@ -6,7 +6,7 @@ import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpe
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
   ConfirmButton, Checkbox, Switch, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
-  EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, tabClass,
+  EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, TAB_BAR_FILL, tabClass,
   SEG_BAR, segClass, Dialog, ExportTable, type ActiveRange,
 } from '@/components/ui'
 import { SkeletonCards, SkeletonRows, SkeletonText } from '@/components/Skeleton'
@@ -230,6 +230,13 @@ function Gallery() {
                   className={tabClass(tab === i)} onClick={() => setTab(i)}>{t}</button>
               ))}
             </div>
+            <Specimen label="TAB_BAR_FILL + tabClass(active, 'lg'): a screen's main switch">
+              <div className={TAB_BAR_FILL} role="tablist">
+                {['Inbox', 'Starred', 'Sent', 'Trash'].map((t, i) => (
+                  <button key={t} role="tab" aria-selected={tab === i} className={tabClass(tab === i, 'lg')} onClick={() => setTab(i)}>{t}</button>
+                ))}
+              </div>
+            </Specimen>
             <Specimen label="SEG_BAR + segClass, with the SlidingIndicator">
               <div ref={segList} className={`${SEG_BAR} relative`} role="tablist">
                 <SlidingIndicator listRef={segList} active={seg} />

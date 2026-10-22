@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Table, Td,
   Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
-import { WEEKDAYS, cn } from '@/lib/utils'
+import WeekGrid from '@/components/WeekGrid'
 
 /* The head of department's week, in one place.
 
@@ -95,13 +95,7 @@ export default function DepartmentTimetable() {
 
   const d = q.data!
   const s = d.summary
-  const periods = d.periods.filter((p) => !p.is_break)
   const shown = teacher ? d.teachers.filter((t) => t.user_id === teacher) : d.teachers
-
-  // One lookup for the whole grid: teacher, weekday, period.
-  const cells = new Map(
-    d.entries.map((e) => [`${e.teacher_id}:${e.weekday}:${e.period_id}`, e]),
-  )
 
   return (
     <>
@@ -222,54 +216,19 @@ export default function DepartmentTimetable() {
               title={t.full_name}
               description={`${t.periods} periods a week, ${t.free_slots} slots free, cap ${t.max_periods_per_week}.`}
             />
-            <div className="scroll-x p-4">
-              <table className="w-full min-w-[720px] border-separate border-spacing-1 text-[13px]">
-                <thead>
-                  <tr>
-                    <th className="w-24" />
-                    {periods.map((p) => (
-                      <th key={p.id} className="rounded bg-muted px-2 py-1.5 text-[12px] font-medium">
-                        <div>{p.name}</div>
-                        <div className="font-normal text-muted-foreground">{p.starts_at}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.weekdays.map((wd) => (
-                    <tr key={wd}>
-                      <th className="rounded bg-muted px-2 py-1.5 text-[12px] font-medium">
-                        {WEEKDAYS[wd - 1]}
-                      </th>
-                      {periods.map((p) => {
-                        const e = cells.get(`${t.user_id}:${wd}:${p.id}`)
-                        return (
-                          <td
-                            key={p.id}
-                            className={cn(
-                              'rounded border px-2 py-1.5 align-top',
-                              !e && 'border-dashed bg-muted/30',
-                            )}
-                          >
-                            {e ? (
-                              <>
-                                <div className="font-medium">
-                                  {e.class_name}-{e.section_name}
-                                </div>
-                                <div className="text-[12px] text-muted-foreground">
-                                  {e.subject_name}
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-[12px] text-muted-foreground">free</span>
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-4">
+              <WeekGrid
+                weekdays={d.weekdays}
+                periods={d.periods}
+                entries={d.entries.filter((e) => e.teacher_id === t.user_id).map((e) => ({
+                  weekday: e.weekday,
+                  period_id: e.period_id,
+                  title: `${e.class_name}-${e.section_name}`,
+                  detail: e.subject_name,
+                  room: e.room,
+                }))}
+                empty="No periods are timetabled for this teacher yet."
+              />
             </div>
           </Card>
         ))}
