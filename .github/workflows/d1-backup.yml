@@ -75,7 +75,8 @@ jobs:
           s3() { aws s3 --endpoint-url "$endpoint" "$@"; }
           stamp=$(date -u +%Y-%m-%dT%H%M)
           cutoff=$(date -u -d "-${RETAIN_DAYS} days" +%Y-%m-%d)
-          dbs=$(grep -o '"database_name": *"[^"]*"' wrangler.jsonc | sed 's/.*: *"//;s/"$//')
+          # Demo schools are not backed up (owner, 2026-10-22): nothing real lives in them.
+          dbs=$(grep -o '"database_name": *"[^"]*"' wrangler.jsonc | sed 's/.*: *"//;s/"$//' | grep -vE '^school-erp-demo(-school)?$')
           [ -n "$dbs" ] || { echo "::error::no d1_databases found in wrangler.jsonc"; exit 1; }
           failed=""
           for db in $dbs; do
