@@ -65,8 +65,6 @@
   "triggers": { "crons": ["* * * * *"] },
   "d1_databases": [
     { "binding": "CONTROL", "database_name": "school-erp-control", "database_id": "477538e2-da45-49d5-8176-79f20d7539f1" }
-    ,{ "binding": "TENANT_DEMO", "database_name": "school-erp-demo", "database_id": "73088586-9c8b-4a10-a130-8690782a1ddf" }
-    ,{ "binding": "TENANT_DEMO_SCHOOL", "database_name": "school-erp-demo-school", "database_id": "097509b3-8425-464f-832b-bfe38a8273ed" }
     ,{ "binding": "TENANT_YAJUR", "database_name": "school-erp-yajur-202609261728", "database_id": "6ff7d5b9-01c8-48d8-94da-c52b4933ef1f" }
     ,{ "binding": "TENANT_JSM", "database_name": "school-erp-jsm-202609261728", "database_id": "8485aae2-4795-408e-984a-93926d5133b0" }
     // TENANT_<slug> bindings are appended here by scripts/provision-school.sh
