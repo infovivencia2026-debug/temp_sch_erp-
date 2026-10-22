@@ -20,6 +20,7 @@ export const MOVES: Record<string, string> = {
   report_cards: 'exams',
   class_teacher_remarks: 'exams',
   student_leave_requests: 'attendance',
+  concerns_from_parents: 'my_classes',
 }
 
 export const comboOf = (slug: string) => COMBOS.find((c) => c.slugs.includes(slug))
