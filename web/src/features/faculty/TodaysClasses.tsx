@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CalendarPlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
@@ -320,12 +321,14 @@ export default function TodaysClasses() {
         </Card>
         {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
         {leavePath && (
-          <Card className="flex min-w-0 items-center justify-between gap-3 px-5 py-4">
+          <Card className="flex min-w-0 flex-row items-center justify-between gap-4 px-5 py-3.5">
             <div className="min-w-0">
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
             </div>
-            <Button className="shrink-0" onClick={() => navigate(leavePath)}>Apply</Button>
+            <Button size="sm" className="shrink-0" onClick={() => navigate(leavePath)}>
+              <CalendarPlus className="h-3.5 w-3.5" /> Apply
+            </Button>
           </Card>
         )}
         </div>
