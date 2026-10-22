@@ -128,6 +128,9 @@ describe('pictures', () => {
     const found = await api('teacher', 'GET', '/exams/paper-images?q=leaf')
     expect(found.body.items[0]).toMatchObject({ file_id: IMAGE, name: 'Leaf cross section', width: 800, height: 600 })
     expect((await api('teacher', 'GET', '/exams/paper-images?q=volcano')).body.items).toHaveLength(0)
+    const byId = await api('teacher', 'GET', `/exams/paper-images?ids=${IMAGE},${PDF}`)
+    expect(byId.body.items.map((x: { file_id: string }) => x.file_id)).toEqual([IMAGE])
+    expect((await api('teacher', 'GET', '/exams/paper-images?ids=not-an-id')).status).toBe(400)
   })
 
   it('refuses a file someone else uploaded, a file that is not a picture, and a picture with no size', async () => {
@@ -154,6 +157,17 @@ describe('question bank with printed boxes', () => {
       class_subject_id: IDS.classSubject, rows: [{ difficulty: 'hard', kind: 'short', marks: 3, count: 1 }],
     })
     expect(drawn.body.sections[0].questions[0].body.content).toContain('angle sum')
+  })
+
+  it('a drawn multiple-choice question says which option is correct', async () => {
+    await api('teacher', 'POST', '/teaching/question-bank', {
+      class_subject_id: IDS.classSubject, kind: 'mcq', difficulty: 'easy', stem: 'Which is even?', default_marks: 7,
+      options: [{ body: 'Three', is_correct: false }, { body: 'Four', is_correct: true }],
+    })
+    const drawn = await api('teacher', 'POST', '/teaching/question-bank/compose', {
+      class_subject_id: IDS.classSubject, rows: [{ kind: 'mcq', marks: 7, count: 1 }],
+    })
+    expect(drawn.body.sections[0].questions[0]).toMatchObject({ options: ['Three', 'Four'], correct: [false, true] })
   })
 
   it('refuses a box with a picture pasted inline', async () => {

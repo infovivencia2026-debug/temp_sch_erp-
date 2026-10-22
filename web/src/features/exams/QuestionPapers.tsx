@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -9,10 +9,13 @@ import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
 import PaperDeadlines from './PaperDeadlines'
-import PaperFromBlueprint from '../faculty/PaperFromBlueprint'
 import QuestionBank from '../faculty/QuestionBank'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
+
+// Question maker (the editor, Word export and the paper fonts) loads only when it is opened.
+const QuestionMaker = lazy(() => import('../qmaker/QuestionMaker'))
+const SentPaper = lazy(() => import('../qmaker/SentPaper'))
 
 /* The paper, read before it is printed.
  *
@@ -39,6 +42,8 @@ interface Paper {
   max_marks: string
   duration_minutes: number | null
   file_id: string | null
+  /** Written in Question maker: read on screen, not as a file. */
+  has_doc: boolean
   notes: string | null
   status: 'draft' | 'submitted' | 'approved' | 'changes_needed'
   set_by: string
@@ -81,6 +86,7 @@ export default function QuestionPapers() {
   const [file, setFile] = useState<UploadedFile | null>(null)
   const [notes, setNotes] = useState('')
   const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
+  const [viewDoc, setViewDoc] = useState<Paper | null>(null)
   /* Papers accumulate every term and nothing ever leaves, so the table grows
      past the screen and buries the form above it. */
   const [showAll, setShowAll] = useState(false)
@@ -151,6 +157,7 @@ export default function QuestionPapers() {
   return (
     <>
       {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
+      {viewDoc && <Suspense fallback={null}><SentPaper id={viewDoc.id} title={`${viewDoc.exam_name} · ${viewDoc.subject}`} onClose={() => setViewDoc(null)} /></Suspense>}
       {/* The breadcrumb the rest of the product has. Every other screen opens
           with "section / page" above its title; this one opened with the
           title alone, so the one screen a head of department reaches from
@@ -175,7 +182,7 @@ export default function QuestionPapers() {
             ))}
           </div>
         )}
-        {tab === 'maker' ? <PaperFromBlueprint embedded slots={slots.data?.items ?? []} /> : tab === 'bank' ? <QuestionBank embedded /> : (<>
+        {tab === 'maker' ? <Suspense fallback={<Loading />}><QuestionMaker embedded slots={slots.data?.items ?? []} /></Suspense> : tab === 'bank' ? <QuestionBank embedded /> : (<>
         {done && <FormNotice ok={done} />}
         {(submit.error || decide.error) && (
           <FormNotice error={submit.error ?? decide.error} />
@@ -348,6 +355,11 @@ export default function QuestionPapers() {
                               name: `${p.exam_name} · ${p.subject}`,
                             })}
                           >
+                            Open paper
+                          </Button>
+                        )}
+                        {p.has_doc && (
+                          <Button size="sm" variant="secondary" onClick={() => setViewDoc(p)}>
                             Open paper
                           </Button>
                         )}

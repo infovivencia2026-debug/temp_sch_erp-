@@ -478,7 +478,9 @@ async function composePaper(c: Ctx): Promise<Response> {
     args.push(row.count)
     const rs = await c.db.prepare(`
       SELECT q.id, q.stem, q.kind, q.difficulty, q.bloom_level, su.title AS chapter,
-             q.default_marks, q.body, ${optionsSQL('q')} AS options
+             q.default_marks, q.body, ${optionsSQL('q')} AS options,
+             COALESCE((SELECT json_group_array(oc.is_correct) FROM
+               (SELECT o.is_correct FROM question_bank_options o WHERE o.question_id = q.id ORDER BY o.sequence) oc), '[]') AS correct
         FROM question_bank_questions q
         LEFT JOIN syllabus_units su ON su.id = q.syllabus_unit_id
        WHERE ${where}
@@ -492,6 +494,8 @@ async function composePaper(c: Ctx): Promise<Response> {
         id: q.id, stem: q.stem, kind: q.kind, difficulty: q.difficulty, bloom_level: q.bloom_level,
         chapter: q.chapter ?? null, marks: m, options: JSON.parse(String(q.options ?? '[]')) as string[],
         body: parsedBody(q.body) ?? null,
+        // The answer key of a drawn paper: which options are correct, in order.
+        correct: (JSON.parse(String(q.correct ?? '[]')) as number[]).map((v) => v === 1),
       }
     })
     const found = questions.length

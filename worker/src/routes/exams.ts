@@ -7,8 +7,7 @@ import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNum
 import { defaultReportCardHTML } from './exams/template'
 import { registerQuestionMaker } from './exams/qmaker'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
-import { DOC_PRINT_CSS, SchoolPDF, documentHTML, inr, logoBytes, schoolFacts, type SchoolFacts } from '../services/document'
-import { putObject, sha256, uploadKey } from '../services/files'
+import { DOC_PRINT_CSS, documentHTML, inr, schoolFacts, type SchoolFacts } from '../services/document'
 import { Messenger, scopeOf } from '../services/messaging'
 import { enqueueMany } from '../services/jobs'
 
@@ -333,7 +332,6 @@ function registerExamGroup(r: Router) {
     }))))
   })
   r.post('/exams/question-papers', EXAMS_READ, submitQuestionPaper)
-  r.post('/exams/question-papers/made', EXAMS_READ, submitMadePaper)
   r.post('/exams/question-papers/{id}/decide', EXAMS_APPROVE, decideQuestionPaper)
 
   // --- question paper deadlines (owner, 2026-10-19) --------------------
@@ -1279,62 +1277,6 @@ async function submitQuestionPaper(c: Ctx) {
       submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
   return ok({ status })
-}
-
-/* A paper made in Question maker, sent to the examination branch: printed to a
-   PDF on the school's letterhead, kept as a file, and submitted for that exam
-   paper exactly as an uploaded one would be. */
-async function submitMadePaper(c: Ctx) {
-  const body = await readJSON<{ exam_subject_id?: string; sections?: { marks?: number; questions?: { stem?: string; options?: string[] }[] }[] }>(c.req)
-  const esId = (body.exam_subject_id ?? '').trim()
-  if (!isUUID(esId)) throw badRequest('Choose which exam paper this is for.')
-  const sections = (body.sections ?? []).map((s) => ({
-    marks: Number(s.marks) || 0,
-    questions: (s.questions ?? []).map((q) => ({ stem: String(q.stem ?? '').slice(0, 4000), options: (q.options ?? []).map((o) => String(o).slice(0, 500)).slice(0, 8) }))
-      .filter((q) => q.stem.trim() !== ''),
-  })).filter((s) => s.questions.length > 0)
-  if (sections.length === 0) throw badRequest('The paper has no questions. Make it first.')
-  if (sections.reduce((n, s) => n + s.questions.length, 0) > 300) throw badRequest('A paper can hold at most 300 questions.')
-  const sc = await resolveScope(c)
-  const head = await c.db.prepare(`
-    SELECT ex.name AS exam, c.name AS class, sub.name AS subject, CAST(es.max_marks AS INTEGER) AS max_marks,
-           EXISTS (SELECT 1 FROM sections s WHERE s.class_id = cs.class_id AND s.id IN ${inList(sc.sectionIds)}) AS ok
-      FROM exam_subjects es JOIN exams ex ON ex.id = es.exam_id JOIN class_subjects cs ON cs.id = es.class_subject_id
-      JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id WHERE es.id = ?`)
-    .bind(js(sc.sectionIds), esId).first<{ exam: string; class: string; subject: string; max_marks: number | null; ok: number }>()
-  if (!head) throw notFound('That exam paper does not exist.')
-  if (!head.ok && !c.id.platformAdmin) throw forbidden('missing permission: ' + EXAMS_READ)
-
-  const facts = await schoolFacts(c.db, c.id.institution!)
-  const pdf = await SchoolPDF.create(facts, { title: `${head.exam} · ${head.subject}`, subtitle: `${head.class}${head.max_marks ? ` · Maximum marks ${head.max_marks}` : ''}`, logo: await logoBytes(c.env, c.db, facts.logoKey) })
-  let n = 0
-  sections.forEach((s, i) => {
-    pdf.heading(`Section ${String.fromCharCode(65 + i)}${s.marks ? ` · ${s.marks} mark${s.marks === 1 ? '' : 's'} each` : ''}`)
-    for (const q of s.questions) {
-      n += 1
-      pdf.paragraph(`${n}. ${q.stem}`)
-      q.options.forEach((o, k) => pdf.paragraph(`     (${String.fromCharCode(97 + k)}) ${o}`, { size: 10 }))
-      pdf.space(4)
-    }
-  })
-  const bytes = (await pdf.save()).slice().buffer as ArrayBuffer
-
-  const inst = c.id.institution!.id, fileId = uuid(), key = uploadKey(inst, fileId, 'pdf')
-  await putObject(c.env, key, bytes, 'application/pdf')
-  const name = `${head.class} ${head.subject} ${head.exam}.pdf`.replace(/[^\w .-]/g, '')
-  const ts = now()
-  await c.db.batch([
-    c.db.prepare(`INSERT INTO files (id, institution_id, object_key, original_name, content_type, size_bytes, checksum_sha256, purpose, uploaded_by, created_at)
-        VALUES (?, ?, ?, ?, 'application/pdf', ?, ?, 'question_paper', ?, ?)`)
-      .bind(fileId, inst, key, name, bytes.byteLength, await sha256(bytes), c.id.userId, ts),
-    c.db.prepare(`
-      INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
-      VALUES (?1, ?2, ?3, ?4, 'Made in Question maker', ?5, ?6, 'submitted', ?6)
-      ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, notes = excluded.notes, submitted_by = excluded.submitted_by,
-        submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
-      .bind(uuid(), inst, esId, fileId, c.id.userId, ts),
-  ])
-  return created({ status: 'submitted', file_id: fileId })
 }
 
 async function decideQuestionPaper(c: Ctx) {

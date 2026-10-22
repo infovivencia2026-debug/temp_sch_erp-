@@ -1,0 +1,176 @@
+/* Question maker.
+
+   Two kinds of surface. The chrome round the paper (top bar, toolbar, side
+   panel, dialogs) is the app's, in its tokens, light or dark. The sheet is
+   paper: white with black ink in every theme and palette, because that is
+   what prints; only the editing marks on it (selection, insert line, the bars
+   over a picture) take the app's ring colour. */
+
+.qm-editor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.qm-top {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 6px 8px; border-radius: var(--radius-card); background: hsl(var(--card)); color: hsl(var(--card-foreground));
+  box-shadow: var(--elev-1);
+}
+.qm-save { font-size: 12px; color: hsl(var(--muted-foreground)); padding: 0 6px; white-space: nowrap; }
+.qm-save.error, .qm-save.conflict { color: hsl(var(--destructive)); font-weight: 600; }
+.qm-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qm-alert > :first-child { flex: 1; min-width: 0; }
+
+.qm-toolbar {
+  position: sticky; top: 56px; z-index: 19; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
+  padding: 4px 6px; border-radius: var(--radius-card); background: hsl(var(--card)); box-shadow: var(--elev-1);
+}
+.qm-tgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 1px; }
+.qm-tgroup + .qm-tgroup { padding-left: 8px; border-left: 1px solid hsl(var(--border)); }
+.qm-thint { font-size: 12px; color: hsl(var(--muted-foreground)); }
+
+.qm-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+.qm-body.with-side { grid-template-columns: minmax(0, 1fr) 340px; }
+.qm-side {
+  position: sticky; top: 110px; max-height: calc(100vh - 130px); overflow-y: auto; padding: 14px;
+  border-radius: var(--radius-card); background: hsl(var(--card)); box-shadow: var(--elev-1);
+}
+.qm-panel { display: flex; flex-direction: column; gap: 10px; }
+.qm-panel + .qm-panel { padding-top: 14px; border-top: 1px solid hsl(var(--border)); }
+.qm-panel-h { font-size: 13px; font-weight: 600; }
+.qm-meter { height: 4px; border-radius: 2px; background: hsl(var(--muted)); overflow: hidden; }
+.qm-meter > div { height: 100%; background: hsl(var(--foreground) / 0.45); transform-origin: left; }
+
+.qm-desk { min-width: 0; padding: 12px 0 24px; border-radius: var(--radius-card); background: hsl(var(--muted)); }
+.qm-sheet {
+  width: 210mm; max-width: calc(100% - 24px); min-height: 297mm; margin: 0 auto; padding: 14mm 15mm;
+  background: #fff; color: #000; box-shadow: var(--elev-2); color-scheme: light;
+}
+@media (max-width: 640px) {
+  .qm-desk { padding: 0; background: none; }
+  .qm-sheet { max-width: 100%; min-height: 0; padding: 16px; }
+  .qm-body.with-side { grid-template-columns: minmax(0, 1fr); }
+  .qm-toolbar { top: 100px; }
+}
+.qm-empty { margin: 12px 0; text-align: center; font: italic 13px system-ui, sans-serif; color: #6b6e72; }
+
+/* The header lines on the sheet: typed straight onto the paper. */
+.qp .qm-inline { border: 0; background: transparent; font: inherit; color: inherit; padding: 1px 2px; border-radius: 2px; outline: none; width: auto; min-width: 6ch; field-sizing: content; font-weight: 600; }
+.qp .qm-inline:hover { background: #f4f5f6; }
+.qp .qm-inline:focus-visible { background: #fff; box-shadow: inset 0 -2px 0 hsl(var(--ring)); }
+.qp .qm-inline::placeholder { color: #9a9da1; font-style: italic; font-weight: 400; }
+.qp .qm-inline.exam { display: block; width: 100%; text-align: center; font-size: calc(var(--fs) * 1.08); font-weight: 700; margin-top: 4px; }
+
+/* Boxes being edited, drawn as they print. */
+.qm-canvas { position: relative; }
+.qp .qm-box { position: relative; outline: 1px solid transparent; outline-offset: 1px; border-radius: 1px; min-height: 1.2em; }
+.qp .qm-box:hover { outline-color: #dcdde0; }
+.qp .qm-box.sel { outline: 2px solid hsl(var(--ring)); z-index: 2; }
+.qp .qm-box.numbered { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 6px; }
+.qp .qm-box.numbered > .qn { min-width: 1.6em; font-weight: 600; white-space: nowrap; }
+.qp .qm-box > .qm { font-weight: 600; white-space: nowrap; }
+.qp .qm-box.bordered { border: 1px solid #000; }
+.qp .qm-box.heading > .bh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px solid #000; margin-bottom: 4px; }
+.qp .qm-box.heading .bh-t { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.qp .qm-box.heading .bh-t .bc { flex: 1; }
+.qp .qm-box.keyonly { background: #f3f9f4; outline: 1px dashed #4a8a57; }
+.qp .qm-box .bgrid { display: grid; gap: 2px 12px; }
+.qp .qm-cell, .qp .qm-box .bc, .qp .qm-box .bb { min-width: 0; }
+.qp .qm-box:empty::before { content: 'Empty box: press + inside it to add something'; color: #9a9da1; font: italic 12px system-ui, sans-serif; }
+.qm-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 1px 0; font: 11px system-ui, sans-serif; }
+.qm-tag { padding: 0 6px; border-radius: 8px; background: #eef0f2; color: #55595e; }
+.qm-tag.key, .qm-tag.ok { background: #e8f4ea; color: #276b35; }
+.qm-or { display: flex; align-items: center; gap: 10px; margin: 2px 0; font-weight: 700; }
+.qm-or::before, .qm-or::after { content: ''; flex: 1; border-top: 1px dashed #c3c4c7; }
+
+/* The bar over the selected box: app chrome, so app colours. */
+.qm-boxbar {
+  position: absolute; bottom: calc(100% + 4px); left: -2px; z-index: 8; display: flex; align-items: center; gap: 1px;
+  padding: 2px; border-radius: var(--radius-control); background: hsl(var(--popover)); color: hsl(var(--popover-foreground));
+  box-shadow: var(--elev-2); font: 12px system-ui, sans-serif; white-space: nowrap; max-width: calc(100vw - 32px); overflow-x: auto;
+}
+/* On a phone the selected box can sit at the right edge, so its bar is pinned
+   along the bottom of the screen, above the dock, where a thumb reaches it. */
+@media (max-width: 640px) {
+  .qm-boxbar { position: fixed; left: 16px; right: 76px; bottom: calc(var(--page-foot, 72px) + 8px); max-width: none; z-index: 30; }
+}
+.qm-boxbar-name { padding: 0 8px; font-weight: 600; }
+.qm-grip { display: inline-flex; padding: 0 4px; cursor: grab; color: hsl(var(--muted-foreground)); }
+
+/* Insert points between boxes: a thin strip that shows a line and a + when
+   the pointer reaches it. A hidden + takes no presses, so it never sits over
+   the text above it; the + at the end of a box has a strip of its own. */
+.qp .qm-between { position: relative; height: 6px; margin: -3px 0; z-index: 3; }
+.qp .qm-between > span { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity 120ms; }
+.qp .qm-between > span button { background: hsl(var(--popover)); box-shadow: var(--elev-1); font-family: system-ui, sans-serif; }
+.qp .qm-between:hover > span, .qp .qm-between.over > span, .qp .qm-between:focus-within > span { opacity: 1; pointer-events: auto; }
+.qp .qm-between:hover::after, .qp .qm-between.over::after { content: ''; position: absolute; left: 0; right: 0; top: 2px; border-top: 2px solid hsl(var(--ring)); }
+.qp .qm-between-end .qm-between { height: 0; margin: 0; }
+.qp .qm-between-end .qm-between > span { top: 2px; }
+/* Shown, and given room, only where a teacher adds next: inside the selected
+   box, and at the end of the paper. */
+.qp .qm-box.sel > .bb > .qm-between-end > .qm-between, .qp .qm-box.sel > .qm-between-end > .qm-between,
+.qp .qm-canvas > .qm-between-end > .qm-between { height: 38px; }
+.qp .qm-box.sel > .bb > .qm-between-end > .qm-between > span, .qp .qm-box.sel > .qm-between-end > .qm-between > span,
+.qp .qm-canvas > .qm-between-end > .qm-between > span { opacity: .8; pointer-events: auto; }
+.qp .qm-canvas > .qm-between-end > .qm-between { margin-top: 4px; }
+
+/* Text on the sheet. */
+.rich { position: relative; display: flow-root; min-width: 0; }
+.ed { outline: none; min-height: 1.45em; white-space: pre-wrap; overflow-wrap: break-word; }
+.ed p { margin: 0; }
+.ed ul, .ed ol { margin: 2pt 0; padding-left: 1.6em; }
+.ed p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #9a9da1; font-style: italic; float: left; height: 0; pointer-events: none; }
+.rich:hover > .tiptap { background: #fafafa; }
+.rich .ProseMirror-focused { background: #fafafa; box-shadow: inset 0 -2px 0 hsl(var(--ring)); }
+.rich.second .ed { color: #1d4f91; }
+.ed table { border-collapse: collapse; margin: 4pt 0; table-layout: fixed; width: 100%; }
+.ed td, .ed th { border: 1px solid #000; padding: 2pt 6pt; vertical-align: top; min-width: 2em; position: relative; }
+.ed th { background: #f2f2f2; font-weight: 700; }
+.ed table[data-borderless="true"] td, .ed table[data-borderless="true"] th { border: 1px dashed #c3c4c7; background: none; }
+.ed .selectedCell::after { content: ''; position: absolute; inset: 0; background: hsl(var(--ring) / 0.15); pointer-events: none; }
+.ed hr { border: 0; border-top: 1px solid #000; margin: 4pt 0; }
+.ed hr.ProseMirror-selectednode { outline: 2px solid hsl(var(--ring)); }
+.ed .tableWrapper { overflow-x: auto; margin: 4pt 0; }
+.ed .tableWrapper table { margin: 0; }
+.ed .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: hsl(var(--ring)); pointer-events: none; z-index: 3; }
+.ed.resize-cursor, .resize-cursor .ed { cursor: col-resize; }
+
+/* Pictures, answer lines and drawing boxes in the text. */
+.ed-img { display: inline-block; position: relative; vertical-align: middle; max-width: 100%; line-height: 0; }
+.ed-img img { width: 100%; height: auto; }
+.ed-img .missing { display: inline-block; padding: 8px; line-height: 1.3; font: 12px system-ui, sans-serif; color: #8a2b22; border: 1px dashed #c98b84; }
+.ed-img.al-left { display: block; margin: 4px 0; }
+.ed-img.al-center { display: block; margin: 4px auto; }
+.ed-img.al-right { float: right; margin: 2px 0 4px 10px; }
+.ed-img.sel, .ed-img:hover { outline: 2px solid hsl(var(--ring)); }
+.ed-block { position: relative; margin: 3pt 0; }
+.ed-block.sel { outline: 2px solid hsl(var(--ring)); }
+.ed-block .lines div { border-bottom: 1px solid #999; height: calc(var(--fs, 12pt) * 2.1); }
+.ed-block .drawbox { border: 1px solid #000; }
+.qm-bar {
+  position: absolute; top: 2px; left: 2px; z-index: 5; display: none; align-items: center; gap: 1px; padding: 2px;
+  border-radius: var(--radius-control); background: hsl(var(--popover)); color: hsl(var(--popover-foreground));
+  box-shadow: var(--elev-2); line-height: 1.4; font: 12px system-ui, sans-serif; white-space: nowrap;
+}
+.ed-block .qm-bar { top: auto; bottom: 2px; right: 2px; left: auto; }
+.qm-bar-n { padding: 0 6px; color: hsl(var(--muted-foreground)); }
+.ed-img:hover .qm-bar, .ed-img.sel .qm-bar, .ed-block:hover .qm-bar, .ed-block.sel .qm-bar, .qm-bar:focus-within { display: flex; }
+.ed-handle { position: absolute; z-index: 6; display: none; background: hsl(var(--ring)); border: 2px solid #fff; touch-action: none; }
+.ed-handle.corner { right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 3px; cursor: nwse-resize; }
+.ed-handle.bottom { left: 50%; bottom: -6px; width: 40px; height: 10px; margin-left: -20px; border-radius: 5px; cursor: ns-resize; }
+.ed-img:hover .ed-handle, .ed-img.sel .ed-handle, .ed-block:hover .ed-handle, .ed-block.sel .ed-handle { display: block; }
+
+/* Pickers in the dialogs. */
+.qm-pick {
+  display: flex; width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; text-align: left;
+  border-radius: var(--radius-control); background: hsl(var(--card)); color: hsl(var(--card-foreground)); box-shadow: var(--field-shadow);
+  font-size: 13.5px; transition: background-color 120ms;
+}
+.qm-pick:hover:not(:disabled) { background: hsl(var(--accent)); }
+.qm-pick:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }
+.qm-pick:disabled { opacity: .5; }
+.qm-imgtile {
+  display: flex; width: 100%; flex-direction: column; gap: 6px; padding: 6px; text-align: left; font-size: 12px;
+  border-radius: var(--radius-control); background: hsl(var(--card)); color: hsl(var(--card-foreground)); box-shadow: var(--field-shadow);
+}
+.qm-imgtile img { width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 4px; }
+.qm-imgtile.on { box-shadow: 0 0 0 2px hsl(var(--ring)); }
+.qm-imgtile:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }

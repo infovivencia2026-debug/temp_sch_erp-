@@ -1,7 +1,7 @@
 import type { Router, Ctx } from '../../router'
 import { can } from '../../identity'
 import { badRequest, conflict, forbidden, isUUID, notFound, now, ok, created, readJSON, uuid } from '../../http'
-import { inList, items, js, minuteOf, resolveScope, str } from './common'
+import { inList, items, js, resolveScope, str } from './common'
 
 /* Question maker: papers written on an A4 page in the browser.
 
@@ -56,7 +56,7 @@ function optionalSlot(v: unknown): string | null {
   return s
 }
 
-const DRAFT_COLUMNS = `d.id, d.title, d.exam_subject_id, ${minuteOf('d.updated_at')} AS updated_minute, d.updated_at,
+const DRAFT_COLUMNS = `d.id, d.title, d.exam_subject_id, es.class_subject_id, d.updated_at,
   ex.name AS exam_name, c.name AS class, sub.name AS subject, CAST(es.max_marks AS TEXT) AS max_marks,
   qp.status AS sent_status, qp.review_note`
 const DRAFT_JOINS = `
@@ -68,7 +68,7 @@ const DRAFT_JOINS = `
   LEFT JOIN question_papers qp ON qp.draft_id = d.id`
 
 const draftJSON = (v: Record<string, unknown>) => ({
-  id: v.id, title: str(v.title), exam_subject_id: v.exam_subject_id ?? null,
+  id: v.id, title: str(v.title), exam_subject_id: v.exam_subject_id ?? null, class_subject_id: v.class_subject_id ?? null,
   exam_name: v.exam_name ?? null, class: v.class ?? null, subject: v.subject ?? null, max_marks: v.max_marks ?? null,
   updated_at: str(v.updated_at), sent_status: v.sent_status ?? null, review_note: v.review_note ?? null,
 })
@@ -177,7 +177,15 @@ async function sentDoc(c: Ctx) {
 
 // ---------------------------------------------------------------- pictures
 
+/* By name for the image store, or by id for the pictures a banked question
+   uses (its size is needed to print it). */
 async function listImages(c: Ctx) {
+  const ids = (c.url.searchParams.get('ids') ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  if (ids.length > 200 || ids.some((x) => !isUUID(x))) throw badRequest('Ask for at most 200 pictures by id.')
+  if (ids.length) {
+    const rows = await c.db.prepare(`SELECT file_id, name, width, height FROM question_maker_images WHERE file_id IN ${inList(ids)}`).bind(js(ids)).all()
+    return ok(items(rows.results.map((v) => ({ file_id: v.file_id, name: v.name, width: v.width, height: v.height }))))
+  }
   const q = (c.url.searchParams.get('q') ?? '').trim()
   const rows = await c.db.prepare(`SELECT file_id, name, width, height FROM question_maker_images
      WHERE ?1 = '' OR name LIKE '%' || ?1 || '%' ORDER BY created_at DESC LIMIT 200`).bind(q.replace(/[%_]/g, '')).all()
