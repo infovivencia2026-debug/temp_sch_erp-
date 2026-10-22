@@ -57,6 +57,7 @@ import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
 import { staffLayoutOn } from '@/lib/staff-layout'
+import { ComboTabs } from '@/components/StaffCombos'
 import { StaffHeaderContent, StaffNavList, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
@@ -1485,6 +1486,8 @@ export function Shell({
               split ? 'overflow-hidden pb-[var(--page-foot,0px)]' : 'overflow-y-auto',
             )}
           >
+            {/* Related screens as tabs over the page (staff layout; StaffCombos.tsx). */}
+            {staffLayout && <div className="px-4 pt-4 md:px-6"><ComboTabs /></div>}
             {split && renderAt ? (
               <PaneArea renderAt={renderAt}>{children}</PaneArea>
             ) : (

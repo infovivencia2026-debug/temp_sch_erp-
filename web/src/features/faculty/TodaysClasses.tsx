@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
-import { useActiveRole } from '@/lib/catalog'
+import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
@@ -124,6 +124,9 @@ export default function TodaysClasses() {
   })
   const notes = useShownNotes()
   const [viewing, setViewing] = useState<string | null>(null)
+  // The leave screen this person holds, wherever their role files it.
+  const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
+  const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -263,7 +266,8 @@ export default function TodaysClasses() {
           </div>
         </Card>
 
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+        <div className="flex min-w-0 flex-col gap-5">
+        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-22rem)]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[16px] font-bold">Notifications</h2>
@@ -314,6 +318,17 @@ export default function TodaysClasses() {
             )}
           </div>
         </Card>
+        {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
+        {leavePath && (
+          <Card className="flex min-w-0 items-center justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-bold">Apply for leave</h2>
+              <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
+            </div>
+            <Button className="shrink-0" onClick={() => navigate(leavePath)}>Apply</Button>
+          </Card>
+        )}
+        </div>
       </div>
     </div></PageBody>
   )

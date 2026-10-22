@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
@@ -108,21 +109,41 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
     .map((g, i) => ({ ...g, i }))
     .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)
+  /* Regrouped (StaffCombos.tsx): some screens shown under another group, and a
+     group of related screens shown once, its others reached as tabs. */
+  const { pathname } = useLocation()
+  const here = pathname.split('/')[3] ?? ''
+  const listed = groups.map((g) => ({ ...g, list: items(g.section) }))
+  const held = new Set(listed.flatMap((g) => g.list.map((f) => f.slug)))
+  const hidden = new Set(COMBOS.flatMap((c) => c.slugs.filter((s) => s !== c.slugs.find((x) => held.has(x)))))
+  const present = new Set(listed.filter((g) => g.list.length).map((g) => g.section.slug))
+  const target = (slug: string, from: string) => (MOVES[slug] && present.has(MOVES[slug]) ? MOVES[slug] : from)
+  const bySection = new Map<string, { section: string; f: ApiSection['features'][number] }[]>()
+  for (const g of listed) for (const f of g.list) {
+    if (hidden.has(f.slug)) continue
+    const to = target(f.slug, g.section.slug)
+    if (!bySection.has(to)) bySection.set(to, [])
+    bySection.get(to)!.push({ section: g.section.slug, f })
+  }
   return (
     <>
-      {groups.map(({ ws, section }) => {
-        const list = items(section)
+      {listed.map(({ ws, section }) => {
+        const list = bySection.get(section.slug) ?? []
         if (!list.length) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
         return (
           <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}>
-            {list.map((f) => (
-              <NavLink key={f.key} to={featurePath(roleKey, section.slug, f.slug)} onClick={onNavigate} title={f.summary}
-                className={({ isActive }) => cn(
-                  'flex min-h-[calc(34px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
-                  isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
-                  !f.live && !isActive && 'text-muted-foreground/70',
-                )}>
+            {list.map(({ section: from, f }) => (
+              <NavLink key={f.key} to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+                className={({ isActive }) => {
+                  // A grouped item stays lit while one of its tabs is open.
+                  const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)
+                  return cn(
+                    'flex min-h-[calc(34px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
+                    on ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
+                    !f.live && !on && 'text-muted-foreground/70',
+                  )
+                }}>
                 <LineIcon name={`${f.slug} ${f.name}`} size={15} />
                 <span className="truncate">{label(f.name)}</span>
               </NavLink>
