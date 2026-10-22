@@ -146,6 +146,9 @@ export const fileUrl = (key?: string | null) => (key ? `/api/v1/files/${key}?inl
 
 export function hoursLeft(iso?: string | null): string {
   if (!iso) return ''
-  const h = Math.round((new Date(iso).getTime() - Date.now()) / 3_600_000)
-  return h <= 0 ? 'ending' : `${h} h left`
+  const ms = new Date(iso).getTime() - Date.now()
+  if (ms > 0) return `${Math.max(1, Math.round(ms / 3_600_000))} h left`
+  // Past its 24 hours: out of sight, kept a week for the poster to pin (services/class_status.ts GRACE_MS).
+  const days = Math.max(0, 7 - Math.floor(-ms / 86_400_000))
+  return days > 0 ? `Hidden. Pin within ${days} day${days === 1 ? '' : 's'} to keep it` : 'Hidden. Deleted soon'
 }
