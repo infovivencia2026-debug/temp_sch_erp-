@@ -44,11 +44,11 @@ export async function mailboxPassword(env: Env, db: D1Database, user: string): P
 
 /** Why a login failed, in words for the person; the server's reply is kept
     (it never holds the password: see services/imap.ts). */
-export function loginProblem(e: unknown): { status: 400 | 502; message: string } {
+export function loginProblem(e: unknown): { status: 400 | 422; message: string } {
   const msg = e instanceof Error ? e.message : String(e)
   if (e instanceof ImapRefused && msg.startsWith('login: ')) return { status: 400, message: 'the mail server refused the sign-in: ' + msg.slice(7) }
-  if (e instanceof ImapRefused) return { status: 502, message: 'the mail server said: ' + msg }
-  return { status: 502, message: 'could not reach the mail server: ' + msg }
+  if (e instanceof ImapRefused) return { status: 422, message: 'the mail server said: ' + msg }
+  return { status: 422, message: 'could not reach the mail server: ' + msg }
 }
 
 /** Signs in and out again; throws as Imap does. */
