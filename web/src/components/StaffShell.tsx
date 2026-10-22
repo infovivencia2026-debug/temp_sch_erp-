@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BookOpen, Bus, CalendarDays, ChevronDown, ClipboardCheck, Contact, Dot, FileText, Home, ListChecks,
+  BookOpen, Bus, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
   Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -30,7 +30,7 @@ export function useTodaySignIns(on: boolean) {
 }
 
 /* Minimal line icons (owner, 2026-10-19: "use lined minimal icons"), chosen
-   from what the group or screen is called; anything unmatched gets a plain dot. */
+   from what the group or screen is called; anything unmatched gets a plain grid, never a dot. */
 const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/home|today|dashboard|overview/, Home],
   [/timetable|calendar|schedule|period/, CalendarDays],
@@ -50,9 +50,13 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/library|book|lms|learn|course|syllabus/, BookOpen],
   [/transport|bus|route/, Bus],
   [/setting|setup|rule|config/, Settings2],
+  [/substitut/, Repeat2],
+  [/allocation/, Layers],
+  [/meeting/, CalendarClock],
+  [/online test|quiz/, MonitorCheck],
 ]
 function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
-  const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? Dot
+  const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
   return <Icon aria-hidden className="shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
 }
 
