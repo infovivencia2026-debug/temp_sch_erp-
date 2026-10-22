@@ -1,0 +1,13 @@
+-- 0106_auto_whatsapp_switch (tenant: every school database).
+--
+-- Forward-only: once applied anywhere this file must not change (its
+-- checksum is recorded); fix a mistake with a new migration.
+-- ALTER TABLE ... ADD COLUMN cannot be re-run; _migrations guards it.
+-- No BEGIN/COMMIT (D1 rejects them). After editing: npm run schema:sync.
+--
+-- One switch for automatic WhatsApp (owner, 2026-10-22): off, the messages
+-- the school sends on its own (absence alerts, fee reminders, notices,
+-- digests) skip WhatsApp and go by the next channel on their ladder. A test
+-- send and a resend chosen by a person still use WhatsApp. On by default, as
+-- before.
+ALTER TABLE message_settings ADD COLUMN auto_whatsapp INTEGER NOT NULL DEFAULT 1;

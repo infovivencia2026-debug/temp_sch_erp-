@@ -103,4 +103,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 103, name: 'feature_concerns_from_parents', checksum: '404e64d8904627051d0132d27acd015f8c0340ef64a23ef72fcb71b9dbd19925' },
   { version: 104, name: 'inbox_all_staff', checksum: '670fb6e1227f15b76ccd1c9d6377816bb0bb8ff1deaa0942849208f047242060' },
   { version: 105, name: 'question_maker', checksum: '1fba333719809717c93ea9927f6b644120e2cee8b00597a054136bdc9acb2703' },
+  { version: 106, name: 'auto_whatsapp_switch', checksum: '71f9ede2eb0e352f22f43e33c75e94f7cd665a9d5d85ab6e0bdb8d083187c04f' },
 ]
