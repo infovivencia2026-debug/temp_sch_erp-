@@ -296,7 +296,7 @@ async function announceStatements(c: Ctx, draftID: string): Promise<{ stmts: D1P
   for (const p of people) {
     const body = p.is_student ? 'Your class has a new timetable. Check Monday before you come in.'
       : p.name + "'s class has a new timetable. The school day may start or end at a different time."
-    stmts.push(notifyStmt(c, p.user_id, p.student, 'timetable', 'The timetable has changed', body, '/portal/timetable', 'timetable', draftID))
+    stmts.push(notifyStmt(c, p.user_id, p.student, 'timetable', 'The timetable has changed', body, '/go/academics/timetable', 'timetable', draftID))
   }
   return { stmts, told: staff.length + people.length }
 }
