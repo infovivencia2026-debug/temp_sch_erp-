@@ -68,7 +68,25 @@ function readOpen(slug: string): boolean {
   try { return localStorage.getItem(groupKey(slug)) === 'open' } catch { return false }
 }
 
-function Group({ slug, section, name, children }: { slug: string; section: string; name: string; children: React.ReactNode }) {
+/* Open parent concerns passed to this teacher (Yajur, 2026-10-22: a number on
+   My classes and on Concerns from parents, the way the bell has one). */
+function useOpenConcerns(enabled: boolean): number {
+  const q = useQuery({
+    // The same cache as the Concerns from parents screen, so resolving one lowers the number at once.
+    queryKey: ['concerns-from-parents'],
+    enabled,
+    refetchInterval: 60_000,
+    queryFn: () => api.get<{ items: { status: string; my_note: string | null }[] }>('/api/v1/teaching/parent-concerns'),
+  })
+  return (q.data?.items ?? []).filter((t) => !['resolved', 'closed'].includes(t.status) && !t.my_note).length
+}
+
+function Count({ n }: { n: number }) {
+  if (!n) return null
+  return <span aria-label={`${n} open`} className="ml-auto min-w-[20px] shrink-0 rounded-full bg-destructive px-1.5 text-center text-[11px] font-semibold leading-5 text-destructive-foreground tabular-nums">{n}</span>
+}
+
+function Group({ slug, section, name, count = 0, children }: { slug: string; section: string; name: string; count?: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(() => readOpen(slug))
   const toggle = () => {
     const next = !open
@@ -85,6 +103,7 @@ function Group({ slug, section, name, children }: { slug: string; section: strin
           <LineIcon name={`${section} ${name}`} size={18} />
           <span className="truncate">{name}</span>
         </span>
+        <Count n={count} />
         <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !open && '-rotate-90')} />
       </button>
       {/* One level in, under a guide line, so a screen reads as part of its group. */}
@@ -118,6 +137,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const hidden = new Set(COMBOS.flatMap((c) => c.slugs.filter((s) => s !== c.slugs.find((x) => held.has(x)))))
   const present = new Set(listed.filter((g) => g.list.length).map((g) => g.section.slug))
   const target = (slug: string, from: string) => (MOVES[slug] && present.has(MOVES[slug]) ? MOVES[slug] : from)
+  const concerns = useOpenConcerns(held.has('concerns_from_parents'))
   const bySection = new Map<string, { section: string; f: ApiSection['features'][number] }[]>()
   for (const g of listed) for (const f of g.list) {
     if (hidden.has(f.slug)) continue
@@ -132,7 +152,8 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         if (!list.length) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
         return (
-          <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}>
+          <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}
+            count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
             {list.map(({ section: from, f }) => (
               <NavLink key={f.key} to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {
@@ -146,6 +167,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
                 }}>
                 <LineIcon name={`${f.slug} ${f.name}`} size={15} />
                 <span className="truncate">{label(f.name)}</span>
+                {f.slug === 'concerns_from_parents' && <Count n={concerns} />}
               </NavLink>
             ))}
           </Group>
