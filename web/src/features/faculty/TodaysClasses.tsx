@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
@@ -122,6 +123,7 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const [viewing, setViewing] = useState<string | null>(null)
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -293,11 +295,18 @@ export default function TodaysClasses() {
                           <p className={cn('min-w-0 truncate text-[14px]', n.read_at && !urgent ? 'font-medium' : 'font-semibold')}>{n.title}</p>
                           <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
                         </div>
-                        {n.body && <p className="truncate text-[13px] text-muted-foreground">{n.body}</p>}
+                        {n.body && <p className={cn('text-[13px] text-muted-foreground', viewing !== n.id && 'truncate')}>{n.body}</p>}
                       </div>
-                      {link && (
-                        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate(link)}>Open</Button>
-                      )}
+                      {/* View on every row: it opens the screen the notification is about, or,
+                          where there is none, shows the whole message here and marks it read. */}
+                      <Button variant="secondary" size="sm" className="shrink-0"
+                        onClick={() => {
+                          if (link) { navigate(link); return }
+                          setViewing(viewing === n.id ? null : n.id)
+                          if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
+                        }}>
+                        {!link && viewing === n.id ? 'Close' : 'View'}
+                      </Button>
                     </li>
                   )
                 })}
