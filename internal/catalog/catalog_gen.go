@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 441 features.
+// Roles is the catalog: 24 roles, 439 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -818,15 +818,6 @@ var Roles = []Role{
 				Workspace: "My Work",
 				Features: []Feature{
 					{Key: "faculty.exams.question_papers", Slug: "question_papers", Name: "Question papers", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back."},
-				},
-			},
-			{
-				Slug: "academics",
-				Name: "Academics",
-				Workspace: "Academics",
-				Features: []Feature{
-					{Key: "faculty.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
-					{Key: "faculty.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 				},
 			},
 		},

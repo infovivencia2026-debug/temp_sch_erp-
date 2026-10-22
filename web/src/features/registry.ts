@@ -218,9 +218,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.communication.concerns_from_parents': screen(() => import('./comms/ConcernsFromParents')), // feature:communication.concerns_from_parents
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
-  'faculty.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
   'hod.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
-  'faculty.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'hod.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'exam_controller.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox

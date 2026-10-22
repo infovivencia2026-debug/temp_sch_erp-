@@ -12,7 +12,6 @@
         "hod"
       ],
       "keys": [
-        "faculty.academics.subject_meetings",
         "hod.academics.subject_meetings"
       ],
       "module": "academics",
@@ -48,7 +47,6 @@
         "institution_admin"
       ],
       "keys": [
-        "faculty.academics.subject_overview",
         "hod.academics.subject_overview",
         "institution_admin.academics.subject_overview"
       ],
