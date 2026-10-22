@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Paperclip, Reply, ReplyAll, Star } from 'lucide-react'
+import { Paperclip, Reply, ReplyAll, Star } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
@@ -11,6 +11,9 @@ import {
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { buzz } from '@/lib/haptics'
+import { useSearchParams } from 'react-router-dom'
+import { ConversationPane } from '@/components/ChatScreen'
+import { usePhone } from '@/lib/viewport'
 
 /* A member of staff's own school email (worker/src/routes/comms/inbox.ts).
    Only the signed-in person's mailbox is ever fetched. HTML mail is shown in
@@ -41,7 +44,17 @@ export default function Inbox() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('inbox')
   const [q, setQ] = useState('')
-  const [openId, setOpenId] = useState<string | null>(null)
+  /* The open message lives in the URL (?m=), as Messages keeps ?with=, so a
+     reload or a shared link lands on it and Back closes it. */
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('m')
+  const setOpenId = (id: string | null) => {
+    const next = new URLSearchParams(params)
+    if (id) next.set('m', id)
+    else next.delete('m')
+    setParams(next, { replace: !id })
+  }
+  const phone = usePhone()
   const [draft, setDraft] = useState<Draft | null>(null)
 
   const box = useQuery({ queryKey: ['mail', 'box'], queryFn: () => api.call('GET /comms/mail/box') })
@@ -140,31 +153,43 @@ export default function Inbox() {
                 </button>
               ))}
             </div>
-            <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-              <Card className={cn('min-w-0', openId && 'hidden lg:block')}>
+            {/* Messages' layout: the list alone, full width, until a message is
+                opened; then the list narrows to the left and the message opens
+                beside it. On a phone the message takes the screen with Back. */}
+            <div className={cn('grid gap-4 lg:items-start', openId && 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
+              <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
                 <div className="px-4 py-3">
                   <Input value={q} onChange={setQ} placeholder="Search subject, sender or text" srLabel="Search mail" type="search" />
                 </div>
-                <MailList page={page.data} error={page.error} loading={page.isLoading} openId={openId} onOpen={setOpenId} folder={folderOf(tab)} />
+                <div className="lg:min-h-0 lg:flex-1 lg:overflow-auto">
+                  <MailList page={page.data} error={page.error} loading={page.isLoading} openId={openId} onOpen={setOpenId} folder={folderOf(tab)} />
+                </div>
               </Card>
-              <div className={cn('min-w-0', !openId && 'hidden lg:block')}>
-                {!openId ? (
-                  <Card className="p-10 text-center text-[14px] text-muted-foreground">Choose a message to read it here.</Card>
-                ) : msg.isError ? <ErrorState error={msg.error} /> : !msg.data ? <Loading shape="cards" /> : (
-                  <Reader
-                    m={msg.data}
-                    canSend={canSend}
-                    onBack={() => setOpenId(null)}
-                    onReply={(all) => reply(msg.data!, all)}
-                    onStar={() => flag.mutate({ id: msg.data!.id, starred: !msg.data!.starred })}
-                    onUnread={() => { flag.mutate({ id: msg.data!.id, read: false }); setOpenId(null) }}
-                    onTrash={() => move.mutate({ id: msg.data!.id, to: 'trash' })}
-                    onRestore={() => move.mutate({ id: msg.data!.id, to: 'restore' })}
-                    onDelete={() => remove.mutate(msg.data!.id)}
-                    deleteError={remove.error}
-                  />
-                )}
-              </div>
+              {(phone || openId) && (
+                <ConversationPane
+                  open={!!openId}
+                  title={msg.data ? (msg.data.subject || '(no subject)') : 'Message'}
+                  subtitle={msg.data ? who(msg.data.from) : undefined}
+                  onBack={() => setOpenId(null)}
+                >
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    {msg.isError ? <div className="p-4"><ErrorState error={msg.error} /></div> : !msg.data ? <div className="p-4"><Loading shape="cards" /></div> : (
+                      <Reader
+                        key={msg.data.id}
+                        m={msg.data}
+                        canSend={canSend}
+                        onReply={(all) => reply(msg.data!, all)}
+                        onStar={() => flag.mutate({ id: msg.data!.id, starred: !msg.data!.starred })}
+                        onUnread={() => { flag.mutate({ id: msg.data!.id, read: false }); setOpenId(null) }}
+                        onTrash={() => move.mutate({ id: msg.data!.id, to: 'trash' })}
+                        onRestore={() => move.mutate({ id: msg.data!.id, to: 'restore' })}
+                        onDelete={() => remove.mutate(msg.data!.id)}
+                        deleteError={remove.error}
+                      />
+                    )}
+                  </div>
+                </ConversationPane>
+              )}
             </div>
           </div>
         )}
@@ -187,7 +212,7 @@ function MailList({ page, error, loading, openId, onOpen, folder }: {
         return (
           <li key={m.id}>
             <button type="button" onClick={() => onOpen(m.id)} aria-current={m.id === openId}
-              className={cn('flex min-h-[var(--control-h)] w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-muted/60', m.id === openId && 'bg-muted')}>
+              className={cn('flex min-h-[var(--control-h)] w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors', m.id === openId ? 'bg-accent' : 'hover:bg-muted/60')}>
               <span className="flex w-full items-baseline gap-2">
                 <span className={cn('min-w-0 flex-1 truncate text-[14px]', !m.read ? 'font-semibold' : 'font-medium')}>{name}</span>
                 {m.starred && <Star className="h-3.5 w-3.5 shrink-0 self-center" aria-label="Starred" />}
@@ -207,18 +232,17 @@ function MailList({ page, error, loading, openId, onOpen, folder }: {
   )
 }
 
-function Reader({ m, canSend, onBack, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
-  m: MailMessage; canSend: boolean; onBack: () => void; onReply: (all: boolean) => void; onStar: () => void
+function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
+  m: MailMessage; canSend: boolean; onReply: (all: boolean) => void; onStar: () => void
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
 }) {
   const [view, setView] = useState<'formatted' | 'text'>(m.html ? 'formatted' : 'text')
   const doc = useMemo(() => (m.html ? inertHtml(m.html) : ''), [m.html])
   const many = m.to.length + m.cc.length > 1
   return (
-    <Card className="min-w-0">
+    <div className="min-w-0">
       <div className="space-y-3 border-b px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="lg:hidden"><Button variant="ghost" size="sm" onClick={onBack} title="Back to the list"><ArrowLeft className="h-4 w-4" /></Button></span>
           {m.folder !== 'trash' && canSend && <Button variant="secondary" size="sm" onClick={() => onReply(false)}><Reply className="h-4 w-4" /> Reply</Button>}
           {m.folder !== 'trash' && canSend && many && <Button variant="secondary" size="sm" onClick={() => onReply(true)}><ReplyAll className="h-4 w-4" /> Reply all</Button>}
           <Button variant="ghost" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
@@ -267,7 +291,7 @@ function Reader({ m, canSend, onBack, onReply, onStar, onUnread, onTrash, onRest
           ))}
         </ul>
       )}
-    </Card>
+    </div>
   )
 }
 
