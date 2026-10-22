@@ -834,8 +834,9 @@ export function registerClassStatus(r: Router): void {
   /* Every post in the school: live, pinned and waiting, with views and seen %. */
   r.get('/status/admin/posts', MANAGE, async (c) => {
     const q = c.url.searchParams
-    const where = [`(p.status = 'pending' OR (p.status = 'live' AND (p.expires_at > ? OR p.pinned = 1)))`]
-    const args: unknown[] = [now()]
+    // Expired posts stay listed for their week of grace, so the school can still pin them.
+    const where = [`p.status IN ('pending', 'live')`]
+    const args: unknown[] = []
     const poster = q.get('poster_id')
     if (poster && isUUID(poster)) { where.push('p.posted_by = ?'); args.push(poster.toLowerCase()) }
     const cls = q.get('class_id')
