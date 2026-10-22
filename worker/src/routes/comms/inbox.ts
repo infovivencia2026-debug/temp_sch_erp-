@@ -299,7 +299,7 @@ export function registerInbox(r: Router): void {
       }
     } catch (err) {
       if (err instanceof HttpError) throw err
-      throw new HttpError(502, 'the mail was not sent: ' + (err as Error).message, { code: 'mail_send_failed' })
+      throw new HttpError(422, 'the mail was not sent: ' + (err as Error).message, { code: 'mail_send_failed' })
     }
 
     const id = uuid(), at = new Date().toISOString()
