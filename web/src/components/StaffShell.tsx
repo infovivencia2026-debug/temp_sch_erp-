@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath, type ApiSection } from '@/lib/catalog'
+import { useLayout } from '@/lib/layout'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -86,10 +87,16 @@ function Count({ n }: { n: number }) {
   return <span aria-label={`${n} open`} className="ml-auto min-w-[20px] shrink-0 rounded-full bg-destructive px-1.5 text-center text-[11px] font-semibold leading-5 text-destructive-foreground tabular-nums">{n}</span>
 }
 
-function Group({ slug, section, name, count = 0, children }: { slug: string; section: string; name: string; count?: number; children: React.ReactNode }) {
+/* `go`: pressing the heading also lands on this path (Home in Work mode goes
+   straight to the dashboard, owner 2026-10-22), and opens rather than closes. */
+function Group({ slug, section, name, count = 0, go, onNavigate, children }: {
+  slug: string; section: string; name: string; count?: number; go?: string; onNavigate?: () => void; children: React.ReactNode
+}) {
   const [open, setOpen] = useState(() => readOpen(slug))
+  const navigate = useNavigate()
   const toggle = () => {
-    const next = !open
+    if (go) { navigate(go); onNavigate?.() }
+    const next = go ? true : !open
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
@@ -133,6 +140,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   /* Regrouped (StaffCombos.tsx): some screens shown under another group, and a
      group of related screens shown once, its others reached as tabs. */
   const { pathname } = useLocation()
+  const { layout } = useLayout()
   const here = pathname.split('/')[3] ?? ''
   const listed = groups.map((g) => ({ ...g, list: items(g.section) }))
   const held = new Set(listed.flatMap((g) => g.list.map((f) => f.slug)))
@@ -169,9 +177,11 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
             </NavLink>
           )
         }
+        const go = layout === 'classic' && section.slug === 'home' ? featurePath(roleKey, list[0].section, list[0].f.slug) : undefined
         return (
           <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}
-            count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
+            count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}
+            go={go} onNavigate={onNavigate}>
             {list.map(({ section: from, f }) => (
               <NavLink key={f.key} to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {

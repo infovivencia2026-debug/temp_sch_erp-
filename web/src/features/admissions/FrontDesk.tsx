@@ -12,6 +12,7 @@ import {
   SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { formatDate } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The front desk.
 
@@ -279,6 +280,26 @@ function useStudents() {
   return useStudentRoster<Named>()
 }
 
+/* A parent already on the roll, as the desk's parent search returns them. */
+interface DeskParent {
+  id: string
+  name: string
+  phone?: string
+  children: { id: string; name: string; class?: string }[]
+}
+
+/* As the desk types a name (or a phone), the parents it could be. Nothing is
+   asked until two characters are in, and nothing once a parent is picked. */
+function useParentMatches(term: string, off: boolean) {
+  const q = useDebouncedValue(term.trim(), 250)
+  return useQuery({
+    queryKey: ['desk-parents', q],
+    queryFn: () => api.get<List<DeskParent>>(`/api/v1/office/visitors/parents?q=${encodeURIComponent(q)}`),
+    enabled: !off && q.length >= 2,
+    staleTime: 30_000,
+  })
+}
+
 function Visitors({ rows }: { rows: Visitor[] }) {
   /* Over the rows the screen already holds — this list is one day, or one
      month, so there is nothing to fetch and nothing to page. */
@@ -293,6 +314,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
     mutationFn: () => api.post<{ pass_no: string }>('/api/v1/office/visitors', form),
     onSuccess: () => {
       setForm({ id_type: form.id_type })
+      setParent(null)
       qc.invalidateQueries({ queryKey: ['visitors'] })
     },
   })
@@ -302,6 +324,27 @@ function Visitors({ rows }: { rows: Visitor[] }) {
   })
 
   const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })
+  /* The parent picked from the suggestions. Editing the name afterwards
+     un-picks them: the pass is then for whoever was typed. */
+  const [parent, setParent] = useState<DeskParent | null>(null)
+  const matches = useParentMatches(form.full_name ?? '', !!parent)
+  const suggestions = parent ? [] : (matches.data?.items ?? [])
+  const pickParent = (g: DeskParent) => {
+    setParent(g)
+    setForm({ ...form, full_name: g.name, phone: g.phone ?? form.phone ?? '', guardian_id: g.id,
+      student_id: g.children.length === 1 ? g.children[0].id : '' })
+  }
+  const setName = (v: string) => {
+    if (parent) {
+      setParent(null)
+      const { guardian_id: _g, ...rest } = form
+      setForm({ ...rest, full_name: v, student_id: '' })
+    } else setForm({ ...form, full_name: v })
+  }
+  const childLabel = (ch: DeskParent['children'][number]) => (ch.class ? `${ch.name} · ${ch.class}` : ch.name)
+  const childOptions = parent
+    ? parent.children.map((ch) => ({ value: ch.id, label: childLabel(ch) }))
+    : (students.data?.items ?? []).map((s) => ({ value: s.id, label: pickerLabel(s) }))
 
   return (
     <>
@@ -312,8 +355,22 @@ function Visitors({ rows }: { rows: Visitor[] }) {
         />
         <div className="p-4">
           <FormGrid>
-            <Field label="Name" required>
-              <Input value={form.full_name ?? ''} onChange={set('full_name')} placeholder="Ramesh Kumar" />
+            <Field label="Name" required hint={parent ? 'Parent on the roll. Change the name to sign in somebody else.' : "Type a parent's name or phone to pick them."}>
+              <Input value={form.full_name ?? ''} onChange={setName} placeholder="Ramesh Kumar" autoComplete="off" />
+              {suggestions.length > 0 && (
+                <div role="listbox" aria-label="Parents on the roll" className="mt-1 flex flex-col">
+                  {suggestions.map((g) => (
+                    <Button key={g.id} variant="ghost" onClick={() => pickParent(g)} className="h-auto min-h-[var(--control-h)] justify-start py-1.5 text-left">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{g.name}{g.phone ? ` · ${g.phone}` : ''}</span>
+                        <span className="block truncate text-[12.5px] text-muted-foreground">
+                          Parent of {g.children.map(childLabel).join(', ')}
+                        </span>
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              )}
             </Field>
             <Field label="Phone">
               <Input value={form.phone ?? ''} onChange={set('phone')} />
@@ -348,11 +405,8 @@ function Visitors({ rows }: { rows: Visitor[] }) {
               <Select
                 value={form.student_id ?? ''}
                 onChange={set('student_id')}
-                placeholder="None"
-                options={(students.data?.items ?? []).map((s) => ({
-                  value: s.id,
-                  label: pickerLabel(s),
-                }))}
+                placeholder={parent && parent.children.length > 1 ? 'One of their children' : 'None'}
+                options={childOptions}
               />
             </Field>
             <Field label="Purpose" wide required>

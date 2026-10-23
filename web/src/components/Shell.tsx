@@ -1234,7 +1234,7 @@ export function Shell({
               Sign out
             </a>
             <div className="min-w-0"><BentoSettings placement="sidebar" /></div>
-            <div className="w-full"><LayoutSwitch /></div>
+            <div className="basis-full"><LayoutSwitch /></div>
           </div>
         ) : (
           <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">

@@ -35,6 +35,7 @@ import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { useOpenState } from '@/lib/motion'
 import Student360Card from '@/components/ai/Student360Card'
+import Timeline from '@/components/Timeline'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -1743,9 +1744,11 @@ export default function StudentProfile() {
       ),
     },
     {
-      key: 'history', label: 'History',
+      key: 'history', label: 'Timeline',
       render: () => (
-        <Card>
+        <div className="space-y-6">
+          <Timeline url={`/api/v1/students/${p.id}/timeline`} />
+          <Card>
           <CardHeader
             title="Enrolment history"
             description="Every year this child has been on the roll, and how each one ended."
@@ -1786,23 +1789,6 @@ export default function StudentProfile() {
           <dl className="divide-y border-t text-[14px]">
             <Field k="Admitted" v={formatDate(p.admission_date)} />
           </dl>
-
-          <CardHeader title="Teacher remarks" description="What teachers have written about this child, newest first." />
-          <Table
-            head={['Date', 'Kind', 'Subject', 'Remark', 'Teacher']}
-            empty={!(detail.data?.remarks ?? []).length}
-            emptyLabel="No remarks recorded."
-          >
-            {(detail.data?.remarks ?? []).map((r) => (
-              <tr key={r.id}>
-                <Td className="text-muted-foreground">{formatDate(r.observed_on)}</Td>
-                <Td><Badge>{r.private ? `${r.kind} (staff only)` : r.kind}</Badge></Td>
-                <Td>{r.subject || '-'}</Td>
-                <Td>{r.body}</Td>
-                <Td className="text-muted-foreground">{r.teacher || '-'}</Td>
-              </tr>
-            ))}
-          </Table>
 
           {/* BEFORE THIS SYSTEM.
 
@@ -1845,6 +1831,7 @@ export default function StudentProfile() {
             </>
           )}
         </Card>
+        </div>
       ),
     },
   ]
