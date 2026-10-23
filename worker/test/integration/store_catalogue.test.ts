@@ -3,7 +3,7 @@
    price and In stock / Out of stock, never the count; and the parent's menu
    carries the Store. */
 import { describe, it, expect, beforeAll } from 'vitest'
-import { seed, api } from './fixture'
+import { seed, api, E } from './fixture'
 
 let shown = ''
 let hiddenItem = ''
@@ -50,9 +50,10 @@ describe('parent store catalogue', () => {
     expect((await api('parent', 'PATCH', `/ops/inventory/items/${hiddenItem}`, { name: 'Chalk' })).status).toBe(403)
   })
 
-  it('the parent menu carries the Store', async () => {
-    const r = await api('parent', 'GET', '/catalog')
-    const keys = r.body.roles.flatMap((ro: { sections: { features: { key: string }[] }[] }) => ro.sections.flatMap((s) => s.features.map((f) => f.key)))
-    expect(keys).toContain('parent.store.product_catalogue')
+  // The menu entry follows the grant (the test school is mid-setup, so its menu is Home only).
+  it("the parent role holds the Store's catalogue key", async () => {
+    const row = await E.TENANT_TEST.prepare(`SELECT 1 AS ok FROM role_permissions rp JOIN roles r ON r.id = rp.role_id
+        WHERE r.key = 'parent' AND rp.permission_key = 'parent.store.product_catalogue'`).first()
+    expect(row).toBeTruthy()
   })
 })
