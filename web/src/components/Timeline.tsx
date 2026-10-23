@@ -91,7 +91,7 @@ export default function Timeline({ url, title = 'Timeline' }: {
     <Card>
       <CardHeader title={title} description="Everything recorded about them, newest first." />
       {types.length > 1 && (
-        <div className="px-4 pb-3">
+        <div className="px-[var(--card-pad)] pb-3">
           <div className={SEG_BAR} role="group" aria-label="Show">
             {[['', 'All'] as const, ...types.map((t) => [t, KINDS[t]?.label ?? t] as const)].map(([k, label]) => (
               <button key={k || 'all'} type="button" aria-pressed={type === k} className={segClass(type === k)}
@@ -103,17 +103,17 @@ export default function Timeline({ url, title = 'Timeline' }: {
         </div>
       )}
       {q.isLoading ? (
-        <div className="p-5"><Loading shape="inline" /></div>
+        <div className="px-[var(--card-pad)] py-6"><Loading shape="inline" /></div>
       ) : q.error ? (
-        <div className="p-4"><ErrorState error={q.error} /></div>
+        <div className="px-[var(--card-pad)] py-5"><ErrorState error={q.error} /></div>
       ) : events.length === 0 ? (
-        <p className="px-5 pb-6 pt-2 text-[13.5px] text-muted-foreground">
+        <p className="px-[var(--card-pad)] pb-6 pt-2 text-[13.5px] text-muted-foreground">
           {type ? 'Nothing of this kind recorded yet.' : 'Nothing recorded yet.'}
         </p>
       ) : (
-        <div className="px-4 pb-4">
+        <div className="px-[var(--card-pad)] pb-[var(--card-pad)]">
           {days.map((d) => (
-            <section key={d.key} className="mt-2 first:mt-0">
+            <section key={d.key} className="mt-3 first:mt-0">
               <h3 className="eyebrow sticky top-0 z-[1] bg-card py-2 text-muted-foreground">{formatDate(d.at)}</h3>
               <ol className="relative ms-[11px] border-s ps-0">
                 {d.items.map((e) => {
@@ -127,21 +127,21 @@ export default function Timeline({ url, title = 'Timeline' }: {
                       </p>
                       {e.detail && <p className="mt-0.5 line-clamp-2 break-words text-[13px] text-muted-foreground">{e.detail}</p>}
                       {(e.by || timeOf(e.at)) && (
-                        <p className="mt-0.5 text-[12px] text-muted-foreground">
+                        <p className="mt-1 text-[12px] text-muted-foreground">
                           {[e.by, timeOf(e.at)].filter(Boolean).join(' · ')}
                         </p>
                       )}
                     </>
                   )
                   return (
-                    <li key={e.id} className="relative ps-5 pb-3 last:pb-1">
+                    <li key={e.id} className="relative ps-6 pb-4 last:pb-1">
                       <span aria-hidden className={cn('absolute -start-[5px] top-[7px] h-2.5 w-2.5 rounded-full ring-4 ring-card', k.dot)} />
                       {e.link ? (
-                        <Link to={e.link} className="block min-w-0 rounded-md px-2 py-1 -mx-2 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <Link to={e.link} className="block min-w-0 rounded-md px-2.5 py-1.5 -mx-2.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                           {body}
                         </Link>
                       ) : (
-                        <div className="-mx-2 min-w-0 px-2 py-1">{body}</div>
+                        <div className="-mx-2.5 min-w-0 px-2.5 py-1.5">{body}</div>
                       )}
                     </li>
                   )
@@ -150,7 +150,7 @@ export default function Timeline({ url, title = 'Timeline' }: {
             </section>
           ))}
           {q.hasNextPage && (
-            <div className="pt-2">
+            <div className="pt-3">
               <Button variant="secondary" size="sm" disabled={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>
                 {q.isFetchingNextPage ? 'Loading…' : 'Load more'}
               </Button>
