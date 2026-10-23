@@ -1,5 +1,6 @@
 import { beforeAll, expect, it } from 'vitest'
 import { E, IDS, call, seed } from './fixture'
+import { zkTime } from '../../src/routes/iclock'
 
 /* An eSSL reader (X2008) pushing punches over the iclock protocol, with no
    static IP at the school (owner, 2026-10-13). */
@@ -41,10 +42,25 @@ it('Fetch history: the next check-in asks once for everything, and the answer is
   await T().prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, '{}')`).bind(IDS.school, `biometric_history:${dev}`).run()
   const cmd = await (await call(`/iclock/getrequest?SN=${SN}`)).text()
   expect(cmd).toMatch(/DATA QUERY ATTLOG/)
-  expect(await (await call(`/iclock/getrequest?SN=${SN}`)).text()).toBe('OK')
+  // Asked once: the next check-in is not asked for history again (it may be set the time instead).
+  expect(await (await call(`/iclock/getrequest?SN=${SN}`)).text()).not.toMatch(/DATA QUERY/)
   // A newer reader answers in key=value form.
   const r = await call(`/iclock/querydata?SN=${SN}&type=tabledata&tablename=ATTLOG`, { method: 'POST', body: 'ATTLOG PIN=7\tTime=2026-10-01 09:02:00\tStatus=0\tVerify=1\n' })
   expect(await r.text()).toBe('OK: 1')
   const n = await T().prepare(`SELECT count(*) AS n FROM biometric_punches WHERE punched_at LIKE '2026-10-01%'`).first<{ n: number }>()
   expect(n!.n).toBe(1)
+})
+
+it('sets the reader clock to India time on first contact, then not again for six hours', async () => {
+  await T().prepare(`DELETE FROM module_settings WHERE module LIKE 'iclock_clock:%'`).run()
+  const first = await (await call(`/iclock/getrequest?SN=${SN}`)).text()
+  const m = /^C:\d+:SET OPTIONS DateTime=(\d+)\n$/.exec(first)
+  expect(m).not.toBeNull()
+  expect(Math.abs(Number(m![1]) - zkTime(new Date()))).toBeLessThan(5)
+  expect(await (await call(`/iclock/getrequest?SN=${SN}`)).text()).toBe('OK')
+})
+
+it('packs the time the way the readers read it', () => {
+  // 2026-10-23 10:15:30 IST is 04:45:30 UTC.
+  expect(zkTime(new Date('2026-10-23T04:45:30Z'))).toBe(((26 * 12 * 31 + 9 * 31 + 22) * 86400) + (10 * 60 + 15) * 60 + 30)
 })
