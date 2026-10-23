@@ -303,17 +303,25 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
         }
       }
     }
-    const shiftFor = (day: string) => {
+    /* config.auto_from (the reader's own "YYYY-MM-DD HH:MM", when its clock
+       went wrong): a punch it wrote before then is right as it stands, so
+       history sent again does not move it. */
+    const autoFrom = typeof cfgAll.auto_from === 'string' ? cfgAll.auto_from : ''
+    const shiftFor = (stamp: string) => {
+      const day = stamp.slice(0, 10)
       const ranged = ranges.find((r) => day >= r.from && day <= r.to)
       if (ranged) return ranged.minutes
-      return cfgAll.auto ? drift : 0
+      return cfgAll.auto && stamp >= autoFrom ? drift : 0
     }
     for (const line of lines) {
       const f = punchFields(line)
       if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
-      const shift = shiftFor(f[1].slice(0, 10))
+      // The same line sent again (Fetch history) is already stored, whatever time it was moved to.
+      const uidRaw = f[0].toUpperCase()
+      if (await db.prepare(`SELECT 1 FROM biometric_punches WHERE device_id = ? AND device_user_id = ? AND raw = ?`).bind(dev.deviceId, uidRaw, line.slice(0, 300)).first()) { n++; continue }
+      const shift = shiftFor(f[1].trim().slice(0, 16))
       if (shift) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
       const uid = f[0].toUpperCase()
