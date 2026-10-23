@@ -26,15 +26,19 @@ describe('money: the fee counter', () => {
     expect((await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 1000, mode: 'cheque' })).status).toBe(400)
   })
 
-  it('an overpayment is kept as an advance, not lost', async () => {
-    const before = (await api('finance', 'GET', `/fees/students/${IDS.child}/ledger`)).body
+  it('collecting more than is owed is refused with 409 over_payment', async () => {
     const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 600_000, mode: 'cash', payer_name: 'Pavan Parent' })
+    expect(r.status).toBe(409)
+    expect(r.body.code).toBe('over_payment')
+  })
+
+  it('a payment for the balance owed is accepted', async () => {
+    const before = (await api('finance', 'GET', `/fees/students/${IDS.child}/ledger`)).body
+    const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: before.balance_paise, mode: 'cash', payer_name: 'Pavan Parent' })
     expect(r.status).toBe(201)
-    const excess = 600_000 - before.balance_paise
-    expect(r.body.unallocated_paise).toBe(excess)
     const ledger = (await api('finance', 'GET', `/fees/students/${IDS.child}/ledger`)).body
-    expect(ledger.paid_paise).toBe(before.paid_paise + 600_000)
-    expect(ledger.balance_paise).toBe(-excess)
+    expect(ledger.paid_paise).toBe(before.paid_paise + before.balance_paise)
+    expect(ledger.balance_paise).toBe(0)
   })
 
   it('the teacher cannot collect money, and the parent cannot either', async () => {
@@ -66,15 +70,15 @@ describe('money: the fee counter', () => {
   })
 
   it('two refund requests at the same moment cannot together exceed what was paid', async () => {
-    // The child has paid 6,00,000. Two clerks each ask for the whole lot at once.
+    // The child has paid 5,00,000. Two clerks each ask for the whole lot at once.
     const [a, b] = await Promise.all([
-      api('finance', 'POST', '/fees/refunds', { student_id: IDS.child, amount_paise: 600_000, reason: 'left the school' }),
-      api('finance', 'POST', '/fees/refunds', { student_id: IDS.child, amount_paise: 600_000, reason: 'left the school' }),
+      api('finance', 'POST', '/fees/refunds', { student_id: IDS.child, amount_paise: 500_000, reason: 'left the school' }),
+      api('finance', 'POST', '/fees/refunds', { student_id: IDS.child, amount_paise: 500_000, reason: 'left the school' }),
     ])
     const ok = [a, b].filter((x) => x.status === 201).length
     const total = await T().prepare(`SELECT COALESCE(sum(amount_paise), 0) AS n FROM refunds WHERE student_id = ? AND status <> 'rejected'`).bind(IDS.child).first<{ n: number }>()
     expect(ok, `${a.status} ${b.status}`).toBe(1)
-    expect(Number(total?.n)).toBeLessThanOrEqual(600_000)
+    expect(Number(total?.n)).toBeLessThanOrEqual(500_000)
   })
 
   it('a rejected refund needs a reason the family can be told', async () => {

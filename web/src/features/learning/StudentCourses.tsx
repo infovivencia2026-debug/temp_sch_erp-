@@ -513,47 +513,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                     ))}
                   </div>
                 </div>
-<<<<<<< HEAD
-              </div>
-            </Card>
-            {d.resume ? (() => {
-              const r = d.resume!
-              const s = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
-              if (!s) return null
-              return (
-                <Button onClick={() => open(s)} className="h-auto min-h-[84px] w-full justify-start gap-3 whitespace-normal rounded-2xl px-[var(--card-pad)] py-3 text-left shadow-sm">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/15"><Play className="h-6 w-6 fill-current" aria-hidden /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[20px] font-bold leading-tight">{r.started ? 'Keep going' : 'Start here'}</span>
-                    <span className="block text-[15px] leading-snug opacity-90 [overflow-wrap:anywhere]">{s.d.day === null ? s.m.title : shortDay(s.d)} · {KID_KIND_LABEL[r.kind] ?? KID_SECTION_LABEL[r.section]}: {r.title}</span>
-                  </span>
-                  <ArrowRight className="h-8 w-8 shrink-0" aria-hidden />
-                </Button>
-              )
-            })() : allDays.length > 0 && daysDone === allDays.length ? (
-              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-success text-white"><Sparkles className="h-6 w-6" /></span><p className="text-[18px] font-semibold">You finished everything. Well done!</p></div></Card>
-            ) : null}
-            {!modules.length && !loose.length && !mySharedItems.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this subject yet." /> : (
-              <ol className="relative" aria-label="Your path">
-                {tops.map((m, i) => {
-                  const days = subtree(m).flatMap((x) => x.days)
-                  const done = days.filter((x) => x.state === 'done').length
-                  const locked = days.length > 0 && days.every((x) => x.state === 'locked')
-                  const finished = days.length > 0 && done === days.length
-                  const here = isHere(m) && !finished && !locked
-                  const range = dateRange(m.starts_on, m.ends_on)
-                  const last = i === tops.length - 1 && !loose.length && !mySharedItems.length
-                  return (
-                    <li key={m.id} className="relative flex gap-3 pb-5">
-                      {!last && <span aria-hidden className={cn('absolute bottom-0 left-[26px] top-14 w-1 rounded-full', finished ? 'bg-success' : 'bg-border')} />}
-                      <PathDot n={i + 1} state={finished ? 'done' : locked ? 'locked' : here ? 'current' : 'open'} />
-                      <button type="button" onClick={() => toModule(m.id)}
-                        className={cn('card flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-3 text-left', here && 'ring-2 ring-[hsl(var(--paint-buttons-bg,var(--primary))/0.4)]')}>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[18px] font-semibold leading-snug [overflow-wrap:anywhere]">{m.title}</span>
-                          <span className="block text-[15px] text-muted-foreground">
-                            {locked ? (days.find((x) => x.reason)?.reason ?? 'Not open yet') : finished ? 'Done.' : `${done} of ${days.length} done`}{range ? ` · ${range}` : ''}
-=======
+
               </Card>
 
               {/* The one big button, kept from before: it is the thing most
@@ -696,7 +656,6 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                                 {locked ? (m.days.find((x) => x.reason)?.reason ?? 'Not open yet') : `${doneN} of ${mine.length} done`}
                               </span>
                             </span>
->>>>>>> origin/main
                           </span>
                           <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
                         </summary>
