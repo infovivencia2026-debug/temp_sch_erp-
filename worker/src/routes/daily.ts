@@ -1744,8 +1744,9 @@ async function markStaffAttendance(c: Ctx): Promise<Response> {
   const stmts = entries.map((e) => c.db.prepare(`
     INSERT INTO staff_attendance (id, institution_id, campus_id, user_id, on_date, status, check_in, check_out, source, marked_by, created_at)
     VALUES (?,?,?,?,?,?,?,?,'manual',?,?)
-    ON CONFLICT (user_id, on_date) DO UPDATE SET status = excluded.status, check_in = excluded.check_in,
-      check_out = excluded.check_out, marked_by = excluded.marked_by, source = 'manual'`)
+    -- A mark saved without times keeps the punch times already there (Yajur, 2026-10-23: P wiped an 8:02 in).
+    ON CONFLICT (user_id, on_date) DO UPDATE SET status = excluded.status, check_in = COALESCE(excluded.check_in, staff_attendance.check_in),
+      check_out = COALESCE(excluded.check_out, staff_attendance.check_out), marked_by = excluded.marked_by, source = 'manual'`)
     .bind(uuid(), inst, campus, e.user_id, onDate, e.status,
       e.check_in ? localToUtc(tz, onDate, e.check_in) : null, e.check_out ? localToUtc(tz, onDate, e.check_out) : null, c.id.userId, now()))
   await c.db.batch(stmts)

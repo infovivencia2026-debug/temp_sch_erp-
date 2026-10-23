@@ -1299,7 +1299,11 @@ export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, emp
   const existing = await ctx.db.prepare(`SELECT id, source, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date = ?`).bind(e.user_id, onDate)
     .first<{ id: string; source: string; check_in: string | null; check_out: string | null }>()
   if (existing) {
-    if (existing.source !== 'device') return
+    if (existing.source !== 'device') {
+      // Marked by hand: the mark stands, but blank times are filled from the punches.
+      await ctx.db.prepare(`UPDATE staff_attendance SET check_in = COALESCE(check_in, ?), check_out = COALESCE(check_out, ?) WHERE id = ?`).bind(checkIn, checkOut, existing.id).run()
+      return
+    }
     // Read again from all the day's punches, so a wrong time is replaced, not kept.
     await ctx.db.prepare(`UPDATE staff_attendance SET check_in = ?, check_out = ?, status = 'present' WHERE id = ?`).bind(checkIn, checkOut, existing.id).run()
     return
