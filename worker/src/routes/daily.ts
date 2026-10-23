@@ -1426,6 +1426,25 @@ async function getApprovals(c: Ctx): Promise<Response> {
         amount_paise: v.amount_paise ?? undefined, decide_url: `/api/v1/workflow/concessions/${v.id}/decide` })
     }
   }
+  /* A staff exit HR has sent up: the institution admin's alone (lifecycle.ts). */
+  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) {
+    const rows = await c.db.prepare(`
+      SELECT x.id, ${fullName2('e')} AS who, x.kind, x.last_working_day, u.full_name AS by, x.approval_requested_at,
+             (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS departments,
+             COALESCE((SELECT sum(cl.dues_paise) FROM exit_clearances cl WHERE cl.exit_id = x.id), 0) AS dues
+        FROM staff_exits x JOIN employees e ON e.id = x.employee_id LEFT JOIN users u ON u.id = x.approval_requested_by
+       WHERE x.status = 'pending_approval' ORDER BY x.approval_requested_at`).all()
+    for (const v of rows.results) {
+      const kind = String(v.kind).replace(/_/g, ' ')
+      let detail = `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`
+      if (v.last_working_day) detail += `, last working day ${ddMon(v.last_working_day as string)}`
+      detail += `. All ${num(v.departments)} departments signed`
+      detail += num(v.dues) > 0 ? `, dues of ${Math.trunc(num(v.dues) / 100)} to recover.` : ', no dues.'
+      detail += ' Approving relieves them and switches off their login.'
+      out.push({ id: v.id, kind: 'staff_exit', title: `${v.who} leaving`, detail, requested_by: v.by ?? undefined,
+        raised_at: isoSec((v.approval_requested_at ?? '') as string), decide_url: `/api/v1/hr/exits/${v.id}/decide` })
+    }
+  }
   const byKind: Record<string, number> = {}
   for (const a of out) byKind[a.kind as string] = (byKind[a.kind as string] ?? 0) + 1
   return ok({ items: out, total: out.length, by_kind: byKind })

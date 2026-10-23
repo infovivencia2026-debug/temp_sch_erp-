@@ -12,6 +12,7 @@ const hrefs: NoteHrefs = {
   questionPapers: '/faculty/exams/question_papers',
   leaveApprovals: '/institution_admin/approvals/approvals',
   reports: '/institution_admin/standard/reports',
+  staffExits: '/hr/onboarding_exit/staff_joinings_exits',
 }
 const post = '30a3066f-517d-4579-a3b6-95cf20e8a9f3'
 
@@ -39,6 +40,13 @@ describe('noteDestination', () => {
     expect(noteDestination({ kind: 'staff_message' }, hrefs)).toBe(hrefs.messages)
     expect(noteDestination({ kind: 'leave_request' }, hrefs)).toBe(hrefs.leaveApprovals)
     expect(noteDestination({ kind: 'question_paper_overdue' }, hrefs)).toBe(hrefs.questionPapers)
+  })
+  it('opens a staff exit approval in Approvals and the decision in Exit & clearance', () => {
+    expect(noteDestination({ kind: 'staff_exit_approval', link: '/go/approvals/approvals' }, hrefs)).toBe('/go/approvals/approvals')
+    expect(noteDestination({ kind: 'staff_exit_approval' }, hrefs)).toBe(hrefs.leaveApprovals)
+    const l = '/go/onboarding_exit/staff_joinings_exits?tab=exits&exit=1'
+    expect(noteDestination({ kind: 'staff_exit_decided', link: l }, hrefs)).toBe(l)
+    expect(noteDestination({ kind: 'staff_exit_decided' }, hrefs)).toBe(hrefs.staffExits)
   })
   it('has no screen for a message digest', () => {
     expect(destOfKind('digest.daily')).toBeUndefined()
