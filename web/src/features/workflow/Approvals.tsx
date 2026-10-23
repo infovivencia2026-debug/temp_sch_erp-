@@ -4,6 +4,7 @@ import {
   CalendarDays, Check, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { refreshConcessions } from '@/lib/concession-refresh'
 import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -68,7 +69,7 @@ export default function Approvals() {
     mutationFn: ({ url, approve, reason }: { url: string; approve: boolean; reason?: string }) =>
       api.post(url, { decision: approve ? 'approved' : 'rejected', note: reason }),
     onSuccess: (_res, v) => {
-      qc.invalidateQueries({ queryKey: ['approvals'] })
+      refreshConcessions(qc)
       toast.ok(v.approve ? 'Approved' : 'Rejected, the requester is told')
     },
   })

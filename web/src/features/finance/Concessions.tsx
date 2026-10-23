@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { refreshConcessions } from '@/lib/concession-refresh'
 import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
@@ -129,8 +130,7 @@ export default function Concessions() {
           ? 'Approved. It applies to the next demand raised for this student.'
           : 'Rejected.',
       )
-      qc.invalidateQueries({ queryKey: ['concessions'] })
-      qc.invalidateQueries({ queryKey: ['attention'] })
+      refreshConcessions(qc)
     },
   })
 
