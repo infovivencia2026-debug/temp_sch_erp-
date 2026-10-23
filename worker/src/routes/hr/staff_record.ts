@@ -54,10 +54,24 @@ export function registerStaffRecord(r: Router): void {
         FROM timetable_entries te JOIN sections sec ON sec.id = te.section_id JOIN classes c ON c.id = sec.class_id
         JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
        WHERE te.teacher_user_id = ? AND te.academic_year_id = ?`).bind(uid, year.id).all()).results : []
-    const periods = entries.length ? (await c.db.prepare(`SELECT p.id, p.name, p.starts_at, p.ends_at, p.is_break FROM periods p
+    const allPeriods = entries.length ? (await c.db.prepare(`SELECT p.id, p.name, p.starts_at, p.ends_at, p.is_break FROM periods p
        WHERE p.bell_schedule_id IN (SELECT p2.bell_schedule_id FROM timetable_entries te JOIN periods p2 ON p2.id = te.period_id
                                      WHERE te.teacher_user_id = ? AND te.academic_year_id = ?)
-       ORDER BY p.sequence`).bind(uid, year!.id).all()).results : []
+       ORDER BY p.starts_at, p.sequence`).bind(uid, year!.id).all<{ id: string; name: string; starts_at: string; ends_at: string; is_break: number }>()).results : []
+    /* One row per period of the day (Yajur, 2026-10-23: "so many times repeated").
+       A teacher whose lessons sit in several bell schedules got every schedule's
+       Period 1, Period 2, ... as separate rows; the same name and times are one
+       row, and every lesson points at that row. */
+    const rowOf = new Map<string, string>()
+    const periods: typeof allPeriods = []
+    const byShape = new Map<string, string>()
+    for (const p of allPeriods) {
+      const shape = `${p.name}|${p.starts_at}|${p.ends_at}|${p.is_break ? 1 : 0}`
+      const row = byShape.get(shape)
+      if (row) { rowOf.set(p.id, row); continue }
+      byShape.set(shape, p.id); rowOf.set(p.id, p.id); periods.push(p)
+    }
+    for (const e of entries as { period_id: string }[]) e.period_id = rowOf.get(e.period_id) ?? e.period_id
 
     const tasks = (await c.db.prepare(`SELECT k.id, k.title, k.due_on, k.priority, k.status,
           COALESCE((SELECT full_name FROM users WHERE id = k.assigned_by), '') AS assigned_by
