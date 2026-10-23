@@ -383,7 +383,7 @@ async function cancelCoverRequest(c: Ctx): Promise<Response> {
 
    Whoever runs the substitution board picks a free teacher for an absent
    teacher's period; that waits for the principal (a pending request line
-   carrying the pick). The principal approving it, or picking it themselves,
+   carrying the pick). The principal approving it (their own pick waits too)
    writes the substitution and tells both teachers: the substitute which class
    to go to, the absent teacher who is taking it. */
 
@@ -444,10 +444,7 @@ async function proposeCover(c: Ctx): Promise<Response> {
   await assertFree(c, subID, onDate, s, entryID)
   const sub = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(subID).first<{ full_name: string }>()
   if (!sub) throw notFound()
-  if (isPrincipal(c)) {
-    await c.db.batch(approveStmts(c, entryID, onDate, subID, s, sub.full_name, trimStr(body.note).slice(0, 300)))
-    return ok({ status: 'approved' })
-  }
+  // Every pick waits for the principal's Approve, the principal's own included (Yajur, 2026-10-23).
   // Waiting for the principal: the pick rides on a pending line of a request for the absent teacher.
   const line = await c.db.prepare(`SELECT id FROM substitution_request_periods WHERE timetable_entry_id = ? AND on_date = ? AND status = 'pending'`)
     .bind(entryID, onDate).first<{ id: string }>()

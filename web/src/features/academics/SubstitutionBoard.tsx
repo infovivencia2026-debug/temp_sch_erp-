@@ -99,7 +99,7 @@ const spellDate = (iso: string) => {
    left; their periods on the right, each a card with who is free, an optional
    note for the substitute, and Send for approval. A card says Pending until
    the principal approves and Approved after; the principal's own pick is
-   approved at once. Approval tells both teachers and puts the class on the
+   Pending too. Approval tells both teachers and puts the class on the
    substitute's timetable (scheduling/cover.ts). */
 export default function SubstitutionBoard() {
   const nav = useRouteFeature()
@@ -246,7 +246,7 @@ function PeriodCard({ slot, onDate, canApprove, onDone }: { slot: Slot; onDate: 
               ]} />
             <Input value={note} onChange={setNote} placeholder="Note for the substitute (optional)" />
             <Button disabled={!pick || send.isPending} onClick={() => send.mutate()}>
-              {canApprove ? 'Assign' : 'Send for approval'}
+              Send for approval
             </Button>
           </div>
         )}
