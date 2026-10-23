@@ -124,6 +124,10 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const cover = useQuery({
+    queryKey: ['cover-today'],
+    queryFn: () => api.get<{ items: { kind: 'covering' | 'covered'; period: string; starts_at: string | null; section: string; subject: string; other: string }[] }>('/api/v1/timetable-cover/today'),
+  })
   const [viewing, setViewing] = useState<string | null>(null)
   // The leave screen this person holds, wherever their role files it.
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
@@ -269,6 +273,26 @@ export default function TodaysClasses() {
         </Card>
 
         <div className="flex min-w-0 flex-col gap-5">
+        {/* Cover today (Yajur, 2026-10-23): the class this teacher goes to for
+            an absent colleague, and who is taking their own class if they are away. */}
+        {(cover.data?.items.length ?? 0) > 0 && (
+          <Card className="min-w-0">
+            <div className="border-b px-5 py-3"><h2 className="text-[16px] font-bold">Cover today</h2></div>
+            <ul className="flex flex-col gap-2 p-3">
+              {cover.data!.items.map((x, i) => (
+                <li key={i} className={cn('rounded-lg border px-3 py-2.5', x.kind === 'covering' ? 'border-l-4 border-l-primary bg-primary/5' : 'border-l-2')}>
+                  <p className="text-[14px] font-semibold">
+                    {x.kind === 'covering' ? `Take ${x.section}, ${x.period}` : `${x.other} is taking your ${x.period}`}
+                    {x.starts_at && <span className="font-normal text-muted-foreground"> · {x.starts_at}</span>}
+                  </p>
+                  <p className="text-[13px] text-muted-foreground">
+                    {x.kind === 'covering' ? `${x.subject}, for ${x.other}` : `${x.section}, ${x.subject}`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-22rem)]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">

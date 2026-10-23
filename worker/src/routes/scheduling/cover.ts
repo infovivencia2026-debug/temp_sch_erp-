@@ -378,7 +378,130 @@ async function cancelCoverRequest(c: Ctx): Promise<Response> {
   return ok({ cancelled: true })
 }
 
+/* ---------------------------------------------------------------------------
+   COVER FROM THE BOARD, WITH THE PRINCIPAL'S APPROVAL (Yajur, 2026-10-23).
+
+   Whoever runs the substitution board picks a free teacher for an absent
+   teacher's period; that waits for the principal (a pending request line
+   carrying the pick). The principal approving it, or picking it themselves,
+   writes the substitution and tells both teachers: the substitute which class
+   to go to, the absent teacher who is taking it. */
+
+const isPrincipal = (c: Ctx) => c.id.platformAdmin || c.id.roles.includes('institution_admin')
+
+interface SlotFacts { teacher: string; period_id: string; period: string; section: string; subject: string; weekday: number }
+async function slotFacts(c: Ctx, entryID: string): Promise<SlotFacts> {
+  const s = await c.db.prepare(`SELECT te.teacher_user_id AS teacher, te.period_id, p.name AS period, cl.name || '-' || sec.name AS section,
+        sub.name AS subject, te.weekday
+      FROM timetable_entries te JOIN periods p ON p.id = te.period_id JOIN sections sec ON sec.id = te.section_id
+      JOIN classes cl ON cl.id = sec.class_id JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE te.id = ?`).bind(entryID).first<SlotFacts>()
+  if (!s) throw notFound()
+  return s
+}
+
+async function assertFree(c: Ctx, subID: string, onDate: string, s: SlotFacts, entryID: string) {
+  const busy = await c.db.prepare(`
+    SELECT EXISTS (SELECT 1 FROM timetable_entries te WHERE te.teacher_user_id = ?1 AND te.weekday = ?3 AND te.period_id = ?4)
+        OR EXISTS (SELECT 1 FROM substitutions sb JOIN timetable_entries t2 ON t2.id = sb.timetable_entry_id
+                    WHERE sb.substitute_user_id = ?1 AND sb.on_date = ?2 AND t2.period_id = ?4 AND sb.timetable_entry_id <> ?5) AS busy`)
+    .bind(subID, onDate, isoDow(onDate), s.period_id, entryID).first<{ busy: number }>()
+  if (busy?.busy) throw coded(409, 'proxy_busy', 'that teacher already has a class in this period')
+}
+
+/** Writes the substitution, closes any waiting pick for the slot, and tells both teachers. */
+function approveStmts(c: Ctx, entryID: string, onDate: string, subID: string, s: SlotFacts, subName: string): D1PreparedStatement[] {
+  const inst = instId(c), ts = nowISO()
+  const when = onDate === todayIST() ? 'today' : onDate
+  return [
+    c.db.prepare(`INSERT INTO substitutions (id, institution_id, timetable_entry_id, on_date, substitute_user_id, reason, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, 'Cover for an absent teacher', ?, ?)
+        ON CONFLICT (timetable_entry_id, on_date) DO UPDATE SET substitute_user_id = excluded.substitute_user_id, created_by = excluded.created_by`)
+      .bind(uuid(), inst, entryID, onDate, subID, c.id.userId, ts),
+    c.db.prepare(`UPDATE substitution_request_periods SET status = 'covered', assigned_user_id = ?3,
+        substitution_id = (SELECT id FROM substitutions WHERE timetable_entry_id = ?1 AND on_date = ?2)
+        WHERE timetable_entry_id = ?1 AND on_date = ?2 AND status = 'pending'`).bind(entryID, onDate, subID),
+    c.db.prepare(`UPDATE substitution_requests SET status = 'approved', decided_by = ?2, decided_at = ?3, updated_at = ?3
+        WHERE id IN (SELECT request_id FROM substitution_request_periods WHERE timetable_entry_id = ?1 AND on_date = ?4)
+          AND status = 'pending' AND NOT EXISTS (SELECT 1 FROM substitution_request_periods x WHERE x.request_id = substitution_requests.id AND x.status = 'pending')`)
+      .bind(entryID, c.id.platformAdmin ? null : c.id.userId, ts, onDate),
+    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, '/', 'substitution', ?, ?)`)
+      .bind(uuid(), inst, subID, `Take ${s.section}, ${s.period} ${when}`, `${s.subject}, covering for an absent teacher.`, entryID + '|' + onDate, ts),
+    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, '/', 'substitution', ?, ?)`)
+      .bind(uuid(), inst, s.teacher, `${subName} is taking your ${s.period} ${when}`, `${s.section}, ${s.subject}.`, entryID + '|' + onDate + '|away', ts),
+  ]
+}
+
+/** POST /timetable-cover/propose {timetable_entry_id, on_date, substitute_user_id}: the board's pick. */
+async function proposeCover(c: Ctx): Promise<Response> {
+  const body = await readJSON<Record<string, unknown>>(c.req)
+  const entryID = uuidOr400(trimStr(body.timetable_entry_id)), subID = uuidOr400(trimStr(body.substitute_user_id))
+  const onDate = trimStr(body.on_date)
+  if (!isDate(onDate)) throw badRequest('on_date must be YYYY-MM-DD')
+  const s = await slotFacts(c, entryID)
+  if (s.weekday !== isoDow(onDate)) throw badRequest('that period is not on this date')
+  if (subID === s.teacher) throw badRequest('a teacher cannot cover their own period')
+  await assertFree(c, subID, onDate, s, entryID)
+  const sub = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(subID).first<{ full_name: string }>()
+  if (!sub) throw notFound()
+  if (isPrincipal(c)) {
+    await c.db.batch(approveStmts(c, entryID, onDate, subID, s, sub.full_name))
+    return ok({ status: 'approved' })
+  }
+  // Waiting for the principal: the pick rides on a pending line of a request for the absent teacher.
+  const line = await c.db.prepare(`SELECT id FROM substitution_request_periods WHERE timetable_entry_id = ? AND on_date = ? AND status = 'pending'`)
+    .bind(entryID, onDate).first<{ id: string }>()
+  if (line) {
+    await c.db.prepare(`UPDATE substitution_request_periods SET assigned_user_id = ? WHERE id = ?`).bind(subID, line.id).run()
+    return ok({ status: 'waiting' })
+  }
+  const inst = instId(c), ts = nowISO(), reqID = uuid()
+  const emp = await c.db.prepare(`SELECT id FROM employees WHERE user_id = ? LIMIT 1`).bind(s.teacher).first<{ id: string }>()
+  await c.db.batch([
+    c.db.prepare(`INSERT INTO substitution_requests (id, institution_id, requested_by, employee_id, from_date, to_date, reason, suggested_user_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'Absent', ?, 'pending', ?, ?)`).bind(reqID, inst, s.teacher, emp?.id ?? null, onDate, onDate, subID, ts, ts),
+    c.db.prepare(`INSERT INTO substitution_request_periods (id, institution_id, request_id, timetable_entry_id, on_date, status, assigned_user_id)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?)`).bind(uuid(), inst, reqID, entryID, onDate, subID),
+  ])
+  return ok({ status: 'waiting' })
+}
+
+/** POST /timetable-cover/approve {timetable_entry_id, on_date}: the principal approves the waiting pick. */
+async function approveCover(c: Ctx): Promise<Response> {
+  if (!isPrincipal(c)) throw denied('only the principal approves a substitution')
+  const body = await readJSON<Record<string, unknown>>(c.req)
+  const entryID = uuidOr400(trimStr(body.timetable_entry_id))
+  const onDate = trimStr(body.on_date)
+  if (!isDate(onDate)) throw badRequest('on_date must be YYYY-MM-DD')
+  const line = await c.db.prepare(`SELECT srp.assigned_user_id AS sub, u.full_name FROM substitution_request_periods srp JOIN users u ON u.id = srp.assigned_user_id
+      WHERE srp.timetable_entry_id = ? AND srp.on_date = ? AND srp.status = 'pending'`).bind(entryID, onDate).first<{ sub: string; full_name: string }>()
+  if (!line) throw coded(409, 'nothing_waiting', 'there is no substitution waiting for approval in this period')
+  const s = await slotFacts(c, entryID)
+  await assertFree(c, line.sub, onDate, s, entryID)
+  await c.db.batch(approveStmts(c, entryID, onDate, line.sub, s, line.full_name))
+  return ok({ status: 'approved' })
+}
+
+/** GET /timetable-cover/today: my cover duties today, and my periods somebody else is taking. */
+async function coverToday(c: Ctx): Promise<Response> {
+  const on = todayIST()
+  const rows = await all<{ kind: string; period: string; starts_at: string | null; section: string; subject: string; other: string }>(c.db.prepare(`
+    SELECT CASE WHEN sb.substitute_user_id = ?1 THEN 'covering' ELSE 'covered' END AS kind, p.name AS period, substr(p.starts_at, 1, 5) AS starts_at,
+           cl.name || '-' || sec.name AS section, sub.name AS subject,
+           CASE WHEN sb.substitute_user_id = ?1 THEN tu.full_name ELSE su.full_name END AS other
+      FROM substitutions sb JOIN timetable_entries te ON te.id = sb.timetable_entry_id JOIN periods p ON p.id = te.period_id
+      JOIN sections sec ON sec.id = te.section_id JOIN classes cl ON cl.id = sec.class_id
+      JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+      JOIN users su ON su.id = sb.substitute_user_id JOIN users tu ON tu.id = te.teacher_user_id
+     WHERE sb.on_date = ?2 AND (sb.substitute_user_id = ?1 OR te.teacher_user_id = ?1)
+     ORDER BY p.sequence`).bind(c.id.userId, on))
+  return ok({ on_date: on, items: rows })
+}
+
 export function registerCover(r: Router): void {
+  r.post('/timetable-cover/propose', WRITE, proposeCover)
+  r.post('/timetable-cover/approve', WRITE, approveCover)
+  r.get('/timetable-cover/today', READ, coverToday)
   r.get('/timetable-cover/my-periods', READ, listCoverablePeriods)
   r.get('/timetable-cover/requests', READ, listCoverRequests)
   r.post('/timetable-cover/requests', READ, createCoverRequest)
