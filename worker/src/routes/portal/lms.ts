@@ -3,7 +3,7 @@ import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, 
 import { fullName, institutionId, resolveScope, todayIST } from '../teaching/common'
 import { notifyMany, parseRubric } from '../teaching/lms'
 import { bucketFor, mergeWatched } from '../teaching/videos'
-import { assertOpen, computeSteps, dayName, loadProgress, loadStructure, satisfied, type PItem } from '../teaching/lms_progress'
+import { assertOpen, computeSteps, dayName, loadProgress, loadStructure, lockedItems, satisfied, type PItem } from '../teaching/lms_progress'
 
 /* The child's side of the LMS (the teacher's is teaching/lms.ts).
 
@@ -46,6 +46,44 @@ async function classroom(c: Ctx, studentId: string) {
   return r
 }
 
+/** A lesson that is a video: from the library, or YouTube (by id or by its address). */
+function isVideoLesson(l: { kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }): boolean {
+  return l.kind === 'video' || !!l.video_id || !!l.yt_video_id || /(^|\/\/)(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(l.url ?? '')
+}
+/** Watched to the end, with room for the gaps a real watch leaves.
+ *
+ * ONE DROPPED SECOND USED TO COST THE WHOLE LESSON (tester, 2026-10-10:
+ * played a video to its end, "no tick, course still shows 0 of 3 done").
+ *
+ * The rule was EVERY stretch but the last. The player marks a stretch only
+ * when its once-a-second reading moved forward by about a second's worth, so
+ * a tab switch, a buffer, a locked phone or a slow frame leaves a permanent
+ * hole -- and a hole could never be filled, because going back over it is
+ * allowed but the clock only marks what plays. A child who watched the whole
+ * thing was left on a lesson that could not be finished, in front of a
+ * sentence promising it would tick itself, with no button to say otherwise.
+ * A gated course then locks for good: the next day never opens.
+ *
+ * So: nearly all of it, and the end of it. Ninety per cent of the stretches
+ * -- which is the rule this file has claimed in prose all along -- plus the
+ * last few actually played, so somebody who stops halfway cannot pass by
+ * scrubbing about. The protection against a forged map is not this rule: it
+ * is the check that the lesson was opened at least half the video's length
+ * ago, which no amount of skipping can shorten. */
+function fullyWatched(w: string): boolean {
+  if (!w.length) return false
+  /* The last stretch is left out of the reckoning entirely, as it always was:
+     players stop a moment early, so it is routinely never played. */
+  const body = w.slice(0, -1)
+  if (!body.length) return w === '1'
+  const seen = [...body].filter((x) => x === '1').length
+  if (seen < Math.ceil(body.length * 0.9)) return false
+  /* And the end has to have been reached: the last two stretches before that
+     final one were played. Ninety per cent on its own would pass somebody who
+     watched the opening and scrubbed off. */
+  return !body.slice(-2).includes('0')
+}
+
 const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
   AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 
@@ -66,7 +104,7 @@ async function gate(c: Ctx, sid: string, section: string, type: PItem['type'], i
   if (!row?.cs) return
   const st = await loadStructure(c, section, row.cs, true)
   const p = (await loadProgress(c, st, [sid])).get(sid)!
-  assertOpen(st, computeSteps(st, p), type, id)
+  assertOpen(st, computeSteps(st, p), type, id, p)
 }
 
 async function todo(c: Ctx, sid: string, section: string, classId: string) {
@@ -88,8 +126,9 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
         ORDER BY t.closes_at IS NULL, t.closes_at LIMIT 20`).bind(section, now(), now(), sid, sid),
     c.db.prepare(`SELECT l.id, l.title, l.kind, sub.name AS subject, su.class_subject_id, su.title AS unit
         FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
-        WHERE cs.class_id = ? AND ${lessonVisible} AND NOT EXISTS (SELECT 1 FROM lms_lesson_progress p WHERE p.lesson_id = l.id AND p.student_id = ?)
-        ORDER BY su.sequence, l.day IS NULL, l.day, l.sequence LIMIT 8`).bind(classId, section, sid),
+        WHERE cs.class_id = ? AND ${lessonVisible} AND EXISTS (SELECT 1 FROM lms_courses lc WHERE lc.section_id = ? AND lc.class_subject_id = cs.id)
+          AND NOT EXISTS (SELECT 1 FROM lms_lesson_progress p WHERE p.lesson_id = l.id AND p.student_id = ?)
+        ORDER BY su.sequence, l.day IS NULL, l.day, l.sequence LIMIT 8`).bind(classId, section, section, sid),
     c.db.prepare(`SELECT h.id, h.title, sub.name AS subject, h.class_subject_id, CAST(hs.marks AS REAL) AS marks, CAST(h.max_marks AS REAL) AS max_marks, hs.feedback, hs.status, hs.returned_at
         FROM homework_submissions hs JOIN homework h ON h.id = hs.homework_id LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
         WHERE hs.student_id = ? AND hs.returned_at IS NOT NULL ORDER BY hs.returned_at DESC LIMIT 5`).bind(sid),
@@ -99,8 +138,10 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
   const hidden = new Set<string>()
   for (const cs of new Set(ls.map((l) => l.class_subject_id))) {
     const st = await loadStructure(c, section, cs, true)
-    const states = computeSteps(st, (await loadProgress(c, st, [sid])).get(sid)!)
-    st.steps.forEach((x, i) => { if (states[i].state === 'locked') for (const it of x.items) if (it.type === 'lesson') hidden.add(it.id) })
+    const pr = (await loadProgress(c, st, [sid])).get(sid)!
+    const states = computeSteps(st, pr)
+    const behind = lockedItems(st, states, pr)
+    st.steps.forEach((x, i) => { for (const it of x.items) if (it.type === 'lesson' && !it.openNow && (states[i].state === 'locked' || behind.has(`lesson:${it.id}`))) hidden.add(it.id) })
   }
   return {
     assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, overdue: !!h.overdue })),
@@ -114,6 +155,9 @@ export function registerPortalLMS(r: Router) {
     const sid = await child(c)
     const k = await classroom(c, sid)
     const rows = await c.db.prepare(`SELECT cs.id AS class_subject_id, sub.name AS subject, sub.code,
+        EXISTS (SELECT 1 FROM lms_courses lc WHERE lc.section_id = ? AND lc.class_subject_id = cs.id) AS added,
+        -- Who put the course up (Yajur, 2026-10-19: "also who uploaded it").
+        (SELECT u.full_name FROM lms_courses lc JOIN users u ON u.id = lc.created_by WHERE lc.section_id = ? AND lc.class_subject_id = cs.id) AS uploaded_by,
         (SELECT u.full_name FROM section_subject_teachers t JOIN users u ON u.id = t.teacher_user_id WHERE t.section_id = ? AND t.class_subject_id = cs.id LIMIT 1) AS teacher,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id WHERE su.class_subject_id = cs.id AND ${lessonVisible}) AS lessons,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ?
@@ -124,7 +168,7 @@ export function registerPortalLMS(r: Router) {
         (SELECT count(*) FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = cs.id AND t.status = 'published'
             AND (t.closes_at IS NULL OR t.closes_at > ?) AND NOT EXISTS (SELECT 1 FROM online_test_attempts a WHERE a.test_id = t.id AND a.student_id = ? AND a.status <> 'in_progress')) AS quizzes_open
         FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? ORDER BY sub.name`)
-      .bind(k.section_id, k.section_id, sid, k.section_id, sid, k.section_id, k.section_id, now(), sid, k.class_id).all()
+      .bind(k.section_id, k.section_id, k.section_id, k.section_id, sid, k.section_id, sid, k.section_id, k.section_id, now(), sid, k.class_id).all()
     return ok({ student_id: sid, class_name: k.class_name, section_name: k.section_name, items: rows.results })
   })
 
@@ -142,6 +186,7 @@ export function registerPortalLMS(r: Router) {
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
       c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
           l.url, l.sequence, l.day, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.publish_at, p.completed_at, vw.last_at AS viewed_at, max(COALESCE(l.publish_at, l.created_at), l.created_at) AS released_at,
+          l.yt_video_id, l.yt_playlist_id, l.yt_channel, l.key_points,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           vp.position_seconds AS video_position, vp.percent AS video_percent, vp.watched AS video_watched, vp.bucket_seconds AS video_bucket
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
@@ -172,7 +217,9 @@ export function registerPortalLMS(r: Router) {
     const states = computeSteps(st, prog)
     const stepOf = new Map<string, number>()
     st.steps.forEach((x, i) => x.items.forEach((it) => stepOf.set(`${it.type}:${it.id}`, i)))
-    const lockedOf = (type: string, id: string) => { const i = stepOf.get(`${type}:${id}`); return i !== undefined && states[i].state === 'locked' }
+    const behind = lockedItems(st, states, prog)
+    const openNow = new Set(st.steps.flatMap((x) => x.items.filter((it) => it.openNow).map((it) => `${it.type}:${it.id}`)))
+    const lockedOf = (type: string, id: string) => { if (openNow.has(`${type}:${id}`)) return false; const i = stepOf.get(`${type}:${id}`); return (i !== undefined && states[i].state === 'locked') || behind.has(`${type}:${id}`) }
     /* "New": out in the last week and not opened yet. */
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
     const lessonRows = new Map<string, Record<string, unknown>>((lessons.results as Record<string, unknown>[]).map((l) => {
@@ -198,7 +245,7 @@ export function registerPortalLMS(r: Router) {
         open: !locked && (!q.opens_at || String(q.opens_at) <= t) && (!q.closes_at || String(q.closes_at) > t) && Number(q.attempts) < Number(q.max_attempts) }]
     }))
     const itemOut = (i: PItem, state: string) => ({ type: i.type, id: i.id, section: i.section, required: i.required, done: satisfied(i, prog),
-      pass_percent: i.pass_percent, locked: state === 'locked',
+      pass_percent: i.pass_percent, locked: !i.openNow && (state === 'locked' || behind.has(`${i.type}:${i.id}`)),
       ...(i.type === 'lesson' ? { lesson: lessonRows.get(i.id) ?? null } : {}) })
     let modules = st.units.map((u) => {
       const idx = st.steps.map((x, i) => (x.unit_id === u.id ? i : -1)).filter((i) => i >= 0)
@@ -285,14 +332,103 @@ export function registerPortalLMS(r: Router) {
     return ok({ recorded: true })
   })
 
+  /* A CHILD'S OWN NOTES ON A LESSON.
+
+     Private by construction. Every statement below filters on
+     `user_id = c.id.userId` as well as the lesson, so there is no shape of
+     request -- not another child's id, not a parent's -- that returns
+     somebody else's writing. A parent reading their child's course can see
+     the lesson; these are the child's own words and they cannot.
+
+     The lesson is checked for visibility the same way as /view and
+     /complete before anything is read or written: a note against a lesson
+     this account cannot open would be a way to confirm that lesson exists.
+
+     at_seconds pins a note to the second of the video it was taken at. It
+     is optional, because a note about the whole lesson is as real as one
+     about 4:12, and it is clamped to a sane range rather than trusted. */
+  const noteLesson = async (c: Ctx) => {
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const own = await c.db.prepare(`SELECT id FROM students WHERE user_id = ? AND status = 'active'`)
+      .bind(c.id.userId).first<{ id: string }>()
+    if (!own) throw notFound()
+    const k = await classroom(c, own.id)
+    const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
+    if (!l) throw notFound()
+    return l.id
+  }
+  /** Whole seconds inside a day, or nothing. */
+  const atSeconds = (v: unknown): number | null => {
+    if (v === null || v === undefined || v === '') return null
+    const n = Math.floor(Number(v))
+    return Number.isFinite(n) && n >= 0 && n < 86_400 ? n : null
+  }
+  const noteBody = (v: unknown): string => {
+    const t = typeof v === 'string' ? v.trim() : ''
+    if (!t) throw badRequest('a note needs something in it')
+    // Long enough for a paragraph a child actually writes, short enough that
+    // the column is not a dumping ground.
+    return t.slice(0, 4000)
+  }
+
+  r.get('/portal/lms/lessons/{id}/notes', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const rows = await c.db.prepare(`SELECT id, at_seconds, body, created_at, updated_at
+        FROM lms_lesson_notes WHERE lesson_id = ? AND user_id = ?
+        ORDER BY at_seconds IS NULL, at_seconds, created_at`)
+      .bind(lessonId, c.id.userId).all()
+    return ok({ items: rows.results })
+  })
+
+  r.post('/portal/lms/lessons/{id}/notes', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const b = await readJSON<Body>(c.req)
+    const id = uuid()
+    const t = now()
+    await c.db.prepare(`INSERT INTO lms_lesson_notes (id, institution_id, lesson_id, user_id, at_seconds, body, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), lessonId, c.id.userId, atSeconds(b.at_seconds), noteBody(b.body), t, t).run()
+    return ok({ id, at_seconds: atSeconds(b.at_seconds), body: noteBody(b.body), created_at: t, updated_at: t })
+  })
+
+  r.patch('/portal/lms/lessons/{id}/notes/{noteId}', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const noteId = str(c.params.noteId)
+    if (!isUUID(noteId)) throw notFound()
+    const b = await readJSON<Body>(c.req)
+    const t = now()
+    const res = await c.db.prepare(`UPDATE lms_lesson_notes SET body = ?, updated_at = ?
+        WHERE id = ? AND lesson_id = ? AND user_id = ?`)
+      .bind(noteBody(b.body), t, noteId, lessonId, c.id.userId).run()
+    if (!res.meta.changes) throw notFound()
+    return ok({ id: noteId, updated_at: t })
+  })
+
+  r.del('/portal/lms/lessons/{id}/notes/{noteId}', PERM, async (c) => {
+    const lessonId = await noteLesson(c)
+    const noteId = str(c.params.noteId)
+    if (!isUUID(noteId)) throw notFound()
+    const res = await c.db.prepare(`DELETE FROM lms_lesson_notes WHERE id = ? AND lesson_id = ? AND user_id = ?`)
+      .bind(noteId, lessonId, c.id.userId).run()
+    if (!res.meta.changes) throw notFound()
+    return ok({ deleted: true })
+  })
+
   r.post('/portal/lms/lessons/{id}/complete', PERM, async (c) => {
     const me = await self(c)
     const k = await classroom(c, me.id)
     const id = str(c.params.id)
     if (!isUUID(id)) throw notFound()
-    const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
-        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
+    const l = await c.db.prepare(`SELECT l.id, l.kind, l.video_id, l.yt_video_id, l.url FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }>()
     if (!l) throw notFound()
+    /* A VIDEO IS FINISHED BY WATCHING IT, NOT BY A BUTTON (owner, 2026-10-10:
+       "complete only when they watch the full video, not by clicking done").
+       Library videos finish through video-progress, YouTube ones through
+       youtube-watched; neither can be ticked or unticked by hand. */
+    if (isVideoLesson(l)) throw badRequest('a video counts as done once it has been watched to the end')
     await gate(c, me.id, k.section_id, 'lesson', l.id)
     const b = await readJSON<Body>(c.req).catch(() => ({} as Body))
     if (b.done === false) {
@@ -342,10 +478,63 @@ export function registerPortalLMS(r: Router) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (lesson_id, student_id) DO UPDATE SET video_id = excluded.video_id, position_seconds = excluded.position_seconds,
           bucket_seconds = excluded.bucket_seconds, watched = excluded.watched, percent = excluded.percent, updated_at = excluded.updated_at`)
       .bind(inst, l.id, me.id, l.video_id, pos, bucket, watched, percent, t)]
-    const done = percent >= 90
+    const done = fullyWatched(watched)
     if (done) stmts.push(c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`).bind(inst, l.id, me.id, t))
     await c.db.batch(stmts)
     return ok({ id: l.id, position: pos, percent, bucket_seconds: bucket, watched, done })
+  })
+
+  /* A YouTube lesson, watched to the end. The player (YouTubeLesson.tsx) sends
+     which stretches were actually played, in the same buckets as a library
+     video; every one of them must be there, and the child must have opened
+     the lesson at least half the video's length ago (2x is the fastest
+     YouTube plays), so a forged map from a fresh page does not count. */
+  /* Where the child is in a YouTube lesson, from any device (0079). */
+  r.get('/portal/lms/lessons/{id}/youtube-progress', PERM, async (c) => {
+    const sid = await child(c)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    try {
+      const p = await c.db.prepare(`SELECT position_seconds AS position, watched, bucket_seconds FROM lms_yt_progress WHERE lesson_id = ? AND student_id = ?`)
+        .bind(id, sid).first()
+      return ok(p ?? { position: 0, watched: '', bucket_seconds: null })
+    } catch { return ok({ position: 0, watched: '', bucket_seconds: null }) }
+  })
+
+  r.post('/portal/lms/lessons/{id}/youtube-watched', PERM, async (c) => {
+    const me = await self(c)
+    const k = await classroom(c, me.id)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const l = await c.db.prepare(`SELECT l.id, l.kind, l.video_id, l.yt_video_id, l.url FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string; kind: string; video_id: string | null; yt_video_id: string | null; url: string | null }>()
+    if (!l || l.video_id || !isVideoLesson(l)) throw notFound()
+    await gate(c, me.id, k.section_id, 'lesson', l.id)
+    const b = await readJSON<Body>(c.req)
+    const dur = Number(b.duration)
+    if (!(dur > 0) || dur > 6 * 3600) throw badRequest('duration is required')
+    const bucket = bucketFor(dur), n = Math.ceil(dur / bucket)
+    const sent = typeof b.watched === 'string' ? b.watched.slice(0, n).replace(/[^01]/g, '0').padEnd(n, '0') : ''.padEnd(n, '0')
+    /* KEPT ON THE SERVER, so another phone carries on from here (0079). Merged
+       with what was saved; a school whose database has not had 0079 yet
+       still finishes lessons, it just does not remember the place. */
+    let watched = sent
+    try {
+      const prev = await c.db.prepare(`SELECT watched, bucket_seconds FROM lms_yt_progress WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id)
+        .first<{ watched: string; bucket_seconds: number }>()
+      watched = mergeWatched(prev && prev.bucket_seconds === bucket ? prev.watched : '', sent, n)
+      const pos = Math.max(0, Math.min(dur, Number(b.position) || 0))
+      await c.db.prepare(`INSERT INTO lms_yt_progress (institution_id, lesson_id, student_id, position_seconds, bucket_seconds, watched, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (lesson_id, student_id) DO UPDATE SET position_seconds = excluded.position_seconds, bucket_seconds = excluded.bucket_seconds, watched = excluded.watched, updated_at = excluded.updated_at`)
+        .bind(institutionId(c), l.id, me.id, pos, bucket, watched, now()).run()
+    } catch { /* no lms_yt_progress here yet */ }
+    const percent = Math.min(100, Math.round((100 * [...watched].filter((x) => x === '1').length) / n))
+    if (!fullyWatched(watched)) return ok({ id: l.id, percent, done: false })
+    const seen = await c.db.prepare(`SELECT first_at FROM lms_lesson_views WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id).first<{ first_at: string }>()
+    if (!seen || Date.now() - Date.parse(seen.first_at) < (dur / 2) * 1000) return ok({ id: l.id, percent, done: false })
+    await c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`)
+      .bind(institutionId(c), l.id, me.id, now()).run()
+    return ok({ id: l.id, percent, done: true })
   })
 
   /* Hand in: text, a file, or both. Late when handed in after the due date. */

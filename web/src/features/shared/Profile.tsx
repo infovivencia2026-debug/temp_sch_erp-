@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Info, KeyRound, Lock, ShieldCheck, UserCheck } from 'lucide-react'
+import { Info, KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
 } from '@/components/ui'
-import { useSession } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
 import { TwoFactorCard, MyDevicesCard, MySessionActivityCard } from './SecurityCards'
 
@@ -46,8 +46,8 @@ function Section({
   }[tone]
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-sunken/40 px-5 py-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 border-b bg-surface-sunken/40 px-5 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', tile)}>
             <Icon className="h-4 w-4" />
           </span>
@@ -89,6 +89,8 @@ import { ConcernsCard } from '@/features/me/MyConcerns'
 
 export default function ProfileView() {
   const session = useSession()
+  // Without self.profile.write the record is read-only: the office keeps it.
+  const canEdit = useCan()('self.profile.write')
   const qc = useQueryClient()
   const { data, isLoading, error } = useQuery({
     queryKey: ['profile'],
@@ -223,8 +225,13 @@ export default function ProfileView() {
         tone="primary"
         title="Identity and profile"
         hint="What the school has on record, and how it reaches you"
-        action={editing ? undefined : (
-          <Button size="sm" variant="secondary" onClick={startEditing}>Edit</Button>
+        action={editing || !canEdit ? undefined : (
+          /* A pencil in the card's corner, the way a phone shows "edit"
+             (owner, 2026-10-08). The word stays for screen readers. */
+          <button type="button" onClick={startEditing} aria-label="Edit" title="Edit"
+            className="grid size-9 place-items-center rounded-full border bg-[hsl(var(--card))] text-[hsl(var(--primary))] shadow-sm transition-colors hover:bg-muted">
+            <Pencil className="size-4" aria-hidden="true" />
+          </button>
         )}
       >
         {/* WHO THIS IS, before what is recorded about them.
@@ -232,7 +239,7 @@ export default function ProfileView() {
             A list of label-and-value rows answers "what is my phone number"
             and never answers "whose account am I looking at" -- which is the
             first thing anybody checks on a shared machine. */}
-        {!editing && (
+        {!(editing && canEdit) && (
           <div className="m-5 flex flex-col gap-4 rounded-2xl border bg-surface-sunken/40 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <span
@@ -265,7 +272,7 @@ export default function ProfileView() {
           </div>
         )}
 
-        {editing ? (
+        {editing && canEdit ? (
           <div className="flex flex-col gap-4 p-5 pt-0">
             <Field label="Name">
               <Input value={name} onChange={setName} placeholder="Your full name" />

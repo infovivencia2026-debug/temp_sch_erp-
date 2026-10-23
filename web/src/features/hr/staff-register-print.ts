@@ -5,14 +5,15 @@
    red rule; title and date; four totals; one row per person with the code,
    check-in and the mark; who printed it and when. */
 
-export interface RegisterRow { employee_code: string; full_name: string; check_in?: string; mark: string }
+export interface RegisterRow { employee_code: string; full_name: string; check_in?: string; check_out?: string; mark: string }
 
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const day = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${m[3]} ${MON[Number(m[2]) - 1]} ${m[1]}` : esc(iso) }
-const LABEL: Record<string, string> = { present: 'Present', absent: 'Absent', late: 'Late', half_day: 'Half day', leave: 'On leave', week_off: 'Week off', on_duty: 'On duty' }
-const TONE: Record<string, string> = { present: '#15803d', late: '#b45309', half_day: '#b45309', absent: '#c22525', leave: '#475569' }
-const time = (t?: string) => { if (!t) return ''; const m = /(\d{2}):(\d{2})/.exec(t); if (!m) return esc(t); const h = Number(m[1]); return `${((h + 11) % 12) + 1}:${m[2]} ${h < 12 ? 'am' : 'pm'}` }
+const LABEL: Record<string, string> = { present: 'Present', absent: 'Absent', late: 'Late', half_day: 'Half day', leave: 'On leave', week_off: 'Week off', on_duty: 'On duty', permission: 'Permission', wfh: 'From home' }
+const TONE: Record<string, string> = { present: '#15803d', late: '#b45309', half_day: '#b45309', absent: '#c22525', leave: '#475569', permission: '#15803d' }
+// 24-hour, as on screen (owner, 2026-10-13: "in and out time 24 hours format").
+const time = (t?: string) => { if (!t) return ''; const m = /(\d{2}):(\d{2})/.exec(t); return m ? `${m[1]}:${m[2]}` : esc(t) }
 
 export function staffRegisterHtml(o: { school: { name: string; sub?: string; logoUrl?: string }; onDate: string; rows: RegisterRow[]; printedBy: string }): string {
   const marked = o.rows.filter((r) => r.mark).length
@@ -20,7 +21,7 @@ export function staffRegisterHtml(o: { school: { name: string; sub?: string; log
   const away = o.rows.filter((r) => ['absent', 'leave'].includes(r.mark)).length
   const now = new Date()
   const printedAt = `${String(now.getDate()).padStart(2, '0')} ${MON[now.getMonth()]} ${now.getFullYear()}, ${now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`
-  const body = o.rows.map((r) => `<tr><td class="code-col">${esc(r.employee_code)}</td><td>${esc(r.full_name)}</td><td style="color: var(--text-muted);">${time(r.check_in) || '-'}</td><td style="font-weight:600;color:${TONE[r.mark] ?? 'var(--text-muted)'}">${r.mark ? esc(LABEL[r.mark] ?? r.mark) : 'Not marked'}</td></tr>`).join('')
+  const body = o.rows.map((r) => `<tr><td class="code-col">${esc(r.employee_code)}</td><td>${esc(r.full_name)}</td><td style="color: var(--text-muted);">${time(r.check_in) || '-'}</td><td style="color: var(--text-muted);">${time(r.check_out) || '-'}</td><td style="font-weight:600;color:${TONE[r.mark] ?? 'var(--text-muted)'}">${r.mark ? esc(LABEL[r.mark] ?? r.mark) : 'Not marked'}</td></tr>`).join('')
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Staff Attendance Register · ${day(o.onDate)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"><style>
 :root { --bg-body: #f8fafc; --bg-card: #ffffff; --text-main: #0f172a; --text-muted: #64748b; --border-color: #cbd5e1; --accent-red: #c22525; }
@@ -63,7 +64,7 @@ tr:last-child td { border-bottom: none; }
   </div>
   <div class="table-card">
     <div class="table-header-bar">Daily Attendance Log<span>${day(o.onDate)}</span></div>
-    <table><thead><tr><th>Code</th><th>Employee</th><th>Checked In</th><th>Status / Mark</th></tr></thead><tbody>${body}</tbody></table>
+    <table><thead><tr><th>Code</th><th>Employee</th><th>In</th><th>Out</th><th>Status / Mark</th></tr></thead><tbody>${body}</tbody></table>
   </div>
   <div class="footer"><div>${esc(o.school.name)}</div><div>Generated ${esc(printedAt)}${o.printedBy ? ` by ${esc(o.printedBy)}` : ''}</div><div>${o.rows.length} staff</div></div>
 </div></body></html>`

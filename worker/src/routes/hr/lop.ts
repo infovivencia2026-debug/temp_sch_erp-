@@ -1,4 +1,5 @@
 import { addDays, parseJSON, round2 } from '../admissions/util'
+import { staffHolidayChecker } from './staff_holidays'
 
 /* Port of the plpgsql function staff_lop_register (migrations/00244): the
    month's loss of pay per employee, from the attendance register, the leave
@@ -50,9 +51,8 @@ export async function lopRegister(db: D1Database, inst: string, year: number, mo
     if (!Array.isArray(days)) days = String(s.working_days).replace(/[{}[\]]/g, '').split(',').map(Number).filter((n) => n > 0)
     if (s.uid) byUser.set(s.uid, { eid: s.eid, starts: clockMinutes(s.starts_at.slice(0, 5)), grace: s.grace, days })
   }
-  const holidays = await db.prepare(`SELECT on_date, COALESCE(to_date, on_date) AS to_date FROM holidays WHERE institution_id = ? AND kind IN ('holiday','vacation') AND applies_to IN ('all','staff') AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`)
-    .bind(inst, lastDay, firstDay).all<{ on_date: string; to_date: string }>()
-  const isHoliday = (day: string) => holidays.results.some((h) => day >= h.on_date && day <= h.to_date)
+  // Whose holiday it is: everyone's, all staff, or only teaching / non-teaching staff (staff_holidays.ts).
+  const isHoliday = await staffHolidayChecker(db, firstDay, lastDay)
 
   // Approved staff leave covering any day of the year so far, with its type.
   const leaves = await db.prepare(`SELECT r.employee_id, r.from_date, r.to_date, r.is_half_day, r.leave_type_id, lt.is_paid, lt.annual_quota
@@ -124,9 +124,10 @@ export async function lopRegister(db: D1Database, inst: string, year: number, mo
     else if (pol.lop_rounding === 'half') v = Math.round(gross * 2) / 2
     if (pol.max_lop_days_per_month !== null) v = Math.min(v, pol.max_lop_days_per_month)
     v = Math.min(v, daysInMonth)
-    const sh = [...byUser.values()].find((s) => s.eid === eid)
+    const ent = [...byUser.entries()].find(([, s]) => s.eid === eid)
+    const sh = ent?.[1], uid = ent?.[0] ?? null
     let expected = 0
-    if (sh) for (let d = firstDay; d <= lastDay; d = addDays(d, 1)) if (sh.days.includes(isoDow(d)) && !isHoliday(d)) expected++
+    if (sh) for (let d = firstDay; d <= lastDay; d = addDays(d, 1)) if (sh.days.includes(isoDow(d)) && !isHoliday(d, uid)) expected++
     out.set(eid, { absent: t.absent, halves: t.halves, unpaid: t.unpaid, quotaLop: round2(t.quota), marks: t.marks, lop: round2(v), expected })
   }
   return out

@@ -1,4 +1,4 @@
-import { connect } from 'cloudflare:sockets'
+import { dial } from './dial'
 import type { Outbound } from './messaging'
 
 /* smtpProvider.Send and rfc822 of internal/api/messaging.go over
@@ -36,7 +36,15 @@ function b64(bytes: Uint8Array): string {
 export function rfc822(cfg: SMTPSettings, m: Outbound): string {
   let from = cfg.fromAddress
   if (cfg.fromName.trim()) from = `${headerSafe(cfg.fromName.trim())} <${cfg.fromAddress}>`
-  let b = `From: ${from}\r\nTo: ${headerSafe(m.to)}\r\nSubject: ${headerSafe(m.subject)}\r\nDate: ${dateIST()}\r\nMIME-Version: 1.0\r\n`
+  let b: string
+  if (m.mail) {
+    // A member of staff's own mail (services/mail.ts): their address in From, every recipient, threading headers.
+    from = m.mail.fromName.trim() ? `${headerSafe(m.mail.fromName.trim())} <${headerSafe(m.mail.from)}>` : headerSafe(m.mail.from)
+    b = `From: ${from}\r\nTo: ${headerSafe(m.mail.to.join(', '))}\r\n`
+    if (m.mail.cc.length) b += `Cc: ${headerSafe(m.mail.cc.join(', '))}\r\n`
+    for (const [k, v] of Object.entries(m.mail.headers)) b += `${headerSafe(k)}: ${headerSafe(v)}\r\n`
+    b += `Subject: ${headerSafe(m.subject)}\r\nDate: ${dateIST()}\r\nMIME-Version: 1.0\r\n`
+  } else b = `From: ${from}\r\nTo: ${headerSafe(m.to)}\r\nSubject: ${headerSafe(m.subject)}\r\nDate: ${dateIST()}\r\nMIME-Version: 1.0\r\n`
   const atts = m.attachments ?? []
   if (atts.length === 0) return b + 'Content-Type: text/plain; charset=UTF-8\r\n\r\n' + dotStuffed(m.body)
   const hex = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, '0')).join('')
@@ -91,7 +99,7 @@ class Conn {
 
 export async function sendSMTP(cfg: SMTPSettings, m: Outbound): Promise<void> {
   const sec = cfg.security.trim().toLowerCase()
-  const sock = connect({ hostname: cfg.host, port: cfg.port },
+  const sock = dial({ hostname: cfg.host, port: cfg.port },
     { secureTransport: sec === 'tls' ? 'on' : sec === 'starttls' ? 'starttls' : 'off', allowHalfOpen: false })
   let timer: number | undefined
   const deadline = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error(`dial ${cfg.host}:${cfg.port}: i/o timeout`)), 30_000) })
@@ -111,7 +119,7 @@ export async function sendSMTP(cfg: SMTPSettings, m: Outbound): Promise<void> {
       await c.cmd('AUTH PLAIN ' + plain, [235], 'auth')
     }
     await c.cmd(`MAIL FROM:<${cfg.fromAddress}>`, [250], 'from')
-    await c.cmd(`RCPT TO:<${m.to}>`, [250, 251], `rcpt ${m.to}`)
+    for (const to of m.mail ? [...m.mail.to, ...m.mail.cc] : [m.to]) await c.cmd(`RCPT TO:<${to}>`, [250, 251], `rcpt ${to}`)
     await c.cmd('DATA', [354], 'data')
     await c.write(rfc822(cfg, m) + '.\r\n')
     const [dc, dt] = await c.reply()

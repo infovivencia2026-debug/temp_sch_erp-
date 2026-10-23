@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, Select, SkeletonTiles, ErrorState, EmptyState, Textarea
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
-import { useMyClasses, useTerms, type ReportRemark } from './comms'
+import { type ReportRemark } from './comms'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* The term-end remark, written a class at a time.
@@ -23,35 +23,37 @@ import WriteWithAI from '@/components/ai/WriteWithAI'
    somebody publishes the card. */
 
 export default function ClassTeacherRemarks() {
-  const classes = useMyClasses()
-  const terms = useTerms()
+  // Only the classes this person is class teacher of: the remark is hers to write.
+  const classes = useQuery({
+    queryKey: ['sections', 'class_teacher'],
+    queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+  })
+  const exams = useQuery({ queryKey: ['exams-list'], queryFn: () => api.call('GET /exams/list') })
   const [sectionID, setSectionID] = useState('')
-  const [termID, setTermID] = useState('')
+  const [examID, setExamID] = useState('')
+  const [studentID, setStudentID] = useState('')
 
-  // Default to the term that is running and the first class taught, so the
-  // screen opens on work rather than on two empty dropdowns.
-  const termItems = terms.data?.items ?? []
+  const examItems = exams.data?.items ?? []
   const classItems = classes.data?.items ?? []
   useEffect(() => {
-    if (!termID && termItems.length) {
-      setTermID((termItems.find((t) => t.is_current) ?? termItems[0]).id)
-    }
-  }, [termID, termItems])
+    if (!examID && examItems.length) setExamID(examItems[0].id)
+  }, [examID, examItems])
   useEffect(() => {
-    if (!sectionID && classItems.length) setSectionID(classItems[0].section_id)
+    if (!sectionID && classItems.length) setSectionID(classItems[0].id)
   }, [sectionID, classItems])
 
   const list = useQuery({
-    queryKey: ['report-remarks', sectionID, termID],
-    enabled: !!sectionID && !!termID,
+    queryKey: ['report-remarks', sectionID, examID],
+    enabled: !!sectionID && !!examID,
     queryFn: () =>
       api.get<List<ReportRemark>>(
-        `/api/v1/teaching/report-remarks?section_id=${sectionID}&term_id=${termID}`,
+        `/api/v1/teaching/report-remarks?section_id=${sectionID}&exam_id=${examID}`,
       ),
   })
 
-  const rows = list.data?.items ?? []
-  const written = rows.filter((r) => r.has_term_remarks).length
+  const all = list.data?.items ?? []
+  const rows = studentID ? all.filter((r) => r.student_id === studentID) : all
+  const written = all.filter((r) => r.has_term_remarks).length
 
   return (
     <>
@@ -62,40 +64,40 @@ export default function ClassTeacherRemarks() {
       />
       <PageBody>
         <Card>
-          <CardHeader title="Which card" description="A remark belongs to a term, or it prints on the wrong one." />
-          <div className="grid gap-5 px-5 py-5 sm:grid-cols-2">
+          <CardHeader title="Which card" description="The remark prints on the report card of the exam you pick." />
+          <div className="grid gap-5 px-5 py-5 sm:grid-cols-3">
             <Field label="Class" required>
               <Select
                 value={sectionID}
-                onChange={setSectionID}
-                placeholder="Choose a class you teach"
-                options={classItems.map((c) => ({
-                  value: c.section_id,
-                  label: `${c.class_name}-${c.section_name}`,
-                }))}
+                onChange={(v) => { setSectionID(v); setStudentID('') }}
+                placeholder={classItems.length ? 'Choose your class' : 'You are not class teacher of a class'}
+                options={classItems.map((c) => ({ value: c.id, label: `${c.class_name}-${c.name}` }))}
               />
             </Field>
-            <Field label="Term" required>
+            <Field label="Report card" required>
               <Select
-                value={termID}
-                onChange={setTermID}
-                placeholder={termItems.length ? 'Choose a term' : 'No terms set up yet'}
-                options={termItems.map((t) => ({
-                  value: t.id,
-                  label: `${t.name} · ${t.academic_year}`,
-                }))}
+                value={examID}
+                onChange={setExamID}
+                placeholder={examItems.length ? 'Choose an exam' : 'No exams set up yet'}
+                options={examItems.map((e) => ({ value: e.id, label: e.name }))}
+              />
+            </Field>
+            <Field label="Student">
+              <Select
+                value={studentID}
+                onChange={setStudentID}
+                options={[{ value: '', label: 'All students' }, ...all.map((r) => ({ value: r.student_id, label: r.student_name }))]}
               />
             </Field>
           </div>
         </Card>
 
-        {!termItems.length ? (
-          <EmptyState
-            title="This school has no terms yet"
-            body="Report-card remarks are filed against a term. Ask the office to set the terms up for this academic year before writing them."
-          />
-        ) : !sectionID || !termID ? (
-          <EmptyState title="Choose a class and a term" />
+        {!classItems.length && !classes.isLoading ? (
+          <EmptyState title="You are not class teacher of a class" body="Class teacher remarks are written by the class teacher. The office sets class teachers in Classes & sections." />
+        ) : !examItems.length && !exams.isLoading ? (
+          <EmptyState title="This school has no exams yet" body="The remark prints on an exam's report card. Ask the exam office to set up the exams first." />
+        ) : !sectionID || !examID ? (
+          <EmptyState title="Choose a class and a report card" />
         ) : list.isLoading ? (
           <SkeletonTiles count={3} />
         ) : list.error ? (
@@ -103,11 +105,11 @@ export default function ClassTeacherRemarks() {
         ) : (
           <>
             <CellGrid cols={3}>
-              <Stat label="Children" value={rows.length} />
-              <Stat label="Remarks written" value={`${written}/${rows.length}`} />
+              <Stat label="Children" value={all.length} />
+              <Stat label="Remarks written" value={`${written}/${all.length}`} />
               <Stat
                 label="Cards published"
-                value={rows.filter((r) => r.is_published).length}
+                value={all.filter((r) => r.is_published).length}
                 hint="A published card is one the parent can already read"
               />
             </CellGrid>
@@ -119,7 +121,7 @@ export default function ClassTeacherRemarks() {
               ) : (
                 <ul className="divide-y">
                   {rows.map((r) => (
-                    <Row key={r.student_id} row={r} termID={termID} />
+                    <Row key={`${r.student_id}-${examID}`} row={r} examID={examID} />
                   ))}
                 </ul>
               )}
@@ -131,7 +133,7 @@ export default function ClassTeacherRemarks() {
   )
 }
 
-function Row({ row, termID }: { row: ReportRemark; termID: string }) {
+function Row({ row, examID }: { row: ReportRemark; examID: string }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [text, setText] = useState(row.class_teacher_remark ?? '')
@@ -148,7 +150,7 @@ function Row({ row, termID }: { row: ReportRemark; termID: string }) {
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      api.put('/api/v1/teaching/report-remarks', { student_id: row.student_id, term_id: termID, ...body }),
+      api.put('/api/v1/teaching/report-remarks', { student_id: row.student_id, exam_id: examID, ...body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['report-remarks'] })
       toast.ok(`Saved for ${row.student_name}`)

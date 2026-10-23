@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { createPortal } from 'react-dom'
 import { Sparkles, RefreshCw, X } from 'lucide-react'
 import { Button, Dialog, Textarea } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import { useAnchoredPosition } from '@/components/anchored'
+import { AiOffNote, isAiKeyError, useAiStatus, useMarkAiOff } from './useAiStatus'
 import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lang } from './aiApi'
 
 /* "Write with AI": a button that opens a small panel (tone, length,
@@ -44,6 +45,9 @@ export default function WriteWithAI({
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const phone = usePhone()
+  const ai = useAiStatus()
+  const markOff = useMarkAiOff()
+  const offId = useId()
   /* On a desk the panel is portalled too: a card pressed on the way here
      scales on :active, and a transformed ancestor would re-anchor a fixed
      panel to the card. On a phone it is the shared Dialog's bottom sheet
@@ -76,6 +80,7 @@ export default function WriteWithAI({
       if (r.drafts.length === 0) setError('The AI returned nothing usable. Try again or change the options.')
     } catch (e) {
       setError(errText(e))
+      if (isAiKeyError(e)) markOff()
     } finally {
       setBusy(false)
     }
@@ -126,9 +131,11 @@ export default function WriteWithAI({
   )
   return (
     <div className="relative inline-block" ref={box}>
-      <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)} ariaHasPopup="dialog" ariaExpanded={open}>
+      <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)} ariaHasPopup="dialog" ariaExpanded={open}
+        disabled={!ai.ok} ariaDescribedBy={ai.ok ? undefined : offId}>
         <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{label}
       </Button>
+      <AiOffNote id={offId} reason={ai.reason} />
       {open && phone && (
         <Dialog onClose={() => setOpen(false)} title={label}>
           <div ref={panel}>

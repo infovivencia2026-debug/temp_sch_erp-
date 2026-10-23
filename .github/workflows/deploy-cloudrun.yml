@@ -48,9 +48,14 @@
 # deploy that had already replaced the migrate job is not a state to abandon).
 name: deploy-cloudrun
 
+# MANUAL ONLY (2026-10-06). The Cloud Run stack is being retired in favour of
+# the Cloudflare Worker (worker.yml), and every push-triggered run here failed
+# with "DATABASE_URL missing from the rebuilt env file": that secret is no
+# longer in Secret Manager. Rather than show a red deploy on every commit to
+# main, this runs only when someone starts it by hand (Actions > Run
+# workflow), which is also the only way it should run while the stack winds
+# down. Restore the push trigger only together with the secret.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       commit:

@@ -22,12 +22,31 @@
  */
 
 export const FEATURE_ICONS: Record<string, string> = {
+  // Screens added 7 and 8 Oct 2026 (the MyClassBoard gaps and what a school needs); names already in the subset.
+  rules: 'rule', // Rules
+  move_from_myclassboard: 'upload_file', // Move from MyClassBoard
+  returns_readiness: 'verified', // Returns readiness
+  my_handbook: 'menu_book', // My handbook
+  staff_handbook: 'menu_book', // Staff handbook
+  my_tasks: 'task_alt', // My tasks
+  staff_tasks: 'checklist', // Staff tasks
+  reading_levels: 'library_books', // Reading levels
+  fee_corrections: 'receipt', // Fee corrections
+  fixed_reports: 'receipt_long', // Fixed reports
+  todays_runs: 'directions_bus', // Today's runs
+  transport_reports: 'description', // Transport reports
+  hall_ticket: 'badge', // Hall ticket (student and parent)
   // Screens added in Sept 2026 without an icon; the test that every feature has one caught them.
   support_team: 'support_agent', // Support Team
   helpdesk: 'contact_support', // Helpdesk (the school's own help requests)
   board_members: 'groups', // Board members
   class_360: 'hub', // Class 360
   student_absentees: 'person_off', // Student absentees
+  inbox: 'inbox', // Inbox (a staff member's own school email)
+  mail_addresses: 'manage_accounts', // Mail addresses
+  subject_overview: 'insights', // Subject overview
+  subject_meetings: 'meeting_room', // Subject meetings
+  year_end_payout: 'savings', // Year-end payout
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
   scheduled_digests: 'schedule', // Scheduled digests
@@ -177,6 +196,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   global_university_guidance_counselor: 'public', // Global University Guidance Counselor
   gps_hardware_integration: 'gps_fixed', // GPS Hardware Integration
   grievances: 'feedback', // Grievances
+  concerns_from_parents: 'feedback', // Concerns from parents
+  parent_concerns: 'support_agent', // Parent concerns
   groups_lists: 'groups', // Groups & lists
   hall_ticket_issue: 'confirmation_number', // Hall Ticket Issue
   hall_tickets_seating: 'event_seat', // Hall tickets & seating
@@ -333,7 +354,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   system_health_integration_alerts: 'notification_important', // System Health & Integration Alerts
   systems_desk: 'dns', // Systems desk
   take_attendance: 'how_to_reg', // Take attendance
-  take_attendance_school: 'domain', // Take attendance (whole school)
+  take_attendance_school: 'fact_check', // Take attendance (whole school)
   take_fee_payment: 'point_of_sale', // Take fee payment
   student_wallets: 'account_balance_wallet', // Student wallets (digital money, office)
   wallet: 'account_balance_wallet', // Wallet (digital money, parent)
@@ -379,6 +400,8 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  tasks: 'checklist', // Tasks
+  handbook: 'menu_book', // Handbook
   help: 'help',
   lms: 'cast_for_education', // LMS
   store: 'inventory_2', // Store

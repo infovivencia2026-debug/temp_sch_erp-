@@ -92,7 +92,7 @@ export default function HRDashboard() {
                 <Link
                   key={a.text}
                   to={a.link}
-                  className="flex items-center gap-3 px-1 py-2.5 text-[14px] transition-colors hover:bg-muted/50"
+                  className="flex items-center gap-3 px-[var(--card-pad)] py-2.5 text-[14px] transition-colors hover:bg-muted/50"
                 >
                   <AlertTriangle
                     className={cn(

@@ -5,6 +5,8 @@ import { boardMemberKeys } from './board/keys'
 import { facultyCommsKeys } from './faculty/keys'
 import { channelSetupKeys } from './communication/channel-setup-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
+import { staffTasksKeys } from './hr/tasks-keys'
+import { readinessKeys } from './principal/readiness-keys'
 import { parentKeys } from './portal/parent-keys'
 import { familyKeys } from './portal/family-keys'
 import { adminAcademicsKeys } from './academics/admin-keys'
@@ -48,6 +50,7 @@ import { examControllerKeys } from './exams/exam-controller-keys'
 import { itAdminKeys } from './super_admin/it-admin-keys'
 import { operationsKeys } from './operations/operations-keys'
 import { driverKeys } from './operations/driver-keys'
+import { transportDeskKeys } from './operations/transport-desk-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -90,7 +93,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      step will look for it where they last saw it. */
   'institution_admin.getting_started.school_setup': screen(() => import('./setup/Wizard')),
   'super_admin.institution_setup.institutions_campuses': screen(() => import('./setup/Wizard')),
-  'super_admin.institution_setup.academic_year_defaults': screen(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': screen(() => import('./setup/ImportStudents')),
   'institution_admin.students.certificates_transfers': screen(() => import('./lifecycle/Certificates')),
   // The desk builds the application form the city fills in.
@@ -144,7 +146,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.staff.branding': screen(() => import('./super_admin/Branding')),
   'super_admin.platform_configuration.module_configuration': screen(() => import('./super_admin/ModuleConfiguration')),
   'super_admin.access_security.login_session_audit': screen(() => import('./super_admin/SessionAudit')),
-  'super_admin.operations.system_health_integration_alerts': screen(() => import('./shared/Jobs')),
   // Approvals — one queue for leave, corrections and concessions.
   'institution_admin.approvals.approvals': screen(() => import('./workflow/Approvals')),
 
@@ -188,7 +189,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
 
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
-  'institution_admin.standard.attendance_overview': screen(() => import('./principal/AttendanceMonitoring')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
   'faculty.home.my_calendar': screen(() => import('./faculty/MyCalendar')),
 
@@ -213,6 +213,35 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.communication.class_status': screen(() => import('./comms/ClassStatus')), // feature:communication.class_status
   'institution_admin.communication.class_status': screen(() => import('./comms/ClassStatusAdmin')), // feature:communication.class_status
   'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
+  'hr.payroll.year_end_payout': screen(() => import('./payroll/YearEndPayout')), // feature:payroll.year_end_payout
+  'front_office.communication.parent_concerns': screen(() => import('./comms/ParentConcerns')), // feature:communication.parent_concerns
+  'faculty.communication.concerns_from_parents': screen(() => import('./comms/ConcernsFromParents')), // feature:communication.concerns_from_parents
+  'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
+  'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
+  'faculty.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
+  'hod.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
+  'faculty.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
+  'institution_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hod.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'exam_controller.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'faculty.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'librarian.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'transport_manager.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'operations.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'driver.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'nurse.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'counsellor.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'discipline_officer.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hostel_warden.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'activity_coord.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'finance.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'admissions.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'front_office.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'hr.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'it_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
+  'board_member.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'lms_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.
@@ -265,13 +294,13 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      entry for something that is not a screen — the notifications already
      arrive, on the bell and on the phone, and a page about them tells somebody
      what is already happening to them. */
-  'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'admissions.reports.admission_reports': screen(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.admissions_pipeline': screen(() => import('./admissions/Pipeline')),
   'faculty.marks_report_cards.marks_entry': screen(() => import('./exams/Gradebook')),
-  'institution_admin.students.academic_performance': screen(() => import('./exams/ReportCards')),
   'student.exams_results.exams_grades': screen(() => import('./portal/StudentResults')),
   'parent.academics.results_report_cards': screen(() => import('./portal/Results')),
+  'student.exams_results.hall_ticket': screen(() => import('./exams/HallTicket')),
+  'parent.academics.hall_ticket': screen(() => import('./exams/HallTicket')),
   /* What a school is waiting on a guardian for: a circular to sign and a trip
      to agree to. The outpass half is load-bearing — the gate will not sign a
      boarder out without a guardian's consent, so with nowhere to give it the
@@ -302,7 +331,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Circulars · Message teacher · Concerns, as tabs of one row (MessagesHub).
   'parent.messages.communication': screen(() => import('./portal/MessagesHub')),
   'super_admin.statutory_boards.udise_data_sync': screen(() => import('./compliance/UDISE')),
-  'super_admin.statutory_boards.apaar_id_provisioning': screen(() => import('./compliance/UDISE')),
 
   /* --- the six workspaces added for roles that had permissions and no menu --
 
@@ -354,7 +382,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the system rather than the question; two had no entry on this menu at
      all, so a principal could not see who was away or who was behind on fees
      without borrowing HR's or the accountant's screen. */
-  'institution_admin.staff.leaves_subs': screen(() => import('./workflow/Approvals')),
   'institution_admin.fees.fee_default': screen(() => import('./finance/Defaulters')),
   'institution_admin.communication.messages': screen(() => import('./comms/StaffMessages')),
   /* The other end of the same conversation.
@@ -437,41 +464,27 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      registration are deliberately absent: each needs a certified device in the
      vehicle and a vendor feed, and drawing a bus on a map from no position
      data would be a lie told convincingly. */
-  'transport_manager.transport.driver_attendant_profiles': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.student_route_assignment': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.transport_attendance_scans': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.vehicle_fuel_maintenance_log': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.driver_sobriety_safety_checklist': screen(() => import('./operations/TransportOffice')),
-  'transport_manager.transport.bus_breakdown_emergency_dispatch': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.drivers_attendants': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.student_allocation': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.route_attendance': screen(() => import('./operations/TransportOffice')),
   'transport_manager.transport.delays_exceptions': screen(() => import('./operations/TransportOffice')),
 
   'transport_manager.transport.vehicles': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.vehicle_master_registry': screen(() => import('./operations/Transport')),
   'transport_manager.transport.routes_stops': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.route_pickup_stop_mapping': screen(() => import('./operations/Transport')),
-  'transport_manager.transport.route_distance_fee_slabs': screen(() => import('./operations/Transport')),
 
   /* Library. One screen answers the three questions a counter gets asked --
      do we have it, who has it, what do they owe -- so the catalogue, the
      circulation list and the overdue list are tabs rather than three menu
      entries that would each open the same data. */
   'librarian.library.books_copies': screen(() => import('./operations/Library')),
-  'librarian.library.book_cataloging_accession_register': screen(() => import('./operations/Library')),
-  'librarian.library.accession_register': screen(() => import('./operations/Library')),
-  'librarian.library.issue_return': screen(() => import('./operations/Library')),
-  'librarian.library.book_issue_return_terminal': screen(() => import('./operations/Library')),
-  'librarian.library.fines': screen(() => import('./operations/Library')),
   // opac_digital_book_search is the digital catalogue: see digital-library-keys.ts.
 
   /* The rest of a librarian's year, kept off the issue counter: the hold
      queue, the annual stock audit, the textbook indent and the label sheet.
      Cataloguing and issuing are daily; these are weekly, yearly and yearly. */
   'librarian.library.reservations': screen(() => import('./operations/LibraryDesk')),
-  'librarian.library.book_reservation_queue': screen(() => import('./operations/LibraryDesk')),
-  'librarian.library.barcode_spine_label_printing': screen(() => import('./operations/LibraryDesk')),
 
   /* The application ladder: submitted through to enrolled. Four endpoints
      existed for this and only the list had a caller, so an application could
@@ -482,7 +495,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Admissions: the enquiry queue, not the dashboard it used to point at.
   'admissions.enquiries.enquiries': screen(() => import('./admissions/Enquiries')),
-  'admissions.enquiries.follow_up_calls': screen(() => import('./admissions/Enquiries')),
 
   // Leave, for the queue that decides it.
   'hr.leave.leave': screen(() => import('./hr/Leave')),
@@ -512,6 +524,21 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.exams.mark_moderation': screen(() => import('./exams/MarkModeration')),
   'institution_admin.exams.mark_moderation': screen(() => import('./exams/MarkModeration')),
   'hod.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'exam_controller.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'librarian.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'transport_manager.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'operations.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'driver.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'nurse.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'counsellor.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'discipline_officer.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'hostel_warden.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'activity_coord.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'finance.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'admissions.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'front_office.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'hr.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
+  'it_admin.my_profile.leave_self_service': screen(() => import('./hr/Leave')),
   /* Two leave queues, deliberately two doors. Your own leave is an employment
      matter that goes to HR and your head of department; a child's leave is a
      note from a parent that the class teacher has to act on before tomorrow's
@@ -539,8 +566,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      alerts — so the section listed seven doors into one room. */
   'super_admin.dashboard.dashboard': screen(() => import('./super_admin/PlatformDashboard')),
   'super_admin.dashboard.system_health': screen(() => import('./shared/Jobs')),
-  'super_admin.access_security.user_directory': screen(() => import('./super_admin/Users')),
-  'super_admin.institution_setup.school_settings': screen(() => import('./setup/Wizard')),
 
   /* Domains built in parallel hand over their own key map rather than editing
      this file, so several screens can land at once without several agents
@@ -561,6 +586,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...itAdminKeys,
   ...operationsKeys,
   ...driverKeys,
+  ...transportDeskKeys,
 
   'hr.onboarding_exit.staff_joinings_exits': screen(() => import('./hr/Lifecycle')),
   'hr.leave.leave_rules': screen(() => import('./hr/LeavePolicy')),
@@ -590,6 +616,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   ...channelSetupKeys,
   ...hrLifecycleKeys,
+  ...staffTasksKeys,
+  ...readinessKeys,
   ...parentKeys,
   ...rollupKeys,
   ...statutoryKeys,

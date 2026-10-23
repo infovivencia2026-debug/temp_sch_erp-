@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { actingInstitution } from '@/lib/api'
 import type { Lesson } from './lms-shared'
+import { LockedFrame } from './YouTubeLesson'
 
 /* A lesson's library video (worker routes/teaching/videos.ts).
 
@@ -82,7 +83,7 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
     s.watched = Array.from({ length: n }, (_, i) => (w[i] === '1' ? 1 : 0))
     const pos = saved.position ?? 0
     s.sentPos = pos
-    if (track && pos > 5 && pos < v.duration - 5 && v.currentTime < 1 && v.paused) { v.currentTime = pos; setResumed(pos) }
+    if (track && pos > 5 && pos < v.duration - 5 && v.currentTime < 1 && v.paused) { resumeAt.current = pos; v.currentTime = pos; setResumed(pos) }
     s.last = v.currentTime
   }
   const onTime = () => {
@@ -97,29 +98,62 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
     s.last = t
   }
 
+  /* NO SKIPPING AHEAD (owner, 2026-10-10: "remove skipping, continue where
+     it left"). Until the video is finished, the child can go back but not
+     forward past the first stretch they have not watched; a jump ahead is
+     put back there. Once finished, they can move freely. */
+  const allowed = () => {
+    const s = st.current, v = ref.current
+    if (!s.watched.length) return 0
+    const gap = s.watched.indexOf(0)
+    return gap < 0 ? (v?.duration ?? Infinity) : gap * s.bucket
+  }
+  const onSeeking = () => {
+    const v = ref.current, s = st.current
+    if (!v || !track || s.done) return
+    const max = Math.max(allowed(), s.sentPos, s.last)
+    if (v.currentTime > max + 1) { v.currentTime = max; setBlocked(true) }
+  }
+  const [blocked, setBlocked] = useState(false)
+
+  /* Unfinished and the child's own: no seek bar (LockedFrame in YouTubeLesson.tsx). */
+  /* Every student video is guarded against going forward (LockedFrame). */
+  const locked = !!track
+  const resumeAt = useRef<number | null>(null)
+  const [playing, setPlaying] = useState(false)
+  void percent
+
   if (!id) return null
   return (
-    <div className="w-full max-w-3xl space-y-2">
+    <div className="mx-auto w-full max-w-3xl space-y-2">
+      <LockedFrame locked={locked} playing={playing} resume={resumeAt}
+        time={() => ref.current?.currentTime ?? null} seek={(t) => { if (ref.current) ref.current.currentTime = t }}
+        toggle={() => { const v = ref.current; if (!v) return; if (v.paused) void v.play(); else v.pause() }}
+        back={() => { const v = ref.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10) }}
+        restart={() => { const v = ref.current; if (v) v.currentTime = 0 }}>
       <div className="overflow-hidden rounded-lg border bg-black shadow-sm">
         <video
           ref={ref}
           className="aspect-video w-full bg-black"
           src={`/api/v1/lms/videos/${id}/stream`}
           poster={lesson?.video_thumb ? `/api/v1/lms/videos/${id}/thumbnail` : undefined}
-          controls
+          controls={!locked}
+          onPlay={() => setPlaying(true)}
+          onPause={() => { setPlaying(false); void send() }}
           playsInline
           preload="metadata"
           controlsList="nodownload"
           onContextMenu={(e) => e.preventDefault()}
           onLoadedMetadata={onMeta}
           onTimeUpdate={onTime}
+          onSeeking={onSeeking}
           onSeeked={() => { st.current.last = ref.current?.currentTime ?? -1 }}
-          onPause={() => void send()}
           onEnded={() => void send()}
           onError={() => setFailed(true)}
           onRateChange={() => setSpeed(ref.current?.playbackRate ?? 1)}
         />
       </div>
+      </LockedFrame>
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
         <span className="hidden text-muted-foreground sm:inline">Speed</span>
         <div className="inline-flex overflow-hidden rounded-md border" role="group" aria-label="Playback speed">
@@ -129,8 +163,9 @@ export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: L
               onClick={() => { if (ref.current) ref.current.playbackRate = x; setSpeed(x) }}>{x}×</button>
           ))}
         </div>
-        {track && <span className="w-full text-muted-foreground sm:ml-auto sm:w-auto">{percent ? `${percent}% watched` : 'Not started'}{lesson?.done || percent >= 90 ? ' · finished' : ' · 90% finishes the lesson'}</span>}
+        {track && (lesson?.done || st.current.done) && <span className="w-full text-muted-foreground sm:ml-auto sm:w-auto">Finished</span>}
       </div>
+      {blocked && track && !st.current.done && <p className="text-[13px] text-muted-foreground">You can't skip ahead. Carry on from where you are, or go back.</p>}
       {resumed !== null && (
         <p className="text-[13px] text-muted-foreground">
           Resumed at {fmtDur(resumed)}.{' '}

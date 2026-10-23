@@ -7,6 +7,7 @@ import { SchoolPDF, schoolFacts, logoBytes, inr as docINR } from '../../services
 import { publish } from '../../services/live'
 import { feedbackUpdateStmt } from '../comms/grievances'
 import { canReopen, dueAt, notify, ownAttachment, policyFor, ticketStage } from '../comms/concern_shared'
+import { frontDeskMode, frontDeskPeople } from '../comms/parent_concerns'
 
 /* Port of internal/api/portal_requests.go (mountParentPortal): what a family
    asks the school for, and what the school owes them back. Every route sits
@@ -487,6 +488,10 @@ const CONCERN_CATEGORIES = new Set(['academic', 'fees', 'transport', 'hostel', '
  * the whole list.
  */
 async function listConcernRecipients(c: Ctx): Promise<Response> {
+  /* A school that runs concerns through the front desk (Yajur, 2026-10-20:
+     "concerns should only send to front desk roles, their names shown, not
+     all the teachers") offers only the front desk staff, by name. */
+  if (await frontDeskMode(c)) return ok({ items: (await frontDeskPeople(c)).map((p) => ({ ...p, role: 'Front desk' })) })
   const { studentIds: ids } = await familyChildren(c, c.url.searchParams.get('student_id') ?? '')
   const out: Record<string, unknown>[] = []
   const seen = new Set<string>()
@@ -558,7 +563,7 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
     if (!isUUID(wanted)) throw badRequest('assigned_to must be a uuid')
     const allowed = await (await listConcernRecipients(c)).clone().json<{ items: { user_id: string }[] }>()
     if (!allowed.items.some((x) => x.user_id === wanted)) {
-      throw badRequest("you can address this to one of your child's teachers or to the head of the school")
+      throw badRequest((await frontDeskMode(c)) ? 'send it to one of the front desk staff' : "you can address this to one of your child's teachers or to the head of the school")
     }
     addressedTo = wanted
   }
@@ -582,7 +587,7 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
   const owner = addressedTo ?? policy?.default_owner_id ?? null
   if (owner && owner !== c.id.userId) {
     stmts.push(notify(c, owner, 'A new concern has been raised', subject,
-      `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
+      (await frontDeskMode(c)) ? `/go/parent_concerns?id=${newID}` : `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
   }
   try {
     await c.db.batch(stmts)
@@ -597,8 +602,16 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
 
 interface TeacherRow { user_id: string; full_name: string; subject: string | null; class_teacher: number; photo: string | null; unread: number }
 
+/** The school's switch (setting `messaging.teacher_parent_messages`): on unless
+    module_settings 'teacher_parent_messages' is switched off. */
+async function teacherParentMessagesOn(c: Ctx): Promise<boolean> {
+  const row = await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'teacher_parent_messages'`).first<{ enabled: number }>()
+  return !row || !!row.enabled
+}
+
 /** The address book, and the allow list for sending: who teaches this child. */
 async function reachableTeachers(c: Ctx, sid: string): Promise<TeacherRow[]> {
+  if (!(await teacherParentMessagesOn(c))) return []
   const rows = await c.db.prepare(`
     WITH child_section AS (
         SELECT e.section_id
@@ -839,6 +852,18 @@ async function sendPortalMessage(c: Ctx): Promise<Response> {
     // The teacher replying: they must teach the child and the parent must be its guardian,
     // or the thread must already exist between exactly these three.
     teacherID = me
+    // Staff write to families only with the announcements grant; plain subject teachers message staff only.
+    /* Kept for the roles that message families today without that grant: the child's
+       class teacher, and transport staff (bus messages). */
+    const mayWriteFamilies = can(c.id, 'comms.announcements.write') || can(c.id, 'operations.transport.read') ||
+      bool((await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e JOIN sections sec ON sec.id = e.section_id
+          WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id = ?) AS ok`).bind(sid, me).first<{ ok: number }>())?.ok)
+    if (!can(c.id, 'operations.transport.read') && !(await teacherParentMessagesOn(c))) {
+      throw new HttpError(403, 'this school keeps teacher messages to staff; send a class notice to reach families', { code: 'forbidden' })
+    }
+    if (!mayWriteFamilies) {
+      throw new HttpError(403, 'messaging parents needs the comms.announcements.write permission; you can message staff', { code: 'forbidden' })
+    }
     parentID = str(body.parent_user_id)
     if (!isUUID(parentID)) throw badRequest('parent_user_id must be a uuid')
     if (!(await teacherMayWrite(c, sid, teacherID, parentID)) && !(await teacherIsThreadParty(c, sid, teacherID, parentID))) {
@@ -894,8 +919,31 @@ async function teacherIsThreadParty(c: Ctx, sid: string, teacherID: string, pare
 }
 
 /** The caller teaches the child (or reads every student), and the parent is the child's guardian. */
+/* WHO MAY OPEN A THREAD WITH A FAMILY.
+
+   Teaching the child, or seeing every child -- and now running the bus the
+   child is on. The transport office has the one piece of news a family needs
+   within the minute (the bus has broken down, it is forty minutes late) and
+   had no way to send it: they rang down a paper list instead.
+
+   Narrow on purpose. Not "the transport office may write to parents", which
+   would hand it the whole school: only the families whose child has a live
+   allocation, which is the same row that puts the child on the register and
+   the fee on the demand. A child taken off the bus in December stops being
+   reachable this way the same day. */
+async function transportMayWrite(c: Ctx, sid: string): Promise<boolean> {
+  if (!can(c.id, 'operations.transport.read')) return false
+  const row = await c.db.prepare(`
+    SELECT 1 AS ok FROM transport_allocations ta
+     WHERE ta.student_id = ?1
+       AND ta.valid_from <= date('now', '+5 hours', '+30 minutes')
+       AND (ta.valid_to IS NULL OR ta.valid_to >= date('now', '+5 hours', '+30 minutes'))
+     LIMIT 1`).bind(sid).first<{ ok: number }>()
+  return bool(row?.ok)
+}
+
 async function teacherMayWrite(c: Ctx, sid: string, teacherID: string, parentID: string): Promise<boolean> {
-  const schoolWide = can(c.id, 'students.read.all') ? 1 : 0
+  const schoolWide = can(c.id, 'students.read.all') || (await transportMayWrite(c, sid)) ? 1 : 0
   const row = await c.db.prepare(`
     SELECT ((?4 = 1) OR EXISTS (
         SELECT 1 FROM enrollments e

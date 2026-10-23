@@ -1,3 +1,4 @@
+import { Anchored } from './AnchoredPanel'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -36,10 +37,10 @@ function useAfterFirstScreen(): boolean {
   return ready
 }
 // A student's phone gets a five-tab bar (features/portal/student-kit.tsx).
-const StudentTabBar = lazy(() => import('@/features/portal/student-kit').then((m) => ({ default: m.StudentTabBar })))
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { RoleGlyph } from '@/lib/role-face'
 import { buzz } from '@/lib/haptics'
 /* The layout switch and its routing seam. Both are new files; nothing the
    classic layout renders is changed by their presence, and with the switch
@@ -54,6 +55,10 @@ import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
+import { multitaskingAllowed } from '@/lib/tabs'
+import { staffLayoutOn } from '@/lib/staff-layout'
+import { ComboTabs } from '@/components/StaffCombos'
+import { StaffHeaderContent, StaffNavList, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -85,13 +90,53 @@ import ScrollBox from '@/components/ScrollBox'
    child; the permission is real, the workspace is simply empty, and an empty
    workspace is not a menu entry. Optional never appears. Advanced appears on
    request. Unbuilt appears on request. */
-function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean) {
+/* A FEW OF FACULTY'S OWN ITEMS ARE A CLASS TEACHER'S, NOT EVERY TEACHER'S
+   (owner, 2026-10-16, testing a subject-teacher login: "why does a subject
+   teacher have attendance... let me remove that... no need of student360...
+   no need of report card also... after class teacher is selected their role
+   gets class teacher features").
+
+   The catalogue hands every "Faculty / Teacher" login the same menu, because
+   it is generated per ROLE and has no idea which of a school's sections any
+   one teacher actually runs. Building a second, switchable workspace for
+   that would have split one teacher's day across two tabs for no reason --
+   the fix the owner asked for the moment they saw it ("after class teacher
+   is selected there role get class teacher features") is that assigning the
+   existing Class Teacher role (Logins & access → Change roles) simply
+   widens this SAME menu, because permissions already union across every role
+   a person holds (worker/src/identity.ts). So each of these items additionally
+   requires the one RBAC permission that already exists for it and that
+   "Faculty" no longer carries on its own (see internal/rbac/rbac.go) -- a
+   subject teacher never sees them; a class teacher, holding both roles,
+   does, in the one menu they have always had. */
+const CLASS_TEACHER_ONLY: Record<string, string> = {
+  'faculty.attendance.take_attendance': 'academics.attendance.write',
+  'faculty.attendance.take_attendance_school': 'academics.attendance.write',
+  'faculty.attendance.attendance_correction': 'academics.attendance.write',
+  'faculty.attendance.absentee_followup': 'academics.attendance.read',
+  'faculty.attendance.student_absentees': 'academics.attendance.read',
+  'faculty.attendance.offline_attendance_diary_capture': 'academics.attendance.write',
+  'faculty.my_classes.class_360': 'academics.class360.view',
+  'faculty.my_classes.student_details': 'academics.class360.view',
+  'faculty.marks_report_cards.report_cards': 'academics.reportcards.generate',
+  // "No need for a subject teacher" (owner, 2026-10-16): a parent's child's
+  // leave is approved by the class teacher, not by whoever teaches one of
+  // their subjects.
+  'faculty.my_profile.student_leave_requests': 'academics.class360.view',
+  // The same for a head of department (owner, 2026-10-19): Take attendance only when they run a class.
+  'hod.attendance.take_attendance': 'academics.attendance.write',
+  // Subject overview only for the people the principal made a subject's head (owner, 2026-10-19).
+  'hod.academics.subject_overview': 'academics.subject_head',
+  'faculty.academics.subject_overview': 'academics.subject_head',
+}
+function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean, perms: ReadonlySet<string>) {
   return section.features.filter(
     (f) =>
       f.in_scope &&
       (f.live || showPlanned) &&
       f.tier !== 'optional' &&
-      (f.tier !== 'advanced' || showAdvanced),
+      (f.tier !== 'advanced' || showAdvanced) &&
+      (!CLASS_TEACHER_ONLY[f.key] || perms.has(CLASS_TEACHER_ONLY[f.key])),
   )
 }
 
@@ -111,12 +156,13 @@ function workspacesFor(
   role: { sections: ApiSection[] } | undefined,
   showPlanned: boolean,
   showAdvanced: boolean,
+  perms: ReadonlySet<string>,
 ): Workspace[] {
   if (!role) return []
   const out: Workspace[] = []
   const index = new Map<string, Workspace>()
   for (const section of role.sections) {
-    if (visibleFeatures(section, showPlanned, showAdvanced).length === 0) continue
+    if (visibleFeatures(section, showPlanned, showAdvanced, perms).length === 0) continue
     const name = section.workspace || section.name
     let ws = index.get(name)
     if (!ws) {
@@ -230,25 +276,53 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
-  /* Touch: show a rail icon's name when it is tapped (no hover on a phone). */
+  /* Where the last press landed, for the iOS-style launch: Settings grows out
+     of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') return
-      const el = (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
-      if (!el) return
-      /* A floating label on top of everything: the panel a tap opens covered
-         the rail's own tooltip. */
+    const root = document.documentElement
+    const at = (e: PointerEvent) => {
+      root.style.setProperty('--tap-x', e.clientX + 'px')
+      root.style.setProperty('--tap-y', e.clientY + 'px')
+    }
+    document.addEventListener('pointerdown', at, true)
+    return () => document.removeEventListener('pointerdown', at, true)
+  }, [])
+  /* A rail icon's name, floating on top of the page: on a tap (phones have no
+     hover) and on mouse hover. Drawn in the body, not inside the rail -- the
+     rail scrolls, so a label inside it was clipped to a scrap under the icon
+     and the name never showed (owner, 2026-10-08). */
+  useEffect(() => {
+    let timer = 0
+    const show = (el: HTMLElement, ms: number) => {
       document.getElementById('rail-tap-tip')?.remove()
+      window.clearTimeout(timer)
       const r = el.getBoundingClientRect()
       const tip = document.createElement('div')
       tip.id = 'rail-tap-tip'
       tip.textContent = el.getAttribute('data-tip') ?? ''
-      tip.style.cssText = `position:fixed;left:${r.right + 8}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
+      tip.style.cssText = `position:fixed;left:${r.right + 10}px;top:${r.top + r.height / 2}px;transform:translateY(-50%);z-index:2147483000;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;background:hsl(var(--foreground));color:hsl(var(--background));box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap`
       document.body.appendChild(tip)
-      window.setTimeout(() => tip.remove(), 1500)
+      if (ms) timer = window.setTimeout(() => tip.remove(), ms)
     }
+    const rail = (e: Event) => (e.target as Element | null)?.closest?.('.rail-item') as HTMLElement | null
+    const onDown = (e: PointerEvent) => { const el = rail(e); if (el && e.pointerType !== 'mouse') show(el, 1500) }
+    const onOver = (e: PointerEvent) => { const el = rail(e); if (el && e.pointerType === 'mouse' && el.getAttribute('data-tip')) show(el, 0) }
+    const onOut = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || !rail(e)) return
+      const to = (e.relatedTarget as Element | null)?.closest?.('.rail-item')
+      if (to !== rail(e)) document.getElementById('rail-tap-tip')?.remove()
+    }
+    const hide = () => document.getElementById('rail-tap-tip')?.remove()
     document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    document.addEventListener('pointerover', onOver, true)
+    document.addEventListener('pointerout', onOut, true)
+    window.addEventListener('scroll', hide, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('pointerover', onOver, true)
+      document.removeEventListener('pointerout', onOut, true)
+      window.removeEventListener('scroll', hide, true)
+    }
   }, [])
   const catalog = useCatalog()
   const session = useSession()
@@ -322,6 +396,7 @@ export function Shell({
      inside the drawer that is about to be removed. */
   const openerRef = useRef<HTMLButtonElement>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const switcherRef = useRef<HTMLButtonElement>(null)
   /* Escape closes the workspace switcher, as it closes every other menu. The
      scrim handled a click outside; the keyboard had no way out. */
   useEffect(() => {
@@ -438,7 +513,8 @@ export function Shell({
      fee screen from the command palette moves the rail to Finance by itself.
      A rail that only ever followed clicks would sit on Home while somebody
      worked in Operations all afternoon. */
-  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced)
+  const permSet = new Set(session.permissions)
+  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced, permSet)
 
   const activeWs =
     railWorkspaces.find((w) => w.slug === railPick) ??
@@ -486,7 +562,18 @@ export function Shell({
      with it, which is why BentoEscape exists and why it renders before this is
      allowed to hide anything. */
   const { layout } = useLayout()
+  /* Work pages arrive softly (owner, 2026-10-09: "opening hard"): a short
+     fade, no movement, so nothing appears to jump. */
+  useEffect(() => {
+    if (layout === 'bento' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const el = document.querySelector('main[data-app-scroll] > :first-child') as HTMLElement | null
+    el?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' })
+  }, [location.pathname, layout])
   const chromeless = layout === 'bento'
+  /* The school's staff layout (module_settings 'staff_layout'): the same menu
+     and search, drawn as a text sidebar and one top bar. See StaffShell.tsx. */
+  const staffLayout = !chromeless && staffLayoutOn(session, role?.key)
+  const signIns = useTodaySignIns(staffLayout)
   useRootReduceMotion()
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
@@ -643,7 +730,10 @@ export function Shell({
         aria-modal={drawerOpen ? true : undefined}
         aria-label={drawerOpen ? 'Navigation' : undefined}
         className={cn(
-          'shrink-0 flex-row bg-sidebar',
+          /* The rail and its panel stay put while only the workspace scrolls,
+             and the rail scrolls itself if the window is short, so the gear
+             at its foot is always reachable (owner, 2026-10-09). */
+          'shrink-0 flex-row bg-sidebar md:sticky md:top-0 md:h-dvh md:self-start',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
           /* The line between the sidebar and the page, at every width. It was
              drawn only below lg, so on a desktop the white sidebar ran into
@@ -662,6 +752,10 @@ export function Shell({
              already closed by default or a rail that is the whole navigation,
              and hiding either would leave nothing to open. */
           railHidden ? 'lg:!hidden' : '',
+          // The staff layout has no icon rail, so a resting tablet uses the drawer.
+          staffLayout && !tabletDrawer && 'md:max-lg:!hidden',
+          // On a phone the staff menu opens across the whole screen (owner, 2026-10-19).
+          staffLayout && 'max-md:!w-full max-md:border-r-0',
           chromeless ? '!hidden' : ''
         )}
         /* Only while it is a drawer (phone, or the tablet once opened): a fixed
@@ -721,8 +815,8 @@ export function Shell({
             -- marks, focus rings and the labels that escape it -- above the
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
-        <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-2.5 border-r py-3.5
-                        md:max-lg:overflow-y-auto">
+        <div className={cn('relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-1 border-r py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:overflow-y-auto',
+                           staffLayout && '!hidden')}>
           {railWorkspaces.map((ws, i) => {
             const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
             const on = ws.slug === activeWs?.slug
@@ -776,7 +870,7 @@ export function Shell({
           {/* The header's controls, in the Work layout: the header keeps only
               the search. Stacked, one per row, at the rail's own size. */}
           {layout !== 'bento' && (
-            <div className="rail-foot hidden flex-col items-center gap-2.5 pb-2.5 md:flex">
+            <div className="rail-foot hidden flex-col items-center gap-1 pb-2 md:flex">
               <Notifications />
               <button
                 onClick={cycleDensity}
@@ -840,7 +934,7 @@ export function Shell({
           >
             <PanelLeftClose className="h-5 w-5" />
           </button>
-          <button
+          <button ref={switcherRef}
             onClick={() => setSwitcherOpen((v) => !v)}
             aria-expanded={switcherOpen}
             aria-haspopup="menu"
@@ -874,7 +968,27 @@ export function Shell({
                 school's colour without repainting the whole application's
                 theme -- a global override would fight text contrast on every
                 screen, and this is the one square that should be the brand. */}
-            {session.institution?.logo_key ? (
+            {staffLayout ? (
+              /* The staff layout's brand block: the logo, the school, the desk, the campus. */
+              <span className="block w-full min-w-0 pr-10">
+                {session.institution?.logo_key && (
+                  <img src={`/api/v1/files/${session.institution.logo_key}?inline=1`} alt=""
+                    className="mb-2 aspect-square h-12 w-12 rounded-lg bg-white object-contain" />
+                )}
+                <span className="block whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-bold uppercase leading-tight tracking-[0.04em]">
+                  {brandName}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1 text-[calc(13px*var(--font-scale,1))] text-secondary-foreground">
+                  <span className="truncate">{role?.name ?? ''}</span>
+                  {catalog.roles.length > 1 && (
+                    <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', switcherOpen && 'rotate-180')} />
+                  )}
+                </span>
+                {signIns.data?.campus && (
+                  <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
+                )}
+              </span>
+            ) : session.institution?.logo_key ? (
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
                 alt=""
@@ -892,7 +1006,7 @@ export function Shell({
                 {session.institution?.short_name?.[0] ?? 'E'}
               </span>
             )}
-            <span className="block w-full min-w-0">
+            {!staffLayout && <span className="block w-full min-w-0">
               <span className="flex items-center gap-1">
                 <span className="whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-semibold leading-tight">
                   {role?.name ?? 'Workspace'}
@@ -909,7 +1023,7 @@ export function Shell({
               <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">
                 {brandName}
               </span>
-            </span>
+            </span>}
           </button>
 
           {switcherOpen && (
@@ -919,9 +1033,9 @@ export function Shell({
                 onClick={() => setSwitcherOpen(false)}
                 aria-hidden
               />
-              <div
+              <Anchored open anchor={switcherRef} width="trigger" gap={4} maxHeight={560}
                 role="menu"
-                className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
+                className="rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
               >
                 {/* Bounded, because "View every role" turns thirteen rows
                     into twenty-odd and the menu then runs off the bottom of
@@ -950,12 +1064,16 @@ export function Shell({
                         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     )}
                   >
+                    {/* The role's own face, so a list of six workspaces is
+                        six different rows rather than six lines of text
+                        (owner, 2026-10-08). */}
+                    <RoleGlyph roleKey={r.key} />
                     <span className="truncate">{r.name}</span>
                     {r.key === role?.key && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
                   </button>
                 ))}
                 </ScrollBox>
-              </div>
+              </Anchored>
             </>
           )}
 
@@ -987,9 +1105,18 @@ export function Shell({
               under somebody who was learning where things live. A menu is
               worth learning precisely because it does not move, and the rail
               is short enough that a habit is one glance down it. */}
-          {(activeWs ? [activeWs] : []).map((ws) => {
+          {staffLayout && role && (
+            <StaffNavList
+              roleKey={role.key}
+              workspaces={railWorkspaces}
+              items={(sec) => visibleFeatures(sec, showPlanned, showAdvanced, permSet)}
+              onNavigate={() => setNavOpen(false)}
+              label={shortLabel}
+            />
+          )}
+          {(activeWs && !staffLayout ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
-              (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced).length,
+              (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced, permSet).length,
               0,
             )
 
@@ -998,7 +1125,7 @@ export function Shell({
                the tree-explorer feel in miniature. */
             const onlyItem =
               ws.sections.length === 1 && count === 1
-                ? visibleFeatures(ws.sections[0], showPlanned, showAdvanced)[0]
+                ? visibleFeatures(ws.sections[0], showPlanned, showAdvanced, permSet)[0]
                 : null
 
             if (onlyItem && role) {
@@ -1022,7 +1149,7 @@ export function Shell({
             return (
               <div key={ws.slug} className="pb-1 pt-1">
                 {ws.sections.map((section) => {
-                  const items = visibleFeatures(section, showPlanned, showAdvanced)
+                  const items = visibleFeatures(section, showPlanned, showAdvanced, permSet)
                   if (!items.length) return null
                   const labelled = ws.sections.length > 1
                   return (
@@ -1091,9 +1218,29 @@ export function Shell({
               things until somebody presses both. */}
         </nav>
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
-        <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
-          <LayoutSwitch />
-        </div>
+        {staffLayout ? (
+          /* The rail's foot, as one compact row: the staff layout has no rail. */
+          <div className="flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-t px-3 py-2 text-[calc(13px*var(--font-scale,1))]">
+            <HelpButton
+              className="grid size-10 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+              iconClassName="h-4 w-4"
+            />
+            <Link to="/account" data-help-anchor="account" onClick={() => setNavOpen(false)}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Profile
+            </Link>
+            <a href="/logout" onClick={() => buzz('warn')}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Sign out
+            </a>
+            <div className="min-w-0"><BentoSettings placement="sidebar" /></div>
+            <div className="basis-full"><LayoutSwitch /></div>
+          </div>
+        ) : (
+          <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
+            <LayoutSwitch />
+          </div>
+        )}
         </div>
       </aside>
 
@@ -1113,7 +1260,34 @@ export function Shell({
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
-        {!chromeless && (
+        {staffLayout && (
+          <header data-paint="topbar" className="chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center">
+            <button
+              ref={openerRef}
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+              aria-controls="shell-nav"
+              /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
+              className="order-last grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              onClick={() => setNavOpen(true)}
+            >
+              <Menu className="h-6 w-6 md:h-5 md:w-5" />
+            </button>
+            {railHidden && (
+              <button
+                type="button"
+                aria-label="Show navigation"
+                title="Show navigation"
+                className="hidden h-10 w-10 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground lg:grid"
+                onClick={() => toggleRail(false)}
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+            )}
+            <StaffHeaderContent signIns={signIns} />
+          </header>
+        )}
+        {!chromeless && !staffLayout && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {/* Gone only at lg, because from lg up the full sidebar is on the
               screen. On a tablet the 58px rail is visible but the panel behind
@@ -1249,7 +1423,16 @@ export function Shell({
             outer container — so scrolling a long register scrolled the SIDEBAR
             with it. Introduced when this wrapper was added for the tab strip. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <TabStrip />
+          {/* WORK ONLY (owner, 2026-10-09: "top bar ONLY IN THE WORK
+              MODE NOT IN FOCUS MODE").
+
+              Focus is the one layout whose whole argument is that there is
+              nothing around the board -- no sidebar, no header, the dock and
+              the board and nothing else -- and a strip of eight open screens
+              pinned over the top of it is the chrome Focus exists to put
+              away. The tabs are not lost: switching to Work shows the same
+              strip with the same screens still open in it. */}
+          {!chromeless && multitaskingAllowed(session) && <TabStrip />}
           {/* Split or whole, decided one level in.
 
               PaneArea renders `children` untouched when nothing is split, so
@@ -1303,6 +1486,8 @@ export function Shell({
               split ? 'overflow-hidden pb-[var(--page-foot,0px)]' : 'overflow-y-auto',
             )}
           >
+            {/* Related screens as tabs over the page (staff layout; StaffCombos.tsx). */}
+            {staffLayout && <div className="px-4 pt-4 md:px-6"><ComboTabs /></div>}
             {split && renderAt ? (
               <PaneArea renderAt={renderAt}>{children}</PaneArea>
             ) : (
@@ -1310,9 +1495,9 @@ export function Shell({
             )}
             <BentoDock />
           </main>
-          {role?.key === 'student' && viewport === 'phone' && (
-            <Suspense fallback={null}><StudentTabBar onMore={chromeless ? undefined : () => setNavOpen(true)} /></Suspense>
-          )}
+          {/* No separate student bar, in Focus or in Work (owner, 2026-10-10:
+              "why the bottom bar in Work mode for student login"). A student's
+              phone looks like everyone else's: the dock in Focus, the menu in Work. */}
           {/* A small corner tab, not a screen. A question is nearly always about
               what is already on screen, so an assistant that covers it makes
               somebody leave the thing they wanted to ask about. Mounted outside
@@ -1345,8 +1530,8 @@ function useScopeLine() {
   const { scope } = useCatalog()
   const bits: string[] = []
   if (scope.platform_admin) bits.push('platform')
-  else if (scope.all_campuses) bits.push('all campuses')
-  else if (scope.campuses) bits.push(count(scope.campuses, 'campus', 'campuses'))
+  // "all campuses" is not said (owner, 2026-10-09); a single campus still is.
+  else if (scope.campuses && !scope.all_campuses) bits.push(count(scope.campuses, 'campus', 'campuses'))
   if (scope.departments) bits.push(`${scope.departments} dept`)
   // "1 students" under a parent's name, who has one child.
   if (scope.sections) bits.push(count(scope.sections, 'section', 'sections'))

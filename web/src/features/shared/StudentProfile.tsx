@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Anchored } from '@/components/AnchoredPanel'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
@@ -19,6 +20,7 @@ import { useSession } from '@/lib/session'
 import { ExportRows } from '@/components/rows'
 import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import { PhotoViewer } from '@/components/PhotoViewer'
 import {
   FeeLedger, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, CoScholastic,
@@ -33,6 +35,7 @@ import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { useOpenState } from '@/lib/motion'
 import Student360Card from '@/components/ai/Student360Card'
+import Timeline from '@/components/Timeline'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -107,6 +110,8 @@ function summaryOf(
 }
 
 export default function StudentProfile() {
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportBox = useRef<HTMLDetailsElement>(null)
   /* THE FILTERS LIVE IN THE URL, beside the child.
 
      They were component state, so opening a child and coming back put the
@@ -308,6 +313,7 @@ export default function StudentProfile() {
   const [editing, setEditing] = useState(false)
   const [moving, setMoving] = useState(false)
   const [admitting, setAdmitting] = useState(false)
+  const [viewingPhoto, setViewingPhoto] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
     queryFn: () => api.call('GET /students/{id}', { params: { id: selected! } }),
@@ -717,11 +723,11 @@ export default function StudentProfile() {
                         header of a list is not the place to enumerate what a
                         download could be. Export is one idea, and which file
                         is a choice you make after deciding you want one. */}
-                    <details className="relative">
+                    <details ref={exportBox} className="relative" onToggle={(e) => setExportOpen((e.currentTarget as HTMLDetailsElement).open)}>
                       <summary className="cursor-pointer list-none rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent">
                         Export
                       </summary>
-                      <div className="absolute right-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border bg-card shadow-[var(--elev-2)]">
+                      <Anchored open={exportOpen} anchor={exportBox} align="end" width={256} className="rounded-lg border bg-popover text-popover-foreground shadow-[var(--elev-2)]">
                         {[
                           ['students_on_roll', 'Students on the roll',
                             'The children here now'],
@@ -739,7 +745,7 @@ export default function StudentProfile() {
                             <span className="block text-[12px] text-muted-foreground">{about}</span>
                           </a>
                         ))}
-                      </div>
+                      </Anchored>
                     </details>
                     {(browsing || searching) && (
                       <Button
@@ -1530,13 +1536,22 @@ export default function StudentProfile() {
       key: 'fees', label: 'Fees', badge: overdue || undefined,
       render: () => (
         <>
-        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise} />
+        <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise}
+          breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />} />
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety
             seconds and is then gone — so for every child admitted before
             today there was nowhere to see whether a concession had been asked
             for, and nowhere to ask for one. */}
+        {/* WHAT THEY OWE, BEFORE HOW IT WAS BILLED (owner, 2026-10-12:
+            "i dont see uniform and transport fee and others eca").
+
+            It was there all along -- under the figures, the receipts, the
+            invoices and the concessions, four cards down a tab nobody
+            scrolls to the end of. The question the tab is opened with is
+            what this child owes and for what, so that is the first thing
+            on it; the receipts and the invoices behind it are the workings. */}
         <StudentFees
           studentID={p.id}
           classID={detail.data?.class_id ?? undefined}
@@ -1546,7 +1561,6 @@ export default function StudentProfile() {
             qc.invalidateQueries({ queryKey: ['student-profile', selected] })
           }}
         />
-        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         </>
       ),
     },
@@ -1731,9 +1745,11 @@ export default function StudentProfile() {
       ),
     },
     {
-      key: 'history', label: 'History',
+      key: 'history', label: 'Timeline',
       render: () => (
-        <Card>
+        <div className="space-y-6">
+          <Timeline url={`/api/v1/students/${p.id}/timeline`} />
+          <Card>
           <CardHeader
             title="Enrolment history"
             description="Every year this child has been on the roll, and how each one ended."
@@ -1816,6 +1832,7 @@ export default function StudentProfile() {
             </>
           )}
         </Card>
+        </div>
       ),
     },
   ]
@@ -1922,21 +1939,41 @@ export default function StudentProfile() {
         }}
       />
     )}
+    {viewingPhoto && p.photo_file_id && (
+      <PhotoViewer src={`/api/v1/files/${p.photo_file_id}?inline=1`} name={`${p.full_name}'s photo`} onClose={() => setViewingPhoto(false)} />
+    )}
     <RecordShell
       title={p.full_name}
       /* The face and the class at the top, where the eye lands first; the
          attendance and fee figures are on the Overview tiles below. */
       media={
         <span className="relative shrink-0">
-        <span className="relative grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full border-2 border-card bg-primary/10 text-[22px] font-bold text-primary shadow-md">
+        {/* A TAP OPENS THE PHOTO, THE WAY A CHAT APP'S PROFILE PICTURE DOES
+            (owner, 2026-10-15). Only when there is a photo to show -- the
+            initials fallback has nothing to open. */}
+        <button
+          type="button"
+          onClick={() => p.photo_file_id && setViewingPhoto(true)}
+          disabled={!p.photo_file_id}
+          aria-label={p.photo_file_id ? `View ${p.full_name}'s photo` : undefined}
+          className="relative grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full border-2 border-card bg-primary/10 text-[22px] font-bold text-primary shadow-md disabled:cursor-default"
+        >
           {p.full_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
           {p.photo_file_id && (
             <img src={`/api/v1/files/${p.photo_file_id}?inline=1`} alt=""
               onError={(e) => { e.currentTarget.style.display = 'none' }}
               className="absolute inset-0 h-full w-full object-cover" />
           )}
-        </span>
-        {p.status === 'active' && <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card bg-[hsl(var(--sys-green))]" />}
+        </button>
+        {/* No green dot (owner, 2026-10-09: "in student 360 there is active
+            than there is no need of green dot on proflie").
+
+            The header already carries the status beside the name, in words,
+            and the dot said the same thing again in a vocabulary borrowed
+            from chat apps where a green dot means "online now". On a school
+            record it reads as presence -- in the building, at a desk -- which
+            is not what enrolment status means, and the record of a child who
+            is enrolled but away today would have shown it anyway. */}
         </span>
       }
       subtitle={`${cls}${p.roll_no ? ` · Roll ${p.roll_no}` : ''} · ${p.admission_no}`}

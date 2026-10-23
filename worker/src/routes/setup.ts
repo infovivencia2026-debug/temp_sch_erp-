@@ -4,6 +4,7 @@ import { registerAcademics } from './setup/academics'
 import { registerStaff } from './setup/staff'
 import { registerImports } from './setup/imports'
 import { registerReset } from './setup/reset'
+import { registerBellSchedules } from './setup/bell_schedules'
 
 /* The chi group /setup of internal/api/api.go, one file per Go handler
    group. Literal paths are registered before their {id} siblings inside
@@ -11,6 +12,7 @@ import { registerReset } from './setup/reset'
 export function registerSetup(r: Router): void {
   registerProfile(r)
   registerAcademics(r)
+  registerBellSchedules(r)
   registerStaff(r)
   registerImports(r)
   registerReset(r)

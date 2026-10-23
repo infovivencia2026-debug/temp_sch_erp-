@@ -1,7 +1,7 @@
 import { ProgressRing } from '../../components/ProgressRing'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw } from 'lucide-react'
+import { BookOpen, CalendarClock, Home, Menu, NotebookPen, RefreshCw, Settings as SettingsGear } from 'lucide-react'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { cn } from '@/lib/utils'
 import { SlidingIndicator } from '@/components/SlidingIndicator'
@@ -167,7 +167,7 @@ export function NowNextCard({ periods, to, compact }: { periods: Period[]; to?: 
         <span className="block truncate text-[13px] tabular-nums text-muted-foreground">{body.sub}</span>
         {body.pct !== null && (
           <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <span className="block h-full rounded-full bg-primary transition-[width] duration-1000" style={{ width: `${body.pct}%` }} />
+            <span className="block h-full origin-left rounded-full bg-primary transition-transform duration-1000" style={{ transform: `scaleX(${body.pct / 100})` }} />
           </span>
         )}
       </span>
@@ -267,8 +267,13 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
   const tabs = [
     { to: useFeatureHref('student.home.my_day'), label: 'Home', icon: Home },
     { to: useFeatureHref('student.timetable.timetable'), label: 'Timetable', icon: CalendarClock },
-    { to: useFeatureHref('student.learning.courses_subjects'), label: 'Learn', icon: BookOpen },
+    { to: useFeatureHref('student.learning.e_learning_resource_hub'), label: 'Learn', icon: BookOpen },
     { to: useFeatureHref('student.homework.homework_assignments'), label: 'Homework', icon: NotebookPen },
+    /* A TAB, WITH A GEAR (owner, 2026-10-10, a third time: "I don't see the
+       setting icon in Focus on phone of student logins"). The floating
+       round button above the bar wore a sliders glyph and sat over the
+       cards; nobody read it as Settings. It is now a tab like the others. */
+    { to: '/settings', label: 'Settings', icon: SettingsGear },
   ].filter((t): t is { to: string; label: string; icon: typeof Home } => !!t.to)
   useEffect(() => {
     const root = document.documentElement
@@ -293,6 +298,33 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
        lifted clear of the home indicator (--dock-lift), fully rounded, glass
        with a solid fallback (styles/page-foot.css). The page scrolls under
        it; --page-foot is what keeps the last row above it. */
+    <>
+    {/* THE WAY TO SETTINGS, WHICH A STUDENT ON A PHONE DID NOT HAVE (owner,
+        2026-10-10: "there is no setting icon in focus for phones student
+        login").
+
+        This bar hides the dock outright -- the stylesheet above says
+        `html[data-student-tabs] .bento-dock{display:none!important}` -- and the
+        dock is where the cog lives, in a cell of its own on a phone and in
+        the bottom-left corner on a desk. So hiding the dock took the cog
+        with it, and the launcher behind More has no Settings entry either:
+        a child on a phone could not reach their own appearance, their
+        account or the door out.
+
+        The cog goes back where the desk keeps it, bottom-left, lifted clear
+        of this bar.
+
+        IN BOTH LAYOUTS (owner, 2026-10-10, a second time: "I DONT SEE
+        SETTING ICON IN STUDNET LOGIN IN PHONE"). It was drawn only in
+        Focus, on the argument that the sidebar layout's More opens a drawer
+        with Settings in it. That argument is about where the control
+        technically exists, not about whether a child finds it -- and the
+        owner looked twice and did not. A visible cog in the same corner in
+        both layouts costs one small button and removes the question.
+
+        Not muted, either: it was card-on-card grey, which on a pale phone
+        screen is a button that is present and still invisible. It wears the
+        page's own ink now. */}
     <nav aria-label="Main" className="student-tabbar fixed inset-x-[12px] bottom-[var(--dock-lift,10px)] z-40 mx-auto box-border h-[var(--tabbar-h,64px)] max-w-md rounded-full border px-[6px] py-[4px] md:hidden">
       <div ref={barRef} className="relative flex h-full items-stretch gap-1">
         {/* The tint behind the current tab's icon slides between tabs. */}
@@ -304,7 +336,7 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
           return (
             <Link key={t.label} to={t.to} aria-current={on ? 'page' : undefined}
               className={cn(item, on ? 'text-primary' : 'text-muted-foreground')}>
-              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', on && 'bg-[hsl(var(--primary)/0.12)]')}>
+              <span data-tab-pill={on ? '' : undefined} className={cn('flex h-7 w-11 items-center justify-center rounded-full transition-colors', on && 'bg-[hsl(var(--primary)/0.12)]')}>
                 <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2 : 1.6} />
               </span>
               {t.label}
@@ -317,6 +349,7 @@ export function StudentTabBar({ onMore }: { onMore?: () => void }) {
         </button>
       </div>
     </nav>
+    </>
   )
 }
 
@@ -387,7 +420,7 @@ export function Bar({ pct, hue = 'indigo', className }: { pct: number; hue?: Hue
   const shown = useGrow(Math.max(0, Math.min(100, pct)))
   return (
     <span className={cn('block h-2 overflow-hidden rounded-full bg-muted', className)} aria-hidden>
-      <span className="stu-bar block h-full rounded-full" style={{ width: `${shown}%`, background: HUE[hue].stroke }} />
+      <span className="stu-bar block h-full origin-left rounded-full" style={{ transform: `scaleX(${shown / 100})`, background: HUE[hue].stroke }} />
     </span>
   )
 }

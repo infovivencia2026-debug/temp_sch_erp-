@@ -8,9 +8,9 @@ import {
 } from '../teaching/common'
 
 /* Port of internal/api/student_life.go (mountStudentLife: lost-property claims,
-   the student wall, the diary, display preferences, live-class hand raises)
-   and internal/api/student_growth.go (mountStudentGrowth: streak, badges, hall
-   of fame). Mounted under /portal; group perm self.profile.read.
+   the student wall, the diary, display preferences, live-class hand raises).
+   The streak, badges and hall of fame went with those features' retirement
+   (commit 661d0395). Mounted under /portal; group perm self.profile.read.
 
    Postgres ran every to_char in Asia/Kolkata (database/resolver.go), so every
    timestamp rendered here is shifted by +330 minutes before formatting. */
@@ -19,9 +19,6 @@ const PERM = 'self.profile.read'
 const FRONT_DESK_WRITE = 'office.front_desk.write'
 const ANNOUNCEMENTS_WRITE = 'comms.announcements.write'
 const HOMEWORK_WRITE = 'academics.homework.write'
-const FEAT_STREAK = 'student.learning.gamified_learning_streak_counter'
-const FEAT_BADGES = 'student.learning.gamified_learning_badge_showcase'
-const FEAT_HALL_OF_FAME = 'student.campus_life.digital_hall_of_fame'
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -421,12 +418,12 @@ async function getStudentDiary(c: Ctx) {
           UNION ALL
           SELECT es.exam_date, 'exam', ex.name || ' · ' || sub.name,
                  ${cws(' · ', "CASE WHEN es.duration_minutes IS NOT NULL THEN es.duration_minutes || ' min' END", "'max ' || es.max_marks")},
-                 substr(es.starts_at, 1, 5), NULL, es.id, 0
+                 substr(es.starts_at, 12, 5), NULL, es.id, 0
             FROM exam_subjects es
             JOIN exams ex ON ex.id = es.exam_id
             JOIN class_subjects cs ON cs.id = es.class_subject_id
             JOIN subjects sub ON sub.id = cs.subject_id
-           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ?
+           WHERE cs.class_id = ? AND es.exam_date BETWEEN ? AND ? AND EXISTS (SELECT 1 FROM notifications nd WHERE nd.kind = 'date_sheet' AND nd.source_id LIKE ex.id || ':%')
           -- D1 allows at most five terms in one compound SELECT, so the six
           -- sources are two compounds of three.
           ) UNION ALL SELECT * FROM (
@@ -464,6 +461,33 @@ async function getStudentDiary(c: Ctx) {
   })
 }
 
+/* MY PLANNER (owner, 2026-10-10). The student's own items with their
+   priority and when each was ticked, and the streak: days in a row, ending
+   today (or yesterday, so a streak is not lost before today's first tick),
+   on which at least one item was ticked off. Parent or child, as for adding. */
+const dayBefore = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10)
+async function plannerItems(c: Ctx) {
+  const q = c.url.searchParams
+  const { studentId } = await portalChild(c, q.get('student_id') ?? '')
+  const from = optionalDate(q.get('from'), 'from must be YYYY-MM-DD')
+  const to = optionalDate(q.get('to'), 'to must be YYYY-MM-DD')
+  const rows = await c.db.prepare(`
+      SELECT id, on_date, kind, body, COALESCE(priority, 'normal') AS priority, ${ist('done_at')} AS done_at
+        FROM student_diary_notes
+       WHERE student_id = ? AND (? IS NULL OR on_date >= ?) AND (? IS NULL OR on_date <= ?)
+       ORDER BY on_date, created_at
+       LIMIT 500`).bind(studentId, from, from, to, to).all<{ id: string; on_date: string; kind: string; body: string; priority: string; done_at: string | null }>()
+  const days = await c.db.prepare(`
+      SELECT DISTINCT ${ist('done_at', '%Y-%m-%d')} AS d FROM student_diary_notes
+       WHERE student_id = ? AND done_at IS NOT NULL ORDER BY d DESC LIMIT 400`).bind(studentId).all<{ d: string }>()
+  const have = new Set(days.results.map((x) => x.d))
+  let cursor = todayIST()
+  if (!have.has(cursor)) cursor = dayBefore(cursor)
+  let streak = 0
+  while (have.has(cursor)) { streak++; cursor = dayBefore(cursor) }
+  return ok({ items: rows.results, streak })
+}
+
 async function listDiaryNotes(c: Ctx) {
   const room = await myClassroom(c)
   const q = c.url.searchParams
@@ -498,10 +522,11 @@ async function createDiaryNote(c: Ctx) {
   const kind = s(req.kind).trim() || 'note'
   if (!DIARY_KINDS.includes(kind)) throw badRequest(`kind must be one of ${DIARY_KINDS.join(', ')}`)
   const remind = remindAt(on, s(req.remind_at).trim())
+  const priority = s(req.priority).trim() === 'urgent' ? 'urgent' : 'normal'
   const id = uuid(), t = now()
-  await c.db.prepare(`INSERT INTO student_diary_notes (id, institution_id, student_id, author_user_id, on_date, kind, body, remind_at, created_at, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(id, institutionId(c), student, c.id.userId, on, kind, body, remind, t, t).run()
+  await c.db.prepare(`INSERT INTO student_diary_notes (id, institution_id, student_id, author_user_id, on_date, kind, body, remind_at, created_at, updated_at, priority)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(id, institutionId(c), student, c.id.userId, on, kind, body, remind, t, t, priority).run()
   return created({ id })
 }
 
@@ -515,6 +540,7 @@ async function updateDiaryNote(c: Ctx) {
   const kind = s(req.kind).trim()
   if (kind !== '' && !DIARY_KINDS.includes(kind)) throw badRequest(`kind must be one of ${DIARY_KINDS.join(', ')}`)
   const done = req.done === true ? 1 : req.done === false ? 0 : null
+  const pri = req.priority === 'urgent' || req.priority === 'normal' ? req.priority : null
   const own = inList('student_id', sc.studentIds)
   const t = now()
   const out = await c.db.prepare(`
@@ -523,9 +549,10 @@ async function updateDiaryNote(c: Ctx) {
              kind = COALESCE(nullif(?, ''), kind),
              on_date = COALESCE(?, on_date),
              done_at = CASE WHEN ? IS NULL THEN done_at WHEN ? = 1 THEN COALESCE(done_at, ?) ELSE NULL END,
+             priority = COALESCE(?, priority),
              updated_at = ?
        WHERE id = ? AND ${own.sql}
-      RETURNING id`).bind(body, kind, on, done, done, t, t, noteID, ...own.args).first<{ id: string }>()
+      RETURNING id`).bind(body, kind, on, done, done, t, pri, t, noteID, ...own.args).first<{ id: string }>()
   if (!out) throw notFound('resource not found')
   return ok({ id: out.id })
 }
@@ -602,6 +629,126 @@ async function saveDisplayPreferences(c: Ctx) {
     } catch { /* Go ignores this error too */ }
   }
   return ok({ preference: { theme, density, reduce_motion: reduceMotion, locale, high_contrast: highContrast, layout } })
+}
+
+/* WHICH COLUMNS A PERSON KEEPS (owner, 2026-10-13: "add edit button for every
+   table in erp for customization ... table cols i meant").
+
+   Every table in the product is the same shared component, so the choice is
+   stored the same way for all of them: one JSON object on the person's own
+   preferences row, keyed by table, each key holding the labels that person
+   has turned OFF. One read answers for the whole product, so a screen with
+   six tables does not make six requests.
+
+   Labels, not indexes: a column added to a table in a later release would
+   otherwise silently hide the one next to it. A label that no longer exists
+   is simply never matched, which is the right way for this to fail.
+
+   Empty means nothing is hidden, which is also what a person who has never
+   touched it gets -- so the feature costs an existing school nothing. */
+async function getTableColumns(c: Ctx) {
+  const [mine, named] = await batchOf(c)
+  return ok({ columns: mine, names: named })
+}
+
+/* WHAT THE SCHOOL CALLS A COLUMN (owner, 2026-10-13: "column should be
+   editable ... add a editable button").
+
+   Hiding a column is one person's business; renaming one is the school's --
+   "Adm no." is "Admission Number" or "PEN" depending on the school, and two
+   members of staff reading the same screen must not see it called two
+   different things. So the names live against the institution, not the
+   person, and only an account that may change settings can set them.
+
+   Keyed by the column's ORIGINAL label, so a rename and a person's hidden
+   list never disagree about which column they mean, and clearing the rename
+   always gets the product's own word back. */
+async function batchOf(c: Ctx): Promise<[Record<string, string[]>, Record<string, Record<string, string>>]> {
+  const [mine, named] = await c.db.batch([
+    c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`).bind(c.id.userId),
+    c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'table_columns'`).bind(institutionId(c)),
+  ])
+  const row = mine.results[0] as { table_columns: string | null } | undefined
+  const cfg = (named.results[0] as { config: string | null } | undefined)?.config ?? null
+  return [readColumns(row?.table_columns ?? null), readNames(cfg)]
+}
+
+function readNames(raw: string | null): Record<string, Record<string, string>> {
+  if (!raw) return {}
+  try {
+    const v = JSON.parse(raw) as unknown
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+    const out: Record<string, Record<string, string>> = {}
+    for (const [k, map] of Object.entries(v as Record<string, unknown>)) {
+      if (!map || typeof map !== 'object' || Array.isArray(map)) continue
+      const inner: Record<string, string> = {}
+      for (const [from, to] of Object.entries(map as Record<string, unknown>)) {
+        if (typeof to === 'string' && to.trim() !== '') inner[from] = to.trim().slice(0, 60)
+      }
+      if (Object.keys(inner).length) out[k] = inner
+    }
+    return out
+  } catch { return {} }
+}
+
+async function saveTableColumnNames(c: Ctx) {
+  if (!c.id.institution) throw badRequest('this setting belongs to a school account')
+  const req = await readJSON(c.req)
+  const key = s(req.key).trim().slice(0, 300)
+  if (!key) throw badRequest('key is required: which table this is about')
+  const sent = (req.names && typeof req.names === 'object' && !Array.isArray(req.names)) ? req.names as Record<string, unknown> : {}
+  const inner: Record<string, string> = {}
+  for (const [from, to] of Object.entries(sent)) {
+    /* A name the same as the product's own is not a rename; it is the school
+       changing its mind back, so the entry goes rather than being stored. */
+    if (typeof to === 'string' && to.trim() !== '' && to.trim() !== from) inner[from.slice(0, 120)] = to.trim().slice(0, 60)
+  }
+  const cur = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'table_columns'`)
+    .bind(institutionId(c)).first<{ config: string | null }>()
+  const all = readNames(cur?.config ?? null)
+  if (Object.keys(inner).length) all[key] = inner
+  else delete all[key]
+  await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'table_columns', 1, ?)
+      ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`)
+    .bind(institutionId(c), JSON.stringify(all)).run()
+  return ok({ names: all })
+}
+
+function readColumns(raw: string | null): Record<string, string[]> {
+  if (!raw) return {}
+  try {
+    const v = JSON.parse(raw) as unknown
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+    const out: Record<string, string[]> = {}
+    for (const [k, list] of Object.entries(v as Record<string, unknown>)) {
+      if (Array.isArray(list)) out[k] = list.filter((x): x is string => typeof x === 'string').slice(0, 60)
+    }
+    return out
+  } catch { return {} }
+}
+
+async function saveTableColumns(c: Ctx) {
+  if (!c.id.institution) throw badRequest('this setting belongs to a school account')
+  const req = await readJSON(c.req)
+  const key = s(req.key).trim().slice(0, 300)
+  if (!key) throw badRequest('key is required: which table this is about')
+  const hidden = Array.isArray(req.hidden)
+    ? req.hidden.filter((x: unknown): x is string => typeof x === 'string').map((x) => x.slice(0, 120)).slice(0, 60)
+    : []
+  const r = await c.db.prepare(`SELECT table_columns FROM user_display_preferences WHERE user_id = ?`)
+    .bind(c.id.userId).first<{ table_columns: string | null }>()
+  const all = readColumns(r?.table_columns ?? null)
+  /* Nothing hidden means the table is back to its default, so the key goes
+     rather than sitting there as an empty list for ever. */
+  if (hidden.length) all[key] = hidden
+  else delete all[key]
+  const t = now()
+  await c.db.prepare(`
+      INSERT INTO user_display_preferences (user_id, institution_id, theme, density, reduce_motion, locale, high_contrast, layout, table_columns, updated_at)
+      VALUES (?, ?, 'system', 'comfortable', 0, ?, 0, 'classic', ?, ?)
+      ON CONFLICT (user_id) DO UPDATE SET table_columns = excluded.table_columns, updated_at = excluded.updated_at`)
+    .bind(c.id.userId, institutionId(c), DEFAULT_LOCALE, JSON.stringify(all), t).run()
+  return ok({ columns: all })
 }
 
 // ---------------------------------------------------------------------------
@@ -783,196 +930,6 @@ async function getMyHandRaiseHistory(c: Ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// streaks and badges (student_growth.go)
-
-interface StreakBadge { key: string; title: string; detail: string; group: string; earned: boolean; on?: string }
-interface HomeworkMark { due: string; submitted: string | null }
-
-function streakOf(days: string[], today: string): { current: number; longest: number } {
-  const set = new Set(days)
-  if (set.size === 0) return { current: 0, longest: 0 }
-  const keys = [...set].sort()
-  let run = 0, longest = 0, prev: string | null = null
-  for (const k of keys) {
-    if (prev !== null && ymd(addDays(parseYMD(prev)!, 1)) === k) run++
-    else run = 1
-    if (run > longest) longest = run
-    prev = k
-  }
-  const y = ymd(addDays(parseYMD(today)!, -1))
-  let start = today
-  if (!set.has(today)) {
-    if (!set.has(y)) return { current: 0, longest }
-    start = y
-  }
-  let current = 0
-  let d = parseYMD(start)!
-  while (set.has(ymd(d))) { current++; d = addDays(d, -1) }
-  return { current, longest }
-}
-
-function onTimeStreak(marks: HomeworkMark[], today: string): { streak: number; onTime: number; due: number } {
-  const sorted = [...marks].sort((a, b) => (a.due < b.due ? 1 : a.due > b.due ? -1 : 0))
-  let alive = true, streak = 0, onTime = 0, due = 0
-  for (const m of sorted) {
-    if (m.due > today) continue
-    due++
-    const okay = m.submitted !== null && m.submitted <= m.due
-    if (okay) onTime++
-    if (alive) { if (okay) streak++; else alive = false }
-  }
-  return { streak, onTime, due }
-}
-
-const OPEN_MILESTONES = [3, 7, 14, 30, 60, 100]
-const HOMEWORK_MILESTONES = [5, 10, 25, 50]
-function streakBadges(openLongest: number, homeworkStreak: number): StreakBadge[] {
-  const out: StreakBadge[] = []
-  for (const m of OPEN_MILESTONES) {
-    out.push({ key: `open_${m}`, title: `${m} days in a row`, detail: `Opened the app every day for ${m} days`, group: 'streaks', earned: openLongest >= m })
-  }
-  for (const m of HOMEWORK_MILESTONES) {
-    out.push({ key: `homework_${m}`, title: `${m} on time`, detail: `${m} pieces of homework handed in by the due date, in a row`, group: 'streaks', earned: homeworkStreak >= m })
-  }
-  return out
-}
-
-async function loadStreak(c: Ctx, student: string) {
-  const today = todayIST()
-  const yearAgo = ymd(addDays(parseYMD(today)!, -365))
-  const [, dayRows, hwRows] = await c.db.batch([
-    c.db.prepare(`INSERT OR IGNORE INTO student_activity_days (institution_id, student_id, day) VALUES (?, ?, ?)`)
-      .bind(institutionId(c), student, today),
-    c.db.prepare(`SELECT day FROM student_activity_days WHERE student_id = ?
-                  UNION
-                  SELECT date(se.created_at) FROM sessions se JOIN students st ON st.user_id = se.user_id WHERE st.id = ?`)
-      .bind(student, student),
-    c.db.prepare(`SELECT h.due_on,
-                         (SELECT date(min(hs.submitted_at), '+330 minutes') FROM homework_submissions hs
-                           WHERE hs.homework_id = h.id AND hs.student_id = ? AND hs.submitted_at IS NOT NULL) AS submitted_on
-                    FROM homework h
-                   WHERE h.is_published = 1 AND h.due_on IS NOT NULL
-                     AND h.section_id IN (SELECT e.section_id FROM enrollments e WHERE e.student_id = ?)
-                     AND h.assigned_on >= ?`).bind(student, student, yearAgo),
-  ])
-  const days = (dayRows.results as { day: string | null }[]).map((r) => r.day).filter((d): d is string => !!d).map((d) => d.slice(0, 10))
-  const marks: HomeworkMark[] = (hwRows.results as { due_on: string; submitted_on: string | null }[])
-    .map((r) => ({ due: r.due_on.slice(0, 10), submitted: r.submitted_on }))
-  const { current, longest } = streakOf(days, today)
-  const hw = onTimeStreak(marks, today)
-  const set = new Set(days)
-  const recent: { day: string; opened: boolean }[] = []
-  let daysThisMonth = 0
-  const t = parseYMD(today)!
-  for (let d = addDays(t, -34); d <= t; d = addDays(d, 1)) {
-    const k = ymd(d)
-    recent.push({ day: k, opened: set.has(k) })
-    if (d.getUTCMonth() === t.getUTCMonth() && set.has(k)) daysThisMonth++
-  }
-  let pending = 0
-  for (const m of marks) if (m.due <= today && m.submitted === null) pending++
-  return {
-    student_id: student, today, open_streak: current, open_longest: longest, opened_today: set.has(today),
-    days_this_month: daysThisMonth, homework_streak: hw.streak, homework_on_time: hw.onTime, homework_due: hw.due,
-    homework_pending: pending, recent, badges: streakBadges(longest, hw.streak),
-  }
-}
-
-async function getMyStreak(c: Ctx) {
-  const student = await whichChild(c)
-  return ok(await loadStreak(c, student))
-}
-
-async function getMyBadges(c: Ctx) {
-  const student = await whichChild(c)
-  const rows = await c.db.prepare(`
-      SELECT 'conduct_' || dr.id AS key, dr.category AS title, dr.description AS detail, 'behaviour' AS grp, dr.occurred_on AS on_date
-        FROM discipline_records dr
-       WHERE dr.student_id = ? AND dr.is_positive = 1 AND dr.visible_to_student = 1
-      UNION ALL
-      SELECT 'achievement_' || sa.id, sa.title,
-             ${cws(' · ', "nullif(sa.level, '')", "nullif(sa.\"position\", '')", 'sa.description')},
-             CASE WHEN sa.kind IN ('sport','club','activity') THEN 'activities' ELSE 'academic' END,
-             COALESCE(sa.awarded_on, date(sa.created_at, '+330 minutes'))
-        FROM student_achievements sa
-       WHERE sa.student_id = ?
-      UNION ALL
-      SELECT 'remark_' || sr.id, 'Commended', sr.body, 'academic', sr.observed_on
-        FROM student_remarks sr
-       WHERE sr.student_id = ? AND sr.kind = 'achievement' AND sr.visible_to_family = 1
-      ORDER BY 5 DESC`).bind(student, student, student).all<{ key: string; title: string; detail: string; grp: string; on_date: string }>()
-  const badges: StreakBadge[] = rows.results.map((r) => ({
-    key: r.key, title: r.title, detail: r.detail, group: r.grp, earned: true, on: r.on_date,
-  }))
-  const streak = await loadStreak(c, student)
-  badges.push(...streak.badges)
-  return ok({ student_id: student, earned: badges.filter((b) => b.earned).length, badges })
-}
-
-// ---------------------------------------------------------------------------
-// hall of fame
-
-const HOF_CATEGORIES = new Set(['academic', 'sports', 'arts', 'service', 'other'])
-
-async function listHallOfFame(c: Ctx) {
-  requireAny(c, FEAT_HALL_OF_FAME, ANNOUNCEMENTS_WRITE)
-  const rows = await c.db.prepare(`
-      SELECT e.id, e.category, e.title, e.holder, e.year, e.detail, 'board' AS source
-        FROM hall_of_fame_entries e
-       WHERE e.retired_at IS NULL
-      UNION ALL
-      SELECT sa.id,
-             CASE WHEN sa.kind IN ('sport') THEN 'sports' WHEN sa.kind IN ('club','activity') THEN 'arts' ELSE 'academic' END,
-             sa.title, ${fullName('st')},
-             CAST(strftime('%Y', COALESCE(sa.awarded_on, datetime(sa.created_at, '+330 minutes'))) AS INTEGER),
-             ${cws(' · ', "upper(substr(sa.level, 1, 1)) || lower(substr(sa.level, 2))", "nullif(sa.\"position\", '')", 'sa.description')},
-             'achievement'
-        FROM student_achievements sa
-        JOIN students st ON st.id = sa.student_id
-       WHERE sa.level IN ('state','national','international')
-      ORDER BY 5 DESC NULLS LAST, 3`).all<Record<string, unknown>>()
-  return ok({
-    items: rows.results.map((r) => omitNull({
-      id: r.id, category: r.category, title: r.title, holder: r.holder,
-      year: r.year === null ? null : Number(r.year), detail: r.detail, source: r.source,
-    })),
-  })
-}
-
-async function addHallOfFameEntry(c: Ctx) {
-  const req = await readJSON(c.req)
-  const category = s(req.category).toLowerCase().trim() || 'academic'
-  if (!HOF_CATEGORIES.has(category)) throw badRequest('category must be academic, sports, arts, service or other')
-  const title = s(req.title).trim(), holder = s(req.holder).trim()
-  if (title === '' || blen(title) > 160) throw badRequest('title is required, up to 160 characters')
-  if (holder === '' || blen(holder) > 160) throw badRequest('say whose it is, up to 160 characters')
-  let year: number | null = null
-  if (req.year !== undefined && req.year !== null) {
-    if (typeof req.year !== 'number' || !Number.isInteger(req.year)) throw badRequest('malformed JSON body')
-    if (req.year < 1800 || req.year > 2200) throw badRequest('year must be a four-digit year')
-    year = req.year
-  }
-  const detail = s(req.detail).trim()
-  if (blen(detail) > 1000) throw badRequest('keep the detail under 1000 characters')
-  const studentId = s(req.student_id).trim(), campusId = s(req.campus_id).trim()
-  if (studentId !== '' && !isUUID(studentId)) throw badRequest('student_id must be a uuid')
-  if (campusId !== '' && !isUUID(campusId)) throw badRequest('campus_id must be a uuid')
-  const id = uuid()
-  await c.db.prepare(`INSERT INTO hall_of_fame_entries (id, institution_id, campus_id, category, title, holder, student_id, year, detail, added_by, created_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, nullif(?, ''), ?, ?)`)
-    .bind(id, institutionId(c), campusId || null, category, title, holder, studentId || null, year, detail, c.id.userId, now()).run()
-  return created({ id })
-}
-
-async function retireHallOfFameEntry(c: Ctx) {
-  const entry = pathUUID(c)
-  const res = await c.db.prepare(`UPDATE hall_of_fame_entries SET retired_at = ? WHERE id = ? AND retired_at IS NULL`)
-    .bind(now(), entry).run()
-  if (!res.meta.changes) throw notFound('resource not found')
-  return ok({ id: entry, retired: true })
-}
-
-// ---------------------------------------------------------------------------
 
 export function registerPortalLife(r: Router): void {
   // lost and found: literal claims/... paths before {id}
@@ -993,6 +950,7 @@ export function registerPortalLife(r: Router): void {
   // diary
   r.get('/portal/diary', PERM, getStudentDiary)
   r.get('/portal/diary/notes', PERM, listDiaryNotes)
+  r.get('/portal/planner', PERM, plannerItems)
   r.post('/portal/diary/notes', PERM, createDiaryNote)
   r.post('/portal/diary/notes/{id}', PERM, updateDiaryNote)
   r.del('/portal/diary/notes/{id}', PERM, deleteDiaryNote)
@@ -1000,6 +958,9 @@ export function registerPortalLife(r: Router): void {
   // display preferences
   r.get('/portal/preferences/display', PERM, getDisplayPreferences)
   r.put('/portal/preferences/display', PERM, saveDisplayPreferences)
+  r.get('/portal/preferences/table-columns', PERM, getTableColumns)
+  r.put('/portal/preferences/table-columns', PERM, saveTableColumns)
+  r.put('/portal/preferences/table-column-names', 'institution.settings.write', saveTableColumnNames)
 
   // live classes: literal paths before {id}
   r.get('/portal/live-classes', PERM, listMyLiveClasses)
@@ -1009,11 +970,4 @@ export function registerPortalLife(r: Router): void {
   r.post('/portal/live-classes/{id}/hand', PERM, raiseHand)
   r.post('/portal/live-classes/{id}/hand/lower', PERM, lowerHand)
   r.get('/portal/live-classes/{id}/hands', PERM, listRaisedHands)
-
-  // growth
-  r.get('/portal/learning/streak', FEAT_STREAK, getMyStreak)
-  r.get('/portal/learning/badges', FEAT_BADGES, getMyBadges)
-  r.get('/portal/campus/hall-of-fame', 'auth', listHallOfFame)
-  r.post('/portal/campus/hall-of-fame', ANNOUNCEMENTS_WRITE, addHallOfFameEntry)
-  r.post('/portal/campus/hall-of-fame/{id}/retire', ANNOUNCEMENTS_WRITE, retireHallOfFameEntry)
 }

@@ -137,6 +137,15 @@ async function saveGroup(c: Ctx, existing: string): Promise<Response> {
   return ok({ id, name })
 }
 
+/** The employee ids in a staff group, hand-picked and by its rules (used by the school calendar). */
+export async function staffGroupMemberIds(db: D1Database, gid: string): Promise<Set<string>> {
+  const g = await db.prepare(`SELECT kind, rules FROM person_groups WHERE id = ?`).bind(gid).first<{ kind: string; rules: string }>()
+  if (!g || g.kind !== 'staff') return new Set()
+  const built = buildRules(g.kind, rulesOf(g.rules))
+  const rows = await db.prepare(memberQuery(g.kind, built.sql ? ' OR ' + built.sql : '')).bind(gid, ...built.args).all<{ id: string }>()
+  return new Set(rows.results.map((x) => String(x.id)))
+}
+
 export function registerPeople(r: Router) {
   /* searchPeople: children, parents and colleagues in one ranked list. Two
      characters minimum; fewer is an empty list, not a 400. */

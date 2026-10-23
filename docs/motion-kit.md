@@ -163,3 +163,31 @@ edit is optional; the kit works without them.
   `ref={swipe}` and `m-swipe` in the row's className.
 
 `web/src/index.css` — none.
+
+## Part C — nothing is cut off part-way (2026-10)
+
+The owner: "smooth continuous animation, no breaking in the middle". What
+broke, and the kit-level rule that now prevents it:
+
+| Break | Rule now |
+| --- | --- |
+| Menus, popovers, the launcher, notifications, search and card menus vanished in one frame on close (rendered as `{open && ...}`) | `installMotionGuard()` (lib/motion.ts, called from main.tsx) puts an inert copy (`[data-ghost]`: no pointer, no focus, aria-hidden) back for the exit and removes it after. A surface with its own exit sets `data-closing` (usePresence) and is left alone; `data-no-exit` opts out |
+| Closed while still opening: the exit keyframe restarted from full | When `data-closing` flips, the guard rewrites the exit's first frame to the values the entrance had reached; a ghost of a half-open surface leaves from half-way |
+| A second view transition (Focus/Work pressed twice, Back during a card opening) skipped the first to its end | One crossing at a time: `crossfade`, `transitioned` and `containerTransform` commit inside a crossing already running |
+| Notifications drawer unmounted when a row's entrance ended (animationend bubbles) | Only the drawer's own animationend ends it |
+| Drag/swipe dismiss fired on a guessed timer, part-way down | `afterMotion(el, done)`: on the element's own transitionend, timer as a fallback |
+| Exit longer than the time the surface stayed mounted | Tokens `--motion-exit` (160ms) and `--motion-exit-sheet` (220ms), both under `EXIT_MS` (240ms) in usePresence |
+| Sliding thumb drifted on window resize and snapped when a tab was added in the same update | Slides only on a change of selection or a move within a row of the same width; a resize re-places it in one step; unchanged measurements are ignored |
+| Hover lean on rail/dock icons was a keyframe on `:hover`, cancelled mid-tilt when the pointer left | A transition, which turns round from where it is |
+| Fetch bar band snapped to its start while fading out | The sweep is paused, not removed |
+| Skeleton sweep seam every 1.9s (band still on screen at loop end) | Ends off screen, linear |
+| Loops running in a hidden tab | `html[data-tab-hidden]` pauses every animation |
+| `will-change` held on sheets and the large title at rest | Only while dragging |
+| Progress bars and the upload bar animated `width`; `transition-all` on rows | `scaleX` from the left; explicit property lists |
+| Focus fell to the page after the launcher or the search palette closed | `restoreFocus(opener)`; the palette refocuses its button |
+
+Dev only: `window.__motionAudit()` lists animations that were cancelled, cut
+by an unmount, jumped between frames (judged on each animation's own clock
+and travel; a frame over 100ms is reported as jank instead), replayed on one
+element, animated a layout property, or ran over 600ms.
+`window.__motionAudit.reset()` empties it. Tests: `lib/motion.test.ts`.

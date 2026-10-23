@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge, PrintButton, ConfirmButton,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -644,8 +644,30 @@ export default function Applications() {
             <CardHeader
               title={`${open.name} · ${open.application_no}`}
               description={`${open.class_sought ?? 'Class not set'} · parent ${open.parent_name}`}
-              action={<Button variant="ghost" onClick={() => setOpen(null)}>Close</Button>}
+              action={<div className="flex gap-2">
+                {/* The application as a paper the office can file or hand over. */}
+                <PrintButton label="Print" scope="card" title="Application form" subtitle={`${open.name} · ${open.class_sought ?? ''}`} docNo={open.application_no} />
+                <Button variant="ghost" onClick={() => setOpen(null)}>Close</Button>
+              </div>}
             />
+
+            {/* The applicant's particulars: what the printed form is filed for. */}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b px-[var(--card-pad)] py-4 text-[13px] sm:grid-cols-4">
+              {([
+                ['Applicant', open.name],
+                ['Class sought', open.class_sought ?? '-'],
+                ['Parent / guardian', open.parent_name || '-'],
+                ['Phone', open.parent_phone || '-'],
+                ['Applied on', new Date(open.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })],
+                ['RTE seat', open.is_rte ? 'Yes' : 'No'],
+                ['Form fee', open.form_fee_paise == null ? 'None' : `₹${(open.form_fee_paise / 100).toLocaleString('en-IN')}${open.form_fee_paid_at ? ' · paid' : ' · unpaid'}`],
+                /* From the refreshed list, not the copy taken when the panel opened:
+                   verifying a document left this at '1 of 4' (2026-10-12). */
+                ...((() => { const live = (apps.data?.items ?? []).find((x) => x.id === open.id) ?? open; return [['Documents', `${live.docs_verified} of ${live.docs_required} verified${live.docs_rejected ? `, ${live.docs_rejected} rejected` : ''}`]] as const })()),
+              ] as const).map(([k, v]) => (
+                <div key={k}><dt className="text-[11.5px] text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
+              ))}
+            </dl>
 
             {/* Where this applicant has got to. A ladder read left to right
                 says more than a status word on its own. */}
@@ -748,9 +770,12 @@ export default function Applications() {
                   <div className="border-t pt-5">
                     <p className="eyebrow mb-2">Decision</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button disabled={decide.isPending} onClick={() => decide.mutate({ decision: 'offered' })}>
+                      {/* Asked once (2026-10-12): one click offered a seat to the family. */}
+                      <ConfirmButton variant="primary" size="md" disabled={decide.isPending} confirmLabel="Offer the place"
+                        question={`Offer ${open.name} a place in ${open.class_sought ?? 'this class'}? They move to Fee & enrolment.`}
+                        onConfirm={() => decide.mutate({ decision: 'offered' })}>
                         Offer a place
-                      </Button>
+                      </ConfirmButton>
                       <Button variant="secondary" disabled={decide.isPending}
                         onClick={() => decide.mutate({ decision: 'waitlisted' })}>
                         Waitlist

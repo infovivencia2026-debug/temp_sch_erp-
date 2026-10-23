@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Film, Sparkles } from 'lucide-react'
+import { ChevronLeft, Film, Plus, Sparkles, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, Dialog, EmptyState, ErrorState, Field, FormNotice, Input, Loading, PageBody, PageHead, Select, Table, Td, Textarea,
@@ -19,8 +19,8 @@ import { CourseProgress, Modules, type CourseDetail, type Tab, type TAssignment,
    every timed MCQ quiz with an optional AI draft from a lesson. */
 
 interface Course {
-  section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string; teacher?: string | null
-  units: number; lessons: number; assignments: number; to_mark: number; quizzes: number; roll: number
+  section_id: string; section_name: string; class_id: string; class_name: string; class_subject_id: string; subject: string; teacher?: string | null
+  layout: Layout; units: number; lessons: number; assignments: number; to_mark: number; quizzes: number; roll: number
 }
 
 export default function TeacherLMS() {
@@ -31,36 +31,220 @@ export default function TeacherLMS() {
   return <CourseList onOpen={setOpen} onVideos={() => setVideos(true)} />
 }
 
+export type Layout = 'topic_day' | 'day' | 'topic'
+export const LAYOUTS: { value: Layout; label: string; hint: string }[] = [
+  { value: 'topic_day', label: 'Topics, then days', hint: 'Topics, each with its own days of videos and work.' },
+  { value: 'day', label: 'Day by day', hint: 'Day 1, Day 2, ... with videos on each day. No topics.' },
+  { value: 'topic', label: 'Topic by topic', hint: 'Topics with their videos. No days.' },
+]
+interface Options { classes: { id: string; name: string }[]; sections: { id: string; class_id: string; name: string }[]; subjects: { id: string; class_id: string; name: string }[] }
+
 function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; class_subject_id: string }) => void; onVideos: () => void }) {
+  const qc = useQueryClient()
   const q = useQuery({ queryKey: ['lms-courses'], queryFn: () => api.get<{ items: Course[] }>('/api/v1/lms/courses') })
-  const [filter, setFilter] = useState('')
-  const items = (q.data?.items ?? []).filter((c) => !filter || `${c.class_name} ${c.section_name} ${c.subject}`.toLowerCase().includes(filter.toLowerCase()))
+  /* Only the LMS Admin may add courses; the options call says who that is. */
+  const opts = useQuery({ queryKey: ['lms-course-options'], queryFn: () => api.get<Options>('/api/v1/lms/courses/options'), retry: false })
+  const admin = !!opts.data
+  const [cls, setCls] = useState('')
+  const [sec, setSec] = useState('')
+  const [adding, setAdding] = useState(false)
+  const all = q.data?.items ?? []
+  const classes = [...new Map(all.map((c) => [c.class_id, c.class_name])).entries()]
+  const sections = [...new Map(all.filter((c) => c.class_id === cls).map((c) => [c.section_id, c.section_name])).entries()]
+  const items = all.filter((c) => (!cls || c.class_id === cls) && (!sec || c.section_id === sec))
+  const remove = useMutation({
+    mutationFn: (c: Course) => api.del(`/api/v1/lms/courses?section_id=${c.section_id}&class_subject_id=${c.class_subject_id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lms-courses'] }),
+  })
   return (
     <>
-      <PageHead eyebrow="LMS" title="Courses" actions={<Button variant="secondary" onClick={onVideos}><Film className="h-4 w-4" /> Video library</Button>} />
+      <PageHead eyebrow="LMS" title="Courses" actions={<div className="flex flex-wrap gap-2">
+        {admin && <Button onClick={() => setAdding(!adding)}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> Add course</>}</Button>}
+        <Button variant="secondary" onClick={onVideos}><Film className="h-4 w-4" /> Video library</Button>
+      </div>} />
       <PageBody>
-        {q.error ? <ErrorState error={q.error} /> : q.isLoading ? <Loading /> : !q.data?.items.length ? (
-          <EmptyState title="No courses yet" body="A course appears for every subject you teach in a section. Ask the office to allocate your subjects." />
-        ) : (
-          <Card>
-            <CardHeader title={`${q.data.items.length} courses`} action={<div className="w-64"><Input value={filter} onChange={setFilter} placeholder="Find a class or subject" /></div>} />
-            <Table head={['Course', 'Teacher', 'Lessons', 'Assignments', 'To mark', 'Quizzes', '']}>
-              {items.map((c) => (
-                <tr key={c.section_id + c.class_subject_id}>
-                  <Td><button type="button" className="font-medium text-primary hover:underline" onClick={() => onOpen(c)}>{c.subject} · {c.class_name} {c.section_name}</button></Td>
-                  <Td>{c.teacher ?? '—'}</Td>
-                  <Td>{c.lessons} in {c.units} units</Td>
-                  <Td>{c.assignments}</Td>
-                  <Td>{c.to_mark ? <Badge tone="warning">{c.to_mark}</Badge> : '0'}</Td>
-                  <Td>{c.quizzes}</Td>
-                  <Td><Button size="sm" variant="secondary" onClick={() => onOpen(c)}>Open</Button></Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
-        )}
+        <div className="space-y-4">
+          {adding && opts.data && <Card><AddCourse o={opts.data} cls={cls} sec={sec} done={() => { setAdding(false); qc.invalidateQueries({ queryKey: ['lms-courses'] }) }} /></Card>}
+          {q.error ? <ErrorState error={q.error} /> : q.isLoading ? <Loading /> : !all.length ? (
+            admin
+              ? <EmptyState title="No courses yet" body="Press Add course, pick a class, its sections and a subject, then choose how it is laid out: topics and days, days only, or topics only." />
+              : <EmptyState title="No courses yet" body="A course appears for every subject you teach in a section. Ask the office to allocate your subjects." />
+          ) : (
+            <Card>
+              <CardHeader title={(() => {
+                /* Courses, not section copies: the number above the table
+                   has to agree with the rows under it. */
+                const n = new Set(items.map((c) => c.class_subject_id)).size
+                return `${n} course${n === 1 ? '' : 's'}`
+              })()} action={<div className="flex flex-wrap gap-2">
+                <div className="w-44"><Select value={cls} onChange={(v) => { setCls(v); setSec('') }} placeholder="Every class" options={[{ value: '', label: 'Every class' }, ...classes.map(([id, name]) => ({ value: id, label: name }))]} /></div>
+                {cls && <div className="w-36"><Select value={sec} onChange={setSec} placeholder="Every section" options={[{ value: '', label: 'Every section' }, ...sections.map(([id, name]) => ({ value: id, label: `Section ${name}` }))]} /></div>}
+              </div>} />
+              {/* ONE COURSE, ONE ROW (owner, 2026-10-10: "let them apply
+                  once why twice ?").
+
+                  A course is stored per section, because that is what it
+                  is: Grade 6 A and Grade 6 B each have their own copy of
+                  the progress, the roll and the order. The LIST was showing
+                  that storage -- "Robotics · Grade 6 A", "Robotics · Grade
+                  6 B" -- so adding one course to two sections read as
+                  having added it twice.
+
+                  The rows are grouped by subject and class now, and the
+                  sections appear under the name. Add once, see one row,
+                  which is what the Add form already promised by letting
+                  several sections be ticked at a time.
+
+                  Layout is per section underneath, so a course where two
+                  sections were set up differently says "Mixed" rather than
+                  quietly showing one of them. Open goes to the first
+                  section; Remove takes the whole course off, naming the
+                  sections in the question so nobody removes two by
+                  pressing once. */}
+              {(() => {
+                const groups = new Map<string, { key: string; subject: string; className: string; teacher: string | null; rows: typeof items }>()
+                for (const c of items) {
+                  const key = c.class_subject_id
+                  const g = groups.get(key)
+                  if (g) g.rows.push(c)
+                  else groups.set(key, { key, subject: c.subject, className: c.class_name, teacher: c.teacher ?? null, rows: [c] })
+                }
+                const list = [...groups.values()]
+                return (
+                  <Table head={['Course', 'Layout', '']} empty={!list.length} emptyLabel="No course in this class or section yet.">
+                    {list.map((g) => {
+                      const first = g.rows[0]
+                      const layouts = new Set(g.rows.map((r) => r.layout))
+                      const label = layouts.size > 1
+                        ? 'Mixed'
+                        : LAYOUTS.find((l) => l.value === first.layout)?.label ?? LAYOUTS[0].label
+                      const secNames = g.rows.map((r) => r.section_name).join(', ')
+                      return (
+                        <tr key={g.key}>
+                          <Td>
+                            <button type="button" className="font-medium text-primary hover:underline" onClick={() => onOpen(first)}>{g.subject} · {g.className}</button>
+                            <span className="block text-[12.5px] text-muted-foreground">
+                              {g.rows.length === 1 ? `Section ${secNames}` : `${g.rows.length} sections · ${secNames}`}
+                            </span>
+                          </Td>
+                          {/* No teacher column: the LMS is the school's extra courses, run by the office, not a teacher's (owner, 2026-10-12). */}
+                          <Td>{label}</Td>
+                          <Td>
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="secondary" onClick={() => onOpen(first)}>Open</Button>
+                              {admin && (
+                                <Button size="sm" variant="ghost" pending={remove.isPending}
+                                  onClick={() => {
+                                    const q = g.rows.length === 1
+                                      ? `Take ${g.subject} · ${g.className} ${secNames} off the list?`
+                                      : `Take ${g.subject} · ${g.className} off the list for all ${g.rows.length} sections (${secNames})?`
+                                    if (window.confirm(`${q} Nothing in it is deleted; adding it again brings it back.`)) {
+                                      for (const r of g.rows) remove.mutate(r)
+                                    }
+                                  }}>Remove</Button>
+                              )}
+                            </div>
+                          </Td>
+                        </tr>
+                      )
+                    })}
+                  </Table>
+                )
+              })()}
+              <FormNotice error={remove.error} />
+            </Card>
+          )}
+        </div>
       </PageBody>
     </>
+  )
+}
+
+function AddCourse({ o, cls: cls0, sec: sec0, done }: { o: Options; cls: string; sec: string; done: () => void }) {
+  const [cls, setCls] = useState(cls0)
+  const [secs, setSecs] = useState<string[]>(sec0 ? [sec0] : [])
+  const [subject, setSubject] = useState('')
+  /* A COURSE THE SCHOOL DOES NOT TEACH (owner, 2026-10-10: "let them choose
+     any course make it editable").
+
+     The picker offered the class's own subjects and nothing else, so typing
+     "AI" answered "Nothing matches that. This list only takes one of its
+     own" -- on the screen whose whole purpose is courses that are NOT
+     taught in class. Robotics had to be put into the database by hand for
+     exactly that reason.
+
+     Two ways in now, and only one of them is on screen at a time: pick one
+     of the class's subjects, or name a new one. The server creates the
+     subject against the class as an elective with no periods, so a course
+     cannot start claiming periods in the timetable. */
+  const [named, setNamed] = useState('')
+  const [newCourse, setNewCourse] = useState(false)
+  const [layout, setLayout] = useState<Layout>('topic_day')
+  const sections = o.sections.filter((x) => x.class_id === cls)
+  const subjects = o.subjects.filter((x) => x.class_id === cls)
+  const save = useMutation({
+    /* THE CLASS IS THE ONE ON SCREEN, NOT ONE WORKED OUT AFTERWARDS
+       (tester, 2026-10-10: picked Grade 6, named "Chess", and got
+       "Chess · Nursery").
+
+       A named course sent only the name and the sections and left the server
+       to find the class by looking the sections up. That is an inference, and
+       an inference can disagree with the field the person actually set --
+       which is exactly what happened: the form said Grade 6 and the course
+       was created under another class, with nothing on screen to warn them.
+
+       The class now travels with the request. The server checks the sections
+       belong to it and refuses the pair outright if they do not, so a course
+       either lands in the class the form named or does not land at all. */
+    mutationFn: () => api.post('/api/v1/lms/courses', newCourse
+      ? { subject_name: named.trim(), class_id: cls, section_ids: secs, layout }
+      : { class_subject_id: subject, section_ids: secs, layout }),
+    onSuccess: done,
+  })
+  const toggle = (id: string) => setSecs(secs.includes(id) ? secs.filter((x) => x !== id) : [...secs, id])
+  return (
+    <div className="space-y-4 px-[var(--card-pad)] py-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Class" required><Select value={cls} onChange={(v) => { setCls(v); setSecs([]); setSubject('') }} placeholder="Choose a class" options={o.classes.map((c) => ({ value: c.id, label: c.name }))} /></Field>
+        <Field label={newCourse ? 'New course' : 'Subject'} required
+          hint={newCourse
+            /* Naming the class in the hint: the field above holds it, but a
+               person typing a course name is looking at this box, and this is
+               where the mistake was made. */
+            ? `Any name — Robotics, AI, Chess. Added to ${o.classes.find((c) => c.id === cls)?.name ?? 'this class'} as a course, not a timetabled subject.`
+            : undefined}>
+          {newCourse
+            ? <Input value={named} onChange={setNamed} placeholder="Name the course" />
+            : <Select value={subject} onChange={setSubject} placeholder={cls ? 'Choose a subject' : 'Choose a class first'} options={subjects.map((x) => ({ value: x.id, label: x.name }))} />}
+          <button type="button"
+            onClick={() => { setNewCourse(!newCourse); setSubject(''); setNamed('') }}
+            className="mt-1.5 text-[13px] font-medium text-primary underline-offset-2 hover:underline">
+            {newCourse ? 'Pick one of this class\u2019s subjects instead' : 'Not in the list? Name a new course'}
+          </button>
+        </Field>
+      </div>
+      {cls && (
+        <Field label="Sections" hint="One section, a few, or all of them.">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={secs.length === sections.length && sections.length ? 'primary' : 'secondary'} onClick={() => setSecs(secs.length === sections.length ? [] : sections.map((x) => x.id))}>All sections</Button>
+            {sections.map((x) => <Button key={x.id} size="sm" variant={secs.includes(x.id) ? 'primary' : 'secondary'} onClick={() => toggle(x.id)}>Section {x.name}</Button>)}
+          </div>
+        </Field>
+      )}
+      <Field label="How is it laid out?">
+        <div className="grid gap-2 sm:grid-cols-3">
+          {LAYOUTS.map((l) => (
+            <button key={l.value} type="button" aria-pressed={layout === l.value} onClick={() => setLayout(l.value)}
+              className={`rounded-lg border p-3 text-left ${layout === l.value ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}>
+              <span className="block text-[14px] font-medium">{l.label}</span>
+              <span className="block text-[13px] text-muted-foreground">{l.hint}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
+      <FormNotice error={save.error} />
+      <Button disabled={(newCourse ? !named.trim() : !subject) || !secs.length} pending={save.isPending} onClick={() => save.mutate()}>Add course{secs.length > 1 ? ` to ${secs.length} sections` : ''}</Button>
+    </div>
   )
 }
 
@@ -80,7 +264,8 @@ function CourseView({ k, back }: { k: { section_id: string; class_subject_id: st
         {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : (
           <div className="space-y-4">
             <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="tablist">
-              {(['modules', 'progress', 'assignments', 'quizzes'] as const).map((t) => (
+              {/* Videos and progress only (owner, 2026-10-10: 'no need of quiz and assignments'). */}
+              {(['modules', 'progress'] as const).map((t) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`min-h-10 shrink-0 whitespace-nowrap rounded px-3.5 text-[14px] font-medium ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                   {t === 'modules' ? `Modules (${d.units.filter((u) => u.is_active !== false && !u.parent_unit_id).length})` : t === 'progress' ? 'Progress' : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}

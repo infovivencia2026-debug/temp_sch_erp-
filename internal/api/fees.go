@@ -1084,10 +1084,14 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				            is the admission invoice's own and never a term's. */
 				         COALESCE((
 				           SELECT GREATEST(
-				                    COALESCE(max(fc.amount_paise)
-				                               FILTER (WHERE fc.fee_head_id = l.fee_head_id), 0),
-				                    COALESCE(max(round(l.amount_paise * fc.percent / 100.0))::bigint
-				                               FILTER (WHERE fc.percent IS NOT NULL), 0))
+				                    /* CASE inside the aggregate, not FILTER: the
+				                       cast sat between max() and FILTER, which is a
+				                       syntax error, and CASE reads the same everywhere. */
+				                    COALESCE(max(CASE WHEN fc.fee_head_id = l.fee_head_id
+				                                      THEN fc.amount_paise END), 0),
+				                    COALESCE(max(CASE WHEN fc.percent IS NOT NULL
+				                                      THEN round(l.amount_paise * fc.percent / 100.0)
+				                                 END)::bigint, 0))
 				             FROM fee_concessions fc
 				            WHERE fc.student_id = $3
 				              AND fc.academic_year_id = $4

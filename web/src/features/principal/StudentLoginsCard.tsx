@@ -1,3 +1,4 @@
+import { printHtml } from '@/features/finance/receipt-print'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -72,12 +73,11 @@ export function downloadLogins(rows: Row[], stem: string, kind: 'students' | 'gu
 }
 
 export function printSlips(rows: Row[], title: string) {
-  const w = window.open('', '_blank')
-  if (!w) return
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!)
   const site = window.location.origin
-  w.document.write(`<!doctype html><title>${esc(title)}</title><style>
-    body{font:13px system-ui,sans-serif;margin:16px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* Printed from a hidden frame: a new tab is blocked on phones and in the app. Inter, like every print. */
+  printHtml(`<!doctype html><title>${esc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap"><style>
+    body{font:13px Inter,system-ui,sans-serif;margin:16px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .s{border:1px dashed #888;padding:10px 12px;break-inside:avoid}.n{font-weight:600;font-size:14px}
     .k{font-family:ui-monospace,monospace;font-size:15px}.m{color:#555;font-size:11px}
     @media print{h1{display:none}}</style>
@@ -88,11 +88,6 @@ export function printSlips(rows: Row[], title: string) {
     <div class="m">Sign in at ${esc(site)}. You will choose your own password the first time.</div>`
       : `<div>Password: <span class="m">${esc(passwordOrNote(r))}</span></div>
     <div class="m">Sign in at ${esc(site)}.</div>`}</div>`).join('')}</div>`)
-  w.document.close()
-  w.focus()
-  /* Printed or cancelled: the tab closes, back to where Print was pressed. */
-  w.addEventListener('afterprint', () => { try { w.close() } catch { /* already closed */ } })
-  w.print()
 }
 
 /* policyOnly: the class picker below is a second copy of the one on the roll

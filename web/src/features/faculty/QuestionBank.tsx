@@ -1,3 +1,4 @@
+import { EmbeddedBody, EmbeddedHead } from '../exams/embedded'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Library, Plus, Sparkles } from 'lucide-react'
@@ -22,7 +23,9 @@ import {
    enough hard ones", and "is this paper all recall". The summary answers the
    last two at a glance; without it a bank is a list nobody audits. */
 
-export default function QuestionBank() {
+export default function QuestionBank({ embedded = false }: { embedded?: boolean } = {}) {
+  const Head = embedded ? EmbeddedHead : PageHead
+  const Body = embedded ? EmbeddedBody : PageBody
   const [composing, setComposing] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [subject, setSubject] = useState('')
@@ -77,7 +80,7 @@ export default function QuestionBank() {
 
   return (
     <>
-      <PageHead
+      <Head
         eyebrow="Question papers & online tests"
         title="Question bank"
         description="Questions tagged by chapter, difficulty and Bloom's level, ready to build a paper from."
@@ -94,7 +97,7 @@ export default function QuestionBank() {
           </>
         }
       />
-      <PageBody>
+      <Body>
         <CellGrid cols={3}>
           <Stat label="Questions banked" value={total} icon={Library} />
           <Stat
@@ -179,7 +182,7 @@ export default function QuestionBank() {
             />
           ) : (
             <>
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
               <SearchBox value={term} onChange={setTerm} placeholder="Stem, chapter or subject" />
               <Showing shown={shown.length} total={rows.length} noun="questions" />
               <ExportRows
@@ -233,7 +236,7 @@ export default function QuestionBank() {
             </>
           )}
         </Card>
-      </PageBody>
+      </Body>
     </>
   )
 }

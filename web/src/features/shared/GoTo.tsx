@@ -96,6 +96,9 @@ export default function GoTo() {
       remarks: ['child_remarks', 'teacher_remarks', 'class_teacher_remarks'],
       staff_records: ['staff_groups_lists', 'staff_360', 'staff_overview'],
       homework: ['homework_academics', 'homework_classwork', 'homework_assignments'],
+      // Courses / subjects was retired into the LMS (2026-10-10); lesson and homework notifications sent before then still say it.
+      courses_subjects: ['e_learning_resource_hub', 'courses', 'homework_assignments'],
+      e_learning_resource_hub: ['courses'],
     }
     /* A parent's Messages screen is a hub of tabs and opens on Circulars. A
        link to a teacher conversation, written before the hub existed, must

@@ -1065,6 +1065,9 @@ html.dark[data-skin='focus'] .bento-dock {
    spring that is delightful on the first open is a twitch by the hundredth. */
 [data-layout='bento'] {
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  /* easeOutCubic: no front load, no overshoot. For things that swell and
+     settle under a pointer rather than arrive from somewhere else. */
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   /* Slower, and eased so the slowness reads as weight rather than lag.
 
@@ -1149,15 +1152,35 @@ html.dark[data-skin='focus'] .bento-dock {
    about 1.5; here it is 1.12, because these are 17px glyphs in a bar somebody
    crosses on the way to something else, not a dock they are aiming at. */
 [data-layout='bento'] .bento-dock button {
-  transition: background-color var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-out);
+  /* THE CURVE, AND WHICH HALF OF THE MOVE IT IS ON (owner, 2026-10-09:
+     "when curser moves from them there moving is very harsh make it VERYY
+     SMOTHHHHHH").
+
+     --ease-out here is cubic-bezier(0.32, 0.72, 0, 1), which spends almost
+     all its travel in the first third and then creeps. That is the right
+     curve for a panel arriving from somewhere -- it is the settings window's
+     curve -- and the wrong one for an icon swelling under a pointer: run a
+     cursor along a column of twelve and each one snaps up and snaps back,
+     which is the harshness. A plain ease-out cubic has no such front load
+     and reads as the icons breathing.
+
+     And the return is the half that was really at fault. Both halves shared
+     one 200ms, so leaving was as abrupt as arriving, and crossing the row
+     quickly left a trail of icons all snapping down at once. The base rule
+     is the RETURN, so it is the longer of the two; the hover rule shortens
+     it for the way up. Slower out than in is what makes a thing feel
+     unhurried without feeling slow to respond. */
+  transition: background-color 220ms var(--ease-soft),
+              color 220ms var(--ease-soft),
+              transform 340ms var(--ease-soft);
+  will-change: transform;
 }
 /* Only for a pointer that hovers: on a touchscreen this stuck to the last
    tapped tab. */
 @media (hover: hover) {
   [data-layout='bento'] .bento-dock button:hover {
     transform: scale(1.12);
+    transition-duration: 200ms;
   }
 }
 [data-layout='bento'] .bento-dock button:active {
@@ -3658,11 +3681,9 @@ html:not(.dark)[data-layout='bento'] {
    (bento-kit.tsx), so nothing here has to out-rank an inline declaration.
    A colour a person PICKED is not touched: the widget wrapper repoints
    --bento-card and --bento-ink to that colour, and these resolve to it. */
-[data-layout='bento'] .bento-cell[data-domain]:has([data-card][data-quiet]) {
-  --quiet-bg: var(--bento-card);
-  --quiet-ink: var(--bento-ink);
-  --quiet-line: var(--bento-line);
-}
+/* Off (owner, 2026-10-09): a zero card drew in colour, then flipped to
+   white once its drawing reported, which read as a colour flash. Cards keep
+   their colour. */
 
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -4779,5 +4800,267 @@ html:not([data-layout='bento']) [data-settings-page] {
   [data-layout='bento'] .bento-board[data-pager] {
     flex: 0 0 auto;
     height: var(--board-h, auto);
+  }
+}
+
+/* The assistant covers the board on a phone; its page dots stayed on top of
+   the chat (owner, 2026-10-07: "why do I see the dots there"). */
+html[data-assistant-open] .bento-dots { display: none !important; }
+
+/* CUSTOMISE, THE WAY A PHONE HOME SCREEN DOES IT (owner, 2026-10-08:
+   "follow modern industry UI standards"). The remove control is a small
+   badge sitting ON the card's top-left corner, half outside it, so it never
+   covers the title; the size control is a compact chip in the bottom-right
+   corner. Both keep a full fingertip target through ::before. */
+[data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove {
+  top: 8px !important;
+  left: auto !important;
+  right: 8px !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  z-index: 6;
+  border: 0 !important;
+  background: color-mix(in srgb, var(--bento-ink) 72%, transparent) !important;
+  color: var(--bento-pop-bg) !important;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .25) !important;
+}
+[data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove svg { width: 12px; height: 12px; }
+[data-layout='bento'] .bento-widget[data-editing] .bento-sizebtn {
+  right: 8px !important;
+  bottom: 8px !important;
+  height: 24px !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 6px !important;
+  font-size: 11px !important;
+  z-index: 6;
+}
+[data-layout='bento'] .bento-widget[data-editing] .bento-sizebtn svg { width: 14px; height: 14px; }
+[data-layout='bento'] .bento-widget[data-editing] .bento-edit__remove::before,
+[data-layout='bento'] .bento-widget[data-editing] .bento-sizebtn::before {
+  content: ''; position: absolute; inset: -10px;
+}
+/* The card's frame must not clip the badge that hangs over its corner. */
+[data-layout='bento'] .bento-widget[data-editing] { overflow: visible !important; }
+
+
+/* SETTINGS CARDS (owner, 2026-10-08: the see-through window was wrong;
+   "it should be like that" -- a solid white window, light grouped cards,
+   compact rows, each slider on the right of its own row). */
+.settings-glass {
+  background: color-mix(in srgb, var(--bento-card, hsl(var(--card))) 97%, hsl(var(--muted)));
+  border: 1px solid color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 10%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .04);
+}
+[data-appearance-dialog] {
+  background: var(--bento-card, hsl(var(--card))) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px -15px rgb(0 0 0 / .35) !important;
+}
+[data-settings-group] + [data-settings-group],
+[data-settings-group] + * [data-settings-group] { margin-top: 16px; }
+/* A slider sits on its own row's right, a fixed 220px with its value after
+   it, on anything wider than a phone. */
+@media (min-width: 768px) {
+  [data-slider-row] { display: grid !important; grid-template-columns: minmax(0, 1fr) 220px 48px; align-items: center; column-gap: 12px; }
+  [data-slider-row] > span:first-child { display: contents; }
+  [data-slider-row] > span:first-child > span:first-child { order: 1; }
+  [data-slider-row] > span:first-child > span:nth-child(2) { order: 3; text-align: right; font-size: 13px; font-weight: 600; }
+  [data-slider-row] > input { order: 2; width: 220px; }
+  [data-slider-row] > span:last-child:not(:first-child) { grid-column: 1 / -1; order: 4; }
+}
+@media (min-width: 768px) {
+  [data-slider-row] > input[type='range']::-webkit-slider-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
+  [data-slider-row] > input[type='range']::-moz-range-thumb { background: var(--sel-strong, hsl(var(--primary))) !important; border: 0 !important; width: 18px; height: 18px; }
+}
+/* On a phone the cards are plain white on the grey page, as iOS draws them. */
+@media (max-width: 767px) {
+  .settings-glass { background: var(--bento-card, hsl(var(--card))) !important; border-color: transparent !important; box-shadow: 0 0.5px 1px rgb(0 0 0 / .05) !important; }
+}
+
+/* The settings window sits in the middle with room above and below it
+   (owner, 2026-10-08: "touching top, looks ugly"). */
+@media (min-width: 640px) {
+  [data-appearance-dialog] { height: min(80vh, 720px) !important; max-height: calc(100vh - 96px) !important; margin-block: auto !important; }
+}
+/* Phone settings pages: cards sit 16px in from the screen edge, as iOS's do. */
+@media (max-width: 767px) {
+  [data-settings-group] { margin-inline: 16px; }
+}
+/* THE SLIDER IS A LINE AND A KNOB, at every text size (owner, 2026-10-08:
+   at 118% the track became a thick bar). The band is fixed in pixels, so the
+   painted track stays 6px whatever the root font is scaled to. */
+[data-slider-row] > input[type='range'] {
+  height: 28px !important;
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+  border-radius: 3px / 14px !important;
+  margin-top: 0 !important;
+}
+/* PHONE SETTINGS ARE GREY TO THE BOTTOM, as iOS draws them (owner,
+   2026-10-08: the page went plain white under the last card). The panel
+   fills the screen, and the page under it is painted the same grey. */
+@media (max-width: 767px) {
+  .settings-screen { min-height: 0; }
+  /* No rubber-band on a Settings screen that has nothing to scroll (iOS). */
+  main:has(.settings-screen), html:has(.settings-screen), body:has(.settings-screen) { overscroll-behavior-y: none; }
+  .settings-screen ~ *, main:has(.settings-screen), body:has(.settings-screen) {
+    background: color-mix(in srgb, hsl(var(--muted)) 75%, var(--bento-card, hsl(var(--card)))) !important;
+  }
+  .settings-screen .pt-\[4px\] { padding-bottom: 16px; }
+}
+
+/* THE iOS APP-LAUNCH MORPH, BOTH WAYS (owner, 2026-10-08: "very smooth and
+   clean, and closing like that too"). Settings grows out of the point that
+   opened it and shrinks back into the same point when it closes, on Apple's
+   own spring-like curve. Only transform and opacity animate, so it runs on
+   the compositor and stays smooth on a cheap phone. --launch-x/y are frozen
+   at open (lib/launch-morph.ts). */
+@keyframes ios-launch {
+  from {
+    transform: translate(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh)) scale(0.06);
+    opacity: 0;
+  }
+  25% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes ios-close {
+  from { transform: none; opacity: 1; }
+  75% { opacity: 1; }
+  to {
+    transform: translate(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh)) scale(0.06);
+    opacity: 0;
+  }
+}
+@keyframes ios-dim-out { to { opacity: 0; } }
+[data-appearance-dialog][data-launching] {
+  animation: ios-launch 440ms cubic-bezier(0.32, 0.72, 0, 1) both !important;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+[data-appearance-dialog][data-closing] {
+  animation: ios-close 340ms cubic-bezier(0.32, 0.72, 0, 1) both !important;
+  pointer-events: none;
+}
+.appearance-overlay[data-closing] { animation: ios-dim-out 340ms ease both; }
+@media (max-width: 767px) {
+  .settings-screen.settings-launch {
+    animation: ios-launch 440ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+  .settings-screen[data-closing] {
+    animation: ios-close 340ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    pointer-events: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-appearance-dialog], .settings-screen, .appearance-overlay { animation: none !important; }
+}
+
+@media (max-width: 767px) {
+  .settings-screen header + * { padding-top: 14px; }
+}
+
+/* WEB SETTINGS OPEN / CLOSE -- THE OWNER'S SAMPLE, PROPERTY FOR PROPERTY
+   (2026-10-09). Each property has its own duration and curve, exactly as the
+   sample's transitions: open = snappy springboard expand, close = cushioned
+   deceleration back into the gear. Start/end is the gear's own centre and
+   size (lib/launch-morph.ts). Desktop only. */
+@media (min-width: 768px) {
+  /* scale(sx, sy), each axis against its own measurement, so the window
+     starts as the gear's own 40x40 square rather than a letterboxed sliver
+     (owner's sample: btnRect.width / winRect.width, btnRect.height /
+     winRect.height). */
+  @keyframes sw-t-in  { from { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-sx, 0.05), var(--launch-sy, 0.07)); } to { transform: translate3d(0, 0, 0) scale(1, 1); } }
+  @keyframes sw-t-out { from { transform: translate3d(0, 0, 0) scale(1, 1); } to { transform: translate3d(calc(var(--launch-x, 50vw) - 50vw), calc(var(--launch-y, 50vh) - 50vh), 0) scale(var(--launch-sx, 0.05), var(--launch-sy, 0.07)); } }
+  /* 0.2, not 0 (owner's sample). A window that starts invisible appears out
+     of nothing a few frames in; one that starts faint is the gear itself
+     growing, and there is no moment where nothing is on screen. */
+  @keyframes sw-o-in  { from { opacity: 0.2; } to { opacity: 1; } }
+  @keyframes sw-o-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sw-r-in  { from { border-radius: 48px; } }
+  @keyframes sw-r-out { to { border-radius: 48px; } }
+  @keyframes sw-i-in  { from { opacity: 0.15; } to { opacity: 1; } }
+  @keyframes sw-i-out { from { opacity: 1; } to { opacity: 0.15; } }
+  @keyframes sw-d-in  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sw-d-out { from { opacity: 1; } to { opacity: 0; } }
+  [data-appearance-dialog][data-launching] {
+    animation:
+      sw-t-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both,
+      sw-o-in 0.26s ease both !important;
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+  .appearance-overlay:has([data-appearance-dialog][data-launching]:not([data-closing])) {
+    animation: sw-d-in 0.42s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+  [data-appearance-dialog][data-closing] {
+    animation:
+      sw-t-out 0.4s cubic-bezier(0.25, 1, 0.5, 1) both,
+      sw-o-out 0.4s cubic-bezier(0.35, 0, 0.65, 1) both !important;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+  .appearance-overlay[data-closing] {
+    animation: sw-d-out 0.44s cubic-bezier(0.25, 1, 0.5, 1) both !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-appearance-dialog], [data-appearance-dialog] > *, .appearance-overlay { animation: none !important; }
+}
+
+/* Leaving Settings for a page: it fades over the page already opening. */
+[data-appearance-dialog][data-fading],
+.appearance-overlay[data-fading] {
+  animation: ios-dim-out 220ms ease both !important;
+  pointer-events: none;
+}
+
+/* THE BLURB UNDER "SETTINGS" IS ONE LINE (owner, 2026-10-09: "make the
+   context below the setting only in one line some are 2 lines that reflects
+   on screen and the screen moves").
+
+   Each section writes its own sentence under the title and they are not the
+   same length: Messaging's runs to two lines where Appearance's fits on one.
+   The header is part of the window's layout, so a section with the longer
+   sentence made the whole window taller and everything under it -- the nav,
+   the rows, the sign-out at the foot -- jumped as you moved between
+   sections. A window that changes size when you look at a different page of
+   it is the thing being complained about, not the wrapping.
+
+   One line, clipped with an ellipsis, so the header is the same height on
+   every section and nothing below it moves. The sentence is an explanation
+   of a screen whose rows name themselves; the part that is lost is the tail
+   of a sentence nobody navigates by. Scoped to this dialog -- other dialogs
+   carry real instructions in that line and keep both. */
+[data-appearance-dialog] h2 + p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An empty settings group drew as a stray 2px line (owner, 2026-10-09). */
+.settings-glass:empty { display: none; }
+.settings-glass:not(:has(*)) { display: none; }
+
+/* Phone close mirrors the open (owner, 2026-10-09). */
+@media (max-width: 767px) {
+  .settings-screen[data-closing] {
+    animation: ios-close 380ms cubic-bezier(0.4, 0, 0.2, 1) both !important;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+}
+
+/* SMOOTH ABOVE ALL (owner, 2026-10-10: "stuck"). Only transform and opacity
+   animate on the Settings window; the corner and inner fades repainted the
+   whole panel every frame. */
+@media (min-width: 768px) {
+  [data-appearance-dialog][data-launching], [data-appearance-dialog][data-closing] {
+    backface-visibility: hidden;
   }
 }

@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useState } from 'react'
 import { AlertTriangle, Ban, Eye, Play, ShieldAlert } from 'lucide-react'
 import {
@@ -623,10 +624,9 @@ function PlanForm({
                 label="Do not look before"
                 hint="The register has to be taken first. At 08:00 half the school is unmarked, so half the school is not yet absent."
               >
-                <Input
+                <TimePicker
                   value={sendAt}
                   onChange={setSendAt}
-                  type="time"
                   srLabel="Do not look before"
                 />
               </Field>
@@ -645,15 +645,14 @@ function PlanForm({
             label="Quiet from"
             hint="Both ends or neither. A message falling inside is held to the end of the window, never dropped."
           >
-            <Input
+            <TimePicker
               value={quietFrom}
               onChange={setQuietFrom}
-              type="time"
               srLabel="Quiet hours start"
             />
           </Field>
           <Field label="Quiet until">
-            <Input value={quietTo} onChange={setQuietTo} type="time" srLabel="Quiet hours end" />
+            <TimePicker value={quietTo} onChange={setQuietTo} srLabel="Quiet hours end" />
           </Field>
 
           <Field label="Status" wide>

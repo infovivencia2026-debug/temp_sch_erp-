@@ -9,8 +9,7 @@ import { registerPushToken } from './push'
 /* Both are seen by someone who is not yet in the app (a visitor on /, a first
    sign-in setting a password), so they load on their own, not with the shell. */
 const SetYourPassword = lazy(() => import('@/features/shared/SetYourPassword'))
-const Landing = lazy(() => import('@/features/landing/Landing').then((m) => ({ default: m.Landing })))
-import { claimTabs } from './tabs'
+import { claimTabs, multitaskingAllowed, setMultitasking } from './tabs'
 import { applyBrand, rememberSchoolMark } from './brand'
 import { setPrintLetterhead } from './print'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
@@ -45,6 +44,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        is reflected without a stale copy deciding what this person may do. A short
        in-session staleTime avoids refetching identity on every navigation. */
     staleTime: 60_000,
+    /* A reload is enough (Yajur, 2026-10-14: "after reloading it should
+       come"). A permission granted a minute ago was invisible until the
+       person signed out, because the restored cache still counted the old
+       answer as fresh. Every page load asks once; navigation still does not. */
+    refetchOnMount: 'always',
   })
 
   /* THE FIRST PAINT IS THE SHAPE OF THE APP, NOT THE WORD "LOADING".
@@ -107,7 +111,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        link to a fee receipt wants the receipt, so any deeper address still
        goes to the form and comes back to where they were pointed, which is
        what `next` carries below. */
-    if (location.pathname === '/' && !location.search) return <Suspense fallback={null}><Landing /></Suspense>
+    /* Owner, 2026-10-16: "that link should open directly login page not
+       this". The front-door page is no longer shown at the root: everyone
+       arriving signed out goes straight to the sign-in form. */
     // Full navigation, not a client route: /login is server-rendered by the Go
     // binary and must mint the cookie itself.
     const next = encodeURIComponent(location.pathname + location.search)
@@ -147,6 +153,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      so nobody sees the previous person's tabs even for a frame. claimTabs is
      idempotent for the same user, so a re-render costs nothing. */
   if (data.user) claimTabs(data.user.id)
+  /* The school's "Tabs and split screen" switch, before anything draws the
+     strip: off closes whatever this device still had open. */
+  setMultitasking(multitaskingAllowed(data))
   /* And the outbox follows the same person for the same reason. A queue of
      unsent writes flushed under the next sign-in posts one teacher's register
      as another, to sections they may not even be scoped for. */

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Anchored } from '@/components/AnchoredPanel'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import type { ReportCard as ReportCardBody } from '@shared/api'
@@ -43,6 +44,8 @@ type ReportCard = ReportCardBody
 
 /** The design the school prints on. */
 interface Template {
+  /** 'standard' or 'school' (the built-in choice), 'custom' once imported. */
+  design?: string
   name: string
   template_html: string
   is_built_in: boolean
@@ -183,6 +186,7 @@ export default function ReportCards() {
      show who is actually here. One letter would offer half the section, which
      is the roll list they can already see. */
   const [suggesting, setSuggesting] = useState(false)
+  const findBox = useRef<HTMLDivElement>(null)
 
   const exams = useQuery({
     queryKey: ['exam-list'],
@@ -313,6 +317,16 @@ export default function ReportCards() {
       api.post('/api/v1/exams/report-cards/template', v),
     onSuccess: (_r, v) => {
       setOutcome(`"${v.name}" is now the design every report card prints on.`)
+      qc.invalidateQueries({ queryKey: ['report-card-template'] })
+    },
+  })
+  /* The built-in design to print on when nothing is imported: the standard
+     card, or the school's bordered format with the grade chart. A setting,
+     so it never overwrites an imported design. */
+  const chooseDesign = useMutation({
+    mutationFn: (design: string) => api.post('/api/v1/exams/report-cards/design', { design }),
+    onSuccess: (_r, design) => {
+      setOutcome(design === 'school' ? 'Report cards now print on the school format.' : 'Back to the standard design.')
       qc.invalidateQueries({ queryKey: ['report-card-template'] })
     },
   })
@@ -497,10 +511,10 @@ export default function ReportCards() {
           <>
             {/* The marks behind these cards, as a sheet — the raw scores a
                 board or a spreadsheet wants, scoped to what this account sees. */}
-            <ExportButton name="marks" />
+            <ExportButton name="marks" query={{ exam: examId, section: sectionId }} />
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
-            <div className="relative w-full sm:w-auto">
+            <div ref={findBox} className="relative w-full sm:w-auto">
               <Input
                 value={find}
                 onChange={(v) => { setFind(v); setSuggesting(true) }}
@@ -512,12 +526,12 @@ export default function ReportCards() {
                 className="w-full sm:w-64"
               />
               {suggesting && suggestions.length > 0 && (
-                <ul className="absolute left-0 top-full z-30 mt-1 w-full min-w-[16rem] overflow-hidden rounded-md border bg-surface shadow-lg sm:w-72">
+                <Anchored open anchor={findBox} width="trigger" minWidth={320} gap={4} className="menu-scroll max-h-72 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"><ul>
                   {suggestions.map((r) => (
                     <li key={r.id}>
                       <button
                         type="button"
-                        className="flex w-full items-baseline gap-2 px-3 py-2 text-left text-[13px] hover:bg-muted/60"
+                        className="flex min-h-[36px] w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[14px] hover:bg-accent"
                         onClick={() => {
                           // The admission number, not the name: it is unique, so
                           // picking a child leaves exactly that child in the table
@@ -529,14 +543,14 @@ export default function ReportCards() {
                         <span className="w-6 shrink-0 tabular-nums text-muted-foreground">
                           {r.roll_no ?? '-'}
                         </span>
-                        <span className="flex-1 font-medium">{r.full_name}</span>
-                        <span className="font-mono text-[11px] text-muted-foreground">
+                        <span className="min-w-0 flex-1 truncate font-medium" title={r.full_name}>{r.full_name}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                           {r.admission_no}
                         </span>
                       </button>
                     </li>
                   ))}
-                </ul>
+                </ul></Anchored>
               )}
             </div>
             <Select value={sectionId} onChange={setSectionId} placeholder="Section"
@@ -589,6 +603,18 @@ export default function ReportCards() {
                     back. A panel explaining what a design is belonged to
                     somebody setting this up for the first time, and it sat on
                     the screen for everybody who prints results every term. */}
+                {template.data && template.data.template.is_built_in && (
+                  <Button
+                    variant="ghost"
+                    disabled={chooseDesign.isPending}
+                    onClick={() => chooseDesign.mutate(template.data!.template.design === 'school' ? 'standard' : 'school')}
+                    title={template.data.template.design === 'school'
+                      ? 'Printing on the school format. This goes back to the standard design.'
+                      : 'Print on the school format: bordered sheet, numbered subjects, grade bands, monthly attendance and a grade chart.'}
+                  >
+                    {template.data.template.design === 'school' ? 'Use standard design' : 'Use school format'}
+                  </Button>
+                )}
                 {template.data && !template.data.template.is_built_in && (
                   <Button
                     variant="ghost"

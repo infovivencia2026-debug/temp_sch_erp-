@@ -131,10 +131,12 @@ func addComponentLines(ctx context.Context, tx pgx.Tx, inst, invoiceID, student,
 		         -- on top of the tuition it already came off.
 		         COALESCE((
 		           SELECT GREATEST(
-		                    COALESCE(max(fc.amount_paise)
-		                               FILTER (WHERE fc.fee_head_id = c.fee_head_id), 0),
-		                    COALESCE(max(round(c.amount_paise * $5 * fc.percent / 100.0))::bigint
-		                               FILTER (WHERE fc.percent IS NOT NULL), 0))
+		                    -- CASE inside the aggregate, not FILTER (see fees.go).
+		                    COALESCE(max(CASE WHEN fc.fee_head_id = c.fee_head_id
+		                                      THEN fc.amount_paise END), 0),
+		                    COALESCE(max(CASE WHEN fc.percent IS NOT NULL
+		                                      THEN round(c.amount_paise * $5 * fc.percent / 100.0)
+		                                 END)::bigint, 0))
 		             FROM fee_concessions fc
 		            WHERE fc.student_id = $3
 		              AND fc.academic_year_id = $4

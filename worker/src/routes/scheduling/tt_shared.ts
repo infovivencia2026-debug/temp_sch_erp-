@@ -2,6 +2,7 @@ import type { Ctx } from '../../router'
 import { badRequest } from '../../http'
 import { workingYear } from '../misc/shell'
 import { all, utcSeconds } from './common'
+import { schoolDayPeriods } from './bell'
 
 /* The pieces of timetable_ops.go that master_timetable.go reads as well:
    the day's periods, the draft head row, the issue list, and a uuid made
@@ -15,12 +16,11 @@ export const UUID_SQL = `(lower(hex(randomblob(4))) || '-' || lower(hex(randombl
 
 export interface GridPeriod { id: string; name: string; sequence: number; starts_at: string; ends_at: string; is_break: boolean }
 
+/** The school day's periods (bell.ts). A class on timings of its own reads periodsForSection instead. */
 export async function loadPeriods(c: Ctx): Promise<GridPeriod[]> {
-  const rows = await all<{ id: string; name: string; sequence: number; starts_at: string | null; ends_at: string | null; is_break: number }>(
-    c.db.prepare(`SELECT id, name, sequence, starts_at, ends_at, is_break FROM periods ORDER BY sequence`))
-  return rows.map((p) => ({ id: p.id, name: p.name, sequence: p.sequence, starts_at: (p.starts_at ?? '').slice(0, 5),
-    ends_at: (p.ends_at ?? '').slice(0, 5), is_break: !!p.is_break }))
+  return (await schoolDayPeriods(c)).map(gridPeriod)
 }
+export const gridPeriod = (p: GridPeriod): GridPeriod => ({ id: p.id, name: p.name, sequence: p.sequence, starts_at: p.starts_at, ends_at: p.ends_at, is_break: p.is_break })
 export const teachingCount = (ps: GridPeriod[]) => ps.filter((p) => !p.is_break).length
 
 /** resolveYear: the named year, else the caller's working year, else the latest. Throws Go's sentence when there is none. */

@@ -77,7 +77,9 @@ describe('class status: who is told', () => {
   it('a post to a section reaches its subject teacher and class teacher, not a teacher of another section', async () => {
     const p = await post(await as('admin'), [{ kind: 'section', id: IDS.section }], { caption: 'Section A trip' })
     expect(p.status).toBe(200)
-    expect((await bell(MATHS_TEACHER)).map((x) => x.title).some((t) => t.endsWith('A'))).toBe(true)
+    // The title no longer names the audience (4a743ccc: families read it too),
+    // so the subject teacher is checked by having been told at all.
+    expect((await bell(MATHS_TEACHER)).length).toBe(1)
     expect((await bell(IDS.teacher)).length).toBe(1) // the class teacher
     expect((await bell(B_TEACHER)).length).toBe(0)
     expect((await bell(IDS.finance)).length).toBe(0)

@@ -1,7 +1,9 @@
+import { handleIclock } from './routes/iclock'
 import type { Env } from './env'
 import { runBatch, type Job } from './services/jobs'
 import './services/job-registry'
 import { tick } from './services/cron'
+import { handleEmail } from './services/mail'
 import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
 import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } from './routes/login'
@@ -44,6 +46,8 @@ export default {
 
     try {
       if (pathname === '/healthz') return new Response('ok')
+      // Biometric readers push here; a reader is known by its registered serial, not a session (routes/iclock.ts).
+      { const r = await handleIclock(env, req, url); if (r) return r }
       if (originRefused(env, pathname, verified)) return new Response('Not Found', { status: 404 })
       if (pathname === '/login' && m === 'GET') return showLogin(env, req)
       if (pathname === '/login' && m === 'POST') return login(env, req)
@@ -96,6 +100,7 @@ export default {
         let tx: TenantSession | null = null
         let watch: ReturnType<typeof watchAuthWrites> | null = null
         const ctx = { req, env, url, params: hit.params, id,
+          later: ectx ? (p: Promise<unknown>) => ectx.waitUntil(p.catch(() => undefined)) : undefined,
           get db() { if (!tx) { if (!id.institution) throw forbidden('no school in scope'); tx = tenantSession(env, id.institution, req); watch = watchAuthWrites(tx.db) } return watch!.db } }
         // Go's Idempotent middleware sits after the gates, around the handler.
         const res = await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })
@@ -127,6 +132,12 @@ export default {
     // The dead-letter queue: record, alert, ack (src/services/dead_letters.ts).
     if (batch.queue.endsWith('-dlq')) return consumeDeadLetters(batch, env)
     await runBatch(batch, env)
+  },
+
+  /* Staff Inbox: Cloudflare Email Routing hands every message for a school's
+     mail domain here (services/mail.ts). Unknown addresses are refused. */
+  async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
+    await handleEmail(message, env)
   },
 
   /* Cron Trigger, every minute: replaces Cloud Scheduler's call to

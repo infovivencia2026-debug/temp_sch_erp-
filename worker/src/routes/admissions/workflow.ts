@@ -171,6 +171,9 @@ export function registerAdmissionsWorkflow(r: Router) {
     } else if (status !== 'lost' && before.status === 'lost') {
       stmts.push(c.db.prepare(`UPDATE enquiries SET lost_reason = NULL, lost_reason_note = NULL, lost_at = NULL, lost_by = NULL, lost_month = NULL WHERE id = ?`).bind(c.params.id))
     }
+    /* 'Called' on the list marks the lead contacted: that is a contact, so
+       'Last contacted' says when (2026-10-12: it said Never after a Called). */
+    if (status === 'contacted' && str(req.status) === 'contacted') stmts.push(c.db.prepare(`UPDATE enquiries SET last_contacted_at = ? WHERE id = ?`).bind(t, c.params.id))
     if (status !== before.status) stmts.push(activityStmt(c.db, inst, c.params.id, 'stage', { from: before.status, to: status, body: nz(status === 'lost' ? lostLabel : ''), follow, author: c.id.userId, at: t }))
     const said = str(req.notes).trim()
     if (said !== '') stmts.push(activityStmt(c.db, inst, c.params.id, 'note', { body: said, follow, author: c.id.userId, at: t }))
@@ -328,12 +331,21 @@ export function registerAdmissionsWorkflow(r: Router) {
     await c.db.batch(stmts)
     // Go: notifyApplicant(admissions.application_received, stage:submitted). The parent login is not ported.
     let acknowledged = false, ackNote = ''
-    const facts = await loadApplicantFacts(c, appID)
-    if (facts) {
-      const r = await notifyApplicant(c, appID, 'admissions.application_received', facts, null, 'stage:submitted')
-      if (r.ok) acknowledged = true
-      else if (r.noEmail) ackNote = 'No email address on the application, so no acknowledgement was sent.'
-      else ackNote = 'The acknowledgement could not be queued: ' + r.error
+    /* The parent's acknowledgement is sent after the reply (2026-10-12: filing
+       waited on the mail service, 3-4 seconds of 'Filing…' at the desk). */
+    const ack = async () => {
+      const facts = await loadApplicantFacts(c, appID)
+      return facts ? notifyApplicant(c, appID, 'admissions.application_received', facts, null, 'stage:submitted') : null
+    }
+    if (c.later) {
+      c.later(ack())
+      acknowledged = !!nz(req.parent_email)
+      if (!acknowledged) ackNote = 'No email address on the application, so no acknowledgement was sent.'
+    } else {
+      const r = await ack()
+      if (r?.ok) acknowledged = true
+      else if (r?.noEmail) ackNote = 'No email address on the application, so no acknowledgement was sent.'
+      else if (r) ackNote = 'The acknowledgement could not be queued: ' + r.error
     }
     const out: Record<string, unknown> = { id: appID, application_no: appNo, status: 'submitted', acknowledged }
     if (ackNote !== '') out.note = ackNote

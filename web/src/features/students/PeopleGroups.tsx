@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Input, Select, Table, Td,
@@ -72,10 +72,22 @@ const OPS: { value: string; label: string; needsValue: boolean }[] = [
   { value: 'is_empty', label: 'is empty', needsValue: false },
 ]
 
-const BLANK: { name: string; note: string; rules: Rule[] } = {
+const BLANK: { name: string; note: string; rules: Rule[]; picked: { id: string; name: string }[] } = {
   name: '',
   note: '',
   rules: [],
+  /* PEOPLE BEFORE THE GROUP EXISTS (owner, 2026-10-13: "add people button
+     before creating a group").
+
+     Picking by hand only appeared once the group had been made and opened,
+     so a group of six named people -- an exam duty, a trip, a committee,
+     which is most of what a school actually groups -- was: name it, create
+     it, find it in the list, open it, then add six people. The rules box
+     above is no help there: there is no rule that means "these six".
+
+     They are held here while the form is open and sent the moment the
+     group has an id. */
+  picked: [],
 }
 
 export default function PeopleGroups() {
@@ -124,11 +136,17 @@ export default function PeopleGroups() {
   }, [fields.data])
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body = { kind, name: form.name.trim(), note: form.note, rules: form.rules }
-      return editing
-        ? api.put(`/api/v1/people/groups/${editing}`, body)
-        : api.post('/api/v1/people/groups', body)
+      if (editing) return api.put(`/api/v1/people/groups/${editing}`, body)
+      const made = await api.post<{ id: string }>('/api/v1/people/groups', body)
+      /* The group first, then the people: a member row needs a group to
+         belong to. If this half fails the group still stands, so the office
+         is left with an empty group to add to rather than nothing at all. */
+      if (form.picked.length && made?.id) {
+        await api.post(`/api/v1/people/groups/${made.id}/members`, { ids: form.picked.map((x) => x.id) })
+      }
+      return made
     },
     onSuccess: () => {
       setOpen(false)
@@ -268,6 +286,44 @@ export default function PeopleGroups() {
                 </div>
               </div>
 
+              {/* Named people, for the groups no rule describes. Only when
+                  making one: an existing group has "Who is in this group"
+                  below, which can both add and remove. */}
+              {!editing && (
+                <div>
+                  <h3 className="text-[14px] font-semibold">People</h3>
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">
+                    Anyone named here is in the group whatever the rules say. Leave it empty for a group that is only its rules.
+                  </p>
+                  <div className="mt-2 max-w-sm">
+                    <PersonPicker
+                      kind={kind}
+                      disabled={save.isPending}
+                      onPick={(id, name) =>
+                        setForm((f) => (f.picked.some((x) => x.id === id) ? f : { ...f, picked: [...f.picked, { id, name }] }))
+                      }
+                    />
+                  </div>
+                  {form.picked.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {form.picked.map((x) => (
+                        <span key={x.id} className="inline-flex items-center gap-1.5 rounded-full border bg-muted px-2.5 py-1 text-[13px]">
+                          {x.name}
+                          <button
+                            type="button"
+                            aria-label={`Take ${x.name} out`}
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => setForm((f) => ({ ...f, picked: f.picked.filter((y) => y.id !== x.id) }))}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <FormNotice error={save.error} />
               <div className="flex items-center gap-3">
                 <Button
@@ -342,7 +398,7 @@ export default function PeopleGroups() {
                         variant="ghost"
                         onClick={() => {
                           setEditing(g.id)
-                          setForm({ name: g.name, note: g.note ?? '', rules: g.rules })
+                          setForm({ name: g.name, note: g.note ?? '', rules: g.rules, picked: [] })
                           setOpen(true)
                           save.reset()
                         }}
@@ -428,31 +484,35 @@ export default function PeopleGroups() {
 
 /* Adding somebody by hand. Loads the roster only when the group is open. */
 function PersonPicker({ kind, disabled, onPick }: {
-  kind: string; disabled: boolean; onPick: (id: string) => void
+  kind: string; disabled: boolean; onPick: (id: string, name: string) => void
 }) {
   return kind === 'staff'
     ? <StaffPicker disabled={disabled} onPick={onPick} />
     : <StudentPicker disabled={disabled} onPick={onPick} />
 }
 
-function StudentPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string) => void }) {
+function StudentPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string, name: string) => void }) {
   const roster = useStudentRoster<{ id: string; full_name: string }>()
   return (
     <Select
       value=""
-      onChange={(v) => { if (v && !disabled) onPick(v) }}
+      onChange={(v) => { if (v && !disabled) onPick(v, roster.data?.items.find((s) => s.id === v)?.full_name ?? v) }}
       placeholder={roster.isLoading ? 'Loading…' : 'Add a child by hand…'}
       options={(roster.data?.items ?? []).map((s) => ({ value: s.id, label: s.full_name }))}
     />
   )
 }
 
-function StaffPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string) => void }) {
+function StaffPicker({ disabled, onPick }: { disabled: boolean; onPick: (id: string, name: string) => void }) {
   const roster = useEmployeeRoster()
+  const nameOf = (v: string) => {
+    const e = roster.data?.items.find((x) => x.id === v)
+    return e ? (e.full_name ?? e.name ?? e.employee_code ?? v) : v
+  }
   return (
     <Select
       value=""
-      onChange={(v) => { if (v && !disabled) onPick(v) }}
+      onChange={(v) => { if (v && !disabled) onPick(v, nameOf(v)) }}
       placeholder={roster.isLoading ? 'Loading…' : 'Add a member of staff by hand…'}
       options={(roster.data?.items ?? []).map((e) => ({ value: e.id, label: e.full_name ?? e.name ?? e.employee_code ?? e.id }))}
     />

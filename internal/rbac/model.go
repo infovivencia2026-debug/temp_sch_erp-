@@ -167,6 +167,13 @@ var Groups = []Group{
 		ScopeNote: "The structure itself is school-wide; what it contains is scoped elsewhere.",
 	},
 	{
+		Key: "subject_head", Name: "Subject head", Band: BandCore,
+		Blurb:     "Heading a subject: its teachers, classes, timetable, approvals and meetings. Given and taken away with the headship.",
+		View:      []string{SubjectHead},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The subjects this person heads.",
+	},
+	{
 		Key: "timetable", Name: "Timetable", Band: BandCore,
 		Blurb:     "The period grid, teacher allocation and substitutions.",
 		View:      []string{TimetableRead},
@@ -442,6 +449,25 @@ var Groups = []Group{
 		ScopeNote: "The whole school.",
 	},
 	// feature:help.helpdesk end
+	// feature:communication.inbox begin
+	{
+		Key: "communication_inbox", Name: "Inbox", Band: BandOptional,
+		Blurb:     "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.",
+		View:      []string{CommsMailRead},
+		Manage:    []string{CommsMailWrite},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:communication.inbox end
+	// feature:communication.mail_addresses begin
+	{
+		Key: "communication_mail_addresses", Name: "Mail addresses", Band: BandOptional,
+		Blurb:     "The school's mail domain and each staff member's email address: give one, change it or switch it off. Mail itself stays private to its owner.",
+		View:      []string{CommsMailManage},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:communication.mail_addresses end
 }
 
 // GroupByKey looks a group up by key.

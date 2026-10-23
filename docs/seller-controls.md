@@ -1,3 +1,4 @@
+| `staff_layout.enabled` (registry `app.staff_layout`) | staff screen layout: text sidebar with collapsible groups, one top bar with greeting, centred search, staff code and today's first/last sign-in; staff only (no row = off) | seller, Controls | yes, with notice | off |
 # Seller controls: every school-level setting
 
 Owner, 2026-10-02: "Seller admin should be able to control everything. Data
@@ -67,6 +68,7 @@ run time, so the console never shows a value the school is not actually using.
 | `admissions.config.enrolment_needs_approval` | enrolment waits for approval | school admin | yes | off |
 | `finance.config.cheque_bounce_fine_paise` | fine on a bounced cheque | school admin | yes, with notice | 0 |
 | `library_fines.config.fine_per_day_paise` | library fine | librarian | yes, with notice | 0 |
+| `multitasking.enabled` | desktop tabs and split screen (no row = on) | seller, Controls | yes, with notice | on |
 | `examinations.config.report_card_font` | report card typeface | exams | yes | default font |
 
 ### Settings tables

@@ -5,6 +5,7 @@ import {
   all, alsoNeeds, coded, denied, inJSON, instId, intOr, nowISO, nullStr, rfc3339IST, rollupScope, str, trimStr, uuidOr400,
 } from './common'
 import { generate, SEVERITY_BLOCKING, type Requirement, type Teacher } from './solver'
+import { crossScheduleOverlaps, defaultScheduleId, periodsBySchedule, scheduleBundle, sectionSchedules } from './bell'
 import {
   DRAFT_ENTRY_SELECT, DRAFT_SELECT, TEACHING_WEEKDAYS, UUID_SQL, draftEntryJSON, draftJSON, guardStmt, isGuardFailure, jsonInsert,
   loadDraftIssues, loadPeriods, resolveYear, teachingCount, type DraftDbRow, type DraftEntryDb,
@@ -150,7 +151,7 @@ async function generateTimetableDraft(c: Ctx): Promise<Response> {
     throw e
   }
   const periods = await loadPeriods(c)
-  const gridPeriods = periods.filter((p) => !p.is_break).map((p) => ({ id: p.id, name: p.name, sequence: p.sequence }))
+  let gridPeriods = periods.filter((p) => !p.is_break).map((p) => ({ id: p.id, name: p.name, sequence: p.sequence }))
   if (gridPeriods.length === 0) throw badRequest("no teaching periods are configured; set the day's periods first")
 
   const campus = nullStr(req.campus_id)
@@ -172,6 +173,23 @@ async function generateTimetableDraft(c: Ctx): Promise<Response> {
     subjectName: r.subject_name, teacherId: r.teacher_id, periodsPerWeek: r.per_week, maxPerDay: 0, difficult: !!r.morning }))
   const inScope = [...new Set(reqRows.map((r) => r.section_id))]
 
+  /* Classes on timings of their own are placed on their own periods (bell.ts).
+     With every section on the school day this is skipped and the grid is
+     exactly the school day's, as it always was. */
+  let sectionPeriods: Map<string, { id: string; name: string; sequence: number }[]> | undefined
+  let overlaps: Map<string, string[]> | undefined
+  const schoolDay = await defaultScheduleId(c)
+  const runsTo = await sectionSchedules(c, year)
+  if (inScope.some((id) => (runsTo.get(id) ?? schoolDay) !== schoolDay)) {
+    const bySchedule = await periodsBySchedule(c)
+    const used = new Set(inScope.map((id) => runsTo.get(id) ?? schoolDay ?? ''))
+    const teaching = [...used].flatMap((id) => (bySchedule.get(id) ?? []).filter((p) => !p.is_break))
+    sectionPeriods = new Map(inScope.map((id) => [id, (bySchedule.get(runsTo.get(id) ?? schoolDay ?? '') ?? [])
+      .filter((p) => !p.is_break).map((p) => ({ id: p.id, name: p.name, sequence: p.sequence }))]))
+    overlaps = crossScheduleOverlaps(teaching)
+    gridPeriods = [...teaching].sort((a, b) => a.sequence - b.sequence).map((p) => ({ id: p.id, name: p.name, sequence: p.sequence }))
+  }
+
   // loadSolverTeachers: caps, recurring unavailability, and the load held in sections this run does not replace.
   const tRows = await all<{ user_id: string; name: string; max_day: number; max_week: number }>(c.db.prepare(`
     SELECT u.id AS user_id, u.full_name AS name, COALESCE(lr.max_periods_per_day, 6) AS max_day, COALESCE(lr.max_periods_per_week, 35) AS max_week
@@ -191,7 +209,8 @@ async function generateTimetableDraft(c: Ctx): Promise<Response> {
   for (const u of committed) { const i = at.get(u.owner); if (i !== undefined) teachers[i].committed.push({ weekday: u.weekday, periodId: u.period_id }) }
 
   const seed = intOr(req.seed)
-  const res = generate({ grid: { weekdays: TEACHING_WEEKDAYS, periods: gridPeriods }, requirements: reqs, teachers, seed, retryBudget: intOr(req.retry_budget) })
+  const res = generate({ grid: { weekdays: TEACHING_WEEKDAYS, periods: gridPeriods }, requirements: reqs, teachers, seed, retryBudget: intOr(req.retry_budget),
+    sectionPeriods, overlaps })
   let blocking = 0, warnings = 0
   for (const is of res.issues) is.severity === SEVERITY_BLOCKING ? blocking++ : warnings++
   const name = trimStr(req.name) || madeName()
@@ -238,7 +257,8 @@ async function getTimetableDraft(c: Ctx): Promise<Response> {
   const periods = await loadPeriods(c)
   const entries = await all<DraftEntryDb>(c.db.prepare(`${DRAFT_ENTRY_SELECT} WHERE de.draft_id = ? ORDER BY c.level, sec.name, de.weekday, p.sequence`).bind(draftID))
   const issues = await loadDraftIssues(c, draftID)
-  return ok({ draft: draftJSON(head), entries: entries.map(draftEntryJSON), issues, periods, weekdays: TEACHING_WEEKDAYS })
+  return ok({ draft: draftJSON(head), entries: entries.map(draftEntryJSON), issues, periods, weekdays: TEACHING_WEEKDAYS,
+    ...(await scheduleBundle(c, head.academic_year_id)) })
 }
 
 // --- publish and discard ---------------------------------------------------------------
@@ -276,7 +296,7 @@ async function announceStatements(c: Ctx, draftID: string): Promise<{ stmts: D1P
   for (const p of people) {
     const body = p.is_student ? 'Your class has a new timetable. Check Monday before you come in.'
       : p.name + "'s class has a new timetable. The school day may start or end at a different time."
-    stmts.push(notifyStmt(c, p.user_id, p.student, 'timetable', 'The timetable has changed', body, '/portal/timetable', 'timetable', draftID))
+    stmts.push(notifyStmt(c, p.user_id, p.student, 'timetable', 'The timetable has changed', body, '/go/academics/timetable', 'timetable', draftID))
   }
   return { stmts, told: staff.length + people.length }
 }

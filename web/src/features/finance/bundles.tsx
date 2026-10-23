@@ -13,6 +13,7 @@ import Bundle from '@/components/Bundle'
  */
 
 const Defaulters = screen(() => import('./Defaulters'))
+const FeeSheet = screen(() => import('./FeeSheet'))
 const LateFineRules = screen(() => import('./LateFineRules'))
 const PDCRegister = screen(() => import('./PDCRegister'))
 
@@ -56,6 +57,7 @@ export function UnpaidFees() {
     <Bundle
       tabs={[
         { key: 'defaulters', label: 'Who has not paid', Screen: Defaulters },
+        { key: 'fee-sheet', label: 'Fee sheet', note: 'Download the whole school or one class: term-wise, books, uniform.', Screen: FeeSheet },
         { key: 'fines', label: 'Late fine rules', note: 'What a late payment costs, and after how long.', Screen: LateFineRules },
         { key: 'cheques', label: 'Cheques', note: 'Post-dated cheques and the ones that bounced.', Screen: PDCRegister },
       ]}

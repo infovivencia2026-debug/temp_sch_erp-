@@ -134,7 +134,7 @@ export default function Library() {
         eyebrow="Operations"
         title="Library"
         description="What the school holds, who has it, and what is overdue."
-      actions={<><ExportButton report="library-loans" /></>}
+      actions={<><ExportButton report={tab === 'catalogue' ? 'library-books' : 'library-loans'} /></>}
         />
       <PageBody>
         <CellGrid cols={4}>

@@ -99,7 +99,15 @@ html[data-printing] { overflow: hidden; }
    document's title with its number and date set against the right margin.
    Tables have a tinted head and hairline rules. Type is the system's own
    sans, in points, black on white. */
-.print-sheet__paper { --doc-accent: #1f2937; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Telugu', 'Helvetica Neue', Arial, sans-serif; }
+/* INTER ON PAPER TOO (owner: "FOR EVERY PRINT USE INTER FONT").
+
+   The app has shipped Inter bundled since the first commit, and this sheet
+   named a system stack -- so every printed document came out in whatever the
+   machine happened to have: Segoe on Windows, Helvetica on a Mac, something
+   else on the school's old laptop. Three schools printing the same receipt
+   got three documents. Inter leads now, with the same fallbacks behind it and
+   Noto Sans Telugu still there for the Telugu pages. */
+.print-sheet__paper { --doc-accent: #1f2937; font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Telugu', 'Helvetica Neue', Arial, sans-serif; }
 .print-sheet__head {
   display: flex;
   align-items: center;
@@ -269,12 +277,91 @@ html[data-printing] { overflow: hidden; }
    lines; two across keeps every number whole. Other side-by-side panels come
    back to one column, so the second panel's last column is not lost off the
    edge. */
-.print-sheet__body .cell-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-.print-sheet__body .cell { padding: 10pt 12pt; }
-.print-sheet__body .stat { font-size: 15pt; white-space: nowrap; margin-top: 4pt; }
+/* THE FIGURES READ AS A ROW OF FIGURES (owner's first picture).
+
+   Two across with an icon beside each number is the screen's shape, and on
+   paper it made a cramped block where the eye could not take the four numbers
+   in at once. Four across, the label small and set in capitals above its
+   number, the number large and bold, and no icons -- an icon is a wayfinding
+   aid on a screen somebody is clicking, and dead ink on a sheet of paper.
+
+   Four fit: A4 less the margins is about 180mm, so each column is 45mm, and
+   the longest figure a school prints (a lakh with paise) is 32mm at 15pt. */
+.print-sheet__body .cell-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0 !important; }
+.print-sheet__body .cell {
+  padding: 9pt 11pt;
+  border: 0 !important;
+  border-right: 0.5pt solid #e5e7eb !important;
+  border-radius: 0 !important;
+}
+.print-sheet__body .cell-grid > .cell:last-child { border-right: 0 !important; }
+/* THE LABEL IS NOT THE WHOLE CELL.
+
+   `.cell > :first-child` looked like the label and is not: the print copy
+   wraps a clickable Stat in one plain div, so that selector caught the cell
+   entire -- and the number inherited the label's grey. Measured on the live
+   sheet, not reasoned about. Each part is addressed by what it is now. */
+.print-sheet__body .cell p { font-size: 8pt; color: #6b7280; }
+.print-sheet__body .cell .flex p {
+  font-size: 7.5pt;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.print-sheet__body .cell p.stat {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  margin-top: 3pt;
+}
+/* An icon earns its place by being clickable. Nothing on paper is. */
+.print-sheet__body .cell svg { display: none !important; }
+
+/* A COLUMN HEADING IS NOT A CELL. Capitals, tracked, grey, over a rule --
+   so the eye finds the top of the table without reading it. */
+.print-sheet__body thead th {
+  font-size: 7.5pt;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 0.75pt solid #d1d5db;
+}
 .print-sheet__body [class*="grid-cols-"]:not(.cell-grid) { grid-template-columns: minmax(0, 1fr) !important; }
 .print-sheet__body th, .print-sheet__body td { padding: 3pt 5pt; }
 .print-sheet__body [class*="overflow-x"] { overflow: visible !important; }
-/* Paper is white: the on-screen colour washes and glows do not print. */
+/* PAPER IS WHITE, ALL THE WAY DOWN.
+
+   This rule named the cells and the tint grid, and the sheet still printed a
+   mint tile, a peach tile and a blue-grey band behind the body -- because the
+   washes are gradients (background-image, which `background: #fff` on the
+   cell does not reach) and several sit on a wrapper inside the cell rather
+   than on the cell. Screen colour is depth cueing for a lit display; on paper
+   it is a tint over the text and a cost at the toner cartridge.
+
+   So: inside the body, nothing paints and nothing glows. The borders and the
+   table rules below draw the structure instead, which is what the printed
+   page uses them for. */
+.print-sheet__body,
+.print-sheet__body * {
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
 .print-sheet__body .cell-grid > .cell,
-.print-sheet__body .tint-grid > * { background: #fff !important; box-shadow: none !important; }
+.print-sheet__body .cell-grid > .cell *,
+.print-sheet__body .tint-grid > *,
+.print-sheet__body .card,
+.print-sheet__body .print-sheet__source { background-color: #fff !important; }
+
+/* The four figures as ONE bordered card, the way the owner's first picture
+   has it -- not four floating boxes. The dividers between them are already
+   drawn above. */
+.print-sheet__body .cell-grid {
+  border: 0.5pt solid #d1d5db !important;
+  border-radius: 3pt !important;
+  overflow: hidden !important;
+}

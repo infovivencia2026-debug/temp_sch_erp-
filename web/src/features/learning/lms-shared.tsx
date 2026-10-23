@@ -5,6 +5,8 @@ import {
   BookOpen, Camera, ClipboardList, Download, ExternalLink, FileText, Headphones, Image as ImageIcon, Link2, ListChecks, Paperclip, PlayCircle, Presentation,
 } from 'lucide-react'
 import { VideoPlayer, fmtDur } from './VideoPlayer'
+import { YouTubeLesson, type YTPlayer } from './YouTubeLesson'
+import { KeyPoints } from './LessonNotes'
 
 /* Pieces both sides of the LMS use: the teacher's (faculty/TeacherLMS.tsx,
    faculty/TeacherModules.tsx) and the child's (learning/StudentCourses.tsx).
@@ -28,10 +30,18 @@ export interface Lesson {
   id: string; unit_id: string; title: string; kind: SourceKind
   body?: string | null; file_id?: string | null; file_name?: string | null; file_size?: number | null; file_type?: string | null; url?: string | null
   sequence: number; day?: number | null; publish_at?: string | null; duration_minutes?: number | null; created_at?: string
+  /** When the class could first see it: the later of publish_at and created_at. Sent by the portal. */
+  released_at?: string
   is_published?: boolean; completed?: number; done?: boolean; is_new?: boolean; viewed_at?: string | null
   section?: Section; is_optional?: boolean
+  /* Unlocked now by the teacher, whatever comes before it (migration 0078). */
+  open_now?: boolean
   /* The child's view: on a locked day, or not out yet (no content either way). */
   locked?: boolean; scheduled?: boolean
+  /* A YouTube video or playlist, kept as ids and nothing else (migration
+     0072). The teacher's own key points sit beside them; nothing here is
+     generated from the video. */
+  yt_video_id?: string | null; yt_playlist_id?: string | null; yt_channel?: string | null; key_points?: string | null
   /* A library video (worker routes/teaching/videos.ts) instead of a link. */
   video_id?: string | null; video_title?: string | null; video_duration?: number | null; video_thumb?: number | boolean | null; video_type?: string | null
   video_position?: number | null; video_percent?: number | null; video_watched?: string | null; video_bucket?: number | null
@@ -94,6 +104,47 @@ export function FilePick({ purpose, onDone, label = 'Attach a file', accept, cap
 }
 
 /** A YouTube or Vimeo address as an embeddable player address (inline on iPhone), or null. */
+/* YOUTUBE IDS FROM A URL, ON THIS SIDE TOO.
+
+   The server writes yt_video_id when a lesson is saved, but only since
+   migration 0072: every YouTube lesson a school made before that has a
+   perfectly good address and a null id, and it was falling through to the
+   old bare <iframe> -- no disclaimer, no notes, none of the things the id
+   path gives. Found on the live school: "test video", kind video,
+   youtube.com/watch?v=VyolWjrz3bQ, yt_video_id null.
+
+   Deriving it here fixes every one of those the moment the page renders,
+   without a data migration and without waiting for somebody to re-save a
+   lesson they are happy with. The server stays the source of truth where
+   it has an answer; this only fills the gap where it has none.
+
+   Deliberately the same shapes and the same alphabet as the server's
+   parser (worker routes/teaching/lms.ts). Two parsers is one too many, but
+   the alternative is shipping worker code to the browser, and the rule
+   -- eleven characters for a video, twelve or more for a list -- is small
+   enough to state twice and be sure. */
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/
+const YT_LIST_RE = /^[A-Za-z0-9_-]{12,64}$/
+export function youTubeIds(url?: string | null): { video: string | null; list: string | null } {
+  if (!url) return { video: null, list: null }
+  let u: URL
+  try { u = new URL(url) } catch { return { video: null, list: null } }
+  const host = u.hostname.replace(/^www\./, '').toLowerCase()
+  if (!['youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'youtu.be'].includes(host)) return { video: null, list: null }
+  let video: string | null = null
+  if (host === 'youtu.be') video = u.pathname.slice(1).split('/')[0] || null
+  else if (u.pathname === '/watch') video = u.searchParams.get('v')
+  else {
+    const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([^/?#]+)/)
+    if (m) video = m[2]
+  }
+  const list = u.searchParams.get('list')
+  return {
+    video: video && YT_ID_RE.test(video) ? video : null,
+    list: list && YT_LIST_RE.test(list) ? list : null,
+  }
+}
+
 export function embedOf(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{6,})/)
   if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}?playsinline=1&rel=0`
@@ -318,24 +369,73 @@ function DownloadCard({ l, label = 'Download' }: { l: Lesson; label?: string }) 
 /** The body of a source: the player, the inline PDF, the reader, the picture, or a download.
     `track` saves the child's place in a library video (their own login only). */
 export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boolean; onFinished?: () => void }) {
-  const embed = l.kind === 'video' && l.url ? embedOf(l.url) : null
-  const note = l.kind !== 'text' && l.body ? <NotesView text={l.body} /> : null
+  /* YOUTUBE GOES THROUGH THE REAL PLAYER, NOT A BARE IFRAME.
+
+     embedOf still exists for Vimeo and for lessons saved before migration
+     0072 wrote the ids down. Where we have an id, YouTubeLesson is used
+     instead: same nocookie host, but it also loads YouTube's own API, which
+     is the only sanctioned way to read the playhead -- and reading the
+     playhead is what makes a note say 4:12 instead of nothing. */
+  /* The stored ids where the server has them, the address where it does
+     not -- which is every lesson made before migration 0072. */
+  const fallback = youTubeIds(l.url)
+  const ytV = l.yt_video_id ?? fallback.video
+  const ytL = l.yt_playlist_id ?? fallback.list
+  const yt = ytV || ytL ? { v: ytV, list: ytL } : null
+  /* Held only so the player is not garbage between renders; nothing reads
+     the playhead now that the notebook has gone. */
+  const [, setPlayer] = useState<YTPlayer | null>(null)
+  const embed = !yt && l.kind === 'video' && l.url ? embedOf(l.url) : null
+  /* THE BODY BOX UNDER A LESSON IS GONE (owner, 2026-10-10: "remove notes
+     in lms").
+
+     A non-text lesson could carry a `body` as well as its file or its
+     video, and it was drawn as a grey box underneath -- a second piece of
+     writing with no heading, easily mistaken for the child's own notes now
+     that those sit on the same screen. Two things called notes on one
+     lesson is one too many.
+
+     The column is untouched: nothing is deleted, and a lesson that has text
+     in it still has text in it. This stops drawing it, which is reversible
+     in one line if the school wants it back. For a text lesson the body IS
+     the lesson and is still shown, by the branch below. */
+  /* NO NOTEBOOK IN THE LESSON (owner, 2026-10-10: "i said no my notes in
+     lms").
+
+     This briefly laid the player and a notes panel out in two columns. The
+     notes are gone from the LMS: a lesson shows the video, the teacher's
+     key points, and nothing of the child's own. My planner is where a
+     student writes things down, and one place for that is better than two.
+
+     The endpoints and the table behind the notes are left alone rather
+     than dropped in the same breath -- no screen calls them now, and
+     deleting a child's writing is not something to do as a side effect of
+     a layout change. Say the word and they go.
+
+     Key points stay: they belong to the lesson, not to the screen around
+     it, and a teacher previewing their own lesson should see them. */
   return (
     <div className="space-y-4 text-[14px]">
+      {yt && (
+        <YouTubeLesson videoId={yt.v} listId={yt.list} channel={l.yt_channel} title={l.title} onPlayer={setPlayer}
+          track={track && yt.v ? { lessonId: l.id, done: !!l.done, onFinished } : undefined} />
+      )}
+      {/* The teacher's own words about the video, above the lesson. */}
+      {l.key_points ? <KeyPoints text={l.key_points} /> : null}
       {l.kind === 'text' && (l.body ? <NotesView text={l.body} /> : <p className="text-muted-foreground">These notes are empty.</p>)}
       {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
       {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this source has been removed from the library.</p>}
       {embed && (
-        <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-lg border bg-black">
+        <div className="mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-lg border bg-black">
           <iframe src={embed} title={l.title} className="h-full w-full" allowFullScreen allow="encrypted-media; picture-in-picture; fullscreen" />
         </div>
       )}
-      {l.kind === 'video' && l.url && !embed && (/\.(mp4|webm|m4v)($|\?)/i.test(l.url)
-        ? <video src={l.url} controls playsInline preload="metadata" className="aspect-video w-full max-w-3xl rounded-lg border bg-black" />
+      {l.kind === 'video' && l.url && !embed && !yt && (/\.(mp4|webm|m4v)($|\?)/i.test(l.url)
+        ? <video src={l.url} controls playsInline preload="metadata" className="mx-auto block aspect-video w-full max-w-3xl rounded-lg border bg-black" />
         : <DownloadCard l={l} />)}
       {(l.kind === 'pdf' || (l.kind === 'doc' && isPdf(l))) && (l.file_id || l.url) && (
         <>
-          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
+          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="mx-auto block h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
           <div className="flex flex-wrap gap-x-5">
             <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
               <ExternalLink className="h-4 w-4" /> Open the PDF full screen
@@ -365,7 +465,6 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
           <Download className="h-4 w-4" /> Download {l.file_name ?? 'the file'}{l.file_size ? ` (${fmtSize(l.file_size)})` : ''}
         </a>
       )}
-      {note && <div className="rounded-lg border bg-muted/20 p-3">{note}</div>}
     </div>
   )
 }

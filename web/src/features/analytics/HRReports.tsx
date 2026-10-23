@@ -2,10 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, SkeletonTable, ErrorState, PrintButton,
+  Table, Td, Badge, Loading, SkeletonTable, ErrorState, Button,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct } from './shared'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import { printHtml } from '@/features/finance/receipt-print'
+import { hrReportHtml } from './hr-report-print'
 import { useDebouncedValue } from '@/lib/debounce'
 
 /**
@@ -82,6 +86,14 @@ export default function HRReports() {
   const joiners = (movement.data?.items ?? []).reduce((a, r) => a + r.joiners, 0)
   const leavers = (movement.data?.items ?? []).reduce((a, r) => a + r.leavers, 0)
   const lapsed = (expiries.data?.items ?? []).filter((e) => e.days_left < 0).length
+  const session = useSession()
+  /* The owner's print (hr-report-print.ts): only what is needed, no +/-. */
+  const printReport = () => printHtml(hrReportHtml({
+    school: session.institution?.display_name ?? 'School',
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    printedBy: session.user?.full_name ?? '', period: rangeLabel(range),
+    headcount: hc, movement: movement.data?.items ?? [], attendance: attendance.data?.items ?? [], expiries: expiries.data?.items ?? [],
+  }))
 
   return (
     <>
@@ -89,7 +101,7 @@ export default function HRReports() {
         eyebrow="Reports"
         title="Staff analytics & reports"
         description="Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal."
-        actions={<PrintButton />}
+        actions={<Button variant="secondary" onClick={printReport} disabled={!headcount.data}><Printer className="h-4 w-4" /> Print</Button>}
       />
       <PageBody>
         <div className="no-print">

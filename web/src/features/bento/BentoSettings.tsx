@@ -8,10 +8,18 @@ import { useT } from '@/lib/i18n'
    source plus the colour wheel and the rows behind it, and it sat in the
    main bundle for every visitor of every role, most of whom never open it.
    The button is here; the window arrives on the first press. */
-const AppearanceDialog = lazy(() =>
-  import('./AppearanceDialog').then((m) => ({ default: m.AppearanceDialog })),
-)
+const loadDialog = () => import('./AppearanceDialog')
+const AppearanceDialog = lazy(() => loadDialog().then((m) => ({ default: m.AppearanceDialog })))
+/* Fetched once the page is idle, so the first press of the gear opens at once
+   instead of waiting on the download (owner, 2026-10-10: "no waiting"). */
+if (typeof window !== 'undefined') {
+  const warm = () => { void loadDialog().catch(() => {}) }
+  const ric = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+  if (ric) ric(warm, { timeout: 4000 })
+  else window.setTimeout(warm, 2500)
+}
 import { cn } from '@/lib/utils'
+import { useLayout as useFrameLayout } from '@/lib/layout'
 import { INK, EDGE, WASH } from './bento-ink'
 import './dock-menus.css'
 
@@ -73,9 +81,32 @@ export function BentoSettings({
   const location = useLocation()
   const phone = usePhone()
   const btn = useRef<HTMLButtonElement>(null)
-  const [showAppearance, setShowAppearance] = useState(false)
-  const [everOpened, setEverOpened] = useState(false)
+  /* Still open if it was open: switching Work/Focus swaps this button for the
+     other layout's, and the window should stay up without launching again
+     (owner, 2026-10-08). */
+  const wasOpen = () => typeof window !== 'undefined'
+    && !!(window as { __settingsOpen?: boolean }).__settingsOpen
+    && window.matchMedia('(min-width: 768px)').matches
+  const [showAppearance, setShowAppearance] = useState(wasOpen)
+  const [everOpened, setEverOpened] = useState(wasOpen)
   useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])
+  /* A layout switch from inside Settings: the other layout's gear may have
+     been on the page all along (hidden), so it re-checks when the layout
+     changes and takes the window over if it is the one now showing. */
+  const { layout: frameNow } = useFrameLayout()
+  useEffect(() => {
+    /* Checked for up to two seconds: the dock slides in, and its
+       gear has no size for the first frames. */
+    let n = 0
+    const t = window.setInterval(() => {
+      n++
+      const visible = !!btn.current && btn.current.getBoundingClientRect().width > 0
+      if (visible && wasOpen()) { setEverOpened(true); setShowAppearance(true); window.clearInterval(t) }
+      if (n >= 30) window.clearInterval(t)
+    }, 70)
+    return () => window.clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameNow])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
   /* The cog opens Settings, and nothing before it.

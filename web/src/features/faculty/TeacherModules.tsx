@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, X,
+  Archive, ArchiveRestore, CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, Unlock, Users, X,
+  Play,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Textarea } from '@/components/ui'
@@ -11,7 +13,7 @@ import {
   FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, NotesEditor, ProgressRing, SECTIONS, SECTION_LABEL, TypeCounts, dateRange, dayTitle, fmtWhen, moduleItems, sourceMeta,
   type ItemType, type Lesson, type Placed, type RubricRow, type Section, type SourceKind, type Unit,
 } from '../learning/lms-shared'
-import { AssignmentForm, QuizForm } from './TeacherLMS'
+import { AssignmentForm, LAYOUTS, QuizForm, type Layout } from './TeacherLMS'
 
 /* A COURSE, MODULE FIRST AND ONE DAY AT A TIME (worker routes/teaching/lms.ts,
    lms_progress.ts; migrations 0011, 0012).
@@ -33,6 +35,7 @@ export interface CourseDetail {
   course: { section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string }
   roll: number; today: string; units: Unit[]; assignments: TAssignment[]; quizzes: TQuiz[]
   gating: 'sequential' | 'open'; days: { unit_id: string; day: number; label: string }[]
+  layout?: 'topic_day' | 'day' | 'topic'
 }
 export type Tab = 'modules' | 'assignments' | 'quizzes' | 'progress'
 
@@ -94,22 +97,57 @@ function useDragOrder(ids: string[], commit: (ids: string[]) => void) {
   return { props, handle, up: (id: string) => move(id, ids.indexOf(id) - 1), down: (id: string) => move(id, ids.indexOf(id) + 1) }
 }
 
-function Arrows({ first, last, up, down, label }: { first: boolean; last: boolean; up: () => void; down: () => void; label: string }) {
-  return (
-    <span className="inline-flex shrink-0">
-      <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-30" disabled={first} onClick={up} aria-label={`Move ${label} up`} title="Move up"><ArrowUp className="h-4 w-4" /></button>
-      <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-30" disabled={last} onClick={down} aria-label={`Move ${label} down`} title="Move down"><ArrowDown className="h-4 w-4" /></button>
-    </span>
-  )
+/* No up/down arrows (owner, 2026-10-10: "remove this"). Order is set by
+   dragging the grip; the props stay so the call sites need not change. */
+function Arrows(_: { first: boolean; last: boolean; up: () => void; down: () => void; label: string }) {
+  void _
+  return null
 }
 const seg = (on: boolean) => `min-h-10 rounded px-3.5 text-[14px] font-medium ${on ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`
 
 export function Modules({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; onTab: (t: Tab) => void }) {
   const [open, setOpen] = useState<string | null>(null)
+  const layout = d.layout ?? 'topic_day'
   const active = d.units.filter((u) => u.is_active !== false)
   const unit = active.find((u) => u.id === open)
-  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} back={() => setOpen(unit.parent_unit_id && active.some((x) => x.id === unit.parent_unit_id) ? unit.parent_unit_id : null)} onOpen={setOpen} onTab={onTab} />
-  return <ModuleList d={d} qkey={qkey} onOpen={setOpen} />
+  if (layout === 'day') return <><LayoutSwitch d={d} qkey={qkey} /><DaysOnly d={d} qkey={qkey} onTab={onTab} /></>
+  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} noDays={layout === 'topic'} back={() => setOpen(unit.parent_unit_id && active.some((x) => x.id === unit.parent_unit_id) ? unit.parent_unit_id : null)} onOpen={setOpen} onTab={onTab} />
+  return <><LayoutSwitch d={d} qkey={qkey} /><ModuleList d={d} qkey={qkey} onOpen={setOpen} /></>
+}
+
+/** How the course is built: topics with days, days only, or topics only. */
+function LayoutSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
+  const set = useOptimisticMutation<Layout>({
+    mutationFn: (layout) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, layout }),
+    queryKeys: [qkey],
+    invalidate: [qkey, ['lms-courses']],
+    apply: (old, layout) => ({ ...(old as CourseDetail), layout }),
+    failure: "Couldn't change the layout",
+  })
+  const now = d.layout ?? 'topic_day'
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <span className="text-[14px] text-muted-foreground">Layout</span>
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="radiogroup" aria-label="Layout">
+        {LAYOUTS.map((l) => (
+          <button key={l.value} type="button" role="radio" aria-checked={now === l.value} title={l.hint} onClick={() => now !== l.value && set.mutate(l.value)} className={seg(now === l.value)}>{l.label}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* Days only: the course keeps one module behind the scenes and shows its days. */
+function DaysOnly({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; onTab: (t: Tab) => void }) {
+  const qc = useQueryClient()
+  const unit = d.units.find((u) => u.is_active !== false && !u.parent_unit_id)
+  const make = useMutation({
+    mutationFn: () => api.post('/api/v1/lms/units', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title: d.course.subject }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qkey }),
+  })
+  useEffect(() => { if (!unit && make.isIdle) make.mutate() }, [unit, make])
+  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} bare back={() => {}} onOpen={() => {}} onTab={onTab} />
+  return make.error ? <FormNotice error={make.error} /> : <Loading />
 }
 
 /* Modules nest up to this many levels (the worker's MAX_DEPTH). */
@@ -156,35 +194,6 @@ function SubTree({ d, u, onOpen }: { d: CourseDetail; u: Unit; onOpen: (id: stri
 
 /* ─── The list of modules ──────────────────────────────────────────── */
 
-function GatingSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
-  /* Flips on press (lib/optimistic): the switch is the change, so it is
-     drawn first and put back with Retry if the server refuses. */
-  const set = useOptimisticMutation<CourseDetail['gating']>({
-    mutationFn: (gating) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, gating }),
-    queryKeys: [qkey],
-    invalidate: [qkey, ['lms-course-progress']],
-    apply: (old, gating) => ({ ...(old as CourseDetail), gating }),
-    failure: "Couldn't change how the class moves through the course",
-  })
-  return (
-    <Card>
-      <div className="flex flex-wrap items-center gap-3 px-[var(--card-pad)] py-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium">How the class moves through the course</p>
-          <p className="text-[13px] text-muted-foreground">{d.gating === 'open' ? 'Open: every published day can be opened in any order.' : 'One by one: a day opens when the one before it is finished.'}</p>
-        </div>
-        <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="radiogroup" aria-label="Progression">
-          {([['sequential', 'One by one'], ['open', 'Open']] as const).map(([v, label]) => (
-            <button key={v} type="button" role="radio" aria-checked={d.gating === v} onClick={() => d.gating !== v && set.mutate(v)} className={seg(d.gating === v)}>
-              {v === 'sequential' ? <Lock className="mr-1.5 inline h-3.5 w-3.5" /> : <Unlock className="mr-1.5 inline h-3.5 w-3.5" />}{label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 /** The course with its units in the order `ids` gives; anything not named keeps its place at the end. */
 function unitsInOrder(d: CourseDetail, ids: string[]): CourseDetail {
   const rank = new Map(ids.map((id, i) => [id, i]))
@@ -215,7 +224,7 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
   const byId = new Map(tops.map((u) => [u.id, u]))
   return (
     <div className="space-y-3">
-      <GatingSwitch d={d} qkey={qkey} />
+      <p className="text-[13px] text-muted-foreground">One by one: each video opens when the one before it has been watched to the end.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[14px] text-muted-foreground">{tops.length ? `${tops.length} module${tops.length === 1 ? '' : 's'}, in the order the class takes them.` : 'No modules yet.'}</p>
         <Button onClick={() => setAdding(!adding)}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> New module</>}</Button>
@@ -336,7 +345,7 @@ function ModuleForm({ d, u, parent, done }: { d: CourseDetail; u?: Unit; parent?
 
 interface Adding { day: number | null; section: Section; type: ItemType | 'pick' | 'attach' }
 
-function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: Unit; qkey: unknown[]; back: () => void; onOpen: (id: string) => void; onTab: (t: Tab) => void }) {
+function ModuleView({ d, u, qkey, back, onOpen, onTab, bare, noDays }: { d: CourseDetail; u: Unit; qkey: unknown[]; back: () => void; onOpen: (id: string) => void; onTab: (t: Tab) => void; bare?: boolean; noDays?: boolean }) {
   const qc = useQueryClient()
   const [view, setView] = useState<'days' | 'progress'>('days')
   const [editing, setEditing] = useState<'module' | 'sub' | null>(null)
@@ -348,7 +357,9 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   const parent = d.units.find((x) => x.id === u.parent_unit_id)
   const items = itemsOf(d, u)
   /* "Not on a day" is always there: content can go straight in the module, days or not. */
-  const days = (() => { const x = daysOf(d, u, items); return x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
+  /* Topics only: everything sits in the module, no days. Days only: just the days. */
+  const days = noDays ? [{ day: null, label: 'Videos and content' }]
+    : (() => { const x = daysOf(d, u, items); return bare ? x.filter((y) => y.day !== null) : x.some((y) => y.day === null) ? x : [...x, { day: null, label: '' }] })()
   // Silent and at once, like the drag above (lib/optimistic).
   const orderSubs = useOptimisticMutation<[string, string]>({
     mutationFn: (pair) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: swapOrder(d, pair[0], pair[1]) }),
@@ -367,8 +378,8 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
   }
   return (
     <div className="space-y-4">
-      <div><Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> {parent ? parent.title : 'All modules'}</Button></div>
-      <Card>
+      {!bare && <div><Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> {parent ? parent.title : 'All modules'}</Button></div>}
+      {!bare && <Card>
         {editing === 'module' ? <ModuleForm d={d} u={u} done={() => { setEditing(null); refresh() }} /> : (
           <div className="flex flex-wrap items-start gap-3 px-[var(--card-pad)] py-4">
             <div className="min-w-0 flex-1 space-y-1">
@@ -385,8 +396,8 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
         )}
         {editing === 'sub' && <div className="border-t"><ModuleForm d={d} parent={u} done={() => { setEditing(null); refresh() }} /></div>}
         <FormNotice error={archive.error} />
-      </Card>
-      {subs.length > 0 && (
+      </Card>}
+      {!bare && subs.length > 0 && (
         <div className="space-y-2">
           <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's own content</p>
           {subs.map((sx, i) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)}
@@ -396,10 +407,10 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="tablist">
           {(['days', 'progress'] as const).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)} className={seg(view === t)}>{t === 'days' ? 'Days' : 'Who has finished'}</button>
+            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)} className={seg(view === t)}>{t === 'days' ? (noDays ? 'Content' : 'Days') : 'Who has finished'}</button>
           ))}
         </div>
-        {view === 'days' && <Button pending={addDay.isPending} onClick={() => addDay.mutate()}><Plus className="h-4 w-4" /> Add day</Button>}
+        {view === 'days' && !noDays && <Button pending={addDay.isPending} onClick={() => addDay.mutate()}><Plus className="h-4 w-4" /> Add day</Button>}
       </div>
       <FormNotice error={addDay.error ?? orderDays.error} />
       {view === 'progress' ? <ModuleProgressView d={d} u={u} /> : !days.length ? (
@@ -407,7 +418,7 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: U
       ) : (
         <div className="space-y-4">
           {days.map((x) => (
-            <DayCard key={String(x.day)} d={d} u={u} qkey={qkey} day={x.day} label={x.label} items={items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
+            <DayCard key={String(x.day)} d={d} u={u} qkey={qkey} day={x.day} label={x.label} items={noDays ? items : items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
               arrows={x.day === null ? null : <Arrows first={numbered.indexOf(x.day) === 0} last={numbered.indexOf(x.day) === numbered.length - 1} up={() => moveDay(x.day!, -1)} down={() => moveDay(x.day!, 1)} label={`Day ${x.day}`} />} />
           ))}
         </div>
@@ -454,7 +465,7 @@ function DayCard({ d, u, qkey, day, label, items, arrows, refresh, onTab }: { d:
           </div>
         ) : (
           <>
-            <h3 className="min-w-0 flex-1 text-[16px] font-semibold">{dayTitle(day, label)}</h3>
+            <h3 className="min-w-0 flex-1 text-[16px] font-semibold">{day === null && label ? label : dayTitle(day, label)}</h3>
             <span className="text-[13px] text-muted-foreground">{items.length} item{items.length === 1 ? '' : 's'}</span>
             {day !== null && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Rename Day ${day}`} title="Rename" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /></button>}
             {day !== null && !items.length && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Remove Day ${day}`} title="Remove this empty day" onClick={() => del.mutate()}><Trash2 className="h-4 w-4" /></button>}
@@ -581,9 +592,28 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   const [day, setDay] = useState(lesson ? (lesson.day ? String(lesson.day) : '') : day0 === null ? '' : String(day0))
   const [section, setSection] = useState<string>(lesson?.section ?? section0)
   const [optional, setOptional] = useState(!!lesson?.is_optional)
+  const [openNow, setOpenNow] = useState(!!lesson?.open_now)
   const [publish, setPublish] = useState<'now' | 'draft' | 'schedule'>(lesson ? (!lesson.is_published ? 'draft' : lesson.publish_at && lesson.publish_at > nowIso() ? 'schedule' : 'now') : 'now')
   const [when, setWhen] = useState(toLocal(lesson?.publish_at))
   const [onlyHere, setOnlyHere] = useState(false)
+  /* THE TEACHER'S OWN WORDS ABOUT THE VIDEO, and who made it.
+
+     key_points is what the class should take away, written by the teacher.
+     It is deliberately not generated: a summary derived from somebody
+     else's recording, or from its captions, is derived from their work, and
+     this product does not make one. The child writes their own notes under
+     the player; this is the other half of that pair.
+
+     yt_channel is attribution. The server stores the video id and nothing
+     else -- no title, no thumbnail, no description, because YouTube's terms
+     cap how long its metadata may be cached -- so the uploader's name is
+     typed here once and shown beside the player. */
+  const [keyPoints, setKeyPoints] = useState(lesson?.key_points ?? '')
+  const [channel, setChannel] = useState(lesson?.yt_channel ?? '')
+  /* Only a YouTube address grows the two extra boxes. Matched loosely on
+     purpose: the server decides what is really a YouTube id, this only
+     decides whether to offer the fields. */
+  const isYouTube = /(?:youtube\.com|youtu\.be)\//i.test(url)
   const fileKind = kind === 'pdf' || kind === 'file' || kind === 'image' || kind === 'audio' || kind === 'doc'
   const lib = kind === 'video' && vsrc !== 'link'
   const save = useMutation({
@@ -591,13 +621,29 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
       const b = {
         unit_id: u.id, title, kind, body, url: lib ? '' : fileKind && file ? '' : url, video_id: lib ? video : undefined, file_id: fileKind ? file?.id ?? null : null,
         duration_minutes: mins ? Number(mins) : null, is_published: publish !== 'draft', publish_at: publish === 'schedule' && when ? new Date(when).toISOString() : null,
-        day: day ? Number(day) : null, section, is_optional: optional,
+        day: day ? Number(day) : null, section, is_optional: optional, open_now: openNow,
+        /* Always sent, so clearing the box clears the field. The server
+           only replaces key_points when the key is present, which keeps a
+           screen that has no such box from wiping what was written here. */
+        key_points: keyPoints, yt_channel: channel,
       }
       return lesson ? api.put(`/api/v1/lms/lessons/${lesson.id}`, b) : api.post('/api/v1/lms/lessons', { ...b, section_id: onlyHere ? d.course.section_id : undefined })
     },
     onSuccess: done,
   })
   const ready = title.trim() && (kind === 'text' ? body.trim() : kind === 'link' ? url.trim() : kind === 'video' ? (lib ? video : url.trim()) : file || url.trim())
+  /* Rendered by the form below, kept here so the markup stays one line of
+     intent rather than twenty of layout. */
+  const youTubeFields = isYouTube ? (
+    <>
+      <Field label="Whose channel is it?" hint="Shown under the player so the uploader is credited. The school stores only the video's id, never its title or thumbnail.">
+        <Input value={channel} onChange={setChannel} placeholder="e.g. Khan Academy India" />
+      </Field>
+      <Field label="Key points" hint="Your own words — what this class should take from the video. Not a summary of it.">
+        <Textarea value={keyPoints} onChange={setKeyPoints} rows={4} placeholder="Three or four things to watch for…" />
+      </Field>
+    </>
+  ) : null
   return (
     <div className="space-y-4 p-3 sm:p-4">
       <p className="text-[14px] font-semibold">{lesson ? `Edit: ${lesson.title}` : ADD_TITLE[kind]}</p>
@@ -624,6 +670,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
         </div>
       )}
       {kind !== 'text' && <Field label="A note for the class" hint="Optional. Shown with the source."><Textarea rows={2} value={body} onChange={setBody} /></Field>}
+      {youTubeFields}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Day"><Select value={day} onChange={setDay} options={dayOptions(d, u)} /></Field>
         <Field label="Section"><Select value={section} onChange={setSection} options={sectionOptions} /></Field>
@@ -635,6 +682,14 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
         </Field>
         {publish === 'schedule' && <Field label="Opens at" hint="The class sees it from this moment."><Input type="datetime-local" value={when} onChange={setWhen} /></Field>}
       </div>
+      {/* WHEN CAN STUDENTS OPEN IT (owner, 2026-10-10: "unlock this now, or
+          wait till the other videos are completed"). */}
+      <Field label="When can students open it?">
+        <Select value={openNow ? 'now' : 'after'} onChange={(v) => setOpenNow(v === 'now')} options={[
+          { value: 'after', label: 'After the videos before it are watched' },
+          { value: 'now', label: 'Unlocked now: open straight away' },
+        ]} />
+      </Field>
       <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={optional} onChange={(e) => setOptional(e.target.checked)} /> Optional: the next day can open without it</label>
       {!lesson && <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> Only this section (otherwise every section of the class)</label>}
       <div className="flex flex-wrap items-center gap-2">
@@ -646,8 +701,80 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
   )
 }
 
+/** One video or source: who in the section has finished it, and who has not.
+
+    THE OWNER'S TRACKER (2026-10-10, "Task Tracker" design): a header with
+    the source and a progress bar, Pending / Completed tabs, and one row per
+    child -- initials, name, class and section, and a status badge. No
+    reminders from here ("no need of remind"). */
+function WhoDone({ d, id, title, meta }: { d: CourseDetail; id: string; title: string; meta: string }) {
+  const q = useQuery({
+    queryKey: ['lms-lesson-progress', id, d.course.section_id],
+    queryFn: () => api.get<{ items: { student_id: string; full_name: string; roll_no?: number | null; completed_at?: string | null }[] }>(`/api/v1/lms/lessons/${id}/progress?section_id=${d.course.section_id}`),
+  })
+  const [tab, setTab] = useState<'pending' | 'done'>('pending')
+  if (q.error) return <div className="px-[var(--card-pad)] pb-2"><ErrorState error={q.error} /></div>
+  if (!q.data) return <Loading />
+  const all = q.data.items
+  const done = all.filter((x) => x.completed_at), left = all.filter((x) => !x.completed_at)
+  const pct = all.length ? Math.round((100 * done.length) / all.length) : 0
+  const cls = [d.course.class_name, d.course.section_name].filter(Boolean).join(' · ')
+  const rows = tab === 'done' ? done : left
+  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?'
+  return (
+    <div className="mx-[var(--card-pad)] mb-3 overflow-hidden rounded-xl border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#fee2e2] text-[#ef4444]"><Play className="size-4 fill-current" aria-hidden /></span>
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold">{title}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{meta}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-200" title={`${pct}% completed`}>
+            <div className="h-full rounded-full bg-[#16a34a]" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-[13px] font-semibold text-muted-foreground">{done.length} / {all.length} completed</span>
+        </div>
+      </div>
+      <div className="flex gap-2 border-b bg-[#fafafa] px-5 py-3 dark:bg-muted/30">
+        {(['pending', 'done'] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t}
+            className={cn('rounded-md border px-3 py-1.5 text-[13px] font-medium transition-colors',
+              tab === t ? 'border-border bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {t === 'pending' ? `Pending (${left.length})` : `Completed (${done.length})`}
+          </button>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-5 py-6 text-center text-[13.5px] text-muted-foreground">{tab === 'pending' ? 'Everyone has finished this.' : 'Nobody has finished this yet.'}</p>
+      ) : (
+        <ul className="max-h-[420px] overflow-y-auto">
+          {rows.map((x) => (
+            <li key={x.student_id} className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 transition-colors last:border-b-0 hover:bg-slate-50 dark:border-border dark:hover:bg-muted/30">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e0e7ff] text-[12px] font-semibold text-[#4338ca]">{initials(x.full_name)}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-medium">{x.full_name}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{cls}{x.roll_no ? ` · Roll ${x.roll_no}` : ''}</p>
+                </div>
+              </div>
+              {x.completed_at ? (
+                <span className="shrink-0 rounded px-2 py-0.5 text-[12px] font-medium text-[#166534] bg-[#dcfce7]" title={fmtWhen(x.completed_at)}>Completed · {fmtWhen(x.completed_at)}</span>
+              ) : (
+                <span className="shrink-0 rounded bg-[#fef3c7] px-2 py-0.5 text-[12px] font-medium text-[#92400e]">Pending</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; it: TItem; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
-  const [open, setOpen] = useState<'preview' | 'menu' | 'edit' | null>(null)
+  const [open, setOpen] = useState<'preview' | 'menu' | 'edit' | 'who' | null>(null)
   const kind = kindOf(it)
   let meta: React.ReactNode = null, right: React.ReactNode = null
   if (it.type === 'lesson') {
@@ -675,11 +802,15 @@ function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Uni
           </span>
           <span className="hidden shrink-0 flex-wrap items-center justify-end gap-2 sm:flex">{right}</span>
         </button>
+        {it.type === 'lesson' && <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Who has finished ${it.title}`} title="Who has finished" aria-expanded={open === 'who'} onClick={() => setOpen(open === 'who' ? null : 'who')}>
+          <Users className="h-4 w-4" />
+        </button>}
         <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Actions for ${it.title}`} aria-expanded={open === 'menu'} onClick={() => setOpen(open === 'menu' ? null : 'menu')}>
           <MoreHorizontal className="h-4 w-4" />
         </button>
         {arrows}
       </div>
+      {open === 'who' && <WhoDone d={d} id={it.id} title={it.title} meta={it.type === 'lesson' && it.lesson ? sourceMeta(it.lesson) : ''} />}
       {open === 'menu' && <ItemActions d={d} u={u} it={it} refresh={refresh} onTab={onTab} onEdit={() => setOpen('edit')} close={() => setOpen(null)} />}
       {open === 'edit' && it.lesson && <div className="mx-[var(--card-pad)] mb-2 rounded-lg border bg-muted/20"><SourceForm kind={it.lesson.kind} u={u} d={d} day={it.day} section={it.section} lesson={it.lesson} done={() => { setOpen(null); refresh() }} /></div>}
       {open === 'preview' && (
@@ -834,62 +965,114 @@ export function CourseProgress({ d }: { d: CourseDetail }) {
   const step = new Map(g.steps.map((s, i) => [s.key, { ...s, i }]))
   const mods: { unit_id: string; module: string; n: number }[] = []
   for (const s of g.steps) { const last = mods[mods.length - 1]; if (last && last.unit_id === s.unit_id) last.n++; else mods.push({ unit_id: s.unit_id, module: s.module, n: 1 }) }
-  const short = (s: { day: number | null }) => (s.day === null ? '•' : `D${s.day}`)
+  const short = (s: { day: number | null }) => (s.day === null ? '•' : `Day ${s.day}`)
+  /* THE COHORT TRACKER, TO THE OWNER'S MOCKUP (2026-10-10, their own HTML).
+
+     WHAT WENT. A matrix: every child down the side, every day across the
+     top, a 28px box in each cell. On a three-day course that is nine boxes
+     saying "0/1" and a column headed D1, D2, D3 that only means anything
+     once you have read the legend. Every row then repeated the same
+     sentence in "Where they are", and the same "Open D2" button beside it.
+     Wide, repetitive, and hard to read a single child out of.
+
+     WHAT CAME. One line per child, read left to right: who they are and
+     how far they have got, then the days as a row of pills joined by a
+     line -- finished, the one they are on, the ones still shut -- then the
+     single thing a teacher can actually do about it, which is open the
+     next day early.
+
+     The line between two pills is green only where the day before it is
+     finished, so a glance down the column shows how far the class has
+     come without reading a number.
+
+     WHAT IS KEPT FROM OURS. Days opened early stay marked and stay
+     revocable: the mockup has no such state, but a teacher who opened a
+     day for one child needs to see that they did and be able to take it
+     back. They are the amber pills with a cross. */
+  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const modNames = [...new Set(g.steps.map((x) => x.module))]
   return (
     <Card>
-      <CardHeader title={`Where everyone is · ${g.steps.length} day${g.steps.length === 1 ? '' : 's'}`} action={<span className="text-[13px] text-muted-foreground">{g.gating === 'open' ? 'Open course: nothing is locked.' : 'One by one: a day opens when the one before is done.'}</span>} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 border-b px-[var(--card-pad)] py-2 text-[12px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-success text-white"><Check className="h-3 w-3" /></span> Done</span>
-        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-primary bg-primary/10" /> Open: done of required</span>
-        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-warning bg-warning/10" /> Opened early</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-muted"><Lock className="h-2.5 w-2.5" /></span> Locked</span>
-      </div>
+      <CardHeader
+        title={modNames.length === 1 ? `Module: ${modNames[0]}` : `${modNames.length} parts`}
+        description={`${g.steps.length}-day sequence · ${g.gating === 'open' ? 'open course, nothing is locked' : 'a day opens when the one before is done'}`}
+        action={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Done</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warning" /> In progress</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> Locked</span>
+          </div>
+        }
+      />
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13px]">
+        <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="border-b">
-              <th rowSpan={2} className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2 text-left font-medium">Student</th>
-              {mods.map((m, i) => <th key={m.unit_id + i} colSpan={m.n} className="border-l px-1 py-1.5 text-left text-[12px] font-medium text-muted-foreground"><span className="block max-w-[10rem] truncate">{m.module}</span></th>)}
-              <th rowSpan={2} className="border-l px-3 py-2 text-left font-medium">Where they are</th>
-            </tr>
-            <tr className="border-b">
-              {g.steps.map((s) => <th key={s.key} title={`${s.module} · ${s.label}`} className="px-1 py-1 text-center text-[11px] font-medium text-muted-foreground">{short(s)}</th>)}
+            <tr className="border-b bg-muted/40">
+              <th className="px-[var(--card-pad)] py-3 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Student</th>
+              <th className="px-3 py-3 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Progress</th>
+              <th className="px-[var(--card-pad)] py-3 text-right text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                {g.gating === 'open' ? '' : 'Open early'}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {g.students.map((r) => {
-              const at = r.at ? step.get(r.at) : null
               const firstLocked = r.states.findIndex((x) => x.state === 'locked')
               const nextKey = firstLocked >= 0 ? g.steps[firstLocked].key : null
+              const early = r.unlocks.filter((k) => step.has(k))
               return (
-                <tr key={r.student_id}>
-                  <td className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2">
-                    <span className="block max-w-[9rem] truncate font-medium sm:max-w-[14rem]">{r.full_name}</span>
-                    <span className="block text-[12px] text-muted-foreground">{r.days_done} of {g.steps.length} done</span>
+                <tr key={r.student_id} className="transition-colors hover:bg-muted/30">
+                  <td className="px-[var(--card-pad)] py-4">
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
+                        {initials(r.full_name)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block max-w-[11rem] truncate text-[14px] font-semibold sm:max-w-[16rem]">{r.full_name}</span>
+                        <span className="block text-[12px] text-muted-foreground">{r.days_done} of {g.steps.length} finished</span>
+                      </span>
+                    </div>
                   </td>
-                  {r.states.map((x, i) => {
-                    const s = g.steps[i]
-                    const early = r.unlocks.includes(s.key)
-                    return (
-                      <td key={s.key} className="px-1 py-2 text-center" title={`${s.module} · ${s.label}: ${x.state === 'done' ? 'done' : x.state === 'open' ? `${x.done} of ${x.total} done` : 'locked'}${early ? ' (opened early)' : ''}`}>
-                        {x.state === 'done' ? <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-success text-white"><Check className="h-3.5 w-3.5" /></span>
-                          : x.state === 'open' ? <span className={`inline-flex h-7 w-7 items-center justify-center rounded border-2 text-[10px] font-semibold tabular-nums ${early ? 'border-warning bg-warning/10' : 'border-primary bg-primary/10'}`}>{x.total ? `${x.done}/${x.total}` : ''}</span>
-                            : <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-muted text-muted-foreground"><Lock className="h-3 w-3" /></span>}
-                      </td>
-                    )
-                  })}
-                  <td className="border-l px-3 py-2">
-                    <div className="flex min-w-[14rem] flex-wrap items-center gap-2">
-                      <span className="min-w-0 flex-1">{!at ? <Badge tone="success">Finished</Badge> : <><span className="block text-[12px] text-muted-foreground">{at.module}</span><span className="block">{at.label}</span></>}</span>
+                  <td className="px-3 py-4">
+                    <div className="inline-flex items-center">
+                      {r.states.map((x, i) => {
+                        const st = g.steps[i]
+                        const wasEarly = r.unlocks.includes(st.key)
+                        const label = short(st)
+                        return (
+                          <span key={st.key} className="inline-flex items-center">
+                            {i > 0 && (
+                              <span aria-hidden className={cn('h-0.5 w-6', r.states[i - 1].state === 'done' ? 'bg-success' : 'bg-border')} />
+                            )}
+                            <span
+                              title={`${st.module} · ${st.label}: ${x.state === 'done' ? 'done' : x.state === 'open' ? `${x.done} of ${x.total} done` : 'locked'}${wasEarly ? ' (opened early)' : ''}`}
+                              className={cn('inline-flex min-w-[52px] items-center justify-center whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-semibold',
+                                x.state === 'done' ? 'border-success/40 bg-success/10 text-success'
+                                  : x.state === 'open' ? (wasEarly ? 'border-warning/50 bg-warning/10 text-warning' : 'border-warning/50 bg-warning/10 text-warning')
+                                    : 'border-border bg-muted text-muted-foreground')}>
+                              {label}{x.state === 'done' ? ' ✓' : ''}
+                            </span>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-[var(--card-pad)] py-4 text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!nextKey && <Badge tone="success">Finished</Badge>}
                       {g.gating !== 'open' && nextKey && (
-                        <Button size="sm" variant="secondary" pending={unlock.isPending && unlock.variables?.student_id === r.student_id} onClick={() => unlock.mutate({ student_id: r.student_id, key: nextKey, on: true })}>
-                          <Unlock className="h-3.5 w-3.5" /> Open {short(step.get(nextKey)!)}
+                        <Button size="sm" variant="secondary"
+                          pending={unlock.isPending && unlock.variables?.student_id === r.student_id}
+                          onClick={() => unlock.mutate({ student_id: r.student_id, key: nextKey, on: true })}>
+                          <Unlock className="h-3.5 w-3.5" /> Unlock {short(step.get(nextKey)!)}
                         </Button>
                       )}
-                      {r.unlocks.filter((k) => step.has(k)).map((k) => (
-                        <button key={k} type="button" className="inline-flex min-h-8 items-center gap-1 rounded-md bg-warning/10 px-2 text-[12px] text-warning" title="Opened early by a teacher. Press to take it back."
+                      {early.map((k) => (
+                        <button key={k} type="button"
+                          className="inline-flex min-h-8 items-center gap-1 rounded-md bg-warning/10 px-2 text-[12px] text-warning"
+                          title="Opened early by a teacher. Press to take it back."
                           onClick={() => unlock.mutate({ student_id: r.student_id, key: k, on: false })}>
-                          {short(step.get(k)!)} opened early <X className="h-3 w-3" />
+                          {short(step.get(k)!)} early <X className="h-3 w-3" />
                         </button>
                       ))}
                     </div>

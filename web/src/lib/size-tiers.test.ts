@@ -19,6 +19,7 @@ import { useLayout, dimsOf, tintOf } from './widgets'
 /** The eight shapes the old picker offered, and what each reads as now. */
 const LEGACY: { w: number; h: number; desktop: SizeTier; phone: SizeTier }[] = [
   { w: 1, h: 1, desktop: 'small', phone: 'small' },
+  // Tall is the desk's one-column, two-row shape; a phone has no Tall.
   { w: 1, h: 2, desktop: 'tall', phone: 'large' },
   { w: 2, h: 1, desktop: 'medium', phone: 'medium' },
   { w: 2, h: 2, desktop: 'large', phone: 'large' },
@@ -38,7 +39,7 @@ describe('tierOf classifies every legacy shape', () => {
     })
   }
 
-  it('height decides first: two rows is large, except the one-column desk shape, which is tall', () => {
+  it('height decides first: two rows is tall at one column on the desk, large otherwise', () => {
     for (const w of [1, 2, 3, 4, 5]) {
       for (const h of [2, 3, 4, 5]) {
         expect(tierOf(w, h, false)).toBe(w < 2 ? 'tall' : 'large')

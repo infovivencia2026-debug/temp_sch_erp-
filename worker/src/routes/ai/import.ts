@@ -84,7 +84,7 @@ async function analyze(c: Ctx): Promise<Response> {
   if (forced && !kinds.some((k) => k.key === forced)) throw new HttpError(403, 'you cannot import ' + forced, { code: 'forbidden' })
   const name = f.name ?? ''
   const mime = (f.type || '').toLowerCase()
-  const llm = llmFromEnv(c.env, 55_000)
+  const llm = await llmFromEnv(c.env, 55_000)
 
   if (IMAGE.test(mime) || /\.(jpe?g|png|webp|heic)$/i.test(name)) {
     if (!llm) throw noAI()
@@ -126,7 +126,7 @@ async function propose(c: Ctx): Promise<Response> {
   const table = cleanTable(body.table)
   const kinds = kindsFor(c)
   const forced = body.kind && kinds.some((k) => k.key === body.kind) ? body.kind : undefined
-  const llm = llmFromEnv(c.env, 40_000)
+  const llm = await llmFromEnv(c.env, 40_000)
   if (llm) await assistantRateLimit(c)
   return ok({ proposal: await proposeImport(llm, table, kinds, forced), kinds, ai: !!llm })
 }
@@ -173,7 +173,7 @@ async function run(c: Ctx, commit: boolean): Promise<Response> {
 }
 
 export function registerAIImport(r: Router): void {
-  r.get('/ai/import/kinds', 'auth', (c) => ok({ kinds: kindsFor(c), ai: geminiKeySet(c.env) }))
+  r.get('/ai/import/kinds', 'auth', async (c) => ok({ kinds: kindsFor(c), ai: (await geminiKeySet(c.env)) }))
   r.post('/ai/import/analyze', 'auth', analyze)
   r.post('/ai/import/propose', 'auth', propose)
   r.post('/ai/import/preview', 'auth', (c) => run(c, false))

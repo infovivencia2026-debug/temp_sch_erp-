@@ -13,6 +13,8 @@ export interface Ctx {
   id: Identity
   /** The school's D1 database. Throws for a platform admin who is not acting as a school. */
   db: D1Database
+  /** Finish work after the response has gone (ExecutionContext.waitUntil); absent in tests. */
+  later?: (p: Promise<unknown>) => void
 }
 
 export type Handler = (c: Ctx) => Promise<Response> | Response

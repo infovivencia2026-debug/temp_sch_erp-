@@ -1,5 +1,4 @@
 import { screen } from '@/lib/screen'
-import { lazy } from 'react'
 
 /* The transport office's live map.
 
@@ -25,7 +24,4 @@ export const liveTrackingKeys = {
      and rendered the placeholder. The one menu item named "Live vehicle
      tracking" was the one that did not open the live map. */
   'transport_manager.transport.live_vehicle_tracking': screen(() => import('./LiveVehicleMap')),
-  'transport_manager.transport.real_time_vehicle_tracking_vts': lazy(
-    () => import('./LiveVehicleMap'),
-  ),
 }

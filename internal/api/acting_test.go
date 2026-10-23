@@ -127,6 +127,27 @@ func mkOtherSchool(t *testing.T, sc *classroomSchool) uuid.UUID {
 func grantBoardMember(t *testing.T, sc *classroomSchool, inst, user uuid.UUID) {
 	t.Helper()
 	if err := sc.db.AsPlatform(context.Background(), func(tx pgx.Tx) error {
+		/* The rbac vocabulary first: role_permissions has a foreign key to
+		   permissions, and a freshly migrated test database is never run
+		   through `migrate seed`. Without this the test passed only when
+		   another test (catalog_probe_test) happened to seed it earlier. */
+		for _, perm := range rbac.All {
+			if _, err := tx.Exec(context.Background(), `
+				INSERT INTO permissions (key, module, description)
+				VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+				perm.Key, perm.Module, perm.Description); err != nil {
+				return err
+			}
+		}
+		// The member is a real user whose home is sc.inst: user_roles has a
+		// foreign key to users.
+		if _, err := tx.Exec(context.Background(), `
+			INSERT INTO users (id, institution_id, username, full_name, password_hash, status)
+			VALUES ($1,$2,$3::citext,'Board Member','x','active')
+			ON CONFLICT (id) DO NOTHING`,
+			user, sc.inst, "board"+user.String()[:8]); err != nil {
+			return err
+		}
 		roleID, _, err := rbac.InstallRole(context.Background(), tx, inst, "board_member")
 		if err != nil {
 			return err

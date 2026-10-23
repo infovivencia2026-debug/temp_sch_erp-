@@ -39,6 +39,9 @@ export interface AnchorOptions {
   margin?: number
 }
 
+/** Above dialogs and sheets, so a list opened inside one is never behind it. */
+export const Z_ABOVE_DIALOGS = 240
+
 const HIDDEN: CSSProperties = { position: 'fixed', left: -9999, top: 0, visibility: 'hidden' }
 
 export function useAnchoredPosition(
@@ -75,7 +78,7 @@ export function useAnchoredPosition(
       const below = vTop + vH - r.bottom - gap - margin
       const above = r.top - vTop - gap - margin
       const up = tall > below && above > below
-      const room = Math.max(96, up ? above : below)
+      const room = Math.max(Math.min(96, vH - margin * 2), up ? above : below)
       const maxH = Math.min(maxHeight, room)
 
       setStyle(

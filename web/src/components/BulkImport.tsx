@@ -110,6 +110,8 @@ interface Result {
   imported: number
   dry_run: boolean
   problems: Problem[]
+  /** Rows that would replace a code already on file; held back unless overwrite=true. */
+  replacements?: { row: number; problem: string }[]
 }
 
 
@@ -162,6 +164,8 @@ export default function BulkImport({
   const [csv, setCsv] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState<Result | null>(null)
+  // Ticked: rows that replace an existing code are applied too (owner, 2026-10-14).
+  const [overwrite, setOverwrite] = useState(false)
   const [grid, setGrid] = useState<string[][]>([])
   const [showAll, setShowAll] = useState(false)
   /* Whatever is open in its own window: the file about to be uploaded, or
@@ -247,6 +251,7 @@ export default function BulkImport({
       for (const [k, v] of Object.entries(params ?? {})) {
         if (v) qs.set(k, v)
       }
+      if (overwrite) qs.set('overwrite', 'true')
       const query = qs.toString()
       const q = query ? `?${query}` : ''
       const res = await fetch(
@@ -308,6 +313,7 @@ export default function BulkImport({
     setCsv('')
     setName('')
     setResult(null)
+    setOverwrite(false)
     setGrid([])
     setShowAll(false)
     setError('')
@@ -759,6 +765,19 @@ export default function BulkImport({
           </div>
         )}
 
+        {/* Say that something is happening (owner, 2026-10-15: "no loading,
+            no response, I don't know if it saved"). */}
+        {busy && (
+          <p className="mt-4 inline-flex items-center gap-2 text-[13px] text-muted-foreground" role="status" aria-live="polite">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />
+            {result ? 'Saving… keep this page open.' : 'Checking the file…'}
+          </p>
+        )}
+        {result && !busy && result.total === 0 && (
+          <p className="mt-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]" role="alert">
+            No rows were found in this file. The first line with something in it must be the column headings (EMP ID, NAME…), and the staff rows go under it. Fix the file and choose it again.
+          </p>
+        )}
         {result && (
           <div className="mt-4">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
@@ -790,6 +809,24 @@ export default function BulkImport({
                 </Button>
               )}
             </div>
+
+            {(result.replacements?.length ?? 0) > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-[12.5px] text-muted-foreground">
+                  These rows would replace a code already on file. They are left out unless you tick the box.
+                </p>
+                <ul className="mb-2 space-y-1 text-[13px]">
+                  {result.replacements!.slice(0, 25).map((p) => (
+                    <li key={p.row}>Row {p.row}: {p.problem}</li>
+                  ))}
+                </ul>
+                <label className="flex items-center text-[13px]">
+                  <input type="checkbox" className="mr-2" checked={overwrite}
+                    onChange={(e) => setOverwrite(e.target.checked)} />
+                  Replace existing codes
+                </label>
+              </div>
+            )}
 
             {result.rejected > 0 && (
               <div className="mt-4 scroll-x">

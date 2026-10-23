@@ -87,12 +87,15 @@ function markFor(label: string) {
   return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
 }
 
-export default function NeedsAttention({ name, afterToday, attentionFirst = false }: {
+export default function NeedsAttention({ name, afterToday, attentionFirst = false, noAttention = false }: {
   name?: string
   afterToday?: ReactNode
   /** The staff home: what needs doing at the top, and no Today strip -- the
       page under it carries its own figures (the owner asked for both). */
   attentionFirst?: boolean
+  /** The teacher's home shows no "Needs your attention" box: report cards to
+      publish and papers without marks are the office's queue (owner, 2026-10-19). */
+  noAttention?: boolean
 }) {
   const navigate = useNavigate()
   const role = useActiveRole()
@@ -222,7 +225,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
      the route blanks with no error boundary to catch it. A missing list is
      worth rendering nothing over, not worth taking the page down. */
   const { greeting } = q.data
-  const items = q.data.items ?? []
+  const items = noAttention ? [] : q.data.items ?? []
   const summary = q.data.summary ?? []
 
   /* An attention item names a destination in the abstract — "attendance",
@@ -417,9 +420,19 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {!attentionFirst && summary.length > 0 && (
         <section>
           <p className="eyebrow mb-2.5">Today</p>
-          <div className={cn('tint-grid grid gap-4 sm:grid-cols-2',
-            /* One row on a desk, however many figures this role has. */
-            ({ 1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5')}>
+          <div className={cn('tint-grid grid gap-4',
+            /* One row on a desk, however many figures this role has -- but a
+               role with a single figure gets a card, not a banner. Asking a
+               one-column grid to fill the page stretched the board's
+               "Collected today" across the full 946px, label and number
+               marooned together at the far left with nothing but emptiness
+               to their right. A lone figure keeps a card's width and the row
+               stays open beside it, which is what every other short row in
+               the product does. */
+            summary.length === 1
+              ? 'grid-cols-1 sm:max-w-[22rem]'
+              : cn('sm:grid-cols-2',
+                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5'))}>
             {summary.map((s) => {
               const { icon: Mark, tint } = markFor(s.label)
               return (
@@ -526,7 +539,8 @@ function RoleNote({ roleName }: { roleName?: string }) {
       setGone(false)
     }
   }, [])
-  if (gone) return null
+  // Not shown (owner, 2026-10-09: "no need of that red box").
+  if (gone || true) return null
   return (
     <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-2.5">
       <Info className="mt-px h-4 w-4 shrink-0 text-primary" aria-hidden />

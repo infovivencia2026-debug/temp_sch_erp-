@@ -159,13 +159,10 @@ describe('one by one', () => {
     expect(dayOf(d, B, 1).state).toBe('locked')
   })
 
-  it('an open course has nothing locked', async () => {
-    expect((await api('teacher', 'PUT', '/lms/course/settings', { ...CO, gating: 'open' })).status).toBe(200)
-    const d = await mine(diya)
-    expect(d.modules.flatMap((m: any) => m.days).every((x: any) => x.state !== 'locked')).toBe(true)
-    expect((await raw(diya, 'POST', `/portal/lms/lessons/${L.b1}/complete`, {})).status).toBe(200)
+  it('there is no open course: the switch is refused and the course stays one by one', async () => {
+    // Every course is one by one (owner, 2026-10-10: "for all it should apply").
+    expect((await api('teacher', 'PUT', '/lms/course/settings', { ...CO, gating: 'open' })).status).toBe(400)
     expect((await api('teacher', 'PUT', '/lms/course/settings', { ...CO, gating: 'sometimes' })).status).toBe(400)
-    await api('teacher', 'PUT', '/lms/course/settings', { ...CO, gating: 'sequential' })
     expect(dayOf(await mine(diya), B, 1).state).toBe('locked')
   })
 

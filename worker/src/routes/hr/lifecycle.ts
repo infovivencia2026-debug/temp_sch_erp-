@@ -570,7 +570,7 @@ export function registerLifecycle(r: Router) {
     const types = await c.db.prepare(`
       SELECT lt.id AS leave_type_id, lt.code, lt.name, lt.annual_quota, lt.is_paid, lt.carry_forward, COALESCE(pr.accrual, 'annual') AS accrual, pr.carry_forward_max,
              COALESCE(pr.encashable, 0) AS encashable, COALESCE(pr.allow_half_day, 1) AS allow_half_day, pr.max_consecutive_days, pr.max_per_month, COALESCE(pr.notice_days, 0) AS notice_days,
-             pr.document_required_after_days, COALESCE(pr.available_during_probation, 0) AS available_during_probation, pr.applies_to_gender
+             pr.document_required_after_days, COALESCE(pr.available_during_probation, 0) AS available_during_probation, pr.applies_to_gender, pr.window_from, pr.window_to
         FROM leave_types lt LEFT JOIN leave_policy_rules pr ON pr.leave_type_id = lt.id WHERE lt.applies_to = 'staff' ORDER BY lt.name`).all<Record<string, unknown>>()
     return ok(omitNull({
       half_day_fraction: Number(p.half_day_fraction), shift_starts_at: p.shift_starts_at, grace_minutes: p.grace_minutes, late_marks_per_lop_day: p.late_marks_per_lop_day,
@@ -579,7 +579,7 @@ export function registerLifecycle(r: Router) {
       types: types.results.map((t) => omitNull({ leave_type_id: t.leave_type_id, code: t.code, name: t.name, annual_quota: asNum(t.annual_quota), is_paid: bool(t.is_paid), carry_forward: bool(t.carry_forward),
         accrual: t.accrual, carry_forward_max: asNum(t.carry_forward_max), encashable: bool(t.encashable), allow_half_day: bool(t.allow_half_day), max_consecutive_days: asNum(t.max_consecutive_days),
         max_per_month: asNum(t.max_per_month), notice_days: t.notice_days, document_required_after_days: asNum(t.document_required_after_days), available_during_probation: bool(t.available_during_probation),
-        applies_to_gender: t.applies_to_gender })),
+        applies_to_gender: t.applies_to_gender, window_from: t.window_from, window_to: t.window_to })),
     }))
   })
 
@@ -603,12 +603,24 @@ export function registerLifecycle(r: Router) {
       const ltid = str(raw.leave_type_id)
       if (!isUUIDish(ltid)) throw badRequest('leave_type_id must be a uuid')
       const numS = (v: unknown) => (typeof v === 'number' ? String(v) : null)
-      stmts.push(c.db.prepare(`INSERT INTO leave_policy_rules (leave_type_id, institution_id, accrual, carry_forward_max, encashable, allow_half_day, max_consecutive_days, max_per_month, notice_days, document_required_after_days, available_during_probation, applies_to_gender, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (leave_type_id) DO UPDATE SET accrual = excluded.accrual, carry_forward_max = excluded.carry_forward_max, encashable = excluded.encashable,
+      /* An application window: MM-DD to MM-DD, both or neither. "Earned
+         leave is applied for in April and in October" is a window per
+         half-year; a school sets the one it uses. */
+      const mmdd = (v: unknown, name: string): string | null => {
+        const x = typeof v === 'string' ? v.trim() : ''
+        if (x === '') return null
+        if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(x)) throw badRequest(`${name} must be MM-DD, such as 04-01`)
+        return x
+      }
+      const wFrom = mmdd(raw.window_from, 'window_from'), wTo = mmdd(raw.window_to, 'window_to')
+      if ((wFrom === null) !== (wTo === null)) throw badRequest('an application window needs both a from and a to date (MM-DD)')
+      stmts.push(c.db.prepare(`INSERT INTO leave_policy_rules (leave_type_id, institution_id, accrual, carry_forward_max, encashable, allow_half_day, max_consecutive_days, max_per_month, notice_days, document_required_after_days, available_during_probation, applies_to_gender, window_from, window_to, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (leave_type_id) DO UPDATE SET accrual = excluded.accrual, carry_forward_max = excluded.carry_forward_max, encashable = excluded.encashable,
           allow_half_day = excluded.allow_half_day, max_consecutive_days = excluded.max_consecutive_days, max_per_month = excluded.max_per_month, notice_days = excluded.notice_days,
-          document_required_after_days = excluded.document_required_after_days, available_during_probation = excluded.available_during_probation, applies_to_gender = excluded.applies_to_gender, updated_at = excluded.updated_at`)
+          document_required_after_days = excluded.document_required_after_days, available_during_probation = excluded.available_during_probation, applies_to_gender = excluded.applies_to_gender,
+          window_from = excluded.window_from, window_to = excluded.window_to, updated_at = excluded.updated_at`)
         .bind(ltid, inst, str(raw.accrual) || 'annual', numS(raw.carry_forward_max), raw.encashable ? 1 : 0, raw.allow_half_day ? 1 : 0, numS(raw.max_consecutive_days), numS(raw.max_per_month),
-          typeof raw.notice_days === 'number' ? raw.notice_days : 0, numS(raw.document_required_after_days), raw.available_during_probation ? 1 : 0, nz(raw.applies_to_gender), t))
+          typeof raw.notice_days === 'number' ? raw.notice_days : 0, numS(raw.document_required_after_days), raw.available_during_probation ? 1 : 0, nz(raw.applies_to_gender), wFrom, wTo, t))
       stmts.push(c.db.prepare(`UPDATE leave_types SET annual_quota = ? WHERE id = ? AND institution_id = ?`).bind(numS(raw.annual_quota), ltid, inst))
     }
     try { await c.db.batch(stmts) } catch (e) { bad(e) }

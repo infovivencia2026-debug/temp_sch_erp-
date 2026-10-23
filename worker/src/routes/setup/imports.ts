@@ -1,3 +1,4 @@
+import { addSubjectsToOpenExams } from './academics'
 import type { Router } from '../../router'
 import { collect } from '../fees/counter'
 import { isBatchGuardFailure } from '../fees/common'
@@ -7,6 +8,7 @@ import { can } from '../../identity'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, CLASS_LEVEL_FLOOR, CLASS_LEVEL_CEILING,
   appointEmployee, PhoneInUse, endFamilyAccess, todayIndia, istToUTC, isClock, str } from './common'
 import { registerImportSpecsExtra } from './imports_extra'
+import { describeReplacements, replacements, type CodeChange } from '../../services/overwrite'
 
 /* Port of bulk_import.go: the shared CSV importer, its history and undo.
 
@@ -244,12 +246,20 @@ export class ImportCtx {
 export interface ImportSpec {
   perm: string
   columns: string[]
+  /** Columns that depend on the school (Yajur, 2026-10-14: one column per pay
+      component). Used for the template and the field list; `columns` stays as
+      the fallback and for the header check. */
+  columnsFor?: (c: Ctx) => Promise<{ columns: string[]; sample: string[] }>
   required: string[]
   identity?: string
   sample: string[]
   check?: (row: Row) => void
   skip?: (row: Row) => boolean
   verify?: (ctx: ImportCtx, row: Row) => Promise<void>
+  /** The identifying codes this row would change on a record already on file
+      (owner, 2026-10-14): such a row is reported and held back unless the
+      upload says overwrite=true. Return every candidate; blanks-to-fill are dropped. */
+  replaces?: (ctx: ImportCtx, row: Row) => Promise<CodeChange[]>
   write: (ctx: ImportCtx, row: Row) => Promise<void>
 }
 
@@ -756,6 +766,7 @@ export const importSpecs: Record<string, ImportSpec> = {
         csId = uuid()
         await ctx.db.prepare(`INSERT INTO class_subjects (id, institution_id, class_id, subject_id, max_marks, periods_per_week) VALUES (?, ?, ?, ?, ?, COALESCE(?, 0))`).bind(csId, ctx.inst, classId, subject.id, maxMarks, perWeek).run()
         ctx.noteCreated('class_subjects', csId, true)
+        await addSubjectsToOpenExams(ctx.db, ctx.inst, classId, [subject.id])
       }
       let sectionId = ''
       const haveSection = str(row.section).trim() !== ''
@@ -826,6 +837,13 @@ export const importSpecs: Record<string, ImportSpec> = {
         const okRow = await ctx.db.prepare(`SELECT 1 AS x FROM subjects WHERE institution_id = ? AND (upper(code) = upper(?) OR lower(name) = lower(?))`).bind(ctx.inst, want, want).first()
         if (!okRow) throw new Error(`no subject called "${want}". Check the Subjects step for the exact name`)
       }
+    },
+    // The upsert writes email and phone as given (a blank clears them).
+    replaces: async (ctx, row) => {
+      const cur = await ctx.db.prepare(`SELECT email, phone FROM employees WHERE institution_id = ? AND employee_code = ?`)
+        .bind(ctx.inst, str(row.employee_code).trim()).first<{ email: string | null; phone: string | null }>()
+      if (!cur) return []
+      return [{ field: 'email', label: 'email', from: cur.email, to: str(row.email).trim() }, { field: 'phone', label: 'phone', from: cur.phone, to: str(row.phone).trim() }]
     },
     write: async (ctx, row) => {
       if (isStaffStatusWord(str(row.designation)) && !isStaffStatusWord(str(row.status))) { const d = row.designation; row.designation = row.status; row.status = d }
@@ -1261,7 +1279,8 @@ async function writeMark(ctx: ImportCtx, examSubjectId: string, studentId: strin
 }
 
 /** One imported punch becomes the day it belongs to: first in, last out, only where a device wrote the day. */
-async function rollUpImportedDay(ctx: ImportCtx, empId: string, at: string, serial: string): Promise<void> {
+/** Also used by the reader push (routes/iclock.ts). */
+export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, empId: string, at: string, serial: string): Promise<void> {
   const onDate = new Date(Date.parse(at) + 330 * 60_000).toISOString().slice(0, 10)
   const dayFrom = istToUTC(onDate, '00:00'), dayTo = istToUTC(onDate, '23:59:59')
   const d = await ctx.db.prepare(`SELECT MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen FROM biometric_punches p WHERE p.institution_id = ? AND p.employee_id = ? AND p.punched_at BETWEEN ? AND ?`)
@@ -1269,13 +1288,16 @@ async function rollUpImportedDay(ctx: ImportCtx, empId: string, at: string, seri
   if (!d?.first_seen) return
   const e = await ctx.db.prepare(`SELECT user_id FROM employees WHERE id = ? AND user_id IS NOT NULL`).bind(empId).first<{ user_id: string }>()
   if (!e) return
-  const checkOut = d.last_seen && d.last_seen > d.first_seen ? d.last_seen : null
+  // A punch within an hour of the first is a repeat tap at the door, not leaving (Yajur, 2026-10-22:
+  // a second tap nine minutes after arriving was being shown as the time she left).
+  const checkOut = d.last_seen && Date.parse(d.last_seen) - Date.parse(d.first_seen) >= 60 * 60_000 ? d.last_seen : null
   const existing = await ctx.db.prepare(`SELECT id, source, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date = ?`).bind(e.user_id, onDate)
     .first<{ id: string; source: string; check_in: string | null; check_out: string | null }>()
   if (existing) {
     if (existing.source !== 'device') return
     const inAt = existing.check_in && existing.check_in < d.first_seen ? existing.check_in : d.first_seen
-    const outAt = existing.check_out && (!checkOut || existing.check_out > checkOut) ? existing.check_out : checkOut
+    // Read again from all the day's punches, so a wrong early leaving time is replaced, not kept.
+    const outAt = checkOut
     await ctx.db.prepare(`UPDATE staff_attendance SET check_in = ?, check_out = ?, status = 'present' WHERE id = ?`).bind(inAt, outAt, existing.id).run()
     return
   }
@@ -1286,7 +1308,12 @@ async function rollUpImportedDay(ctx: ImportCtx, empId: string, at: string, seri
 /* --- the engine ----------------------------------------------------------------- */
 
 export function normaliseHeader(h: string): string {
-  return h.replace(/^﻿/, '').trim().toLowerCase().replace(/ /g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '')
+  /* Any run of whitespace -- a line break Excel put inside a wrapped heading
+     ("EMP
+ ID", "GROSS
+SALARY") as much as a space -- is one underscore,
+     so a heading reads the same however its cell was wrapped. */
+  return h.replace(/^﻿/, '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '')
 }
 
 /** RFC 4180 CSV: quoted fields, doubled quotes, newlines inside quotes, ragged rows kept. */
@@ -1314,7 +1341,10 @@ export function parseCSV(text: string): { rows: string[][]; errors: Map<number, 
 }
 
 interface ImportRow { row: number; data?: Row; problem?: string }
-interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string }
+interface ImportReplace { row: number; changes: Array<{ field: string; label: string; from: string; to: string | null }>; problem: string }
+interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[] }
+
+
 
 function columnMapFrom(c: Ctx): Record<string, string> | null {
   const raw = (c.req.headers.get('x-column-map') ?? '').trim()
@@ -1345,9 +1375,15 @@ function subjectColumnsFrom(c: Ctx): Record<string, string> {
 const MAX_KEPT_IMPORT_BYTES = 1 << 20
 
 async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: string, commit: boolean): Promise<{ out: ImportResult; clientMsg: string }> {
-  const { rows: records, errors: readErrors } = parseCSV(raw)
+  const { rows: allRows, errors: readErrors } = parseCSV(raw)
+  /* BLANK LINES ABOVE THE HEADINGS ARE SKIPPED (owner, 2026-10-15: a salary
+     sheet saved from Excel began with a line of bare commas, the headings were
+     taken from it, and the upload said "0 rows read" with no reason). The
+     headings are the first line with something in it. */
+  const lead = allRows.findIndex((r) => r.some((x) => String(x).trim() !== ''))
+  const records = lead > 0 ? allRows.slice(lead) : allRows
   const out: ImportResult = { total: 0, valid: 0, rejected: 0, imported: 0, dry_run: !commit, problems: [] }
-  if (records.length === 0) return { out, clientMsg: 'that file has no header row' }
+  if (records.length === 0 || lead < 0) return { out, clientMsg: 'that file has no header row' }
   const head = records[0]
   let index = new Map<string, number>()
   head.forEach((h, i) => index.set(normaliseHeader(h), i))
@@ -1370,7 +1406,7 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
   const parsed: Array<{ row: number; data: Row }> = []
   const seen = new Map<string, number>()
   for (let r = 1; r < records.length; r++) {
-    const n = r + 1
+    const n = r + 1 + Math.max(0, lead) // the line number in the file as the school sees it
     const rec = records[r]
     const readErr = readErrors.get(n)
     if (readErr) { out.total++; out.rejected++; out.problems.push({ row: n, problem: 'could not read this row: ' + readErr }); continue }
@@ -1414,6 +1450,29 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       }
     }
     if (bad.size > 0) rows = rows.filter((p) => !bad.has(p.row))
+  }
+  /* A row that would replace a code already on file is listed in the check
+     and, unless the person ticked "replace" (overwrite=true), left out of
+     the import rather than applied silently (owner, 2026-10-14). */
+  if (spec.replaces && rows.length > 0) {
+    const overwrite = c.url.searchParams.get('overwrite') === 'true'
+    const campus = await ensureCampus(c)
+    const ctx = new ImportCtx(c, inst, campus, sheetFactsFrom(c), subjectColumnsFrom(c))
+    const held = new Set<number>()
+    out.replacements = []
+    for (const p of rows) {
+      const ch = replacements(await spec.replaces(ctx, p.data), true)
+      if (ch.length === 0) continue
+      const problem = describeReplacements(ch)
+      out.replacements.push({ row: p.row, problem, changes: ch.map((x) => ({ field: x.field, label: x.label, from: String(x.from ?? '').trim(), to: x.to === null || String(x.to).trim() === '' ? null : String(x.to).trim() })) })
+      if (overwrite) continue
+      held.add(p.row)
+      if (commit) {
+        out.valid--; out.rejected++
+        out.problems.push({ row: p.row, data: p.data, problem: problem + '. Not applied: tick "Replace existing codes" and import again to apply it' })
+      }
+    }
+    if (commit && held.size > 0) rows = rows.filter((p) => !held.has(p.row))
   }
   if (!commit || rows.length === 0) return { out, clientMsg: '' }
 
@@ -1557,26 +1616,31 @@ export function registerImports(r: Router): void {
     return ok({ entity: run.entity, filename: run.filename, content: run.content ?? '', omitted: !!run.content_omitted })
   })
 
-  r.get('/setup/import/{entity}/template', 'auth', (c) => {
+  r.get('/setup/import/{entity}/template', 'auth', async (c) => {
     const entity = c.params.entity
     const spec = importSpecs[entity]
     if (!spec) throw badRequest('nothing can be imported as ' + entity)
     if (!can(c.id, spec.perm)) throw new HttpError(403, 'you cannot import ' + entity, { code: 'forbidden' })
-    let body = csvLine(spec.columns)
-    if (spec.sample.length === spec.columns.length) body += csvLine(spec.sample)
+    const shape = spec.columnsFor ? await spec.columnsFor(c) : { columns: spec.columns, sample: spec.sample }
+    let body = csvLine(shape.columns)
+    if (shape.sample.length === shape.columns.length) body += csvLine(shape.sample)
     return new Response(body, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${entity}-template.csv"`, 'cache-control': 'no-store, must-revalidate' } })
   })
 
-  r.get('/setup/import/{entity}/fields', 'auth', (c) => {
+  r.get('/setup/import/{entity}/fields', 'auth', async (c) => {
     const entity = c.params.entity
-    if (entity === 'students') return ok({ fields: studentImportFields() })
+    if (entity === 'students') {
+      if (!can(c.id, 'students.write')) throw new HttpError(403, 'you cannot import students', { code: 'forbidden' })
+      return ok({ fields: studentImportFields() })
+    }
     const spec = importSpecs[entity]
     if (!spec) throw badRequest('nothing can be imported as ' + entity)
     if (!can(c.id, spec.perm)) throw new HttpError(403, 'you cannot import ' + entity, { code: 'forbidden' })
     const required = new Set(spec.required)
-    const fields = spec.columns.map((col, i) => {
+    const shape = spec.columnsFor ? await spec.columnsFor(c) : { columns: spec.columns, sample: spec.sample }
+    const fields = shape.columns.map((col, i) => {
       const f: Record<string, unknown> = { name: col, required: required.has(col) }
-      if (i < spec.sample.length) f.example = spec.sample[i]
+      if (i < shape.sample.length) f.example = shape.sample[i]
       return f
     })
     return ok({ fields })

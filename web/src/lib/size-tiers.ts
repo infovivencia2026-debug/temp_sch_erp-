@@ -77,8 +77,9 @@ export const PHONE_TIERS: readonly SizeTier[] = TIERS.filter((tier) => tier !== 
 
 /** The tier a stored width and height reads as.
 
-    HEIGHT DECIDES FIRST, THEN WIDTH. Large is the only tier with a second
-    row, so anything two or more rows tall is Large: a column that loses its
+    HEIGHT DECIDES FIRST, THEN WIDTH. Two or more rows is Tall at one column
+    on the desk and Large otherwise (a phone has no Tall, so it is Large
+    there): a column that loses its
     second row loses the list it was holding, and a hero that loses it loses
     its chart, whereas either of them gaining or losing a column keeps what
     it shows. Among one-row shapes the width is the whole difference — one
@@ -89,7 +90,7 @@ export const PHONE_TIERS: readonly SizeTier[] = TIERS.filter((tier) => tier !== 
 
         stored   desktop   phone     why
         1x1      small     small     exact
-        1x2      large     large     the only tier with two rows
+        1x2      tall      large     one column, two rows; a phone has no Tall
         2x1      medium    small     exact; a phone has no width to give
         2x2      large     large     exact
         3x1      wide      small     exact; a phone has no width to give

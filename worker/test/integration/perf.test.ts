@@ -64,23 +64,28 @@ async function measure(who: Who, path: string) {
    the cache versions, the institutions row and the subscription on every
    request (4); the bootstrap adds the client's bookmark on its own (5). */
 const cases: [string, Who, string, number, number][] = [
-  ['bootstrap, admin', 'admin', '/bootstrap', 52, 5],
-  ['bootstrap, teacher', 'teacher', '/bootstrap', 29, 5],
-  ['bootstrap, parent', 'parent', '/bootstrap', 23, 5],
-  ['bootstrap, student', 'student', '/bootstrap', 23, 5],
-  ['portal notifications, parent', 'parent', '/portal/notifications', 15, 4],
-  ['portal notifications, student', 'student', '/portal/notifications', 15, 4],
-  ['status feed, parent', 'parent', '/status/feed', 14, 4],
-  ['status feed, teacher', 'teacher', '/status/feed', 14, 4],
-  ['principal dashboard', 'admin', '/principal/dashboard', 12, 4],
-  ['teaching today', 'teacher', '/teaching/today', 5, 4],
-  ['teaching my-work', 'teacher', '/teaching/my-work', 15, 4],
-  ['students list, admin', 'admin', '/students', 12, 4],
-  ['students list, class teacher', 'teacher', '/students?mine=class_teacher', 12, 4],
-  ['attendance register', 'teacher', `/attendance?on_date=${isoDay(0)}&section_id=${IDS.section}`, 8, 4],
-  ['lms course, teacher', 'teacher', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`, 18, 4],
-  ['lms course, student', 'student', `/portal/lms/course?class_subject_id=${IDS.classSubject}`, 27, 4],
-  ['portal lms home, student', 'student', '/portal/lms/home', 19, 4],
+  // +1 tenant statement on every row (2026-10-12): sign-in now also reads feature_blocks,
+  // the bulk features-off list (fe4104ab), once per request.
+  ['bootstrap, admin', 'admin', '/bootstrap', 53, 5],
+  ['bootstrap, teacher', 'teacher', '/bootstrap', 30, 5],
+  ['bootstrap, parent', 'parent', '/bootstrap', 24, 5],
+  ['bootstrap, student', 'student', '/bootstrap', 24, 5],
+  ['portal notifications, parent', 'parent', '/portal/notifications', 21, 4],
+  ['portal notifications, student', 'student', '/portal/notifications', 21, 4],
+  // +1 each for the hearts (one aggregate over status_likes); the teacher's
+  // +1 more is the school's media total, read for whoever may post (5 GB cap).
+  // The three reads of status_post_targets were folded into one to pay for it.
+  ['status feed, parent', 'parent', '/status/feed', 16, 4],
+  ['status feed, teacher', 'teacher', '/status/feed', 17, 4],
+  ['principal dashboard', 'admin', '/principal/dashboard', 13, 4],
+  ['teaching today', 'teacher', '/teaching/today', 6, 4],
+  ['teaching my-work', 'teacher', '/teaching/my-work', 16, 4],
+  ['students list, admin', 'admin', '/students', 13, 4],
+  ['students list, class teacher', 'teacher', '/students?mine=class_teacher', 13, 4],
+  ['attendance register', 'teacher', `/attendance?on_date=${isoDay(0)}&section_id=${IDS.section}`, 9, 4],
+  ['lms course, teacher', 'teacher', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`, 19, 4],
+  ['lms course, student', 'student', `/portal/lms/course?class_subject_id=${IDS.classSubject}`, 28, 4],
+  ['portal lms home, student', 'student', '/portal/lms/home', 20, 4],
 ]
 
 describe('D1 statements per request', () => {

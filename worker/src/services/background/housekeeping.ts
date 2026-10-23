@@ -89,3 +89,48 @@ registerJob('status:expire', async (env) => {
   })
   if (gone > 0) console.log('class statuses expired', { count: gone })
 })
+
+/* QUESTION PAPERS ASKED FOR BY A DEADLINE (owner, 2026-10-19): "if it is sent
+   within time it is okay, or else this will be a remark in their performance,
+   shown everywhere." A deadline just passed with nothing on file by then --
+   the school's own question_papers row (submitted_at <= deadline) or the
+   examination branch's own "it came another way" -- writes one remark
+   (staff_remarks, read wherever a teacher's remarks are read) and tells the
+   teacher, guarded by remarked_at so a later submission never writes a
+   second one for the same deadline. */
+registerJob('exams:paper_deadline_sweep', async (env) => {
+  let remarked = 0
+  const at = new Date().toISOString()
+  await forEachSchool(env, async (inst, db) => {
+    const overdue = await db.prepare(`
+      SELECT qpd.id, qpd.teacher_user_id, qpd.scheduled_by, qpd.deadline,
+             sub.name AS subject_name, c.name AS class_name, ex.name AS exam_name,
+             (qp.status IN ('submitted','approved') AND qp.submitted_at <= qpd.deadline) AS on_time
+        FROM question_paper_deadlines qpd
+        JOIN exam_subjects es ON es.id = qpd.exam_subject_id
+        JOIN exams ex ON ex.id = es.exam_id
+        JOIN class_subjects cs ON cs.id = es.class_subject_id
+        JOIN classes c ON c.id = cs.class_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+        LEFT JOIN question_papers qp ON qp.exam_subject_id = qpd.exam_subject_id
+       WHERE qpd.remarked_at IS NULL AND qpd.deadline < ?
+         AND qpd.manually_received_at IS NULL`).bind(at)
+      .all<{ id: string; teacher_user_id: string; scheduled_by: string; deadline: string;
+             subject_name: string; class_name: string; exam_name: string; on_time: number }>()
+    const stmts: D1PreparedStatement[] = []
+    for (const v of overdue.results.filter((r) => !r.on_time)) {
+      const remarkID = crypto.randomUUID()
+      const body = `The ${v.subject_name} question paper for ${v.class_name} (${v.exam_name}) was not sent by its deadline, ${v.deadline.slice(0, 16).replace('T', ' ')}.`
+      stmts.push(db.prepare(`INSERT INTO staff_remarks (id, institution_id, subject_user_id, author_user_id, author_role, kind, body, observed_on, created_at)
+          VALUES (?, ?, ?, ?, 'examination', 'concern', ?, date(?), ?)`)
+        .bind(remarkID, inst.id, v.teacher_user_id, v.scheduled_by, body, at, at))
+      stmts.push(db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+          VALUES (?, ?, ?, 'question_paper_overdue', 'Question paper deadline missed', ?, '/go/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+        .bind(crypto.randomUUID(), inst.id, v.teacher_user_id, body, v.id, at))
+    }
+    // Every row, on time or not, is marked swept so the next pass does not re-check it.
+    for (const v of overdue.results) stmts.push(db.prepare(`UPDATE question_paper_deadlines SET remarked_at = ? WHERE id = ?`).bind(at, v.id))
+    if (stmts.length) { await db.batch(stmts); remarked += overdue.results.filter((r) => !r.on_time).length }
+  }).catch((e) => { if (/no such table/.test(String(e))) return; throw e })
+  if (remarked > 0) console.log('question paper deadlines remarked', { count: remarked })
+})

@@ -207,16 +207,23 @@ async function ownOrAdmin(c: Ctx, id: string): Promise<PostRow> {
 // ---------------------------------------------------------------------------
 // audiences
 
-async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  if (!ids.length) return out
-  const rows = (await c.db.prepare(`SELECT t.post_id, t.kind, cl.name AS class_name, scl.name AS sclass, sec.name AS section
+interface TargetRow { post_id: string; kind: string; target_id: string; class_name: string | null; sclass: string | null; section: string | null }
+
+/* One read of the targets serves the label, the scope and which child a post
+   is for: the feed used to ask the same table three times. */
+async function audienceTargets(c: Ctx, ids: string[]): Promise<TargetRow[]> {
+  if (!ids.length) return []
+  return (await c.db.prepare(`SELECT t.post_id, t.kind, t.target_id, cl.name AS class_name, scl.name AS sclass, sec.name AS section
       FROM status_post_targets t
       LEFT JOIN classes cl ON t.kind = 'class' AND cl.id = t.target_id
       LEFT JOIN sections sec ON t.kind = 'section' AND sec.id = t.target_id
       LEFT JOIN classes scl ON scl.id = sec.class_id
       WHERE t.post_id IN (${marks()}) ORDER BY t.kind, cl.name, scl.name, sec.name`).bind(js(ids))
-    .all<{ post_id: string; kind: string; class_name: string | null; sclass: string | null; section: string | null }>()).results ?? []
+    .all<TargetRow>()).results ?? []
+}
+
+function labelsOf(rows: TargetRow[]): Map<string, string> {
+  const out = new Map<string, string>()
   const parts = new Map<string, string[]>()
   for (const r of rows) {
     const l = r.kind === 'school' ? 'Whole school' : r.kind === 'staff' ? 'Staff' : r.kind === 'class' ? (r.class_name ?? 'A class')
@@ -227,17 +234,18 @@ async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string
   return out
 }
 
+async function audienceLabels(c: Ctx, ids: string[]): Promise<Map<string, string>> {
+  return labelsOf(await audienceTargets(c, ids))
+}
+
 /* HOW WIDE IT WENT, WITHOUT SAYING WHO TO.
 
    The label names the school's distribution list and is staff-only. A family
    still needs to tell the whole school's notice from their own child's class
    -- that is the filter on the gallery -- so everybody is told which of the
    three a post is, and nobody outside the staff is told the list. */
-async function audienceScopes(c: Ctx, ids: string[]): Promise<Map<string, 'school' | 'staff' | 'class'>> {
+function scopesOf(rows: TargetRow[]): Map<string, 'school' | 'staff' | 'class'> {
   const out = new Map<string, 'school' | 'staff' | 'class'>()
-  if (!ids.length) return out
-  const rows = (await c.db.prepare(`SELECT post_id, kind FROM status_post_targets WHERE post_id IN (${marks()})`)
-    .bind(js(ids)).all<{ post_id: string; kind: string }>()).results ?? []
   for (const r of rows) {
     const was = out.get(r.post_id)
     const now_ = r.kind === 'school' ? 'school' : r.kind === 'staff' ? 'staff' : 'class'
@@ -315,6 +323,12 @@ async function posterName(c: Ctx, p: PostRow): Promise<string> {
 
 const sourceOf = (p: Pick<PostRow, 'as_school' | 'posted_by'>) => (p.as_school ? 'school' : p.posted_by)
 
+/* Opening a poster's post removes their bell entry (read and dismissed). */
+async function readBell(c: Ctx, userId: string, source: string): Promise<void> {
+  await c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?1), dismissed_at = ?1 WHERE user_id = ?2 AND kind = 'status' AND source_kind = 'status' AND source_id = ?3 AND dismissed_at IS NULL`)
+    .bind(now(), userId, source).run()
+}
+
 async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   const people = await audience(c, p.id, p.posted_by)
   if (!people.length) return 0
@@ -334,11 +348,20 @@ async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   for (let i = 0; i < people.length; i += 400) {
     const part = people.slice(i, i + 400)
     const pairs = JSON.stringify(part.map(([u, s]) => [u, s, uuid()]))
-    /* One entry per person per poster (notifications_one_per_source). An
-       unread one is updated in place and not pushed again; a read or cleared
-       one comes back unread, and is pushed as new. */
+    /* One entry per person per poster (notifications_one_per_source), so a
+       teacher who posts twice does not leave two rows in a parent's bell.
+
+       It used to keep the old pushed_at while the row was unread, meaning a
+       SECOND post was written into the first one's place and never announced:
+       a parent holding an unread "Priya Rao added a status" from this morning
+       was told nothing at all about the one that says the bus is late. The
+       tester read that as the feature simply not working, which from the
+       parent's side it was.
+
+       A new post is new. The row is still reused -- one per poster -- but it
+       is pushed again, because the thing being announced has changed. */
     stmts.push(c.db.prepare(`UPDATE notifications SET title = ?, body = ?, link = ?, created_at = ?,
-          pushed_at = CASE WHEN read_at IS NULL AND dismissed_at IS NULL THEN pushed_at ELSE ? END, read_at = NULL, dismissed_at = NULL
+          pushed_at = ?, read_at = NULL, dismissed_at = NULL
         WHERE kind = 'status' AND source_kind = 'status' AND source_id = ?
           AND user_id IN (SELECT json_extract(value, '$[0]') FROM json_each(?))`).bind(title, body, link, at, quiet, src, pairs))
     stmts.push(c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at, pushed_at)
@@ -451,7 +474,8 @@ export function registerClassStatus(r: Router): void {
         ORDER BY p.published_at LIMIT 400`).bind(v.userId, t, ...vis.args)
       .all<{ id: string; posted_by: string; as_school: number; media_kind: string; content_type: string; caption: string | null; created_at: string
         published_at: string; expires_at: string; pinned: number; duration_seconds: number | null; thumb_key: string | null; poster_name: string; avatar_key: string | null; seen: number }>()).results ?? []
-    const labels = await audienceLabels(c, rows.map((x) => x.id))
+    const targets = await audienceTargets(c, rows.map((x) => x.id))
+    const labels = labelsOf(targets)
     /* The hearts: how many, and whether this person is one of them. Two
        aggregates in one read, not one read per post. */
     const likeRows = (await c.db.prepare(`SELECT post_id, COUNT(*) AS n,
@@ -459,14 +483,12 @@ export function registerClassStatus(r: Router): void {
           FROM status_likes WHERE post_id IN (${marks()}) GROUP BY post_id`)
       .bind(v.userId, js(rows.map((x) => x.id))).all<{ post_id: string; n: number; mine: number }>()).results ?? []
     const likes = new Map(likeRows.map((r) => [r.post_id, r]))
-    const scopes = await audienceScopes(c, rows.map((x) => x.id))
+    const scopes = scopesOf(targets)
     /* WHICH OF MY CHILDREN IT IS FOR, for a family: the gallery switches
        between children (owner, 2026-10-03). Ids only, never the list. */
     const forKids = new Map<string, string[]>()
     if (!v.staff && v.kids.length && rows.length) {
-      const tg = (await c.db.prepare(`SELECT post_id, kind, target_id FROM status_post_targets WHERE post_id IN (${marks()})`)
-        .bind(js(rows.map((x) => x.id))).all<{ post_id: string; kind: string; target_id: string }>()).results ?? []
-      for (const t of tg) {
+      for (const t of targets) {
         const hit = v.kids.filter((k) => t.kind === 'school' || (t.kind === 'class' && t.target_id === k.class_id) || (t.kind === 'section' && t.target_id === k.section_id))
         if (hit.length) forKids.set(t.post_id, [...new Set([...(forKids.get(t.post_id) ?? []), ...hit.map((k) => k.student_id)])])
       }
@@ -523,6 +545,31 @@ export function registerClassStatus(r: Router): void {
         AND NOT EXISTS (SELECT 1 FROM status_views sv WHERE sv.post_id = p.id AND sv.user_id = ?) AND ${vis.sql}`)
       .bind(now(), v.userId, v.userId, ...vis.args).first<{ n: number }>()
     return ok({ unseen: n?.n ?? 0 })
+  })
+
+  /* MORE STORAGE (owner, 2026-10-10). How full the gallery is, and whether a
+     request is already in; the request itself is recorded for the payment
+     step that comes later. Only someone who may post to the whole school
+     (the administration) may ask. */
+  r.get('/status/storage', 'auth', async (c) => {
+    const used = await mediaUsed(c.db)
+    const open = await c.db.prepare(`SELECT id, extra_gb, utr, status, created_at FROM storage_requests
+        WHERE status = 'requested' ORDER BY created_at DESC LIMIT 1`).first<{ id: string; extra_gb: number; utr: string | null; status: string; created_at: string }>().catch(() => null)
+    return ok({ used_bytes: used, quota_bytes: MEDIA_QUOTA, can_request: can(c.id, SCHOOL), pending: open ?? null })
+  })
+  r.post('/status/storage-request', 'auth', async (c) => {
+    if (!can(c.id, SCHOOL)) throw forbidden()
+    const body = await readJSON<{ extra_gb?: number; note?: string; utr?: string }>(c.req)
+    const gb = Number(body.extra_gb)
+    if (![5, 20, 50, 100].includes(gb)) throw badRequest('choose 5, 20, 50 or 100 GB')
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 500) : ''
+    /* The bank reference of the payment: 12 digits for UPI/IMPS, up to 22 letters and digits for NEFT/RTGS. */
+    const utr = String(body.utr ?? '').replace(/s+/g, '').toUpperCase()
+    if (!/^[A-Z0-9]{12,22}$/.test(utr)) throw badRequest('enter the UTR number from your payment (12 to 22 letters or digits)', { code: 'bad_utr' })
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO storage_requests (id, requested_by, extra_gb, note, utr, used_bytes, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'requested', ?)`).bind(id, c.id.userId, gb, note || null, utr, await mediaUsed(c.db), now()).run()
+    return ok({ id, extra_gb: gb, utr, status: 'requested' })
   })
 
   /* What the composer may offer: the sections and classes this poster may reach. */
@@ -657,7 +704,8 @@ export function registerClassStatus(r: Router): void {
        because all it can do is mark its OWN bell entry read. */
     if (await signed(c, c.params.id) === 'l') {
       const p = await signedPost(c, c.params.id)
-      if (p.posted_by === c.id.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
+      if (p.posted_by === c.id.userId) return ok({ id: p.id, counted: false })
+      if (p.status !== 'live') { await readBell(c, c.id.userId, sourceOf(p)); return ok({ id: p.id, counted: false }) }
       const family = c.id.roles.some((r) => r === 'parent' || r === 'student')
       const stmts = [
         c.db.prepare(`INSERT OR IGNORE INTO status_views (post_id, user_id, student_id, viewed_at) VALUES (?1, ?2, ${family ? `(
@@ -666,33 +714,26 @@ export function registerClassStatus(r: Router): void {
                AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ?1 AND (t.kind = 'school' OR (t.kind = 'class' AND t.target_id = e.class_id) OR (t.kind = 'section' AND t.target_id = e.section_id)))
              LIMIT 1)` : 'NULL'}, ?3)`).bind(p.id, c.id.userId, now()),
       ]
-      if (c.url.searchParams.get('last') === '1') {
-        stmts.push(c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
-          .bind(now(), c.id.userId, sourceOf(p)))
-      }
+      // Opened is gone: the poster's bell entry leaves on any view.
+      stmts.push(c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?1), dismissed_at = ?1 WHERE user_id = ?2 AND kind = 'status' AND source_kind = 'status' AND source_id = ?3 AND dismissed_at IS NULL`)
+        .bind(now(), c.id.userId, sourceOf(p)))
       const res = await c.db.batch(stmts)
       return ok({ id: p.id, counted: (res[0].meta.changes ?? 0) > 0 })
     }
     await policyOn(c)
     const v = await viewer(c)
     const p = await seeable(c, v, c.params.id)
-    if (p.posted_by === v.userId || p.status !== 'live') return ok({ id: p.id, counted: false })
+    if (p.posted_by === v.userId) return ok({ id: p.id, counted: false })
+    if (p.status !== 'live') { await readBell(c, v.userId, sourceOf(p)); return ok({ id: p.id, counted: false }) }
     // The child through whom a parent is in this audience, for the poster's list.
     const kid = v.kids.length ? await c.db.prepare(`SELECT e.student_id FROM enrollments e WHERE e.status = 'active' AND e.student_id IN (${marks()})
         AND EXISTS (SELECT 1 FROM status_post_targets t WHERE t.post_id = ? AND (t.kind = 'school' OR (t.kind = 'class' AND t.target_id = e.class_id)
           OR (t.kind = 'section' AND t.target_id = e.section_id))) LIMIT 1`).bind(js(v.kids.map((k) => k.student_id)), p.id).first<{ student_id: string }>() : null
     const res = await c.db.prepare(`INSERT OR IGNORE INTO status_views (post_id, user_id, student_id, viewed_at) VALUES (?, ?, ?, ?)`)
       .bind(p.id, v.userId, kid?.student_id ?? null, now()).run()
-    // Every live post of this poster seen: their bell entry is read.
-    const vis = visible(v)
-    const left = await c.db.prepare(`SELECT count(*) AS n FROM status_posts p WHERE p.status = 'live' AND p.expires_at > ?
-        AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = ?
-        AND NOT EXISTS (SELECT 1 FROM status_views sv WHERE sv.post_id = p.id AND sv.user_id = ?) AND ${vis.sql}`)
-      .bind(now(), sourceOf(p), v.userId, ...vis.args).first<{ n: number }>()
-    if (!left?.n) {
-      await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'status' AND source_kind = 'status' AND source_id = ? AND read_at IS NULL`)
-        .bind(now(), v.userId, sourceOf(p)).run()
-    }
+    /* OPENED IS GONE, for a status too (Yajur, 2026-10-21): seeing a post
+       removes that poster's bell entry; their next post brings it back. */
+    await readBell(c, v.userId, sourceOf(p))
     return ok({ id: p.id, counted: (res.meta.changes ?? 0) > 0 })
   })
 
@@ -793,8 +834,9 @@ export function registerClassStatus(r: Router): void {
   /* Every post in the school: live, pinned and waiting, with views and seen %. */
   r.get('/status/admin/posts', MANAGE, async (c) => {
     const q = c.url.searchParams
-    const where = [`(p.status = 'pending' OR (p.status = 'live' AND (p.expires_at > ? OR p.pinned = 1)))`]
-    const args: unknown[] = [now()]
+    // Expired posts stay listed for their week of grace, so the school can still pin them.
+    const where = [`p.status IN ('pending', 'live')`]
+    const args: unknown[] = []
     const poster = q.get('poster_id')
     if (poster && isUUID(poster)) { where.push('p.posted_by = ?'); args.push(poster.toLowerCase()) }
     const cls = q.get('class_id')

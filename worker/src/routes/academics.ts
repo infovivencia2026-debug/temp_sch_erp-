@@ -1,7 +1,7 @@
 import type { Ctx, Router } from '../router'
 import { HttpError, badRequest, bool, created, isUUID, ok, readJSON, uuid, now } from '../http'
 import {
-  SECTION_SET_SQL, academicYearStart, batch, can, coded, forbiddenMsg, indiaToday, inst, isClassTeacherOf,
+  academicYearStart, batch, can, coded, forbiddenMsg, indiaToday, inst, isClassTeacherOf,
   isForeignKeyViolation, nullStr, parseJSON, resolveScope, str, workingYearSQL,
 } from './students/common'
 import { registerAdminAcademics } from './academics/admin'
@@ -18,7 +18,8 @@ export function registerAcademics(r: Router) {
   r.get('/syllabus/coverage', 'auth', getSyllabusCoverage)
   r.get('/syllabus/lesson-plans', 'auth', listLessonPlans)
   r.post('/syllabus/lesson-plans', 'auth', saveLessonPlan)
-  r.post('/syllabus/lesson-plans/{id}/decide', 'academics.write', decideLessonPlan)
+  // 'auth': a teacher marks their own plan taught; approving or returning needs academics.write (checked inside).
+  r.post('/syllabus/lesson-plans/{id}/decide', 'auth', decideLessonPlan)
 
   // --- /academics ---------------------------------------------------------------
   registerAdminAcademics(r)
@@ -160,6 +161,11 @@ async function decideLessonPlan(c: Ctx) {
   const decision = str(req.decision)
   if (!['approved', 'returned', ''].includes(decision)) throw badRequest('decision must be approved or returned')
   if (decision === 'returned' && str(req.remarks).trim() === '') throw badRequest('say why it is being returned. A plan sent back without remarks tells the teacher nothing')
+  if (!can(c, 'academics.write')) {
+    if (decision !== '' || str(req.remarks) !== '') throw forbiddenMsg('missing permission: approving lesson plans')
+    const own = await c.db.prepare(`SELECT 1 FROM lesson_plans WHERE id = ? AND teacher_user_id = ?`).bind(planId, c.id.userId).first()
+    if (!own) throw forbiddenMsg('missing permission: another teacher\'s lesson plan')
+  }
   const res = await c.db.prepare(`
     UPDATE lesson_plans SET status = COALESCE(?, status), remarks = COALESCE(?, remarks), delivered_on = COALESCE(?, delivered_on),
            reviewed_by = CASE WHEN ? <> '' THEN ? ELSE reviewed_by END, reviewed_at = CASE WHEN ? <> '' THEN ? ELSE reviewed_at END, updated_at = ?
@@ -228,7 +234,7 @@ async function listSections(c: Ctx) {
     if (m === 'class_teacher') { mine = 'sec.class_teacher_id = ?'; args.push(c.id.userId) }
     else if (!scope.anySection) {
       if (ids.length === 0) mine = '0'
-      else { mine = `sec.id IN (${SECTION_SET_SQL})`; args.push(c.id.userId, c.id.userId, c.id.userId, c.id.userId) }
+      else { mine = `sec.id IN (SELECT value FROM json_each(?))`; args.push(JSON.stringify(ids)) }
     }
   }
   const rows = await c.db.prepare(`
@@ -246,9 +252,10 @@ async function listSubjects(c: Ctx) {
   if (c.url.searchParams.get('mine') === 'true') {
     const scope = await resolveScope(c)
     if (!scope.anySection && !scope.platformAdmin) {
-      args.push(c.id.userId, c.id.userId)
+      args.push(c.id.userId, c.id.userId, c.id.userId)
       where = `(EXISTS (SELECT 1 FROM class_subjects cs JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id WHERE cs.subject_id = subjects.id AND sst.teacher_user_id = ?)
-             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = ?))`
+             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = ?)
+             OR EXISTS (SELECT 1 FROM subject_heads h WHERE h.subject_id = subjects.id AND h.head_user_id = ?))`
     }
   }
   const rows = await c.db.prepare(`SELECT id, name, code, is_scholastic FROM subjects WHERE ${where} ORDER BY name`).bind(...args).all<Record<string, unknown>>()

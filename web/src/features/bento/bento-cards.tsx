@@ -593,16 +593,19 @@ export function CardShell({
           </CardZero.Provider>
         </CardNote.Provider>
       )}
-      {plate && (
+      {false && plate && (
         /* See THE EMPTY ROW IS DRAWN, NOT DROPPED above. aria-hidden: the
            sentence has already said it; this is the shape, not a second
            statement. */
+        /* A quiet tick, not a dashed "Nothing to chart yet" slab (owner,
+           2026-10-08: neat cards). The sentence above already says it. */
         <div
           aria-hidden="true"
-          className="card-nothing flex min-h-0 min-w-0 items-center justify-center self-stretch overflow-hidden rounded-[10px] border border-dashed border-current/25"
+          data-label={t('bento.common.nothing_yet')}
+          className="card-nothing grid min-h-0 min-w-0 place-items-center self-stretch overflow-hidden"
         >
-          <span className="px-2 text-center text-[10px] font-medium uppercase tracking-[0.08em] opacity-75">
-            {t('bento.common.nothing_yet')}
+          <span className="grid size-10 place-items-center rounded-full bg-[color-mix(in_srgb,currentColor_8%,transparent)] opacity-60">
+            <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </span>
         </div>
       )}
@@ -1306,7 +1309,7 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
           against the width overflowed the row and had its bottom sliced off by
           the cell's `overflow: hidden`. `h-full` with a square aspect makes the
           height the binding constraint, which is the one that is short. */}
-      <div className="relative grid aspect-square h-full max-h-[104px] place-items-center">
+      <div className="relative grid aspect-square h-full max-h-[104px] max-w-full place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
           {/* Thinner, and cut square at both ends.
 
@@ -1847,7 +1850,7 @@ export function Rings({
   if (!usable.length) return null
   return (
     <div className="grid h-full place-items-center" role="img" aria-label={srLabel}>
-      <div className="relative grid aspect-square h-full max-h-[112px] place-items-center">
+      <div className="relative grid aspect-square h-full max-h-[112px] max-w-full place-items-center">
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90">
           {usable.map((a, i) => {
             const r = 45 - i * 13

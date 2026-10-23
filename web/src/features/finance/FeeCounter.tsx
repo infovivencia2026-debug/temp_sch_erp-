@@ -1,3 +1,4 @@
+import { saveFile } from '@/lib/save-file'
 import { useEffect, Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -162,6 +163,10 @@ export default function FeeCounter() {
 
   const isCheque = mode === 'cheque' || mode === 'dd'
   const amountPaise = rupeesToPaise(amount)
+  /* NEVER MORE THAN IS OWED (2026-10-12, found at the counter: ₹5 against a
+     ₹0.31 balance went through as a receipt and left the account at -₹4.69).
+     A slip of a zero at a fee counter is real money. */
+  const owedPaise = selected.size ? selectedTotal : dues.reduce((a, d) => a + d.balance_paise, 0)
   /* Why the button is dead, not merely that it is.
 
      Three separate conditions disabled Collect and the clerk was told none of
@@ -172,8 +177,12 @@ export default function FeeCounter() {
     ? 'Find a student first.'
     : amountPaise <= 0
       ? 'Enter an amount to collect.'
+      : amountPaise > owedPaise
+        ? (owedPaise > 0 ? `That is more than is owed. The most you can collect is ₹${(owedPaise / 100).toFixed(2)}.` : 'Nothing is owed on this account.')
       : isCheque && reference.trim() === ''
         ? 'A cheque needs its number before it can be collected.'
+      : mode === 'upi' && reference.trim() === ''
+        ? 'A UPI payment needs its UTR before it can be collected.'
         : ''
   const canCollect = blocker === ''
 
@@ -311,11 +320,20 @@ export default function FeeCounter() {
                       </Td>
                       <Td><Badge tone={d.status === 'overdue' ? 'danger' : 'warning'}>{d.status}</Badge></Td>
                       <Td>
-                        {/* A penalty somebody decided on, rather than one a
-                            rule worked out. The alternative was raising a
-                            second invoice, which puts one term's money in two
-                            places and makes the family's ledger read as two
-                            debts. */}
+                        {/* A LATE FEE SOMEBODY DECIDED ON, not one a rule
+                            worked out. The automatic kind comes from the late
+                            fee rules (fee_engine): grace days, then a flat
+                            charge, a daily rate or a percentage. This is the
+                            office overriding that for one family -- which is
+                            why it asks for a reason the family will read.
+
+                            It was labelled "penalty", a word no Indian school
+                            fee notice uses and no parent wants to see on their
+                            child's bill; the charge itself has always been a
+                            late fee, on the Late fee / penalty head. The
+                            alternative was raising a second invoice, which
+                            puts one term's money in two places and makes the
+                            family's ledger read as two debts. */}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -325,7 +343,7 @@ export default function FeeCounter() {
                             setPenaltyReason('')
                           }}
                         >
-                          {penaltyOn === d.invoice_id ? 'Cancel' : 'Add penalty'}
+                          {penaltyOn === d.invoice_id ? 'Cancel' : 'Add late fee'}
                         </Button>
                       </Td>
                     </tr>
@@ -344,7 +362,7 @@ export default function FeeCounter() {
                             </label>
                             <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[12.5px]">
                               <span className="text-muted-foreground">
-                                Why, the family sees this
+                                Why this late fee, the family sees this
                               </span>
                               <Input
                                 value={penaltyReason}
@@ -429,12 +447,21 @@ export default function FeeCounter() {
                       parent types the amount. This one carries the amount the
                       clerk just typed and the admission number, so the parent
                       types nothing and the bank narration says whose money it
-                      was. The UTR is optional: a receipt must never wait on
-                      it, but it is what reconciliation matches on. */}
+                      was.
+
+                      THE UTR IS REQUIRED (owner, 2026-10-12: "utr is not a
+                      optional in take fee payment"). It was optional, so that
+                      a receipt never waited on a parent reading a number off
+                      their phone. The cost of that was UPI receipts with
+                      nothing to match in the bank statement -- reconciliation
+                      keys on the UTR -- leaving the clerk to pair them by
+                      hand, by amount and date, against every other payment of
+                      the same amount that day. It is asked for here the same
+                      way a cheque number is. */}
                   {mode === 'upi' && (
                     <>
                       <label className="block">
-                        <span className="text-[13px] text-muted-foreground">UPI reference (UTR), optional</span>
+                        <span className="text-[13px] text-muted-foreground">UPI reference (UTR) <span className="text-destructive">*</span></span>
                         <Input value={reference} onChange={setReference} placeholder="The 12-digit UTR from the parent's app" className="mt-1 w-full" />
                       </label>
                       {!upiVpa ? (
@@ -565,6 +592,7 @@ export default function FeeCounter() {
 function ReceiptView({ receipt, onClose, printNow = 0, paymentId = '' }: {
   receipt: Receipt; onClose: () => void; printNow?: number; paymentId?: string
 }) {
+  const [saving, setSaving] = useState(false)
   /* The school's logo on the receipt the parent keeps.
 
      The receipt already carried the school's name; the logo is the other half
@@ -606,15 +634,17 @@ function ReceiptView({ receipt, onClose, printNow = 0, paymentId = '' }: {
                 as an attachment, so the browser saves it without any of this
                 screen's state being involved. */}
             {paymentId && (
-              <a
-                href={`/api/v1/fees/receipts/${paymentId}/pdf`}
-                download
-                className="btn inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-sm
-                           border px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-[44px]"
-                data-variant="secondary"
+              <Button
+                variant="secondary"
+                disabled={saving}
+                onClick={() => {
+                  setSaving(true)
+                  void saveFile(`/api/v1/fees/receipts/${paymentId}/pdf`, `receipt-${receipt.receipt_no}.pdf`)
+                    .finally(() => setSaving(false))
+                }}
               >
-                <Download className="h-4 w-4" aria-hidden /> Download
-              </a>
+                <Download className="h-4 w-4" aria-hidden /> {saving ? 'Saving…' : 'Download'}
+              </Button>
             )}
             <Button
               variant="secondary"

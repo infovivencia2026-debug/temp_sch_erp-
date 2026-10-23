@@ -2,6 +2,7 @@ import type { Router } from '../router'
 import { registerInfirmary } from './ops/infirmary'
 import { registerDigitalLibrary } from './ops/digital_library'
 import { registerLibrary } from './ops/library'
+import { registerReadingLevels } from './ops/reading_levels'
 import { registerTransport } from './ops/transport'
 import { registerTransportOffice } from './ops/transport_office'
 import { registerHostel } from './ops/hostel'
@@ -15,6 +16,7 @@ export function registerOps(r: Router): void {
   registerInfirmary(r)
   registerDigitalLibrary(r)
   registerLibrary(r)
+  registerReadingLevels(r)
   registerTransport(r)
   registerTransportOffice(r)
   registerHostel(r)

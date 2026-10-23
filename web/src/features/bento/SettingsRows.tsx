@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { PickerMenu } from '@/components/PickerMenu'
-import { Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
 import { useOpenState } from '@/lib/motion'
@@ -37,7 +38,64 @@ import { useOpenState } from '@/lib/motion'
    padding and the slider band's height from three custom properties the
    page sets once (--srow-h, --srow-py, --sband-h); the phone leaves them at
    the 44px defaults. Same component, two densities, no scaled layout. */
-export const LABEL = cn('text-[15px] font-medium', INK)
+/* SETTINGS, iOS-STYLE (owner, 2026-10-08: "should look like iOS, glassy,
+   neat and clean, within our theme"). Each section has its own colour, drawn
+   as a rounded square with a white glyph -- the way a phone's Settings tells
+   its rows apart at a glance. */
+const SECTION_TINT: Record<string, string> = {
+  appearance: '#5856d6', colour: '#ff9500', dock: '#30b0c7', dashboard: '#30b0c7',
+  school: '#007aff', communication: '#34c759', messaging: '#34c759',
+  account: '#34c759', security: '#007aff', privacy: '#5856d6', people: '#af52de',
+  access: '#af52de', workspace: '#af52de', roles: '#af52de', role: '#af52de', help: '#ff9500',
+  /* The one destructive row on the screen. */
+  signout: '#ff3b30',
+}
+export function sectionTint(id: string): string {
+  return SECTION_TINT[id] ?? '#64748b'
+}
+/** The rounded-square icon a settings row leads with. */
+export function SectionIcon({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid size-[30px] shrink-0 place-items-center rounded-[8px] text-white shadow-[0_1px_2px_rgb(0_0_0/0.12)] [&_svg]:size-[17px] [&_svg]:stroke-[2.1]"
+      style={{ background: sectionTint(id) }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Sign out, under the list of sections rather than inside Account
+    (owner, 2026-10-08).
+
+    It is one of the rows, not a button pinned under them (owner, 2026-10-08:
+    "sign out button should match those all settings in phone also"). It was a
+    centred red pill in a screen made entirely of left-aligned rows that lead
+    with a tinted rounded square -- the one object on Settings that did not
+    look like Settings. Now it is the same row: the same glass card, the same
+    50px, the same icon box and the same left edge the eye runs down, with red
+    as the only thing marking it apart, which is how a phone draws the one
+    destructive row in a list. No chevron: it does not open a screen. */
+export function SignOutButton({ className, href = '/logout' }: { className?: string; href?: string }) {
+  return (
+    <div className={cn('settings-glass overflow-hidden rounded-[14px]', className)}>
+      <a
+        href={href}
+        role="button"
+        className="flex min-h-[var(--srow-h,50px)] w-full items-center gap-3 px-4 text-left transition-colors active:bg-muted"
+      >
+        <SectionIcon id="signout"><LogOut /></SectionIcon>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-normal text-[#ff3b30]">
+          Sign out
+        </span>
+      </a>
+    </div>
+  )
+}
+
+/* Row labels at the regular weight: medium read as too bold (owner, 2026-10-08). */
+export const LABEL = cn('text-[15px] font-normal', INK)
 export const VALUE = cn('text-[15px] font-normal tabular-nums', INK)
 export const HELPER = cn('mt-[2px] block text-[12.5px] font-normal', INK)
 
@@ -45,8 +103,10 @@ export const HELPER = cn('mt-[2px] block text-[12.5px] font-normal', INK)
 export function Rows({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
+      data-settings-group=""
       className={cn(
-        'divide-y divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+        'settings-glass overflow-hidden rounded-[14px]',
+        '[&>*+*]:border-t [&>*+*]:border-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]',
         className,
       )}
     >
@@ -120,7 +180,7 @@ export function NavRow({
     'relative flex min-h-[var(--srow-h,44px)] w-full items-center px-[16px] py-[var(--srow-py,10px)] text-left transition-colors',
     RING,
     current
-      ? cn(SELECTED, 'font-semibold before:absolute before:inset-y-[6px] before:left-0 before:w-[3px] before:rounded-r-full before:bg-[var(--sel-strong)]')
+      ? cn(SELECTED, 'font-medium before:absolute before:inset-y-[6px] before:left-0 before:w-[3px] before:rounded-r-full before:bg-[var(--sel-strong)]')
       : cn(WASH, INK),
     className,
   )
@@ -187,13 +247,36 @@ export function DropdownRow<T extends string>({
 }) {
   const [open, setOpen] = useOpenState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  /* ON TOP OF THE PAGE, NOT INSIDE THE CARD (owner, 2026-10-09: the menu was
+     cut off by the rounded card). Fixed to the button, and opening upward
+     when there is not room under it. */
+  const [pos, setPos] = useState<React.CSSProperties | null>(null)
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return }
+    const place = () => {
+      const b = ref.current?.getBoundingClientRect()
+      if (!b) return
+      const need = Math.min(options.length * 46 + 16, window.innerHeight * 0.6)
+      const below = window.innerHeight - b.bottom
+      const right = Math.max(8, window.innerWidth - b.right)
+      setPos(below < need + 12 && b.top > below
+        ? { position: 'fixed', right, bottom: window.innerHeight - b.top + 6 }
+        : { position: 'fixed', right, top: b.bottom + 6 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  }, [open, options.length])
 
   // Close on a click anywhere outside, and on Escape -- the two exits every
   // menu needs, mirrored on what the native picker did for free.
   useEffect(() => {
     if (!open) return
     const onDoc = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', onDoc)
@@ -225,12 +308,14 @@ export function DropdownRow<T extends string>({
             aria-hidden="true"
           />
         </button>
-        {open && (
+        {open && pos && createPortal(
           <ul
+            ref={listRef}
             role="listbox"
             aria-label={label}
+            style={pos}
             className={cn(
-              'absolute right-0 top-[calc(100%+6px)] z-50 min-w-[190px] max-w-[min(260px,80vw)]',
+              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60vh] overflow-y-auto',
               'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
               SEAM, SURFACE,
             )}
@@ -255,7 +340,8 @@ export function DropdownRow<T extends string>({
                 </li>
               )
             })}
-          </ul>
+          </ul>,
+          document.body,
         )}
       </div>
     </Row>
@@ -285,7 +371,7 @@ export function SliderRow({
   const pct = max > min ? ((value - min) / (max - min)) : 0
   const fill = `calc(9px + (100% - 18px) * ${pct})`
   return (
-    <Row label={label} value={shown} helper={helper}>
+    <Row label={label} value={shown} helper={helper} data-slider-row="">
       <input
         type="range"
         min={min}
@@ -312,12 +398,17 @@ export function SliderRow({
            the old all-ink track, so the chosen amount is the thing that reads. */
         style={{
           borderRadius: '3px / calc((var(--sband-h, 44px) - 6px) / 2 + 3px)',
-          background: `linear-gradient(to right, var(--sel-strong) ${fill}, color-mix(in srgb, var(--bento-ink) 22%, transparent) ${fill})`,
+          /* backgroundImage, not the background shorthand: on every move React
+             re-set only the shorthand, which reset backgroundClip, and the 6px
+             track became a thick bar (owner, 2026-10-08). */
+          backgroundImage: `linear-gradient(to right, var(--sel-strong) ${fill}, color-mix(in srgb, var(--bento-ink) 22%, transparent) ${fill})`,
           backgroundClip: 'content-box',
         }}
         className={cn(
           'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none py-[calc((var(--sband-h,44px)-6px)/2)]',
-          SLIDER, RING,
+          /* No ring round the whole track when it has focus: only the knob
+             shows it (owner, 2026-10-08: 'I should not see this'). */
+          SLIDER, 'focus-visible:outline-none',
         )}
       />
     </Row>

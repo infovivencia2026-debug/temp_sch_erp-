@@ -282,6 +282,7 @@ export const en = {
      is the first option on both Android and iOS — but a button has to name the
      thing that happens when you press it, not the thing two taps later. */
   'portal.receipts.action_download': 'Save as PDF',
+  'portal.receipts.download_failed': 'Could not save it. Try again, or use Print.',
   'portal.receipts.download': 'Download',
   'portal.receipts.download_hint':
     'Opens your device’s print sheet. Choose “Save as PDF” to keep a copy.',
@@ -966,7 +967,7 @@ export const en = {
   'bento.my_work.late_units': 'late',
   'bento.my_work.kinds_count': 'kinds',
   'bento.my_work.kinds_sr': 'Outstanding work by kind',
-  'bento.my_work.kinds_note': 'The bar sums to the figure above it: each kind\'s own count, less leave already decided.',
+  'bento.my_work.kinds_note': 'By kind',
   'bento.my_work.empty_queue': 'Nothing outstanding on this list.',
   'bento.my_work.late_head': 'Late',
   'bento.my_work.none_late': 'None of it is late.',
@@ -981,9 +982,9 @@ export const en = {
   'bento.my_work.largest_none': 'No marks queue on this list.',
   'bento.my_work.largest_unit': '{count} missing',
   // Says out loud why there is no ranking across the kinds.
-  'bento.my_work.units_note': 'Only marks papers are ranked against each other. Marks, lessons and notices are different units.',
+  'bento.my_work.units_note': 'Marks papers only',
   'bento.my_work.dated_note': '{dated} of {count} outstanding items carry a date.',
-  'bento.my_work.cap_note': 'Listed ten at a time ({kinds}), so these are at least the figures shown.',
+  'bento.my_work.cap_note': 'At least these ({kinds})',
   // Overdue — the ageing of the queue.
   'bento.my_work.oldest': 'oldest',
   'bento.my_work.days_late': '{days}d',
@@ -1008,7 +1009,7 @@ export const en = {
   'bento.my_work.scope_section': 'from your sections',
   'bento.my_work.scope_own': 'from your account',
   'bento.my_work.rows_by_kind': 'Rows by kind',
-  'bento.my_work.sections_note': 'Submissions, marks and cover are scoped by section; leave and notices by account.',
+  'bento.my_work.sections_note': 'Across your sections',
   // --- the card language ---------------------------------------------------
   'bento.my_work.on_you': 'Outstanding on you',
   'bento.my_work.by_kind_head': 'By kind',
@@ -1164,10 +1165,10 @@ export const en = {
   'bento.principal.unassigned_tally_sr': '{count} subjects without a teacher, one mark each',
   /* The sentences. Each says what the number IS — which population, counted
      when — because that is the half of a figure a dashboard usually drops. */
-  'bento.principal.students_note': 'Active students on roll, with the sections and staff counted at the same instant.',
-  'bento.principal.staff_note': 'Active employees. The load is the roll divided by them, not a target.',
+  'bento.principal.students_note': 'On roll today',
+  'bento.principal.staff_note': 'Active staff',
   'bento.principal.defaulters_note': 'Students with at least one invoice past its due date.',
-  'bento.principal.outstanding_note_plain': 'Every unpaid invoice, of every year. No bills are tagged to an academic year, so there is nothing to show it against.',
+  'bento.principal.outstanding_note_plain': 'All unpaid invoices',
   'bento.principal.collected_note_plain': "Receipts banked in this period, whatever year's bill they settle.",
 
   /* THE CARD VOCABULARY — the eight KPI cells rebuilt on `CardShell`.
@@ -1736,11 +1737,14 @@ export const en = {
 
   'bento.hod.absent': 'Staff out today',
   'bento.hod.absent_sub': 'Not in today',
-  'bento.hod.absent_note': 'Out of {n} teachers. A level against a level is not a fraction, so it is not drawn as one.',
+  'bento.hod.absent_note': 'of {n} teachers',
   'bento.hod.cue_leave': 'Open leave',
 
   'bento.hod.marks_sub': 'Not yet moderated',
-  'bento.hod.marks_note': 'A queue, not a share: this page carries no total to divide it by, and a percentage of nothing is worse than a number.',
+  'bento.hod.marks_note': 'papers waiting',
+  'bento.hod.stat_sections': 'Sections',
+  'bento.hod.stat_departments': 'Departments',
+  'bento.hod.stat_uncovered': 'Periods uncovered today',
   'bento.hod.cue_marks': 'Open moderation',
 
   'bento.hod.department': 'Teachers',
@@ -1783,12 +1787,17 @@ export const en = {
 
   'bento.hr.leave': 'Leave to decide',
   'bento.hr.leave_sub': 'Unanswered',
-  'bento.hr.leave_note': 'A queue rather than a share: nothing on this page is the number of requests it could have been out of.',
+  'bento.hr.leave_note': 'requests waiting',
+  'bento.hr.stat_away': 'On leave today',
+  'bento.hr.stat_absent': 'Absent today',
+  'bento.hr.stat_present': 'Present today',
+  'bento.hr.stat_headcount': 'Headcount',
+  'bento.hr.stat_departments': 'Departments',
   'bento.hr.cue_leave': 'Open leave',
 
   'bento.hr.joiners': 'Joined this month',
   'bento.hr.joiners_sub': 'Started in 30 days',
-  'bento.hr.joiners_note': 'Across {n} departments. A period count against a level is not a fraction, so it is not drawn as one.',
+  'bento.hr.joiners_note': 'across {n} departments',
   'bento.hr.cue_records': 'Open Staff 360',
 
   // --- the admissions desk board ------------------------------------------
@@ -1829,7 +1838,7 @@ export const en = {
 
   'bento.admissions.offered': 'Offers made',
   'bento.admissions.offered_sub': 'At offered',
-  'bento.admissions.offered_note': 'Shown as a stage in the funnel above rather than as a share: offered and enrolled test different columns, and an application can reach a student without passing through offered.',
+  'bento.admissions.offered_note': 'offers made',
   'bento.admissions.cue_offers': 'Open offers',
 
   'bento.admissions.sources': 'Where they came from',
@@ -2168,6 +2177,7 @@ export const en = {
   'bento.appearance.title': 'Appearance',
   'bento.widgets.edit': 'Arrange',
   'bento.widgets.done': 'Done',
+  'bento.widgets.no_room_swap': 'No room to swap those two: the board would overflow. Make one smaller first.',
   // The phone pager. Only English needs these: te.ts is a Partial, so an
   // untranslated key falls back rather than failing the build.
   'bento.page.pages': 'Board pages',
@@ -2693,6 +2703,7 @@ export const en = {
      tile that offers to pin it, and the keyboard hint for a grid rather than
      a list. */
   'bento.launcher.pinned': 'Pinned',
+  'bento.launcher.folders': 'All features',
   'bento.launcher.pin': 'Pin',
   'bento.launcher.unpin': 'Unpin',
   'bento.launcher.more_for': 'More for {name}',
@@ -2740,23 +2751,6 @@ export const en = {
   'shared.set_your_password.skipping': 'One moment…',
   'shared.set_your_password.skip': 'Skip for now, keep the password I was given',
   'shared.set_your_password.sign_out': 'Sign out instead',
-  // --- portal / ChildRemarks.tsx -----------------------------------------
-  'portal.child_remarks.eyebrow': 'My child',
-  'portal.child_remarks.title': 'Remarks',
-  'portal.child_remarks.description': 'What your child’s teachers have written, newest first.',
-  'portal.child_remarks.unlinked_title': 'No student record linked',
-  'portal.child_remarks.unlinked_body': "Your account is not linked to a student yet. Ask the school office to connect it. Once it is, everything your child's teachers write appears here on the day they write it.",
-  'portal.child_remarks.all_children': 'All my children',
-  'portal.child_remarks.praise': '{count} {count#commendation|commendations}',
-  'portal.child_remarks.concerns': '{count} needing a word at home',
-  'portal.child_remarks.card_count': '{count} in the record',
-  'portal.child_remarks.empty_title': 'Nothing written yet',
-  'portal.child_remarks.empty_body': 'When a teacher records something about your child, good or otherwise, it appears here and you are told about it the same day.',
-  'portal.child_remarks.kind_achievement': 'Commendation',
-  'portal.child_remarks.kind_participation': 'Participation',
-  'portal.child_remarks.kind_concern': 'Concern',
-  'portal.child_remarks.kind_behaviour': 'Conduct',
-  'portal.child_remarks.kind_academic': 'Academic',
   // --- portal / ChildTimetable.tsx ---------------------------------------
   'portal.child_timetable.eyebrow': 'My child',
   'portal.child_timetable.title': 'Timetable',

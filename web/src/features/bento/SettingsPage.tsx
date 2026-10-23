@@ -1,4 +1,6 @@
-import { useCallback, useEffect } from 'react'
+import { markLaunch, leaveSettings, shouldLaunch, endLaunchIfGone } from '@/lib/launch-morph'
+import { SignOutButton } from './SettingsRows'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
@@ -146,9 +148,36 @@ export default function SettingsPage() {
      dashboard section, which wants the settings surface out of the way so the
      board underneath can be dragged. In the dialog that closes the window; the
      same intent on a route is going back to the screen you came from. */
+  const [launching] = useState(() => { const l = shouldLaunch(); if (l) markLaunch(); return l })
   const done = useCallback(() => {
-    navigate(-1)
+    /* Inside Settings (a section back to the list) it just goes back; only
+       leaving Settings shrinks into the gear (owner, 2026-10-10). */
+    if (window.location.pathname.startsWith('/settings/')) navigate(-1)
+    else leaveSettings(() => navigate(-1))
   }, [navigate])
+  /* The launch, both ways: remember where Settings was opened from, and when
+     a link elsewhere on the screen (the dock) is followed, shrink back into
+     that point first, then go. */
+  useEffect(() => {
+    if (launching) markLaunch()
+    if (wide) return () => endLaunchIfGone()
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      const screen = document.querySelector('.settings-screen')
+      if (!a || !screen || screen.contains(a) || a.target === '_blank') return
+      const url = new URL(a.href, location.href)
+      if (url.origin !== location.origin || url.pathname.startsWith('/settings')) return
+      // Leaving by the dock: shrink back into the gear, then go.
+      e.preventDefault()
+      e.stopPropagation()
+      leaveSettings(() => navigate(url.pathname + url.search + url.hash))
+    }
+    document.addEventListener('click', onClick, true)
+    /* Short on a phone (owner, 2026-10-09: only the first open launched): the
+       flag must be down before the next press of the gear. */
+    return () => { document.removeEventListener('click', onClick, true); endLaunchIfGone(250) }
+  }, [navigate, wide, launching])
 
   return (
     /* THE PAGE SITS ON A CARD, AND THAT IS A CONTRAST DECISION.
@@ -255,9 +284,9 @@ export default function SettingsPage() {
              scrolled, and scrolled to its end showed the reserve as a grey
              band above the tab bar. It fills what the work area has, and the
              ground below it is painted the same colour (data-page-ground). */
-          'flex-1 border-b-0 sm:flex-none sm:border-b',
-          'sm:rounded-xl sm:border-x sm:border-t',
-          'bg-[var(--bento-card,hsl(var(--card)))]',
+          launching && 'settings-launch', 'settings-screen flex-1 border-b-0 sm:flex-none sm:border-b',
+          'sm:rounded-[16px] sm:border-x sm:border-t',
+          'bg-[color-mix(in_srgb,hsl(var(--muted))_75%,var(--bento-card,hsl(var(--card))))] sm:bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
           EDGE,
           /* THE PANEL ENDS ABOVE THE DOCK. On a desktop the dock floats over
@@ -280,22 +309,30 @@ export default function SettingsPage() {
               section, the way back sits above the name, labelled with the
               name of the list it returns to. 44px in pixels: `min-h-11` is
               38.5px on this 14px root. */}
-          {tab !== null && !wide && (
-            <button
-              type="button"
-              onClick={backToList}
-              className={cn(
-                '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-md pl-[6px] pr-[10px]',
-                'text-[15px] transition-colors', INK, WASH, RING,
-              )}
-            >
-              <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+          {/* Inside a section on a phone: a round back button on the left and
+              the page's name centred, the way a phone's own settings pages are
+              headed (owner, 2026-10-08). */}
+          {tab !== null && !wide ? (
+            <div className="grid min-h-[48px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+              <button
+                type="button"
+                onClick={backToList}
+                aria-label={t('bento.settings.label')}
+                className={cn(
+                  'grid size-[40px] place-items-center rounded-full bg-[var(--bento-card,hsl(var(--card)))] shadow-[0_1px_3px_rgb(0_0_0/0.12)] transition-colors',
+                  INK, WASH, RING,
+                )}
+              >
+                <ChevronLeft className="size-5 shrink-0" aria-hidden="true" />
+              </button>
+              <h1 className={cn('truncate text-center text-[17px] font-semibold', INK)}>{found?.label}</h1>
+              <span aria-hidden="true" />
+            </div>
+          ) : (
+            <h1 className={cn('text-[32px] font-bold leading-tight tracking-[-0.02em] sm:text-[20px] sm:font-semibold', INK)}>
               {t('bento.settings.label')}
-            </button>
+            </h1>
           )}
-          <h1 className={cn('text-[26px] font-bold leading-tight tracking-[-0.01em] sm:text-[20px] sm:font-semibold', INK)}>
-            {found && !wide ? found.label : t('bento.settings.label')}
-          </h1>
         </header>
 
         {/* The wide strip, unchanged and shared with the dialog. It is
@@ -314,6 +351,7 @@ export default function SettingsPage() {
           >
             <nav aria-label="Settings sections" className={cn('overflow-y-auto border-r py-[8px]', SEAM)}>
               <SettingsSectionList items={items} onOpen={open} current={tab} />
+              <div className="px-[8px]"><SignOutButton className="mt-3" /></div>
             </nav>
             <div className="min-w-0 overflow-y-auto overscroll-contain px-[8px] py-[8px]">
               <h2 className={cn('px-[16px] pt-[6px] pb-[8px] text-[15px] font-semibold', INK)}>
@@ -344,9 +382,10 @@ export default function SettingsPage() {
              pane adds none. No bottom padding: the scroller's --page-foot
              clears the bar and the home indicator, once, for every page. */
           tab === null ? (
-            <div className="px-[16px] pt-[8px]">
+            <div className="px-[16px] pt-[8px] pb-[16px]">
               <FullScreenOffer />
               <SettingsGroups items={items} onOpen={open} values={values} />
+              <SignOutButton className="mt-6" />
             </div>
           ) : (
             <div className="pt-[4px]">

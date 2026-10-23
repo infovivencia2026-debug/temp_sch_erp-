@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type TimetableEntry } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTable, ErrorState, tabClass, PageBody } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTable, ErrorState, TAB_BAR, tabClass, SEG_BAR, segClass, PageBody } from '@/components/ui'
 import { Printer } from 'lucide-react'
 import { printDocument } from '@/lib/print'
-import { WEEKDAYS } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import DayTimeline from '@/components/DayTimeline'
+import WeekGrid from '@/components/WeekGrid'
 import { useSession } from '@/lib/session'
 import { usePhone } from '@/lib/viewport'
 
@@ -60,15 +60,15 @@ export default function Timetable({ embedded = false }: { embedded?: boolean } =
     <PageBody top>
     <Card>
       {!embedded && <CardHeader title="Timetable" />}
-      <div className={cn('flex gap-1 border-b px-3 pt-2', tabs.length === 1 && 'hidden')}>
+      <div className={cn(TAB_BAR, 'px-3', tabs.length === 1 && 'hidden')} role="tablist">
         {tabs.map((t: { id: string; label: string }) => (
           <button
             key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={t.id === tabId}
             onClick={() => setTab(t.id)}
-            className={cn(
-              'rounded-t-md px-3 py-1.5 text-sm',
-              t.id === tabId ? tabClass(true) : 'text-muted-foreground hover:text-foreground',
-            )}
+            className={tabClass(t.id === tabId)}
           >
             {t.label}
           </button>
@@ -113,8 +113,9 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     enabled: isStaff && seeAll,
   })
   const periods = useQuery({
-    queryKey: ['periods'],
-    queryFn: () => api.call('GET /timetable/periods'),
+    /* Every schedule's periods: a week can span classes on different timings. */
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
   })
   const query = view.mode === 'me' ? '?teacher_id=me' : sectionId ? `?section_id=${sectionId}` : ''
   const entries = useQuery({
@@ -144,24 +145,55 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     unstaffed: view.mode !== 'me' && !e.teacher_name,
   }))
 
-  const tab = (on: boolean) => cn('rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
-    on ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+  /* THE ROWS ARE THE WEEK'S OWN BELL. Classes may run to different timings
+     (Nursery's short morning, the school day), so every schedule's periods
+     arrive. The grid keeps the schedules this week actually uses -- one, for
+     a class or a teacher on one bell -- and falls back to the first. */
+  const allPeriods = periods.data?.items ?? []
+  const usedIds = new Set(cells.map((c) => c.period_id))
+  const usedBells = new Set(allPeriods.filter((p) => usedIds.has(p.id)).map((p) => p.bell_schedule_id ?? ''))
+  if (usedBells.size === 0 && allPeriods.length) usedBells.add(allPeriods[0].bell_schedule_id ?? '')
+  /* A period that is the same in two bells (same name, same times) is one row. */
+  const same = (p: { name: string; starts_at: string; ends_at: string; is_break: boolean }) => `${p.name}|${p.starts_at}|${p.ends_at}|${p.is_break}`
+  const canon = new Map<string, string>(), rowOf = new Map<string, string>()
+  const rows = allPeriods.filter((p) => usedBells.has(p.bell_schedule_id ?? ''))
+    .sort((a, b) => (usedBells.size > 1 ? a.starts_at.localeCompare(b.starts_at) : 0) || a.sequence - b.sequence)
+    .filter((p) => {
+      const k = same(p), first = canon.get(k)
+      rowOf.set(p.id, first ?? p.id)
+      if (first) return false
+      canon.set(k, p.id)
+      return true
+    })
+  /* Your own periods are marked only on somebody else's week: on your own,
+     every period is yours and a mark on all of them marks nothing. */
+  const gridCells = cells.map((c) => ({
+    weekday: c.weekday,
+    period_id: rowOf.get(c.period_id) ?? c.period_id,
+    title: c.subject,
+    detail: c.who,
+    room: c.room,
+    mine: view.mode !== 'me' && c.mine,
+    unstaffed: c.unstaffed,
+  }))
 
   return (
     <>
       {isStaff && (
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-          <button type="button" className={tab(view.mode === 'me')} onClick={() => setView({ mode: 'me' })}>
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+          <div className={SEG_BAR} role="tablist" aria-label="Whose week">
+          <button type="button" role="tab" aria-selected={view.mode === 'me'} className={segClass(view.mode === 'me')} onClick={() => setView({ mode: 'me' })}>
             My timetable
           </button>
           {classes.map((s) => (
-            <button key={s.id} type="button" className={tab(sectionId === s.id)}
+            <button key={s.id} type="button" role="tab" aria-selected={sectionId === s.id} className={segClass(sectionId === s.id)}
               onClick={() => setView({ mode: 'section', sectionId: s.id })}>
               My class {label(s)}
             </button>
           ))}
+          </div>
           {seeAll && (
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <Select
                 value={sectionId && !classes.some((c) => c.id === sectionId) ? sectionId : ''}
                 onChange={(v) => v && setView({ mode: 'section', sectionId: v })}
@@ -187,7 +219,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
             who={title}
             where={view.mode === 'me' ? 'Every period you teach, across all your classes' : 'The whole week for this class'}
             breaks={view.mode !== 'me'}
-            periods={periods.data?.items ?? []}
+            periods={allPeriods}
             entries={cells.map((c) => ({
               weekday: c.weekday,
               period_id: c.period_id,
@@ -197,13 +229,13 @@ function Grid({ isStaff }: { isStaff: boolean }) {
           />
         </div>
       ) : (
-        <div id="staff-timetable" className="p-4">
+        <div className="p-4">
           <p className="mb-3 text-[13px] text-muted-foreground">
             {view.mode === 'me'
               ? <>Every period you teach, across all your classes.</>
               : <>The whole week for <b className="text-foreground">{title}</b>{classes.some((c) => c.id === sectionId) ? '. Your own periods are highlighted.' : '.'}</>}
           </p>
-          <StaffWeekGrid cells={cells} periods={periods.data?.items ?? []}
+          <WeekGrid id="staff-timetable" entries={gridCells} periods={rows}
             empty={view.mode === 'me' ? 'No periods are timetabled for you yet.' : 'Nothing is timetabled for this class yet.'} />
         </div>
       )}
@@ -211,115 +243,6 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   )
 }
 
-interface StaffCell {
-  weekday: number; period_id: string; subject: string; who: string
-  room?: string; mine: boolean; unstaffed: boolean
-}
-
-/* The week as a wall timetable: periods down the side, Monday to Saturday
-   across, breaks across the whole row. Today's column is tinted and the
-   period running now is ringed. Your own periods are solid in the school's
-   colour; everybody else's are light cards; an empty period says Free. */
-function StaffWeekGrid({ cells, periods, empty }: {
-  cells: StaffCell[]
-  periods: { id: string; name: string; starts_at: string; ends_at?: string; is_break?: boolean }[]
-  empty: string
-}) {
-  const at = new Map<string, StaffCell>()
-  for (const c of cells) at.set(`${c.weekday}:${c.period_id}`, c)
-  const days = [1, 2, 3, 4, 5, 6]
-  const now = new Date()
-  const today = ((now.getDay() + 6) % 7) + 1
-  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  const time = (p: { starts_at: string; ends_at?: string }) =>
-    p.ends_at ? `${p.starts_at.slice(0, 5)}–${p.ends_at.slice(0, 5)}` : p.starts_at.slice(0, 5)
-
-  if (!periods.some((p) => !p.is_break)) {
-    return <p className="py-6 text-center text-[13.5px] text-muted-foreground">The school day has no periods yet, so there is nothing to lay a timetable on.</p>
-  }
-  if (cells.length === 0) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
-
-  return (
-    <div className="scroll-x rounded-xl border">
-      <table className="w-full min-w-[52rem] table-fixed border-collapse text-[12.5px]">
-        <thead>
-          <tr>
-            <th className="w-28 border-b bg-muted/50 px-3 py-2.5 text-left text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Period</th>
-            {days.map((d) => (
-              <th key={d} className={cn('border-b border-l px-3 py-2.5 text-center text-[11.5px] font-semibold uppercase tracking-wide',
-                d === today ? 'bg-primary/[0.07] text-primary' : 'bg-muted/50 text-muted-foreground')}>
-                {WEEKDAYS[d - 1]}{d === today ? ' (today)' : ''}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {periods.map((p) => p.is_break ? (
-            <tr key={p.id}>
-              <td colSpan={days.length + 1} className="border-b bg-muted/60 px-3 py-1.5 text-center text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {p.name} · {time(p)}
-              </td>
-            </tr>
-          ) : (
-            <tr key={p.id} className="align-top">
-              <td className="border-b bg-muted/30 px-3 py-2">
-                <div className="text-[13px] font-semibold">{p.name}</div>
-                <div className="text-[11px] text-muted-foreground">{time(p)}</div>
-              </td>
-              {days.map((d) => {
-                const c = at.get(`${d}:${p.id}`)
-                const live = d === today && p.ends_at && p.starts_at.slice(0, 5) <= hhmm && hhmm < p.ends_at.slice(0, 5)
-                return (
-                  <td key={d} className={cn('border-b border-l p-2', d === today && 'bg-primary/[0.03]')}>
-                    {c ? (
-                      /* A HIGHLIGHT MARKS THE EXCEPTION, NOT THE RULE.
-
-                         Own periods were filled solid in the brand colour. On
-                         a class timetable that reads well -- three of eight
-                         periods are yours and they stand out. On your OWN
-                         timetable every period is yours, so the grid came out
-                         as forty saturated red blocks with white text, a wall
-                         of colour that is tiring to read, impossible to skim
-                         and wrong in the one way that matters: a highlight
-                         that covers everything highlights nothing.
-
-                         A rail down the left edge and a faint tint say "yours"
-                         just as clearly at a glance, and leave the subject in
-                         ordinary black on white where it can actually be read.
-                         Somebody else's period keeps a plain card. */
-                      <div className={cn('flex min-h-[4.25rem] flex-col gap-0.5 rounded-lg border px-2.5 py-2',
-                        c.mine ? 'border-l-[3px] border-l-primary bg-primary/[0.06]' : 'bg-card',
-                        live && 'ring-2 ring-primary ring-offset-1')}>
-                        <span className="text-[13px] font-semibold leading-snug">{c.subject}</span>
-                        <span className={cn('text-[11px] leading-snug',
-                          c.unstaffed ? 'text-warning' : 'text-muted-foreground')}>
-                          {c.who}
-                        </span>
-                        {c.room && (
-                          <span className="mt-auto w-fit rounded bg-muted px-1.5 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
-                            {c.room}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      /* An empty period is the quietest thing on the grid: it
-                         is what the eye should skip over on its way to a
-                         lesson, not a card competing with one. */
-                      <div className={cn('flex min-h-[4.25rem] items-center justify-center rounded-lg border border-dashed bg-surface-sunken/30 text-[11px] font-medium text-muted-foreground/70',
-                        live && 'ring-2 ring-primary ring-offset-1')}>
-                        Free
-                      </div>
-                    )}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 function Workload() {
   const { data, isLoading, error } = useQuery({

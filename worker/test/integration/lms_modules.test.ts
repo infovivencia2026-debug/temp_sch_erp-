@@ -33,8 +33,9 @@ beforeAll(async () => {
   const s = await signIn(row.sign_in_as, row.password)
   await raw(s.cookie!, 'POST', '/profile/password', { current_password: row.password, new_password: 'chirag-module-password-1' })
   chirag = s.cookie!
-  // One-by-one gating has its own tests (lms_progression.test.ts); here every module is open.
-  expect((await api('teacher', 'PUT', '/lms/course/settings', { section_id: IDS.section, class_subject_id: IDS.classSubject, gating: 'open' })).status).toBe(200)
+
+  // Every course is one by one now (owner, 2026-10-10); the Open switch is gone and the server refuses it.
+  expect((await api('teacher', 'PUT', '/lms/course/settings', { section_id: IDS.section, class_subject_id: IDS.classSubject, gating: 'open' })).status).toBe(400)
 })
 
 describe('modules', () => {
@@ -136,6 +137,11 @@ describe('modules', () => {
   })
 
   it('the child sees only published sources whose time has come', async () => {
+    /* Every course is one by one, and this module is not the first, with a
+       video before the audio and the link. The teacher opens it early for
+       Chirag, which lifts both the day lock and the lock behind the video,
+       so what is checked here is publishing, not progression. */
+    expect((await api('teacher', 'POST', '/lms/unlocks', { student_id: IDS.child, unit_id: m1 })).status).toBe(200)
     const future = new Date(Date.now() + 2 * 86_400_000).toISOString()
     expect((await api('teacher', 'POST', `/lms/lessons/${src.image}/publish`, { is_published: false })).status).toBe(200)
     expect((await api('teacher', 'POST', `/lms/lessons/${src.audio}/publish`, { is_published: true, publish_at: future })).status).toBe(200)
@@ -177,9 +183,8 @@ describe('modules', () => {
     expect(d.resume).toMatchObject({ type: 'lesson', id: src.video, unit_id: m1, started: true })
     // A parent opening it records nothing.
     expect((await api('parent', 'POST', `/portal/lms/lessons/${src.notes}/view`, {})).body.recorded).toBe(false)
-    // Finished: resume moves on.
-    await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/complete`, {})
-    expect((await mine()).resume.id).not.toBe(src.video)
+    // A video is finished by watching it, never by a button (owner, 2026-10-10).
+    expect((await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/complete`, {})).status).toBe(400)
   })
 
   it('the teacher sees who has completed the module', async () => {
@@ -189,15 +194,28 @@ describe('modules', () => {
     // Visible: notes, video, audio, link (image is a draft, doc moved) + 1 assignment + 1 quiz.
     expect(p.body.totals).toMatchObject({ sources: 4, assignments: 1, quizzes: 1, total: 6 })
     let me = p.body.items.find((x: { student_id: string }) => x.student_id === IDS.child)
-    expect(me).toMatchObject({ sources_done: 4, done: 4, complete: false })
+    // Three: the video counts only once it is watched to the end, and it was not.
+    expect(me).toMatchObject({ sources_done: 3, done: 3, complete: false })
     await raw(chirag, 'POST', `/portal/lms/assignments/${hw}/submit`, { text_answer: '300' })
     const st = await raw(chirag, 'POST', `/portal/lms/quizzes/${quiz}/start`, {})
     await raw(chirag, 'POST', `/portal/lms/quizzes/${quiz}/submit`, { attempt_id: st.body.attempt_id, answers: {} })
     p = await api('teacher', 'GET', `/lms/units/${m1}/progress?section_id=${IDS.section}`)
     me = p.body.items.find((x: { student_id: string }) => x.student_id === IDS.child)
-    expect(me).toMatchObject({ done: 6, total: 6, complete: true })
-    expect(p.body.complete).toBe(1)
+    expect(me).toMatchObject({ done: 5, total: 6, complete: false })
     expect(p.body.items.find((x: { student_id: string }) => x.student_id === IDS.otherChild)?.complete ?? false).toBe(false)
+  })
+
+  it('a YouTube lesson carries on where it was left, from any device', async () => {
+    expect((await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/youtube-watched`, { duration: 600, position: 42, watched: '1'.repeat(8) })).body).toMatchObject({ done: false })
+    // Another phone asks the server, not its own storage.
+    const p = (await raw(chirag, 'GET', `/portal/lms/lessons/${src.video}/youtube-progress`)).body
+    expect(p).toMatchObject({ position: 42, bucket_seconds: 5 })
+    expect(p.watched.startsWith('11111111')).toBe(true)
+    // What the second phone plays is added to what the first did.
+    await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/youtube-watched`, { duration: 600, position: 60, watched: '0'.repeat(8) + '1111' })
+    const q = (await raw(chirag, 'GET', `/portal/lms/lessons/${src.video}/youtube-progress`)).body
+    expect(q.position).toBe(60)
+    expect(q.watched.startsWith('111111111111')).toBe(true)
   })
 
   it('taking a quiz out of a module leaves it in the course', async () => {

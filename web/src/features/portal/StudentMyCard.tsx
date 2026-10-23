@@ -1,3 +1,5 @@
+import { printDocument } from '@/lib/print'
+import { Barcode } from '@/lib/barcode'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cake, Droplet, House, Phone, Printer, ShieldCheck, UserRound } from 'lucide-react'
@@ -43,7 +45,7 @@ export default function StudentMyCard() {
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ['student-id-card', ''] })}>
       <StudentPage>
         <StudentHeader title="My ID card" sub="Show this screen at the gate or the library"
-          right={<button type="button" onClick={() => window.print()} aria-label="Print my card" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
+          right={<button type="button" onClick={() => printDocument({ title: 'Student ID card' })} aria-label="Print my card" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
 
         {q.error ? <ErrorState error={q.error} /> : !card || !pass ? (
           <><Bone className="h-[360px] w-full rounded-3xl" /><Bone className="h-[220px] w-full rounded-2xl" /></>
@@ -61,12 +63,13 @@ export default function StudentMyCard() {
                 <p className="mt-2 text-[22px] font-semibold leading-tight">{card.full_name}</p>
                 <p className="text-[14px] text-muted-foreground">{[card.class_name && `${card.class_name} ${card.section_name ?? ''}`.trim(), card.roll_no && `Roll ${card.roll_no}`].filter(Boolean).join(' · ')}</p>
                 <p className="mt-1 font-mono text-[13px] tracking-wide text-muted-foreground">{card.admission_no}</p>
+                <Barcode value={card.admission_no} height={22} label={false} className="mt-2 h-6 w-40 max-w-full" />
               </div>
               <div className="border-t border-dashed px-5 py-4">
                 <p className="flex items-center justify-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-4 w-4 text-success" /> Gate code</p>
                 <p className="mt-1 text-center font-mono text-[30px] font-semibold tracking-[0.22em] tabular-nums" aria-live="polite">{pass.code}</p>
                 <span className="mx-auto mt-2 block h-1.5 max-w-[220px] overflow-hidden rounded-full bg-muted" aria-hidden>
-                  <span className="block h-full rounded-full bg-success transition-[width] duration-1000 ease-linear" style={{ width: `${Math.min(100, (left / 150) * 100)}%` }} />
+                  <span className="block h-full origin-left rounded-full bg-success transition-transform duration-1000 ease-linear" style={{ transform: `scaleX(${Math.min(1, left / 150)})` }} />
                 </span>
                 <p className="mt-1.5 text-center text-[12px] text-muted-foreground">Changes every couple of minutes, so a photo of it will not work. Card {pass.serial}</p>
               </div>

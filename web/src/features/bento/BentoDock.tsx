@@ -1,3 +1,4 @@
+import { leaveSettings } from '@/lib/launch-morph'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, House } from 'lucide-react'
@@ -479,7 +480,7 @@ export function BentoDock() {
               if (location.pathname === homeHref) {
                 window.location.reload()
               } else {
-                navigate(homeHref)
+                leaveSettings(() => navigate(homeHref))
               }
             }}
             className={cn(item, tab)}
@@ -494,8 +495,15 @@ export function BentoDock() {
         )}
 
         {/* Brings its own ⌘K listener, so the shortcut works again as soon as
-            this mounts — mouse and keyboard reach the same thing. */}
-        <CommandSearch />
+            this mounts — mouse and keyboard reach the same thing.
+
+            NOT ON A PHONE (owner, 2026-10-09: "remove search ONLY IN
+            PHONES"). The pill is a desk control: it shows the words "Search"
+            and a ⌘K hint, and neither earns its width on a 390px dock where
+            every pixel is a tab somebody taps. There is no ⌘K on a phone to
+            advertise, and the pill was pushing the real destinations along
+            the bar. Search is still reachable from All features. */}
+        {!phone && <CommandSearch />}
 
         {/* No Work item: the owner asked for it off the dock (2026-10-01).
             Work queues stay one tap away in All features, and switching to
@@ -582,7 +590,7 @@ export function BentoDock() {
               <button
                 key={c.name}
                 type="button"
-                onClick={() => navigate(c.href)}
+                onClick={() => leaveSettings(() => navigate(c.href))}
                 data-tip={c.name}
                 aria-label={c.name}
                 className={item}

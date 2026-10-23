@@ -1,6 +1,8 @@
 import { ApiError } from '@/lib/api'
+import { staffLayoutOn } from '@/lib/staff-layout'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
+import { useTabs } from '@/lib/tabs'
 import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
@@ -296,7 +298,14 @@ function FeatureRoute() {
     )
   }
 
-  const Component = componentFor(feature.key)
+  const homeFirst = section.features[0]?.key === feature.key &&
+    (section.workspace === 'Home' || section.slug === 'home' || section.slug === 'dashboard')
+  /* With the school's staff layout on, every staff member's Home is today's
+     timetable beside the notifications (Yajur, 2026-10-19: "this is for all
+     staff of yajur school"). */
+  const staffHome = homeFirst && staffLayoutOn(session, role.key)
+  const Component = componentFor(staffHome ? 'faculty.home.todays_classes' : feature.key)
+  const timetableHome = staffHome || feature.key === 'faculty.home.todays_classes'
 
   /* Every role's Home opens with the same question.
 
@@ -366,8 +375,8 @@ function FeatureRoute() {
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
         {homeLanding && (
-          <PageBody>
-            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={feature.key === 'faculty.home.todays_classes' || feature.key === 'student.home.my_day'} />
+          <PageBody width={timetableHome ? 'full' : undefined}>
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={timetableHome || feature.key === 'student.home.my_day'} noAttention={timetableHome} />
           </PageBody>
         )}
         {/* Keyed by the feature, not just by the component.
@@ -464,12 +473,79 @@ function Home() {
    the API, and people who asked for reduced motion, get the plain swap and
    the arrival fade they had. */
 function RoutedScreen() {
-  /* The address on screen follows the router directly. (A hidden pre-load of
-     the next screen was tried on 2026-09-30 and rolled back: it switched
-     before some screens had loaded and left the account page on its
-     placeholder.) */
+  /* AN OPEN TAB KEEPS ITS PLACE (owner, 2026-10-14: "when i change anything
+     in any feature ... when i came back from tab switching the changes i did
+     are gone, that should not be gone like that").
+
+     A tab was only ever an address. Switching one navigated, React unmounted
+     the screen, and everything it was holding went with it -- half a form
+     typed, boxes ticked, the inner tab you were reading, where you had
+     scrolled to. The work was not saved anywhere because it was not finished;
+     it simply stopped existing. On a strip whose whole promise is that you
+     can look at something else and come back, that is the one thing it must
+     not do.
+
+     So every open tab is rendered, and the ones you are not looking at are
+     hidden rather than thrown away. Coming back is the same component with
+     the same state, not a fresh one -- which is also why this is done by
+     keeping it mounted rather than by saving drafts somewhere: there is no
+     guessing about which record a half-typed form belonged to, because it is
+     the same form.
+
+     The cost, paid knowingly: a hidden tab goes on running. Its queries
+     refetch, anything live stays live. MAX_TABS caps that at eight, closing
+     a tab ends it, and on a phone -- where there is no strip and `tabs` is
+     empty -- nothing changes at all.
+
+     A screen is still rendered for an address that is not a tab (settings,
+     the account page), so those behave exactly as before. */
   const location = useLocation()
-  return <AppRoutes location={location.pathname + location.search + location.hash} />
+  const here = location.pathname + location.search + location.hash
+  const { tabs } = useTabs()
+  const onATab = tabs.some((t) => t.path === here)
+  /* A SCREEN TYPED INTO IS NOT A NEW SCREEN (owner, 2026-10-15: "after
+     entering a single letter I need to click again for the cursor, then
+     type one more").
+
+     The untracked page you are simply looking at -- not yet pinned as a
+     tab -- used to be keyed by its full address, search string included. A
+     live search box patches `?q=` into the URL on every keystroke (Student
+     360's, and any screen built the same way), so `here` changed on every
+     key: the old key vanished from this map, a brand new one took its
+     place, and React mounted that page over again from nothing, taking the
+     focus the browser was mid-keystroke in with it. One character landed,
+     the box went cold, and typing the next one first had to click it awake.
+
+     A tab, once opened, keeps the identity tabs.ts gives it on purpose --
+     two different students open as two different tabs, by that file's own
+     comment -- so a committed tab is still keyed by its full path. Only the
+     single floating "whatever is on screen but not pinned" entry is keyed
+     by the bare pathname, so typing into it updates the same mounted
+     screen instead of replacing it; the full address, query included,
+     still goes to AppRoutes so the search box's own state (read from the
+     URL) is exactly as current as before. The rare page that is pinned as
+     a tab with no query of its own would collide on that bare key, so it
+     is only used when nothing already owns it. */
+  const untrackedKey =
+    !onATab && !tabs.some((t) => t.path === location.pathname) ? location.pathname : here
+  const alive = onATab
+    ? tabs.map((t) => ({ key: t.path, path: t.path }))
+    : [...tabs.map((t) => ({ key: t.path, path: t.path })), { key: untrackedKey, path: here }]
+  return (
+    <>
+      {alive.map(({ key, path }) => {
+        const on = path === here
+        return (
+          /* `display: none` rather than unmounting: the subtree keeps its
+             state but leaves the tab order and the accessibility tree, so
+             nothing in a hidden tab can be tabbed into or read out. */
+          <div key={key} style={on ? undefined : { display: 'none' }}>
+            <AppRoutes location={path} />
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 export function AppRoutes({ location }: { location?: string }) {

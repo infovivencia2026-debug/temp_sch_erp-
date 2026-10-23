@@ -3,11 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, SkeletonTable, SkeletonTiles, ErrorState, PrintButton, Select,
+  Table, Td, SkeletonTable, SkeletonTiles, ErrorState, Button, Select,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import { printHtml } from '@/features/finance/receipt-print'
+import { feeCollectionHtml } from './fee-collection-print'
 import { useDebouncedValue } from '@/lib/debounce'
 
 /**
@@ -70,6 +74,14 @@ export default function CollectionSummaries() {
   const total = rows.reduce((a, r) => a + r.total_paise, 0)
   const receipts = rows.reduce((a, r) => a + r.receipts, 0)
   const cash = rows.reduce((a, r) => a + r.cash_paise, 0)
+  const session = useSession()
+  /* The owner's print (fee-collection-print.ts), same layout as the fee overview. */
+  const printCollection = () => printHtml(feeCollectionHtml({
+    school: session.institution?.display_name ?? 'School',
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    printedBy: session.user?.full_name ?? '', period: rangeLabel(range), group,
+    days: rows, heads: heads.data?.items ?? [], collectors: collectors.data?.items ?? [], tie: tie.data,
+  }))
 
   return (
     <>
@@ -80,7 +92,7 @@ export default function CollectionSummaries() {
         actions={
           <div className="flex gap-2">
             <CsvButton href={`${BASE}?${q}&group=${group}`} label="Export day book" />
-            <PrintButton />
+            <Button variant="secondary" onClick={printCollection} disabled={!daily.data}><Printer className="h-4 w-4" /> Print</Button>
           </div>
         }
       />

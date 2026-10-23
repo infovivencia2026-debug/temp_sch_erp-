@@ -88,7 +88,6 @@ const KNOWN = new Set([
   'features/operations/Workspace',
   'features/setup/PeriodUpload',
   'features/students/Alumni',
-  'features/students/CertificateTemplates',
   'features/students/DepartmentStudents',
   'features/students/StudentCouncil',
   'features/super_admin/Leads',

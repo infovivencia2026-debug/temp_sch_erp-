@@ -51,8 +51,8 @@ async function saveBrief(db: D1Database, inst: string, b: { kind: BriefKind; sub
 }
 
 /** Reuse a stored brief when its inputs are unchanged (and it was written by the model, or the model is still off). */
-function reusable(prev: Brief | null, hash: string, env: Env): prev is Brief {
-  return !!prev && prev.inputs_hash === hash && (prev.ai || !aiConfigured(env))
+async function reusable(prev: Brief | null, hash: string, env: Env): Promise<boolean> {
+  return !!prev && prev.inputs_hash === hash && (prev.ai || !(await aiConfigured(env)))
 }
 
 // --- principal morning brief -------------------------------------------------------------------
@@ -172,10 +172,10 @@ export async function generatePrincipalBrief(env: Env, db: D1Database, inst: { i
   const facts = await principalFacts(db, today)
   const hash = await inputsHash(facts)
   const prev = await storedBrief(db, 'principal_morning', '', today)
-  if (!o.force && reusable(prev, hash, env)) return prev
+  if (!o.force && prev && (await reusable(prev, hash, env))) return prev
   const links = TOPIC_LINKS(facts)
   let bullets: Bullet[] = plainBullets(facts), model = 'none'
-  if (aiConfigured(env) && (await aiSettings(db)).enabled) {
+  if ((await aiConfigured(env)) && (await aiSettings(db)).enabled) {
     const system = 'You write the principal\'s morning brief for an Indian school. From the JSON facts, write 5 to 8 short bullets, most important first: ' +
       'call out anything unusual (attendance below the usual, uncovered periods, overdue fees, approvals piling up, incidents). Plain words, figures from the facts only, no invention. ' +
       `Each bullet has a topic from: ${Object.keys(links).concat('incidents').join(', ')}. Return JSON only: {"bullets":[{"topic":"...","text":"..."}]}.`
@@ -255,7 +255,7 @@ async function guardianUsers(db: D1Database, sid: string, today: string): Promis
 /** The weekly sweep for one school: a note per active child with a guardian login, until the cap stops it. */
 export async function weeklySweep(env: Env, db: D1Database, inst: { id: string; timezone?: string }, limit = 400): Promise<{ written: number; skipped: number; stopped: string | null }> {
   const res = { written: 0, skipped: 0, stopped: null as string | null }
-  if (!aiConfigured(env)) { res.stopped = 'ai_not_configured'; return res }
+  if (!(await aiConfigured(env))) { res.stopped = 'ai_not_configured'; return res }
   const settings = await aiSettings(db)
   if (!settings.enabled) { res.stopped = 'ai_disabled'; return res }
   const today = schoolToday(inst.timezone || 'Asia/Kolkata')

@@ -179,14 +179,27 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
     )
   })()
 
-  // A classic screen fades in on navigation too — keyed on the route so the
-  // animation plays once per screen, not on every in-place re-render.
+  /* A classic screen fades in on arrival. This used to be `key={key}`, on the
+     route, so that the animation played once per screen rather than on every
+     in-place re-render -- and a React key does that by throwing the subtree
+     away and building a new one.
+
+     That is the whole subtree, which since 2026-10-14 holds every open tab,
+     kept mounted so that a half-typed form survives a look at something else
+     (App.tsx, RoutedScreen). One route change destroyed all of them, so the
+     work came back gone and the keep-alive did nothing at all -- a remount
+     ordered three components above it, for a fade.
+
+     The class is unconditional now: the animation plays when a screen first
+     mounts, which with tabs alive is once per tab. Coming back to a tab you
+     already had open no longer re-animates, which is also the truer reading
+     -- nothing arrived, you turned back to it. */
   if (layout !== 'bento') {
     return (
       /* The foot of the page: the one reserve, styles/page-foot.css. On this
          wrapper rather than on the scroller so that a screen which paints its
          own ground paints the reserve too. */
-      <div key={key} className="screen-fade pb-[var(--page-foot,0px)]">
+      <div className="screen-fade pb-[var(--page-foot,0px)]">
         <OfflineBanner />
         <SchoolHealthBanner />
         <BackupsLifecycleNotice />
@@ -258,7 +271,9 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          So the ceiling is applied at the same breakpoint that earns it, and
          below it the ground grows and the work area scrolls, which is what it
          already does for a classic screen falling through this same branch. */
-      key={key}
+      /* No key on the route here either, and for the same reason as the
+         classic branch above: this wrapper holds every open tab, and keying
+         it threw them all away on each navigation. */
       className={cn(
         /* pb: the one reserve at the foot of the page (styles/page-foot.css).
            Here, inside the ground, so the ground's own colour runs down to

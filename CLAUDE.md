@@ -9,11 +9,16 @@ from the live site. So, for EVERY deploy (Worker, Pages test site, live):
 1. `git fetch origin` and merge BOTH `origin/main` and `origin/cloudflare-workers`
    into what you deploy. Resolve conflicts by keeping both sides' changes.
 2. Run `scripts/deploy-guard.sh`. It must say OK. Never deploy if it fails.
+   It also refuses while CONTROL or any school has pending remote migrations
+   (`scripts/deploy-preflight.sh`); run `migrate.mjs up --remote` first, or
+   set `ALLOW_PENDING_MIGRATIONS=1` only when the new code does not need them.
 3. Checks must pass on that exact tree: `cd web && npx tsc --noEmit -p .`,
    `cd worker && npx tsc --noEmit -p . && npx vitest run test/integration`.
 4. Deploy from a clean tree (a `git worktree`), not one with uncommitted
    edits from another session.
-5. Push what you deployed (`HEAD:main` and `HEAD:cloudflare-workers`) right
+5. CI must be green: check `gh run list -b main -L 3` before deploying. A red
+   CI on main is fixed before new feature work is deployed.
+6. Push what you deployed (`HEAD:main` and `HEAD:cloudflare-workers`) right
    after, so the next deployer starts from it.
 
 Targets: test site = Pages project `school-erp-d1`; Worker = `school-erp`.

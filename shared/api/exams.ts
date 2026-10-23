@@ -14,6 +14,7 @@ export interface GradebookRow {
   student_id: string; admission_no: string; full_name: string
   marks_obtained?: number; max_marks: number; grade?: string; is_absent: boolean
   section: string
+  roll_no?: string
 }
 
 export interface MarksEntry { student_id: string; marks_obtained?: number | null; is_absent?: boolean; remarks?: string }

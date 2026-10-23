@@ -97,6 +97,26 @@ export function useFeatureHref(key: string): string | undefined {
   return undefined
 }
 
+/** Any of several feature keys, whichever this person's roles answer first, in
+    the order given (owner, 2026-10-15: a notification knows what kind of
+    thing happened, not which of a dozen role-prefixed catalogue keys holds
+    that screen for this particular person -- "communication.messages" is a
+    different key under every role that carries it, "circulars" under others
+    still. One hook call rather than one per candidate, so the list can be as
+    long as the catalogue needs without multiplying hooks. */
+export function useFeatureHrefAny(keys: string[]): string | undefined {
+  const catalog = useCatalog()
+  for (const key of keys) {
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        const feature = section.features.find((f) => f.key === key)
+        if (feature && usable(feature)) return `/${role.key}/${section.slug}/${feature.slug}`
+      }
+    }
+  }
+  return undefined
+}
+
 // --- cells --------------------------------------------------------------
 
 export type CellSpan = 'anchor' | 'wide' | 'one' | 'tall' | 'full'
@@ -850,10 +870,10 @@ export function Cue({
       onClick={(e) => {
         openTab(to, label, here)
         if (still || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-        const cell = e.currentTarget.closest('.bento-cell')
-        if (!cell) return
-        e.preventDefault()
-        containerTransform(cell, () => navigate(to, { flushSync: true }), () => document.querySelector('main'))
+        /* No card-to-screen morph any more: the card flew in from the
+           bottom bar and the board flashed colour on the way (owner,
+           2026-10-09). The link navigates on its own. */
+        void containerTransform; void navigate
       }}
       className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >
@@ -1917,7 +1937,7 @@ export function BentoPage({
   // editing index.css, which this experiment may not do. When motion is
   // reduced the cells are simply already there — no transition is armed at
   // all, so there is nothing for a preference to have to cancel.
-  const [shown, setShown] = useState(still)
+  const [, setShown] = useState(still)
   useEffect(() => {
     if (still) {
       setShown(true)
@@ -1957,8 +1977,8 @@ export function BentoPage({
            the measuring hook the dock's 56px was held back three times over,
            leaving 130px of black between the last card and the dock. */
         'bento-surface h-full w-full text-[var(--bento-ink)] flex flex-col',
-        still ? '' : 'transition-opacity duration-300',
-        shown ? 'opacity-100' : 'opacity-0',
+        /* No fade-in (owner, 2026-10-09): the cards washed pale and back on
+           every return to Home. The board is simply there. */
       )}
     >
       {/* The heading is read, not seen.

@@ -5,6 +5,7 @@ import {
   weekdayOf, workingYear, workingYearSQL,
 } from '../students/common'
 import { planReplaceSyllabusUnits, type PlanUnit } from '../academics'
+import { DEFAULT_SCHEDULE_SQL, sectionScheduleSQL } from '../scheduling/bell'
 
 /* Port of mountAdminAcademics (internal/api/admin_academics.go plus
    calendar_day.go, year_plan.go, year_plan_import.go, exam_publish.go and
@@ -19,6 +20,23 @@ export function registerAdminAcademics(r: Router) {
     new Response('Subject,Sheet_Name,TOPICS,NUMBER OF PERIODS\nMathematics,G-6,Knowing our numbers,8\nMathematics,G-6,Whole numbers,6\nScience,G-6,Food: where does it come from,5\n',
       { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="year-plan-template.csv"' } }))
   r.post('/academics/admin/calendar', 'academics.write', saveCalendarEntry)
+  /* Who a holiday can be for, beyond the fixed choices: each member of staff, and each saved staff group. */
+  r.get('/academics/admin/calendar/audiences', 'academics.write', async (c) => {
+    const [staff, groups] = await c.db.batch([
+      /* A STAFF NAME HAS NO MIDDLE (owner, 2026-10-13: the holiday audience
+         picker answered 500, so "for whom" could not be chosen at all).
+
+         fullName() below is written for `students`, which carries a
+         middle_name; `employees` does not, so this one query asked SQLite for
+         a column that is not there and the whole endpoint threw. Nothing in
+         the response was wrong -- it simply never arrived, and the screen
+         fell back to no staff and no groups. */
+      c.db.prepare(`SELECT e.id, trim(e.first_name || ' ' || COALESCE(e.last_name, '')) AS name
+                      FROM employees e WHERE e.status = 'active' ORDER BY 2`),
+      c.db.prepare(`SELECT id, name FROM person_groups WHERE kind = 'staff' ORDER BY lower(name)`),
+    ])
+    return ok({ staff: staff.results, groups: groups.results })
+  })
   r.del('/academics/admin/calendar/{id}', 'academics.write', deleteCalendarEntry)
   r.get('/academics/admin/exam-monitor', 'admin.reports.read', getExamMonitor)
   r.post('/academics/admin/exam-monitor/approve', 'academics.exams.write', approveExamMarks)
@@ -128,7 +146,12 @@ async function saveCalendarEntry(c: Ctx) {
   const kind = req.kind || 'holiday'
   if (!calendarKinds.has(kind)) throw badRequest('kind must be one of holiday, vacation, exam, event, ptm, working_day')
   const appliesTo = req.applies_to || 'all'
-  if (!['all', 'students', 'staff'].includes(appliesTo)) throw badRequest('applies_to must be all, students or staff')
+  if (appliesTo.startsWith('people:')) {
+    const ids = appliesTo.slice(7).split(',').filter(Boolean)
+    if (!ids.length || ids.some((x) => !isUUID(x))) throw badRequest('pick at least one member of staff')
+  } else if (appliesTo.startsWith('group:')) {
+    if (!isUUID(appliesTo.slice(6))) throw badRequest('pick a staff group')
+  } else if (!['all', 'students', 'staff', 'teaching', 'non_teaching'].includes(appliesTo)) throw badRequest('applies_to must be all, students, staff, teaching, non_teaching, people:… or group:…')
   const toDate = str(req.to_date)
   if (toDate !== '' && toDate < str(req.on_date)) throw badRequest('to_date is before on_date')
   const campus = nullStr(str(req.campus_id)), yearIn = nullStr(str(req.academic_year_id))
@@ -179,6 +202,8 @@ async function getCalendarDay(c: Ctx) {
            lp.id AS lesson_id, COALESCE(lp.status,'') AS lesson_status, lp.week_of, lp.teaching_day, lp.objectives, lp.activities, lp.resources, lp.homework,
            lp.delivered_on, lp.file_id
       FROM periods p
+      /* A class on timings of its own sees its own breaks (scheduling/bell.ts). */
+      CROSS JOIN (SELECT (SELECT ${sectionScheduleSQL('bs')} FROM sections bs WHERE bs.id = ?) AS id) own
       LEFT JOIN timetable_entries te ON te.period_id = p.id AND te.weekday = ? AND (? IS NULL OR te.section_id = ?) AND (? IS NULL OR te.teacher_user_id = ?)
       LEFT JOIN sections sec ON sec.id = te.section_id LEFT JOIN classes c ON c.id = sec.class_id
       LEFT JOIN class_subjects cs ON cs.id = te.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
@@ -188,9 +213,32 @@ async function getCalendarDay(c: Ctx) {
       LEFT JOIN lesson_plans lp ON lp.id = (SELECT l.id FROM lesson_plans l WHERE l.section_id = te.section_id AND l.class_subject_id = te.class_subject_id
                                               AND l.week_of BETWEEN ? AND ? AND (l.teaching_day IS NULL OR l.teaching_day = ?)
                                              ORDER BY l.week_of DESC, (l.teaching_day IS NULL), l.teaching_day LIMIT 1)
-     WHERE p.is_break = 1 OR te.id IS NOT NULL
-     ORDER BY p.sequence, c.name, sec.name`).bind(dow, section, section, teacher, teacher, date, addDays(date, -6), date, dow).all<Record<string, unknown>>()
-  const periods = rows.results.map((v) => {
+     WHERE (p.is_break = 1 AND (own.id IS NULL OR own.id = ${DEFAULT_SCHEDULE_SQL} OR p.bell_schedule_id = own.id)) OR te.id IS NOT NULL
+     ORDER BY p.sequence, c.name, sec.name`).bind(section, dow, section, section, teacher, teacher, date, addDays(date, -6), date, dow).all<Record<string, unknown>>()
+  /* ONE BREAK IS ONE BREAK (owner, 2026-10-13: "why everything is repeated").
+
+     A teaching period reaches this list through its timetable entry, so it
+     is already pinned to the one bell schedule that entry belongs to. A
+     break has no timetable entry -- it is admitted by `p.is_break = 1`
+     alone -- so every break in every schedule came through. A school that
+     keeps one schedule per weekday (Monday ... Saturday, the same fifteen
+     periods in each) therefore saw School Assembly six times, Lunch six
+     times, every day of the year.
+
+     Which schedule the day belongs to is not recorded anywhere: the weekday
+     lives in the schedule's NAME, and nothing joins a date to it. So the
+     breaks are reduced to one of each by when they are -- same name, same
+     start, same end is the same break, whichever schedule it was typed
+     into. A school whose Monday break genuinely differs from its Tuesday
+     one still shows both, because the times differ. */
+  const seenBreak = new Set<string>()
+  const periods = rows.results.filter((v) => {
+    if (!bool(v.is_break)) return true
+    const k = `${v.name}|${v.starts_at}|${v.ends_at}`
+    if (seenBreak.has(k)) return false
+    seenBreak.add(k)
+    return true
+  }).map((v) => {
     const o: Record<string, unknown> = { period_id: v.period_id, name: v.name, sequence: v.sequence, starts_at: v.starts_at, ends_at: v.ends_at, is_break: bool(v.is_break) }
     for (const k of ['entry_id', 'class', 'section', 'subject', 'teacher', 'room', 'substitute', 'substitute_reason']) if (v[k] !== null) o[k] = v[k]
     if (v.lesson_id !== null) {

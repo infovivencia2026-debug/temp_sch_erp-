@@ -61,6 +61,18 @@ export interface Outbound {
   ref?: string
   /** A file to carry on WhatsApp (template header, or a media message inside the 24-hour window). */
   media?: Media | null
+  /** A person's own mail (Staff Inbox, services/mail.ts): their From, every recipient, threading headers. */
+  mail?: PersonalMail
+}
+
+/** Email a member of staff writes from their own address rather than the school's sender. */
+export interface PersonalMail {
+  from: string
+  fromName: string
+  to: string[]
+  cc: string[]
+  /** Message-ID, In-Reply-To, References. */
+  headers: Record<string, string>
 }
 
 export interface Provider {
@@ -116,10 +128,13 @@ function resendProvider(apiKey: string, from: string, fromName: string): Provide
     channel: 'email', name: 'email:resend', configured: why === '', why,
     send: async (m) => {
       if (why) throw notConfigured('email', why)
+      const sender = m.mail ? m.mail.from : from, senderName = m.mail ? m.mail.fromName : fromName
       const body: Record<string, unknown> = {
-        from: fromName.trim() ? `${fromName.replace(/[\r\n]/g, ' ')} <${from}>` : from,
-        to: [m.to], subject: m.subject.replace(/[\r\n]/g, ' '), text: m.body,
+        from: senderName.trim() ? `${senderName.replace(/[\r\n]/g, ' ')} <${sender}>` : sender,
+        to: m.mail ? m.mail.to : [m.to], subject: m.subject.replace(/[\r\n]/g, ' '), text: m.body,
       }
+      if (m.mail?.cc.length) body.cc = m.mail.cc
+      if (m.mail && Object.keys(m.mail.headers).length) body.headers = m.mail.headers
       if (m.attachments?.length) body.attachments = m.attachments.map((a) => ({ filename: a.filename, content: b64(a.data), content_type: a.content_type || 'application/octet-stream' }))
       const headers: Record<string, string> = { authorization: 'Bearer ' + apiKey, 'content-type': 'application/json' }
       if (m.ref) {
@@ -348,7 +363,7 @@ export function buildProvider(channel: string, rawCfg: unknown, secret: string):
 
 // --- sealed credentials (same format as routes/admin/providers.ts) --------
 
-async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
+export async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
   if (!sealed) return ''
   const bytes = sealed instanceof Uint8Array ? sealed : new Uint8Array(sealed as ArrayBuffer | number[])
   if (bytes.length === 0) return ''

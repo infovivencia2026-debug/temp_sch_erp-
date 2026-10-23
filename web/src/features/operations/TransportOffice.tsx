@@ -1,8 +1,10 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { lazy, Suspense, startTransition, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
+  AlertTriangle, Bus, BusFront, CalendarClock, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
 } from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
 import { useStudentRoster } from '@/lib/rosters'
@@ -86,6 +88,17 @@ interface Allocation {
   pickup_stop?: string
   pickup_time?: string
   fare_paise?: number
+}
+/** What allocating this child to this route would do, asked before doing it. */
+interface Preflight {
+  moving: boolean
+  from_route?: string
+  ends_on?: string
+  over_capacity: boolean
+  capacity?: number
+  seated_after?: number
+  over_by?: number
+  vehicle?: string
 }
 interface BusRow {
   student_id: string
@@ -195,8 +208,52 @@ const TABS = [
 
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 
+/* THE DOOR YOU CAME IN BY IS THE PAGE YOU GET.
+
+   Six menu entries open this file, and every one of them used to land on a
+   page headed "The bus office" showing the bus register. Pressing "Student
+   allocation" and being shown something called the bus office is the menu
+   telling you it does not know what it just did -- and the tab you wanted was
+   three along, unmarked.
+
+   So the entry picks both the heading and the tab. The tabs stay: this really
+   is one office, and somebody marking the register often wants the safety
+   check next. Only the way in changed. */
+const DOORS: Record<string, { tab: (typeof TABS)[number][0]; title: string; blurb: string }> = {
+  route_attendance: {
+    tab: 'register', title: 'Route attendance',
+    blurb: 'Who boarded and who got off, route by route. A child nobody scanned is listed as not scanned rather than left out.',
+  },
+  drivers_attendants: {
+    tab: 'staff', title: 'Drivers & attendants',
+    blurb: 'Who drives what, with licence expiry and verification. One driver cannot hold two active buses.',
+  },
+  driver_attendant_profiles: {
+    tab: 'staff', title: 'Drivers & attendants',
+    blurb: 'Who drives what, with licence expiry and verification.',
+  },
+  student_allocation: {
+    tab: 'allocation', title: 'Student allocation',
+    blurb: 'Which child boards at which stop on which route, and the fee that implies.',
+  },
+  driver_sobriety_safety_checklist: {
+    tab: 'checks', title: 'Safety checks',
+    blurb: 'The check before each leg. A failure is recorded and raised with the office; it never holds the bus.',
+  },
+  vehicle_fuel_maintenance_log: {
+    tab: 'logs', title: 'Fuel & servicing',
+    blurb: 'Fuel bought, distance run and what the servicing cost.',
+  },
+  delays_exceptions: {
+    tab: 'incidents', title: 'Delays & exceptions',
+    blurb: 'Routes running late, breakdowns, and anything that happened on board.',
+  },
+}
+
 export default function TransportOffice() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('register')
+  const { featureSlug } = useParams()
+  const door = DOORS[featureSlug ?? ''] ?? null
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(door?.tab ?? 'register')
 
   const staff = useQuery({
     queryKey: ['transport-staff'],
@@ -213,17 +270,22 @@ export default function TransportOffice() {
   const lapsing = (staff.data?.items ?? []).filter(
     (s) => s.days_to_lapse == null || s.days_to_lapse < 30,
   )
-  const openIncidents = (incidents.data?.items ?? []).filter((i) => !i.resolved_at)
 
   return (
     <>
       <PageHead
         eyebrow="Transport"
-        title="The bus office"
-        description="Who is driving, who is on board, what it cost to run and what went wrong today."
+        title={door?.title ?? 'The bus office'}
+        description={door?.blurb
+          ?? 'Who is driving, who is on board, what it cost to run and what went wrong today.'}
       />
       <PageBody>
-        <CellGrid cols={4}>
+        {/* Two tiles, not four. Open incidents and the month's count moved
+            into Today, which reports both against today's running; saying
+            them twice on one screen taught people to read neither. What is
+            left is the part Today does not cover: the people, and the papers
+            that belong to people rather than to buses. */}
+        <CellGrid cols={2}>
           <Stat label="Drivers & attendants" value={staff.data?.items.length ?? 0} icon={IdCard} />
           <Stat
             label="Papers lapsing"
@@ -235,10 +297,23 @@ export default function TransportOffice() {
                 : { value: 'All current', positive: true }
             }
           />
-          <Stat label="Open incidents" value={openIncidents.length} icon={BusFront} />
-          <Stat label="This month" value={incidents.data?.items.length ?? 0} />
         </CellGrid>
 
+        <Today monthIncidents={incidents.data?.items.length ?? 0} />
+
+        {/* A MENU ENTRY IS A PAGE, NOT A TAB.
+
+            Six entries opened this file and every one of them showed the same
+            strip of eight tabs. Giving each its own heading was not enough:
+            the strip is still the thing that says "you are in one screen with
+            eight parts", and somebody who pressed Student allocation does not
+            want seven other things offered above it.
+
+            So the strip is only drawn when nothing on the menu named a
+            destination -- the combined office, which is still reachable and
+            still useful to whoever wants to move between the parts. Through a
+            named entry, the page is that one part and nothing else. */}
+        {!door && (
         <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
@@ -257,6 +332,7 @@ export default function TransportOffice() {
             </button>
           ))}
         </div>
+        )}
 
         {tab === 'register' && <BusRegister />}
         {tab === 'buses' && <Buses />}
@@ -321,6 +397,7 @@ function BusRegister() {
                 options={[
                   { value: 'morning', label: 'Morning' },
                   { value: 'afternoon', label: 'Afternoon' },
+                  { value: 'evening', label: 'Evening' },
                 ]}
               />
               <Select
@@ -514,6 +591,7 @@ function SafetyChecks() {
                 options={[
                   { value: 'morning', label: 'Morning' },
                   { value: 'afternoon', label: 'Afternoon' },
+                  { value: 'evening', label: 'Evening' },
                 ]}
               />
             </Field>
@@ -981,6 +1059,125 @@ function DriverSignIn({ staff }: { staff: Staff }) {
   )
 }
 
+/** Today's state of the fleet, and the handful of things wanting doing. */
+interface TodayView {
+  on_date: string
+  routes: number
+  running: number
+  completed: number
+  not_started: number
+  failed_checks: { vehicle: string; leg: string; failed_items: string[] }[]
+  expiring: { vehicle: string; kind: string; on_date: string; days: number }[]
+  gaps: { route: string; gap: string }[]
+  open_incidents: number
+}
+
+/* THE QUESTION ASKED AT SEVEN IN THE MORNING.
+
+   Are the buses out, and is anything wrong. Every fact here was already in
+   the database and reachable only by opening a different tab: a fortnight of
+   safety checks to find this morning's failure, the vehicle register to find
+   the insurance that lapses on Thursday. One card, read top to bottom, and
+   the office knows where it stands before the phone rings.
+
+   A failed check is stated, never used to stop a bus. At 7:02 the children
+   are already at the stop, and a module that holds the bus over a tick box
+   has done more harm than the tick box prevents. */
+/** One attention row: a coloured edge, an icon, and the words. */
+const ATTN = {
+  danger: 'flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-destructive bg-destructive/[0.045] py-2 pl-3 pr-3',
+  warning: 'flex items-start gap-2.5 rounded-r-[6px] border-l-[3px] border-warning bg-warning/[0.055] py-2 pl-3 pr-3',
+  icon: 'mt-[1px] h-4 w-4 shrink-0',
+}
+
+function Today({ monthIncidents }: { monthIncidents: number }) {
+  const q = useQuery({
+    queryKey: ['transport-today'],
+    queryFn: () => api.get<TodayView>('/api/v1/ops/transport/today'),
+  })
+  const d = q.data
+  if (!d) return null
+  const attention =
+    d.failed_checks.length + d.expiring.length + d.gaps.length + (d.open_incidents > 0 ? 1 : 0)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Today"
+        description={
+          attention === 0
+            ? 'Nothing is waiting on the office.'
+            : 'What is running, and what wants doing about it.'
+        }
+      />
+      <div className="p-4 pt-0">
+        <CellGrid cols={4}>
+          <Stat label="Routes" value={d.routes} icon={Route} />
+          <Stat label="Running" value={d.running} icon={Bus} />
+          <Stat label="Completed" value={d.completed} />
+          <Stat
+            label="Not started"
+            value={d.not_started}
+            delta={
+              monthIncidents
+                ? { value: `${monthIncidents} incidents this month`, positive: false }
+                : undefined
+            }
+          />
+        </CellGrid>
+
+        {/* A LINE OF TEXT IS A ROW, NOT A PILL.
+
+            Each of these was a fully outlined capsule the width of the page
+            holding four words, so a single warning read as an enormous empty
+            lozenge with a sentence lost at the left end. They are rows now:
+            a coloured edge to carry the severity, an icon to carry the kind,
+            and the words next to it. Severity survives at a glance, which is
+            the only thing the outline was doing. */}
+        {attention > 0 && (
+          <ul className="mt-4 flex flex-col gap-1.5 text-[13px]">
+            {d.failed_checks.map((f) => (
+              <li key={`${f.vehicle}-${f.leg}`} className={ATTN.danger}>
+                <AlertTriangle className={ATTN.icon + ' text-destructive'} aria-hidden />
+                <span>
+                  <strong>{f.vehicle}</strong> failed its {f.leg} check
+                  {f.failed_items.length ? `: ${f.failed_items.join(', ')}` : ''}.
+                </span>
+              </li>
+            ))}
+            {d.gaps.map((g) => (
+              <li key={g.route} className={ATTN.warning}>
+                <Bus className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span><strong>{g.route}</strong> has {g.gap}.</span>
+              </li>
+            ))}
+            {d.expiring.map((e) => (
+              <li key={`${e.vehicle}-${e.kind}`} className={ATTN.warning}>
+                <CalendarClock className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span>
+                  <strong>{e.vehicle}</strong> — {e.kind}{' '}
+                  {e.days < 0
+                    ? `expired ${Math.abs(e.days)} days ago`
+                    : e.days === 0
+                      ? 'expires today'
+                      : `expires in ${e.days} days`}
+                  .
+                </span>
+              </li>
+            ))}
+            {d.open_incidents > 0 && (
+              <li className={ATTN.warning}>
+                <AlertTriangle className={ATTN.icon + ' text-warning'} aria-hidden />
+                <span>{d.open_incidents} incident{d.open_incidents === 1 ? '' : 's'} still open.</span>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 function Allocations() {
   const qc = useQueryClient()
   const routes = useRoutes()
@@ -1005,12 +1202,34 @@ function Allocations() {
       ),
     enabled: !!routeId,
   })
+
+  /* WHAT THE SAVE WILL DO, SAID BEFORE IT DOES IT.
+
+     Allocating ends whichever allocation the child already had. That is the
+     right behaviour -- a child changing route in December is the commonest
+     edit here -- but it used to happen in silence, so picking the wrong
+     "Aditya Sharma" out of a search list ended a real child's bus and the
+     screen said nothing. The notice below reads before the button, so
+     pressing the button IS the confirmation: one click, and nobody is
+     surprised. */
+  const preflight = useQuery({
+    queryKey: ['transport-preflight', studentId, routeId],
+    queryFn: () =>
+      api.get<Preflight>(
+        `/api/v1/ops/transport/allocations/preflight?student_id=${studentId}&route_id=${routeId}`,
+      ),
+    enabled: !!studentId && !!routeId,
+  })
+  const warn = preflight.data
   const save = useMutation({
     mutationFn: () =>
       api.post<{ fare_paise: number }>('/api/v1/ops/transport/allocations', {
         student_id: studentId,
         route_id: routeId,
         pickup_stop_id: stopId,
+        /* Only once the warning has actually been fetched and is on screen.
+           Without it the server asks again, which is the point of asking. */
+        confirm: !!warn,
       }),
     onSuccess: () => {
       setStudentId('')
@@ -1069,12 +1288,31 @@ function Allocations() {
               </div>
             </Field>
           </FormGrid>
+          {(warn?.moving || warn?.over_capacity) && (
+            <div className={cn('mt-4 text-[13px]', ATTN.warning)}>
+              <AlertTriangle className={ATTN.icon + ' text-warning'} aria-hidden />
+              <div>
+              {warn.moving && (
+                <p>
+                  This child is on <strong>{warn.from_route || 'another route'}</strong>. Saving ends
+                  that allocation{warn.ends_on ? ` on ${warn.ends_on}` : ''} and starts this one.
+                </p>
+              )}
+              {warn.over_capacity && (
+                <p className={warn.moving ? 'mt-1.5' : undefined}>
+                  {warn.vehicle ? `${warn.vehicle} seats` : 'That bus seats'}{' '}
+                  {warn.capacity}, and this makes {warn.seated_after}.
+                </p>
+              )}
+              </div>
+            </div>
+          )}
           <div className="mt-4">
             <Button
               disabled={save.isPending || !studentId || !routeId || !stopId}
               onClick={() => save.mutate()}
             >
-              {save.isPending ? 'Saving…' : 'Allocate'}
+              {save.isPending ? 'Saving…' : warn?.moving ? 'Move this child' : 'Allocate'}
             </Button>
           </div>
           <FormNotice error={save.error} />
@@ -1312,6 +1550,7 @@ interface StopRow {
   longitude?: string
   fare_paise: number
   geofence_m?: number
+  zone?: string
   riders: number
 }
 interface StopForm {
@@ -1327,10 +1566,12 @@ interface StopForm {
      be stuck with: there was nowhere to widen the circle for the one stop on a
      dual carriageway where the bus pulls in fifty metres past the shelter. */
   geofence_m: string
+  /** The locality the stop serves, for the zone-wise report and the daily sheet. */
+  zone: string
 }
 
 const BLANK_STOP: StopForm = {
-  name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '', geofence_m: '',
+  name: '', pickup_time: '', drop_time: '', latitude: '', longitude: '', geofence_m: '', zone: '',
 }
 const BLANK_ROUTE = { name: '', code: '', vehicle_id: '', distance_km: '' }
 
@@ -1381,6 +1622,7 @@ function Routes() {
             // Absent, not zero, when the office left it blank: a zero radius
             // is a stop the bus can never be said to have reached.
             geofence_m: s.geofence_m.trim() === '' ? undefined : Number(s.geofence_m),
+            zone: s.zone.trim() || undefined,
           })),
       }
       return editing
@@ -1450,6 +1692,7 @@ function Routes() {
         // Blank, not "0", when the stop uses the school default: an editor
         // that reads a null back as a zero saves a circle nothing can enter.
         geofence_m: s.geofence_m != null ? String(s.geofence_m) : '',
+        zone: s.zone ?? '',
       })),
       { ...BLANK_STOP },
     ])
@@ -1544,10 +1787,10 @@ function Routes() {
                       <Input value={s.name} onChange={setStop(i, 'name')} placeholder="JNTU crossroads" />
                     </Field>
                     <Field label="Pickup time">
-                      <Input type="time" value={s.pickup_time} onChange={setStop(i, 'pickup_time')} />
+                      <TimePicker value={s.pickup_time} onChange={setStop(i, 'pickup_time')} />
                     </Field>
                     <Field label="Drop time">
-                      <Input type="time" value={s.drop_time} onChange={setStop(i, 'drop_time')} />
+                      <TimePicker value={s.drop_time} onChange={setStop(i, 'drop_time')} />
                     </Field>
                     <Field
                       label="Location"
@@ -1589,6 +1832,9 @@ function Routes() {
                         onChange={setStop(i, 'geofence_m')}
                         placeholder="120"
                       />
+                    </Field>
+                    <Field label="Zone" hint="The locality, for the zone-wise report.">
+                      <Input value={s.zone} onChange={setStop(i, 'zone')} placeholder="Kukatpally" />
                     </Field>
                   </FormGrid>
 

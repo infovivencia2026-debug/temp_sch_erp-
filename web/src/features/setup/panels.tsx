@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { profileBody } from './profile-body'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, useCallback } from 'react'
@@ -1545,8 +1546,8 @@ function PeriodsPanel({ onDone }: PanelProps) {
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem_6rem_5rem] items-center gap-2">
             <Input value={r.name} onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, name: x } : v)))} />
-            <Input type="time" value={r.starts_at} onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, starts_at: x } : v)))} />
-            <Input type="time" value={r.ends_at} onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, ends_at: x } : v)))} />
+            <TimePicker value={r.starts_at} onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, starts_at: x } : v)))} />
+            <TimePicker value={r.ends_at} onChange={(x) => setRows(rows.map((v, j) => (i === j ? { ...v, ends_at: x } : v)))} />
             <label className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <input
                 type="checkbox"

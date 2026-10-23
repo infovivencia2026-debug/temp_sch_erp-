@@ -8,6 +8,9 @@ import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointE
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
+import { alreadyUsed, guardOverwrite } from '../../services/overwrite'
+import { HISTORY_KEY, USERS_KEY, linkReaderUsersByName, resolveStoredPunches } from '../iclock'
+import { staffHolidayChecker } from '../hr/staff_holidays'
 
 /* Port of the staff half of setup.go, employee_edit.go, work_patterns.go,
    staff_hours.go, staff_login.go, device_login.go (issueStaffPIN),
@@ -85,17 +88,9 @@ function monthDays(month: string): string[] {
 /** ISO weekday, 1 Monday to 7 Sunday. */
 const isoDow = (date: string): number => ((new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7) + 1
 
-async function staffHolidays(c: Ctx, from: string, to: string): Promise<Set<string>> {
-  const rows = await c.db.prepare(`SELECT on_date, to_date FROM holidays WHERE kind IN ('holiday','vacation') AND applies_to IN ('all','staff')
-      AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`).bind(to, from).all<{ on_date: string; to_date: string | null }>()
-  const days = new Set<string>()
-  for (const h of rows.results) {
-    const end = h.to_date ?? h.on_date
-    for (let d = new Date(h.on_date + 'T00:00:00Z'); d.toISOString().slice(0, 10) <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-      days.add(d.toISOString().slice(0, 10))
-    }
-  }
-  return days
+/** Whether a day is a holiday for a member of staff (teaching / non-teaching aware, hr/staff_holidays.ts). */
+async function staffHolidayCheck(c: Ctx, from: string, to: string): Promise<(day: string, uid: string | null) => boolean> {
+  return staffHolidayChecker(c.db, from, to)
 }
 
 function statusInWords(status: string): string {
@@ -220,6 +215,21 @@ export function registerStaff(r: Router): void {
         throw new HttpError(403, "that role belongs to the people who operate this installation, not to a school. Pick one of your own school's roles.", { code: 'platform_role' })
       }
     }
+    /* A code already on the roll makes this an update of THAT person (the
+       upsert below). Ask before their name or contacts are replaced; filling
+       a blank one is fine (owner, 2026-10-14). */
+    if (body.employee_code.trim() !== '') {
+      const held = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name, email, phone FROM employees
+          WHERE institution_id = ? AND employee_code = ?`).bind(instId(c), body.employee_code.trim()).first<{ name: string; email: string | null; phone: string | null }>()
+      if (held) {
+        const newName = `${body.first_name} ${body.last_name}`.trim()
+        guardOverwrite(req, [
+          { field: 'employee_code', label: `staff code ${body.employee_code.trim()} (already ${held.name}), name`, from: held.name, to: newName },
+          { field: 'email', label: 'email', from: held.email, to: body.email },
+          { field: 'phone', label: 'phone', from: held.phone, to: body.phone },
+        ], true)
+      }
+    }
     const campus = await ensureCampus(c)
     let out: { empId: string; userId: string; created: boolean }
     try {
@@ -231,6 +241,25 @@ export function registerStaff(r: Router): void {
       throw e
     }
     if (out.userId !== '') await indexLogin(c, out.userId)
+    /* THE READER'S HISTORY, THE MOMENT THE PERSON EXISTS (owner, 2026-10-14:
+       "if any staff is created their biometric will be seen here right after
+       creating with any past attendance through biometric, no need of them to
+       sign in or whatever").
+
+       The machine usually knew this person before the office did: they were
+       enrolled on the reader on day one and have been punching since, into a
+       record nobody owned. Appointing them is the moment to claim it. If the
+       reader has a PIN equal to the staff code they were just given -- which
+       is how this school enrols -- they are linked here and now, every punch
+       they have made is attached, and the last 75 days are written into the
+       register. No login is involved: the punches belong to the employee. */
+    if (out.created) {
+      const inst = instId(c)
+      const devices = await c.db.prepare(`SELECT id FROM biometric_devices WHERE institution_id = ?`).bind(inst).all<{ id: string }>()
+      let linked = 0
+      for (const d of devices.results) linked += (await linkReaderUsersByName(c.db, inst, d.id)).length
+      if (linked) await resolveStoredPunches(c.db, inst)
+    }
     return created({ id: out.empId, user_id: out.userId === '' ? null : out.userId, employee_code: body.employee_code, created: out.created })
   })
 
@@ -247,12 +276,34 @@ export function registerStaff(r: Router): void {
     let relieved = s('relieved_on')
     const leaving = status !== null && oneOfStr(status, 'resigned', 'terminated', 'retired')
     if (relieved === null && leaving) relieved = todayIndia()
+    // Staff code is editable (owner, 2026-10-14). Upper-cased like the codes an import writes.
+    const code = has(req, 'employee_code') ? str(req.employee_code).trim().toUpperCase() : null
+    if (code === '') throw badRequest('a staff record needs a staff code')
     const t = now()
+    /* Codes are not typed over without being asked (owner, 2026-10-14): see
+       services/overwrite.ts. A value someone else holds is refused outright. */
+    const cur = await c.db.prepare(`SELECT employee_code, device_user_id, bank_account, bank_ifsc, pan, uan, esi_number, phone, email
+        FROM employees WHERE id = ?`).bind(empId).first<Record<string, string | null>>()
+    if (!cur) throw badRequest('no such staff record in this school')
+    const newDevice = has(req, 'device_user_id') ? str(req.device_user_id).trim().toUpperCase() : null
+    for (const [col, label, v] of [['employee_code', 'Staff code', code], ['device_user_id', 'Biometric reader id', newDevice]] as const) {
+      if (!v || v === (cur[col] ?? '')) continue
+      const holder = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name FROM employees
+          WHERE institution_id = ? AND ${col === 'employee_code' ? 'lower(employee_code) = lower(?)' : 'device_user_id = ?'} AND id <> ?`)
+        .bind(instId(c), v, empId).first<{ name: string }>()
+      if (holder) throw alreadyUsed(col, label, v, holder.name)
+    }
+    const codeLabels: [string, string][] = [['employee_code', 'staff code'], ['device_user_id', 'biometric reader id'], ['bank_account', 'bank account number'],
+      ['bank_ifsc', 'IFSC'], ['pan', 'PAN'], ['uan', 'UAN'], ['esi_number', 'ESI number'], ['phone', 'phone'], ['email', 'email']]
+    // device_user_id cannot be cleared here (COALESCE below), so an empty one is no change.
+    guardOverwrite(req, codeLabels.filter(([k]) => has(req, k) && !(k === 'device_user_id' && newDevice === ''))
+      .map(([k, label]) => ({ field: k, label, from: cur[k], to: k === 'device_user_id' ? newDevice : k === 'employee_code' ? code : str(req[k]).trim() })), true)
     let res: D1Result
     try {
       // employees_touch trigger: updated_at is stamped here.
       res = await c.db.prepare(`UPDATE employees SET
           first_name = COALESCE(?24, first_name),
+          employee_code = COALESCE(?25, employee_code),
           last_name = CASE WHEN ?1 IS NULL THEN last_name ELSE NULLIF(?1, '') END,
           phone = CASE WHEN ?2 IS NULL THEN phone ELSE NULLIF(?2, '') END,
           email = CASE WHEN ?3 IS NULL THEN email ELSE NULLIF(?3, '') END,
@@ -277,8 +328,8 @@ export function registerStaff(r: Router): void {
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
-          s('confirmed_on'), relieved, has(req, 'device_user_id') ? asInt(req.device_user_id) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName)
+          s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')
@@ -286,6 +337,8 @@ export function registerStaff(r: Router): void {
       throw e
     }
     if (!res.meta.changes) throw badRequest('no such staff record in this school')
+    // A reader id just set: the punches already stored under it are this person's now.
+    if (has(req, 'device_user_id') && str(req.device_user_id).trim()) await resolveStoredPunches(c.db, instId(c))
     const row = await c.db.prepare(`SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name, status, user_id FROM employees WHERE id = ?`).bind(empId)
       .first<{ name: string; status: string; user_id: string | null }>()
     let accessEnded = false
@@ -436,7 +489,7 @@ export function registerStaff(r: Router): void {
         (SELECT ss.ctc_paise FROM salary_structures ss WHERE ss.employee_id = e.id AND ss.effective_from <= ? AND (ss.effective_to IS NULL OR ss.effective_to >= ?)
           ORDER BY ss.effective_from DESC LIMIT 1) AS monthly_paise
         FROM employees e ${PATTERN_JOINS} WHERE e.status = 'active' ORDER BY department, name`).bind(from, from).all<Record<string, unknown>>()
-    const holidays = await staffHolidays(c, from, to)
+    const isHol = await staffHolidayCheck(c, from, to)
     const att = await c.db.prepare(`SELECT user_id, on_date, status, check_in, check_out FROM staff_attendance WHERE on_date BETWEEN ? AND ?`).bind(from, to)
       .all<{ user_id: string; on_date: string; status: string; check_in: string | null; check_out: string | null }>()
     const byUser = new Map<string, typeof att.results>()
@@ -445,7 +498,7 @@ export function registerStaff(r: Router): void {
     const items = staff.results.map((s) => {
       const p: StaffPattern = { starts_at: s.starts_at as string | null, ends_at: s.ends_at as string | null, grace: Number(s.grace),
         full_min: Number(s.full_min), half_min: Number(s.half_min), working_days: workingDaysOf(s.working_days) }
-      const expected = days.filter((d) => p.working_days.includes(isoDow(d)) && !holidays.has(d)).length
+      const expected = days.filter((d) => p.working_days.includes(isoDow(d)) && !isHol(d, s.user_id == null ? null : String(s.user_id))).length
       let present = 0, halves = 0, excused = 0, marked = 0, late = 0, early = 0
       for (const a of byUser.get(String(s.user_id ?? '')) ?? []) {
         marked++
@@ -497,14 +550,14 @@ export function registerStaff(r: Router): void {
     const p: StaffPattern = { starts_at: (me.starts_at as string | null) ?? '09:00', ends_at: (me.ends_at as string | null) ?? '16:00', grace: Number(me.grace),
       full_min: Number(me.full_min), half_min: Number(me.half_min), working_days: workingDaysOf(me.working_days) }
     const days = monthDays(month)
-    const holidays = await staffHolidays(c, days[0], days[days.length - 1])
+    const isHol = await staffHolidayCheck(c, days[0], days[days.length - 1])
     const att = await c.db.prepare(`SELECT on_date, status, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`)
       .bind(String(me.user_id ?? ''), days[0], days[days.length - 1]).all<{ on_date: string; status: string; check_in: string | null; check_out: string | null }>()
     const byDay = new Map(att.results.map((a) => [a.on_date, a]))
     const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const items = days.map((d) => {
       const a = byDay.get(d)
-      const expected = p.working_days.includes(isoDow(d)) && !holidays.has(d)
+      const expected = p.working_days.includes(isoDow(d)) && !isHol(d, me.user_id == null ? null : String(me.user_id))
       const o: Record<string, unknown> = { on_date: d, weekday: dow[isoDow(d) - 1], expected, due_in: p.starts_at!.slice(0, 5), due_out: p.ends_at!.slice(0, 5), status: a?.status ?? '' }
       const inClock = istClock(a?.check_in), outClock = istClock(a?.check_out)
       if (inClock) o.check_in = inClock
@@ -757,6 +810,24 @@ export function registerStaff(r: Router): void {
     return ok({ items })
   })
 
+  /* Fetch history: the reader is asked, on its next check-in (about half a
+     minute), to send every punch it holds. Kept in module_settings until
+     then; nothing is sent twice, as each punch is stored once. */
+  r.post('/setup/biometric-devices/{id}/fetch-history', 'hr.employees.write', async (c) => {
+    const id = c.params.id
+    const d = await c.db.prepare(`SELECT id, is_active, last_seen_at FROM biometric_devices WHERE id = ?`).bind(id).first<{ id: string; is_active: number; last_seen_at: string | null }>()
+    if (!d) throw notFound('no such reader')
+    if (!d.is_active) throw badRequest('switch the reader on first')
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`)
+      .bind(instId(c), HISTORY_KEY(id), JSON.stringify({ asked_at: now(), by: c.id.userId })).run()
+    // And the names enrolled on it, which is how its ids are linked to staff.
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`)
+      .bind(instId(c), USERS_KEY(id), JSON.stringify({ asked_at: now(), by: c.id.userId })).run()
+    return ok({ asked: true, last_seen_at: d.last_seen_at })
+  })
+
   r.post('/setup/biometric-devices', 'hr.employees.write', async (c) => {
     const req = await readJSON<Record<string, unknown>>(c.req)
     const serial = str(req.serial).trim(), name = str(req.name).trim()
@@ -777,12 +848,16 @@ export function registerStaff(r: Router): void {
   })
 
   r.get('/setup/biometric-devices/unclaimed', 'hr.employees.read', async (c) => {
-    const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen
-        FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string }>()
-    const stamp = (iso: string) => `${istDate(iso)} ${istClock(iso)}`
+    const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen,
+          (SELECT u.name FROM biometric_device_users u WHERE u.device_id = MAX(p.device_id) AND u.device_user_id = p.device_user_id) AS name
+        FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string; name: string | null }>()
+    // "25 Sep 2024, 4:17 PM": the school reads a 12-hour clock, not 16:17.
+    const stamp = (iso: string) => new Date(iso).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+    }).replace(/(am|pm)/, (m) => m.toUpperCase())
     const items = rows.results.map((v) => ({
       device_user_id: /^\d+$/.test(v.device_user_id) ? Number(v.device_user_id) : v.device_user_id,
-      punches: Number(v.punches), first_seen: stamp(v.first_seen), last_seen: stamp(v.last_seen),
+      punches: Number(v.punches), first_seen: stamp(v.first_seen), last_seen: stamp(v.last_seen), name: v.name ?? undefined,
     }))
     return ok({ items })
   })

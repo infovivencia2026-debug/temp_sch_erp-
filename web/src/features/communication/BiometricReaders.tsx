@@ -34,7 +34,9 @@ interface Device {
 }
 
 interface Unclaimed {
-  device_user_id: number
+  device_user_id: number | string
+  /** The name enrolled on the reader, once its user list has arrived. */
+  name?: string
   punches: number
   first_seen: string
   last_seen: string
@@ -70,6 +72,16 @@ export default function BiometricReaders() {
       qc.invalidateQueries({ queryKey: ['biometric-devices'] })
       setAdding(false)
       setF({ serial: '', name: '' })
+    },
+  })
+
+  /* Fetch history: the reader sends every punch it holds on its next check-in. */
+  const [asked, setAsked] = useState<string | null>(null)
+  const history = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/setup/biometric-devices/${id}/fetch-history`, {}),
+    onSuccess: (_r, id) => {
+      setAsked(id)
+      for (const t of [30_000, 60_000, 120_000]) window.setTimeout(() => qc.invalidateQueries({ queryKey: ['biometric-devices'] }), t)
     },
   })
 
@@ -166,6 +178,13 @@ export default function BiometricReaders() {
                     )}
                   </Td>
                   <Td>
+                    <div className="flex flex-wrap justify-end gap-2">
+                    {d.is_active && (
+                      <Button size="sm" variant="secondary" pending={history.isPending && history.variables === d.id}
+                        title="Ask the reader to send every punch it holds" onClick={() => history.mutate(d.id)}>
+                        {asked === d.id ? 'Asked · arrives within a minute' : 'Fetch history'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={d.is_active ? 'ghost' : 'primary'}
@@ -176,23 +195,26 @@ export default function BiometricReaders() {
                     >
                       {d.is_active ? 'Deactivate' : 'Activate'}
                     </Button>
+                    </div>
                   </Td>
                 </tr>
               ))}
             </Table>
           )}
+          <FormNotice error={history.error} />
         </Card>
 
         {orphans.length > 0 && (
           <Card>
             <CardHeader
-              title="Fingers nobody claims"
-              description="Punches arriving under an id no staff record carries. Somebody enrolled at the machine without telling the office, or a staff record is missing its reader id."
+              title="Not yet matched to staff"
+              description="Reader ids whose punches are not linked to anyone on the staff list yet. They are matched by the name enrolled on the reader; the reader holds no phone numbers, so a name it cannot match one person to stays here for the office to link."
             />
-            <Table head={['Reader id', 'Punches', 'First seen', 'Last seen']}>
+            <Table head={['Reader id', 'Name on the reader', 'Punches', 'First punch', 'Latest punch']}>
               {orphans.map((o) => (
                 <tr key={o.device_user_id}>
                   <Td className="font-mono">{o.device_user_id}</Td>
+                  <Td>{o.name || '-'}</Td>
                   <Td className="tabular-nums">{o.punches}</Td>
                   <Td className="whitespace-nowrap">{o.first_seen}</Td>
                   <Td className="whitespace-nowrap">{o.last_seen}</Td>
@@ -200,8 +222,9 @@ export default function BiometricReaders() {
               ))}
             </Table>
             <p className="px-5 pb-4 text-[13px] text-muted-foreground">
-              Set the matching number on the staff record, it is the reader id field, and every
-              punch already collected under it resolves on the next push.
+              Names on the reader are matched to staff automatically. For anyone left here, open
+              their staff record, Edit, and type this id as the Biometric reader id: every punch
+              already collected under it is matched at once.
             </p>
           </Card>
         )}

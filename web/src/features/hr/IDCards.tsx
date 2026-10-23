@@ -7,6 +7,7 @@ import {
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { useCan, useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { Barcode } from '@/lib/barcode'
 
 /* ID cards, actually printed.
  *
@@ -256,10 +257,13 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
                   {e.department ? ` · ${e.department}` : ''}
                 </p>
               </div>
-              <div className="flex items-end justify-between">
+              <div className="flex items-end justify-between gap-2">
                 <span className="font-mono text-[12px] font-semibold">{e.employee_code}</span>
                 {e.phone && <span className="text-[10px] text-muted-foreground">{e.phone}</span>}
               </div>
+              {/* A Code 128 of the staff number: the gate reader and the
+                  library scanner read the same code the card shows. */}
+              <Barcode value={e.employee_code} height={18} label={false} className="mt-1 h-5 w-full" />
             </div>
           ))}
         </div>

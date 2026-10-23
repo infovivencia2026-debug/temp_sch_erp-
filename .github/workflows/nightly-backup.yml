@@ -123,6 +123,11 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-${PG_MAJOR}
+          # The runner's preinstalled client stays first on PATH otherwise, so
+          # `pg_dump` kept meaning 16 after 17 was installed (every night from
+          # 2026-10-16: "pg_dump 16 is older than the server (17)").
+          echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/${PG_MAJOR}/bin:$PATH"
           pg_dump --version
           pg_restore --version
         env:

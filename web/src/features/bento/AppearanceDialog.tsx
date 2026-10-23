@@ -1,9 +1,12 @@
+import { markLaunch, playClose, shouldLaunch, endLaunch, endLaunchIfGone } from '@/lib/launch-morph'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/ui'
 import {
   Building2, ChevronLeft, LayoutGrid, MessageSquare,
   Palette, ShieldCheck, Sliders, Type, UserCircle,
+  User, CalendarDays, CreditCard, HelpCircle, Home, Lock, MapPin, KeyRound, Bell, Users, FileText, Settings2,
 } from 'lucide-react'
+import { RoleTile, roleFace } from '@/lib/role-face'
 import { api } from '@/lib/api'
 import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
@@ -29,7 +32,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow, SectionIcon, SignOutButton } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { useFullScreen } from '@/lib/fullscreen'
@@ -378,11 +381,6 @@ const LINK_GROUPS: LinkGroup[] = [
         name: 'Help',
         note: 'Search help, report a problem with the app, and follow the answers to what you sent.',
       },
-      {
-        href: '/logout',
-        name: 'Sign out',
-        note: 'End this session on this device. Nothing you have set up is lost.',
-      },
     ],
   },
   {
@@ -539,8 +537,40 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
    A plain <a> and not a router push. Leaving Settings for a full screen is the
    intent every time one of these is pressed, and a hard navigation guarantees
    the dialog, the overlay and the dock's lifted state all go with it. */
+/* Every link row leads with an iOS-style coloured icon, chosen from what the
+   row is (owner, 2026-10-08: "add icons like iOS"). */
+const LINK_ICON: [RegExp, typeof User, string][] = [
+  [/profile/i, User, '#007aff'],
+  [/leave|self service/i, CalendarDays, '#5856d6'],
+  [/pay|salary|billing|fee/i, CreditCard, '#34c759'],
+  [/help|support/i, HelpCircle, '#ff9500'],
+  [/setup|school/i, Home, '#007aff'],
+  [/privacy/i, Lock, '#5856d6'],
+  [/track|bus|transport|route/i, MapPin, '#ff9500'],
+  [/role|permission|access/i, ShieldCheck, '#0284c7'],
+  [/password|sign.?in|session|device/i, KeyRound, '#8e8e93'],
+  [/message|sms|whatsapp|email|notice|template/i, MessageSquare, '#34c759'],
+  [/notif|alert/i, Bell, '#ff3b30'],
+  [/staff|people|user|login|principal|admin|board|trustee|hod|department|faculty|teacher|counsellor|warden|coordinator|officer|nurse|librarian|controller|operations|driver|attendant|manager|finance|admission|front office|hr/i, Users, '#af52de'],
+  [/report|document|certificate|form/i, FileText, '#30b0c7'],
+]
+/* A role's own face, from the shared table; a key that table does not
+   list keeps the name matching below. */
+function roleIcon(key: string, name: string) {
+  return roleFace(key) ? <RoleTile roleKey={key} /> : linkIcon(name)
+}
+function linkIcon(name: string) {
+  const hit = LINK_ICON.find(([re]) => re.test(name))
+  const Icon = hit?.[1] ?? Settings2
+  return (
+    <span aria-hidden="true" className="grid size-[30px] shrink-0 place-items-center rounded-[8px] text-white [&_svg]:size-[17px] [&_svg]:stroke-[2.1]"
+      style={{ background: hit?.[2] ?? '#8e8e93' }}>
+      <Icon />
+    </span>
+  )
+}
 function LinkRow({ link }: { link: ResolvedLink }) {
-  return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} />
+  return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} icon={linkIcon(link.name)} />
 }
 
 /* THE WORKSPACE SWITCH, WHICH FOCUS HAD TAKEN AWAY.
@@ -588,8 +618,10 @@ function WorkspaceRows() {
           <NavRow
             key={r.key}
             label={r.name}
-            /* `current` is this component's own word for where you are: a
-               wash and no chevron, because it opens nothing. */
+            icon={roleIcon(r.key, r.name)}
+            /* The one you are in says so in words (owner, 2026-10-08: "if one
+               role is active name it"), not only by a tint. */
+            value={here ? <span className="rounded-full bg-[color-mix(in_srgb,#34c759_16%,transparent)] px-2 py-0.5 text-[12px] font-semibold text-[#1f8a3b]">Active now</span> : undefined}
             current={here}
             href={here ? undefined : href}
           />
@@ -604,8 +636,16 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
     <>
       {group.id === 'roles' && <WorkspaceRows />}
       <Rows>
-        {links.map((l) => <LinkRow key={l.href} link={l} />)}
+        {links.filter((l) => !/^sign out$/i.test(l.name)).map((l) => <LinkRow key={l.href} link={l} />)}
       </Rows>
+      {/* Sign out on a card of its own -- but drawn as a row, like
+          everything else on this screen (owner, 2026-10-08: "sign out button
+          should match those all settings in phone also"). It was a centred
+          red pill here as well as in the phone page, so fixing only the
+          other one would have left the two screens disagreeing. */}
+      {links.filter((l) => /^sign out$/i.test(l.name)).map((l) => (
+        <SignOutButton key={l.href} href={l.href} className="mt-4 max-md:mx-4" />
+      ))}
     </>
   )
 }
@@ -768,7 +808,7 @@ export function SettingsSectionList({ items, onOpen, values, current }: {
             label={item.label}
             value={values?.[item.id]}
             current={current === item.id}
-            icon={<Icon className="size-4" aria-hidden="true" />}
+            icon={<SectionIcon id={item.id}><Icon aria-hidden="true" /></SectionIcon>}
             onClick={() => onOpen(item.id)}
           />
         )
@@ -856,7 +896,7 @@ export function SettingsNav({
                the whole defect -- see useNarrow above -- and the list replaces
                it rather than sitting beside it, because two navigations for
                one set of pages is how the popover era went wrong. */
-            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3 md:flex', SEAM)}
+            className={cn('hidden shrink-0 flex-wrap gap-1 border-b px-7 py-3 md:flex', SEAM)}
             aria-label="Settings sections"
           >
             {/* Driven by the same list the phone's rows are, so the two
@@ -871,10 +911,10 @@ export function SettingsNav({
                 onClick={() => onPick(id as SettingsTab)}
                 aria-current={tab === id}
                 className={cn(
-                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
+                  'min-h-[34px] shrink-0 whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[13px] transition-colors',
                   tab === id
-                    ? 'border-primary font-medium text-foreground'
-                    : cn('border-transparent', INK, WASH),
+                    ? 'bg-[color-mix(in_srgb,hsl(var(--primary))_12%,transparent)] font-semibold text-[hsl(var(--primary))]'
+                    : cn('font-medium', INK, WASH),
                 )}
               >
                 {label}
@@ -934,13 +974,14 @@ export function SettingsPane({
   return (
     <>
       {tab === 'appearance' && (
-        /* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
+        <>
+        {/* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
            it changes the shape of the screen the rest is applied to; then the
            typeface, whose value is set in the face itself so no specimen
            cards are needed; then the five continuous axes; then the three
            named choices; then the two actions. No heading over any of it --
            the page's own title says Appearance -- and no paragraph: the only
-           helper is on Contrast, whose name does not say what it trades. */
+           helper is on Contrast, whose name does not say what it trades. */}
         <Rows>
           {/* Language, inline and available to everyone. It used to be only a
               nav row gated on a catalogue feature, so a role without that
@@ -994,6 +1035,8 @@ export function SettingsPane({
             valueStyle={{ fontFamily: face.stack }}
             optionStyle={(id) => ({ fontFamily: typefaceById(id).stack })}
           />
+        </Rows>
+        <Rows>
           <Scale axis="text" label={t('bento.settings.text')} />
           <Scale axis="density" label={t('bento.settings.density')} />
           <Scale axis="corners" label={t('bento.settings.corners')} />
@@ -1012,6 +1055,8 @@ export function SettingsPane({
               stylesheet has to change and a value stored by somebody who moved
               these sliders before today is still read and still honoured. Only
               the controls are withdrawn. */}
+        </Rows>
+        <Rows>
           <Axis<Contrast>
             label={t('bento.settings.contrast')}
             value={appearance.contrast}
@@ -1033,6 +1078,7 @@ export function SettingsPane({
           />
           <AppearanceActions onClose={onClose} />
         </Rows>
+        </>
       )}
       {tab === 'colour' && (
         <section>
@@ -1240,7 +1286,66 @@ export function AppearanceDialog({
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }, [open, initialTab])
 
+  const launchRef = useRef<boolean | null>(null)
+  if (open && launchRef.current === null) { launchRef.current = shouldLaunch(); if (launchRef.current) markLaunch() }
+  if (!open) launchRef.current = null
+  useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
+  /* A press on the page behind (owner, 2026-10-09: in Work, picking a
+     feature with Settings open only closed it, then the page snapped in on
+     the second press). The press that lands on the dim goes through: Settings
+     shrinks into the gear, then the link under the finger is followed. */
+  const goNavigate = useNavigate()
+  useEffect(() => {
+    if (!open) return
+    /* On the press, not the click: the dim closes itself on pointerdown, and
+       its history step would undo the navigation. */
+    const onClick = (e: PointerEvent) => {
+      const scrim = e.target as HTMLElement | null
+      if (!scrim || !scrim.classList?.contains('appearance-overlay') || e.button !== 0) return
+      scrim.style.pointerEvents = 'none'
+      const under = document.elementFromPoint(e.clientX, e.clientY)
+      scrim.style.pointerEvents = ''
+      const a = under?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || a.target === '_blank') return
+      const url = new URL(a.href, location.href)
+      if (url.origin !== location.origin) return
+      e.preventDefault()
+      e.stopPropagation()
+      /* The page opens at once behind; Settings fades away over it
+         (owner, 2026-10-09). */
+      /* Hand back the dialog's own history entries FIRST, then go: going
+         back after the navigation undid it. */
+      const to = url.pathname + url.search + url.hash
+      const n = owned.current
+      owned.current = 0
+      if (n > 0) {
+        window.addEventListener('popstate', () => window.setTimeout(() => goNavigate(to), 0), { once: true })
+        window.history.go(-n)
+      } else goNavigate(to, { replace: !!window.history.state?.erpOverlay })
+      const panel = document.querySelector('[data-appearance-dialog]')
+      panel?.setAttribute('data-fading', '')
+      scrim.setAttribute('data-fading', '')
+      window.setTimeout(() => {
+        endLaunch(); onClose()
+        panel?.removeAttribute('data-fading'); scrim.removeAttribute('data-fading')
+      }, 220)
+    }
+    document.addEventListener('pointerdown', onClick, true)
+    return () => document.removeEventListener('pointerdown', onClick, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+  /* Every open starts clean of any leftover closing/fading mark. */
+  useEffect(() => {
+    if (!open) return
+    for (const el of document.querySelectorAll('[data-appearance-dialog], .appearance-overlay')) {
+      el.removeAttribute('data-closing'); el.removeAttribute('data-fading')
+    }
+  }, [open])
   const handleClose = () => {
+    const panel = typeof document !== 'undefined' ? document.querySelector('[data-appearance-dialog]') : null
+    playClose(panel, closeNow, panel?.closest('.appearance-overlay') ?? document.querySelector('.appearance-overlay'))
+  }
+  const closeNow = () => {
     if (typeof document !== 'undefined' && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
@@ -1290,10 +1395,10 @@ export function AppearanceDialog({
       onClose={handleClose}
       onEscape={onEscape}
       label={t('bento.settings.label')}
-      width="980px"
+      width="920px"
       overlay={picking ? 'none' : 'dim'}
       scrimClassName="appearance-overlay"
-      panelProps={{ 'data-appearance-dialog': '' }}
+      panelProps={{ 'data-appearance-dialog': '', ...(launchRef.current ? { 'data-launching': '' } : {}) }}
       className={cn(
         'appearance-panel pop-down sm:h-[min(88vh,760px)]',
         SURFACE, EDGE,
@@ -1334,20 +1439,30 @@ export function AppearanceDialog({
     >
       {/* The pages, named: one scrolling line of tabs on a desk (SettingsNav
           hides itself below 768px, where the list replaces it). */}
-      <SettingsNav items={listItems} tab={tab} onPick={(id) => setTab(id)} />
-
-      {/* `.scroll-y` draws the bar rather than waiting for the platform to
-          fade one in. See index.css. */}
-      <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
-        {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
-        <SettingsPane
-          tab={tab}
-          onClose={onClose}
-          onPickingChange={onPickingChange}
-          dockRef={dockRef}
-          dashRef={dashRef}
-        />
-      </div>
+      {/* On a desk the window is the Settings page: the section list with its
+          icons on the left, the open section on the right (owner, 2026-10-08:
+          "make the web settings like this, in popup"). A phone keeps the
+          drill-in list. */}
+      {narrow ? (
+        <div className="scroll-y min-h-0 flex-1 px-5 py-5">
+          {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
+          <SettingsPane tab={tab} onClose={onClose} onPickingChange={onPickingChange} dockRef={dockRef} dashRef={dashRef} />
+        </div>
+      ) : (
+        <div
+          className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)] border-t"
+          style={{ ['--srow-h' as string]: '40px', ['--srow-py' as string]: '6px', ['--sband-h' as string]: '32px' }}
+        >
+          <nav aria-label="Settings sections" className="scroll-y min-h-0 border-r p-[10px]">
+            <SettingsSectionList items={listItems} onOpen={(id) => setTab(id as SettingsTab)} current={tab} />
+            <SignOutButton className="mt-3" />
+          </nav>
+          <div className="scroll-y min-h-0 px-5 py-4">
+            <h2 className="px-[4px] pb-[10px] text-[15px] font-semibold">{listItems.find((i) => i.id === tab)?.label}</h2>
+            <SettingsPane tab={tab} onClose={onClose} onPickingChange={onPickingChange} dockRef={dockRef} dashRef={dashRef} />
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

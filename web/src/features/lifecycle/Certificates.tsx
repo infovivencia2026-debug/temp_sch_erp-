@@ -3,14 +3,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState,
+  Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
-import { formatDate, formatPaise } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import CardViewer from '@/components/CardViewer'
 import BulkImport from '@/components/BulkImport'
 import { useDebouncedValue } from '@/lib/debounce'
+import { Printer } from 'lucide-react'
+import { useSession } from '@/lib/session'
+import A4Frame from '@/components/A4Frame'
+import { printHtml } from '@/features/finance/receipt-print'
+import { certificateHtml, type CertificateRender } from './certificate-print'
+import CertificateDesigns from './CertificateDesigns'
 
 interface Cert {
   id: string
@@ -37,6 +43,9 @@ const TYPES = [
   { value: 'BONAFIDE', label: 'Bonafide certificate' },
   { value: 'CONDUCT', label: 'Character certificate' },
   { value: 'TC', label: 'Transfer certificate' },
+  { value: 'STUDY', label: 'Study certificate' },
+  { value: 'PROMOTION', label: 'Promotion certificate' },
+  { value: 'ACHIEVEMENT', label: 'Achievement certificate' },
 ]
 
 /* The prescribed fields a transfer certificate carries that no table holds.
@@ -68,9 +77,30 @@ export default function Certificates() {
   const [answering, setAnswering] = useState<Cert | null>(null)
   const [tc, setTc] = useState<TCForm>(EMPTY_TC)
   const [overrideReason, setOverrideReason] = useState('')
+  const [ach, setAch] = useState({ achievement: '', event: '', position: '' })
+  const [bulkSection, setBulkSection] = useState('')
+  const [bulkDone, setBulkDone] = useState('')
   const [card, setCard] = useState<{ html: string; name?: string } | null>(null)
   const [decision, setDecision] = useState('issued')
   const [note, setNote] = useState('')
+  // Issue & register, or the school's certificate designs (owner, 2026-10-07).
+  const [tab, setTab] = useState<'issue' | 'designs'>('issue')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [tcOpen, setTcOpen] = useState(false)
+  // The certificate as it will print, shown before printing.
+  const [preview, setPreview] = useState<{ html: string; title: string } | null>(null)
+  const session = useSession()
+  const school = {
+    school: session.institution?.display_name ?? 'School',
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+  }
+  /* A register row's Print prints; the preview stays up above for a second copy. */
+  const openCert = async (id: string, print = false) => {
+    const v = await api.get<CertificateRender & { name?: string }>(`/api/v1/lifecycle/certificates/${id}/render`)
+    const html = certificateHtml(v, school)
+    setPreview({ html, title: v.name ?? v.title })
+    if (print) printHtml(html)
+  }
 
   const decide = useMutation({
     mutationFn: (v: { id: string; status: string; note: string }) =>
@@ -93,6 +123,19 @@ export default function Certificates() {
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
+  const sectionsQ = useQuery({
+    queryKey: ['sections'],
+    queryFn: () => api.get<{ items: { id: string; name: string; class_name?: string }[] }>('/api/v1/academics/sections'),
+  })
+  const bulk = useMutation({
+    mutationFn: () => api.post<{ issued: number; skipped: number; skipped_items: { reason: string }[] }>('/api/v1/lifecycle/certificates/bulk', {
+      section_id: bulkSection, type_code: type, reason, ...(type === 'ACHIEVEMENT' ? ach : {}), ...(type === 'TC' ? tc : {}),
+    }),
+    onSuccess: async (r) => {
+      setBulkDone(`${r.issued} issued${r.skipped ? `, ${r.skipped} skipped: ${r.skipped_items.slice(0, 3).map((x) => x.reason).join('; ')}` : ''}.`)
+      await qc.refetchQueries({ queryKey: ['certificates'] })
+    },
+  })
   const list = useQuery({
     queryKey: ['certificates'],
     queryFn: () => api.get<List<Cert>>('/api/v1/lifecycle/certificates'),
@@ -101,6 +144,7 @@ export default function Certificates() {
     mutationFn: (override: boolean) =>
       api.post<{ serial_no: string; dues_overridden?: boolean }>('/api/v1/lifecycle/certificates', {
         student_id: studentId, type_code: type, reason,
+        ...(type === 'ACHIEVEMENT' ? ach : {}),
         ...(type === 'TC'
           ? {
               ...tc,
@@ -111,9 +155,11 @@ export default function Certificates() {
             }
           : {}),
       }),
-    onSuccess: () => {
-      setStudentId(''); setSearch(''); setReason(''); setTc(EMPTY_TC); setOverrideReason('')
-      qc.invalidateQueries({ queryKey: ['certificates'] })
+    onSuccess: async (res) => {
+      setStudentId(''); setSearch(''); setReason(''); setTc(EMPTY_TC); setOverrideReason(''); setNoteOpen(false); setTcOpen(false)
+      await qc.refetchQueries({ queryKey: ['certificates'] })
+      const made = qc.getQueryData<List<Cert>>(['certificates'])?.items.find((c) => c.serial_no === res.serial_no)
+      if (made) void openCert(made.id)
     },
   })
   // Fees owed. The server says how much and on how many bills; the office
@@ -145,6 +191,20 @@ export default function Certificates() {
         description="Issue bonafide, character and transfer certificates with a numbered serial and a frozen record snapshot."
       />
       <PageBody>
+        <div className="no-print flex flex-wrap items-center gap-1 border-b">
+          {([['issue', 'Issue & register'], ['designs', 'Certificate designs']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
+              className={'-mb-px border-b-2 px-3 py-2 text-[14px] ' + (tab === k ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>{l}</button>
+          ))}
+        </div>
+        {tab === 'designs' ? <CertificateDesigns /> : (<>
+        {preview && (
+          <Card>
+            <CardHeader title={preview.title} description="Exactly as it prints, on A4."
+              action={<div className="flex gap-2"><Button onClick={() => printHtml(preview.html)}><Printer className="h-4 w-4" /> Print</Button><Button variant="secondary" onClick={() => setPreview(null)}>Close</Button></div>} />
+            <div className="bg-muted/30 p-3 sm:p-5"><A4Frame title={preview.title} html={preview.html} /></div>
+          </Card>
+        )}
         <CellGrid cols={3}>
           <Stat label="Issued" value={rows.length} />
           <Stat label="Transfer certificates" value={rows.filter((r) => r.type.includes('Transfer')).length}
@@ -215,16 +275,23 @@ export default function Certificates() {
         )}
 
         <Card>
-          <CardHeader title="Issue a certificate" />
+          <CardHeader title="Issue a certificate" description="Choose the student and the certificate. You see it before it prints." />
           <div className="space-y-3 p-5">
-            <SearchBox value={search} onChange={setSearch} placeholder="Search student by name or admission no." className="w-full" />
+            {/* One short row (owner: the old form was long and ugly). */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <SearchBox value={search} onChange={setSearch} placeholder="Student name or admission no." className="min-w-[16rem] flex-1" />
+              <div className="w-60"><Select value={type} onChange={(v) => { setType(v); setTcOpen(v === 'TC') }} options={TYPES} /></div>
+              <Button disabled={!studentId || issue.isPending || (type === 'TC' && !reason.trim()) || (type === 'ACHIEVEMENT' && !ach.achievement.trim())} onClick={() => issue.mutate(false)}>
+                {issue.isPending ? 'Issuing…' : 'Issue & preview'}
+              </Button>
+            </div>
             {search.trim().length >= 2 && (
               <div className="flex flex-wrap gap-1.5">
                 {(results.data?.items ?? []).map((s) => (
                   <button
                     key={s.id} type="button" onClick={() => setStudentId(s.id)}
-                    className={`rounded-md border px-2 py-1 text-[13px] ${
-                      studentId === s.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                    className={`rounded-full border px-3 py-1 text-[13px] ${
+                      studentId === s.id ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent'
                     }`}
                   >
                     {s.full_name} · {s.admission_no}
@@ -232,63 +299,62 @@ export default function Certificates() {
                 ))}
               </div>
             )}
-            <div className="flex flex-wrap items-end gap-3">
-              <Select value={type} onChange={setType} options={TYPES} />
-              <Input value={reason} onChange={setReason}
-                placeholder={type === 'TC' ? 'Reason for leaving' : 'Reason (optional)'} />
-              <Button disabled={!studentId || issue.isPending} onClick={() => issue.mutate(false)}>
-                {issue.isPending ? 'Issuing…' : 'Issue certificate'}
-              </Button>
-            </div>
-            {type === 'TC' && (
-              <>
-                <p className="text-[13px] text-warning">
-                  A transfer certificate exits the student and closes their enrolment. It is refused
-                  while fees are owed.
-                </p>
-                {/* What the register asks and the record does not hold. Blank
-                    nationality and category fall back to the child's record. */}
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Nationality" hint="Blank: as on the record">
-                    <Input value={tc.nationality} onChange={setTcField('nationality')} placeholder="Indian" />
-                  </Field>
-                  <Field label="Category" hint="Blank: as on the record">
-                    <Input value={tc.category} onChange={setTcField('category')} placeholder="General" />
-                  </Field>
-                  <Field label="NCC / Scout / Guide">
-                    <Input value={tc.ncc_scout} onChange={setTcField('ncc_scout')} placeholder="No" />
-                  </Field>
-                  <Field label="Games / activities">
-                    <Input value={tc.games} onChange={setTcField('games')} placeholder="Kabaddi, chess" />
-                  </Field>
-                  <Field label="General conduct">
-                    <Input value={tc.conduct} onChange={setTcField('conduct')} placeholder="Good" />
-                  </Field>
-                  <Field label="Qualified for promotion" hint="Blank: from the last published result">
-                    <Select
-                      value={tc.qualified_for_promotion}
-                      onChange={setTcField('qualified_for_promotion')}
-                      options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
-                      placeholder="From the result"
-                    />
-                  </Field>
-                  <Field label="Last examination taken" hint="Blank: the last published card">
-                    <Input value={tc.last_exam_passed} onChange={setTcField('last_exam_passed')} />
-                  </Field>
-                  <Field label="Date of application">
-                    <Input type="date" value={tc.date_of_application} onChange={setTcField('date_of_application')} />
-                  </Field>
-                  <Field label="Date of issue" hint="Blank: today">
-                    <Input type="date" value={tc.date_of_issue} onChange={setTcField('date_of_issue')} />
-                  </Field>
-                  <Field label="Dues paid up to" hint="Blank: the last bill settled">
-                    <Input type="date" value={tc.dues_paid_up_to} onChange={setTcField('dues_paid_up_to')} />
-                  </Field>
-                  <Field label="Fee concession availed" hint="Blank: from the concession register">
-                    <Input value={tc.fee_concession} onChange={setTcField('fee_concession')} placeholder="Nil" />
-                  </Field>
-                </div>
-              </>
+            {type === 'ACHIEVEMENT' && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Achievement" required><Input value={ach.achievement} onChange={(v) => setAch({ ...ach, achievement: v })} placeholder="First prize, 100 m sprint" /></Field>
+                <Field label="Event"><Input value={ach.event} onChange={(v) => setAch({ ...ach, event: v })} placeholder="Annual sports day 2026" /></Field>
+                <Field label="Position"><Input value={ach.position} onChange={(v) => setAch({ ...ach, position: v })} placeholder="First" /></Field>
+              </div>
+            )}
+            {/* THE WHOLE SECTION AT ONCE. Promotion certificates at year end,
+                achievement certificates after a sports day, transfer
+                certificates for a batch that leaves: the same certificate for
+                every child in a section, in one press. A child whose TC is
+                blocked by fees is skipped and named. */}
+            {type !== 'BONAFIDE' && type !== 'CONDUCT' && (
+              <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-muted/20 p-4">
+                <Field label="Or every child in a section">
+                  <div className="w-64">
+                    <Select value={bulkSection} onChange={setBulkSection} placeholder="Choose a section"
+                      options={(sectionsQ.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.class_name ?? ''} ${s.name}`.trim() }))} />
+                  </div>
+                </Field>
+                <Button variant="secondary" disabled={!bulkSection || bulk.isPending || (type === 'TC' && !reason.trim()) || (type === 'ACHIEVEMENT' && !ach.achievement.trim())}
+                  onClick={() => bulk.mutate()}>{bulk.isPending ? 'Issuing…' : 'Issue for the whole section'}</Button>
+                {bulkDone && <p className="w-full text-[13px] text-muted-foreground">{bulkDone}</p>}
+                <FormNotice error={bulk.error} />
+              </div>
+            )}
+            {type === 'TC' ? (
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <p className="mb-3 text-[13px] text-warning">A transfer certificate closes the student's enrolment. It is refused while fees are owed.</p>
+                <Input value={reason} onChange={setReason} placeholder="Reason for leaving (required)" className="w-full" />
+                <button type="button" onClick={() => setTcOpen((o) => !o)} className="mt-3 text-[13px] font-medium text-primary">
+                  {tcOpen ? 'Hide' : 'Show'} transfer certificate details (optional, filled from the record when blank)
+                </button>
+                {tcOpen && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Field label="Nationality"><Input value={tc.nationality} onChange={setTcField('nationality')} placeholder="As on record" /></Field>
+                    <Field label="Category"><Input value={tc.category} onChange={setTcField('category')} placeholder="As on record" /></Field>
+                    <Field label="NCC / Scout / Guide"><Input value={tc.ncc_scout} onChange={setTcField('ncc_scout')} placeholder="No" /></Field>
+                    <Field label="Games / activities"><Input value={tc.games} onChange={setTcField('games')} /></Field>
+                    <Field label="General conduct"><Input value={tc.conduct} onChange={setTcField('conduct')} placeholder="Good" /></Field>
+                    <Field label="Qualified for promotion">
+                      <Select value={tc.qualified_for_promotion} onChange={setTcField('qualified_for_promotion')}
+                        options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} placeholder="From the result" />
+                    </Field>
+                    <Field label="Last examination taken"><Input value={tc.last_exam_passed} onChange={setTcField('last_exam_passed')} placeholder="From the result" /></Field>
+                    <Field label="Date of application"><Input type="date" value={tc.date_of_application} onChange={setTcField('date_of_application')} /></Field>
+                    <Field label="Date of issue"><Input type="date" value={tc.date_of_issue} onChange={setTcField('date_of_issue')} /></Field>
+                    <Field label="Dues paid up to"><Input type="date" value={tc.dues_paid_up_to} onChange={setTcField('dues_paid_up_to')} /></Field>
+                    <Field label="Fee concession availed"><Input value={tc.fee_concession} onChange={setTcField('fee_concession')} placeholder="Nil" /></Field>
+                  </div>
+                )}
+              </div>
+            ) : noteOpen ? (
+              <Input value={reason} onChange={setReason} placeholder="What it is for (optional), e.g. passport application" className="w-full" />
+            ) : (
+              <button type="button" onClick={() => setNoteOpen(true)} className="text-[13px] font-medium text-primary">+ Add a note (what it is for)</button>
             )}
             {duesBlock ? (
               <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3">
@@ -372,7 +438,7 @@ export default function Certificates() {
         <Card>
           <CardHeader title="Register" description="Every certificate issued, with its frozen snapshot" />
           {list.isLoading ? <SkeletonTable columns={7} /> : list.error ? <ErrorState error={list.error} /> : (
-            <Table head={['Serial', 'Type', 'Student', 'Class at issue', 'Dues at issue', 'Issued', 'Status', '']}
+            <Table head={['Serial', 'Certificate', 'Student', 'Class', 'Issued', 'Status', '']}
               empty={!rows.length} emptyLabel="No certificates issued yet.">
               {rows.map((c) => (
                 <tr key={c.serial_no}>
@@ -380,7 +446,6 @@ export default function Certificates() {
                   <Td className="font-medium">{c.type}</Td>
                   <Td>{c.student_name}</Td>
                   <Td>{String(c.snapshot?.class ?? '-')}</Td>
-                  <Td>{formatPaise(Number(c.snapshot?.dues_paise ?? 0))}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
                   <Td><Badge tone={statusTone(c.status)}>{c.status}</Badge></Td>
                   <Td>
@@ -388,11 +453,7 @@ export default function Certificates() {
                         on says what it said the day it was handed over. */}
                     {c.status === 'issued' && (
                       <Button size="sm" variant="ghost"
-                        onClick={async () => {
-                          const v = await api.get<{ html: string; name?: string }>(
-                            `/api/v1/lifecycle/certificates/${c.id}/render`)
-                          setCard(v)
-                        }}>
+                        onClick={() => { void openCert(c.id, true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                         Print
                       </Button>
                     )}
@@ -434,6 +495,7 @@ export default function Certificates() {
             />
           </div>
         </details>
+        </>)}
       </PageBody>
     </>
   )

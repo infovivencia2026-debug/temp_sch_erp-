@@ -27,10 +27,13 @@ import { lazy } from 'react'
  */
 export const financeKeys = {
   'finance.home.dashboard': screen(() => import('./Dashboard')),
+  // The fixed reports an accountant asks for by name.
+  'finance.banking_reports.fixed_reports': screen(() => import('./FixedReports')),
 
   // Fee collection & setup.
   'finance.fees.take_fee_payment': screen(() => import('./FeeCounter')),
   'finance.fees.student_wallets': screen(() => import('./StudentWallets')),
+  'finance.fees.fee_corrections': screen(() => import('./FeeCorrections')),
   'finance.fees.online_fee_portal': screen(() => import('./Payments')),
   'finance.fees.unpaid_fees_reminders': lazy(() =>
     import('./bundles').then((m) => ({ default: m.UnpaidFees })),

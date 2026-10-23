@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useFeatureHref } from '@/features/bento/bento-kit'
+import { useFeatureHref, useFeatureHrefAny } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import {
-  ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X,
-} from 'lucide-react'
+import { ArrowUpRight, Award, Bell, UserPlus, BookOpen, Bus, CalendarCheck, CalendarClock, Camera, Image as ImageIcon, IndianRupee, Megaphone, MessageSquare, Play, Type, X, Images, ChevronRight, Video } from 'lucide-react'
 import StatusRings from '@/features/comms/status/StatusRings'
 import SchoolGallery from '@/features/comms/status/SchoolGallery'
 import StatusComposer from '@/features/comms/status/StatusComposer'
@@ -18,7 +16,9 @@ import { cn } from '@/lib/utils'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
-import { Button, Dialog } from '@/components/ui'
+import { Badge, Button, Dialog } from '@/components/ui'
+import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
+import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
 /* The bell in the header, and the panel it opens.
 
@@ -42,7 +42,7 @@ import { Button, Dialog } from '@/components/ui'
    Anchored to the window rather than to the bell, so it is the same panel at
    every width and does not have to be measured away from the right edge. */
 
-interface Note {
+export interface Note {
   id: string
   kind: string
   title: string
@@ -51,6 +51,8 @@ interface Note {
   student_name?: string
   created_at: string
   read_at?: string
+  /** Work owed (server-computed): stays until done, shown "Pending". */
+  pending?: boolean
 }
 
 /* What sort of thing happened, at a glance.
@@ -129,10 +131,21 @@ function timeOf(iso: string): string {
 }
 
 /* The post a status notification is about: its link is "/?status=<id>". */
-function statusPostId(n: Note): string | null {
-  if (n.kind !== 'status' || !n.link) return null
-  const m = /[?&]status=([0-9a-f-]{36})/i.exec(n.link)
-  return m ? m[1].toLowerCase() : null
+const statusPostId = (n: Note): string | null => statusPostIdOf(n)
+
+/** The rows the bell and the teacher home panel both show (lib/notification-shown):
+    a status whose post has gone is left out, and work owed leads. */
+export function useShownNotes(): { items: Note[]; isLoading: boolean; error: unknown } {
+  const feed = useNotificationFeed()
+  const statusFeed = useStatusFeed()
+  let live: Set<string> | null = null
+  if (statusFeed.data) {
+    live = new Set()
+    for (const r of statusFeed.data.rings ?? []) for (const p of r.posts) live.add(p.id.toLowerCase())
+    for (const p of statusFeed.data.gallery ?? []) live.add(p.id.toLowerCase())
+  }
+  const items = pendingFirst((feed.data?.items ?? []).filter((n) => noteShown(n, live)))
+  return { items, isLoading: feed.isLoading, error: feed.error }
 }
 
 function seconds(n?: number): string {
@@ -167,6 +180,83 @@ function StatusThumb({ post, read }: { post?: StatusItem; read: boolean }) {
     </span>
   )
 }
+
+/** The signed-in user's own feed, shared by the bell and the home panels. */
+export function useNotificationFeed() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.call('GET /portal/notifications'),
+    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    retry: false,
+  })
+}
+
+type Feed = { items?: Note[]; unread?: number }
+
+/** Where a notification leads: shared by the bell and the home panels, so
+    both open the same screen for the same row. */
+export function useNotificationActions() {
+  /* Clicking a notification opens the thing it is about.
+   *
+   * Every row carried a link and nothing used it: the panel listed what had
+   * happened and left the reader to work out where it lived, which for a
+   * staff message meant knowing that Communication has a Messages screen. The
+   * one action a notification exists to prompt was the one thing it did not
+   * do. */
+  /* Rows written before links were, and any kind the server does not map,
+     still land somewhere sensible for a parent: the kind names the screen.
+     Each href is undefined for a reader who does not hold that screen, so
+     staff see nothing they cannot open. */
+  /* EVERY ROLE'S OWN MESSAGES SCREEN, NOT ONLY THE PARENT'S (owner,
+     2026-10-15: "I see the notification number but no messages... every
+     notification, every role should open what it is about"). A "message"
+     or "chat" notification -- the one kind with no fallback at all before
+     this -- had nowhere to go for anyone who was not a parent, which is
+     most of the people this bell rings for: a teacher, the front office, HR,
+     a librarian, each sees the identical "communication.messages" screen
+     under their own role's key. Tried in this fixed order (parent first,
+     since a family account is never also one of the roles below it), the
+     first one this person actually holds wins. */
+  const messagesHref = useFeatureHrefAny([
+    'parent.messages.communication',
+    'faculty.communication.messages', 'institution_admin.communication.messages', 'hod.communication.messages',
+    'hr.communication.messages', 'finance.communication.messages', 'front_office.communication.messages',
+    'librarian.communication.messages', 'nurse.communication.messages', 'counsellor.communication.messages',
+    'admissions.communication.messages', 'exam_controller.communication.messages', 'discipline_officer.communication.messages',
+    'hostel_warden.communication.messages', 'transport_manager.communication.messages', 'activity_coord.communication.messages',
+    'it_admin.communication.messages', 'operations.communication.messages',
+  ])
+  /* A circular is read on the same screen a parent reads it on; staff who
+     must acknowledge one have their own circulars desk. */
+  const circularHref = useFeatureHrefAny([
+    'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
+  ])
+  /* Each destination under every role that receives it, first held wins
+     (lib/notification-link.ts maps the kind to the destination). */
+  const hrefs: NoteHrefs = {
+    messages: messagesHref,
+    circular: circularHref,
+    status: useFeatureHref('faculty.communication.class_status'),
+    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
+    fee: useFeatureHrefAny(['parent.fees.fees_payments', 'student.fees.fees', 'finance.fees.take_fee_payment', 'institution_admin.standard.fee_collection']),
+    attendance: useFeatureHrefAny(['parent.home.dashboard', 'student.attendance.attendance', 'faculty.attendance.take_attendance', 'hod.attendance.take_attendance']),
+    homework: useFeatureHrefAny(['parent.academics.homework_academics', 'student.homework.homework_assignments', 'faculty.teaching.homework_classwork', 'hod.teaching.homework_classwork']),
+    result: useFeatureHrefAny(['parent.academics.results_report_cards', 'student.exams_results.exams_grades', 'faculty.marks_report_cards.report_cards', 'hod.marks_report_cards.report_cards', 'exam_controller.examinations.report_cards', 'institution_admin.examinations.exams_results']),
+    timetable: useFeatureHrefAny(['parent.academics.timetable', 'student.timetable.timetable', 'faculty.timetable.my_timetable', 'hod.timetable.my_timetable']),
+    concern: useFeatureHrefAny(['faculty.communication.concerns_from_parents', 'front_office.communication.parent_concerns', 'institution_admin.communication.grievances', 'hr.welfare.staff_welfare']) ?? '/concerns',
+    questionPapers: useFeatureHrefAny(['faculty.exams.question_papers', 'exam_controller.examinations.exams_papers', 'hod.exams.question_paper_approval', 'institution_admin.exams.question_paper_approval']),
+    leaveApprovals: useFeatureHrefAny(['institution_admin.approvals.approvals', 'hr.leave.leave', 'hod.staff.leaves_subs', 'faculty.my_profile.student_leave_requests']),
+    leaveSelf: useFeatureHrefAny(['faculty.my_profile.leave_self_service', 'hod.my_profile.leave_self_service', 'hr.my_profile.leave_self_service', 'front_office.my_profile.leave_self_service', 'finance.my_profile.leave_self_service', 'parent.leave_absence.apply_student_leave']),
+    calendar: useFeatureHrefAny(['parent.school_life.calendar_ptm', 'student.notices_calendar.calendar', 'faculty.home.my_calendar', 'institution_admin.academics.school_calendar']),
+    certificates: useFeatureHrefAny(['parent.documents.certificate_requests', 'student.requests.requests']),
+    reports: useFeatureHrefAny(['institution_admin.standard.reports', 'board_member.reports.reports']),
+  }
+  const linkFor = (n: Note): string | undefined => noteDestination(n, hrefs)
+  return { linkFor }
+}
+
+export { dayOf as notificationDay, kindOf as notificationKind }
 
 export default function Notifications() {
   const [open, setOpen] = useOpenState(false)
@@ -203,10 +293,8 @@ export default function Notifications() {
     retry: false,
   })
   
-  const feed = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.call('GET /portal/notifications'),
-    /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
+  const feed = useNotificationFeed()
+  /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
      *
      * This was `refetchInterval: 10_000` — precisely the per-screen interval
      * lib/live.ts opens by arguing against, and the bell is mounted in the
@@ -223,56 +311,31 @@ export default function Notifications() {
      * `refetchOnWindowFocus` is kept, and is now one of the few queries that
      * asks for it (see App.tsx): the bell is the thing people watch after
      * being told "I have sent it", so coming back to the tab must not show a
-     * stale count. */
-    refetchOnWindowFocus: true,
-    // The count on the bell is the freshest thing on the page; nothing else
-    // should be serving it out of a cache the revision poll has not touched.
-    staleTime: 60_000,
-    retry: false,
-  })
-  /* Optimistic (lib/optimistic): the badge clears and the list empties the
-     moment either is pressed; a refusal puts them back with the reason. */
-  type Feed = { items?: Note[]; unread?: number }
-  const readAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
-    queryKeys: [['notifications']],
-    apply: (old) => {
-      const f = old as Feed
-      const now = new Date().toISOString()
-      return { ...f, unread: 0, items: (f.items ?? []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
-    },
-    failure: "Couldn't mark them read",
-  })
-  /* Clear empties the list; Mark all read only quiets the badge. Both were
-     asked for by name: a feed a fortnight long that can only be marked read
-     is a feed that has to be scrolled past every time. */
-  const clearAll = useOptimisticMutation<void>({
-    mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
-    queryKeys: [['notifications']],
-    /* The status posts survive the clear, here as on the server. */
-    apply: (old) => {
-      const kept = ((old as Feed).items ?? []).filter((n) => n.kind === 'status')
-      return { ...(old as Feed), unread: 0, items: kept }
-    },
-    failure: "Couldn't clear them",
-  })
+     * stale count. The options live in useNotificationFeed. */
+  /* NO MARK-ALL OR CLEAR-ALL (owner, 2026-10-19: "all notifications should go
+     after viewing only; until then they will be there"). A notification
+     leaves the drawer when it is opened, and not before. */
+  const { linkFor } = useNotificationActions()
 
-  /* One entry read, not the lot: opening a message used to mark every other
-     one read with it. */
-  const readOne = useOptimisticMutation<string>({
-    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/read`, {}),
+  /* OPENING ONE REMOVES IT, THE WAY ANSWERING A LETTER TAKES IT OFF THE PILE
+     (owner, 2026-10-16: "after any message is opened it should disappear
+     from the notifications"). Reading used to leave the row in place, duller
+     but still there, so the only way the drawer ever shrank was the blunt
+     Clear All. Opening a status post is unaffected -- that reads the post
+     itself over in status-api.ts, not this table -- see openNote below. */
+  const dismissOne = useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
     queryKeys: [['notifications']],
     apply: (old, id) => {
       const f = old as Feed
-      const now = new Date().toISOString()
       const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
       return {
         ...f,
         unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
-        items: (f.items ?? []).map((n) => (n.id === id && !n.read_at ? { ...n, read_at: now } : n)),
+        items: (f.items ?? []).filter((n) => n.id !== id),
       }
     },
-    failure: "Couldn't mark it read",
+    failure: "Couldn't clear it",
   })
   /* The message being read in full, over the drawer. */
   const [viewing, setViewing] = useState<Note | null>(null)
@@ -304,50 +367,28 @@ export default function Notifications() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, viewing])
 
-  // Refused, or this account has no feed: show nothing rather than a dead control.
-  if (feed.error) return null
+  const shown = useShownNotes()
+  const items = shown.items
 
-  const items = feed.data?.items ?? []
-  const unread = feed.data?.unread ?? 0
-
-  /* Clicking a notification opens the thing it is about.
-   *
-   * Every row carried a link and nothing used it: the panel listed what had
-   * happened and left the reader to work out where it lived, which for a
-   * staff message meant knowing that Communication has a Messages screen. The
-   * one action a notification exists to prompt was the one thing it did not
-   * do. */
-  /* Rows written before links were, and any kind the server does not map,
-     still land somewhere sensible for a parent: the kind names the screen.
-     Each href is undefined for a reader who does not hold that screen, so
-     staff see nothing they cannot open. */
-  const fallback: Record<string, string | undefined> = {
-    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
-    fee: useFeatureHref('parent.fees.fees_payments'),
-    attendance: useFeatureHref('parent.attendance.attendance'),
-    homework: useFeatureHref('parent.academics.homework_academics'),
-    result: useFeatureHref('parent.academics.results_report_cards'),
-  }
-  const linkFor = (n: Note): string | undefined => {
-    /* The digest rows (fee_due, attendance) carry the API-shaped link Go
-       writes, "/portal/fees" and "/portal/attendance". No screen lives there,
-       so following it fell through to the dashboard; the kind names the
-       screen instead. Every other link is a /go/ or screen path already. */
-    if (n.link && !n.link.startsWith('/portal/')) return n.link
-    const k = n.kind.toLowerCase()
-    if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
-    if (k.startsWith('fee')) return fallback.fee
-    if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
-    if (k.startsWith('homework')) return fallback.homework
-    if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
-    return undefined
-  }
-  const openNote = (n: Note) => {
+  /* Work owed (n.pending) stays until it is done, whatever is pressed. */
+  const openNote = (n: Note, keepPending = false) => {
+    const drop = () => { if (!(keepPending && n.pending)) dismissOne.mutate(n.id) }
     /* A status opens the viewer at that post, over the drawer; seeing it
        is what reads the entry (POST /status/posts/{id}/view). */
     const post = statusPostId(n)
     if (post && postById.has(post)) {
       setStatusOpen(post)
+      // Opened is gone, for a status too (the server also drops it on view).
+      drop()
+      return
+    }
+    if (keepPending) {
+      /* View: straight to the screen it is about. Read in full only when
+         there is no such screen for this reader. */
+      const link = linkFor(n)
+      if (link) { drop(); leaveTo(link); return }
+      setViewing(n)
+      drop()
       return
     }
     /* Everything else opens in full, here. A press used to shut the drawer
@@ -355,16 +396,18 @@ export default function Notifications() {
        vanished and a long one was never readable anywhere. The screen it is
        about is one button away in the dialog (`follow`). */
     setViewing(n)
-    // Read on open rather than on sight: a count that clears because somebody
-    // glanced at the bell is a count that stops meaning anything.
-    if (!n.read_at) readOne.mutate(n.id)
+    // Dismissed on open, not merely marked read: see dismissOne above.
+    dismissOne.mutate(n.id)
   }
   const viewingLink = viewing ? linkFor(viewing) : undefined
   const follow = () => {
-    const link = viewingLink
     setViewing(null)
+    if (viewingLink) leaveTo(viewingLink)
+    else dismiss()
+  }
+  /* Shut the drawer (and any dialog over it), then go to the screen. */
+  function leaveTo(link: string) {
     dismiss()
-    if (!link) return
     /* Two overlays shut at once, and each hands its history entry back
        asynchronously (lib/overlay-history). Going to the screen before both
        have gone would let one of those Backs eat the navigation instead. */
@@ -389,17 +432,42 @@ export default function Notifications() {
      opens on an empty side by default. */
   /* The owner's split: Messages is every notification; Activity is status
      posts (the e-learning hub's photo, video and note statuses). */
-  const shownType = type ?? 'messages'
+  /* An account whose roles carry no workspace (a class teacher alone, a
+     school mid-setup) has no active role at all; the bell still has to draw. */
+  const asParent = activeRole?.key === 'parent'
+  /* THE BADGE NEVER PROMISES WHAT THE DRAWER CANNOT SHOW (owner, 2026-10-16:
+     "why do I see this" -- Messages badged 3, Messages open, "Nothing in
+     this filter"). The three were a daily digest, which `inToggles` below
+     has always hidden from anyone not currently a parent -- the badge never
+     knew that and counted them anyway. Whichever rule ever hides a kind from
+     this account entirely goes here too, so nothing counted is a row the
+     drawer could not produce if asked. */
+  const reachable = (n: Note) => asParent || !/digest/.test(n.kind)
+  /* A status entry counts while its post still has something unseen: once the
+     feed is loaded, a post already seen, or one no longer shown, is not new. */
+  const statusUnseen = (n: Note) => {
+    const id = statusPostId(n)
+    if (!id || !statusFeed.data) return true
+    const post = postById.get(id)
+    return !!post && !post.seen
+  }
+  const countFor = (v: string) => items.filter((n) => !n.read_at && reachable(n) && (v === 'activity' ? /status/.test(n.kind) && statusUnseen(n) : !/status/.test(n.kind))).length
+  /* THE BELL'S OWN NUMBER, OPENED ONTO (owner, 2026-10-15: "I see the
+     notification number but I don't see any messages"). The drawer always
+     opened on Messages, which is right unless every one of today's unread
+     rows happens to be a class-status post -- then the bell said "3" and the
+     tab it landed on said nothing, with Activity, carrying the three, one
+     tap away and no sign it was there. The default now looks at what is
+     actually unread before choosing a side; a person's own choice (`type`)
+     still wins once they have picked one. */
+  const shownType = type ?? (countFor('messages') > 0 || countFor('activity') === 0 ? 'messages' : 'activity')
+  const unread = countFor('messages') + countFor('activity')
   const newStatuses = (statuses.data?.items ?? []).filter((x) => !x.seen && Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000).length
   void newStatuses
-  const countFor = (v: string) => items.filter((n) => !n.read_at && (v === 'activity' ? /status/.test(n.kind) : !/status/.test(n.kind))).length
   void isMessage
   /* Status updates live in Activity; Messages is everything else (the owner's rule). */
   const isStatusNote = (n: Note) => /status/.test(n.kind)
-  /* The parents' daily digest belongs to the parent login only (owner,
-     2026-10-05): a teacher who is also a parent never sees it at work. */
-  const asParent = activeRole.key === 'parent'
-  const inToggles = (n: Note) => (asParent || !/digest/.test(n.kind)) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
+  const inToggles = (n: Note) => reachable(n) && (!onlyUnread || !n.read_at) && (shownType === 'activity' ? isStatusNote(n) : !isStatusNote(n))
   void setFilter
   const inFilter = (n: Note) => !inToggles(n) ? false : filter === 'all' ? true
     : filter === 'other' ? !inKinds(n.kind, listed)
@@ -414,6 +482,10 @@ export default function Notifications() {
   }
 
   const shownGroups = groups
+
+  // Refused, or this account has no feed: show nothing rather than a dead control.
+  // Below every hook, so a feed that starts failing never changes the hook order.
+  if (feed.error) return null
 
   return (
     <>
@@ -449,9 +521,12 @@ export default function Notifications() {
                little taller, type a little smaller, padding that grows with
                the content, and nowrap so it can never break across two lines
                inside a 17px circle. */
-            className="absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
+            /* count-pill: the figure stays 10.5px at every app text size.
+               The pill around it is an optical constant in px, so scaling
+               only the type burst it open at Larger. */
+            className="count-pill absolute left-[calc(50%+1px)] top-[calc(50%-17px)] grid h-[17px] min-w-[17px]
                        place-items-center whitespace-nowrap rounded-full bg-destructive px-[5px]
-                       text-[10.5px] font-semibold leading-none tracking-tight text-destructive-foreground
+                       font-semibold leading-none tracking-tight text-destructive-foreground
                        tabular-nums"
             aria-hidden
           >
@@ -511,18 +586,6 @@ export default function Notifications() {
                       ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">{unread} new</span>
                       : 'All caught up'}
                   </span>
-                  <span className="flex items-center gap-1">
-                    {unread > 0 && (
-                      <button onClick={() => readAll.mutate()}
-                        className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                        Mark read
-                      </button>
-                    )}
-                    <button onClick={() => clearAll.mutate()} disabled={clearAll.isPending} aria-label="Clear all notifications"
-                      className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-muted-foreground hover:bg-[hsl(var(--sys-danger)/0.1)] hover:text-[hsl(var(--sys-danger-ink))] disabled:opacity-50">
-                      {clearAll.isPending ? 'Clearing…' : 'Clear all'}
-                    </button>
-                  </span>
                 </div>
               )}
             </header>
@@ -533,8 +596,51 @@ export default function Notifications() {
               onCompose={(next) => { setComposeReq(next); dismiss() }} />}
             {shownType === 'activity' && (
               <button type="button" onClick={() => { dismiss(); window.setTimeout(() => setGallery(true), 300) }}
-                className="mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl border bg-card px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-muted/50">
-                <span>School gallery</span><span className="text-muted-foreground">→</span>
+                /* iOS row, like Settings (owner, 2026-10-10: "change the gallery button"). */
+                className="mx-4 mt-3 flex min-h-[52px] shrink-0 items-center gap-3 rounded-[14px] border bg-card px-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-colors hover:bg-muted/40 active:bg-muted/60">
+                <span className="grid size-[32px] shrink-0 place-items-center rounded-[9px] bg-gradient-to-br from-[#ff9f0a] via-[#ff375f] to-[#bf5af2] text-white shadow-[0_1px_3px_rgba(0,0,0,.15)]">
+                  <Images className="size-[17px]" strokeWidth={2} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-normal">School gallery</span>
+                  <span className="block truncate text-[12px] text-muted-foreground">
+                    {(() => { const n = (statusFeed.data?.gallery ?? []).filter((p) => p.media_kind !== 'text').length; return n === 1 ? '1 photo' : n ? `${n} photos & videos` : 'Photos from across the school' })()}
+                  </span>
+                </span>
+                {/* The newest pictures, fanned like a stack of prints (owner, 2026-10-10:
+                    "add something, it looks ugly"). */}
+                {(() => {
+                  const pics = (statusFeed.data?.gallery ?? []).filter((p) => p.media_kind !== 'text' && (p.thumb || p.url)).slice(0, 3)
+                  if (!pics.length) {
+                    /* No pictures yet: three soft tiles in the same fan, so the card still
+                       reads as a photo album rather than a bare row. */
+                    const tiles = [
+                      { Icon: Images, bg: 'linear-gradient(135deg,#5ac8fa,#007aff)' },
+                      { Icon: Camera, bg: 'linear-gradient(135deg,#ffcc00,#ff9500)' },
+                      { Icon: Video, bg: 'linear-gradient(135deg,#ff6482,#ff2d55)' },
+                    ]
+                    return (
+                      <span className="relative mr-1 flex h-[40px] shrink-0 items-center" aria-hidden="true">
+                        {tiles.map(({ Icon, bg }, i) => (
+                          <span key={i} style={{ marginLeft: i ? -12 : 0, zIndex: 3 - i, transform: `rotate(${[-6, 3, 8][i]}deg)`, background: bg }}
+                            className="grid size-[36px] place-items-center rounded-[9px] border-2 border-card text-white shadow-[0_2px_6px_rgba(0,0,0,.16)]">
+                            <Icon className="size-[16px]" strokeWidth={2.2} />
+                          </span>
+                        ))}
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="relative mr-1 flex h-[40px] shrink-0 items-center" aria-hidden="true">
+                      {pics.map((p, i) => (
+                        <img key={p.id} src={p.thumb ?? p.url} alt="" loading="lazy"
+                          style={{ marginLeft: i ? -14 : 0, zIndex: 3 - i, transform: `rotate(${[-6, 3, 8][i]}deg)` }}
+                          className="size-[38px] rounded-[9px] border-2 border-card object-cover shadow-[0_2px_6px_rgba(0,0,0,.18)]" />
+                      ))}
+                    </span>
+                  )
+                })()}
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
               </button>
             )}
 
@@ -549,7 +655,7 @@ export default function Notifications() {
                         .filter((x) => Date.now() - new Date(x.posted_at ?? x.posted_on).getTime() < 7 * 86400000)
                         .map((x) => (
                           <button key={x.id} type="button" onClick={() => { dismiss(); if (toHub) navigate(toHub) }}
-                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30">
+                            className="flex w-full items-center gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30">
                             <span className={cn('grid size-10 shrink-0 place-items-center rounded-full text-[12px] font-bold',
                               x.seen ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary ring-2 ring-primary ring-offset-2 ring-offset-card')}>
                               {(x.uploaded_by ?? 'School').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
@@ -595,8 +701,9 @@ export default function Notifications() {
                           const [who] = n.title.split(' added a status')
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
-                            <button key={n.id} type="button" onClick={() => openNote(n)}
-                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-all hover:shadow-md',
+                            <div key={n.id} className="relative">
+                            <button type="button" onClick={() => openNote(n)}
+                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-[transform,background-color,box-shadow,color] hover:shadow-md pb-12',
                                 n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                               <StatusThumb post={post} read={!!n.read_at} />
                               <span className="min-w-0 flex-1">
@@ -614,11 +721,14 @@ export default function Notifications() {
                                 {!post && statusFeed.data && <span className="mt-1 block text-[11.5px] text-muted-foreground">No longer showing</span>}
                               </span>
                             </button>
+                              <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
+                            </div>
                           )
                         }
                         return (
-                          <button key={n.id} type="button" onClick={() => openNote(n)}
-                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-all hover:-translate-y-px hover:bg-muted/30',
+                          <div key={n.id} className="relative">
+                          <button type="button" onClick={() => openNote(n)}
+                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30 pb-12',
                               n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
                             <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
                               n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
@@ -626,17 +736,20 @@ export default function Notifications() {
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="flex items-baseline justify-between gap-2">
-                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{n.title}</span>
+                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at && !n.pending ? 'font-semibold' : 'font-bold')}>{n.title}</span>
                                 <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
                               </span>
                               <span className="block text-[11.5px] font-medium text-primary">
                                 <span className="capitalize">{label}</span>{n.student_name ? ` · ${n.student_name}` : ''}
                               </span>
+                              {n.pending && <Badge tone="warning" className="mt-1">Pending</Badge>}
                               {n.body && (
                                 <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{n.body}</span>
                               )}
                             </span>
                           </button>
+                            <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
+                          </div>
                         )
                       })}
                     </div>
@@ -655,7 +768,7 @@ export default function Notifications() {
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["unread","Unread"],["all","All"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setOnlyUnread(v === 'unread')}
-                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-[transform,background-color,box-shadow,color]',
                         (v === 'unread') === onlyUnread ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
                       {label}
                     </button>
@@ -664,7 +777,7 @@ export default function Notifications() {
                 <div className="flex flex-1 gap-1 rounded-full bg-muted p-1">
                   {[["messages","Messages"],["activity","Activity"]].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setType(v as 'messages' | 'activity')}
-                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-all',
+                      className={cn('relative min-h-[40px] flex-1 rounded-full px-3 text-[14px] font-semibold transition-[transform,background-color,box-shadow,color]',
                         v === shownType ? 'bg-card text-foreground shadow-[0_4px_10px_-2px_rgba(15,23,42,0.12)]' : 'text-muted-foreground hover:text-foreground')}>
                       {label}{countFor(v) > 0 && <span className="absolute -top-1 right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-[hsl(var(--sys-danger-fill))] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_2px_5px_rgba(239,68,68,0.3)]">{countFor(v)}</span>}
                     </button>

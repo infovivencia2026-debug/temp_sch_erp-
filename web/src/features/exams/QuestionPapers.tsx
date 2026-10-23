@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, TAB_BAR, tabClass,
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
+import PaperDeadlines from './PaperDeadlines'
+import PaperFromBlueprint from '../faculty/PaperFromBlueprint'
+import QuestionBank from '../faculty/QuestionBank'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* The paper, read before it is printed.
@@ -67,6 +71,10 @@ export default function QuestionPapers() {
   const [done, setDone] = useState('')
   const [returning, setReturning] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  // Question maker (owner, 2026-10-19): papers made, banked and sent from this one screen.
+  const can = useCan()
+  const maker = can('faculty.question_papers_online_tests.ai_examcell_paper_generator') || can('faculty.question_papers_online_tests.question_bank_management')
+  const [tab, setTab] = useState<'papers' | 'maker' | 'bank'>('papers')
 
   // Composing a new one.
   const [slot, setSlot] = useState('')
@@ -88,6 +96,15 @@ export default function QuestionPapers() {
     queryKey: ['question-paper-slots'],
     queryFn: () => api.get<{ items: Slot[] }>('/api/v1/exams/question-papers/slots'),
   })
+  // A teacher's own deadlines (owner, 2026-10-19): the dashboard for this is
+  // this screen, since this is where the paper is actually sent.
+  const myDeadlines = useQuery({
+    queryKey: ['my-paper-deadlines'],
+    queryFn: () => api.get<{ items: { id: string; deadline: string; subject_name: string; class_name: string; exam_name: string; status: 'pending' | 'late' | 'received' }[] }>(
+      '/api/v1/exams/question-paper-deadlines/mine',
+    ),
+  })
+  const dueDeadlines = (myDeadlines.data?.items ?? []).filter((x) => x.status !== 'received')
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['question-papers'] })
@@ -151,10 +168,34 @@ export default function QuestionPapers() {
         }
       />
       <PageBody>
+        {maker && (
+          <div className={TAB_BAR} role="tablist">
+            {([['papers', 'Papers'], ['maker', 'Question maker'], ['bank', 'Question bank']] as const).map(([k, t]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tabClass(tab === k)} onClick={() => setTab(k)}>{t}</button>
+            ))}
+          </div>
+        )}
+        {tab === 'maker' ? <PaperFromBlueprint embedded slots={slots.data?.items ?? []} /> : tab === 'bank' ? <QuestionBank embedded /> : (<>
         {done && <FormNotice ok={done} />}
         {(submit.error || decide.error) && (
           <FormNotice error={submit.error ?? decide.error} />
         )}
+
+        {/* The deadline the examination branch set, read here because here
+            is where the paper is sent. Late items stay shown rather than
+            vanishing, so the remark they caused is not a surprise later. */}
+        {dueDeadlines.length > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13.5px] text-secondary-foreground">
+            {dueDeadlines.map((x) => (
+              <div key={x.id}>
+                <strong>{x.status === 'late' ? 'Missed: ' : 'Due: '}</strong>
+                {x.subject_name} for {x.class_name} ({x.exam_name}) {x.status === 'late' ? 'was due' : 'by'} {new Date(x.deadline).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.
+              </div>
+            ))}
+          </div>
+        )}
+
+        {d.decides && <PaperDeadlines />}
 
         {/* Nothing to set a paper against.
          *
@@ -371,6 +412,7 @@ export default function QuestionPapers() {
             </>
           )}
         </Card>
+        </>)}
       </PageBody>
     </>
   )

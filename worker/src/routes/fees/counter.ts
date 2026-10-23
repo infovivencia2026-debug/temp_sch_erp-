@@ -76,7 +76,21 @@ export async function collect(c: Ctx, req: { studentId: string; amount: number; 
   const st = await c.db.prepare(`SELECT institution_id, campus_id FROM students WHERE id = ?`).bind(req.studentId).first<{ institution_id: string; campus_id: string }>()
   if (!st) throw notFound()
   const chequeDate = req.chequeDate ?? null
-  const pdc = (req.mode === 'cheque' || req.mode === 'dd') && chequeDate !== null && chequeDate > req.paidOn
+  /* A CHEQUE IS NOT MONEY UNTIL IT CLEARS.
+   *
+   * This held back only POST-DATED cheques: a cheque written today was
+   * recorded as success the moment it was handed over, so it counted in the
+   * day's collection, left the child's dues, printed a clean receipt, and
+   * never appeared in the Cheques register -- which meant there was no row
+   * anywhere to bounce when the bank returned it. The school's books said
+   * the money had arrived because somebody had handed over a piece of paper.
+   *
+   * Every cheque and demand draft now waits, whatever its date. They land in
+   * the Cheques register, which already lists every pending cheque and
+   * already offers Clear and Bounce, and the money counts when it clears.
+   * The receipt still prints -- a parent needs it -- carrying the status, so
+   * what the paper says and what the ledger says are the same thing. */
+  const pdc = req.mode === 'cheque' || req.mode === 'dd'
   const number = await nextNumber(c, 'receipt', req.paidOn)
   const paymentId = crypto.randomUUID()
   const stmts: D1PreparedStatement[] = [
@@ -307,8 +321,22 @@ export function registerCounter(r: Router): void {
     if (paidOn > today()) throw badRequest('a receipt cannot be dated in the future')
     let chequeDate: string | null = null
     if (req.cheque_date) { if (!isDate(req.cheque_date)) throw badRequest('cheque_date must be YYYY-MM-DD'); chequeDate = req.cheque_date }
-    const reference = req.reference_no ?? ''
+    const reference = (req.reference_no ?? '').trim()
     if ((mode === 'cheque' || mode === 'dd') && reference === '') throw badRequest('reference_no (instrument number) is required for cheque or DD')
+    /* A UPI RECEIPT CARRIES ITS UTR (owner, 2026-10-12: "utr is not a
+       optional in take fee payment").
+
+       It used to be optional here and on the counter screen, on the reasoning
+       that a receipt must never wait on the parent reading a number off their
+       phone. What that produced was UPI receipts with nothing to match in the
+       bank statement: reconciliation keys on the UTR, so a payment without
+       one can only ever be matched by hand, by amount and date, against every
+       other payment of the same amount that day.
+
+       So it is required now, exactly as a cheque number is. The rule lives
+       here as well as on the screen because the counter is not the only way
+       in -- the assistant posts to this same endpoint. */
+    if (mode === 'upi' && reference === '') throw badRequest('a UPI payment needs its UTR: it is what the bank statement is matched on')
     const invoiceIds: string[] = []
     for (const raw of req.invoice_ids ?? []) { if (!isUUID(raw)) throw badRequest('invoice_ids must be uuids'); invoiceIds.push(raw) }
 
@@ -319,8 +347,19 @@ export function registerCounter(r: Router): void {
       throw new HttpError(409, `this child has left the school (${st.status}). Money against an old account is settled from the student's record, not the counter.`, { code: 'student_left' })
     }
     await requireOpenPeriod(c, paidOn)
+    /* Never more than is owed (2026-10-12): an amount above the dues was taken
+       as a receipt and left the account in credit with no one deciding it. */
+    {
+      const due = (await outstanding(c, req.student_id)).filter((d) => !invoiceIds.length || invoiceIds.includes(d.invoice_id)).reduce((s, d) => s + d.balance_paise, 0)
+      if (amount > due) throw new HttpError(409, due > 0 ? `That is more than is owed: the most that can be collected is ₹${rupeesFixed(due)}.` : 'Nothing is owed on this account.', { code: 'over_payment' })
+    }
 
-    const pdc = (mode === 'cheque' || mode === 'dd') && chequeDate !== null && chequeDate > paidOn
+    /* The counter's own copy of the rule above: a cheque waits to clear,
+       whatever its date. Two copies of one rule is how the helper was
+       fixed and the screen people actually use was not -- the cheque
+       still allocated itself and never reached the Cheques register.
+       Found by taking one through the counter rather than by reading. */
+    const pdc = mode === 'cheque' || mode === 'dd'
     const status = pdc ? 'pending' : 'success'
     const number = await nextNumber(c, 'receipt', paidOn)
     const paymentId = crypto.randomUUID()

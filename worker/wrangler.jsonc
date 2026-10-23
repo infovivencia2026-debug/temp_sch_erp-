@@ -9,6 +9,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "school-erp",
   "main": "src/index.ts",
+  // The workers.dev address stays on: the web site (Pages) reaches the API through it.
+  "workers_dev": true,
+  // bio.xulo.in: the address a biometric reader is pointed at. Readers such as the
+  // eSSL X2008 speak plain HTTP on port 80; the xulo.in zone must not force HTTPS for
+  // this one host (owner, 2026-10-13). See routes/iclock.ts.
+  "routes": [{ "pattern": "bio.xulo.in", "custom_domain": true }],
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   // Smart placement never placed it (cf-placement: local-BOM, about 200 ms a D1 trip);
@@ -46,14 +52,19 @@
   // Live updates (src/services/live.ts): one LiveHub per school holds its
   // open Server-Sent Events streams and fans hints to them.
   "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }] },
+  // Gemini calls leave through the relay: Google refuses them from ap-east-1 (ai-relay/index.ts).
+  "services": [{ "binding": "AI_RELAY", "service": "school-erp-ai-relay" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
+  // Staff Inbox (src/services/mail.ts): incoming mail reaches the email() handler
+  // through Cloudflare Email Routing, set up per mail domain in the dashboard
+  // (Email > Email Routing on the domain's zone: enable it, which adds the MX and
+  // SPF records, then Routing rules > Catch-all > Send to a Worker > school-erp).
+  // No binding is needed here for receiving. Attachments go to FILES_WRITE.
   // One tick a minute; the schedule itself (per school, in the school's
   // timezone) is src/services/cron.ts, replacing Cloud Scheduler -> /api/v1/cron.
   "triggers": { "crons": ["* * * * *"] },
   "d1_databases": [
     { "binding": "CONTROL", "database_name": "school-erp-control", "database_id": "477538e2-da45-49d5-8176-79f20d7539f1" }
-    ,{ "binding": "TENANT_DEMO", "database_name": "school-erp-demo", "database_id": "73088586-9c8b-4a10-a130-8690782a1ddf" }
-    ,{ "binding": "TENANT_DEMO_SCHOOL", "database_name": "school-erp-demo-school", "database_id": "097509b3-8425-464f-832b-bfe38a8273ed" }
     ,{ "binding": "TENANT_YAJUR", "database_name": "school-erp-yajur-202609261728", "database_id": "6ff7d5b9-01c8-48d8-94da-c52b4933ef1f" }
     ,{ "binding": "TENANT_JSM", "database_name": "school-erp-jsm-202609261728", "database_id": "8485aae2-4795-408e-984a-93926d5133b0" }
     // TENANT_<slug> bindings are appended here by scripts/provision-school.sh

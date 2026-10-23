@@ -6,6 +6,8 @@ import { school } from './school'
 import { requireFresh } from './fees/common'
 import { MONTHS, coded, daysInMonth, dateOf, inList, items, js, minuteOf, nameOf, nowIST, num, numOr0, pad2, requireOpenMonth,
   resolveScope, str, todayIST, uuidsOf } from './exams/common'
+import { staffHolidays } from './daily'
+import { staffHolidayChecker } from './hr/staff_holidays'
 
 /* Port of the /communication, /timetable-admin, /compliance and /payroll
    route groups (internal/api/api.go lines 1235-1301) and their handlers in
@@ -21,6 +23,8 @@ const REPORTS_READ = 'admin.reports.read'
 const STUDENTS_WRITE = 'students.write'
 const PAYROLL_READ = 'hr.payroll.read'
 const PAYROLL_WRITE = 'hr.payroll.write'
+/** How late a 'permission' day may be before it counts as late after all. */
+const PERMISSION_MINUTES = 60
 
 const EMP_NAME = nameOf('e', false)
 
@@ -96,9 +100,10 @@ function registerCommunication(r: Router) {
     const rows = await c.db.prepare(`
       SELECT a.id, a.title, a.kind, a.audience_role, a.requires_ack, ${dateOf('a.publish_at')} AS published_at,
              ${minuteOf('a.publish_at')} AS published_at_full, COALESCE(u.full_name, '') AS published_by,
-             (SELECT COUNT(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id) AS acknowledgements,
+             (SELECT COUNT(*) FROM announcement_acks ak WHERE ak.announcement_id = a.id) + (SELECT COUNT(*) FROM staff_announcement_acks sk WHERE sk.announcement_id = a.id) AS acknowledgements,
              (SELECT COUNT(*) FROM announcement_sections s2 WHERE s2.announcement_id = a.id) AS sections,
-             EXISTS (SELECT 1 FROM announcement_acks ak WHERE ak.announcement_id = a.id AND ak.user_id = ?1) AS mine,
+             (EXISTS (SELECT 1 FROM announcement_acks ak WHERE ak.announcement_id = a.id AND ak.user_id = ?1)
+              OR EXISTS (SELECT 1 FROM staff_announcement_acks sk WHERE sk.announcement_id = a.id AND sk.user_id = ?1)) AS mine,
              a.body
         FROM announcements a LEFT JOIN users u ON u.id = a.created_by
        WHERE ${where}
@@ -126,13 +131,14 @@ function registerCommunication(r: Router) {
              COALESCE((SELECT TRIM(s2.first_name || ' ' || COALESCE(s2.last_name,'')) FROM student_guardians sg2 JOIN students s2 ON s2.id = sg2.student_id
                         WHERE sg2.guardian_id = g.id ORDER BY s2.first_name LIMIT 1),
                       CASE WHEN st.id IS NOT NULL THEN TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')) END) AS student,
-             CASE WHEN ack.acked_at IS NULL THEN NULL ELSE SUBSTR(ack.acked_at,1,10) || ' ' || SUBSTR(ack.acked_at,12,5) END AS acked_at
+             CASE WHEN COALESCE(ack.acked_at, sak.acked_at) IS NULL THEN NULL ELSE SUBSTR(COALESCE(ack.acked_at, sak.acked_at),1,10) || ' ' || SUBSTR(COALESCE(ack.acked_at, sak.acked_at),12,5) END AS acked_at
         FROM recipients rcp
         JOIN users u ON u.id = rcp.user_id
         LEFT JOIN guardians g ON g.id = (SELECT id FROM guardians WHERE user_id = u.id LIMIT 1)
         LEFT JOIN students st ON st.id = (SELECT id FROM students WHERE user_id = u.id LIMIT 1)
         LEFT JOIN announcement_acks ack ON ack.announcement_id = ?${rc.args.length + 2} AND ack.user_id = u.id
-       ORDER BY (ack.acked_at IS NULL) DESC, 1`).bind(ann.audience_role, ...rc.args, annId).all()
+        LEFT JOIN staff_announcement_acks sak ON sak.announcement_id = ?${rc.args.length + 2} AND sak.user_id = u.id
+       ORDER BY (COALESCE(ack.acked_at, sak.acked_at) IS NULL) DESC, 1`).bind(ann.audience_role, ...rc.args, annId).all()
     let acknowledged = 0
     const list = people.results.map((p) => {
       if (p.acked_at != null) acknowledged++
@@ -157,7 +163,19 @@ function registerCommunication(r: Router) {
     const annId = c.params.id
     if (!isUUID(annId)) throw badRequest('invalid circular id')
     const res = await resolveScope(c)
-    if (res.studentIds.length === 0) throw badRequest('only a student or guardian can acknowledge a circular')
+    /* A member of staff acknowledges for themselves: the handbook is
+       circulars of kind policy sent to staff, and HR reads who has signed. A
+       class teacher also reaches children through scope, so staff is decided
+       first, by the roll, not by what the account can see. */
+    const emp = await c.db.prepare(`SELECT 1 FROM employees WHERE user_id = ? AND status IN ('active','on_leave')`).bind(c.id.userId).first()
+    if (emp || res.studentIds.length === 0) {
+      if (!emp) throw badRequest('only a student, a guardian or a member of staff can acknowledge a circular')
+      const ann = await c.db.prepare(`SELECT 1 AS ok FROM announcements WHERE id = ?`).bind(annId).first()
+      if (!ann) throw notFound('resource not found')
+      await c.db.prepare(`INSERT INTO staff_announcement_acks (announcement_id, user_id, institution_id, acked_at) VALUES (?, ?, ?, ?)
+          ON CONFLICT (announcement_id, user_id) DO UPDATE SET acked_at = excluded.acked_at`).bind(annId, c.id.userId, c.id.institution!.id, now()).run()
+      return ok({ acknowledged: true })
+    }
     let target = res.studentIds[0]
     const q = c.url.searchParams.get('student_id')
     if (q) {
@@ -309,6 +327,90 @@ function registerCompliance(r: Router) {
     }))))
   })
 
+  /* THE RETURNS, MONTHS BEFORE THEY ARE DUE.
+
+     UDISE+, APAAR, RTE and the training return each ask for fields the
+     office fills over the year; the scramble comes from finding out in
+     September what was never captured. One answer counts, per return, what
+     is missing today, and names the screen it is filled on. */
+  r.get('/compliance/readiness', REPORTS_READ, async (c) => {
+    const inst = c.id.institution!.id
+    const st = await c.db.prepare(`
+      SELECT count(*) AS total,
+        sum(CASE WHEN st.date_of_birth IS NULL THEN 1 ELSE 0 END) AS no_dob,
+        sum(CASE WHEN st.gender IS NULL OR st.gender = '' THEN 1 ELSE 0 END) AS no_gender,
+        sum(CASE WHEN st.category IS NULL OR st.category = '' THEN 1 ELSE 0 END) AS no_category,
+        sum(CASE WHEN st.apaar_id IS NULL OR st.apaar_id = '' THEN 1 ELSE 0 END) AS no_apaar,
+        sum(CASE WHEN COALESCE(st.aadhaar_consent, 0) = 0 THEN 1 ELSE 0 END) AS no_aadhaar_consent,
+        sum(CASE WHEN st.medium IS NULL OR st.medium = '' THEN 1 ELSE 0 END) AS no_medium,
+        sum(CASE WHEN st.mother_tongue IS NULL OR st.mother_tongue = '' THEN 1 ELSE 0 END) AS no_mother_tongue,
+        sum(CASE WHEN NOT EXISTS (SELECT 1 FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND g.phone <> '') THEN 1 ELSE 0 END) AS no_guardian_phone,
+        sum(CASE WHEN NOT EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = st.id AND e.status = 'active') THEN 1 ELSE 0 END) AS no_class,
+        sum(CASE WHEN st.is_rte = 1 THEN 1 ELSE 0 END) AS rte,
+        sum(CASE WHEN st.is_cwsn = 1 AND (st.cwsn_type IS NULL OR st.cwsn_type = '') THEN 1 ELSE 0 END) AS cwsn_no_type
+      FROM students st WHERE st.status = 'active'`).first<Record<string, number>>()
+    const sc = await c.db.prepare(`SELECT udise_code, affiliation_board, affiliation_no, affiliation_valid_to, state, district, school_category, management_type FROM institutions WHERE id = ?`).bind(inst).first<Record<string, string | null>>()
+    const campuses = await c.db.prepare(`SELECT count(*) AS n, sum(CASE WHEN udise_code IS NULL OR udise_code = '' THEN 1 ELSE 0 END) AS no_udise FROM campuses WHERE status <> 'closed' OR status IS NULL`).first<{ n: number; no_udise: number }>()
+    const em = await c.db.prepare(`
+      SELECT count(*) AS total,
+        sum(CASE WHEN e.date_of_birth IS NULL THEN 1 ELSE 0 END) AS no_dob,
+        sum(CASE WHEN e.gender IS NULL OR e.gender = '' THEN 1 ELSE 0 END) AS no_gender,
+        sum(CASE WHEN e.qualification IS NULL OR e.qualification = '' THEN 1 ELSE 0 END) AS no_qualification,
+        sum(CASE WHEN e.pan IS NULL OR e.pan = '' THEN 1 ELSE 0 END) AS no_pan,
+        sum(CASE WHEN e.designation_id IS NULL THEN 1 ELSE 0 END) AS no_designation,
+        sum(CASE WHEN e.phone IS NULL OR e.phone = '' THEN 1 ELSE 0 END) AS no_phone
+      FROM employees e WHERE e.status IN ('active','on_leave')`).first<Record<string, number>>()
+    const training = await c.db.prepare(`
+      SELECT COALESCE(des.category, 'all') AS category, count(DISTINCT e.id) AS staff,
+        sum(CASE WHEN COALESCE((SELECT sum(tr.hours_completed) FROM staff_training_records tr JOIN training_programmes p ON p.id = tr.programme_id
+                                 WHERE tr.employee_id = e.id AND tr.status = 'attended' AND p.academic_year_id = ay.id), 0) < req.required_hours THEN 1 ELSE 0 END) AS short,
+        req.required_hours
+      FROM training_requirements req JOIN academic_years ay ON ay.id = req.academic_year_id AND ay.is_current = 1
+      JOIN employees e ON e.status IN ('active','on_leave') AND (req.designation_id IS NULL OR req.designation_id = e.designation_id)
+      LEFT JOIN designations des ON des.id = e.designation_id
+      WHERE req.designation_category IS NULL OR req.designation_category = des.category
+      GROUP BY req.id`).all<Record<string, unknown>>()
+    const n = (v: unknown) => Number(v ?? 0)
+    const s = st ?? {}, e = em ?? {}
+    const item = (key: string, label: string, missing: number, of: number, where: string) => ({ key, label, missing, of, where, ok: missing === 0 })
+    const school = [
+      item('udise_code', 'UDISE code of the school', sc?.udise_code ? 0 : 1, 1, 'School settings'),
+      item('campus_udise', 'UDISE code on every campus', n(campuses?.no_udise), n(campuses?.n), 'Institutions & campuses'),
+      item('affiliation', 'Board affiliation number and validity', sc?.affiliation_board && sc?.affiliation_no && sc?.affiliation_valid_to ? 0 : 1, 1, 'School settings'),
+      item('location', 'State and district', sc?.state && sc?.district ? 0 : 1, 1, 'School settings'),
+      item('management', 'School category and management type', sc?.school_category && sc?.management_type ? 0 : 1, 1, 'School settings'),
+    ]
+    const students = [
+      item('dob', 'Date of birth', n(s.no_dob), n(s.total), 'Student 360'),
+      item('gender', 'Gender', n(s.no_gender), n(s.total), 'Student 360'),
+      item('category', 'Social category', n(s.no_category), n(s.total), 'Student 360'),
+      item('medium', 'Medium of instruction', n(s.no_medium), n(s.total), 'Student 360'),
+      item('mother_tongue', 'Mother tongue', n(s.no_mother_tongue), n(s.total), 'Student 360'),
+      item('apaar', 'APAAR ID', n(s.no_apaar), n(s.total), 'APAAR ID register'),
+      item('aadhaar_consent', 'Aadhaar consent recorded', n(s.no_aadhaar_consent), n(s.total), 'Student 360'),
+      item('guardian_phone', 'A guardian with a phone', n(s.no_guardian_phone), n(s.total), 'Student 360'),
+      item('class', 'Enrolled in a class this year', n(s.no_class), n(s.total), 'Class Setup'),
+      item('cwsn_type', 'CWSN type where CWSN', n(s.cwsn_no_type), n(s.total), 'Student 360'),
+    ]
+    const staff = [
+      item('staff_dob', 'Date of birth', n(e.no_dob), n(e.total), 'Staff 360'),
+      item('staff_gender', 'Gender', n(e.no_gender), n(e.total), 'Staff 360'),
+      item('staff_qualification', 'Qualification', n(e.no_qualification), n(e.total), 'Staff 360'),
+      item('staff_designation', 'Designation', n(e.no_designation), n(e.total), 'Staff 360'),
+      item('staff_pan', 'PAN', n(e.no_pan), n(e.total), 'Staff 360'),
+      item('staff_phone', 'Phone', n(e.no_phone), n(e.total), 'Staff 360'),
+    ]
+    const trainingRows = training.results.map((t) => ({ category: String(t.category), staff: n(t.staff), short: n(t.short), required_hours: n(t.required_hours) }))
+    const groups = [
+      { key: 'udise', title: 'UDISE+ return', items: [...school, ...students.filter((i) => ['dob', 'gender', 'category', 'medium', 'mother_tongue', 'class', 'cwsn_type'].includes(i.key)), ...staff.filter((i) => ['staff_dob', 'staff_gender', 'staff_qualification', 'staff_designation'].includes(i.key))] },
+      { key: 'apaar', title: 'APAAR (One Nation One Student ID)', items: students.filter((i) => ['apaar', 'aadhaar_consent', 'dob', 'guardian_phone'].includes(i.key)) },
+      { key: 'rte', title: 'RTE 25 percent register', items: [item('rte', 'Children flagged RTE', 0, n(s.rte), 'RTE Quota'), ...students.filter((i) => ['category', 'guardian_phone'].includes(i.key))] },
+      { key: 'training', title: 'Staff training hours', items: trainingRows.map((t) => item('training_' + t.category, `${t.category === 'all' ? 'All staff' : t.category}: ${t.required_hours} hours this year`, t.short, t.staff, 'Staff training & development')) },
+    ]
+    const missing = groups.reduce((a, g) => a + g.items.reduce((b, i) => b + i.missing, 0), 0)
+    return ok({ groups, missing_total: missing, students: n(s.total), staff: n(e.total), training_rules: trainingRows.length })
+  })
+
   r.post('/compliance/apaar', STUDENTS_WRITE, async (c) => {
     const req = await readJSON<{ student_id?: string; apaar_id?: string; aadhaar_consent?: boolean }>(c.req)
     const sid = req.student_id ?? ''
@@ -329,12 +431,52 @@ function registerCompliance(r: Router) {
 // ============================================================ /payroll
 
 interface PtSlab { id?: string; state: string; from_paise: number; to_paise?: number; monthly_paise: number; february_paise?: number }
-interface PayrollSettings {
+interface PayrollSettings extends PayRules {
   pf_enabled: boolean; pf_employee_percent: number; pf_employer_percent: number; pf_wage_ceiling_paise: number; eps_percent: number
   pf_admin_percent: number; pf_establishment_code?: string; esi_enabled: boolean; esi_employee_percent: number; esi_employer_percent: number
   esi_wage_threshold_paise: number; esi_code?: string; pt_state: string; pt_enabled: boolean; substitution_rate_paise: number
   overtime_hourly_paise: number; overtime_holiday_multiplier: number; gratuity_days: number; gratuity_month_days: number
   gratuity_min_years: number; gratuity_cap_paise: number; bank_name?: string; bank_account?: string; pt_slabs: PtSlab[]
+}
+/* PER-SCHOOL RULES (migration 0084). Each default is how the run already
+   worked, so a school only changes by opting in. If the migration has not
+   reached a database, loadPayrollSettings falls back to these defaults. */
+export interface PayRules {
+  pf_wage_base: 'basic_da' | 'basic'
+  lop_method: 'prorate' | 'day_pay'
+  lop_day_base: 'gross' | 'ctc'
+  lop_divisor: 'month' | '30' | '26' | 'pattern'
+  free_leave_days: number
+  late_rule: 'policy' | 'per_day'
+  late_marks_per_day: number
+  pay_holidays_worked: boolean
+  esi_mode: 'deduct' | 'employer'
+  bank_branch?: string
+  bank_address?: string
+  rules_available: boolean
+}
+export const DEFAULT_RULES: PayRules = {
+  pf_wage_base: 'basic_da', lop_method: 'prorate', lop_day_base: 'gross', lop_divisor: 'month', free_leave_days: 0,
+  late_rule: 'policy', late_marks_per_day: 3, pay_holidays_worked: false, esi_mode: 'deduct', rules_available: false,
+}
+const RULE_COLUMNS = 'pf_wage_base, lop_method, lop_day_base, lop_divisor, free_leave_days, late_rule, late_marks_per_day, pay_holidays_worked, esi_mode, bank_branch, bank_address'
+const pick = <T extends string>(v: unknown, allowed: readonly T[], dflt: T): T => (allowed as readonly string[]).includes(String(v)) ? String(v) as T : dflt
+export function rulesFrom(row: Record<string, unknown> | null | undefined): PayRules {
+  if (!row) return { ...DEFAULT_RULES }
+  return {
+    pf_wage_base: pick(row.pf_wage_base, ['basic_da', 'basic'] as const, 'basic_da'),
+    lop_method: pick(row.lop_method, ['prorate', 'day_pay'] as const, 'prorate'),
+    lop_day_base: pick(row.lop_day_base, ['gross', 'ctc'] as const, 'gross'),
+    lop_divisor: pick(row.lop_divisor, ['month', '30', '26', 'pattern'] as const, 'month'),
+    free_leave_days: Math.max(0, numOr0(row.free_leave_days)),
+    late_rule: pick(row.late_rule, ['policy', 'per_day'] as const, 'policy'),
+    late_marks_per_day: Math.max(1, Math.round(numOr0(row.late_marks_per_day) || 3)),
+    pay_holidays_worked: bool(row.pay_holidays_worked),
+    esi_mode: pick(row.esi_mode, ['deduct', 'employer'] as const, 'deduct'),
+    bank_branch: row.bank_branch == null ? undefined : String(row.bank_branch),
+    bank_address: row.bank_address == null ? undefined : String(row.bank_address),
+    rules_available: true,
+  }
 }
 interface Statutory {
   pf_wage_paise: number; pf_employee_paise: number; pf_employer_paise: number; eps_paise: number; pf_admin_paise: number
@@ -365,8 +507,11 @@ async function loadPayrollSettings(c: Ctx): Promise<PayrollSettings> {
     overtime_hourly_paise: numOr0(row.overtime_hourly_paise), overtime_holiday_multiplier: numOr0(row.overtime_holiday_multiplier),
     gratuity_days: numOr0(row.gratuity_days), gratuity_month_days: numOr0(row.gratuity_month_days), gratuity_min_years: numOr0(row.gratuity_min_years),
     gratuity_cap_paise: numOr0(row.gratuity_cap_paise), bank_name: row.bank_name == null ? undefined : String(row.bank_name),
-    bank_account: row.bank_account == null ? undefined : String(row.bank_account), pt_slabs: [],
+    bank_account: row.bank_account == null ? undefined : String(row.bank_account), pt_slabs: [], ...DEFAULT_RULES,
   }
+  try {
+    Object.assign(v, rulesFrom(await c.db.prepare(`SELECT ${RULE_COLUMNS} FROM payroll_settings WHERE institution_id = ?`).bind(inst).first<Record<string, unknown>>()))
+  } catch { /* migration 0084 not applied here yet: keep the defaults */ }
   const slabs = await c.db.prepare(`SELECT id, state, from_paise, to_paise, monthly_paise, february_paise FROM pt_slabs
       WHERE institution_id = ? AND state = ? ORDER BY from_paise`).bind(inst, v.pt_state).all<Record<string, unknown>>()
   v.pt_slabs = slabs.results.map((s) => ({
@@ -389,6 +534,8 @@ function professionalTax(slabs: PtSlab[], gross: number, month: number): number 
 }
 
 function computeStatutory(set: PayrollSettings, basicPlusDA: number, gross: number, month: number): Statutory {
+  /* basicPlusDA is the PF wage the caller chose (Basic + DA, or Basic alone when
+     the school's pf_wage_base says so; see pfWageOf). */
   const out: Statutory = { pf_wage_paise: 0, pf_employee_paise: 0, pf_employer_paise: 0, eps_paise: 0, pf_admin_paise: 0, esi_employee_paise: 0, esi_employer_paise: 0, pt_paise: 0 }
   if (set.pf_enabled && basicPlusDA > 0) {
     let wage = basicPlusDA
@@ -401,10 +548,96 @@ function computeStatutory(set: PayrollSettings, basicPlusDA: number, gross: numb
     out.pf_admin_paise = pct(wage, set.pf_admin_percent)
   }
   if (set.esi_enabled && gross > 0 && gross <= set.esi_wage_threshold_paise) {
-    out.esi_employee_paise = pct(gross, set.esi_employee_percent)
-    out.esi_employer_paise = pct(gross, set.esi_employer_percent)
+    /* Whole rupees, as on the school's own sheet (Yajur, 2026-10-16):
+       Rs 113.25 was Rs 113 there, and a payslip in paise matched nobody's. */
+    const rupee = (p: number) => Math.round(p / 100) * 100
+    out.esi_employee_paise = rupee(pct(gross, set.esi_employee_percent))
+    out.esi_employer_paise = rupee(pct(gross, set.esi_employer_percent))
   }
   if (set.pt_enabled) out.pt_paise = professionalTax(set.pt_slabs, gross, month)
+  return out
+}
+
+/* PF FOR ONE PERSON (Yajur, 2026-10-14: "PF should be by our choice per
+   person"; migration 0085). 'default' leaves the person on the school's rule,
+   exactly as before; 'none' takes no PF; 'basic' / 'basic_da' pick the PF wage
+   for this person only. A percent, when set, replaces the employee's PF rate
+   for them; the employer's share stays at the school rate. Read apart from the
+   run's main query so a database without the migration still runs. */
+type PfMode = 'default' | 'none' | 'basic' | 'basic_da'
+interface PfPerson { mode: PfMode; percent: number | null; esi?: boolean }
+const PF_MODES = ['default', 'none', 'basic', 'basic_da'] as const
+async function pfOverrides(c: Ctx): Promise<Map<string, PfPerson>> {
+  const out = new Map<string, PfPerson>()
+  try {
+    const rows = await c.db.prepare(`SELECT id, pf_mode, pf_percent FROM employees WHERE pf_mode <> 'default' OR pf_percent IS NOT NULL`)
+      .all<{ id: string; pf_mode: string; pf_percent: number | null }>()
+    for (const r of rows.results) out.set(r.id, { mode: pick(r.pf_mode, PF_MODES, 'default'), percent: num(r.pf_percent) })
+  } catch { /* migration 0085 not applied: nobody overridden */ }
+  /* ESI for one person (migration 0088): 0 = no ESI from or for them, even
+     under the wage limit, as on Yajur's own sheet. */
+  try {
+    const rows = await c.db.prepare(`SELECT id FROM employees WHERE esi_applies = 0`).all<{ id: string }>()
+    for (const r of rows.results) out.set(r.id, { ...(out.get(r.id) ?? { mode: 'default', percent: null }), esi: false })
+  } catch { /* migration 0088 not applied */ }
+  return out
+}
+/** The PF wage for one person: the school's (passed in) unless they have their own choice. */
+function personPfWage(p: PfPerson | undefined, basic: number, da: number, school: number): number {
+  if (!p || p.mode === 'default') return school
+  return p.mode === 'none' ? 0 : p.mode === 'basic' ? basic : basic + da
+}
+function personSettings(set: PayrollSettings, p: PfPerson | undefined): PayrollSettings {
+  let out = p?.percent != null && p.percent >= 0 ? { ...set, pf_employee_percent: p.percent } : set
+  if (p?.esi === false) out = { ...out, esi_enabled: false }
+  return out
+}
+
+/** One day's pay under the school's "deduct a day's pay" rule: gross, or CTC
+ *  (gross + the employer's PF), over the chosen divisor. Unrounded paise. */
+export function oneDayPay(set: PayRules, fullGross: number, full: Statutory, daysInMonthN: number, patternBase: number): number {
+  const base = set.lop_day_base === 'ctc' ? fullGross + full.pf_employer_paise + full.eps_paise : fullGross
+  const div = set.lop_divisor === '30' ? 30 : set.lop_divisor === '26' ? 26 : set.lop_divisor === 'pattern' ? (patternBase || daysInMonthN) : daysInMonthN
+  return div > 0 ? base / div : 0
+}
+
+/* A DAY'S PAY FOR EVERY ACTIVE MEMBER OF STAFF, for the year-end payout
+   (owner, 2026-10-14). Gross is the salary in force on the first of the pay
+   month, worked out as the run does: the parts, or the one gross figure when
+   there are none. CTC adds the employer's PF, as the run's "deduct a day's
+   pay" rule does. The pattern divisor is the person's work pattern's, 0 when
+   it has none. Nobody without a salary in force is in the map. */
+export interface PayBase { gross_paise: number; ctc_paise: number; pattern_divisor: number }
+export async function staffPayBases(c: Ctx, year: number, month: number): Promise<Map<string, PayBase>> {
+  const set = await loadPayrollSettings(c)
+  const pfPeople = await pfOverrides(c)
+  const firstDay = `${year}-${pad2(month)}-01`
+  const emps = await c.db.prepare(`
+    SELECT e.id, ss.id AS structure, COALESCE(ss.ctc_paise, 0) AS ctc_paise, COALESCE(p.salary_divisor, 0) AS divisor
+      FROM employees e
+      JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?1 AND (ss.effective_to IS NULL OR ss.effective_to >= ?1)
+      LEFT JOIN departments d ON d.id = e.department_id
+      LEFT JOIN work_patterns p ON p.id = COALESCE(e.work_pattern_id, d.work_pattern_id, (SELECT dp.id FROM work_patterns dp WHERE dp.is_default LIMIT 1))
+     WHERE e.status = 'active' AND e.user_id IS NOT NULL`).bind(firstDay)
+    .all<{ id: string; structure: string; ctc_paise: number; divisor: number }>()
+  const out = new Map<string, PayBase>()
+  for (const e of emps.results) {
+    const comps = await c.db.prepare(`SELECT sc.code, sc.kind, ssi.amount_paise FROM salary_structure_items ssi
+        JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ?`).bind(e.structure)
+      .all<{ code: string; kind: string; amount_paise: number }>()
+    let gross = 0, basic = 0, da = 0
+    for (const cmp of comps.results) {
+      if (cmp.kind !== 'earning') continue
+      gross += cmp.amount_paise
+      if (cmp.code === 'BASIC') basic += cmp.amount_paise
+      else if (cmp.code === 'DA') da += cmp.amount_paise
+    }
+    if (gross === 0) gross = Number(e.ctc_paise)
+    const pfp = pfPeople.get(e.id)
+    const schoolWage = set.pf_wage_base === 'basic' ? basic : basic + da
+    const st = computeStatutory(personSettings(set, pfp), personPfWage(pfp, basic, da, schoolWage), gross, month)
+    out.set(e.id, { gross_paise: gross, ctc_paise: gross + st.pf_employer_paise + st.eps_paise, pattern_divisor: numOr0(e.divisor) })
+  }
   return out
 }
 
@@ -437,7 +670,8 @@ Port of staff_lop_register(p_year, p_month) from migrations/00244_lop_shifts_and
 the month's attendance turned into days of loss of pay under the school's own
 leave policy, shifts, holidays and leave quotas.
 */
-interface LopRow { lop_days: number; expected_days: number }
+interface LopRow { lop_days: number; expected_days: number; holidays_worked?: number; late_marks?: number; free_leave_used?: number
+  absent_days?: number; half_days?: number; unpaid_leave_days?: number; late_dates?: string[] }
 
 function intList(raw: unknown, dflt: number[]): number[] {
   const s = str(raw).trim()
@@ -448,7 +682,7 @@ function intList(raw: unknown, dflt: number[]): number[] {
 }
 const minutesOf = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return (h || 0) * 60 + (m || 0) }
 
-async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<string, LopRow>> {
+async function lopRegister(c: Ctx, year: number, month: number, rules: PayRules = DEFAULT_RULES): Promise<Map<string, LopRow>> {
   const inst = c.id.institution!.id
   const firstDay = `${year}-${pad2(month)}-01`
   const lastDay = `${year}-${pad2(month)}-${pad2(daysInMonth(year, month))}`
@@ -465,6 +699,9 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
     rounding: polRow ? str(polRow.lop_rounding) : 'half',
     maxPerMonth: polRow ? num(polRow.max_lop_days_per_month) : null,
   }
+  /* "N late marks = 1 day" (school setting): N comes from payroll settings and
+     a very late arrival is a late mark, not a half day. */
+  if (rules.late_rule === 'per_day') { pol.lateMarksPerDay = rules.late_marks_per_day; pol.lateHalfDayAfter = null }
   const ay = await c.db.prepare(`SELECT starts_on FROM academic_years WHERE ? BETWEEN starts_on AND ends_on ORDER BY is_current DESC LIMIT 1`)
     .bind(firstDay).first<{ starts_on: string }>()
   const yearFrom = ay?.starts_on ?? `${year}-01-01`
@@ -488,9 +725,8 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
       workingDays: intList(s.working_days, [1, 2, 3, 4, 5, 6]),
     })
   }
-  const holidays = await c.db.prepare(`SELECT on_date, COALESCE(to_date, on_date) AS to_date FROM holidays
-      WHERE kind IN ('holiday','vacation') AND applies_to IN ('all','staff') AND on_date <= ? AND COALESCE(to_date, on_date) >= ?`)
-    .bind(lastDay, firstDay).all<{ on_date: string; to_date: string }>()
+  // Whose holiday it is: everyone's, all staff, or only teaching / non-teaching staff (hr/staff_holidays.ts).
+  const isHoliday = await staffHolidayChecker(c.db, firstDay, lastDay)
   const nDays = daysInMonth(year, month)
   const expected = new Map<string, number>()
   for (const [eid, sh] of shift) {
@@ -500,7 +736,7 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
       const dow = new Date(day + 'T00:00:00Z').getUTCDay()
       const isodow = dow === 0 ? 7 : dow
       if (!sh.workingDays.includes(isodow)) continue
-      if (holidays.results.some((h) => day >= h.on_date && day <= h.to_date)) continue
+      if (isHoliday(day, sh.uid)) continue
       n++
     }
     expected.set(eid, n)
@@ -537,13 +773,32 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
                                                AND sa.on_date BETWEEN r.from_date AND r.to_date ORDER BY r.from_date DESC LIMIT 1)
       LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
      WHERE sa.on_date BETWEEN ? AND ?`).bind(firstDay, lastDay).all<Record<string, unknown>>()
-  interface Tally { charged: number; marks: number }
+  interface Tally { charged: number; marks: number; holidayWork: number; absent?: number; half?: number; unpaid?: number; lateDates?: string[] }
   const tally = new Map<string, Tally>()
   for (const m of marked.results) {
     const eid = str(m.eid)
     const sh = shift.get(eid)
     if (!sh) continue
     const status = str(m.status)
+    /* WORKED ON A HOLIDAY (comp-off): present on a day that is a holiday or a
+       weekly off for this person. Counted always, paid only if the school
+       turns it on. */
+    {
+      const day = str(m.on_date)
+      const dow = new Date(day + 'T00:00:00Z').getUTCDay()
+      const off = !sh.workingDays.includes(dow === 0 ? 7 : dow) || isHoliday(day, sh.uid)
+      if (off && ['present', 'late', 'permission', 'on_duty'].includes(status)) {
+        const t0 = tally.get(eid) ?? { charged: 0, marks: 0, holidayWork: 0 }
+        t0.holidayWork += 1
+        tally.set(eid, t0)
+      }
+      /* A HOLIDAY NEVER CUTS PAY (Yajur, 2026-10-16: deductions did not
+         match the register). Coming in on Dussehra at 09:30 used to count as
+         a late mark, and three of those took a day's pay for working a
+         holiday; an "absent" on a holiday took a whole day. Neither is
+         absence from work the school expected. */
+      if (off) continue
+    }
     const halfLeave = bool(m.is_half_day)
     const paidLeave = m.is_paid == null ? false : bool(m.is_paid)
     const quotaExcess = excess.get(`${eid}|${m.on_date}`) ?? 0
@@ -565,18 +820,31 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
     let lateMark = 0
     if (['absent', 'half_day', 'leave', 'holiday', 'week_off'].includes(status)) lateMark = 0
     else if (pol.lateHalfDayAfter != null && (late ?? 0) >= pol.lateHalfDayAfter) lateMark = 0
+    /* PERMISSION (Yajur, 2026-10-13: "coming late one hour with permission is
+       a permission and they won't get cut"). Within the hour it is not a late
+       mark; beyond it, it is late like any other day. */
+    else if (status === 'permission') lateMark = (late ?? 0) > PERMISSION_MINUTES ? 1 : 0
     else if (status === 'late' || (late ?? 0) > sh.grace) lateMark = 1
-    const t = tally.get(eid) ?? { charged: 0, marks: 0 }
+    const t = tally.get(eid) ?? { charged: 0, marks: 0, holidayWork: 0 }
     t.charged += charged; t.marks += lateMark
+    // What the cut is made of, so the payroll screen can say why.
+    if (status === 'absent' && charged > 0) t.absent = (t.absent ?? 0) + charged
+    else if (status === 'half_day' && charged > 0) t.half = (t.half ?? 0) + 1
+    else if (status === 'leave' && charged > 0) t.unpaid = (t.unpaid ?? 0) + charged
+    if (lateMark) (t.lateDates ??= []).push(str(m.on_date))
     tally.set(eid, t)
   }
   const out = new Map<string, LopRow>()
   for (const [eid, t] of tally) {
-    const gross = t.charged + Math.floor(t.marks / (pol.lateMarksPerDay || 3))
+    /* Free leave per month (school setting): that many days of leave or
+       absence are forgiven before any loss of pay; late marks are not. */
+    const free = Math.min(rules.free_leave_days, t.charged)
+    const gross = t.charged - free + Math.floor(t.marks / (pol.lateMarksPerDay || 3))
     let v = pol.rounding === 'up' ? Math.ceil(gross) : pol.rounding === 'half' ? Math.round(gross * 2) / 2 : gross
     if (pol.maxPerMonth != null) v = Math.min(v, pol.maxPerMonth)
     v = Math.min(v, nDays)
-    out.set(eid, { lop_days: Number(v.toFixed(2)), expected_days: expected.get(eid) ?? 0 })
+    out.set(eid, { lop_days: Number(v.toFixed(2)), expected_days: expected.get(eid) ?? 0, holidays_worked: t.holidayWork, late_marks: t.marks, free_leave_used: free,
+      absent_days: t.absent ?? 0, half_days: t.half ?? 0, unpaid_leave_days: t.unpaid ?? 0, late_dates: (t.lateDates ?? []).sort() })
   }
   for (const [eid] of shift) if (!out.has(eid)) out.set(eid, { lop_days: 0, expected_days: expected.get(eid) ?? 0 })
   return out
@@ -585,22 +853,84 @@ async function lopRegister(c: Ctx, year: number, month: number): Promise<Map<str
 // ------------------------------------------------------------ the run
 
 async function runPayroll(c: Ctx) {
-  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean }>(c.req)
+  const req = await readJSON<{ month?: number; year?: number; acknowledge_unmarked_attendance?: boolean; acknowledge_unpaid_staff?: boolean; exclude_employee_ids?: string[] }>(c.req)
+  /* Staff the person running payroll chose to leave out of this month (owner,
+     2026-10-08: "let them deselect him / her"). */
+  const excluded = new Set((Array.isArray(req.exclude_employee_ids) ? req.exclude_employee_ids : []).filter((x) => typeof x === 'string'))
   const month = Number(req.month ?? 0), year = Number(req.year ?? 0)
   if (month < 1 || month > 12 || year < 2000) throw badRequest('month must be 1-12 and year must be valid')
   const inst = c.id.institution!.id
   const key = `${year}-${pad2(month)}`
 
-  if (!req.acknowledge_unmarked_attendance) {
-    const gap = await c.db.prepare(`
-      SELECT COUNT(*) AS staff, COALESCE(SUM(MAX(0, ?2 - marked)), 0) AS days FROM (
-        SELECT e.id, (SELECT COUNT(*) FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1) AS marked
-          FROM employees e WHERE e.status = 'active' AND e.user_id IS NOT NULL) t
-       WHERE marked = 0`).bind(key, daysInMonth(year, month)).first<{ staff: number; days: number }>()
-    if (gap && gap.staff > 0) {
+  /* AND THE PEOPLE THIS RUN WOULD NOT PAY AT ALL.
+
+     The run joins salary_structures, so anybody without one in force for the
+     month is dropped by the query -- no payslip, no row, no mention. On this
+     school that was twelve of twenty: every driver, every EMP and FB code.
+     Nobody is told, and the month looks complete because the eight who do
+     have a structure all got paid.
+
+     An unmarked register is a question about how much to pay somebody. This
+     is a question about whether they are paid at all, so it is asked first
+     and it names them. Acknowledging runs the month without them, which is
+     sometimes right -- a contractor paid from vendor bills has no salary
+     structure on purpose -- but it should be a decision rather than a
+     silence. */
+  if (!req.acknowledge_unpaid_staff) {
+    const noPay = (await c.db.prepare(`
+      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name
+        FROM employees e
+       WHERE e.status = 'active' AND e.user_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM salary_structures ss
+            WHERE ss.employee_id = e.id AND ss.effective_from <= ?1
+              AND (ss.effective_to IS NULL OR ss.effective_to >= ?1))
+       ORDER BY e.employee_code`).bind(`${key}-01`).all<{ id: string; code: string; name: string }>()).results
+    if (noPay.length > 0) {
       throw new HttpError(409,
-        `${gap.staff} staff have no attendance marked for this month. Their days will be paid in full, and loss of pay will deduct nothing. Acknowledge to run anyway.`,
-        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.staff, unmarked_days: gap.days } })
+        `${noPay.length} of the staff on the roll have no salary in force for this month, so this run would not pay them at all. Set a salary for them, or acknowledge to run without them.`,
+        { code: 'no_salary_structure', unpaid: { count: noPay.length,
+          staff: noPay.map((g) => ({ id: g.id, code: g.code, name: g.name })) } })
+    }
+  }
+
+  if (!req.acknowledge_unmarked_attendance) {
+    /* Only people this run would pay: staff with no salary in force are not
+       paid at all, so their empty register is not a question. Each is named,
+       with the pay they would get in full, so the choice is about people. */
+    /* EVERY WORKING DAY, NOT ANY DAY (Yajur, 2026-10-19: "after mark
+       attendance ... dont show names if they didnt mark whole month still
+       show that"). Someone was listed only with no mark at all in the month,
+       so one marked day took them off the list with three weeks still empty.
+       Now: listed while any working day so far -- Sundays and school
+       holidays left out -- has no mark, and gone once every one has. */
+    const lastDay = `${key}-${pad2(daysInMonth(year, month))}`
+    const upTo = todayIST() < lastDay ? todayIST() : lastDay
+    const hol = await staffHolidays(c.db, `${key}-01`, upTo)
+    const workDays: string[] = []
+    for (let d = 1; d <= daysInMonth(year, month); d++) {
+      const day = `${key}-${pad2(d)}`
+      if (day > upTo) break
+      if (new Date(day + 'T00:00:00Z').getUTCDay() === 0 || hol.has(day)) continue
+      workDays.push(day)
+    }
+    const rows = (await c.db.prepare(`
+      SELECT e.id, e.employee_code AS code, ${EMP_NAME} AS name, ss.ctc_paise,
+             (SELECT group_concat(sa.on_date) FROM staff_attendance sa WHERE sa.user_id = e.user_id AND SUBSTR(sa.on_date,1,7) = ?1 AND sa.status IS NOT NULL) AS marked
+        FROM employees e
+        JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?2 AND (ss.effective_to IS NULL OR ss.effective_to >= ?2)
+       WHERE e.status = 'active' AND e.user_id IS NOT NULL
+       ORDER BY e.employee_code`).bind(key, `${key}-01`).all<{ id: string; code: string; name: string; ctc_paise: number; marked: string | null }>()).results
+    const gap = rows.map((g) => {
+      const have = new Set((g.marked ?? '').split(',').map((x) => x.slice(0, 10)))
+      const days = workDays.filter((d) => !have.has(d))
+      return { ...g, missing: days.length, days }
+    }).filter((g) => g.missing > 0 && !excluded.has(g.id))
+    if (gap.length > 0) {
+      throw new HttpError(409,
+        `${gap.length} staff have working days with no attendance marked this month. They will be paid in full, with no loss of pay. Leave anyone out, or acknowledge to run.`,
+        { code: 'attendance_unmarked', unmarked: { staff_with_no_marks: gap.length, unmarked_days: gap.reduce((a, g) => a + g.missing, 0),
+          staff: gap.map((g) => ({ id: g.id, code: g.code, name: g.name, unmarked_days: g.missing, unmarked_dates: g.days, monthly_paise: Math.round(Number(g.ctc_paise ?? 0)) })) } })
     }
   }
 
@@ -624,20 +954,42 @@ async function runPayroll(c: Ctx) {
   const runId = run.id
   const nDays = daysInMonth(year, month)
   const set = await loadPayrollSettings(c)
-  const lop = await lopRegister(c, year, month)
+  const lop = await lopRegister(c, year, month, set)
+  const pfPeople = await pfOverrides(c)
+  // Holidays worked typed in by hand for the month (migration 0084; absent table = none).
+  const manualDays = new Map<string, number>()
+  try {
+    const md = await c.db.prepare(`SELECT employee_id, holidays_worked FROM payroll_month_days WHERE period_year = ? AND period_month = ?`)
+      .bind(year, month).all<{ employee_id: string; holidays_worked: number }>()
+    for (const r of md.results) manualDays.set(r.employee_id, numOr0(r.holidays_worked))
+  } catch { /* migration 0084 not applied */ }
   const firstDay = `${key}-01`
   const emps = await c.db.prepare(`
-    SELECT e.id, e.user_id, ss.id AS structure, COALESCE(p.lop_basis, 'salary') AS lop_basis, COALESCE(p.salary_divisor, 0) AS divisor
+    SELECT e.id, e.user_id, ss.id AS structure, COALESCE(ss.ctc_paise, 0) AS ctc_paise, COALESCE(p.lop_basis, 'salary') AS lop_basis, COALESCE(p.salary_divisor, 0) AS divisor
       FROM employees e
       JOIN salary_structures ss ON ss.employee_id = e.id AND ss.effective_from <= ?1 AND (ss.effective_to IS NULL OR ss.effective_to >= ?1)
       LEFT JOIN departments d ON d.id = e.department_id
       LEFT JOIN work_patterns p ON p.id = COALESCE(e.work_pattern_id, d.work_pattern_id, (SELECT dp.id FROM work_patterns dp WHERE dp.is_default LIMIT 1))
      WHERE e.status = 'active' AND e.user_id IS NOT NULL`).bind(firstDay)
-    .all<{ id: string; user_id: string; structure: string; lop_basis: string; divisor: number }>()
+    .all<{ id: string; user_id: string; structure: string; ctc_paise: number; lop_basis: string; divisor: number }>()
+
+  /* THE USUAL RULE OF EACH COMPONENT (Yajur, 2026-10-14: "once the
+     components are saved, that applies for all months till they change").
+     A component with a usual figure -- HRA 40% of Basic, say -- is paid to
+     everyone whose salary has no figure of its own for it, every month, until
+     the rule is changed. A figure typed on a person's form wins. PF, ESI and
+     PT are never rules here; the run works them out. Before migration 0086
+     there are no rules. */
+  let ruleComps: { code: string; kind: string; is_percent: number; percent_of: string | null; default_value: number }[] = []
+  try {
+    ruleComps = (await c.db.prepare(`SELECT code, kind, is_percent, percent_of, default_value FROM salary_components
+        WHERE default_value > 0 AND code NOT IN ('PF', 'ESI', 'PT') ORDER BY sequence, name`).all<typeof ruleComps[number]>()).results
+  } catch { /* no default_value column yet */ }
 
   const stmts: D1PreparedStatement[] = [c.db.prepare(`DELETE FROM payslips WHERE payroll_run_id = ?`).bind(runId)]
   let employees = 0, gross = 0, deduction = 0, net = 0
   for (const e of emps.results) {
+    if (excluded.has(e.id)) continue
     const l = lop.get(e.id) ?? { lop_days: 0, expected_days: 0 }
     let base = nDays
     if (e.divisor > 0) base = e.divisor
@@ -645,8 +997,13 @@ async function runPayroll(c: Ctx) {
     let paidDays = Math.max(0, base - l.lop_days)
     let ratio = paidDays / base
     if (e.lop_basis === 'none') { ratio = 1; paidDays = base }
+    /* "Deduct a day's pay" (school setting): every part is paid in full, PF and
+       PT are worked out on that full pay, and the days not worked come off as
+       one LOP line of (gross or CTC) / divisor per day. */
+    const dayPay = set.lop_method === 'day_pay' && e.lop_basis !== 'none'
+    if (dayPay) ratio = 1
 
-    let earn = 0, deduct = 0, basicDA = 0
+    let earn = 0, deduct = 0, basicDA = 0, fullGross = 0, fullPfWage = 0, basicV = 0, daV = 0, fullBasic = 0, fullDA = 0
     const breakup: Record<string, number> = {}
     const comps = await c.db.prepare(`SELECT sc.code, sc.kind, ssi.amount_paise FROM salary_structure_items ssi
         JOIN salary_components sc ON sc.id = ssi.component_id WHERE ssi.salary_structure_id = ? ORDER BY sc.sequence`).bind(e.structure)
@@ -655,20 +1012,82 @@ async function runPayroll(c: Ctx) {
       if (cmp.kind === 'earning') {
         const v = Math.trunc(cmp.amount_paise * ratio)
         earn += v; breakup[cmp.code] = v
-        if (cmp.code === 'BASIC' || cmp.code === 'DA') basicDA += v
+        fullGross += cmp.amount_paise
+        if (cmp.code === 'BASIC' || (cmp.code === 'DA' && set.pf_wage_base !== 'basic')) { basicDA += v; fullPfWage += cmp.amount_paise }
+        if (cmp.code === 'BASIC') { basicV += v; fullBasic += cmp.amount_paise } else if (cmp.code === 'DA') { daV += v; fullDA += cmp.amount_paise }
       } else if (cmp.kind === 'deduction') {
         if (cmp.code === 'PF' || cmp.code === 'ESI' || cmp.code === 'PT') continue
         deduct += cmp.amount_paise; breakup[cmp.code] = -cmp.amount_paise
       }
     }
+    /* A SALARY WITH NO PARTS IS STILL A SALARY.
+
+       The school's salary import sets each person's monthly gross and no
+       Basic/HRA/DA split, and the run read only the split -- so 47 staff with
+       a gross on file were paid Rs 0. With no earning parts, the monthly gross
+       is paid as one line, cut for loss of pay exactly as the parts would be.
+       Statutory deductions are then worked out on it as gross (PF, which needs
+       Basic + DA, waits for a split). */
+    if (!comps.results.some((x) => x.kind === 'earning') && Number(e.ctc_paise) > 0) {
+      const v = Math.trunc(Number(e.ctc_paise) * ratio)
+      earn += v; breakup.GROSS = v
+      fullGross += Number(e.ctc_paise)
+    }
+    if (ruleComps.length > 0) {
+      const have = new Set(comps.results.map((x) => x.code))
+      const grossBase = fullGross
+      let ruleEarn = 0
+      for (const r of ruleComps) {
+        if (have.has(r.code)) continue
+        const full = r.is_percent
+          ? Math.round(((r.percent_of === 'GROSS' ? grossBase : fullBasic) * Number(r.default_value)) / 100)
+          : Math.round(Number(r.default_value) * 100)
+        if (full <= 0) continue
+        if (r.kind === 'earning') {
+          const v = Math.trunc(full * ratio)
+          earn += v; breakup[r.code] = v; ruleEarn += v
+          if (breakup.GROSS === undefined) fullGross += full
+          if (r.code === 'BASIC') { basicV += v; fullBasic += full; basicDA += v; fullPfWage += full }
+          else if (r.code === 'DA') { daV += v; fullDA += full; if (set.pf_wage_base !== 'basic') { basicDA += v; fullPfWage += full } }
+        } else if (r.kind === 'deduction') {
+          deduct += full; breakup[r.code] = -full
+        }
+      }
+      /* A gross with no parts is split by the rules, not added to: the lines
+         come out of the one GROSS line, which keeps whatever is left. */
+      if (breakup.GROSS !== undefined && ruleEarn > 0) {
+        const cut = Math.min(breakup.GROSS, ruleEarn)
+        breakup.GROSS -= cut; earn -= cut
+        if (breakup.GROSS === 0) delete breakup.GROSS
+      }
+    }
+    const partsGross = earn
     if (set.substitution_rate_paise > 0) {
       const p = await c.db.prepare(`SELECT COUNT(*) AS n FROM substitutions sub WHERE sub.substitute_user_id = ? AND SUBSTR(sub.on_date,1,7) = ?`)
         .bind(e.user_id, key).first<{ n: number }>()
       if (p && p.n > 0) { const v = p.n * set.substitution_rate_paise; earn += v; breakup.SUBST = v }
     }
-    const st = computeStatutory(set, basicDA, earn, month)
-    for (const [code, amt] of [['PF', st.pf_employee_paise], ['ESI', st.esi_employee_paise], ['PT', st.pt_paise]] as [string, number][]) {
+    const pfp = pfPeople.get(e.id)
+    const pset = personSettings(set, pfp)
+    const st = computeStatutory(pset, personPfWage(pfp, basicV, daV, basicDA), earn, month)
+    /* ESI "employer pays it all": worked out and shown, not taken from pay. */
+    const esiCut = set.esi_mode === 'employer' ? 0 : st.esi_employee_paise
+    if (esiCut === 0 && st.esi_employee_paise > 0) breakup.ESI_EE_BY_EMPLOYER = st.esi_employee_paise
+    for (const [code, amt] of [['PF', st.pf_employee_paise], ['ESI', esiCut], ['PT', st.pt_paise]] as [string, number][]) {
       if (amt > 0) { deduct += amt; breakup[code] = -amt }
+    }
+    const holidays = set.pay_holidays_worked ? (l.holidays_worked ?? 0) + (manualDays.get(e.id) ?? 0) : 0
+    if (dayPay || holidays > 0) {
+      const full = computeStatutory(pset, personPfWage(pfp, fullBasic, fullDA, fullPfWage), fullGross, month)
+      const pay1 = oneDayPay(set, fullGross, full, nDays, base)
+      if (dayPay && l.lop_days > 0) {
+        const cut = Math.min(Math.round(pay1 * l.lop_days), partsGross)
+        if (cut > 0) { deduct += cut; breakup.LOP = -cut }
+      }
+      if (holidays > 0) {
+        const add = Math.round(pay1 * holidays)
+        if (add > 0) { earn += add; breakup.HOLIDAY_WORK = add }
+      }
     }
     for (const [code, amt] of [['PF_EMPLOYER', st.pf_employer_paise], ['EPS', st.eps_paise], ['ESI_EMPLOYER', st.esi_employer_paise]] as [string, number][]) {
       if (amt > 0) breakup[code] = amt
@@ -689,6 +1108,9 @@ async function runPayroll(c: Ctx) {
       if (take >= d.owing) stmts.push(c.db.prepare(`UPDATE staff_loans SET status = 'closed', closed_on = ? WHERE id = ?`).bind(todayIST(), d.id))
     }
     if (loanCut > 0) { deduct += loanCut; breakup.ADVANCE = -loanCut }
+    const adj = await monthAdjustments(c, e.id, year, month)
+    if (adj.earn > 0) { earn += adj.earn; breakup.ADJ_ADD = adj.earn }
+    if (adj.deduct > 0) { deduct += adj.deduct; breakup.ADJ_CUT = -adj.deduct }
 
     stmts.push(c.db.prepare(`INSERT INTO payslips (id, institution_id, payroll_run_id, employee_id, paid_days, lop_days, gross_paise, deduction_paise, net_paise, breakup, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -711,7 +1133,21 @@ async function setPayrollState(c: Ctx) {
     case 'locked': from = ['draft', 'processed']; break
     case 'paid': from = ['locked']; break
     case 'published': from = ['paid', 'locked']; break
-    case 'draft': from = ['locked']; break
+    /* REOPENING A MONTH THAT HAS ALREADY GONE OUT.
+     *
+     * Unlock used to be allowed only from `locked`, so a month that reached
+     * paid or published could never be corrected: the screen offered one
+     * button, Download bank file, and nothing else. A school that published
+     * October with the wrong figures -- which is exactly what happened here,
+     * a month's pay left at the old numbers while the loss-of-pay column beside
+     * it was refreshed -- had no way back through the product at all.
+     *
+     * Permanently wrong pay is worse than a reopened month. It is still a
+     * deliberate act: the screen says what it means, and the published_at
+     * stamp is cleared with it so nobody mistakes the reopened month for one
+     * the staff have been told about. Re-publishing is a separate press, and
+     * it is what sends the notifications again. */
+    case 'draft': from = ['locked', 'paid']; break
     default: throw badRequest('A month can be locked, marked paid, published, or unlocked.')
   }
   const status = to === 'published' ? 'paid' : to
@@ -719,9 +1155,24 @@ async function setPayrollState(c: Ctx) {
     .bind(month, year, js(from)).first<{ id: string }>()
   if (!run) throw badRequest('That month is not at a stage where this can be done. Lock it before drawing the bank file, and pay it before publishing.')
   const ts = now()
+  /* REOPENING CLEARS THE EXPORT MARK TOO, OR THE MONTH IS NOT REALLY OPEN.
+   *
+   * Drawing the bank file stamps bank_file_drawn_at, and runPayroll refuses
+   * any month carrying that stamp -- rightly, because recomputing figures
+   * that have gone to a bank is how somebody gets paid twice. But unlocking
+   * cleared only the status, so the card read "Draft, nobody has approved
+   * these figures yet" over a Run payroll button that answered 409, "this
+   * month's salary file has already gone to the bank". Two states at once,
+   * and no way out of the second one.
+   *
+   * Reopening is the deliberate statement that these figures are going to
+   * change, so the stamp goes with the lock and the publish mark. The file
+   * already at the bank does not un-send itself -- that is why the screen
+   * says so before you press -- and a fresh file has to be drawn afterwards. */
   await c.db.prepare(`UPDATE payroll_runs SET status = ?2,
         locked_at = CASE WHEN ?2 = 'draft' THEN NULL WHEN locked_at IS NULL THEN ?3 ELSE locked_at END,
-        published_at = CASE WHEN ?4 THEN ?3 WHEN ?2 = 'draft' THEN NULL ELSE published_at END
+        published_at = CASE WHEN ?4 THEN ?3 WHEN ?2 = 'draft' THEN NULL ELSE published_at END,
+        bank_file_drawn_at = CASE WHEN ?2 = 'draft' THEN NULL ELSE bank_file_drawn_at END
       WHERE id = ?1`).bind(run.id, status, ts, to === 'published' ? 1 : 0).run()
   let told = 0
   if (to === 'published') {
@@ -769,20 +1220,113 @@ const starterComponents: SalaryComponent[] = [
   { id: '', code: 'TDS', name: 'Income tax (TDS)', kind: 'deduction', sequence: 80, is_percent: false, is_statutory: true },
 ]
 
+/* ------------------------------------------------------------ adjustments
+ * Bonus, arrears or a one-off deduction for one person in one month, made
+ * before the month is locked (owner, 2026-10-13: "let them edit the payroll
+ * before publishing"). The run folds them in after the statutory figures, so
+ * changing one here and re-running the month give the same payslip. */
+async function monthAdjustments(c: Ctx, employeeId: string, year: number, month: number): Promise<{ earn: number; deduct: number }> {
+  const r = await c.db.prepare(`SELECT COALESCE(SUM(CASE WHEN kind = 'earning' THEN amount_paise END), 0) AS earn,
+      COALESCE(SUM(CASE WHEN kind = 'deduction' THEN amount_paise END), 0) AS deduct
+      FROM payroll_adjustments WHERE employee_id = ? AND period_year = ? AND period_month = ?`).bind(employeeId, year, month).first<{ earn: number; deduct: number }>()
+  return { earn: Number(r?.earn ?? 0), deduct: Number(r?.deduct ?? 0) }
+}
+
+/** Refold one person's adjustments into their payslip and the month's totals, in place. */
+async function refoldAdjustments(c: Ctx, employeeId: string, year: number, month: number) {
+  const run = await c.db.prepare(`SELECT id, status FROM payroll_runs WHERE period_year = ? AND period_month = ?`).bind(year, month).first<{ id: string; status: string }>()
+  if (!run) return
+  const ps = await c.db.prepare(`SELECT id, gross_paise, deduction_paise, breakup FROM payslips WHERE payroll_run_id = ? AND employee_id = ?`).bind(run.id, employeeId)
+    .first<{ id: string; gross_paise: number; deduction_paise: number; breakup: string | null }>()
+  if (!ps) return
+  const b: Record<string, number> = (() => { try { return JSON.parse(ps.breakup ?? '{}') ?? {} } catch { return {} } })()
+  const oldAdd = Number(b.ADJ_ADD ?? 0), oldCut = -Number(b.ADJ_CUT ?? 0)
+  const adj = await monthAdjustments(c, employeeId, year, month)
+  delete b.ADJ_ADD; delete b.ADJ_CUT
+  if (adj.earn > 0) b.ADJ_ADD = adj.earn
+  if (adj.deduct > 0) b.ADJ_CUT = -adj.deduct
+  const gross = Number(ps.gross_paise) - oldAdd + adj.earn
+  const deduct = Number(ps.deduction_paise) - oldCut + adj.deduct
+  await c.db.batch([
+    c.db.prepare(`UPDATE payslips SET gross_paise = ?, deduction_paise = ?, net_paise = ?, breakup = ? WHERE id = ?`).bind(gross, deduct, gross - deduct, JSON.stringify(b), ps.id),
+    c.db.prepare(`UPDATE payroll_runs SET gross_paise = (SELECT COALESCE(SUM(gross_paise),0) FROM payslips WHERE payroll_run_id = ?1),
+        deduction_paise = (SELECT COALESCE(SUM(deduction_paise),0) FROM payslips WHERE payroll_run_id = ?1),
+        net_paise = (SELECT COALESCE(SUM(net_paise),0) FROM payslips WHERE payroll_run_id = ?1) WHERE id = ?1`).bind(run.id),
+  ])
+}
+
+async function requireAdjustableMonth(c: Ctx, year: number, month: number) {
+  const run = await c.db.prepare(`SELECT status, bank_file_drawn_at FROM payroll_runs WHERE period_year = ? AND period_month = ?`).bind(year, month)
+    .first<{ status: string; bank_file_drawn_at: string | null }>()
+  if (run && (run.status === 'locked' || run.status === 'paid' || run.bank_file_drawn_at)) {
+    throw coded(409, 'payroll_locked', 'This month is locked. Unlock it first to change anybody\'s pay.')
+  }
+}
+
 function registerPayrollGroup(r: Router) {
+  r.get('/payroll/adjustments', PAYROLL_READ, async (c) => {
+    const month = num(c.url.searchParams.get('month')), year = num(c.url.searchParams.get('year'))
+    const rows = await c.db.prepare(`SELECT a.id, a.employee_id, a.kind, a.amount_paise, a.reason, a.created_at, COALESCE(u.full_name, '') AS by_name
+        FROM payroll_adjustments a LEFT JOIN users u ON u.id = a.created_by
+       WHERE a.period_year = ? AND a.period_month = ? ORDER BY a.created_at`).bind(year, month).all()
+    return ok(items(rows.results))
+  })
+  r.post('/payroll/adjustments', PAYROLL_WRITE, async (c) => {
+    const req = await readJSON<{ month?: number; year?: number; employee_id?: string; kind?: string; amount_paise?: number; reason?: string }>(c.req)
+    const month = Number(req.month ?? 0), year = Number(req.year ?? 0)
+    if (month < 1 || month > 12 || year < 2000) throw badRequest('Choose a month.')
+    const employeeId = String(req.employee_id ?? '')
+    if (!isUUID(employeeId)) throw badRequest('Choose who this is for.')
+    const kind = req.kind === 'deduction' ? 'deduction' : req.kind === 'earning' ? 'earning' : ''
+    if (!kind) throw badRequest('Say whether this adds to pay or takes off.')
+    const amount = Math.round(Number(req.amount_paise ?? 0))
+    if (!(amount > 0)) throw badRequest('Enter an amount more than zero.')
+    const reason = String(req.reason ?? '').trim()
+    if (!reason) throw badRequest('Give a reason. It is printed on the payslip.')
+    await requireAdjustableMonth(c, year, month)
+    const id = uuid()
+    await c.db.prepare(`INSERT INTO payroll_adjustments (id, institution_id, employee_id, period_year, period_month, kind, amount_paise, reason, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, c.id.institution!.id, employeeId, year, month, kind, amount, reason.slice(0, 200), c.id.userId, now()).run()
+    await refoldAdjustments(c, employeeId, year, month)
+    return created({ id })
+  })
+  r.del('/payroll/adjustments/{id}', PAYROLL_WRITE, async (c) => {
+    const id = uuidParam(c.params.id)
+    const a = await c.db.prepare(`SELECT employee_id, period_year, period_month FROM payroll_adjustments WHERE id = ?`).bind(id)
+      .first<{ employee_id: string; period_year: number; period_month: number }>()
+    if (!a) throw notFound()
+    await requireAdjustableMonth(c, a.period_year, a.period_month)
+    await c.db.prepare(`DELETE FROM payroll_adjustments WHERE id = ?`).bind(id).run()
+    await refoldAdjustments(c, a.employee_id, a.period_year, a.period_month)
+    return ok({ deleted: true })
+  })
   r.get('/payroll/payslips', PAYROLL_READ, async (c) => {
     const month = num(c.url.searchParams.get('month')), year = num(c.url.searchParams.get('year'))
     const rows = await c.db.prepare(`
       SELECT e.employee_code, ${EMP_NAME} AS full_name, CAST(ps.paid_days AS TEXT) AS paid_days, CAST(ps.lop_days AS TEXT) AS lop_days,
              ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup, pr.status AS run_status,
-             pr.published_at IS NOT NULL AS published, e.status <> 'active' AS left_service
+             pr.published_at IS NOT NULL AS published, e.status <> 'active' AS left_service,
+             (COALESCE(e.bank_account,'') <> '' AND COALESCE(e.bank_ifsc,'') <> '') AS bank_ready, e.id AS employee_id
         FROM payslips ps JOIN employees e ON e.id = ps.employee_id JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
        WHERE (?1 IS NULL OR pr.period_month = ?1) AND (?2 IS NULL OR pr.period_year = ?2)
        ORDER BY e.employee_code`).bind(month, year).all()
+    /* WHY THE DAYS WERE CUT (Yajur, 2026-10-16: "i should see all those").
+       Worked out again from the same register the Staff register shows, so
+       the two cannot disagree; and each hand-entered adjustment with its note. */
+    const why = new Map<string, LopRow>()
+    const adjBy = new Map<string, { kind: string; amount_paise: number; reason: string }[]>()
+    if (month != null && year != null) {
+      try { for (const [k, v] of await lopRegister(c, year, month, await loadPayrollSettings(c))) why.set(k, v) } catch { /* shown without the reasons */ }
+      const adj = await c.db.prepare(`SELECT employee_id, kind, amount_paise, reason FROM payroll_adjustments WHERE period_year = ? AND period_month = ? ORDER BY created_at`)
+        .bind(year, month).all<{ employee_id: string; kind: string; amount_paise: number; reason: string | null }>()
+      for (const a of adj.results) { const l = adjBy.get(a.employee_id) ?? []; l.push({ kind: a.kind, amount_paise: numOr0(a.amount_paise), reason: a.reason ?? '' }); adjBy.set(a.employee_id, l) }
+    }
     return ok(items(rows.results.map((v) => ({
+      why: why.get(String(v.employee_id)), adjustments: adjBy.get(String(v.employee_id)) ?? [],
       employee_code: v.employee_code, full_name: v.full_name, paid_days: str(v.paid_days), lop_days: str(v.lop_days),
       gross_paise: numOr0(v.gross_paise), deduction_paise: numOr0(v.deduction_paise), net_paise: numOr0(v.net_paise),
       breakup: parseJSON(v.breakup), run_status: v.run_status, published: bool(v.published), left_service: bool(v.left_service),
+      bank_ready: bool(v.bank_ready), employee_id: v.employee_id,
     }))))
   })
   // The Go route also wraps runPayroll in RequireFresh (a recent sign-in); the worker's router has no such gate.
@@ -791,21 +1335,28 @@ function registerPayrollGroup(r: Router) {
   r.post('/payroll/state', PAYROLL_WRITE, setPayrollState)
 
   r.get('/payroll/components', PAYROLL_READ, async (c) => {
-    const rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory FROM salary_components ORDER BY sequence, name`).all()
+    // default_value arrived with migration 0086; a database without it still answers.
+    let rows: D1Result<Record<string, unknown>>
+    try {
+      rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory, default_value FROM salary_components ORDER BY sequence, name`).all()
+    } catch {
+      rows = await c.db.prepare(`SELECT id, code, name, kind, sequence, is_percent, percent_of, is_statutory, NULL AS default_value FROM salary_components ORDER BY sequence, name`).all()
+    }
     return ok({
       items: rows.results.map((v) => ({
         id: v.id, code: v.code, name: v.name, kind: v.kind, sequence: numOr0(v.sequence), is_percent: bool(v.is_percent),
-        percent_of: v.percent_of ?? undefined, is_statutory: bool(v.is_statutory),
+        percent_of: v.percent_of ?? undefined, is_statutory: bool(v.is_statutory), default_value: num(v.default_value) ?? null,
       })),
       suggested: starterComponents.map((s) => ({ ...s, percent_of: s.percent_of })),
     })
   })
   r.post('/payroll/components', PAYROLL_WRITE, async (c) => {
-    let body: { starters?: boolean; code?: string; name?: string; kind?: string; is_percent?: boolean; percent_of?: string | null }
+    let body: { starters?: boolean; code?: string; name?: string; kind?: string; is_percent?: boolean; percent_of?: string | null; default_value?: number | null }
     try { body = await c.req.json() } catch { throw badRequest('Send a component.') }
     let wanted: SalaryComponent[]
     if (body.starters) wanted = starterComponents
     else {
+      checkRule(body)
       const code = (body.code ?? '').trim().toUpperCase(), name = (body.name ?? '').trim()
       if (code === '' || name === '') throw badRequest('A component needs a short code and a name.')
       if (!['earning', 'deduction', 'employer_contribution'].includes(body.kind ?? '')) {
@@ -816,8 +1367,42 @@ function registerPayrollGroup(r: Router) {
     const results = await c.db.batch(wanted.map((w) => c.db.prepare(`INSERT OR IGNORE INTO salary_components
         (id, institution_id, code, name, kind, sequence, is_percent, percent_of, is_statutory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(uuid(), c.id.institution!.id, w.code, w.name, w.kind, w.sequence, w.is_percent ? 1 : 0, w.percent_of ?? null, w.is_statutory ? 1 : 0)))
-    return ok({ created: results.reduce((s, x) => s + x.meta.changes, 0) })
+    const created = results.reduce((s, x) => s + x.meta.changes, 0)
+    if (!body.starters && created > 0 && body.default_value != null) {
+      try {
+        await c.db.prepare(`UPDATE salary_components SET default_value = ? WHERE institution_id = ? AND code = ?`)
+          .bind(Number(body.default_value), c.id.institution!.id, wanted[0].code).run()
+      } catch { /* migration 0086 not applied yet: the rule is kept, the default is not */ }
+    }
+    return ok({ created })
   })
+  /* THE RULE A COMPONENT IS USUALLY WORKED OUT BY (Yajur, 2026-10-14): a fixed
+     sum, a share of the gross, or a share of Basic, and the usual figure. It
+     pre-fills every salary form; it changes nobody's saved salary. */
+  r.patch('/payroll/components/{id}', PAYROLL_WRITE, async (c) => {
+    const cid = c.params.id
+    if (!isUUID(cid)) throw badRequest('invalid id')
+    let body: { name?: string; is_percent?: boolean; percent_of?: string | null; default_value?: number | null }
+    try { body = await c.req.json() } catch { throw badRequest('Send what to change.') }
+    checkRule(body)
+    const name = (body.name ?? '').trim()
+    let d: D1Result
+    try {
+      d = await c.db.prepare(`UPDATE salary_components SET name = COALESCE(NULLIF(?, ''), name), is_percent = ?, percent_of = ?, default_value = ? WHERE id = ?`)
+        .bind(name, body.is_percent ? 1 : 0, body.is_percent ? body.percent_of ?? 'BASIC' : null, body.default_value == null ? null : Number(body.default_value), cid).run()
+    } catch {
+      throw coded(409, 'not_ready', 'The salary parts need a small database update first; ask support to apply migration 0086.')
+    }
+    if (!d.meta.changes) throw notFound('resource not found')
+    return ok({ ok: true })
+  })
+  function checkRule(body: { is_percent?: boolean; percent_of?: string | null; default_value?: number | null }) {
+    if (body.is_percent && !['BASIC', 'GROSS'].includes(body.percent_of ?? '')) throw badRequest('A percent is of Basic or of the gross.')
+    if (body.default_value != null) {
+      const v = Number(body.default_value)
+      if (!Number.isFinite(v) || v < 0 || (body.is_percent && v > 100)) throw badRequest(body.is_percent ? 'A percent is between 0 and 100.' : 'The usual figure is rupees a month.')
+    }
+  }
   r.del('/payroll/components/{id}', PAYROLL_WRITE, async (c) => {
     const cid = c.params.id
     if (!isUUID(cid)) throw badRequest('invalid id')
@@ -837,8 +1422,10 @@ function registerPayrollGroup(r: Router) {
     const out = rows.results.map((v) => ({
       employee_id: String(v.employee_id), employee_code: v.employee_code, full_name: v.full_name,
       structure_id: v.structure_id == null ? undefined : String(v.structure_id), effective_from: v.effective_from ?? undefined,
-      ctc_paise: numOr0(v.ctc_paise), items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
+      ctc_paise: numOr0(v.ctc_paise), pf_mode: 'default' as PfMode, pf_percent: null as number | null, esi_applies: true, items: [] as { component_id: string; code: string; name: string; kind: string; amount_paise: number; percent?: number }[],
     }))
+    const pfPeople = await pfOverrides(c)
+    for (const o of out) { const p = pfPeople.get(o.employee_id); if (p) { o.pf_mode = p.mode; o.pf_percent = p.percent }; o.esi_applies = p?.esi !== false }
     const byStructure = new Map(out.filter((o) => o.structure_id).map((o) => [o.structure_id!, o]))
     if (byStructure.size > 0) {
       const ids = [...byStructure.keys()]
@@ -855,7 +1442,8 @@ function registerPayrollGroup(r: Router) {
     return ok(items(out))
   })
   r.post('/payroll/structures', PAYROLL_WRITE, async (c) => {
-    let body: { employee_id?: string; effective_from?: string; items?: { component_id: string; amount_paise?: number; percent?: number | null }[] }
+    let body: { employee_id?: string; effective_from?: string; items?: { component_id: string; amount_paise?: number; percent?: number | null }[]
+      pf_mode?: string; pf_percent?: number | string | null; esi_applies?: boolean | number }
     try { body = await c.req.json() } catch { throw badRequest('Send a salary.') }
     const empId = (body.employee_id ?? '').trim()
     if (!isUUID(empId)) throw badRequest('Choose whose salary this is.')
@@ -864,20 +1452,34 @@ function registerPayrollGroup(r: Router) {
     const list = body.items ?? []
     if (list.length === 0) throw badRequest('A salary with no lines in it pays nothing. Add at least basic pay.')
     for (const it of list) if (!isUUID(it.component_id)) throw badRequest('invalid UUID format')
-    const dayBefore = new Date(from + 'T00:00:00Z'); dayBefore.setUTCDate(dayBefore.getUTCDate() - 1)
     const total = list.reduce((s, it) => s + numOr0(it.amount_paise), 0)
     const newId = uuid()
     const inst = c.id.institution!.id
+    /* Revise edits the salary in force rather than adding another beside it
+       (Yajur, 2026-10-14: "let them edit and save and no need to duplicate").
+       Moving the date earlier used to leave the old one open as well, so the
+       person showed, and would be paid, twice. */
     await c.db.batch([
-      c.db.prepare(`UPDATE salary_structures SET effective_to = ? WHERE employee_id = ? AND effective_to IS NULL AND effective_from < ?`)
-        .bind(dayBefore.toISOString().slice(0, 10), empId, from),
-      c.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND effective_from = ?)`).bind(empId, from),
-      c.db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND effective_from = ?`).bind(empId, from),
+      c.db.prepare(`DELETE FROM salary_structure_items WHERE salary_structure_id IN (SELECT id FROM salary_structures WHERE employee_id = ? AND (effective_to IS NULL OR effective_from = ?))`).bind(empId, from),
+      c.db.prepare(`DELETE FROM salary_structures WHERE employee_id = ? AND (effective_to IS NULL OR effective_from = ?)`).bind(empId, from),
       c.db.prepare(`INSERT INTO salary_structures (id, institution_id, employee_id, effective_from, ctc_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .bind(newId, inst, empId, from, total * 12, now()),
+        .bind(newId, inst, empId, from, total, now()),
       ...list.map((it) => c.db.prepare(`INSERT INTO salary_structure_items (id, institution_id, salary_structure_id, component_id, amount_paise, percent) VALUES (?, ?, ?, ?, ?, ?)`)
         .bind(uuid(), inst, newId, it.component_id, numOr0(it.amount_paise), it.percent == null ? null : String(it.percent))),
     ])
+    // The person's own PF choice, sent with the salary form (migration 0085).
+    if (body.pf_mode !== undefined) {
+      const pctRaw = body.pf_percent == null || String(body.pf_percent).trim() === '' ? null : Number(body.pf_percent)
+      const pfPct = pctRaw != null && Number.isFinite(pctRaw) && pctRaw >= 0 && pctRaw <= 100 ? pctRaw : null
+      try {
+        await c.db.prepare(`UPDATE employees SET pf_mode = ?, pf_percent = ? WHERE id = ?`).bind(pick(body.pf_mode, PF_MODES, 'default'), pfPct, empId).run()
+      } catch { throw badRequest('The salary is saved, but this school is not set up for a PF choice per person yet; ask support to update the database.') }
+    }
+    if (body.esi_applies !== undefined) {
+      try {
+        await c.db.prepare(`UPDATE employees SET esi_applies = ? WHERE id = ?`).bind(body.esi_applies === false || body.esi_applies === 0 ? 0 : 1, empId).run()
+      } catch { throw badRequest('The salary is saved, but this school is not set up for an ESI choice per person yet; ask support to update the database.') }
+    }
     return ok({ structure_id: newId })
   })
   r.del('/payroll/structures/{id}', PAYROLL_WRITE, async (c) => {
@@ -921,7 +1523,108 @@ function registerPayrollGroup(r: Router) {
       }
     }
     try { await c.db.batch(stmts) } catch (e) { throw badRequest(e instanceof Error ? e.message : String(e)) }
+    /* The school's own rules (migration 0084). Saved separately so the rates
+       above still save on a database the migration has not reached. */
+    const r2 = rulesFrom({ ...(await loadPayrollSettings(c)), ...s } as unknown as Record<string, unknown>)
+    try {
+      await c.db.prepare(`UPDATE payroll_settings SET pf_wage_base = ?, lop_method = ?, lop_day_base = ?, lop_divisor = ?, free_leave_days = ?, late_rule = ?,
+          late_marks_per_day = ?, pay_holidays_worked = ?, esi_mode = ?, bank_branch = ?, bank_address = ? WHERE institution_id = ?`)
+        .bind(r2.pf_wage_base, r2.lop_method, r2.lop_day_base, r2.lop_divisor, r2.free_leave_days, r2.late_rule, r2.late_marks_per_day,
+          r2.pay_holidays_worked ? 1 : 0, r2.esi_mode, r2.bank_branch ?? null, r2.bank_address ?? null, inst).run()
+    } catch { return ok({ saved: true, rules_saved: false }) }
+    return ok({ saved: true, rules_saved: true })
+  })
+
+  /* Days typed in by hand for one month: holidays worked (comp-off) and
+     vacation taken. Kept apart from attendance so a school that does not mark
+     holiday work in the register can still pay for it. */
+  r.get('/payroll/month-days', PAYROLL_READ, async (c) => {
+    const [year, month] = periodFrom(c)
+    try {
+      const rows = await c.db.prepare(`SELECT employee_id, holidays_worked, vacation_days, COALESCE(vacation_dates,'') AS vacation_dates
+          FROM payroll_month_days WHERE period_year = ? AND period_month = ?`).bind(year, month).all()
+      return ok(items(rows.results.map((v) => ({ employee_id: v.employee_id, holidays_worked: numOr0(v.holidays_worked),
+        vacation_days: numOr0(v.vacation_days), vacation_dates: str(v.vacation_dates) }))))
+    } catch { return ok(items([])) }
+  })
+  r.put('/payroll/month-days', PAYROLL_WRITE, async (c) => {
+    const b = await readJSON<{ year?: number; month?: number; employee_id?: string; holidays_worked?: number; vacation_days?: number; vacation_dates?: string }>(c.req)
+    const year = Number(b.year ?? 0), month = Number(b.month ?? 0)
+    if (month < 1 || month > 12 || year < 2000) throw badRequest('month must be 1-12 and year must be valid')
+    if (!b.employee_id || !isUUID(b.employee_id)) throw badRequest('choose a member of staff')
+    const hw = Math.max(0, Math.min(31, numOr0(b.holidays_worked))), vd = Math.max(0, Math.min(31, numOr0(b.vacation_days)))
+    await requireAdjustableMonth(c, year, month)
+    try {
+      await c.db.prepare(`INSERT INTO payroll_month_days (institution_id, employee_id, period_year, period_month, holidays_worked, vacation_days, vacation_dates, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (employee_id, period_year, period_month) DO UPDATE SET holidays_worked = excluded.holidays_worked,
+          vacation_days = excluded.vacation_days, vacation_dates = excluded.vacation_dates, updated_at = excluded.updated_at`)
+        .bind(c.id.institution!.id, b.employee_id, year, month, hw, vd, (b.vacation_dates ?? '').trim().slice(0, 300) || null, now()).run()
+    } catch { throw badRequest('This school is not set up for holiday and vacation days yet; ask support to update the database.') }
     return ok({ saved: true })
+  })
+
+  /* SALARY STATEMENT and BANK LETTER rows for one month: every payslip with
+     the person's details in the column order of a school's own salary master. */
+  r.get('/payroll/statement', PAYROLL_READ, async (c) => {
+    const [year, month] = periodFrom(c)
+    const set = await loadPayrollSettings(c)
+    const key = `${year}-${pad2(month)}`
+    const rows = await c.db.prepare(`
+      SELECT e.id AS employee_id, e.employee_code, ${EMP_NAME} AS full_name, dg.name AS designation, COALESCE(e.phone,'') AS phone,
+             SUBSTR(e.joined_on,1,10) AS joined_on, COALESCE(e.bank_account,'') AS bank_account, COALESCE(e.bank_ifsc,'') AS bank_ifsc,
+             COALESCE(e.aadhaar_last4,'') AS aadhaar_last4, COALESCE(e.pan,'') AS pan, COALESCE(e.uan,'') AS uan, e.user_id,
+             CAST(ps.paid_days AS TEXT) AS paid_days, CAST(ps.lop_days AS TEXT) AS lop_days, ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup,
+             pr.status AS run_status
+        FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+       WHERE pr.period_year = ? AND pr.period_month = ? ORDER BY e.employee_code, e.first_name`).bind(year, month).all<Record<string, unknown>>()
+    const subjects = new Map<string, string>()
+    try {
+      const sb = await c.db.prepare(`SELECT te.teacher_user_id AS uid, GROUP_CONCAT(DISTINCT sub.name) AS subjects FROM timetable_entries te
+          JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+         WHERE te.teacher_user_id IS NOT NULL GROUP BY te.teacher_user_id`).all<{ uid: string; subjects: string }>()
+      for (const r of sb.results) subjects.set(r.uid, r.subjects)
+    } catch { /* no timetable */ }
+    const manual = new Map<string, { hw: number; vd: number; dates: string }>()
+    try {
+      const md = await c.db.prepare(`SELECT employee_id, holidays_worked, vacation_days, COALESCE(vacation_dates,'') AS d FROM payroll_month_days WHERE period_year = ? AND period_month = ?`)
+        .bind(year, month).all<Record<string, unknown>>()
+      for (const r of md.results) manual.set(str(r.employee_id), { hw: numOr0(r.holidays_worked), vd: numOr0(r.vacation_days), dates: str(r.d) })
+    } catch { /* migration 0084 not applied */ }
+    // Vacation also counts approved leave of a type named "vacation" in the register.
+    const vacLeave = new Map<string, number>()
+    try {
+      const vl = await c.db.prepare(`SELECT sa.user_id AS uid, SUM(CASE WHEN lr.is_half_day THEN 0.5 ELSE 1 END) AS n FROM staff_attendance sa
+          JOIN employees e ON e.user_id = sa.user_id
+          JOIN leave_requests lr ON lr.employee_id = e.id AND lr.status = 'approved' AND sa.on_date BETWEEN lr.from_date AND lr.to_date
+          JOIN leave_types lt ON lt.id = lr.leave_type_id
+         WHERE sa.status = 'leave' AND SUBSTR(sa.on_date,1,7) = ? AND (LOWER(lt.name) LIKE '%vacation%' OR UPPER(lt.code) IN ('VL','VAC','SV'))
+         GROUP BY sa.user_id`).bind(key).all<{ uid: string; n: number }>()
+      for (const r of vl.results) vacLeave.set(r.uid, numOr0(r.n))
+    } catch { /* leave tables differ */ }
+    const out = rows.results.map((v) => {
+      const b = (parseJSON(v.breakup) ?? {}) as Record<string, number>
+      const m = manual.get(str(v.employee_id))
+      const empPf = numOr0(b.PF_EMPLOYER) + numOr0(b.EPS)
+      const earnings: Record<string, number> = {}
+      for (const [k, amt] of Object.entries(b)) {
+        if (amt > 0 && !/EMPLOYER|^EPS$|^ESI_EE_BY|^HOLIDAY_WORK$|^ADJ_ADD$|^SUBST$/.test(k)) earnings[k] = amt
+      }
+      const gross = Object.values(earnings).reduce((n, x) => n + x, 0)
+      return {
+        employee_id: v.employee_id, employee_code: v.employee_code, full_name: v.full_name, designation: v.designation ?? '', phone: v.phone,
+        subject: subjects.get(str(v.user_id)) ?? '', joined_on: v.joined_on ?? '', bank_account: v.bank_account, bank_ifsc: v.bank_ifsc,
+        aadhaar_last4: v.aadhaar_last4, pan: v.pan, uan: v.uan, loan_paise: Math.abs(numOr0(b.ADVANCE)), earnings, gross_paise: gross,
+        ctc_paise: gross + empPf, pf_employer_paise: empPf, pf_employee_paise: Math.abs(numOr0(b.PF)), pt_paise: Math.abs(numOr0(b.PT)),
+        esi_employer_paise: numOr0(b.ESI_EMPLOYER), esi_employee_paise: Math.abs(numOr0(b.ESI)) || numOr0(b.ESI_EE_BY_EMPLOYER),
+        esi_deducted: numOr0(b.ESI) < 0, lop_days: str(v.lop_days), paid_days: str(v.paid_days), lop_paise: Math.abs(numOr0(b.LOP)),
+        holiday_work_paise: numOr0(b.HOLIDAY_WORK), holidays_worked: m?.hw ?? 0,
+        vacation_days: (m?.vd ?? 0) + (vacLeave.get(str(v.user_id)) ?? 0), vacation_dates: m?.dates ?? '',
+        total_earned_paise: numOr0(v.gross_paise), deduction_paise: numOr0(v.deduction_paise), net_paise: numOr0(v.net_paise),
+      }
+    })
+    return ok({ items: out, year, month, run_status: rows.results[0]?.run_status ?? null,
+      bank: { name: set.bank_name ?? '', account: set.bank_account ?? '', branch: set.bank_branch ?? '', address: set.bank_address ?? '' } })
   })
 
   r.get('/payroll/statutory', PAYROLL_READ, async (c) => {
@@ -929,12 +1632,12 @@ function registerPayrollGroup(r: Router) {
     const set = await loadPayrollSettings(c)
     const rows = await c.db.prepare(`
       SELECT e.id AS employee_id, COALESCE(e.employee_code,'') AS employee_code, ${EMP_NAME} AS full_name, e.uan, e.esi_number, e.pan, ps.gross_paise,
-             COALESCE(json_extract(ps.breakup, '$.BASIC'), 0) + COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS basic_da
+             COALESCE(json_extract(ps.breakup, '$.BASIC'), 0) + COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS basic_da, COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS da_part
         FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
        WHERE pr.period_year = ? AND pr.period_month = ? ORDER BY e.employee_code, e.first_name`).bind(year, month).all()
     const totals: Statutory = { pf_wage_paise: 0, pf_employee_paise: 0, pf_employer_paise: 0, eps_paise: 0, pf_admin_paise: 0, esi_employee_paise: 0, esi_employer_paise: 0, pt_paise: 0 }
     const out = rows.results.map((v) => {
-      const st = computeStatutory(set, numOr0(v.basic_da), numOr0(v.gross_paise), month)
+      const st = computeStatutory(set, numOr0(v.basic_da) - (set.pf_wage_base === 'basic' ? numOr0(v.da_part) : 0), numOr0(v.gross_paise), month)
       const missing: string[] = []
       if (st.pf_employee_paise > 0 && !v.uan) missing.push('UAN')
       if (st.esi_employee_paise > 0 && !v.esi_number) missing.push('ESI number')
@@ -954,12 +1657,12 @@ function registerPayrollGroup(r: Router) {
     const set = await loadPayrollSettings(c)
     const rows = await c.db.prepare(`
       SELECT COALESCE(e.uan,'') AS uan, ${EMP_NAME} AS name, ps.gross_paise,
-             COALESCE(json_extract(ps.breakup, '$.BASIC'), 0) + COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS basic_da, CAST(ps.lop_days AS REAL) AS lop
+             COALESCE(json_extract(ps.breakup, '$.BASIC'), 0) + COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS basic_da, COALESCE(json_extract(ps.breakup, '$.DA'), 0) AS da_part, CAST(ps.lop_days AS REAL) AS lop
         FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
        WHERE pr.period_year = ? AND pr.period_month = ? ORDER BY e.uan`).bind(year, month).all()
     let b = ''
     for (const v of rows.results) {
-      const st = computeStatutory(set, numOr0(v.basic_da), numOr0(v.gross_paise), month)
+      const st = computeStatutory(set, numOr0(v.basic_da) - (set.pf_wage_base === 'basic' ? numOr0(v.da_part) : 0), numOr0(v.gross_paise), month)
       if (st.pf_employee_paise === 0) continue
       const w = Math.trunc(st.pf_wage_paise / 100)
       b += [v.uan, v.name, w, w, w, 0, Math.trunc(st.pf_employee_paise / 100), Math.trunc(st.pf_employer_paise / 100), Math.trunc(st.eps_paise / 100), 0,
@@ -1002,14 +1705,15 @@ function registerPayrollGroup(r: Router) {
        WHERE ss.employee_id = ? AND ss.effective_from <= ? AND (ss.effective_to IS NULL OR ss.effective_to >= ?) ORDER BY sc.sequence`)
       .bind(employee, today, today).all<{ code: string; name: string; kind: string; amount_paise: number }>()
     const earnings: { code: string; name: string; amount_paise: number }[] = []
-    let grossMonthly = 0, basicDA = 0
+    let grossMonthly = 0, basicDA = 0, pfWage = 0
     for (const v of rows.results) {
       if (v.kind !== 'earning') continue
       earnings.push({ code: v.code, name: v.name, amount_paise: v.amount_paise })
       grossMonthly += v.amount_paise
       if (v.code === 'BASIC' || v.code === 'DA') basicDA += v.amount_paise
+      if (v.code === 'BASIC' || (v.code === 'DA' && set.pf_wage_base !== 'basic')) pfWage += v.amount_paise
     }
-    const st = computeStatutory(set, basicDA, grossMonthly, nowIST().getUTCMonth() + 1)
+    const st = computeStatutory(set, pfWage, grossMonthly, nowIST().getUTCMonth() + 1)
     const deductions = st.pf_employee_paise + st.esi_employee_paise + st.pt_paise
     const employerCost = st.pf_employer_paise + st.eps_paise + st.pf_admin_paise + st.esi_employer_paise
     const ctcMonthly = grossMonthly + employerCost

@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Upload } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Select,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
   Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
@@ -10,7 +11,9 @@ import WeekGrid from '@/components/WeekGrid'
 import PeriodsNeeded from './PeriodsNeeded'
 import BulkImport from '@/components/BulkImport'
 import SectionGrid from './SectionGrid'
+import ClassTimings from './ClassTimings'
 import { WEEKDAYS, cn } from '@/lib/utils'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* institution_admin.academics.master_timetable_generation
  *
@@ -71,7 +74,7 @@ interface GridPeriod {
   starts_at: string; ends_at: string; is_break: boolean
 }
 
-interface Overview {
+interface Overview extends Bells {
   academic_year_id: string
   academic_year: string
   weekdays: number[]
@@ -109,7 +112,18 @@ interface DraftIssue {
   detail: string
 }
 
-interface DraftDetail {
+/* Each class's own bell (worker scheduling/bell.ts): every schedule with its
+   periods, and which one each section runs to. `periods` is the school day. */
+interface Bells {
+  schedules?: { id: string; name: string; is_default: boolean; periods: GridPeriod[] }[]
+  section_schedules?: Record<string, string>
+}
+
+/** The periods a section's grid is drawn on: its own timings, else the school day. */
+const periodsOf = (b: Bells & { periods: GridPeriod[] }, sectionID: string): GridPeriod[] =>
+  b.schedules?.find((x) => x.id === b.section_schedules?.[sectionID])?.periods ?? b.periods
+
+interface DraftDetail extends Bells {
   draft: DraftHead
   entries: DraftEntry[]
   issues: DraftIssue[]
@@ -138,6 +152,100 @@ interface PublishPreview {
   }[]
 }
 
+/* THREE STEPS, ONE AT A TIME (owner: the page "looks ugly, confusion").
+
+   This screen put seven cards on one page at once -- the stage note, import
+   from a sheet, class-by-class periods, the draft, earlier attempts, what the
+   draft could not do, and the week itself -- and only ever two of them
+   mattered at a time. Somebody opening it could not tell what to do first,
+   and the week grid they came to look at was below eighteen classes of input
+   boxes.
+
+   Making a timetable is three decisions in order: say how many periods each
+   subject wants, make a draft from that, then read the draft and put it in
+   use. The step you are on is worked out from the school's own state rather
+   than remembered, so leaving and coming back lands in the right place; the
+   header is clickable so a finished step can be reopened to change it.
+
+   Nothing was deleted. Every card still exists, each under the step it
+   belongs to. */
+function Steps({ at, go, done }: {
+  at: 1 | 2 | 3
+  go: (n: 1 | 2 | 3) => void
+  done: { 1: boolean; 2: boolean; 3: boolean }
+}) {
+  const steps: { n: 1 | 2 | 3; label: string; hint: string }[] = [
+    { n: 1, label: 'Periods a week', hint: 'What each subject needs' },
+    { n: 2, label: 'Make a draft', hint: 'The computer works out the week' },
+    { n: 3, label: 'Check and use', hint: 'Read it, then put it in use' },
+  ]
+  /* THE MARK SLIDES, THE BOXES DO NOT FLASH (owner: "why is the color
+     jumping", "change them like ios moving the glass effect").
+
+     Each step used to paint its own tinted background when it became current,
+     so moving between them was two backgrounds swapping at once -- one lights,
+     one goes out, and the eye reads it as a flash. A segmented control on a
+     phone does the opposite: the steps stay still and ONE pane of glass slides
+     under the words, which is what makes it feel like a physical switch rather
+     than a redraw.
+
+     The pane is a single absolutely positioned element moved with a transform,
+     so the browser can animate it on the compositor; the steps themselves only
+     change ink, which costs nothing. Under reduced motion it jumps, because
+     somebody who has asked for no movement has asked for exactly that. */
+  return (
+    <Card>
+      <div className="relative p-1.5">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-1.5 left-1.5 rounded-xl bg-card shadow-[0_2px_8px_-2px_rgba(15,23,42,0.18)]
+                     ring-1 ring-black/5 transition-transform duration-300 ease-[cubic-bezier(.32,.72,0,1)]
+                     motion-reduce:transition-none"
+          style={{
+            width: 'calc((100% - 0.75rem) / 3)',
+            transform: `translateX(calc(${at - 1} * 100%))`,
+          }}
+        />
+        <ol className="relative grid grid-cols-3">
+          {steps.map((s) => {
+            const on = s.n === at
+            const finished = done[s.n] && !on
+            return (
+              <li key={s.n} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => go(s.n)}
+                  aria-current={on ? 'step' : undefined}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-center transition-colors sm:justify-start sm:px-4 sm:text-left"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'grid size-6 shrink-0 place-items-center rounded-full text-[11.5px] font-bold transition-colors',
+                      on ? 'bg-primary text-primary-foreground'
+                        : finished ? 'bg-success/15 text-success'
+                          : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {finished ? '✓' : s.n}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={cn('block truncate text-[13.5px] transition-colors',
+                      on ? 'font-bold text-foreground' : 'font-medium text-muted-foreground')}>
+                      {s.label}
+                    </span>
+                    <span className="hidden truncate text-[11.5px] text-muted-foreground sm:block">{s.hint}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+    </Card>
+  )
+}
+
 export default function MasterTimetable() {
   const qc = useQueryClient()
   const can = useCan()
@@ -151,6 +259,11 @@ export default function MasterTimetable() {
   const [note, setNote] = useState('')
   // Old attempts are history, not work. Collapsed by default.
   const [showHistory, setShowHistory] = useState(false)
+  /* Which step somebody has chosen by hand, if any. Up here with the other
+     hooks: it was below `if (isLoading) return`, so the first render after the
+     year loaded ran one more hook than the render before it (React #310) and
+     the screen refused to draw at all. */
+  const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
   const [showClasses, setShowClasses] = useState(false)
 
   const overview = useQuery({
@@ -162,7 +275,9 @@ export default function MasterTimetable() {
     mutationFn: () => api.post<DraftHead>(`${OPTIMIZER}/drafts`, { seed: Date.now() % 100000 }),
     onSuccess: (d) => {
       setOpenDraft(d.id)
-      setNote('Worked out. Nothing has changed for teachers yet, open it to look.')
+      /* No banner. The draft card that appears says it is a suggestion not
+         yet in use, in its own title, and a green bar above it repeating that
+         is the page talking to itself. */
       qc.invalidateQueries({ queryKey: ['master-timetable'] })
     },
   })
@@ -171,7 +286,7 @@ export default function MasterTimetable() {
      does: the draft opens, and nothing has reached a teacher yet. */
   function onSectionDraft(draftID: string, sectionName: string) {
     setOpenDraft(draftID)
-    setNote(`Worked out ${sectionName}. Nothing has changed for teachers yet, open it to look.`)
+    void sectionName
     qc.invalidateQueries({ queryKey: ['master-timetable'] })
   }
 
@@ -198,6 +313,22 @@ export default function MasterTimetable() {
    */
   const needsRequirements = (s?.required_periods ?? 0) === 0
   const hasDraft = drafts.length > 0
+
+  /* WHICH STEP THE SCHOOL IS ACTUALLY ON.
+
+     Worked out from its own state, not remembered, so closing the page and
+     coming back lands where the work is. A step somebody has opened by hand
+     wins until they move: `jump` holds that, and nothing else writes it. */
+  const natural: 1 | 2 | 3 = openDraft ? 3 : needsRequirements ? 1 : 2
+  const at: 1 | 2 | 3 = jump ?? natural
+  const stepDone = { 1: !needsRequirements, 2: hasDraft, 3: (s?.live_periods ?? 0) > 0 }
+  const goStep = (n: 1 | 2 | 3) => {
+    /* Step 3 is a draft being read. Choosing it with none open opens the
+       newest, because a step that leads to an empty page is not a step. */
+    if (n === 3 && !openDraft && hasDraft) setOpenDraft(drafts[0].id)
+    if (n !== 3) setOpenDraft('')
+    setJump(n)
+  }
   const allLive = !needsRequirements && (s?.sections_without_timetable ?? 0) === 0
 
   const stage = needsRequirements
@@ -244,11 +375,13 @@ export default function MasterTimetable() {
         description="The whole school's week. Making one only suggests it, nothing changes for teachers until you put it in use."
       />
       <PageBody>
+        <Steps at={at} go={goStep} done={stepDone} />
+        {/* The school's shape, on every step: it is the thing being timetabled. */}
         <SectionGrid />
-        {/* The single instruction, and the single button that acts on it. */}
-        {/* No coloured edge. The stripe said warn/go/done in a colour the
-            sentence beside it already says in words, and on a wide screen it
-            was the only saturated thing on the page. */}
+        {/* The single instruction, and the single button that acts on it.
+            Step 2 is where a draft gets made, so the instruction lives there;
+            on step 1 the periods editor is the instruction. */}
+        {at === 2 && (
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4 p-5">
             <div className="min-w-0 max-w-2xl">
@@ -289,7 +422,18 @@ export default function MasterTimetable() {
             )}
           </div>
         </Card>
+        )}
 
+        {/* THE GREEN BAR IS GONE (owner).
+
+            "Worked out Grade 8 B. Nothing has changed for teachers yet, open
+            it to look." sat at the top of the page after every run and said
+            what the draft card below it already says in its own title. A
+            failure still has to speak; a success that repeats the screen does
+            not. */}
+        {/* Only the two that tell somebody something the screen does not:
+            a sheet loaded and live, and a timetable published. Making a draft
+            says so by showing the draft. */}
         <FormNotice error={generate.error} ok={note} />
 
         {/* THE INPUT, IN FRONT OF THE BUTTON THAT CONSUMES IT.
@@ -299,19 +443,16 @@ export default function MasterTimetable() {
             exist, because a school revisits them when a subject changes and
             not otherwise -- and eighteen classes of boxes above a draft is a
             page nobody can find the timetable on. */}
-        {needsRequirements ? (
-          <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
-        ) : (
-          <details className="rounded-[10px] border bg-card">
-            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-              Set periods and build one section at a time
-            </summary>
-            <div className="border-t">
-              <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
-            </div>
-          </details>
-        )}
+        {/* THE SCHOOL THAT ALREADY HAS ONE SHOULD NOT SCROLL PAST THE WORK
+            OF MAKING ONE (owner).
 
+            Upload sat under eighteen classes of period boxes, which is the
+            exact page a school with a timetable on the wall does not need to
+            read. It is the first thing on this step now: take the one you
+            have, or build one below.
+
+            Closed by default either way -- it is the smaller case, and a
+            school starting fresh still meets the periods editor first. */}
         {/* THE TIMETABLE THE SCHOOL ALREADY HAS.
 
             Every school running today has one, settled over a term of
@@ -323,10 +464,21 @@ export default function MasterTimetable() {
             Behind a line, not in front of it: a school that needs this needs
             it once, and it must not stand between anybody and the timetable
             on every visit afterwards. */}
-        {mayWrite && (
-          <details className="rounded-[10px] border bg-card">
-            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-              Already have a timetable? Upload it instead
+        {mayWrite && at === 1 && (
+          <details className="group overflow-hidden rounded-xl border-2 border-primary/30 bg-primary/5">
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
+              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <Upload className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold">Already have a timetable?</span>
+                <span className="block text-[12.5px] text-muted-foreground">
+                  Upload the sheet you already use and skip the rest of this
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-primary-foreground">
+                {'Upload it'}
+              </span>
             </summary>
             <div className="border-t p-5">
               <BulkImport
@@ -347,6 +499,9 @@ export default function MasterTimetable() {
             </div>
           </details>
         )}
+        {at === 1 && (
+          <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
+        )}
 
         {/* THE LATEST DRAFT, AS A CARD. THE REST BEHIND A LINK.
 
@@ -356,7 +511,7 @@ export default function MasterTimetable() {
             from the current one at a glance. Only the newest is a real
             decision; the others are history, and history belongs behind a
             word rather than in front of the work. */}
-        {hasDraft && (
+        {hasDraft && at === 2 && (
           <>
             <DraftCard
               draft={drafts[0]}
@@ -364,20 +519,31 @@ export default function MasterTimetable() {
               mayWrite={mayWrite}
               onOpen={() => setOpenDraft(openDraft === drafts[0].id ? '' : drafts[0].id)}
             />
-            {drafts.length > 1 && (
+            {/* A BUTTON THAT LOOKS LIKE A BUTTON (owner).
+
+                This was a full-width row inside a card of its own, with Show
+                floating at the far right -- a whole boxed shelf to say one
+                sentence nobody needs most days. It is a plain pill now,
+                sitting on the page rather than in a box, and the card appears
+                only once it has something to hold. */}
+            {drafts.length > 1 && !showHistory && (
+              <div>
+                <Button variant="secondary" size="sm" onClick={() => setShowHistory(true)}>
+                  Show {drafts.length - 1} earlier{' '}
+                  {drafts.length === 2 ? 'attempt' : 'attempts'}
+                </Button>
+              </div>
+            )}
+            {drafts.length > 1 && showHistory && (
               <Card>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between px-5 py-3 text-left text-[13.5px]"
-                  onClick={() => setShowHistory(!showHistory)}
-                >
-                  <span className="text-muted-foreground">
-                    {drafts.length - 1} earlier{' '}
-                    {drafts.length === 2 ? 'attempt' : 'attempts'}, still open
-                  </span>
-                  <span className="text-primary">{showHistory ? 'Hide' : 'Show'}</span>
-                </button>
-                {showHistory && (
+                <CardHeader
+                  title={`${drafts.length - 1} earlier ${drafts.length === 2 ? 'attempt' : 'attempts'}`}
+                  description="Still open, and still only suggestions. Open one to read it, or leave them."
+                  action={
+                    <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>Hide</Button>
+                  }
+                />
+                {(
                   <Table head={['Made', 'Filled', 'Left out', 'By', '']}>
                     {drafts.slice(1).map((x) => (
                       <tr key={x.id}>
@@ -409,7 +575,15 @@ export default function MasterTimetable() {
           </>
         )}
 
-        {openDraft && (
+        {at === 3 && !openDraft && (
+          <Card>
+            <EmptyState
+              title="No draft to read yet"
+              body="Make one on the step before this, then it opens here."
+            />
+          </Card>
+        )}
+        {at === 3 && openDraft && (
           <DraftReview
             key={openDraft}
             draftID={openDraft}
@@ -422,9 +596,14 @@ export default function MasterTimetable() {
           />
         )}
 
+        {/* Timings per class, where the timetable is built: Nursery's short
+            morning is decided here, before the grid is laid on it. */}
+        {can('academics.write') && <ClassTimings />}
+
         {/* Three columns, not seven, and the draft column only while a draft
             exists — a column of dashes is a column you have to read to
             discover it says nothing. */}
+        {at !== 1 && (
         <Card>
           <CardHeader
             title="Class by class"
@@ -479,6 +658,7 @@ export default function MasterTimetable() {
           </Table>
           )}
         </Card>
+        )}
       </PageBody>
     </>
   )
@@ -696,7 +876,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
                 detail: (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
                 unstaffed: !e.teacher_name,
               }))}
-            periods={dd.periods}
+            periods={periodsOf(dd, chosen)}
             weekdays={dd.weekdays}
             empty="This suggestion places nothing for that class."
           />
@@ -724,7 +904,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
         ) : (
           <DraftWeekGrid
             entries={dd.entries.filter((e) => e.section_id === chosen)}
-            periods={dd.periods}
+            periods={periodsOf(dd, chosen)}
             weekdays={dd.weekdays}
             mayWrite={mayWrite}
             draftID={draftID}
@@ -745,6 +925,12 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
   const [weekday, setWeekday] = useState(String(entry.weekday))
   const [periodID, setPeriodID] = useState(entry.period_id)
   const [room, setRoom] = useState(entry.room ?? '')
+  // Shift the teacher too, not only the period (owner, 2026-10-19: "let
+  // them shift the periods also or teachers"). The clash check is the
+  // server's own (teacherBusy) -- this just offers the whole staff roster
+  // and lets the PUT below refuse a double-booking.
+  const [teacherID, setTeacherID] = useState(entry.teacher_id ?? '')
+  const roster = useEmployeeRoster()
 
   const move = useMutation({
     mutationFn: () =>
@@ -752,6 +938,7 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
         weekday: Number(weekday),
         period_id: periodID,
         room,
+        teacher_id: teacherID,
       }),
     onSuccess: onDone,
   })
@@ -780,6 +967,16 @@ function MoveForm({ entry, ctx, onDone, onCancel }: {
           placeholder="Room"
           srLabel={`Room for ${entry.subject_name}`}
         />
+        <div className="w-48">
+          <Select
+            value={teacherID}
+            onChange={setTeacherID}
+            placeholder="No teacher"
+            options={(roster.data?.items ?? []).map((t) => ({
+              value: t.id, label: t.full_name ?? t.name ?? t.employee_code ?? t.id,
+            }))}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={move.isPending} onClick={() => move.mutate()}>

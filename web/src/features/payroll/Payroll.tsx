@@ -3,14 +3,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton,
+  Table, Td, Badge, Button, FormNotice, SkeletonTable, ErrorState, ExportButton,
   UnavailableState,
 } from '@/components/ui'
+import { MonthField } from '@/components/DatePopover'
 import { useCan, useSession } from '@/lib/session'
 import { Printer } from 'lucide-react'
 import { printHtml } from '@/features/finance/receipt-print'
 import { registerHtml } from './payroll-print'
 import { useToast } from '@/components/Toast'
+import { PayAdjustments } from './PayAdjustments'
+import { MonthDays } from './MonthDays'
+import { bankLetterHtml, type LetterRow } from './bank-letter'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -21,7 +25,31 @@ interface Payslip {
   paid_days: string; lop_days: string
   gross_paise: number; deduction_paise: number; net_paise: number
   breakup: Record<string, number>
+  bank_ready?: boolean
+  employee_id?: string
+  /* Why the days were cut, from the same register the Staff register shows. */
+  why?: { late_marks?: number; late_dates?: string[]; absent_days?: number; half_days?: number; unpaid_leave_days?: number; free_leave_used?: number; holidays_worked?: number }
+  adjustments?: { kind: string; amount_paise: number; reason: string }[]
 }
+
+/** "3 late (2, 7, 9 Oct) · 1 absent" -- the reasons behind a person's cut days. */
+function lopReasons(w: Payslip['why']): string[] {
+  if (!w) return []
+  const out: string[] = []
+  const dd = (d: string) => String(Number(d.slice(8, 10)))
+  if (w.late_marks) {
+    const ds = w.late_dates ?? []
+    const mon = ds[0] ? new Date(ds[0] + 'T00:00:00').toLocaleString('en-IN', { month: 'short' }) : ''
+    out.push(`${w.late_marks} late${ds.length ? ` (${ds.map(dd).join(', ')} ${mon})` : ''}`)
+  }
+  if (w.absent_days) out.push(`${w.absent_days} absent`)
+  if (w.half_days) out.push(`${w.half_days} half day${w.half_days > 1 ? 's' : ''}`)
+  if (w.unpaid_leave_days) out.push(`${w.unpaid_leave_days} unpaid leave`)
+  if (w.free_leave_used) out.push(`${w.free_leave_used} forgiven`)
+  return out
+}
+interface UnmarkedStaff { id: string; code: string; name: string; monthly_paise: number; unmarked_days?: number; unmarked_dates?: string[] }
+interface Unmarked { staff_with_no_marks: number; unmarked_days: number; staff?: UnmarkedStaff[] }
 
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December']
@@ -98,27 +126,63 @@ export default function Payroll() {
    * second is the common case, which is how a school finds out in March that
    * loss of pay has never once deducted. The run stops, says how big the gap
    * is, and goes ahead only when somebody says they know. */
-  const [unmarked, setUnmarked] = useState<{ staff_with_no_marks: number; unmarked_days: number } | null>(null)
+  const [unmarked, setUnmarked] = useState<Unmarked | null>(null)
+  /* The staff this run would not pay at all, because no salary is in force
+     for them this month. A different question from an unmarked register, and
+     a worse one, so it is asked before it. */
+  const [unpaid, setUnpaid] = useState<{ count: number; staff: { id: string; code: string; name: string }[] } | null>(null)
+  const [okUnpaid, setOkUnpaid] = useState(false)
+  /* Who to leave out of this month: ticked = paid in full, unticked = left out. */
+  const [leaveOut, setLeaveOut] = useState<Set<string>>(new Set())
   const run = useMutation({
     mutationFn: (acknowledge: boolean) =>
       api.post<{ employees: number; net_paise: number }>('/api/v1/payroll/run', {
         month: Number(month), year: Number(year),
         acknowledge_unmarked_attendance: acknowledge,
+        acknowledge_unpaid_staff: okUnpaid,
+        exclude_employee_ids: [...leaveOut],
       }),
     onSuccess: () => {
       setUnmarked(null)
+      setUnpaid(null)
+      setOkUnpaid(false)
+      setLeaveOut(new Set())
       qc.invalidateQueries({ queryKey: ['payslips'] })
     },
     onError: (e: unknown) => {
       const body = (e as ApiError).body as
-        | { unmarked?: { staff_with_no_marks: number; unmarked_days: number } }
+        | { unmarked?: Unmarked; unpaid?: { count: number; staff: { id: string; code: string; name: string }[] } }
         | undefined
       if (body?.unmarked) setUnmarked(body.unmarked)
+      if (body?.unpaid) setUnpaid(body.unpaid)
     },
   })
 
   const rows = slips.data?.items ?? []
   const status = rows[0]?.run_status ?? ''
+
+  /* TWO NUMBERS THAT CANNOT BOTH BE TRUE.
+   *
+   * A payslip carries the days paid and the days lost, and they are written
+   * together from one calculation -- so if a row shows three days of loss of
+   * pay beside a full month paid, that row was not produced by the rule the
+   * column headings claim. It happens when a month is run, the attendance
+   * behind it changes, and the month is never re-run: the loss-of-pay figure
+   * is refreshed on screen while the money stays at the old numbers.
+   *
+   * October 2026 on this school was exactly that, published, with every one
+   * of eight people showing loss of pay and a full month's pay, and nothing
+   * anywhere saying the two disagreed. The arithmetic was right; the row was
+   * stale, which no amount of reading the code would have shown.
+   *
+   * Flagged, not silently recomputed: the figures on a published month are
+   * what somebody was paid, and a screen must not quietly redraw history.
+   * Re-running the month is a decision, and it has a button. */
+  const stale = rows.filter((p) => {
+    const lop = Number(p.lop_days) || 0
+    const paid = Number(p.paid_days) || 0
+    return lop > 0 && paid > 0 && paid + lop > 31.5
+  })
 
   /* Whether the staff have been told, asked of the server rather than
      remembered.
@@ -149,6 +213,20 @@ export default function Payroll() {
     month: Number(month), year: Number(year), status, published, rows, printedBy: session.user?.full_name ?? '',
   })) : toast.error(`No payroll has been run for ${MONTHS[Number(month) - 1]} ${year} yet, so there is nothing to print. Choose a month that has been run, or run this one first.`)
   const components = [...new Set(rows.flatMap((r) => Object.keys(r.breakup ?? {})))].sort()
+  /* The salary transfer letter to the school's bank, for a locked month. */
+  const printBankLetter = async () => {
+    if (!locked) {
+      toast.error('The bank letter is for a locked month. Lock this month first, so the amounts cannot change after the letter is signed.')
+      return
+    }
+    try {
+      const st = await api.get<{ items: LetterRow[]; bank: { name: string; branch: string; account: string; address: string } }>(
+        `/api/v1/payroll/statement?month=${month}&year=${year}`)
+      printHtml(bankLetterHtml({ school: session.institution?.display_name ?? 'School', month: Number(month), year: Number(year), bank: st.bank, rows: st.items }))
+    } catch {
+      toast.error('The bank letter could not be prepared. Check your connection and try again.')
+    }
+  }
 
   if (!canRead) {
     return (
@@ -169,16 +247,24 @@ export default function Payroll() {
         description="Run monthly salaries. Loss of pay comes from staff attendance, not manual entry."
         actions={
           <>
-            <ExportButton report="payroll" />
+            <ExportButton report="payroll" query={{ month, year }} />
+            {/* The school's own salary sheet, column for column (Yajur, 2026-10-13). */}
+            <ExportButton report="payroll_school" label="School format" query={{ month, year }} />
             <Button variant="secondary" onClick={printRegister}>
               <Printer className="h-4 w-4" /> Print
             </Button>
-            <Select value={month} onChange={setMonth}
-              options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
-            <Select value={year} onChange={setYear}
-              options={[now.getFullYear() - 1, now.getFullYear()].map((y) => ({
-                value: String(y), label: String(y),
-              }))} />
+            <Button variant="secondary" onClick={printBankLetter}>
+              <Printer className="h-4 w-4" /> Bank letter
+            </Button>
+            {/* One control, not two lists. "July 2026" was a month dropdown
+                and a year dropdown side by side: two decisions for one
+                answer, and the year list only ever held two entries. */}
+            <MonthField
+              month={Number(month)}
+              year={Number(year)}
+              onPick={(m, y) => { setMonth(String(m)); setYear(String(y)) }}
+              className="w-[190px]"
+            />
             {/* Re-running a locked month would overwrite figures somebody has
                 already signed off, so it is not offered until it is unlocked. */}
             {!locked && canRun && (
@@ -197,28 +283,94 @@ export default function Payroll() {
           <Stat label="Net payable" value={formatPaise(net)} />
         </CellGrid>
 
+        {unpaid && (
+          <Card className="border-destructive/40 bg-destructive/[0.04]">
+            <CardHeader title={`${unpaid.count} on the roll would not be paid at all`} />
+            <div className="px-5 pb-2 text-[13px] text-muted-foreground">
+              No salary is in force for them this month, so the run skips them entirely — they get no
+              payslip and no line anywhere. Set a salary, or run the month without them.
+            </div>
+            <ul className="flex flex-wrap gap-x-5 gap-y-1 px-5 pb-4 text-[13px]">
+              {unpaid.staff.map((s2) => (
+                <li key={s2.id}>
+                  <span className="font-mono text-[12px] text-muted-foreground">{s2.code}</span>{' '}
+                  {s2.name}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
+              <Button
+                disabled={run.isPending}
+                onClick={() => { setOkUnpaid(true); setUnpaid(null); setTimeout(() => run.mutate(false), 0) }}
+              >
+                Run without them
+              </Button>
+              <a href="/hr/payroll/salary_setup" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">
+                Set their salary first
+              </a>
+              <Button variant="ghost" onClick={() => setUnpaid(null)}>Cancel</Button>
+            </div>
+          </Card>
+        )}
         {unmarked && (
           <Card>
             <CardHeader
-              title="Nobody marked the register for this month"
-              description={
-                `${unmarked.staff_with_no_marks} staff have no attendance at all, and ` +
-                `${unmarked.unmarked_days} working days are unaccounted for. Their days will be ` +
-                'paid in full, and loss of pay will deduct nothing. That may be exactly right · ' +
-                'a school that keeps its register on paper still pays people on the 30th, but ' +
-                'it should be a decision, not an accident.'
-              }
+              title={`${unmarked.staff_with_no_marks} ${unmarked.staff_with_no_marks === 1 ? 'person has' : 'people have'} days with no attendance marked`}
+              description="Nobody marked their register, so they would be paid in full with no loss of pay. Untick anyone who should not be paid this month, or mark their attendance first on Staff register."
             />
-            <div className="px-5 pb-5 pt-4">
-              <label className="flex items-start gap-2 text-[14px]">
-                <input
-                  type="checkbox"
-                  onChange={(e) => { if (e.target.checked) run.mutate(true) }}
-                  className="mt-1"
-                />
-                <span>I acknowledge this, and want to run payroll anyway.</span>
-              </label>
+            {(unmarked.staff ?? []).length > 0 && (
+              <Table head={['Pay this month', 'Code', 'Name', 'Days not marked', 'Monthly pay']}>
+                {(unmarked.staff ?? []).map((s) => (
+                  <tr key={s.id}>
+                    <Td>
+                      <input type="checkbox" aria-label={`Pay ${s.name} this month`} checked={!leaveOut.has(s.id)}
+                        onChange={(e) => setLeaveOut((cur) => { const n = new Set(cur); if (e.target.checked) n.delete(s.id); else n.add(s.id); return n })} />
+                    </Td>
+                    <Td className="font-mono text-[12px]">{s.code}</Td>
+                    <Td className="font-medium">{s.name}</Td>
+                    <Td className="tabular-nums">
+                      {s.unmarked_days ?? '-'}
+                      {/* Which days (owner, 2026-10-19: "show how many days didnt mark"). */}
+                      {!!s.unmarked_dates?.length && (
+                        <span className="ml-2 text-[12px] text-muted-foreground">
+                          {s.unmarked_dates.map((d) => Number(d.slice(8, 10))).join(', ')}
+                        </span>
+                      )}
+                    </Td>
+                    <Td className="tabular-nums">{s.monthly_paise ? formatPaise(s.monthly_paise) : '-'}</Td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-5 pt-4">
+              <Button disabled={run.isPending} pending={run.isPending} onClick={() => run.mutate(true)}>
+                {run.isPending ? 'Running payroll… keep this page open' : leaveOut.size ? `Run payroll, leaving out ${leaveOut.size}` : 'Run payroll, paying them in full'}
+              </Button>
+              <a href="/hr/attendance/staff_register" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">Mark attendance first</a>
+              <Button variant="ghost" onClick={() => { setUnmarked(null); setLeaveOut(new Set()) }}>Cancel</Button>
             </div>
+          </Card>
+        )}
+        {(() => {
+          /* The bank file pays by account number and IFSC; a person without
+             them is a blank line the bank will bounce (owner, 2026-10-08). */
+          const noBank = (slips.data?.items ?? []).filter((s) => s.bank_ready === false)
+          if (!noBank.length) return null
+          return (
+            <FormNotice error={new Error(`${noBank.length} of ${(slips.data?.items ?? []).length} staff have no bank account or IFSC, so the bank file cannot pay them: ${noBank.map((s) => s.full_name).join(', ')}. Add them on Staff records → the person → Bank details.`)} />
+          )
+        })()}
+        {stale.length > 0 && (
+          <Card className="border-destructive/40 bg-destructive/[0.04] p-4">
+            <p className="text-[14px] font-semibold">
+              These figures are out of date, and the pay below is not what the attendance now says.
+            </p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              {stale.length} {stale.length === 1 ? 'person has' : 'people have'} loss of pay recorded and
+              a full month paid, which the calculation cannot produce. The month was run, the attendance
+              behind it changed, and it was never run again. Reopen the month and run it to settle it —
+              publishing again is a separate press, and only that tells the staff.
+            </p>
           </Card>
         )}
         {note && <FormNotice ok={note} />}
@@ -236,29 +388,55 @@ export default function Payroll() {
                     ? 'Locked, ready for the bank'
                     : 'Draft, nobody has approved these figures yet'
               }
-              description={
-                published
-                  ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
-                  : status === 'paid'
-                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
-                  : status === 'locked'
-                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
-                    : 'Check the figures, then lock the month so attendance cannot change them.'
-              }
               action={
-                <div className="flex flex-wrap gap-2">
-                  {status !== 'locked' && status !== 'paid' && (
-                    <Button disabled={state.isPending} onClick={() => state.mutate('locked')}>
-                      Lock payroll & send to finance
-                    </Button>
-                  )}
-                  {locked && (
+                /* Only what this login may do. Finance reads payroll to approve it and
+                   was shown HR's Lock button, which answered "Forbidden." (owner, 2026-10-08). */
+                !canRun ? (
+                  locked ? (
+                    stale.length > 0 ? (
+                      <span className="inline-flex cursor-not-allowed items-center rounded-md border px-3 py-1.5 text-[13px] font-medium opacity-50"
+                        title="These figures are out of date. Run the month first.">
+                        Download bank file
+                      </span>
+                    ) : (
                     <a
                       className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
                       href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
                     >
                       Download bank file
                     </a>
+                    )
+                  ) : (
+                    <span className="text-[13px] text-muted-foreground">HR checks and locks these figures; nothing to do here yet.</span>
+                  )
+                ) : (
+                <div className="flex flex-wrap gap-2">
+                  {/* STALE FIGURES DO NOT GO TO A BANK.
+                      Warning and then allowing it is not a warning. While a
+                      row shows loss of pay beside a full month's pay, the
+                      month cannot be locked and no file can be drawn from
+                      it: those are the two steps that turn these numbers
+                      into money leaving the school. Run the month and both
+                      come back. */}
+                  {status !== 'locked' && status !== 'paid' && (
+                    <Button disabled={state.isPending || stale.length > 0} onClick={() => state.mutate('locked')}>
+                      Lock payroll & send to finance
+                    </Button>
+                  )}
+                  {locked && (
+                    stale.length > 0 ? (
+                      <span className="inline-flex cursor-not-allowed items-center rounded-md border px-3 py-1.5 text-[13px] font-medium opacity-50"
+                        title="These figures are out of date. Run the month first.">
+                        Download bank file
+                      </span>
+                    ) : (
+                    <a
+                      className="inline-flex items-center rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted"
+                      href={`/api/v1/payroll/bank-file?month=${month}&year=${year}`}
+                    >
+                      Download bank file
+                    </a>
+                    )
                   )}
                   {status === 'locked' && (
                     <>
@@ -277,12 +455,45 @@ export default function Payroll() {
                       Publish payslips
                     </Button>
                   )}
-                  {published && (
-                    <span className="text-[13px] text-success">Payslips published.</span>
+                  {/* A WAY BACK FROM A MONTH THAT HAS ALREADY GONE OUT.
+                      Once a month reached paid or published the only button
+                      left was Download bank file, so a month published with
+                      the wrong figures could not be corrected at all.
+                      Permanently wrong pay is worse than a reopened month.
+                      Re-publishing is a separate press, and that is what
+                      tells the staff again. */}
+                  {status === 'paid' && (
+                    <Button variant="ghost" disabled={state.isPending}
+                      onClick={() => state.mutate('draft')}>
+                      {published ? 'Reopen this month' : 'Unlock'}
+                    </Button>
                   )}
                 </div>
+                )
               }
             />
+            {/* WHERE THE SENTENCE ACTUALLY GOES.
+
+                This card carried its whole meaning in CardHeader's
+                `description`, and card descriptions are no longer drawn
+                anywhere in the product -- the prop is kept so screens do not
+                break. So what was left on screen was a 62px strip reading
+                "Published", a button, and a green "Payslips published."
+                repeating the title, with an empty band between them. The one
+                line a person needs -- the money has gone, nobody has approved
+                this yet, here is what to do next -- was not rendered at all.
+
+                In the body, where it is drawn, and the redundant green echo
+                of the title is gone with it. */}
+            <p className="px-[var(--card-pad)] py-3 text-[13px] text-muted-foreground">
+              {published
+                ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
+                : status === 'paid'
+                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
+                  : status === 'locked'
+                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
+                    : 'Check the figures, then lock the month so attendance cannot change them.'}
+            </p>
           </Card>
         )}
 
@@ -309,7 +520,7 @@ export default function Payroll() {
           />
           {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
-              head={['Code', 'Employee', 'Paid days', 'LOP', ...components, 'Gross', 'Deductions', 'Net']}
+              head={['Code', 'Employee', 'Paid days', 'LOP', ...components.map((c) => c === 'ADJ_ADD' ? 'Bonus / arrears' : c === 'ADJ_CUT' ? 'Other deduction' : c === 'GROSS' ? 'Monthly salary' : c === 'LOP' ? 'Loss of pay' : c === 'HOLIDAY_WORK' ? 'Holidays worked' : c === 'ESI_EE_BY_EMPLOYER' ? 'ESI (school pays)' : c), 'Gross', 'Deductions', 'Net']}
               empty={!rows.length}
               emptyLabel="No payroll run for this month yet."
             >
@@ -329,8 +540,9 @@ export default function Payroll() {
                   </Td>
                   <Td className="num">{p.paid_days}</Td>
                   <Td className="num">
+                    {/* Only the number (owner, 2026-10-16: "just show lop"); why, on hover. */}
                     {Number(p.lop_days) > 0
-                      ? <Badge tone="warning">{p.lop_days}</Badge>
+                      ? <span title={lopReasons(p.why).join(' · ') || undefined}><Badge tone="warning">{p.lop_days}</Badge></span>
                       : '-'}
                   </Td>
                   {components.map((c) => (
@@ -346,6 +558,9 @@ export default function Payroll() {
             </Table>
           )}
         </Card>
+
+        <PayAdjustments month={month} year={year} people={rows} locked={locked} canWrite={canRun} />
+        <MonthDays month={month} year={year} people={rows} locked={locked} canWrite={canRun} />
       </PageBody>
     </>
   )

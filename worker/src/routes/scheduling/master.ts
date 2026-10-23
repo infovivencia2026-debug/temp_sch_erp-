@@ -5,6 +5,7 @@ import {
   DRAFT_ENTRY_SELECT, DRAFT_SELECT, TEACHING_WEEKDAYS, draftEntryJSON, draftJSON, guardStmt, isGuardFailure, loadDraftIssues, loadPeriods,
   resolveYear, teachingCount, type DraftDbRow, type DraftEntryDb,
 } from './tt_shared'
+import { scheduleBundle, sectionScheduleSQL } from './bell'
 
 /* Port of master_timetable.go: /master-timetable/*, the whole-school desk
    over the draft model, and the hand edit of one draft cell.
@@ -17,6 +18,12 @@ import {
 
 const READ = 'academics.timetable.read'
 const WRITE = 'academics.timetable.write'
+
+/* The period itself, and any period of another bell that overlaps it: a
+   teacher cannot be in Nursery's 09:00 and Class 5's 09:10 at once. With one
+   bell this is just the period. */
+const SAME_TIME = `(SELECT q.id FROM periods q, periods me WHERE me.id = ?
+  AND (q.id = me.id OR (q.bell_schedule_id <> me.bell_schedule_id AND q.starts_at < me.ends_at AND me.starts_at < q.ends_at)))`
 
 const outOfReach = () => denied('this draft belongs to a campus you are not posted to')
 const draftClosed = () => coded(409, 'draft_closed', 'this draft has been published or discarded and can no longer be edited')
@@ -80,6 +87,7 @@ async function getMasterTimetableOverview(c: Ctx): Promise<Response> {
   return ok({
     academic_year_id: year, academic_year: yr.name, weekdays: TEACHING_WEEKDAYS, periods, sections, open_drafts: drafts.map(draftJSON),
     may_edit: has(c, WRITE), cells_a_week: teachingCount(periods) * TEACHING_WEEKDAYS.length, summary,
+    ...(await scheduleBundle(c, year)),
   })
 }
 
@@ -185,15 +193,19 @@ async function editMasterDraft(c: Ctx, entryID: string | null): Promise<Response
   const period = await c.db.prepare(`SELECT is_break FROM periods WHERE id = ?`).bind(periodID).first<{ is_break: number }>()
   if (!period) throw notFound()
   if (period.is_break) throw badRequest('that period is a break, not a teaching period')
+  // A class on timings of its own is placed on its own periods (bell.ts).
+  const ownBell = await c.db.prepare(`SELECT (p.bell_schedule_id = ${sectionScheduleSQL('s')}) AS ok FROM periods p, sections s WHERE p.id = ? AND s.id = ?`)
+    .bind(periodID, sectionID).first<{ ok: number }>()
+  if (!ownBell?.ok) throw badRequest("that period is not in this class's timings")
   const secBusy = await c.db.prepare(`SELECT 1 AS x FROM timetable_draft_entries WHERE draft_id = ? AND section_id = ? AND weekday = ? AND period_id = ? AND id <> ?`)
     .bind(draftID, sectionID, weekday, periodID, self).first()
   if (secBusy) throw sectionBusy()
 
   if (teacher !== null) {
-    const inDraft = await c.db.prepare(`SELECT 1 AS x FROM timetable_draft_entries WHERE draft_id = ? AND teacher_user_id = ? AND weekday = ? AND period_id = ? AND id <> ?`)
+    const inDraft = await c.db.prepare(`SELECT 1 AS x FROM timetable_draft_entries WHERE draft_id = ? AND teacher_user_id = ? AND weekday = ? AND period_id IN ${SAME_TIME} AND id <> ?`)
       .bind(draftID, teacher, weekday, periodID, self).first()
     if (inDraft) throw teacherBusy()
-    const inLive = await c.db.prepare(`SELECT 1 AS x FROM timetable_entries te WHERE te.academic_year_id = ? AND te.teacher_user_id = ? AND te.weekday = ? AND te.period_id = ?
+    const inLive = await c.db.prepare(`SELECT 1 AS x FROM timetable_entries te WHERE te.academic_year_id = ? AND te.teacher_user_id = ? AND te.weekday = ? AND te.period_id IN ${SAME_TIME}
         AND te.section_id NOT IN (SELECT section_id FROM timetable_draft_entries WHERE draft_id = ?)`)
       .bind(d.academic_year_id, teacher, weekday, periodID, draftID).first()
     if (inLive) throw teacherBusy()

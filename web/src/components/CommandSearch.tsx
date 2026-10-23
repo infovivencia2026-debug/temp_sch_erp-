@@ -43,7 +43,7 @@ interface PersonHit {
  * catalog is already loaded client-side, so searching it costs nothing and
  * removes the need to know which section a feature was filed under.
  */
-export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
+export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; fill?: boolean } = {}) {
   const catalog = useCatalog()
   const navigate = useNavigate()
   const [open, setOpen] = useOpenState(false)
@@ -57,6 +57,17 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   /* The shared Dialog owns Back, Escape and the dim (overlay-history.ts);
      this is what the rows call when they have sent somebody somewhere. */
   const close = useCallback(() => setOpen(false), [])
+  /* The button is swapped for the palette while it is open, so the Dialog
+     has no opener to hand focus back to; the new button takes it, unless the
+     palette closed by going somewhere (focus then belongs to that screen). */
+  const trigger = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
+  useEffect(() => {
+    if (open) { wasOpen.current = true; return }
+    if (!wasOpen.current) return
+    wasOpen.current = false
+    if (!document.activeElement || document.activeElement === document.body) trigger.current?.focus({ preventScroll: true })
+  }, [open])
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -262,6 +273,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   if (!open) {
     return (
       <button
+        ref={trigger}
         onClick={() => setOpen(true)}
         /* Fully round, to sit inside the Bento dock without arguing with it.
 
@@ -280,13 +292,15 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
           /* The Work header's one control: a field-sized target, the words
              left and the shortcut right, the way a search box reads. */
           wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
+          /* The staff layout's centred field: the width of its column at every size. */
+          fill && '!h-10 !w-full justify-start gap-2.5 px-4 text-[14px] sm:py-0',
         )}
         aria-label="Search features"
         data-help-anchor="search"
         data-help-label="Search: type part of a screen's name."
       >
         <Search className={cn('h-5 w-5 sm:h-3.5 sm:w-3.5', wide && 'md:h-4 md:w-4')} />
-        <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>
+        <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left', fill && '!inline min-w-0 flex-1 truncate text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>
         <kbd className="hidden shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px] sm:inline">{shortcutLabel('K')}</kbd>
       </button>
     )

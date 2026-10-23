@@ -1,5 +1,5 @@
 import type { Router } from '../../router'
-import { HttpError, badRequest, created, forbidden, isUUID, now, ok, readJSON, uuidParam } from '../../http'
+import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { can } from '../../identity'
 import { indianGroup, isDate, items, omitNulls, p, paise, today, workingYear } from './common'
 import { school } from '../school'
@@ -19,8 +19,10 @@ export function registerRefunds(r: Router): void {
              COALESCE(st.admission_no, ap.application_no, '') AS admission_no,
              fh.name AS fee_head, fc.kind, fc.percent, fc.amount_paise, fc.reason, u.full_name AS approved_by, fc.status,
              COALESCE(fc.decision_note, '') AS decision_note, COALESCE(ru.full_name, '') AS requested_by,
-             COALESCE(substr(fc.decided_at, 1, 10), '') AS decided_on, substr(fc.created_at, 1, 10) AS raised_on
+             COALESCE(substr(fc.decided_at, 1, 10), '') AS decided_on, substr(fc.created_at, 1, 10) AS raised_on,
+             fc.attachment_file_id, fc.document_note, f.original_name AS document_name
         FROM fee_concessions fc
+        LEFT JOIN files f ON f.id = fc.attachment_file_id AND f.deleted_at IS NULL
         LEFT JOIN students st ON st.id = fc.student_id
         LEFT JOIN applications ap ON ap.id = fc.application_id
         LEFT JOIN fee_heads fh ON fh.id = fc.fee_head_id
@@ -30,7 +32,29 @@ export function registerRefunds(r: Router): void {
        ORDER BY fc.status <> 'pending', fc.created_at DESC LIMIT 300`).bind(only).all<Record<string, unknown>>()
     return ok(items(rows.results.map((v) => omitNulls({ id: v.id, student_name: v.student_name, admission_no: v.admission_no, fee_head: v.fee_head, kind: v.kind,
       percent: v.percent === null ? null : String(v.percent), amount_paise: v.amount_paise === null ? null : p(v.amount_paise), reason: v.reason, approved_by: v.approved_by,
-      status: v.status, decision_note: v.decision_note, requested_by: v.requested_by, decided_on: v.decided_on, raised_on: v.raised_on }))))
+      status: v.status, decision_note: v.decision_note, requested_by: v.requested_by, decided_on: v.decided_on, raised_on: v.raised_on,
+      attachment_file_id: v.attachment_file_id, document_note: v.document_note, document_name: v.document_name }))))
+  })
+
+  /* The paper behind a negotiated fee: the signed undertaking, the fee
+     discount letter, the scholarship award. One file and a note, kept on
+     the concession so an auditor opens the row and finds the document. */
+  r.post('/fees/concessions/{id}/document', 'finance.fees.write', async (c) => {
+    const id = uuidParam(c.params.id)
+    const req = await readJSON<{ file_id?: unknown; note?: unknown }>(c.req)
+    const fileId = req.file_id === null || req.file_id === undefined || req.file_id === '' ? null : String(req.file_id)
+    const note = typeof req.note === 'string' && req.note.trim() !== '' ? req.note.trim() : null
+    if (fileId === null && note === null) throw badRequest('attach a file, write a note, or both')
+    if (fileId !== null) {
+      if (!isUUID(fileId)) throw badRequest('file_id must be a file uploaded through POST /files')
+      const f = await c.db.prepare(`SELECT 1 FROM files WHERE id = ? AND deleted_at IS NULL`).bind(fileId).first()
+      if (!f) throw badRequest('that file is not in this school')
+    }
+    const row = await c.db.prepare(`SELECT 1 FROM fee_concessions WHERE id = ?`).bind(id).first()
+    if (!row) throw notFound()
+    await c.db.prepare(`UPDATE fee_concessions SET attachment_file_id = COALESCE(?, attachment_file_id), document_note = COALESCE(?, document_note) WHERE id = ?`)
+      .bind(fileId, note, id).run()
+    return ok({ id, attachment_file_id: fileId, document_note: note })
   })
 
   // ---------------------------------------------------------------- grant (raise) a concession

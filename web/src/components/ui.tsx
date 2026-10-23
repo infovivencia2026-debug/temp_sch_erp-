@@ -1,22 +1,25 @@
+import { printAllStore } from '@/lib/print'
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
 import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
+import { useBundleTitle } from '@/lib/bundle-title'
+import { DatePopover, prettyDate } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
-  type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject } from 'react'
+  type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
+import { Anchored } from './AnchoredPanel'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
-  CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
-  Maximize2, Printer, RefreshCw, X,
-} from 'lucide-react'
+  CalendarRange, Check, CircleAlert, CircleCheck, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff, Inbox,
+  Maximize2, Pencil, Printer, RefreshCw, X} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
-import { useCan } from '@/lib/session'
+import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
@@ -95,6 +98,10 @@ export function PageHead({
   /** Must match the PageBody beneath it, or the two edges disagree. */
   width?: Width
 }) {
+  /* Inside a bundle the tab somebody pressed is the name of the page, and the
+     screen's own name is the third one nobody asked for. See lib/bundle-title. */
+  const bundled = useBundleTitle()
+  if (bundled) title = bundled
   const embedded = useContext(EmbeddedPage)
   if (embedded) {
     return (
@@ -248,9 +255,16 @@ export function UnavailableState({
   body?: string
   technical?: { label: string; value: string }[]
 }) {
+  /* A WHOLE SCREEN'S ANSWER BELONGS IN THE MIDDLE OF IT.
+
+     This drew flush to the top-left corner of an otherwise empty page, hard
+     against the gutter, with the rest of the window blank below it. It read
+     as a stray line of text somebody forgot to delete rather than as the
+     page's answer -- and where it is the only thing on the screen, it is the
+     page's answer. Centred, on a card, like every other empty state. */
   return (
-    <div className="max-w-[720px]">
-      <div className="flex items-start gap-3">
+    <div className="mx-auto w-full max-w-[720px] py-10">
+      <div className="flex items-start gap-3 rounded-2xl border bg-card p-6 text-left">
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-[15px] font-medium">{title}</p>
@@ -354,6 +368,21 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   const kids = Children.toArray(children)
   const filled = kids.length
   if (filled === 0) return null
+
+  /* ONE FIGURE IS A TILE, NOT A BANNER.
+
+     The rule below widens the last cell to close the row's right edge, which
+     is right for three tiles in a four-track row and wrong for one: a lone
+     "Collected today" stretched the full width of the page with its number
+     marooned at the left, and the board's home screen opened with it. It
+     happens wherever permissions leave a single tile standing -- the trustee
+     sees one of the five money cards, the transport desk one of four.
+
+     A single tile keeps a tile's width and the row stays open to its right,
+     which is what every other row in the product does when it is short. */
+  if (filled === 1) {
+    return <div className="cell-grid reveal grid grid-cols-1 sm:max-w-[22rem]">{kids}</div>
+  }
 
   const grid: string[] = []
   const span: string[] = []
@@ -471,7 +500,8 @@ export function Stat({
           {control}
           {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         </div>
-        <p className="stat">{value}</p>
+        {/* A div, not a p: callers hand the value a Skeleton while loading, and a block inside a paragraph is invalid markup. */}
+        <div className="stat">{value}</div>
       </Head>
       {delta && (
         <p
@@ -549,6 +579,275 @@ export function useSort<T>(
 
 /** A column heading. A plain string is not sortable; give it a key to make it so. */
 export type Column = string | { label: string; key?: string; align?: 'right' }
+
+/* COLUMNS A PERSON KEEPS (owner, 2026-10-13: "add edit button for every table
+   in erp for customization ... table cols i meant").
+
+   Three hundred tables in this product and all of them are this one
+   component, so the chooser is built here once rather than three hundred
+   times. Each table gets a control that lists its columns; unticking one
+   hides it for that person on that table, everywhere they sign in.
+
+   WHAT IS STORED is the labels turned OFF, not the ones left on: a column
+   added to a table in a later release then appears for everybody, which is
+   the right default -- storing the ones on would hide every new column from
+   everyone who had ever touched the setting.
+
+   ONE REQUEST FOR THE WHOLE PRODUCT. The map is fetched once into this
+   module and shared; a screen with six tables makes one request, not six.
+   A role whose account cannot read it keeps every column and nothing
+   breaks -- the failure is swallowed on purpose. */
+type ColMap = Record<string, string[]>
+type NameMap = Record<string, Record<string, string>>
+const NO_COLS: string[] = []
+const NO_NAMES: Record<string, string> = {}
+let nameMap: NameMap = {}
+let colMap: ColMap = {}
+let colLoaded = false
+let colLoading: Promise<unknown> | null = null
+const colSubs = new Set<() => void>()
+const colEmit = () => { for (const f of [...colSubs]) f() }
+
+function loadColumnPrefs() {
+  if (colLoaded || colLoading) return
+  colLoading = api
+    .get<{ columns: ColMap; names?: NameMap }>('/api/v1/portal/preferences/table-columns')
+    .then((r) => { colMap = r?.columns ?? {}; nameMap = r?.names ?? {}; colLoaded = true; colEmit() })
+    .catch(() => { colLoaded = true })
+    .finally(() => { colLoading = null })
+}
+
+/** The labels this person has turned off on this table. */
+function useHiddenColumns(key: string): string[] {
+  useEffect(() => { loadColumnPrefs() }, [])
+  return useSyncExternalStore(
+    (f) => { colSubs.add(f); return () => { colSubs.delete(f) } },
+    () => colMap[key] ?? NO_COLS,
+    () => NO_COLS,
+  )
+}
+
+/* WHAT THE SCHOOL CALLS THIS COLUMN (owner, 2026-10-13: "column should be
+   editable ... add a editable button").
+
+   Hiding a column is one person's business; renaming one is the school's --
+   "Adm no." is "Admission Number" at one school and "PEN" at another, and two
+   people reading the same screen must not see it called two different things.
+   So a rename is saved against the institution and everybody gets it, which
+   is why only an account that may change settings is offered the pencil.
+
+   Always keyed by the column's ORIGINAL label. A person's hidden list is
+   keyed the same way, so renaming a column never loses track of which one is
+   hidden, and clearing the rename always gets the product's own word back. */
+function useColumnNames(key: string): Record<string, string> {
+  useEffect(() => { loadColumnPrefs() }, [])
+  return useSyncExternalStore(
+    (f) => { colSubs.add(f); return () => { colSubs.delete(f) } },
+    () => nameMap[key] ?? NO_NAMES,
+    () => NO_NAMES,
+  )
+}
+
+function setColumnNames(key: string, names: Record<string, string>) {
+  const next = { ...nameMap }
+  if (Object.keys(names).length) next[key] = names
+  else delete next[key]
+  nameMap = next
+  colEmit()
+  void api.put('/api/v1/portal/preferences/table-column-names', { key, names }).catch(() => {})
+}
+
+function setHiddenColumns(key: string, hidden: string[]) {
+  const next = { ...colMap }
+  if (hidden.length) next[key] = hidden
+  else delete next[key]
+  colMap = next
+  colEmit()
+  /* Saved in the background. The screen has already changed; a slow network
+     must not hold a tick box, and a failed save leaves the person looking at
+     what they asked for until they next sign in. */
+  void api.put('/api/v1/portal/preferences/table-columns', { key, hidden }).catch(() => {})
+}
+
+/* The table's name for the setting: the screen it is on, then its own
+   headings. Two tables on one screen differ by their headings; the same
+   table keeps its setting as the reader moves around the product. */
+function tableKeyOf(labels: string[]): string {
+  const path = typeof window === 'undefined' ? '' : window.location.pathname
+  return `${path}|${labels.join('~')}`.slice(0, 300)
+}
+
+/* THE SAME CHOOSER, FOR A TABLE THIS COMPONENT DID NOT DRAW.
+
+   A handful of screens draw their own <table> because their rows are not
+   rows -- a timetable's cells are periods, an import preview's are a file's
+   own columns. The ones that ARE ordinary tables should still let a person
+   put a column away, and converting their markup to the shared component to
+   get it would be a rewrite of working screens for a button.
+
+   So the chooser is handed over instead. A caller passes its column labels
+   and gets back the class to put on its <table>, the <style> that hides what
+   is turned off, the control itself, and `label()` for drawing each heading
+   in the school's own word. Four lines at the call site, the same behaviour
+   and the same stored setting as every other table in the product. */
+export function useColumnChooser(labels: string[]) {
+  const key = tableKeyOf(labels)
+  const hidden = useHiddenColumns(key)
+  const names = useColumnNames(key)
+  const [cls] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
+  const hideAt = labels.map((l, i) => (l.trim() !== '' && hidden.includes(l) ? i : -1)).filter((i) => i >= 0)
+  return {
+    className: cls,
+    label: (original: string) => names[original] ?? original,
+    style: hideAt.length === 0 ? null : (
+      <style>{hideAt.map((i) => `.${cls} > thead th:nth-child(${i + 1}), .${cls} > tbody td:nth-child(${i + 1}) { display: none }`).join('')}</style>
+    ),
+    chooser: (
+      <ColumnChooser
+        labels={labels}
+        hidden={hidden}
+        onChange={(next) => setHiddenColumns(key, next)}
+        names={names}
+        onRename={(next) => setColumnNames(key, next)}
+      />
+    ),
+  }
+}
+
+function ColumnChooser({ labels, hidden, onChange, names, onRename }: {
+  labels: string[]; hidden: string[]; onChange: (next: string[]) => void
+  names: Record<string, string>; onRename: (next: Record<string, string>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState('')
+  const [draft, setDraft] = useState('')
+  /* Outside SessionProvider (a bare test mount) nobody may rename. */
+  const session = useSessionIfAny()
+  const mayRename = !!session && (session.user?.platform_admin === true || session.permissions.includes('institution.settings.write'))
+  const box = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (box.current && !box.current.contains(t) && !panel.current?.contains(t)) setOpen(false) }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
+  }, [open])
+  /* A column with no heading is the row's own buttons -- Open, Edit, Remove.
+     Nobody means to hide those, and a list of blanks is not a choice. */
+  const choosable = labels.filter((l) => l.trim() !== '')
+  if (choosable.length < 2) return null
+  const shownCount = choosable.filter((l) => !hidden.includes(l)).length
+  return (
+    <div className="relative" ref={box}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="Choose which columns to show"
+        title="Choose which columns to show"
+        className="tap-inline grid size-8 place-items-center rounded-sm border border-border bg-card
+                   text-muted-foreground opacity-60 transition-opacity hover:text-foreground hover:opacity-100
+                   focus-visible:opacity-100 group-hover/table:opacity-100"
+      >
+        <Eye className="h-4 w-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <Anchored open anchor={box} panelRef={panel} align="end" width={224} maxHeight={420}
+          className="rounded-md border bg-popover p-1.5 text-popover-foreground shadow-lg">
+          <p className="px-2 py-1 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Columns</p>
+          <div className="max-h-72 overflow-y-auto">
+            {choosable.map((l) => {
+              const on = !hidden.includes(l)
+              /* The last one standing cannot be turned off: a table with no
+                 columns is not a smaller table, it is a broken screen. */
+              const locked = on && shownCount === 1
+              const shownAs = names[l] ?? l
+              const commit = () => {
+                const v = draft.trim()
+                const next = { ...names }
+                /* Back to the product's own word clears the rename rather
+                   than storing the same word as an override for ever. */
+                if (v === '' || v === l) delete next[l]
+                else next[l] = v
+                setEditing('')
+                onRename(next)
+              }
+              if (editing === l) {
+                return (
+                  <div key={l} className="flex items-center gap-1 px-2 py-1">
+                    <input
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing('') }}
+                      onBlur={commit}
+                      placeholder={l}
+                      aria-label={`What this school calls ${l}`}
+                      className="field h-8 w-full text-[13px]"
+                    />
+                  </div>
+                )
+              }
+              return (
+                <div key={l} className="group/col flex items-center">
+                  <button
+                    type="button"
+                    disabled={locked}
+                    onClick={() => onChange(on ? [...hidden, l] : hidden.filter((x) => x !== l))}
+                    className={cn('flex min-h-9 flex-1 items-center gap-2 rounded-sm px-2 text-left text-[13.5px]',
+                      locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted')}
+                    title={locked ? 'A table has to keep one column.' : undefined}
+                  >
+                    <span aria-hidden className={cn('grid size-4 shrink-0 place-items-center rounded-[4px] border',
+                      on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
+                      {on && <Check className="h-3 w-3" />}
+                    </span>
+                    <span className="truncate">{shownAs}</span>
+                  </button>
+                  {mayRename && (
+                    <button
+                      type="button"
+                      onClick={() => { setDraft(shownAs); setEditing(l) }}
+                      aria-label={`Rename ${shownAs} for the whole school`}
+                      title="Rename this column for the whole school"
+                      className="mr-1 grid size-7 shrink-0 place-items-center rounded-sm text-muted-foreground
+                                 opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100
+                                 group-hover/col:opacity-100"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {mayRename && <p className="px-2 pt-1 text-[11.5px] text-muted-foreground">A new name is for the whole school. Ticks are only yours.</p>}
+          {hidden.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="mt-1 w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-primary hover:bg-muted"
+            >
+              Show every column
+            </button>
+          )}
+          {Object.keys(names).length > 0 && mayRename && (
+            <button
+              type="button"
+              onClick={() => onRename({})}
+              className="w-full rounded-sm px-2 py-1.5 text-left text-[13px] text-primary hover:bg-muted"
+            >
+              Use the original names
+            </button>
+          )}
+        </Anchored>
+      )}
+    </div>
+  )
+}
 
 /**
  * A table that stays a table on a phone.
@@ -685,8 +984,18 @@ function csvField(v: string): string {
   return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t
 }
 
-function rowsToCSV(labels: string[], rows: ReactNode[]): string {
+function rowsToCSV(labels: string[], rows: ReactNode[], dom?: HTMLTableElement | null): string {
   const lines = [labels.map(csvField).join(',')]
+  /* Rows drawn by a component of their own (<ConnectorRow />) carry no cells
+     in their props; the export came out as a header and nothing. Those are
+     read from the table as drawn. */
+  if (dom && rows.some((r) => isValidElement(r) && r.type !== 'tr')) {
+    dom.querySelectorAll('tbody tr').forEach((tr) => {
+      const cells = [...tr.querySelectorAll('td')].filter((td) => !td.classList.contains('no-print'))
+      lines.push(cells.map((td) => csvField((td.innerText || '').replace(/\s+/g, ' ').trim())).join(','))
+    })
+    return lines.join(String.fromCharCode(13, 10))
+  }
   for (const row of rows) {
     if (!isValidElement(row)) continue
     const cells = Children.toArray((row as { props: { children?: ReactNode } }).props?.children)
@@ -738,7 +1047,7 @@ export function ExportTable({ tableId, name }: { tableId: string; name: string }
     setTimeout(() => URL.revokeObjectURL(url), 0)
   }
   return (
-    <Button variant="secondary" size="sm" className="no-print" onClick={take} title="Download this table as CSV">
+    <Button variant="secondary" className="no-print" onClick={take} title="Download this table as CSV">
       <Download className="h-3.5 w-3.5" />
       Export
     </Button>
@@ -752,6 +1061,7 @@ export function Table({
   emptyLabel = 'Nothing to show.',
   sort,
   wide,
+  unpaged,
   loading,
   loadingRows = 6,
   hasMore,
@@ -827,6 +1137,8 @@ export function Table({
      Leave it unset and the table decides for itself — see WIDE_AT. Pass it
      explicitly to override in either direction. */
   wide?: boolean
+  /** Every row on one page, no pager: a short list that must be seen whole (a class's date sheet). */
+  unpaged?: boolean
 }) {
   const labels = head.map((h) => (typeof h === 'string' ? h : h.label))
 
@@ -862,12 +1174,23 @@ export function Table({
   const rows = Children.toArray(children)
   const [page, setPage] = useState(0)
   const [full, setFull] = useState(false)
+  /* The chooser, for this table. The labels name the columns; the key names
+     the table, so the choice survives leaving the screen and coming back. */
+  const colLabels = head.map((h) => (typeof h === 'string' ? h : h.label))
+  const colKey = tableKeyOf(colLabels)
+  const hiddenCols = useHiddenColumns(colKey)
+  const colNames = useColumnNames(colKey)
+  const hideAt = colLabels.map((l, i) => (l.trim() !== '' && hiddenCols.includes(l) ? i : -1)).filter((i) => i >= 0)
+  const [colClass] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
+  /* While a print is being built every row is drawn: the owner's prints came
+     out as "1–10 of 11", the first page of the list and nothing more. */
+  const printingAll = useSyncExternalStore(printAllStore.sub, printAllStore.get, () => false)
   /* Full screen means the whole list, scrolled — not four pages of it.
 
      Expanding a table is what somebody does when ten rows at a time is the
      problem, and answering with forty at a time is the same problem further
      away. Paged in the card, whole on the screen. */
-  const size = full ? Math.max(rows.length, 1) : PAGE_SIZE
+  const size = full || printingAll || unpaged ? Math.max(rows.length, 1) : PAGE_SIZE
   const pages = Math.max(1, Math.ceil(rows.length / size))
 
   /* The list continues past the rows in hand.
@@ -880,7 +1203,7 @@ export function Table({
      folder of them is still legible in a week and yesterday's is still there. */
   const takeAway = () => {
     const stem = (labels[0] || 'table').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    const blob = new Blob(['﻿' + rowsToCSV(labels, rows)], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob(['﻿' + rowsToCSV(labels, rows, tableEl.current)], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -900,6 +1223,7 @@ export function Table({
   const canGrow = !!onLoadMore && !!hasMore
   const more = () => { if (canGrow && !loadingMore) onLoadMore!() }
   const sentinel = useRef<HTMLDivElement | null>(null)
+  const tableEl = useRef<HTMLTableElement | null>(null)
 
   /* Snap back when the rows change underneath.
 
@@ -994,10 +1318,20 @@ export function Table({
        scroll left again. The controls that move you through the rows must not
        be reachable only from one horizontal position. */
     <div className="table-frame">
+      {/* The columns this person has turned off are hidden by their position
+          rather than by not rendering them: the rows belong to the screen
+          that drew them, and this component cannot reach inside somebody
+          else's <tr> to drop a cell. Not applied to an empty or loading
+          table, whose single wide cell is not in those columns at all. */}
+      {hideAt.length > 0 && !empty && !loading && (
+        <style>{hideAt.map((i) => `.${colClass} > thead th:nth-child(${i + 1}), .${colClass} > tbody td:nth-child(${i + 1}) { display: none }`).join('')}</style>
+      )}
       <div className="scroll-x">
       <table
+        ref={tableEl}
         className={cn(
           'responsive-table text-[14px]',
+          colClass,
           // A table scrolled sideways must not carry away the column naming
           // the row, so is-wide freezes the first column -- see index.css.
           // On a narrow screen index.css freezes it for every table, because
@@ -1008,7 +1342,10 @@ export function Table({
         <thead>
           <tr>
             {head.map((h, i) => {
-              const label = typeof h === 'string' ? h : h.label
+              const original = typeof h === 'string' ? h : h.label
+              /* The school's word for it, if it has one. The original is
+                 still what sorting, hiding and data-label key off. */
+              const label = colNames[original] ?? original
               const key = typeof h === 'string' ? undefined : h.key
               const active = !!key && sort?.sortKey === key
               // A money column is read as a column of digits lined up on the
@@ -1104,7 +1441,7 @@ export function Table({
             the pager when there is paging to do, and with the export alone when
             there is not. */}
         {rows.length > 0 && (
-          <div className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
+          <div data-table-foot="" className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
                 numbers answer it directly.
@@ -1123,7 +1460,7 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="secondary" className="no-print" onClick={onExport ?? takeAway}
+              <Button variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -1162,6 +1499,18 @@ export function Table({
   if (!full) {
     return (
       <div className="relative" data-table-expandable="">
+        {/* Beside the expand control, which is the other thing you can do to
+            a table as a whole. Same weight, same corner, so the pair reads as
+            one set of table controls rather than a new button appearing. */}
+        <div className="absolute right-11 top-1 z-20">
+          <ColumnChooser
+            labels={colLabels}
+            hidden={hiddenCols}
+            onChange={(next) => setHiddenColumns(colKey, next)}
+            names={colNames}
+            onRename={(next) => setColumnNames(colKey, next)}
+          />
+        </div>
         <button
           type="button"
           onClick={() => setFull(true)}
@@ -1383,6 +1732,7 @@ export function Button({
   className,
   ariaHasPopup,
   ariaExpanded,
+  ariaDescribedBy,
   needsNetwork,
 }: {
   /** Money, logins, publishing, admissions: never kept for later. Offline,
@@ -1396,6 +1746,8 @@ export function Button({
   /** For a button that opens a menu: what it opens, and whether it is open. */
   ariaHasPopup?: 'menu' | 'listbox' | 'dialog'
   ariaExpanded?: boolean
+  /** The id of the line that says why the button is off. */
+  ariaDescribedBy?: string
   type?: 'button' | 'submit'
   /* The tooltip, and the accessible name that has to go with it.
 
@@ -1428,6 +1780,7 @@ export function Button({
       aria-label={title}
       aria-haspopup={ariaHasPopup}
       aria-expanded={ariaExpanded}
+      aria-describedby={ariaDescribedBy}
       /* `btn` and the level are what index.css reads to put the button on
          the elevation ladder: a key at level 1, sunk on press, flat when
          ghost. The classes below paint colour only. */
@@ -1703,6 +2056,43 @@ export function Checkbox({
    mouse user reads at a glance stays dense. */
 const COARSE_ROW = '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[15px]'
 
+/* An on/off switch. ON is the system green (.sys-switch in
+   styles/color-system.css). 44px tap area on phones, 40px on desktop. */
+export function Switch({
+  on,
+  onChange,
+  label,
+  disabled,
+  title,
+}: {
+  on: boolean
+  onChange: (v: boolean) => void
+  /** The accessible name: a switch beside a row's text still needs its own. */
+  label: string
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className="m-0 inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 sm:h-10"
+    >
+      <span
+        aria-hidden="true"
+        className={cn('sys-switch relative h-6 w-10 rounded-full border transition-colors duration-150', on ? 'bg-primary' : 'border-border bg-muted')}
+      >
+        <span className={cn('absolute top-[3px] size-4 rounded-full bg-card shadow-sm transition-[left] duration-150', on ? 'left-[19px]' : 'left-[3px]')} />
+      </span>
+    </button>
+  )
+}
+
 export function Select({
   value,
   onChange,
@@ -1754,10 +2144,21 @@ export function Select({
   // Closing on an outside click rather than on blur: blur fires before the
   // click that chose an option, so a blur-closed menu is a menu you cannot
   // click anything in.
+  /* TYPED, NOT CLICKED (2026-10-12, found testing the enquiry form: "Grade 6"
+     typed into Class sought and the suggestion not clicked saved nothing).
+     Leaving the box -- a click elsewhere or Tab -- keeps the typed text when
+     it names exactly one option. A partial word still picks nothing. */
+  const exactRef = useRef<{ value: string } | undefined>(undefined)
+  const pickRef = useRef(onChange)
+  pickRef.current = onChange
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) { setOpen(false); setQuery(''); setTyped(false) }
+      if (box.current && !box.current.contains(e.target as Node)) {
+        const m = exactRef.current
+        if (m) pickRef.current(m.value)
+        setOpen(false); setQuery(''); setTyped(false)
+      }
     }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
@@ -1834,6 +2235,7 @@ export function Select({
   const selected = all.find((o) => o.value === value)
   const q = query.trim().toLowerCase()
   const shown = q ? all.filter((o) => o.label.toLowerCase().includes(q)) : all
+  exactRef.current = typed && q ? (() => { const hits = all.filter((o) => o.label.toLowerCase() === q); return hits.length === 1 ? hits[0] : undefined })() : undefined
   /* OFFERED ONLY TO SOMEBODY WHO MAY DO IT.
 
      Adding to a vocabulary writes a row every form in the school then reads,
@@ -1946,13 +2348,22 @@ export function Select({
             else if (canUseTyped && active === shown.length) choose(query.trim())
             else if (shown[active]) choose(shown[active].value)
           } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
+          else if (e.key === 'Tab') {
+            const m = exactRef.current
+            if (m) onChange(m.value)
+            setOpen(false); setQuery(''); setTyped(false)
+          }
         }}
       />
       {/* A real button, not a decoration: the owner asked that every
           dropdown carry one, so it is plain that the box opens a list. */}
-      <button type="button" tabIndex={-1} aria-label={open ? 'Close list' : 'Open list'}
+      <button type="button" tabIndex={-1} aria-label="Open list"
         onMouseDown={(e) => e.preventDefault()}
-        onClick={() => { setOpen((o) => !o); setActive(0) }}
+        /* THE ARROW OPENS, IT NEVER CLOSES (owner, 2026-10-12: "that drop down is
+           not working, the down button"). It toggled: a click in the box opened the
+           list and the arrow pressed next shut it again, so the arrow read as dead.
+           Picking an option, clicking away or Esc closes it. */
+        onClick={() => { setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }) }}
         className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
         <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
       </button>
@@ -1978,7 +2389,16 @@ export function Select({
           className="menu-scroll fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {placeholder && !q && (
+          {/* NOT TWICE (owner, 2026-10-13: a list offering "Any exam type"
+              above "Any exam type").
+
+              This row clears the choice, and it is drawn from `placeholder`.
+              A caller that ALSO puts a blank option in its own list -- which
+              reads perfectly sensibly at the call site -- got both, one above
+              the other, the first greyed and the second not, doing exactly
+              the same thing. The caller's own row wins where there is one,
+              because that is the one whose wording they chose. */}
+          {placeholder && !q && !options.some((o) => o.value === '') && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
               className={cn('flex min-h-[36px] w-full items-center rounded-lg px-3 text-left text-[14px] text-muted-foreground hover:bg-accent', COARSE_ROW)}>
               {placeholder}
@@ -2113,6 +2533,63 @@ export function Input({
    * per box, starts hidden, and is remembered nowhere. */
   const [shown, setShown] = useState(false)
   const isPassword = type === 'password'
+
+  /* EVERY DATE BOX OPENS THE SAME CALENDAR.
+   *
+   * There are 195 of these across 98 screens, and each one used to open
+   * whatever the browser had: Chrome's on Windows, Safari's on a Mac, a
+   * spinning drum on a phone, and on a few older Android builds nothing at
+   * all -- the field degrades to free text there, and a clerk can type "3/4"
+   * into a due date. The same control, four products.
+   *
+   * Done here rather than at 195 call sites, and the value contract does not
+   * change: 'YYYY-MM-DD' in, 'YYYY-MM-DD' out, so no screen needed editing.
+   * The native input stays underneath for form semantics and for anybody
+   * typing rather than pointing. */
+  const dateRef = useRef<HTMLDivElement>(null)
+  const [cal, setCal] = useState(false)
+  if (type === 'date' && !disabled) {
+    return (
+      <div ref={dateRef} className={cn('relative', className)}>
+        {/* A DATE BOX IS A DROPDOWN, NOT AN ACTION.
+
+            This first drew as a bordered control with an icon on the right,
+            which is the shape of the Export button beside it -- and the one
+            thing a person must be able to tell at a glance is which controls
+            DO something and which merely open a list. It is the Select's own
+            markup now: the same `field` box, the same round chevron in the
+            same place, turning over when it opens. */}
+        <button
+          type="button"
+          onClick={() => setCal((s) => !s)}
+          aria-label={srLabel || 'Choose a date'}
+          aria-expanded={cal}
+          aria-invalid={ariaInvalid || undefined}
+          className={cn('field w-full cursor-text pr-11 text-left [@media(pointer:coarse)]:text-[16px]')}
+        >
+          <span className={cn(!value && 'text-muted-foreground')}>
+            {prettyDate(value) || placeholder || 'Choose a date'}
+          </span>
+        </button>
+        <span
+          aria-hidden
+          className="tap-inline pointer-events-none absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground"
+        >
+          <ChevronDown className={cn('h-4 w-4 transition-transform', cal && 'rotate-180')} />
+        </span>
+        {cal && (
+          <DatePopover
+            value={value}
+            onChange={onChange}
+            onClose={() => setCal(false)}
+            anchor={dateRef}
+            min={typeof min === 'string' ? min : undefined}
+            max={typeof max === 'string' ? max : undefined}
+          />
+        )}
+      </div>
+    )
+  }
 
   const field = (
     <input
@@ -2289,7 +2766,7 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     return (
       <p
         role="status"
-        className="rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
+        className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
       >
         {error.message}
       </p>
@@ -2308,31 +2785,48 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
        So a blank message falls back to a sentence, and where the server gave
        a status it is named. "Could not read this (403)" is something a person
        can act on or repeat down a telephone; a coloured rectangle is not. */
-    const said = error instanceof Error ? error.message.trim() : ''
+    /* The server's refusals are written lowercase and unpunctuated ("a fuel
+       entry needs the litres, ..."); shown to a person they read as a log
+       line. A capital and a full stop make them a sentence. */
+    const raw = error instanceof Error ? error.message.trim() : ''
     const status = error instanceof ApiError ? error.status : 0
+    /* A refusal reads as a sentence about the person, never as "Forbidden."
+       or a permission key like hr.payroll.write (owner, 2026-10-08: "looks
+       ugly"). */
+    const refused = status === 403 || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
+    /* A refusal the server explains in words ("this support session can only
+       look") is shown; only a bare "forbidden" or a permission key is replaced. */
+    const bare = /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw) || !raw.includes(' ')
+    const said = refused && bare ? '' : raw ? raw[0].toUpperCase() + raw.slice(1) + (/[.!?)]$/.test(raw) ? '' : '.') : ''
     const msg = said
       || (status === 401 ? 'Your session has ended. Sign in again.'
-        : status === 403 ? 'You do not have permission to see this.'
-        : status ? `The server refused this (${status}). Try again, or reload the page.`
+        : refused ? 'Your login is not allowed to do this. Ask the school admin if you need it.'
+        : status ? `That did not go through (${status}). Try again, or reload the page.`
         : 'Something went wrong. Try again, or reload the page.')
+    /* A quiet line, not a pink slab: an icon in the colour, the words in the
+       page's own ink, a thin rule on the left. */
     return (
-      <p className="flex flex-wrap items-center gap-x-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
-        <span className="min-w-0">{msg}</span>
+      <p role="alert" className="mt-3 flex items-start gap-2 border-l-2 border-destructive py-1 pl-3 text-[13px] leading-snug text-foreground">
+        <CircleAlert className="mt-px h-4 w-4 shrink-0 text-destructive" strokeWidth={2} />
+        <span className="min-w-0 flex-1">{msg}</span>
         <CopyRef text={msg} />
       </p>
     )
   }
   if (ok)
     return (
-      <p className="rounded-md border border-success/25 bg-success/5 px-3 py-2 text-[13px] text-success">
-        {ok}
+      <p role="status" className="mt-3 flex items-start gap-2 border-l-2 border-success py-1 pl-3 text-[13px] leading-snug text-foreground">
+        <CircleCheck className="mt-px h-4 w-4 shrink-0 text-success" strokeWidth={2} />
+        <span className="min-w-0 flex-1">{ok}</span>
       </p>
     )
   return null
 }
 
 export function ErrorState({ error }: { error: unknown }) {
-  const msg = error instanceof Error ? error.message : 'Unexpected error'
+  const raw = error instanceof Error ? error.message.trim() : ''
+  const refused = (error instanceof ApiError && error.status === 403) || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
+  const msg = refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.' : raw || 'Something went wrong. Try again, or reload the page.'
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
@@ -2421,7 +2915,7 @@ export {
   Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
-import { useOpenState, usePresence } from '@/lib/motion'
+import { restoreFocus, useOpenState, usePresence } from '@/lib/motion'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useOnline } from '@/lib/online'
 
@@ -2548,7 +3042,8 @@ const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string
    was the small size beside full-size Import, Print and Save. */
 const InPageActions = createContext(false)
 
-export function ExportButton({ report, label }: { report: string; label?: string }) {
+/** `query` scopes the file to what the screen shows (a month, an exam, a section). */
+export function ExportButton({ report, label, query }: { report: string; label?: string; query?: Record<string, string> }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLDivElement | null>(null)
@@ -2583,7 +3078,12 @@ export function ExportButton({ report, label }: { report: string; label?: string
     }
   }, [open])
 
-  const href = (f: string) => `/api/v1/export/${report}${f === 'csv' ? '' : `?format=${f}`}`
+  const href = (f: string) => {
+    const qs = new URLSearchParams(Object.entries(query ?? {}).filter(([, v]) => v))
+    if (f !== 'csv') qs.set('format', f)
+    const s = qs.toString()
+    return `/api/v1/export/${report}${s ? `?${s}` : ''}`
+  }
 
   /* Up and down walk the list; the list is short enough that they wrap. */
   const walk = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -2862,7 +3362,18 @@ export function Reload({
    or three views of the same thing. */
 export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 
-export function tabClass(active: boolean): string {
+/* The large size is for a screen whose tabs are its main switch (the Inbox
+   folders): 48px tall, 15px text, centred. In a TAB_BAR_FILL row each tab
+   takes an equal share of the width, so on a phone the row spans the screen. */
+export const TAB_BAR_FILL = 'grid auto-cols-fr grid-flow-col gap-1 border-b'
+
+export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
+  if (size === 'lg') {
+    return cn(
+      '-mb-px flex min-h-12 items-center justify-center gap-2 whitespace-nowrap border-b-2 px-4 py-2 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+      active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+    )
+  }
   return active
     ? '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
     : '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
@@ -3022,7 +3533,7 @@ export function Dialog({
     return () => {
       document.removeEventListener('keydown', onKey, true)
       document.body.style.overflow = prev
-      opener?.focus?.({ preventScroll: true })
+      restoreFocus(opener)
     }
   }, [open])
 

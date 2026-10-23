@@ -49,7 +49,12 @@ export default function Corrections() {
   const [status, setStatus] = useState('pending')
   const [note, setNote] = useState('')
   /* Amending a register, as opposed to asking for it to be amended. */
-  const mayDecide = useCan()('academics.attendance.write.any')
+  const can = useCan()
+  const mayDecide = can('academics.attendance.write.any')
+  // A subject teacher's own screen no longer includes marking the register,
+  // so there is nothing of theirs here to raise a correction against
+  // (owner, 2026-10-16: attendance is a class teacher's screen now).
+  const mayRaise = can('academics.attendance.write')
 
   const [done, setDone] = useState('')
 
@@ -130,13 +135,20 @@ export default function Corrections() {
             title="Correct a mark"
             description="The register as it stands. Ask for a change against the row that is wrong."
             action={
-              <Button variant={asking ? 'ghost' : 'primary'} size="sm"
-                onClick={() => setAsking((v) => !v)}>
-                {asking ? 'Close' : 'Request a correction'}
-              </Button>
+              mayRaise && (
+                <Button variant={asking ? 'ghost' : 'primary'} size="sm"
+                  onClick={() => setAsking((v) => !v)}>
+                  {asking ? 'Close' : 'Request a correction'}
+                </Button>
+              )
             }
           />
-          {asking && (
+          {!mayRaise ? (
+            <EmptyState
+              title="Nothing to raise here"
+              body="Corrections are requested against a register you marked. Your own register is the class teacher's."
+            />
+          ) : asking && (
             <>
               <div className="flex flex-wrap items-end gap-3 p-5">
                 <label className="flex flex-col gap-1.5 text-[13px]">

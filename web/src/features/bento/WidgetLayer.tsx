@@ -1,4 +1,5 @@
-import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+import { toastBus } from '@/components/Toast'
+import { Suspense, lazy, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
@@ -9,7 +10,7 @@ import { Check, ChevronDown, LayoutGrid, ListOrdered, Minus, Pencil, Plus, Rotat
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
+  rowsNeeded, BOARD_ROWS, PRESETS,
   packPhone, centreLoneSmalls, pageCount, phoneKindOf, PHONE_GRID_COLS, PHONE_GRID_ROWS, type PhoneKind,
   type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, ICON_SHAPE, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
@@ -713,7 +714,9 @@ export function WidgetLayer({
      ancestor board below. Read after mount rather than from a prop because
      only the DOM knows the shape of the tree this layer was dropped into. */
   const [inBoard, setInBoard] = useState(false)
-  useEffect(() => {
+  /* Before paint (owner, 2026-10-09): one painted frame without the pager
+     drew the cards crushed into 0px columns, then they flew into place. */
+  useLayoutEffect(() => {
     setInBoard(!!markRef.current?.closest('.bento-board'))
   })
 
@@ -761,7 +764,7 @@ export function WidgetLayer({
      told how many rows a page has — the stylesheet's repeat() reads
      `--pager-rows` so the two cannot disagree. `data-arranging` lets the
      stylesheet dress the cards for the mode. */
-  useEffect(() => {
+  useLayoutEffect(() => {
     const board = markRef.current?.closest('.bento-board') as HTMLElement | null
     if (!board || !paged) return
     board.setAttribute('data-pager', '')
@@ -811,22 +814,15 @@ export function WidgetLayer({
     board.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => board.removeEventListener('touchmove', onTouchMove)
   }, [arranging, phone])
-  /* HOLD A CARD FOR ITS MENU; HOLD THE BOARD TO ARRANGE IT.
+  /* A HOLD, ON A CARD OR THE BOARD, ARRANGES IT.
 
      Touch only — a mouse has a right button for this. One finger, cancelled
      by movement past the slop, a second finger, the pointer leaving, or any
      scroll. 450ms, a beat under the platform's own long press, so this
      answers before a browser's link menu would.
 
-     The hold used to enter customize mode from anywhere. The card's "…" is
-     no longer drawn (owner, 2026-10-02: arrow only, menu on long-press), so
-     a hold ON A CARD OR AN APP ICON now opens that card's menu at the
-     finger, and "Customize" in it is the way into the mode from there; a
-     hold on EMPTY board space still enters the mode directly.
-
-     The menu is asked for with a `contextmenu` event on what was pressed —
-     the same event a right-click sends, so the card has one way in
-     (ArrangedWidget's onContextMenu) rather than two.
+     A hold, on a card or on empty board space, goes straight into
+     Customise (owner, 2026-10-08); a card's own menu is on a right-click.
 
      The click that follows the lift is swallowed, in the capture phase,
      because every cell is a link and opening a screen is the opposite of
@@ -834,8 +830,16 @@ export function WidgetLayer({
      window from the hold let a slow lift through, and the card opened under
      its own menu. */
   useEffect(() => {
-    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
-    if (!board || arranging) return
+    /* Listened for on the page, and the board found at the moment of the
+       press: looking for it once, when this ran, found nothing on a board
+       that paints after its data arrives, and a long press did nothing at
+       all (owner, 2026-10-08). */
+    if (arranging) return
+    const board = document
+    const onBoard = (e: Event) => {
+      const mine = markRef.current?.closest('.bento-board')
+      return !!mine && e.target instanceof Node && mine.contains(e.target)
+    }
 
     let timer: number | undefined
     let from: { x: number; y: number } | null = null
@@ -869,6 +873,7 @@ export function WidgetLayer({
     }
 
     const down = (e: PointerEvent) => {
+      if (!onBoard(e)) return
       if (e.pointerType === 'mouse' || !e.isPrimary) return cancel()
       const at = { x: e.clientX, y: e.clientY }
       const pressed = e.target instanceof Element ? e.target : null
@@ -878,8 +883,12 @@ export function WidgetLayer({
         from = null
         buzz('select')
         swallowNextClick()
+        /* A long press goes straight into Customise, on a card or on empty
+           board alike -- the phone home-screen gesture (owner, 2026-10-08:
+           "when long press they need to come under customise"). The card's
+           own menu stays on a right-click. */
         const card = pressed?.closest<HTMLElement>('.bento-widget[data-more]')
-        if (!card) {
+        if (!card || e.pointerType !== 'mouse') {
           setArranging(true)
           return
         }
@@ -894,18 +903,18 @@ export function WidgetLayer({
       if (Math.abs(e.clientX - from.x) > SLOP || Math.abs(e.clientY - from.y) > SLOP) cancel()
     }
 
-    board.addEventListener('pointerdown', down)
-    board.addEventListener('pointermove', move)
-    board.addEventListener('pointerup', cancel)
+    board.addEventListener('pointerdown', down, true)
+    board.addEventListener('pointermove', move, true)
+    board.addEventListener('pointerup', cancel, true)
     board.addEventListener('pointercancel', cancel)
     board.addEventListener('pointerleave', cancel)
     window.addEventListener('scroll', cancel, true)
 
     return () => {
       cancel()
-      board.removeEventListener('pointerdown', down)
-      board.removeEventListener('pointermove', move)
-      board.removeEventListener('pointerup', cancel)
+      board.removeEventListener('pointerdown', down, true)
+      board.removeEventListener('pointermove', move, true)
+      board.removeEventListener('pointerup', cancel, true)
       board.removeEventListener('pointercancel', cancel)
       board.removeEventListener('pointerleave', cancel)
       window.removeEventListener('scroll', cancel, true)
@@ -1587,7 +1596,7 @@ function ArrangedWidget({
 }) {
   const layer = useWidgetLayer()
   const gridCols = PHONE_GRID_COLS
-  const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, remove, recolour, move, swap, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
   const { w, h } = fixed ? DIMS[declaredSize] : dimsOf(layout, id, declaredSize)
@@ -1881,10 +1890,23 @@ function ArrangedWidget({
       el.style.zIndex = ''
     }
     if (commit && f.over) {
-      const at = layer.visible.findIndex((v) => v.id === f.over?.id)
-      if (at >= 0) {
-        move(id, dropIndex(pos, at, f.over.after), layer.visible)
-        if (phone) buzz('snap')
+      const other = f.over.id
+      const at = layer.visible.findIndex((v) => v.id === other)
+      if (at >= 0 && other !== id) {
+        /* Never let a drop push a card off the board: on a desk the board
+           holds three rows, and a swap that needs a fourth is refused with a
+           word rather than hiding somebody's card. */
+        const order = layer.visible.map((v) => v.id)
+        const a = order.indexOf(id)
+        ;[order[a], order[at]] = [order[at], order[a]]
+        const dims = order.map((x) => { const v = layer.visible.find((y) => y.id === x)!; return { w: v.w, h: v.h } })
+        if (!phone && rowsNeeded(dims) > BOARD_ROWS) {
+          toastBus()?.error(t('bento.widgets.no_room_swap'))
+          buzz('warn')
+        } else {
+          swap(id, other, layer.visible)
+          if (phone) buzz('snap')
+        }
       }
     }
   }

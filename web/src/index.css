@@ -800,6 +800,17 @@
     z-index: 3;
     background: hsl(var(--surface-subtle));
   }
+  /* The row's buttons (Open, More, Remove) are the other end of the same
+     problem: on Staff records they sat past the card's right edge, cut in
+     half. A last column that holds buttons stays pinned to the right. Older
+     browsers without :has() simply scroll it, as before. */
+  .responsive-table.is-wide tbody td:last-child:has(button, a[role=button]) {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: hsl(var(--card));
+    box-shadow: -8px 0 8px -8px hsl(var(--foreground) / 0.12);
+  }
   /* The hover tint has to reach the frozen cell too, or the row looks broken
      in half as the pointer crosses it. */
   /* HOVER IS FOR THINGS THAT CAN HOVER. A touchscreen has no pointer to lift
@@ -923,6 +934,29 @@
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
+  }
+
+  /* NO RING FOR A MOUSE (owner, 2026-10-13: "when i click smth sometimes i
+     see this blue line every where like on the icon and other places too i
+     dont wanna see this blue line").
+
+     Everything here was already written against :focus-visible, which is
+     meant to keep the ring off a mouse click. It leaks anyway because the
+     app moves focus itself -- a tab hands focus back when its menu closes,
+     a dialog focuses its first field, a closed tab passes focus to its
+     neighbour -- and the browser treats focus it did not see the pointer
+     cause as keyboard focus, so the ring is drawn around whatever was just
+     clicked.
+
+     So the pointer says so itself. `data-pointer` goes on <html> while the
+     last thing the person did was click or tap, and comes off the moment
+     they use a key that moves focus (main.tsx). The ring is suppressed only
+     in that state: tab through the screen and every ring is back, which is
+     the half of this that must not be lost -- without it a keyboard user
+     cannot see where they are. */
+  html[data-pointer] :focus-visible,
+  html[data-pointer] :focus {
+    outline: none !important;
   }
 }
 
@@ -1620,6 +1654,9 @@
    nothing but unlabelled marks. Opening to the right, since the rail is 58px
    and anything centred under it would be cut off by the panel beside it. */
 .rail-item { position: relative; }
+/* The name is drawn by Shell.tsx on top of the page (the rail clipped it);
+   the pseudo-element stays only for keyboard focus. */
+.rail-item:not(:focus-visible)::after { display: none; }
 .rail-item::after {
   content: attr(data-tip);
   position: absolute;
@@ -2127,6 +2164,17 @@
 }
 .btn:active:not(:disabled) {
   box-shadow: var(--elev-press);
+}
+/* ROWS DO NOT SCALE (owner, 2026-10-22). The rule above matched a settings
+   row because the row IS a <button>: the whole row shrank 2% inside its
+   grouped card, so its wash sat inset from the card edge, crossed the
+   hairline above and missed the card's rounded corners. Rows, list items
+   and menu items keep their full width and answer with the wash instead.
+   Same specificity as the rule above and later, so it wins. */
+:where([data-row], .responsive-table tbody tr, .bento-sheet__row,
+       [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'],
+       [role='option'], .parent-list__row a):active:not(:disabled) {
+  transform: none;
 }
 
 /* A card presses only where it opens something -- one with a cue, or one
@@ -2963,9 +3011,8 @@ body[data-scroll-lock] {
     from { opacity: 0; transform: translate3d(0, 8px, 0); }
     to   { opacity: 1; transform: none; }
   }
-  .bento-ground > * {
-    animation: phone-screen-in var(--dur-phone) var(--ease-phone) both;
-  }
+  /* Off (owner, 2026-10-09): cards rose from the dock and faded through
+     colour on every section switch. Screens now simply appear. */
 }
 
 /* Somebody who has asked their phone to stop moving things has asked this
@@ -3367,6 +3414,22 @@ body[data-scroll-lock] {
   html .text-\[32px\] { font-size: calc(32px * var(--font-scale)); }
   html .text-\[34px\] { font-size: calc(32px * var(--font-scale)); }
   html .text-\[40px\] { font-size: calc(40px * var(--font-scale)); }
+
+  /* A COUNT ON A GLYPH IS NOT TEXT (owner, 2026-10-08: "this is increasing
+     and decreasing with app text size make a fixed one for this").
+
+     The rule above lifts every small utility onto the type scale, which is
+     right for anything somebody reads a line of and wrong for the number
+     pinned to the bell. That pill is 17px across with 5px of padding, all of
+     it an optical constant like the hairlines, icon boxes and dock buttons
+     this block already exempts -- only its type was being scaled, so at
+     Larger the "9+" grew inside a circle that did not and pushed the plus
+     out over the red edge, which is the screenshot the owner sent.
+
+     Fixed in px at every text size. Reading it is not the problem the text
+     setting solves: the badge says "there is something", and the panel it
+     opens is where the words are. */
+  html .count-pill { font-size: 10.5px; line-height: 1; }
 
 /* ONE SET OF CORNERS (2026-09-29). Hand-written radii -- 6, 7, 8, 10, 12, 13,
    14 and 16px -- sat beside the four tokens, did not follow the Corners
@@ -3855,26 +3918,45 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
    neighbours swell a little, on a springy curve; a sheen passes over it. */
 .rail-tile {
   transform-origin: left center;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 200ms ease, box-shadow 200ms ease !important;
+  /* A 1.56 back-out curve overshoots on purpose: the tile goes past its
+     size and comes back. On one tile that is playful; on a column somebody
+     runs a pointer down, every tile overshoots in turn and the whole rail
+     wobbles (owner, 2026-10-09: "very harsh make it VERYY SMOTHHHHHH").
+     easeOutCubic settles instead of bouncing, and the move is longer on the
+     way back than on the way up, so leaving is the gentle half. */
+  transition: transform 340ms cubic-bezier(.33, 1, .68, 1), filter 260ms ease, box-shadow 260ms ease !important;
   position: relative;
   overflow: visible;
+  will-change: transform;
 }
 .rail-tile::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .45) 50%, transparent 70%);
   background-size: 250% 100%; background-position: 150% 0; opacity: 0;
 }
-.rail-tile:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.1) saturate(1.15); z-index: 5;
+@media (hover: hover) {
+.rail-tile:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.08) saturate(1.1); z-index: 5;
+  transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile, hsl(var(--primary))) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / .3); }
+}
+@media (hover: hover) {
 .rail-tile:hover::before { opacity: 1; animation: rail-sheen 700ms ease forwards; }
+}
+/* The neighbours lift less than they did: at 1.12 beside a 1.28 the two
+   sizes were far enough apart that the pointer crossing a boundary looked
+   like a step rather than a swell. */
+@media (hover: hover) {
 .rail-tile:hover + .rail-tile,
-.rail-tile:has(+ .rail-tile:hover) { transform: scale(1.12) translateX(1px); }
+.rail-tile:has(+ .rail-tile:hover) { transform: scale(1.07) translateX(1px); }
+}
 /* The icon leans while the pointer is on it and comes back when it leaves.
    It used to play a one-shot keyframe on :hover, and a keyframe tied to
    :hover is cancelled the moment the pointer moves off: the icon snapped
    upright from mid-tilt. A transition turns round from wherever it is. */
-.rail-tile svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-.rail-tile:hover svg { transform: scale(1.1) rotate(-5deg); }
+.rail-tile svg { transition: transform 340ms cubic-bezier(.33, 1, .68, 1); }
+@media (hover: hover) {
+.rail-tile:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
 @keyframes rail-sheen { to { background-position: -50% 0; } }
 @media (prefers-reduced-motion: reduce) {
   .rail-tile, .rail-tile:hover, .rail-tile:hover + .rail-tile, .rail-tile:has(+ .rail-tile:hover) { transform: none; }
@@ -3904,21 +3986,35 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background: var(--tile) !important; color: #fff !important;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 2px 6px -2px color-mix(in srgb, var(--tile) 60%, transparent);
   transform-origin: left center;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 200ms ease, box-shadow 200ms ease;
+  /* Same curve, same complaint, same remedy as the dock above: settle
+     rather than overshoot, and take longer coming back than going up. */
+  transition: transform 360ms cubic-bezier(.33, 1, .68, 1), filter 260ms ease, box-shadow 260ms ease;
+  will-change: transform;
 }
 .rail-foot > div > button:first-child { --tile: hsl(var(--primary)); }
-.rail-foot > div > button:first-child:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.12); }
-.rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-.rail-foot > div > button:first-child:hover svg { transform: scale(1.1) rotate(-5deg); }
+@media (hover: hover) {
+.rail-foot > div > button:first-child:hover { transform: scale(1.18) translateX(2px); filter: brightness(1.1); transition-duration: 220ms, 200ms, 200ms; }
+}
+.rail-foot > div > button:first-child svg, .rail-foot > button svg, .rail-foot > a svg { transition: transform 360ms cubic-bezier(.33, 1, .68, 1); }
+@media (hover: hover) {
+.rail-foot > div > button:first-child:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
 .rail-foot > div > button:first-child svg { width: 20px; height: 20px; }
 .rail-foot > button svg, .rail-foot > a svg { width: 20px; height: 20px; }
+@media (hover: hover) {
 .rail-foot > button:hover, .rail-foot > a:hover {
-  transform: scale(1.28) translateX(3px); filter: brightness(1.12) saturate(1.15); z-index: 5;
+  transform: scale(1.18) translateX(2px); filter: brightness(1.1) saturate(1.1); z-index: 5;
+  transition-duration: 220ms, 200ms, 200ms;
   box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile) 75%, transparent);
 }
-.rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.1) rotate(-5deg); }
+}
+@media (hover: hover) {
+.rail-foot > button:hover svg, .rail-foot > a:hover svg { transform: scale(1.08) rotate(-4deg); }
+}
+@media (hover: hover) {
 .rail-foot > :is(button, a):hover + :is(button, a),
-.rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.12) translateX(1px); }
+.rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.07) translateX(1px); }
+}
 .rail-foot > button[aria-label*="otification" i], .rail-foot > button[aria-label*="lert" i] { --tile: var(--dom-warning, hsl(var(--warning))); }
 .rail-foot > button[aria-label^="Row height"] { --tile: var(--dom-attendance, hsl(var(--primary))); }
 .rail-foot > a[href="/account"] { --tile: var(--dom-staff, hsl(var(--primary))); }
@@ -3929,20 +4025,44 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 }
 
 /* The Focus dock magnifies like the Mac dock: the icon under the pointer
-   swells and rises, its neighbours rise a little, on a springy curve. */
+   swells and rises, its neighbours rise a little.
+
+   SETTLING, NOT SPRINGING (owner, 2026-10-09: "when curser moves from them
+   there moving is very harsh make it VERYY SMOTHHHHHH").
+
+   Three things made this harsh, and the curve was only one of them.
+
+   cubic-bezier(.34, 1.56, .64, 1) is a back-out: it carries the icon PAST
+   its target size and lets it fall back. One icon pressed on purpose can
+   take that. A pointer crossing a dock of twelve sets off a dozen
+   overshoots in a row, each one arriving while the last is still coming
+   back, and the bar visibly wobbles.
+
+   1.45 was too far to travel. Against neighbours at 1.2 and 1.07, each
+   boundary the pointer crossed was a jump of a quarter of the icon's size
+   -- the steps are what the eye reads as harshness, not the speed.
+
+   And both halves shared one 280ms, so leaving snapped exactly as hard as
+   arriving. Sweeping across the dock left a trail of icons all dropping at
+   once. The base rule is now the RETURN and is the longer of the two;
+   hover shortens it on the way up. Slower out than in is the whole trick.
+
+   easeOutCubic, a shorter trip (1.28), and neighbours closer to it so the
+   row rises as one surface rather than as a staircase. */
 @media (hover: hover) and (min-width: 640px) {
   .bento-dock .dock-mag {
     transform-origin: 50% 100%;
-    transition: transform 280ms cubic-bezier(.34, 1.56, .64, 1), background-color 160ms ease !important;
+    transition: transform 360ms cubic-bezier(.33, 1, .68, 1), background-color 200ms ease !important;
     position: relative;
+    will-change: transform;
   }
-  html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-8px) scale(1.45) !important; z-index: 5; }
-  .bento-dock .dock-mag svg { transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1); }
-  .bento-dock .dock-mag:hover svg { transform: scale(1.1) rotate(-5deg); }
+  html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-6px) scale(1.28) !important; z-index: 5; transition-duration: 220ms, 200ms !important; }
+  .bento-dock .dock-mag svg { transition: transform 360ms cubic-bezier(.33, 1, .68, 1); }
+  .bento-dock .dock-mag:hover svg { transform: scale(1.08) rotate(-4deg); }
   .bento-dock .dock-mag:hover + .dock-mag,
-  .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-4px) scale(1.2); }
+  .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-3px) scale(1.14); }
   .bento-dock .dock-mag:hover + .dock-mag + .dock-mag,
-  .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.07); }
+  .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.05); }
 }
 @media (prefers-reduced-motion: reduce) {
   .bento-dock .dock-mag:hover svg { transform: none; }
@@ -3995,7 +4115,9 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   background: hsl(var(--card));
   box-shadow: 0 1px 2px hsl(var(--foreground) / .06), 0 4px 14px -6px hsl(var(--foreground) / .18);
 }
+@media (hover: hover) {
 .search-pill:hover { box-shadow: 0 2px 4px hsl(var(--foreground) / .08), 0 8px 22px -8px hsl(var(--foreground) / .24); transform: translateY(-1px); }
+}
 .dark .search-pill { background: hsl(var(--foreground) / .08); box-shadow: 0 4px 14px -6px rgb(0 0 0 / .6); }
 /* In the Focus dock the pill sits on a white bar: tint it with the school's
    colour so the way to search is the first thing the eye finds there. */
@@ -4004,13 +4126,17 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   color: hsl(var(--primary));
   box-shadow: inset 0 0 0 1px hsl(var(--primary) / .0), 0 2px 8px -4px hsl(var(--primary) / .45);
 }
+@media (hover: hover) {
 .bento-dock .search-pill:hover { background: hsl(var(--primary) / .16); }
+}
 /* On a phone the header search is one icon among icons (menu, bell,
    account): the white lifted circle next to bare glyphs read as a stray
    blob, so there it is a bare glyph too. */
 @media (max-width: 639.98px) {
   header .search-pill, .dark header .search-pill { background: transparent; box-shadow: none; }
+@media (hover: hover) {
   header .search-pill:hover { transform: none; box-shadow: none; background: hsl(var(--foreground) / .06); }
+}
 }
 
 /* MINIMAL AGAIN (owner, 2026-09-28): plain line icons, no coloured tiles.
@@ -4023,6 +4149,7 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: none !important;
 }
 .rail-tile::before { display: none; }
+@media (hover: hover) {
 .rail-tile:hover,
 .rail-foot > button:hover, .rail-foot > a:hover, .rail-foot > div > button:first-child:hover {
   background: hsl(var(--surface-hover, var(--muted))) !important;
@@ -4030,10 +4157,31 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: none !important;
   filter: none !important;
 }
+}
 .rail-tile-on, .rail-tile:focus-visible {
   background: hsl(var(--surface-hover, var(--muted))) !important;
   color: var(--tile, hsl(var(--primary))) !important;
   box-shadow: none !important;
+}
+
+/* THE RING GOES INSIDE THE TILE, BECAUSE OUTSIDE IT THERE IS NO ROOM.
+
+   This block turns off the tile's own ring, which left the browser's
+   default focus outline as the only mark of focus -- and that is drawn
+   2px OUTSIDE the element. The rail is a 62px column holding a 44px
+   tile, and between the two sit the column's padding and, between 768
+   and 1023px, a scroll container that clips both axes. So the ring came
+   out as a circle with its sides sliced off.
+
+   Drawn inside instead. `outline-offset: -2px` puts it within the tile's
+   own bounds, where nothing can clip it, and it follows the tile's
+   corner radius rather than reading as a circle around a squircle.
+   Keyboard focus stays as visible as it must be. */
+.rail-tile:focus-visible,
+.rail-foot > button:focus-visible,
+.rail-foot > a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
 }
 .rail-tile svg, .rail-foot svg { stroke-width: 2.4; }
 /* A small button beside a field or a full-size button stood 8px shorter
@@ -4705,7 +4853,9 @@ input[type='color'] {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+@media (hover: hover) {
 input[type='color']:hover { transform: scale(1.06); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12); }
+}
 input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 input[type='color']::-webkit-color-swatch { border: none; border-radius: 999px; }
 input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
@@ -4752,4 +4902,97 @@ input[type='color']::-moz-color-swatch { border: none; border-radius: 999px; }
   opacity: 1;
   transform: translateY(-50%) translateX(0);
   transition-delay: 0ms;
+}
+
+/* THE SPINNER WAS EATING THE NUMBER.
+
+   A number box in a narrow column -- a periods-per-week cell, a mark against
+   a subject, a quantity in a stock row -- is about 44px wide, and Chrome
+   spends 16 of those on a pair of stepper arrows it draws inside the box. The
+   owner sent a screenshot of one: a blue-ringed field showing a bracket and
+   two tiny triangles, with the actual figure pushed out of sight.
+
+   The arrows are not worth that. Nobody sets a mark of 87 by pressing an up
+   arrow 87 times, and every one of these boxes takes the keyboard, the arrow
+   keys and the scroll wheel exactly as before -- only the drawn control goes.
+   196 of them across the product, so this is done once here rather than with
+   a class each screen has to remember.
+
+   Firefox needs the textfield appearance; WebKit needs both pseudo-elements,
+   inner and outer. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* WORK TAB STRIP: A FLOATING ISLAND (owner, 2026-10-09, from their own
+   sample). A soft translucent bar with a white pill that springs to the tab
+   you pick. */
+.tab-island {
+  margin: 8px 12px 4px;
+  padding: 5px;
+  border-radius: 18px;
+  background: hsl(var(--muted) / 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid hsl(var(--border) / 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+/* A HAIRLINE BETWEEN ONE TAB AND THE NEXT (owner, 2026-10-09: "add sutle
+   seperater here").
+
+   Eight titles in a row of flat text, four pixels apart, read as one long
+   sentence -- "Interaction log My pay Logins & access" -- and the eye had
+   nothing to divide them by except the gap. Every browser tab strip draws
+   this line for the same reason.
+
+   Subtle means subtle: one pixel, 16px tall, the row's own ink at 14%, sat
+   in the middle of the existing gap rather than taking any width of its own.
+
+   Three places it is NOT drawn, and each is the same rule -- a separator
+   earns its place only between two plain tabs:
+     the first tab, which has nothing to its left;
+     either side of the open tab, because the white pill is already an edge
+       and a line against it reads as a seam in the pill;
+     either side of the one being hovered, for the same reason as it lights.
+   The fade is what keeps that from flickering as the glider slides past. */
+.tab-island__tab { position: relative; }
+.tab-island__tab + .tab-island__tab::before {
+  content: '';
+  position: absolute;
+  left: -2.5px;
+  top: 50%;
+  height: 16px;
+  width: 1px;
+  transform: translateY(-50%);
+  background: hsl(var(--foreground) / 0.14);
+  transition: opacity 0.2s ease;
+}
+.tab-island__tab[data-on]::before,
+.tab-island__tab[data-on] + .tab-island__tab::before,
+.tab-island__tab:hover::before,
+.tab-island__tab:hover + .tab-island__tab::before { opacity: 0; }
+
+.tab-island__glider {
+  border-radius: 13px;
+  background: hsl(var(--card));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.tab-island__glider.slide-thumb[data-ready] {
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              height 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              opacity 0.15s ease;
+}
+
+/* The dock never starts invisible on a phone (owner, 2026-10-09: the bar
+   was missing on iPhone). An entrance paused by Safari could hold it at 0. */
+@media (max-width: 767px) {
+  .bento-dock { animation: none !important; opacity: 1 !important; view-transition-name: none !important; }
 }

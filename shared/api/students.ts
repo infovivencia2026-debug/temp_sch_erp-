@@ -7,7 +7,7 @@ export interface Student {
   first_name: string; middle_name?: string; last_name?: string
   gender?: string; date_of_birth?: string; status: string; admission_date: string
   class_name?: string; section_name?: string; roll_no?: number
-  primary_phone?: string; person_code?: string
+  primary_phone?: string; person_code?: string; photo_file_id?: string
 }
 
 export interface StudentGuardianBrief {
@@ -75,7 +75,8 @@ export interface StudentProfile {
 /** Every tab of the student record in one round trip (GET /students/{id}/detail). */
 export interface StudentFullDetail {
   subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
-  fee_heads: { head: string; charged_paise?: string; paid_paise?: string }[]
+  /* year: the academic year the bills belong to, so the breakdown can show one year at a time. */
+  fee_heads: { head: string; year?: string; charged_paise?: string; paid_paise?: string }[]
   /* Charges this child carries that their class does not: the bus fare from
      the stop they board at. Per instalment, added to every demand raised
      while live. */
@@ -101,6 +102,8 @@ export interface StudentFullDetail {
     decision_note: string; decided_by: string; asked_by: string; raised_on: string; decided_on: string; fee_head: string
   }[]
   invoices: { invoice_no: string; net_paise: string; paid_paise: string; status: string; issued_on: string }[]
+  /* Teachers' remarks (student_remarks). A family viewer gets only those marked for the family. */
+  remarks: { id: string; observed_on: string; kind: string; body: string; subject: string; teacher: string; private: boolean }[]
   co_scholastic: { area_id: string; area: string; grade: string; remark: string; term: string; graded_by: string; graded_on: string }[]
 }
 

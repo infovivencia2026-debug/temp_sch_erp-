@@ -471,6 +471,27 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
+  /* SWAP, the way a phone's home screen does it (owner, 2026-10-08: "the
+     positions are changing after editing"). Dropping a card on another trades
+     the two places; nothing else in the order moves. The old drop spliced the
+     card in and pushed every card after it along, so one drag re-packed the
+     whole board and could push the last card off it. */
+  const swap = useCallback(
+    (id: string, other: string, all: Placed[]) => {
+      const l = current(dashboard)
+      const seed: Placed[] = all.map(
+        (x) => l.placed.find((p) => p.id === x.id) ?? { id: x.id, w: x.w, h: x.h },
+      )
+      const a = seed.findIndex((p) => p.id === id)
+      const b = seed.findIndex((p) => p.id === other)
+      if (a < 0 || b < 0 || a === b) return
+      const next = [...seed]
+      ;[next[a], next[b]] = [next[b], next[a]]
+      write(dashboard, { placed: next, removed: l.removed }, true)
+    },
+    [dashboard],
+  )
+
   /* Colour is stored on the placement, so choosing one places the widget the
      same way choosing a size does. Passing null returns it to the colour the
      dashboard gave it rather than storing a "default" that would stop tracking
@@ -609,7 +630,7 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
-  return { layout, place, add, remove, resize, setTier, setPeriod, recolour, move, reset, undo, canUndo, tidy, applyPreset }
+  return { layout, place, add, remove, resize, setTier, setPeriod, recolour, move, swap, reset, undo, canUndo, tidy, applyPreset }
 }
 
 /** The width and height a widget should render at: what the person chose,

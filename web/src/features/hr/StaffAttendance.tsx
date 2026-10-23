@@ -6,6 +6,7 @@ import {
   Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton,
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
+import { StaffMonth } from './StaffMonth'
 import { useCan } from '@/lib/session'
 import { Download, Printer } from 'lucide-react'
 import { useSession } from '@/lib/session'
@@ -27,10 +28,14 @@ import { cn } from '@/lib/utils'
 
 interface StaffRow {
   user_id: string
+  /** On the roll but with no login yet, so nothing can be marked against them. */
+  needs_login?: boolean
   employee_code: string
   full_name: string
   status?: string
   check_in?: string
+  /* The last punch of the day, 24-hour like check_in (owner, 2026-10-13: "add in and out time 24 hours format"). */
+  check_out?: string
 }
 
 const MARKS: { value: string; short: string; label: string; tone: string }[] = [
@@ -39,6 +44,11 @@ const MARKS: { value: string; short: string; label: string; tone: string }[] = [
   { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning/40 bg-warning/10' },
   { value: 'half_day', short: '½', label: 'Half day', tone: 'text-warning border-warning/40 bg-warning/10' },
   { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-secondary-foreground border-border-strong bg-surface-hover' },
+  { value: 'wfh', short: 'H', label: 'From home', tone: 'text-info border-info/40 bg-info/10' },
+  /* Late with permission (Yajur, 2026-10-13): within an hour it is not a late mark, so no pay is cut. */
+  { value: 'permission', short: 'Pr', label: 'Permission', tone: 'text-success border-success/40 bg-success/10' },
+  /* A day on the school calendar's holiday list: grey, and nobody's absent. */
+  { value: 'holiday', short: 'Hol', label: 'Holiday', tone: 'text-muted-foreground border-border-strong bg-muted' },
 ]
 
 export default function StaffAttendance() {
@@ -53,7 +63,7 @@ export default function StaffAttendance() {
 
   const q = useQuery({
     queryKey: ['staff-register', onDate],
-    queryFn: () => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${onDate}`),
+    queryFn: () => api.get<List<StaffRow> & { holiday?: { name: string; from: string; to: string } }>(`/api/v1/workflow/staff-register?on_date=${onDate}`),
   })
 
   const save = useMutation({
@@ -74,7 +84,7 @@ export default function StaffAttendance() {
   const rows = q.data?.items ?? []
   const value = (r: StaffRow) => draft[r.user_id] ?? r.status ?? ''
   const marked = rows.filter((r) => value(r)).length
-  const present = rows.filter((r) => ['present', 'late', 'half_day'].includes(value(r))).length
+  const present = rows.filter((r) => ['present', 'late', 'half_day', 'wfh'].includes(value(r))).length
   const absent = rows.filter((r) => ['absent', 'leave'].includes(value(r))).length
 
   /* Every employee, as marked on screen (owner's design, staff-register-print.ts). */
@@ -84,7 +94,7 @@ export default function StaffAttendance() {
       logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     },
     onDate, printedBy: session.user?.full_name ?? '',
-    rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, mark: value(r) })),
+    rows: rows.map((r) => ({ employee_code: r.employee_code, full_name: r.full_name, check_in: r.check_in, check_out: r.check_out, mark: value(r) })),
   }))
 
   /* FROM – TO (owner: "let them choose date from to and print those dates").
@@ -205,6 +215,8 @@ export default function StaffAttendance() {
 
         <FormNotice error={save.error} ok={note} />
 
+        {mayMark && <PunchRequests />}
+
         <Card>
           <CardHeader
             title="Register"
@@ -225,24 +237,59 @@ export default function StaffAttendance() {
               </span>
             }
           />
+          {/* Just the fact, not the explanation (owner, 2026-10-16: "only
+              show holiday, why other unnecessary text"); the sentence about
+              the reader was true but nobody taking the register needed to be
+              told how the mark got there. A top margin too, so it no longer
+              sits flush under the header's own divider. */}
+          {q.data?.holiday && (
+            <div className="mx-[var(--card-pad)] mb-3 mt-3 rounded-md border border-border bg-muted px-3 py-2 text-[13.5px] text-muted-foreground">
+              <strong className="text-foreground">Holiday: {q.data.holiday.name}</strong>
+              {q.data.holiday.to !== q.data.holiday.from && <> ({q.data.holiday.from} to {q.data.holiday.to})</>}
+            </div>
+          )}
           {q.isLoading ? (
-            <SkeletonTable columns={4} />
+            <SkeletonTable columns={5} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (
             <Table
-              head={['Code', 'Employee', 'Checked in', 'Mark']}
+              head={['Code', 'Employee', 'In', 'Out', 'Mark']}
               empty={!rows.length}
               emptyLabel="No active employees."
             >
               {rows.map((r) => {
                 const v = value(r)
                 return (
-                  <tr key={r.user_id}>
+                  <tr key={r.user_id || r.employee_code}>
                     <Td className="font-mono text-[12px]">{r.employee_code}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
                     <Td className="tabular-nums text-muted-foreground">{r.check_in ?? '-'}</Td>
+                    <Td className="tabular-nums text-muted-foreground">{r.check_out ?? '-'}</Td>
                     <Td>
+                      {/* ON THE ROLL, NOT YET MARKABLE (owner, 2026-10-14:
+                          "after adding new staff show their attendance in
+                          staff registry").
+
+                          A new member of staff used to be absent from this
+                          sheet altogether, because attendance is kept against
+                          a login and they had none. They are listed now, so
+                          whoever takes the register can see the name is there
+                          and why it cannot be marked, instead of wondering
+                          whether they forgot somebody. */}
+                      {r.needs_login ? (
+                        /* The reader's times are already in the two columns
+                           to the left, so this says only what is missing --
+                           the ability to overrule them by hand -- and says it
+                           quietly. It used to be a sentence of instruction
+                           where a mark should be, which read as the row being
+                           broken rather than as one waiting on a password. */
+                        /* Nothing (owner, 2026-10-14: "why do i see that message").
+                           The in and out are in the columns beside; marks are
+                           the only thing a login adds, and an empty cell says
+                           that without a sentence. */
+                        <span aria-hidden className="block h-8" />
+                      ) : (
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {
                           const on = v === m.value
@@ -276,6 +323,7 @@ export default function StaffAttendance() {
                           )
                         })}
                       </div>
+                      )}
                     </Td>
                   </tr>
                 )
@@ -283,7 +331,49 @@ export default function StaffAttendance() {
             </Table>
           )}
         </Card>
+
+        <StaffMonth people={rows} />
       </PageBody>
     </>
+  )
+}
+
+/* Requests from staff to fix a day's punch. Approving writes the mark the
+   person asked for; refusing needs a line they will read. */
+function PunchRequests() {
+  const qc = useQueryClient()
+  const [notes, setNotes] = useState<Record<string, string>>({})
+  const q = useQuery({
+    queryKey: ['attendance-requests', 'pending'],
+    queryFn: () => api.get<List<{ id: string; on_date: string; check_in?: string; check_out?: string; reason: string; full_name: string; employee_code: string }>>('/api/v1/hr/attendance-requests?status=pending'),
+  })
+  const decide = useMutation({
+    mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) => api.post(`/api/v1/hr/attendance-requests/${v.id}/decide`, { decision: v.decision, note: notes[v.id] ?? '' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance-requests'] }); qc.invalidateQueries({ queryKey: ['staff-register'] }) },
+  })
+  const rows = q.data?.items ?? []
+  if (!rows.length) return null
+  return (
+    <Card>
+      <CardHeader title="Requests to fix a punch" description="Approving writes the mark they asked for into the register." />
+      <Table head={['Person', 'Day', 'Times', 'Reason', '']}>
+        {rows.map((r) => (
+          <tr key={r.id}>
+            <Td className="font-medium">{r.full_name}<span className="block font-mono text-[11.5px] font-normal text-muted-foreground">{r.employee_code}</span></Td>
+            <Td className="text-muted-foreground">{r.on_date}</Td>
+            <Td className="tabular-nums">{[r.check_in, r.check_out].filter(Boolean).join(' to ') || 'present'}</Td>
+            <Td className="text-muted-foreground"><span className="block max-w-[32ch] truncate" title={r.reason}>{r.reason}</span></Td>
+            <Td>
+              <span className="flex flex-wrap items-center gap-2">
+                <Input className="w-40" value={notes[r.id] ?? ''} onChange={(v) => setNotes({ ...notes, [r.id]: v })} placeholder="Note" />
+                <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, decision: 'approved' })}>Approve</Button>
+                <Button size="sm" variant="ghost" tone="danger" disabled={decide.isPending || !(notes[r.id] ?? '').trim()} onClick={() => decide.mutate({ id: r.id, decision: 'rejected' })}>Refuse</Button>
+              </span>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <div className="px-5 pb-4"><FormNotice error={decide.error} /></div>
+    </Card>
   )
 }

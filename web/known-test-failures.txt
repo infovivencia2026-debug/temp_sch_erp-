@@ -7,12 +7,3 @@
 # Checked by scripts/check-test-failures.mjs (npm run test:ci). Remove a line
 # when the test is fixed; never add one to hide a new failure.
 
-# paint.test: the built-in "Vivid" palette puts mint text on the card surface
-# at 1.28:1 ("Vivid: mint on card"), below the 4.6:1 the test demands.
-src/lib/paint.test.ts > built-in palettes > clear 4.6:1 wherever text sits on a surface
-
-# size-tiers: the tier table and tierOf disagree about two-row tiles.
-src/lib/size-tiers.test.ts > tierOf classifies every legacy shape > 1x2 is large on the desktop board
-src/lib/size-tiers.test.ts > tierOf classifies every legacy shape > height decides first: anything two rows tall is large, whatever its width
-src/lib/size-tiers.test.ts > dimsForTier and tierOf agree > the desktop table is the one the header promises
-src/lib/size-tiers.test.ts > every preset produces shapes tierOf can name > compact, even, columns and panels are one tier each

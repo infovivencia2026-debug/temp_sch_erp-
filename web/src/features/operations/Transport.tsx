@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -7,7 +8,7 @@ import {
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useSession } from '@/lib/session'
-import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 
 /* Transport: the fleet, and the runs it makes.
  *
@@ -72,6 +73,20 @@ function Expiry({ label, date }: { label: string; date?: string }) {
 }
 
 export default function Transport() {
+  /* ONE SCREEN, TWO DOORS.
+
+     Vehicles and Routes & stops are separate entries on the menu and were
+     the same page: whichever you picked you got the routes, the trackers and
+     the fleet stacked together, and the fleet was below eighteen routes. Two
+     names reaching one page is how somebody decides the menu is lying to
+     them.
+
+     The route that opened the screen says which half to draw. The data and
+     the tiles are shared because they are the same office, and splitting the
+     file would have meant two copies of the fleet query. */
+  const { featureSlug } = useParams()
+  const onFleet = featureSlug === 'vehicles'
+
   const [openRoute, setOpenRoute] = useState<Route | null>(null)
 
   const routes = useQuery({
@@ -100,8 +115,10 @@ export default function Transport() {
     <>
       <PageHead
         eyebrow="Operations"
-        title="Transport"
-        description="Routes, stops and the fleet that runs them."
+        title={onFleet ? 'Vehicles' : 'Routes & stops'}
+        description={onFleet
+          ? 'The buses, their seats and the papers that have to stay current.'
+          : 'Each route, the stops along it in travel order, and what each stop costs.'}
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -115,6 +132,7 @@ export default function Transport() {
           />
         </CellGrid>
 
+        {!onFleet && (<>
         <Card>
           <CardHeader title="Routes" description="Select a route to see its run" />
           {routes.isLoading ? (
@@ -182,6 +200,9 @@ export default function Transport() {
           </Card>
         )}
 
+        </>)}
+
+        {onFleet && (<>
         <BusTrackers />
 
         <Card>
@@ -216,6 +237,7 @@ export default function Transport() {
             </Table>
           )}
         </Card>
+        </>)}
       </PageBody>
     </>
   )
@@ -356,7 +378,11 @@ function BusTrackers() {
                   <span className="block text-[12px]">registered by {r.enrolled_by}</span>
                 )}
               </Td>
-              <Td className="text-muted-foreground tabular-nums">{r.last_seen_at ?? 'never'}</Td>
+              {/* The raw stored string was printed here -- "2026-09-05T05:25",
+                  a T and all, in UTC. It is when a phone last reported, which
+                  somebody reads to decide whether a bus is being tracked, so
+                  it is written the way the rest of the product writes a time. */}
+              <Td className="text-muted-foreground tabular-nums">{formatDateTime(r.last_seen_at) || 'never'}</Td>
               <Td>
                 <StatusPill
                   status={

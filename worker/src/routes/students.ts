@@ -2,6 +2,7 @@ import type { Ctx, Router } from '../router'
 import { autoIssueFamilyLogins, autoIssueGuardianLogin } from './setup/staff'
 import { indexLogin } from './setup/common'
 import { reply } from '../router'
+import { alreadyUsed, describeReplacements, guardOverwrite, replacements, stripOverwriteFlags, type CodeChange } from '../services/overwrite'
 import { portalChild } from './teaching/common'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
@@ -129,8 +130,12 @@ async function listStudents(c: Ctx): Promise<Page<Student>> {
   if (q.get('mine') === 'class_teacher') {
     sectionId = sectionId && scope.classTeacherOf.includes(sectionId) ? sectionId : (scope.classTeacherOf[0] ?? '00000000-0000-0000-0000-000000000000')
   }
-  const pred = studentPredicate(scope, 'st')
-  const fp = await filterFingerprint(status, search, sectionId ?? '', classId ?? '', yearId ?? '', String(newThisYear), pred.sql, pred.args.join(' '))
+  /* Whoever may mark any section's register (academics.attendance.write.any)
+     gets that section's whole roll. Without it a class teacher picking another
+     class saw only the children they also teach: on Yajur, 0 of 22 in a
+     Grade 4 section (owner, 2026-10-21). */
+  const pred = sectionId && scope.anySection ? { sql: '1', args: [] } : studentPredicate(scope, 'st')
+  const fp =await filterFingerprint(status, search, sectionId ?? '', classId ?? '', yearId ?? '', String(newThisYear), pred.sql, pred.args.join(' '))
   const cur = decodeCursor(q.get('cursor') ?? '', fp)
   let withTotal = cur === null
   if (q.get('with_total') === '1') withTotal = true
@@ -161,7 +166,7 @@ async function listStudents(c: Ctx): Promise<Page<Student>> {
   stmts.push(c.db.prepare(`
     SELECT st.id, st.person_code, st.admission_no, ${fullNameSQL('st')} AS full_name,
            st.first_name, st.middle_name, st.last_name, st.gender, st.date_of_birth, st.status, st.admission_date,
-           c.name AS class_name, sec.name AS section_name, en.roll_no,
+           c.name AS class_name, sec.name AS section_name, en.roll_no, st.photo_file_id,
            (SELECT g.phone FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
              WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS primary_phone
     ${from} ORDER BY st.admission_no, st.id LIMIT ? OFFSET ?`)
@@ -190,7 +195,7 @@ function studentRow(r: Record<string, unknown>): Student {
     person_code: optStr(r.person_code), middle_name: optStr(r.middle_name), last_name: optStr(r.last_name),
     gender: optStr(r.gender), date_of_birth: optStr(r.date_of_birth), class_name: optStr(r.class_name),
     section_name: optStr(r.section_name), roll_no: r.roll_no === null || r.roll_no === undefined ? undefined : Number(r.roll_no),
-    primary_phone: optStr(r.primary_phone),
+    primary_phone: optStr(r.primary_phone), photo_file_id: optStr(r.photo_file_id),
   }
   return out
 }
@@ -271,10 +276,23 @@ async function updateStudent(c: Ctx) {
   const pred = studentPredicate(await resolveScope(c), 'st')
   const existing = await c.db.prepare(`SELECT st.admission_no FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first<{ admission_no: string }>()
   if (!existing) throw notFoundGo()
-  req.admission_no = existing.admission_no // never renumber on edit
+  /* The edit form shows the admission number, and a change typed there used
+     to be dropped without a word. It is applied now, after asking (owner,
+     2026-10-14); APAAR, Child Info id and Aadhaar are asked about the same way. */
+  const r = req as unknown as Record<string, unknown>
+  const renumber = typeof r.admission_no === 'string' && r.admission_no.trim() !== '' && r.admission_no.trim() !== existing.admission_no
+    ? r.admission_no.trim() : null
+  const given: Record<string, string | null> = {}
+  if (renumber) given.admission_no = renumber
+  // The upsert keeps a stored APAAR / Child Info id when sent blank, so only a different value is a change.
+  for (const k of ['apaar_id', 'child_info_id'] as const) if (str(r[k]).trim() !== '') given[k] = str(r[k]).trim()
+  if ('aadhaar_last4' in r) given.aadhaar_last4 = str(r.aadhaar_last4).trim()
+  await guardStudentCodes(c, id, r, given)
+  req.admission_no = existing.admission_no // the upsert finds the record by its current number
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
+  if (renumber) await c.db.prepare(`UPDATE students SET admission_no = ?, updated_at = ? WHERE id = ?`).bind(renumber, now(), id).run()
   // A parent number added or changed on the record gets its login too.
   await autoIssueFamilyLogins(c, id)
   return ok({ id, updated: true })
@@ -641,6 +659,56 @@ async function admissionFeePreview(c: Ctx) {
   })
 }
 
+/* A BILL IS SETTLED, NOT A LINE OF IT.
+
+   A payment lands on an invoice; this works out how much of it each head on
+   that invoice got. Every line takes its whole-paise share, and the paise
+   left over by the division go to the largest lines first, so the shares add
+   up to exactly what was paid. One head on the invoice -- which is every
+   invoice this product raises today -- means the head simply takes all of
+   it, and a settled bill shows a zero balance instead of two paise. */
+export function assembleFeeHeads(lines: Record<string, unknown>[]): { head: string; year: string; charged_paise: string; paid_paise: string }[] {
+  const byInvoice = new Map<string, { head: string; year: string; line: number; got: number }[]>()
+  for (const r of lines) {
+    const inv = String(r.invoice_id)
+    const list = byInvoice.get(inv) ?? []
+    list.push({ head: String(r.head), year: String(r.year ?? ''), line: Number(r.line_paise) || 0, got: 0 })
+    byInvoice.set(inv, list)
+  }
+  for (const r of lines) {
+    const list = byInvoice.get(String(r.invoice_id))!
+    if (list.some((x) => x.got !== 0)) continue
+    const paid = Math.max(0, Number(r.paid_paise) || 0)
+    const total = list.reduce((a, x) => a + x.line, 0)
+    if (total <= 0 || paid <= 0) continue
+    /* Never hand out more than the bill came to: an overpayment sits as a
+       credit on the account, it does not make a head more than paid. */
+    const pot = Math.min(paid, total)
+    let left = pot
+    const share = list.map((x) => {
+      const exact = (x.line * pot) / total
+      const whole = Math.floor(exact)
+      left -= whole
+      return { x, whole, rest: exact - whole }
+    })
+    share.sort((a, b) => b.rest - a.rest || b.x.line - a.x.line)
+    share.forEach((sh, i) => { sh.x.got = sh.whole + (i < left ? 1 : 0) })
+  }
+  // One row per head per academic year: the screen shows a year at a time.
+  const heads = new Map<string, { head: string; year: string; charged: number; paid: number }>()
+  for (const list of byInvoice.values()) {
+    for (const x of list) {
+      const k = x.year + '\u0000' + x.head
+      const h = heads.get(k) ?? { head: x.head, year: x.year, charged: 0, paid: 0 }
+      h.charged += x.line; h.paid += x.got
+      heads.set(k, h)
+    }
+  }
+  return [...heads.values()]
+    .sort((a, b) => b.year.localeCompare(a.year) || a.head.localeCompare(b.head))
+    .map((v) => ({ head: v.head, year: v.year, charged_paise: String(v.charged), paid_paise: String(v.paid) }))
+}
+
 // --- the 360 view ------------------------------------------------------------------------------------
 
 async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
@@ -730,23 +798,37 @@ async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
 
 async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
   const id = sid(c)
-  const pred = studentPredicate(await resolveScope(c), 'st')
+  const scope = await resolveScope(c)
+  const pred = studentPredicate(scope, 'st')
+  /* Staff read every remark; a family reads only those marked for the family. */
+  const staff = scope.platformAdmin || scope.allStudents || scope.teaches || scope.sectionIds.length > 0 ? 1 : 0
   const classRow = await c.db.prepare(`SELECT e.class_id FROM enrollments e WHERE e.student_id = ? ORDER BY e.enrolled_on DESC LIMIT 1`).bind(id).first<{ class_id: string }>()
   const okRow = await c.db.prepare(`SELECT 1 AS ok FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first()
   if (!okRow) throw forbiddenMsg('missing permission: this child is not one you can see')
   const today = indiaToday()
 
-  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew] = await batch(c, [
+  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew, remarks] = await batch(c, [
     c.db.prepare(`SELECT e.name AS exam, sub.name AS subject, CAST(m.marks_obtained AS TEXT) AS marks, CAST(es.max_marks AS TEXT) AS max, m.grade,
                          m.is_absent AS absent, e.starts_on AS "on", (m.approved_at IS NOT NULL) AS approved
                     FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams e ON e.id = es.exam_id
                     JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
                    WHERE m.student_id = ? ORDER BY e.starts_on DESC, sub.name`).bind(id),
-    c.db.prepare(`SELECT COALESCE(fh.name, il.description, 'Other') AS head,
-                         CAST(SUM(il.amount_paise - il.discount_paise) AS TEXT) AS charged_paise,
-                         CAST(SUM(CAST(ROUND((il.amount_paise - il.discount_paise) * CASE WHEN inv.net_paise > 0 THEN inv.paid_paise * 1.0 / inv.net_paise ELSE 0 END) AS INTEGER)) AS TEXT) AS paid_paise
+    /* WHAT THE FEES ARE FOR, TO THE LAST PAISA.
+
+       The split used to be done in SQL, one line at a time: each line took
+       ROUND(line * paid / net) of the payment. Round five lines separately
+       and they do not add back up to what was paid -- a fully settled bill
+       came out of this screen as Transport 2 paise short, Uniform 1 paise
+       short, every head "part paid", which is the kind of thing a parent
+       rings about. The rows come back raw now and the paise are handed out
+       in assembleFeeHeads below, where the remainder can go somewhere. */
+    c.db.prepare(`SELECT CASE WHEN inv.instalment_no IN (1,2,3) THEN 'Term ' || inv.instalment_no || COALESCE(' · ' || fh.name, '')
+                              ELSE COALESCE(fh.name, il.description, 'Other') END AS head, il.invoice_id,
+                         (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise,
+                         COALESCE(ay.name, '') AS year
                     FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
-                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' GROUP BY head ORDER BY head`).bind(id),
+                    LEFT JOIN academic_years ay ON ay.id = inv.academic_year_id
+                   WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),
     c.db.prepare(`SELECT COALESCE(pm.receipt_no,'') AS receipt_no, pm.paid_on, CAST(pm.amount_paise AS TEXT) AS amount_paise, pm.mode,
                          COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference, pm.status
                     FROM payments pm WHERE pm.student_id = ? ORDER BY pm.paid_on DESC, pm.created_at DESC LIMIT 100`).bind(id),
@@ -791,13 +873,19 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     FROM transport_allocations ta LEFT JOIN routes rt ON rt.id = ta.route_id LEFT JOIN vehicles v ON v.id = rt.vehicle_id
                     LEFT JOIN employees de ON de.id = v.driver_employee_id LEFT JOIN employees ae ON ae.id = v.attendant_employee_id
                    WHERE ta.student_id = ? AND (ta.valid_to IS NULL OR ta.valid_to >= ?)`).bind(id, today),
+    c.db.prepare(`SELECT sr.id, sr.observed_on, sr.kind, sr.body, COALESCE(sub.name,'') AS subject, COALESCE(u.full_name,'') AS teacher,
+                         NOT sr.visible_to_family AS private
+                    FROM student_remarks sr LEFT JOIN class_subjects cs ON cs.id = sr.class_subject_id
+                    LEFT JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN users u ON u.id = sr.recorded_by
+                   WHERE sr.student_id = ? AND (? = 1 OR sr.visible_to_family = 1)
+                   ORDER BY sr.observed_on DESC, sr.created_at DESC LIMIT 100`).bind(id, staff),
   ])
   type D = StudentFullDetail
   const rows = (r: D1Result) => r.results as Record<string, unknown>[]
   const as = <T>(r: D1Result) => r.results as T
   return {
     subject_marks: rows(marks).map((m) => ({ ...(m as unknown as D['subject_marks'][number]), absent: bool(m.absent), approved: bool(m.approved) })),
-    fee_heads: as<D['fee_heads']>(feeHeads),
+    fee_heads: assembleFeeHeads(rows(feeHeads)) as D['fee_heads'],
     payments: as<D['payments']>(payments),
     documents: rows(documents).map((d) => ({ ...(d as unknown as D['documents'][number]), verified: bool(d.verified) })),
     leave: as<D['leave']>(leave),
@@ -809,6 +897,7 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
     fee_components: rows(components).map((x) => ({ ...(x as unknown as NonNullable<D['fee_components']>[number]), live: bool(x.live) })),
     co_scholastic: as<D['co_scholastic']>(coScholastic),
     invoices: as<D['invoices']>(invoices),
+    remarks: rows(remarks).map((r) => ({ ...(r as unknown as D['remarks'][number]), private: bool(r.private) })),
     class_id: classRow?.class_id ?? null,
   }
 }
@@ -1092,9 +1181,36 @@ const patchableStudentFields = new Set([
   'apaar_id', 'child_info_id', 'house_id', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'medium', 'admission_no',
 ])
 
+/* A child's identifying numbers are not typed over without being asked
+   (owner, 2026-10-14; services/overwrite.ts). Admission number, APAAR and
+   Child Info id are unique per school, so a number another child holds is
+   refused naming that child. `given` holds only the fields being written. */
+const studentCodeLabels: Record<string, string> = {
+  admission_no: 'admission no.', apaar_id: 'APAAR ID', child_info_id: 'Child Info ID', aadhaar_last4: 'Aadhaar (last 4)', roll_no: 'roll no.',
+}
+export async function guardStudentCodes(c: Ctx, id: string, flags: unknown, given: Record<string, string | null>): Promise<void> {
+  if (Object.keys(given).length === 0) return
+  const cur = await c.db.prepare(`SELECT st.admission_no, st.apaar_id, st.child_info_id, st.aadhaar_last4,
+      (SELECT CAST(e.roll_no AS TEXT) FROM enrollments e WHERE e.student_id = st.id AND e.status = 'active' ORDER BY e.enrolled_on DESC LIMIT 1) AS roll_no
+      FROM students st WHERE st.id = ?`).bind(id).first<Record<string, string | null>>()
+  if (!cur) return // the scope check that follows says why
+  for (const k of ['admission_no', 'apaar_id', 'child_info_id']) {
+    const v = given[k]
+    if (!v || v === (cur[k] ?? '')) continue
+    const holder = await c.db.prepare(`SELECT ${fullNameSQL('st')} AS name, st.admission_no FROM students st
+        WHERE st.institution_id = ? AND ${k === 'admission_no' ? 'lower(st.admission_no) = lower(?)' : `st.${k} = ?`} AND st.id <> ?`)
+      .bind(inst(c), v, id).first<{ name: string; admission_no: string }>()
+    if (holder) throw alreadyUsed(k, studentCodeLabels[k], v, `${holder.name} (${holder.admission_no})`)
+  }
+  const changes: CodeChange[] = Object.entries(given).map(([k, to]) => ({ field: k, label: studentCodeLabels[k], from: cur[k], to }))
+  guardOverwrite(flags, changes)
+}
+
 async function patchStudentFields(c: Ctx) {
   const id = sid(c)
   const req = await readJSON<Record<string, string>>(c.req)
+  const flags = { confirm_overwrite: (req as Record<string, unknown>).confirm_overwrite, overwrite: (req as Record<string, unknown>).overwrite }
+  stripOverwriteFlags(req)
   const rollGiven = Object.prototype.hasOwnProperty.call(req, 'roll_no')
   let rollNo: number | null = null
   if (rollGiven) {
@@ -1108,6 +1224,10 @@ async function patchStudentFields(c: Ctx) {
     }
   }
   if (Object.keys(req).length === 0 && !rollGiven) throw badRequest('nothing to change')
+  const given: Record<string, string | null> = {}
+  for (const k of ['admission_no', 'apaar_id', 'child_info_id', 'aadhaar_last4']) if (k in req) given[k] = str(req[k]).trim()
+  if (rollGiven) given.roll_no = rollNo === null ? '' : String(rollNo)
+  await guardStudentCodes(c, id, flags, given)
 
   const sets: string[] = []
   const args: unknown[] = []
@@ -1265,7 +1385,7 @@ async function importStudents(c: Ctx) {
 
   const seenKeys = new Map<string, number>()
   let good: Parsed[] = []
-  const out: { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string } =
+  const out: { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: Array<{ row: number; changes: CodeChange[]; problem: string }> } =
     { total: 0, valid: 0, rejected: 0, imported: 0, dry_run: !commit, problems: [] }
 
   for (let rowNum = 2; rowNum <= records.length; rowNum++) {
@@ -1372,6 +1492,35 @@ async function importStudents(c: Ctx) {
       }
       return true
     })
+  }
+
+  /* A row for a child already on file that would replace an APAAR, Child
+     Info id or Aadhaar tail is listed, and held back unless the upload says
+     overwrite=true (owner, 2026-10-14). One scan of the roll, not a query a row. */
+  if (good.length > 0) {
+    const onFile = new Map<string, Record<string, string | null>>()
+    const all = await c.db.prepare(`SELECT lower(admission_no) AS k, apaar_id, child_info_id, aadhaar_last4 FROM students`).all<Record<string, string | null>>()
+    for (const r of all.results) onFile.set(String(r.k), r)
+    const overwrite = q.get('overwrite') === 'true'
+    const held = new Set<number>()
+    for (const g of good) {
+      const cur = onFile.get(str(g.req.admission_no).trim().toLowerCase())
+      if (!cur) continue
+      const cand: CodeChange[] = []
+      if (str(g.req.apaar_id).trim() !== '') cand.push({ field: 'apaar_id', label: 'APAAR ID', from: cur.apaar_id, to: str(g.req.apaar_id).trim() })
+      if (str(g.req.child_info_id).trim() !== '') cand.push({ field: 'child_info_id', label: 'Child Info ID', from: cur.child_info_id, to: str(g.req.child_info_id).trim() })
+      cand.push({ field: 'aadhaar_last4', label: 'Aadhaar (last 4)', from: cur.aadhaar_last4, to: str(g.req.aadhaar_last4).trim() })
+      const ch = replacements(cand)
+      if (ch.length === 0) continue
+      const problem = describeReplacements(ch)
+      ;(out.replacements ??= []).push({ row: g.row, changes: ch, problem })
+      if (overwrite) continue
+      if (commit) {
+        held.add(g.row); out.valid--; out.rejected++
+        out.problems.push({ row: g.row, problem: problem + '. Not applied: tick "Replace existing codes" and import again to apply it' })
+      }
+    }
+    if (held.size > 0) good = good.filter((g) => !held.has(g.row))
   }
 
   if (!commit) return ok(out)

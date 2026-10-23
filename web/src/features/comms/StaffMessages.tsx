@@ -100,10 +100,38 @@ export default function StaffMessages() {
      that want answering; scrolling the address book to find them is the
      wrong way round. */
   const [unreadOnly, setUnreadOnly] = useState(false)
-  const me = useSession().user?.id
+  const session = useSession()
+  const me = session.user?.id
   /* The parents' register sits behind /teaching, which is gated on the
      timetable. Finance and HR have neither, and asking only earned a 403. */
-  const canParents = useCan()('academics.timetable.read')
+  /* WHO MAY WRITE TO A FAMILY.
+
+     This was `academics.timetable.read` alone, which is a teacher test
+     wearing the wrong name: it happens to be true for everyone who stands in
+     front of a class, and false for everyone who does not. The transport
+     office is the clearest casualty -- the person who knows the bus has
+     broken down, who has the stop and the child in front of them, and whose
+     Messages screen offered them colleagues only. They rang parents off a
+     paper list instead, which is the part worth fixing.
+
+     Transport read is added rather than the gate rewritten, because every
+     other role's access is correct today and a wholesale change here is a
+     change to who can contact families in thirteen roles at once. */
+  const can = useCan()
+  const teaches = can('academics.timetable.read')
+  /* The transport office reaches families through its own routes, which
+     return the ones with a child on a bus today and nobody else. A teacher
+     keeps the teaching routes. Somebody who is both reads as a teacher,
+     because that list is the wider of the two. */
+  const busOnly = !teaches && can('operations.transport.read')
+  /* Writing to families needs comms.announcements.write (the server refuses a send without it);
+     a plain subject teacher messages colleagues only. */
+  // Class teachers (students.write) and bus staff keep the family register, as the server allows.
+  // The school can keep teachers to colleagues only (settings: Teachers message parents directly).
+  const parentDMs = !session.modules?.some((m) => m.module === 'teacher_parent_messages' && !m.enabled)
+  const canParents = busOnly || (teaches && parentDMs && (can('comms.announcements.write') || can('students.write')))
+  const CONTACTS = busOnly ? '/api/v1/ops/transport/parent-contacts' : '/api/v1/teaching/parent-contacts'
+  const THREADS = busOnly ? '/api/v1/ops/transport/parent-messages' : '/api/v1/teaching/parent-messages'
 
   /* Which register is open. In the URL for the same reason `with` is: a
      notification about a parent's message has to be able to land on it. */
@@ -142,13 +170,13 @@ export default function StaffMessages() {
   const startSection = startClass
   const contacts = useQuery({
     queryKey: ['parent-contacts', startSection],
-    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string; class_label?: string }>>(`/api/v1/teaching/parent-contacts${startSection ? `?section_id=${startSection}` : ''}`),
+    queryFn: () => api.get<List<{ student_id: string; student_name: string; parent_user_id: string; parent_name: string; relation?: string; class_label?: string }>>(`${CONTACTS}${startSection && !busOnly ? `?section_id=${startSection}` : ''}`),
     enabled: starting,
   })
 
   const parentThreads = useQuery({
     queryKey: ['parent-threads'],
-    queryFn: () => api.get<List<ParentThread>>('/api/v1/teaching/parent-messages'),
+    queryFn: () => api.get<List<ParentThread>>(THREADS),
     enabled: canParents,
   })
   /* ONE FAMILY, ONE ROW. A head reading the school's threads sees the same
@@ -172,7 +200,7 @@ export default function StaffMessages() {
     queryKey: ['parent-messages', openChild, openWith, openParent?.teacher_user_id],
     queryFn: () =>
       api.get<List<Message>>(
-        `/api/v1/teaching/parent-messages/thread?student_id=${openChild}` +
+        `${THREADS}/thread?student_id=${openChild}` +
         `&parent_user_id=${openWith}` +
         /* Named only when reading somebody else's thread; the server ignores
            it without comms.messages.read.all, so it can never widen. */
@@ -286,7 +314,7 @@ export default function StaffMessages() {
     try {
       const url = kind === 'staff'
         ? `/api/v1/staff-messages?with=${openWith}&before=${encodeURIComponent(before)}`
-        : `/api/v1/teaching/parent-messages/thread?student_id=${openChild}&parent_user_id=${openWith}` +
+        : `${THREADS}/thread?student_id=${openChild}&parent_user_id=${openWith}` +
           (openParent?.teacher_user_id ? `&teacher_user_id=${openParent.teacher_user_id}` : '') +
           `&before=${encodeURIComponent(before)}`
       const page = await api.get<List<Message> & { has_more?: boolean }>(url)

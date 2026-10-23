@@ -28,6 +28,7 @@ const QUIET: RegExp[] = [
   /\/search|\/lookup|\/suggest|\/preview|\/export|\/print|\/pdf/,
   /\/assistant|\/ai\//,
   /\/portal\/lms\/|\/homework\/[^/]+\/submit/, // the student's own screens show their own check, confetti and confirmation
+  /\/portal\/diary\/notes/,   // the planner: the tick and the coloured paper are the confirmation (owner, 2026-10-10)
   /\/outbox|\/sync|\/heartbeat|\/ping|\/beacon|\/telemetry|\/analytics/,
   /\/notifications\/read|\/read-all|\/dismiss|\/seen/,
   /\/pay(ments)?\/|\/collect|\/checkout|\/upi|\/gateway/, // money names its receipt itself

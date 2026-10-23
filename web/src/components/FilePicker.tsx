@@ -208,7 +208,7 @@ export default function FilePicker({
       )}
       {progress !== null && (
         <div className="mt-2 h-1 w-full overflow-hidden rounded bg-muted">
-          <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-full origin-left bg-primary transition-transform" style={{ transform: `scaleX(${progress / 100})` }} />
         </div>
       )}
       {error && <p className="mt-1.5 text-[12.5px] text-destructive">{error}</p>}

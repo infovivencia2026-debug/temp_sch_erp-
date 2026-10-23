@@ -238,7 +238,7 @@ export async function issueStaffCertificate(db: D1Database, inst: string, actor:
   let typeID = (await db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(code).first<{ id: string }>())?.id
   if (!typeID) {
     typeID = uuid()
-    stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, requires_approval, updated_at) VALUES (?,?,?,?,0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
+    stmts.push(db.prepare(`INSERT INTO certificate_types (id, institution_id, code, name, subject_kind, requires_approval, updated_at) VALUES (?,?,?,?,'staff',0,?)`).bind(typeID, inst, code, staffCertificateName(code), now()))
   }
   const serial = await nextNumber(db, inst, 'certificate')
   const e = await db.prepare(`SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, d.name AS designation, dep.name AS department, e.joined_on, e.relieved_on,
@@ -304,7 +304,7 @@ export function registerStaff(r: Router) {
     const mine = !can(c.id, READ) || q.get('for') === 'mine'
     const rows = await c.db.prepare(`
       SELECT lr.id, COALESCE(NULLIF(${fullName('e.first_name', 'e.last_name')}, ''), NULLIF(${fullName('st.first_name', 'st.last_name')}, ''), '-') AS who,
-             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status
+             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status, lr.kind, lr.hours
         FROM leave_requests lr LEFT JOIN employees e ON e.id = lr.employee_id LEFT JOIN students st ON st.id = lr.student_id LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
        WHERE (? IS NULL OR lr.status = ?) AND (? IS NULL OR lr.subject_kind = ?) AND ${mine ? 'e.user_id = ?' : '1'}
        ORDER BY lr.created_at DESC LIMIT 300`)
@@ -621,7 +621,7 @@ export function registerStaff(r: Router) {
     const e = await c.db.prepare(`
       SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, d.name AS department, dg.name AS designation, e.department_id, e.designation_id,
              e.employment_type, e.status, e.joined_on, e.confirmed_on, e.relieved_on, e.address, e.photo_file_id, e.experience_years, e.user_id,
-             e.emergency_contact_name, e.emergency_contact_phone, e.pan, e.bank_account, e.bank_ifsc, e.uan, e.esi_number, e.custom_fields
+             e.emergency_contact_name, e.emergency_contact_phone, e.pan, e.bank_account, e.bank_ifsc, e.uan, e.esi_number, e.custom_fields, CAST(e.device_user_id AS TEXT) AS device_user_id
         FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`).bind(eid).first<Record<string, unknown>>()
     if (!e) throw notFound()
     const out: Record<string, unknown> = {
@@ -630,7 +630,7 @@ export function registerStaff(r: Router) {
       designation_id: e.designation_id, employment_type: e.employment_type, status: e.status, joined_on: e.joined_on, confirmed_on: e.confirmed_on, relieved_on: e.relieved_on,
       address: e.address, photo_file_id: e.photo_file_id, experience_years: e.experience_years === null ? null : Math.trunc(Number(e.experience_years)), user_id: e.user_id,
       emergency_contact_name: e.emergency_contact_name, emergency_contact_phone: e.emergency_contact_phone, pan: e.pan, bank_account: e.bank_account, bank_ifsc: e.bank_ifsc,
-      uan: e.uan, esi_number: e.esi_number,
+      uan: e.uan, esi_number: e.esi_number, device_user_id: e.device_user_id ?? undefined,
     }
     const cf = parseJSON<Record<string, string>>(e.custom_fields, {})
     if (Object.keys(cf).length > 0) out.custom_fields = cf

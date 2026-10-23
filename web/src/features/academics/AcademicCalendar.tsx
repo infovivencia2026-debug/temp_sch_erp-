@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, GraduationCap, Sun, Trash2 } from 'lucide-react'
+import { CalendarDays, GraduationCap, Pencil, Sun, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { MonthGrid, type CalendarEntry } from '../shared/MonthGrid'
 import {
@@ -68,9 +68,34 @@ const KINDS = [
   { value: 'working_day', label: 'Working day' },
 ]
 
+interface Audiences { staff: { id: string; name: string }[]; groups: { id: string; name: string }[] }
+const useAudiences = () => useQuery({ queryKey: ['calendar-audiences'], queryFn: () => api.get<Audiences>('/api/v1/academics/admin/calendar/audiences'), staleTime: 60_000 })
+const FIXED: Record<string, string> = { all: 'Everybody', students: 'Students only', staff: 'All staff', teaching: 'Teaching staff only', non_teaching: 'Non-teaching staff only' }
+/** "Everybody", "Teaching staff only", "Asha, Ravi +2", "Group: Office staff". */
+function audienceLabel(a: string, au?: Audiences): string {
+  if (FIXED[a]) return FIXED[a]
+  if (a.startsWith('group:')) return `Group: ${au?.groups.find((g) => g.id === a.slice(6))?.name ?? 'a staff group'}`
+  if (a.startsWith('people:')) {
+    const ids = a.slice(7).split(',').filter(Boolean)
+    const names = ids.map((id) => au?.staff.find((p) => p.id === id)?.name).filter(Boolean) as string[]
+    if (!names.length) return `${ids.length} named staff`
+    return names.slice(0, 2).join(', ') + (ids.length > 2 ? ` +${ids.length - 2}` : '')
+  }
+  return a
+}
+
+/* Every calendar on this login, not only this screen's (Yajur, 2026-10-14):
+   the day panel, the staff and portal calendars and the dashboard all draw
+   the same holidays, and each kept its own copy until it expired. */
+const refreshCalendars = (qc: ReturnType<typeof useQueryClient>) =>
+  qc.invalidateQueries({ predicate: (q) => q.queryKey.some((k) => typeof k === 'string' && /calendar|holiday|term/.test(k)) })
+
 export default function AcademicCalendar() {
+  const audiences = useAudiences()
   const qc = useQueryClient()
   const [kind, setKind] = useState('')
+  /* The entry being edited, shown in the form below in place of a blank one. */
+  const [editing, setEditing] = useState<Entry | null>(null)
 
   const cal = useQuery({
     queryKey: ['admin-calendar', kind],
@@ -82,7 +107,7 @@ export default function AcademicCalendar() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/academics/admin/calendar/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-calendar'] }),
+    onSuccess: () => refreshCalendars(qc),
   })
 
   if (cal.isLoading && !cal.data) return <SkeletonTable columns={6} label="Reading the year…" />
@@ -185,11 +210,16 @@ export default function AcademicCalendar() {
                     </Badge>
                   </Td>
                   <Td className="text-muted-foreground">
-                    {r.source === 'calendar' ? r.applies_to : `set in ${r.source}s`}
+                    {r.source === 'calendar' ? audienceLabel(r.applies_to, audiences.data) : `set in ${r.source}s`}
                   </Td>
                   <Td className="tabular-nums">{r.days}</Td>
                   <Td>
                     {r.source === 'calendar' && (
+                      <div className="flex gap-1.5">
+                      <Button size="sm" variant="secondary" title="Edit this entry" aria-label={`Edit ${r.name}`}
+                        onClick={() => { setEditing(r); window.setTimeout(() => document.getElementById('calendar-entry-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="secondary"
@@ -200,6 +230,7 @@ export default function AcademicCalendar() {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
+                      </div>
                     )}
                   </Td>
                 </tr>
@@ -209,7 +240,7 @@ export default function AcademicCalendar() {
           <FormNotice error={remove.error} />
         </Card>
 
-        <NewEntry />
+        <NewEntry key={editing?.id ?? 'new'} editing={editing} done={() => setEditing(null)} />
 
         {/* THE WHOLE YEAR IN ONE GO.
 
@@ -237,7 +268,7 @@ export default function AcademicCalendar() {
                 'updates rather than doubles.'
               }
               onDone={() => {
-                qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+                refreshCalendars(qc)
                 qc.invalidateQueries({ queryKey: ['calendar-terms'] })
               }}
             />
@@ -252,27 +283,38 @@ export default function AcademicCalendar() {
 
 /** The form. Deliberately below the year rather than in a dialog: a school
     entering a holiday list types twenty of them in a row. */
-function NewEntry() {
+function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }) {
   const qc = useQueryClient()
-  const [name, setName] = useState('')
-  const [onDate, setOnDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [kind, setKind] = useState('holiday')
-  const [appliesTo, setAppliesTo] = useState('all')
-  const [description, setDescription] = useState('')
+  const [name, setName] = useState(editing?.name ?? '')
+  const [onDate, setOnDate] = useState(editing?.starts_on ?? '')
+  const [toDate, setToDate] = useState(editing && editing.ends_on !== editing.starts_on ? editing.ends_on : '')
+  const [kind, setKind] = useState(editing?.kind ?? 'holiday')
+  const initial = editing?.applies_to ?? 'all'
+  /* The picker shows one of: a fixed choice, "people" or "group"; the names
+     and the group live beside it and are folded into applies_to on save. */
+  const [appliesTo, setAppliesTo] = useState(initial.startsWith('people:') ? 'people' : initial.startsWith('group:') ? 'group' : initial)
+  const [people, setPeople] = useState<string[]>(initial.startsWith('people:') ? initial.slice(7).split(',').filter(Boolean) : [])
+  const [group, setGroup] = useState(initial.startsWith('group:') ? initial.slice(6) : '')
+  const [find, setFind] = useState('')
+  const au = useAudiences()
+  const audience = appliesTo === 'people' ? `people:${people.join(',')}` : appliesTo === 'group' ? `group:${group}` : appliesTo
+  const audienceReady = appliesTo === 'people' ? people.length > 0 : appliesTo === 'group' ? !!group : true
+  const [description, setDescription] = useState(editing?.description ?? '')
 
   const save = useMutation({
     mutationFn: () =>
       api.post('/api/v1/academics/admin/calendar', {
+        ...(editing ? { id: editing.id } : {}),
         name,
         on_date: onDate,
         to_date: toDate,
         kind,
-        applies_to: appliesTo,
+        applies_to: audience,
         description,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
+      if (editing) { done(); return }
       setName('')
       setToDate('')
       setDescription('')
@@ -280,9 +322,9 @@ function NewEntry() {
   })
 
   return (
-    <Card>
+    <div id="calendar-entry-form" className="scroll-mt-20"><Card>
       <CardHeader
-        title="Add to the calendar"
+        title={editing ? `Edit ${editing.name}` : 'Add to the calendar'}
         description="A working day pulls a Sunday back into the count, which is what a school does after a bandh."
       />
       <div className="px-5 pb-5 pt-4">
@@ -306,10 +348,32 @@ function NewEntry() {
               options={[
                 { value: 'all', label: 'Everybody' },
                 { value: 'students', label: 'Students only' },
-                { value: 'staff', label: 'Staff only' },
+                { value: 'staff', label: 'All staff' },
+                { value: 'teaching', label: 'Teaching staff only' },
+                { value: 'non_teaching', label: 'Non-teaching staff only' },
+                { value: 'people', label: 'Specific staff…' },
+                { value: 'group', label: 'A staff group…' },
               ]}
             />
           </Field>
+          {appliesTo === 'group' && (
+            <Field label="Staff group" hint={au.data && !au.data.groups.length ? 'No staff groups yet. Make one in Staff groups & lists.' : 'Its members on the day, rules and hand-picked alike.'}>
+              <Select value={group} onChange={setGroup} placeholder="Choose a group" options={(au.data?.groups ?? []).map((g) => ({ value: g.id, label: g.name }))} />
+            </Field>
+          )}
+          {appliesTo === 'people' && (
+            <Field label={`Staff (${people.length} picked)`} wide>
+              <Input value={find} onChange={setFind} placeholder="Find by name" />
+              <div className="mt-2 max-h-56 overflow-y-auto rounded-md border">
+                {(au.data?.staff ?? []).filter((p) => !find || p.name.toLowerCase().includes(find.toLowerCase())).map((p) => (
+                  <label key={p.id} className="flex min-h-10 cursor-pointer items-center gap-2 border-b px-3 text-[14px] last:border-b-0 hover:bg-muted/40">
+                    <input type="checkbox" checked={people.includes(p.id)} onChange={() => setPeople(people.includes(p.id) ? people.filter((x) => x !== p.id) : [...people, p.id])} />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            </Field>
+          )}
           <Field label="Note" wide>
             <Textarea
               value={description}
@@ -321,15 +385,16 @@ function NewEntry() {
         </FormGrid>
         <div className="mt-5 flex items-center gap-3">
           <Button
-            disabled={save.isPending || !name.trim() || !onDate}
+            disabled={save.isPending || !name.trim() || !onDate || !audienceReady}
             onClick={() => save.mutate()}
           >
-            Add entry
+            {editing ? 'Save changes' : 'Add entry'}
           </Button>
+          {editing && <Button variant="secondary" onClick={done}>Cancel</Button>}
           <FormNotice error={save.error} ok={save.isSuccess ? 'Added.' : undefined} />
         </div>
       </div>
-    </Card>
+    </Card></div>
   )
 }
 
@@ -366,7 +431,7 @@ function Terms() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-terms'] })
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
       setName('')
       setStartsOn('')
       setEndsOn('')
@@ -377,7 +442,7 @@ function Terms() {
     mutationFn: (id: string) => api.del(`/api/v1/academics/calendar/terms/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-terms'] })
-      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      refreshCalendars(qc)
     },
   })
 

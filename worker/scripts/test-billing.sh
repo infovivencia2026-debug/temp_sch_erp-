@@ -8,5 +8,6 @@ out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 npx esbuild test/billing.test.ts --bundle --platform=node --format=esm \
   --alias:cloudflare:sockets=./test/cf-stubs.ts --alias:cloudflare:workers=./test/cf-stubs.ts \
+  --alias:cloudflare:sockets=./test/cf-stubs.ts --alias:cloudflare:workers=./test/cf-stubs.ts \
   --loader:.sql=text --outfile="$out/billing.test.mjs" --log-level=warning
 node --no-warnings --test "$out/billing.test.mjs"

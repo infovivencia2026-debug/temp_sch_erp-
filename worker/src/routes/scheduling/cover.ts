@@ -21,7 +21,8 @@ const WRITE = 'academics.timetable.write'
 
 const DAYS_CTE = `WITH RECURSIVE d(day) AS (SELECT ?1 UNION ALL SELECT date(day, '+1 day') FROM d WHERE day < ?2)`
 const ISODOW = (col: string) => `(CASE CAST(strftime('%w', ${col}) AS INTEGER) WHEN 0 THEN 7 ELSE CAST(strftime('%w', ${col}) AS INTEGER) END)`
-const NOT_HOLIDAY = `NOT EXISTS (SELECT 1 FROM holidays h WHERE h.kind IN ('holiday','vacation') AND h.applies_to IN ('all','staff')
+// Cover is for teachers: a teaching-staff holiday is theirs too (hr/staff_holidays.ts).
+const NOT_HOLIDAY = `NOT EXISTS (SELECT 1 FROM holidays h WHERE h.kind IN ('holiday','vacation') AND h.applies_to IN ('all','staff','teaching')
                        AND d.day BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date))`
 
 /** coverRange: the next fortnight by default, never backwards, never more than 92 days. */

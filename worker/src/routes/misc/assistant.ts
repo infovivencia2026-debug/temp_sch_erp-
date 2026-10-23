@@ -1,11 +1,13 @@
 import type { Ctx, Router } from '../../router'
+import { aiFetch } from '../../services/ai/fetch'
 import { can } from '../../identity'
 import { badRequest, HttpError, isUUID, ok, readJSON, unauthorized } from '../../http'
 import { json } from '../../env'
 import { CATALOG_ROLES } from '../admin/static_data'
 import { importSpecs } from '../setup/imports'
 import { indiaToday, resolveScope, SECTION_SET_SQL } from '../students/common'
-import { assistantFailure, assistantRateLimit, callGemini, extractApiKey, type GeminiTurn } from '../teaching/gemini'
+import { assistantFailure, assistantRateLimit, callGemini, type GeminiTurn } from '../teaching/gemini'
+import { aiKey } from '../../services/ai/key'
 import { HELP_ANSWERS } from './assistant/help_answers_data'
 import { registerAgent } from './assistant/agent'
 import { ASSISTANT_ACTIONS, ASSISTANT_ACTION_CATALOGUE, ActionRefusal, dispatch, parseProposedAction, refusalText, type ProposedAction } from './assistant/actions'
@@ -364,14 +366,13 @@ async function assistantTTS(c: Ctx): Promise<Response> {
   let text = (req.text ?? '').trim()
   if (text === '') throw badRequest('text is required')
   if (text.length > 2400) text = text.slice(0, 2400)
-  const raw = (c.env as unknown as Record<string, unknown>).GOOGLE_API_KEY
-  const key = typeof raw === 'string' ? extractApiKey(raw) : null
+  const key = (await aiKey(c.env)).key
   if (!key) throw new HttpError(503, 'the voice service is only available on the cloud deployment', { code: 'tts_unavailable' })
   const signal = AbortSignal.timeout(20_000)
   const audio = (bytes: Uint8Array, type: string) =>
     new Response(bytes, { headers: { 'content-type': type, 'cache-control': 'private, max-age=60' } })
   try {
-    const r = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
+    const r = await aiFetch(c.env, 'https://texttospeech.googleapis.com/v1/text:synthesize', {
       method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({ input: { text }, voice: { languageCode: 'en-IN', name: 'en-IN-Neural2-A' }, audioConfig: { audioEncoding: 'MP3', speakingRate: 0.98 } }),
     })
@@ -381,7 +382,7 @@ async function assistantTTS(c: Ctx): Promise<Response> {
     } else {
       console.error('tts', r.status, (await r.text()).slice(0, 300))
     }
-    const g = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
+    const g = await aiFetch(c.env, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
       method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: 'Read this aloud in a warm Indian English voice: ' + text }] }],

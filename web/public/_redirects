@@ -11,3 +11,4 @@
 # handling -- it serves foo.html at /foo and 308s /foo.html to /foo. A rewrite
 # rule here mapping /privacy back to /privacy.html made a redirect loop, so
 # there is deliberately no rule for them.
+

@@ -1,6 +1,7 @@
+import { overMax } from './marksSheet'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
+import { Download, Upload } from 'lucide-react'
 import type { GradebookRow } from '@shared/api'
 import { api, type List } from '@/lib/api'
 import {
@@ -8,7 +9,9 @@ import {
   Table, Td, Badge, Button, Select, SkeletonTiles, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
-import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
+import { downloadCSV, SearchBox, Showing, useSearch } from '@/components/rows'
+import { marksTemplate, readMarksSheet } from './marksSheet'
+import ClassSheet from './ClassSheet'
 import { useToast } from '@/components/Toast'
 
 interface Paper {
@@ -16,57 +19,18 @@ interface Paper {
   marks_entered: number; students: number
   exam_id: string; exam_name: string; exam_kind: string
   class_id: string; class_name: string; subject: string
+  exam_date?: string | null
 }
 
 type Row = GradebookRow
 
-interface SectionRow { id: string; name: string; class_id: string; class_name: string }
-
-/* Reading a marks sheet the exam cell already has.
-
-   CSV because that is what every spreadsheet in an Indian school exports to,
-   and because a format a person can open in Notepad is one they can fix
-   themselves when a column is wrong.
-
-   The header is found rather than demanded: a sheet whose columns are
-   "Roll No, Name, Marks" and one whose columns are "admission_no, student,
-   score" are the same sheet, and refusing the second on a technicality is how
-   an import feature goes unused. */
-function readMarksSheet(text: string): { key: string; value: string }[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
-  if (lines.length === 0) return []
-
-  const split = (line: string) =>
-    line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
-
-  const header = split(lines[0]).map((h) => h.toLowerCase())
-  const find = (...names: string[]) =>
-    header.findIndex((h) => names.some((n) => h.includes(n)))
-
-  let idCol = find('admission', 'adm no', 'adm_no', 'roll')
-  let markCol = find('mark', 'score', 'obtained')
-  let nameCol = find('name', 'student')
-
-  /* A sheet with no header at all — somebody pasted two columns. Assume the
-     first is who and the last is how many, which is the only arrangement that
-     makes sense and the one a person would have typed. */
-  let body = lines.slice(1)
-  if (idCol < 0 && nameCol < 0 && markCol < 0) {
-    idCol = 0
-    markCol = split(lines[0]).length - 1
-    body = lines
-  }
-  if (markCol < 0) markCol = split(lines[0]).length - 1
-
-  const out: { key: string; value: string }[] = []
-  for (const line of body) {
-    const cells = split(line)
-    const key = (idCol >= 0 ? cells[idCol] : nameCol >= 0 ? cells[nameCol] : '') ?? ''
-    const value = (cells[markCol] ?? '').trim()
-    if (key) out.push({ key: key.trim(), value })
-  }
-  return out
+interface PartMarks {
+  parts: { id: string; name: string; max_marks: number }[]
+  items: { student_id: string; parts: Record<string, number | null> }[]
+  bands?: { grade: string; min: number; max: number }[]
 }
+
+interface SectionRow { id: string; name: string; class_id: string; class_name: string }
 
 /** Marks entry. The grade is computed server-side from the exam's grading
     scale — the teacher enters marks, never a grade. */
@@ -83,12 +47,21 @@ export default function Gradebook() {
    * maths" — and it is what was asked for. */
   const [classID, setClassID] = useState('')
   const [examKind, setExamKind] = useState('')
+  /* The whole class at once: every subject of the chosen exam and class. */
+  const [wholeClass, setWholeClass] = useState(false)
 
   // A teacher picks the paper from a list. Asking them to paste a UUID was the
   // single worst thing left in the interface.
   const papers = useQuery({
     queryKey: ['exam-subjects'],
-    queryFn: () => api.get<List<Paper>>('/api/v1/exams/subjects'),
+    /* ONLY A PAPER WITH A DATE (Yajur, 2026-10-19: "if a subject dont
+       schedule a exam like date and time than why showing this to enter").
+       A subject with no date on the date sheet has no exam, so there is
+       nothing to mark; it is not offered. */
+    queryFn: async () => {
+      const r = await api.get<List<Paper>>('/api/v1/exams/subjects')
+      return { ...r, items: (r.items ?? []).filter((p) => !!p.exam_date) }
+    },
   })
   /* What the paper is out of, and which scale grades it — before any mark.
    *
@@ -139,6 +112,8 @@ export default function Gradebook() {
   })
 
   const [draft, setDraft] = useState<Record<string, string>>({})
+  /* Per-part typing, for an exam marked in parts: student -> part -> box. */
+  const [partDraft, setPartDraft] = useState<Record<string, Record<string, string>>>({})
   const [importNote, setImportNote] = useState('')
   const [importErr, setImportErr] = useState('')
 
@@ -153,40 +128,31 @@ export default function Gradebook() {
     const reader = new FileReader()
     reader.onerror = () => setImportErr('That file could not be read.')
     reader.onload = () => {
-      const pairs = readMarksSheet(String(reader.result ?? ''))
-      if (pairs.length === 0) {
-        setImportErr('Nothing in that file looked like a marks sheet.')
+      /* The template's own columns are found by heading, so the file the
+         Template button wrote goes back in unchanged; a blank cell is "not
+         entered", AB is absent, and a bad number is named, row by row. */
+      const got = readMarksSheet(String(reader.result ?? ''), rows, parts, paper?.max_marks ?? 0)
+      if (got.filled === 0 && got.missed.length === 0 && got.errors.length === 0) {
+        setImportErr('Nothing in that file looked like a marks sheet, or every mark in it was blank.')
         return
       }
-      /* Admission number first, name second. Two children called Rahul Iyer
-         sit in the same room, and an admission number belongs to one of them —
-         so a name is only trusted when nothing matched by number. */
-      const byAdm = new Map(rows.map((r) => [r.admission_no.toLowerCase(), r]))
-      const byName = new Map(rows.map((r) => [r.full_name.trim().toLowerCase(), r]))
-
-      const next = { ...draft }
-      const missed: string[] = []
-      let filled = 0
-      for (const { key, value } of pairs) {
-        const row = byAdm.get(key.toLowerCase()) ?? byName.get(key.toLowerCase())
-        if (!row) {
-          missed.push(key)
-          continue
-        }
-        next[row.student_id] = value
-        filled++
-      }
-      setDraft(next)
+      if (hasParts) setPartDraft((d) => ({ ...d, ...got.parts }))
+      else setDraft((d) => ({ ...d, ...got.marks }))
+      setAbsent((d) => ({ ...d, ...got.absent }))
       setImportNote(
-        `${filled} mark${filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
+        got.partColumns
+          ? `${got.filled} ${got.filled === 1 ? 'child' : 'children'} filled in across ${got.partColumns} part${got.partColumns === 1 ? '' : 's'}. Check them, then press Save marks.`
+          : `${got.filled} mark${got.filled === 1 ? '' : 's'} filled in. Check them, then press Save marks.`,
       )
-      if (missed.length) {
-        setImportErr(
-          `Nobody in this paper matched: ${missed.slice(0, 6).join(', ')}` +
-            (missed.length > 6 ? ` and ${missed.length - 6} more` : '') +
-            '. Those rows were left alone.',
-        )
+      const problems: string[] = []
+      if (got.errors.length) {
+        problems.push(got.errors.slice(0, 6).join('; ') + (got.errors.length > 6 ? ` and ${got.errors.length - 6} more` : '') + '. Those rows were left alone.')
       }
+      if (got.missed.length) {
+        problems.push(`Nobody in this paper matched: ${got.missed.slice(0, 6).join(', ')}` +
+          (got.missed.length > 6 ? ` and ${got.missed.length - 6} more` : '') + '. Those rows were left alone.')
+      }
+      if (problems.length) setImportErr(problems.join(' '))
     }
     reader.readAsText(file)
   }
@@ -212,6 +178,7 @@ export default function Gradebook() {
     // the new sheet down to nobody.
     setSectionID('')
     setDraft({})
+    setPartDraft({})
     setAbsent({})
   }
 
@@ -235,7 +202,51 @@ export default function Gradebook() {
     enabled: !!esID,
   })
 
+  /* An exam marked in parts (Written, Project, Notebook...): one box per part
+     and the paper's mark is their sum, worked out by the server. With no
+     parts this answers an empty list and the sheet is the one-figure sheet. */
+  const partQ = useQuery({
+    queryKey: ['part-marks', esID],
+    queryFn: () => api.get<PartMarks>(`/api/v1/exams/subjects/${esID}/part-marks`),
+    enabled: !!esID,
+  })
+  const parts = partQ.data?.parts ?? []
+  const hasParts = parts.length > 0
+  const savedParts = new Map((partQ.data?.items ?? []).map((x) => [x.student_id, x.parts]))
+  const partOf = (sid: string, pid: string) => {
+    const typed = partDraft[sid]?.[pid]
+    if (typed !== undefined) return typed
+    const v = savedParts.get(sid)?.[pid]
+    return v == null ? '' : String(v)
+  }
+  const partTotal = (sid: string) => {
+    const vals = parts.map((p) => partOf(sid, p.id)).filter((v) => v.trim() !== '' && Number.isFinite(Number(v)))
+    return vals.length ? vals.reduce((a, v) => a + Number(v), 0) : null
+  }
+  const setPart = (sid: string, pid: string, v: string) =>
+    setPartDraft((d) => ({ ...d, [sid]: { ...(d[sid] ?? {}), [pid]: v } }))
+
   const toast = useToast()
+
+  /* Total and grade as they will be once saved, live while typing or after an
+     import, by the paper's own grade bands -- so a sheet loaded from a file
+     and marks typed by hand look the same before Save. Untouched rows show
+     what the server recorded. */
+  const bands = partQ.data?.bands ?? []
+  const liveTotal = (r: Row): number | null => {
+    if (absent[r.student_id] ?? r.is_absent) return null
+    if (hasParts) return partTotal(r.student_id)
+    const v = draft[r.student_id] ?? (r.marks_obtained != null ? String(r.marks_obtained) : '')
+    return v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
+  }
+  const liveGrade = (r: Row): string | null => {
+    const dirty = draft[r.student_id] !== undefined || absent[r.student_id] !== undefined || partDraft[r.student_id] !== undefined
+    if (!dirty) return r.grade ?? null
+    const t = liveTotal(r)
+    if (t === null || !bands.length || !r.max_marks) return null
+    const pct = (t / r.max_marks) * 100
+    return bands.find((b) => pct >= b.min && pct <= b.max)?.grade ?? null
+  }
 
   /* Setting the paper up is the exam cell's, entering the marks is the
      teacher's. Both live on this screen because they happen in that order. */
@@ -256,7 +267,8 @@ export default function Gradebook() {
   // Only rows the teacher has actually touched are sent. An untouched row is
   // not "zero", and posting one would overwrite a colleague's entry.
   const touched = rows.filter(
-    (r) => draft[r.student_id] !== undefined || absent[r.student_id] !== undefined,
+    (r) => draft[r.student_id] !== undefined || absent[r.student_id] !== undefined ||
+      (hasParts && partDraft[r.student_id] !== undefined),
   )
 
   /* A mark the server will refuse.
@@ -265,7 +277,14 @@ export default function Gradebook() {
      and the message would not say whose. Caught here, before it is sent, and
      the box carrying it is named. `parseFloat` used to turn a cleared field
      into NaN, which JSON writes as null: the mark was quietly erased. */
+  const partBad = (r: Row, pid: string, max: number) => {
+    const raw = partDraft[r.student_id]?.[pid]
+    if (isAbsent(r) || raw === undefined || raw.trim() === '') return false
+    const n = Number(raw)
+    return !Number.isFinite(n) || n < 0 || n > max
+  }
   const invalid = touched.filter((r) => {
+    if (hasParts) return parts.some((p) => partBad(r, p.id, p.max_marks))
     const raw = draft[r.student_id]
     if (isAbsent(r) || raw === undefined || raw.trim() === '') return false
     const n = Number(raw)
@@ -284,12 +303,21 @@ export default function Gradebook() {
 
   const all = papers.data?.items ?? []
   const visible = all.filter(
-    (p) => (!classID || p.class_id === classID) && (!examKind || p.exam_kind === examKind),
+    (p) => (!classID || p.class_id === classID) && (!examKind || p.exam_id === examKind),
   )
 
   const save = useMutation({
-    mutationFn: () =>
-      api.call('POST /exams/marks', { body: {
+    mutationFn: () => hasParts
+      ? api.put(`/api/v1/exams/subjects/${esID}/part-marks`, {
+          entries: touched.map((r) => ({
+            student_id: r.student_id,
+            is_absent: isAbsent(r),
+            // Only the boxes typed in; an emptied box clears that part.
+            parts: Object.fromEntries(Object.entries(partDraft[r.student_id] ?? {})
+              .map(([pid, v]) => [pid, v.trim() === '' ? null : Number(v)])),
+          })),
+        })
+      : api.call('POST /exams/marks', { body: {
         exam_subject_id: esID,
         entries: touched.map(entryFor),
       } }),
@@ -297,8 +325,9 @@ export default function Gradebook() {
       // Counted before the draft is cleared: the mutation builds its own
       // payload, so there is nothing handed back to count.
       const entered = touched.length
-      setDraft({}); setAbsent({})
+      setDraft({}); setPartDraft({}); setAbsent({})
       qc.invalidateQueries({ queryKey: ['gradebook', esID] })
+      qc.invalidateQueries({ queryKey: ['part-marks', esID] })
       toast.ok(`${entered} mark${entered === 1 ? '' : 's'} entered`)
     },
   })
@@ -323,6 +352,29 @@ export default function Gradebook() {
                 Export sat on the screen whose job is putting marks IN, and
                 downloaded every mark in the school — the wrong direction and
                 the wrong scope on a teacher's page. */}
+            {/* THE SHEET TO FILL IN (owner, 2026-10-13: "with templent of
+                roll no grade name subject and the parts and total marks").
+
+                Who the row is, so whoever types into it can see they have the
+                right child, and the class and subject on every row so a file
+                that has been emailed about for a week still says what it is.
+                One column per part where the exam has them, each headed with
+                what it is out of; one Marks column where it has not. Total is
+                left blank on purpose -- it is the parts added up, worked out
+                here, and a figure typed into it would be ignored. */}
+            {paper && rows.length > 0 && (
+              <Button
+                variant="secondary"
+                title="Every child on this paper, with a column to type marks in. Fill it and import the same file."
+                onClick={() => downloadCSV(
+                  marksTemplate(paper, rows, parts, savedParts),
+                  `marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-'),
+                )}
+              >
+                <Download className="h-4 w-4" />
+                Template
+              </Button>
+            )}
             <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
               <Upload className="h-3.5 w-3.5" aria-hidden />
               Import marks
@@ -338,10 +390,19 @@ export default function Gradebook() {
                 }}
               />
             </label>
+            {classID && examKind && visible.length > 0 && (
+              <Button
+                variant={wholeClass ? 'primary' : 'secondary'}
+                title="Every subject of this class in this exam on one sheet"
+                onClick={() => { setWholeClass((w) => !w); setESID('') }}
+              >
+                Whole class sheet
+              </Button>
+            )}
             <PrintButton />
             <Select
               value={classID}
-              onChange={(v) => { setClassID(v); setESID('') }}
+              onChange={(v) => { setClassID(v); setESID(''); if (!v) setWholeClass(false) }}
               placeholder="Any class"
               options={[
                 { value: '', label: 'Any class' },
@@ -350,11 +411,11 @@ export default function Gradebook() {
             />
             <Select
               value={examKind}
-              onChange={(v) => { setExamKind(v); setESID('') }}
-              placeholder="Any exam type"
+              onChange={(v) => { setExamKind(v); setESID(''); if (!v) setWholeClass(false) }}
+              placeholder="Any exam"
               options={[
-                { value: '', label: 'Any exam type' },
-                ...kindOptions(all),
+                { value: '', label: 'Any exam' },
+                ...examOptions(all),
               ]}
             />
             <Select
@@ -373,7 +434,7 @@ export default function Gradebook() {
             {esID && ofClass.length > 1 && (
               <Select
                 value={sectionID}
-                onChange={(v) => { setSectionID(v); setDraft({}); setAbsent({}) }}
+                onChange={(v) => { setSectionID(v); setDraft({}); setPartDraft({}); setAbsent({}) }}
                 placeholder="All sections"
                 options={[
                   { value: '', label: 'All sections' },
@@ -385,13 +446,21 @@ export default function Gradebook() {
         }
       />
       <PageBody>
-        {!esID ? (
+        {wholeClass && classID && examKind && visible.length > 0 && !esID ? (
+          <ClassSheet
+            key={`${classID}-${examKind}`}
+            /* Only papers on the date sheet (a date set): a subject not being examined has no column (owner, 2026-10-13). */
+            papers={visible.filter((p) => !!p.exam_date).map((p) => ({ id: p.id, subject: p.subject, max_marks: p.max_marks }))}
+            className={visible[0].class_name}
+            examName={visible[0].exam_name}
+          />
+        ) : !esID ? (
           <EmptyState
             title="Choose a paper"
             body={
               papers.data?.items.length
                 ? 'Pick a paper above to start entering marks.'
-                : 'No exam papers exist yet. Create an exam in setup first.'
+                : 'No exam is scheduled for your subjects yet, so there are no marks to enter. A paper appears here once it has a date on the date sheet.'
             }
           />
         ) : book.isLoading ? (
@@ -429,14 +498,15 @@ export default function Gradebook() {
                 {setupNote && <FormNotice ok={setupNote} />}
                 {setup.error && <FormNotice error={setup.error} />}
                 <FormGrid>
-                  <Field label="Out of" hint="Usually 20, 80 or 100.">
+                  {/* Marked in parts, the paper is out of the parts' sum: that is changed under Parts on the Exams screen. */}
+                  {!hasParts && <Field label="Out of" hint="Usually 20, 80 or 100.">
                     <Input
                       type="number"
                       value={outOf}
                       onChange={setOutOf}
                       placeholder={String(max)}
                     />
-                  </Field>
+                  </Field>}
                   <Field label="Grade scale" hint="Applies to every paper in this exam.">
                     <Select
                       value={scaleID}
@@ -469,7 +539,7 @@ export default function Gradebook() {
             <Card>
               <CardHeader
                 title="Gradebook"
-                description={`Out of ${max}`}
+                description={hasParts ? `Out of ${max}: ${parts.map((p) => `${p.name} ${p.max_marks}`).join(' + ')}` : `Out of ${max}`}
                 action={
                   <Button
                     disabled={save.isPending || !touched.length || invalid.length > 0}
@@ -482,24 +552,26 @@ export default function Gradebook() {
               <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
                 <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
                 <Showing shown={shown.length} total={rows.length} noun="students" />
-                <ExportRows
-                  rows={shown}
-                  name="marks"
-                  columns={[
-                    { header: 'Admission no', value: (x) => x.admission_no },
-                    { header: 'Student', value: (x) => x.full_name },
-                    { header: 'Marks', value: (x) => x.marks_obtained },
-                    { header: 'Out of', value: (x) => x.max_marks },
-                    { header: 'Absent', value: (x) => (x.is_absent ? 'yes' : 'no') },
-                    { header: 'Grade', value: (x) => x.grade },
-                  ]}
-                />
+                {/* Export is the template too: every child, a column to type in,
+                    what is recorded already filled, and it imports unchanged. */}
+                <Button
+                  variant="secondary"
+                  title="Download every child with their marks; fill it and import the same file"
+                  onClick={() => paper && downloadCSV(
+                    marksTemplate(paper, rows, parts, savedParts),
+                    `marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-'),
+                  )}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
               </div>
               {/* The section column only when the sheet mixes them. Filtered to
                   one, every row would carry the same value the picker above
                   already shows. */}
               <Table
-                head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']), 'Marks', 'Absent', 'Grade']}
+                head={['Admission no.', 'Student', ...(sectionID ? [] : ['Section']),
+                  ...(hasParts ? [...parts.map((p) => `${p.name} (${p.max_marks})`), 'Total'] : [`Marks (${max})`, 'Total']), 'Absent', 'Grade']}
                 empty={!shown.length}
               >
                 {shown.map((r) => (
@@ -507,17 +579,39 @@ export default function Gradebook() {
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
                     {!sectionID && <Td className="text-muted-foreground">{r.section || '-'}</Td>}
+                    {hasParts ? (<>
+                      {parts.map((p) => (
+                        <Td key={p.id}>
+                          <Input
+                            type="number" min={0} max={p.max_marks}
+                            disabled={isAbsent(r)}
+                            value={partOf(r.student_id, p.id)}
+                            onChange={(v) => { if (overMax(v, p.max_marks)) return; setPart(r.student_id, p.id, v) }}
+                            srLabel={`${p.name} for ${r.full_name}, out of ${p.max_marks}`}
+                            ariaInvalid={partBad(r, p.id, p.max_marks) || undefined}
+                            className="w-20 disabled:opacity-40"
+                          />
+                        </Td>
+                      ))}
+                      <Td className="font-medium tabular-nums">
+                        {isAbsent(r) ? '-' : partTotal(r.student_id) ?? '-'}
+                      </Td>
+                    </>) : (
                     <Td>
                       <Input
                         type="number" min={0} max={r.max_marks}
                         disabled={isAbsent(r)}
                         value={markOf(r)}
-                        onChange={(v) => setDraft({ ...draft, [r.student_id]: v })}
+                        onChange={(v) => { if (overMax(v, r.max_marks)) return; setDraft({ ...draft, [r.student_id]: v }) }}
                         srLabel={`Marks for ${r.full_name}, out of ${r.max_marks}`}
                         ariaInvalid={invalid.some((x) => x.student_id === r.student_id) || undefined}
                         className="w-24 disabled:opacity-40"
                       />
                     </Td>
+                    )}
+                    {!hasParts && (
+                      <Td className="font-medium tabular-nums">{liveTotal(r) ?? '-'}</Td>
+                    )}
                     <Td>
                       <input
                         type="checkbox"
@@ -526,13 +620,15 @@ export default function Gradebook() {
                         aria-label={`Mark ${r.full_name} absent`}
                       />
                     </Td>
-                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '-'}</Td>
+                    <Td>{liveGrade(r) ? <Badge tone="primary">{liveGrade(r)}</Badge> : '-'}</Td>
                   </tr>
                 ))}
               </Table>
               {invalid.length > 0 && (
                 <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
-                  {invalid.length === 1
+                  {hasParts
+                    ? `A part mark must be a number between 0 and that part's maximum: ${invalid.map((r) => r.full_name).join(', ')}.`
+                    : invalid.length === 1
                     ? `${invalid[0].full_name}'s mark must be a number between 0 and ${invalid[0].max_marks}.`
                     : `${invalid.length} marks are not a number between 0 and ${max}: ${invalid
                         .map((r) => r.full_name)
@@ -566,8 +662,18 @@ function classOptions(papers: Paper[]) {
   return [...seen].map(([value, label]) => ({ value, label }))
 }
 
-function kindOptions(papers: Paper[]) {
-  const seen = new Set<string>()
-  for (const p of papers) if (p.exam_kind) seen.add(p.exam_kind)
-  return [...seen].map((k) => ({ value: k, label: k.replace(/_/g, ' ') }))
+/* THE EXAM, BY ITS NAME (owner, 2026-10-13: "should be FA-01").
+
+   This listed exam_kind -- the three words the database files an exam under,
+   "formative", "summative", "term" -- so a school that runs FA-01, FA-02 and
+   SA-01 was offered "formative" and got all of them at once. Nobody marking
+   asks for "a formative paper"; they ask for FA-01, which is what the school
+   wrote on the timetable and on the board.
+
+   So the exams themselves are listed, newest first, each with the kind in
+   small print behind it for the schools whose exam names are not obvious. */
+function examOptions(papers: Paper[]) {
+  const seen = new Map<string, string>()
+  for (const p of papers) if (p.exam_id && !seen.has(p.exam_id)) seen.set(p.exam_id, p.exam_name || p.exam_kind)
+  return [...seen].map(([id, name]) => ({ value: id, label: name }))
 }

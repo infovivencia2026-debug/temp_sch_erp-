@@ -4,7 +4,8 @@
 @keyframes stu-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .stu-rise { animation: stu-rise .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
 .stu-ring-arc { transition: stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1); }
-.stu-bar { transition: width .8s cubic-bezier(.2,.8,.2,1); }
+/* Grown with scaleX, not width: a width transition lays the row out again on every frame. */
+.stu-bar { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
 .stu-press { transition: transform .12s ease; }
 .stu-press:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) {

@@ -45,7 +45,7 @@ corner setting the viewer has chosen.
 | Dialog | `ui.tsx` `Dialog` | sm/md/lg/xl, title+description, footer, raised; desk card, phone bottom sheet | fixed | radius and shadows moved to `--radius-dialog` / `--elev-3(-up)` tokens (was hard rgba); now closes on the phone's Back (overlay history) |
 | Anchored menu | `features/bento/Menu.tsx`, `components/anchored.ts` | | ok | in gallery |
 | TabMenu (context) | `components/TabMenu.tsx` | | ok | not in gallery (needs a tab target) |
-| Underline tabs | `ui.tsx` `TAB_BAR` + `tabClass` | active, idle, disabled | fixed | now control height, focus ring, nowrap, disabled style |
+| Underline tabs | `ui.tsx` `TAB_BAR` + `tabClass`; large: `TAB_BAR_FILL` + `tabClass(active, 'lg')` | active, idle, disabled, lg (48px, equal widths) | fixed | now control height, focus ring, nowrap, disabled style |
 | Segmented | `ui.tsx` `SEG_BAR` + `segClass` | with `SlidingIndicator` | fixed | focus ring added |
 | Student Segmented | `features/portal/student-kit.tsx` | | ok | in gallery |
 | TabStrip (workspace tabs) / ScreenTabs | `components/TabStrip.tsx`, `features/portal/ScreenTabs.tsx` | | ok | shell-level, seen on every screen shot |

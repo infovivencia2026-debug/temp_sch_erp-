@@ -828,7 +828,6 @@ func (s *Server) Routes() http.Handler {
 			s.mountParentSchoolLife(r)
 			s.mountStudentLearning(r)
 			s.mountStudentLife(r)
-			s.mountStudentGrowth(r)
 		})
 
 		// --- Accounts & Finance -------------------------------------------

@@ -60,8 +60,8 @@ export default function TabMenu({
     if (!el) return
     const { width, height } = el.getBoundingClientRect()
     setPlaced({
-      left: Math.min(target.x, window.innerWidth - width - 8),
-      top: Math.min(target.y, window.innerHeight - height - 8),
+      left: Math.max(8, Math.min(target.x, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(target.y, window.innerHeight - height - 8)),
     })
   }, [target.x, target.y])
 

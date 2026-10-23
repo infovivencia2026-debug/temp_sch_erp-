@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, LayoutGrid, ShieldCheck, Ticket } from 'lucide-react'
+import { Building2, LayoutGrid, Printer, Ticket } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
+  Table, Td, Button, Field, FormGrid, FormNotice, Input, Select,
   Loading, SkeletonTiles, ErrorState, EmptyState, PrintButton, useSort,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { useSession } from '@/lib/session'
+import A4Frame from '@/components/A4Frame'
+import { printHtml } from '@/features/finance/receipt-print'
+import { hallTicketHtml } from './hall-ticket-print'
 
 /* Exam day, from both sides.
 
@@ -58,6 +61,13 @@ interface TicketView {
   papers: Paper[]
   verification_code: string
   instructions: string[]
+  photo_file_id?: string
+  father_name?: string
+  guardian_relation?: string
+  academic_year?: string
+  affiliation_no?: string
+  affiliation_board?: string
+  place?: string
 }
 interface Child {
   student_id: string
@@ -73,14 +83,16 @@ export default function HallTicket() {
   })
   const isStaff = session.data?.permissions.includes('academics.exams.write') ?? false
 
+  /* A student or parent asks for the exams they are seated in; the office list is not theirs. */
   const exams = useQuery({
-    queryKey: ['exams'],
-    queryFn: () => api.call('GET /exams/list'),
+    queryKey: ['exams', isStaff],
+    queryFn: () => (isStaff ? api.call('GET /exams/list') : api.get<List<{ id: string; name: string }>>('/api/v1/hpc/my-exams')),
+    enabled: !session.isLoading,
   })
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''
 
-  if (exams.isLoading && !exams.data) return <SkeletonTiles count={4} />
+  if (session.isLoading || (exams.isLoading && !exams.data)) return <SkeletonTiles count={4} />
   if (exams.error) return <ErrorState error={exams.error} />
   if (!exam) {
     return (
@@ -88,8 +100,8 @@ export default function HallTicket() {
         <PageHead eyebrow="Examinations" title="Hall tickets" />
         <PageBody>
           <EmptyState
-            title="No exam scheduled"
-            body="Schedule an exam first; seating and tickets follow from it."
+            title={isStaff ? 'No exam scheduled' : 'No hall ticket yet'}
+            body={isStaff ? 'Schedule an exam first; seating and tickets follow from it.' : 'The school issues tickets once seating is done. It will appear here.'}
           />
         </PageBody>
       </>
@@ -151,12 +163,12 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
     <>
       <PageHead
         eyebrow="Examinations"
-        title="Seating and hall tickets"
-        description="Allocate candidates to halls, then print the invigilator's plan. Re-running replaces the whole allocation."
+        title="Seating plan"
+        description="Allocate candidates to halls, then print the plan. Re-running replaces it."
         actions={
           <>
             {picker}
-            <PrintButton label="Print plan" />
+            <PrintButton label="Print" title="Seating plan" />
           </>
         }
       />
@@ -179,7 +191,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Halls"
-            description="A grid, not a headcount, an invigilator calls a row and a seat."
+            description="A grid, not a headcount: a row and a seat."
             action={
               <>
                 <Button variant="secondary" onClick={() => setAdding((v) => !v)}>
@@ -217,7 +229,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Seating plan"
-            description={`${seats.length} candidates, neighbours are drawn from different sections`}
+            description={`${seats.length} candidates, neighbours from different sections`}
             action={
               <Select
                 value={hall}
@@ -321,6 +333,7 @@ function AddHall({ onDone }: { onDone: () => void }) {
  * verification code.
  */
 function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode }) {
+  const session = useSession()
   const children = useQuery({
     queryKey: ['portal-children'],
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
@@ -392,13 +405,28 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
       </>
     )
   const t = data
+  const relation = (t.guardian_relation ?? '').toLowerCase()
+  const html = hallTicketHtml({
+    school: t.school,
+    logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
+    photoUrl: t.photo_file_id ? `${location.origin}/api/v1/files/${t.photo_file_id}?inline=1` : undefined,
+    affiliation: t.affiliation_no ? `${t.affiliation_board ? t.affiliation_board.toUpperCase() + ' ' : ''}Affiliation No: ${t.affiliation_no}` : undefined,
+    place: t.place,
+    examName: t.exam_name, academicYear: t.academic_year,
+    studentName: t.student_name,
+    guardianLabel: relation === 'father' || !relation ? "Father's Name" : relation === 'mother' ? "Mother's Name" : "Guardian's Name",
+    guardianName: t.father_name,
+    ticketNo: t.ticket_no, admissionNo: t.admission_no,
+    classSection: [t.class_name, t.section_name && `Section ${t.section_name}`].filter(Boolean).join(' - '),
+    hall: t.hall, seat: t.seat, papers: t.papers, instructions: t.instructions, verificationCode: t.verification_code,
+  })
 
   return (
     <>
       <PageHead
         eyebrow="Examinations"
         title="Hall ticket"
-        description="Bring this to every paper. You will not be admitted without it."
+        description="Bring this to every paper."
         actions={
           <>
             {kids.length > 1 && (
@@ -412,93 +440,14 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
               />
             )}
             {picker}
-            <PrintButton label="Print ticket" title="Hall ticket" subtitle={`${t.student_name} · ${t.exam_name}`} docNo={t.ticket_no} />
+            <Button onClick={() => printHtml(html)}><Printer className="h-4 w-4" /> Print ticket</Button>
           </>
         }
       />
-      <PageBody width="form">
-        <Card>
-          <div className="border-b px-6 py-5">
-            <p className="text-[13px] text-muted-foreground">{t.school}</p>
-            <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.015em]">
-              {t.exam_name}
-              {t.board && <span className="text-muted-foreground"> · {t.board}</span>}
-            </h2>
-          </div>
-
-          {/* What the invigilator checks, in the order they check it. */}
-          <dl className="grid gap-x-8 gap-y-4 px-6 py-5 sm:grid-cols-2">
-            <Detail label="Candidate" value={t.student_name} strong />
-            <Detail label="Ticket number" value={t.ticket_no} mono strong />
-            <Detail label="Admission number" value={t.admission_no} mono />
-            <Detail label="Class" value={`${t.class_name}-${t.section_name}`} />
-            <Detail label="Hall" value={t.hall} strong />
-            <Detail label="Seat" value={t.seat} strong />
-          </dl>
-
-          <div className="flex items-center gap-3 border-t px-6 py-4">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
-            <div>
-              <p className="text-[12px] text-muted-foreground">Verification code</p>
-              <p className="font-mono text-[16px] tracking-wider">{t.verification_code}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader title="Papers" description={`${t.papers.length} in this examination`} />
-          <Table head={['Subject', 'Date', 'Time', 'Duration', 'Marks']}>
-            {t.papers.map((p, i) => (
-              <tr key={i}>
-                <Td className="font-medium">{p.subject}</Td>
-                <Td>{p.date ? formatDate(p.date) : 'To be announced'}</Td>
-                <Td>{p.starts_at ?? '-'}</Td>
-                <Td>{p.duration_minutes ? `${p.duration_minutes} min` : '-'}</Td>
-                <Td className="tabular-nums">{p.max_marks ?? '-'}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
-
-        <Card>
-          <CardHeader title="Instructions" />
-          <ul className="space-y-2 px-6 py-5">
-            {t.instructions.map((line, i) => (
-              <li key={i} className="flex gap-2 text-[14px]">
-                <Badge tone="neutral">{i + 1}</Badge>
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      <PageBody>
+        {/* The ticket as it prints, at A4, on every screen size. */}
+        <A4Frame html={html} title="Hall ticket" />
       </PageBody>
     </>
-  )
-}
-
-function Detail({
-  label,
-  value,
-  mono,
-  strong,
-}: {
-  label: string
-  value: string
-  mono?: boolean
-  strong?: boolean
-}) {
-  return (
-    <div>
-      <dt className="text-[12px] text-muted-foreground">{label}</dt>
-      <dd
-        className={[
-          'mt-0.5',
-          mono ? 'font-mono' : '',
-          strong ? 'text-[16px] font-semibold' : 'text-[15px]',
-        ].join(' ')}
-      >
-        {value}
-      </dd>
-    </div>
   )
 }

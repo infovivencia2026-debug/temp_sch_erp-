@@ -6,6 +6,11 @@ import {
   Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
+import { useCan } from '@/lib/session'
+import DateSheet from './DateSheet'
+import ExamParts from './ExamParts'
+import Gradebook from './Gradebook'
+import PaperDeadlines from './PaperDeadlines'
 
 /* The exam, and the papers everything else hangs off.
  *
@@ -39,10 +44,15 @@ import { formatDate, cn } from '@/lib/utils'
 
 
 export default function Exams() {
+  const can = useCan()
+  const mayAssignDeadlines = can('academics.exams.approve')
   const qc = useQueryClient()
   const [marks, setMarks] = useState('100')
   const [done, setDone] = useState('')
   const [scheduling, setScheduling] = useState(false)
+  const [sheetFor, setSheetFor] = useState('')
+  const [partsFor, setPartsFor] = useState<{ id: string; name: string } | null>(null)
+  const [marksOpen, setMarksOpen] = useState(false)
 
   const exams = useQuery({
     queryKey: ['exams-list'],
@@ -80,12 +90,19 @@ export default function Exams() {
   const rows = exams.data?.items ?? []
   const empty = rows.filter((e) => e.papers === 0)
 
+  if (marksOpen) return (
+    <>
+      <div className="px-4 pt-3 sm:px-6"><Button variant="secondary" onClick={() => setMarksOpen(false)}>← Back to exams</Button></div>
+      <Gradebook />
+    </>
+  )
+
   return (
     <>
       <PageHead
         eyebrow="Examinations"
         title="Exams & papers"
-        description="Every exam the school has scheduled, and how many papers it holds. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
+        description="Every exam the school has scheduled, its papers, and the date sheet: when each paper is written. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
       />
       <PageBody>
         {/* Open when there are none, because then it is the only thing to do
@@ -94,14 +111,19 @@ export default function Exams() {
         {scheduling || rows.length === 0 ? (
           <ScheduleExam
             onCancel={rows.length === 0 ? undefined : () => setScheduling(false)}
-            onDone={(name) => {
+            onDone={(name, id) => {
               setScheduling(false)
-              setDone(`${name} scheduled. Give it papers below before marks entry can run.`)
+              setDone(`${name} scheduled. Add its parts below if it has project, assignment or notebook marks; otherwise it is ready.`)
               qc.invalidateQueries({ queryKey: ['exams-list'] })
+              /* Straight on to its parts: project, assignments, notes, each with its own max marks. */
+              if (id) { setPartsFor({ id, name }); window.setTimeout(() => document.getElementById('exam-parts')?.scrollIntoView({ behavior: 'smooth' }), 300) }
             }}
           />
         ) : (
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {/* The principal and the exam controller enter marks for any class here
+                (owner, 2026-10-13); teachers have their own Marks entry. */}
+            <Button variant={marksOpen ? 'primary' : 'secondary'} onClick={() => setMarksOpen(!marksOpen)}>{marksOpen ? 'Close marks entry' : 'Enter marks'}</Button>
             <Button onClick={() => setScheduling(true)}>Schedule an exam</Button>
           </div>
         )}
@@ -153,6 +175,16 @@ export default function Exams() {
                     {e.is_published ? <Badge tone="success">published</Badge> : '-'}
                   </Td>
                   <Td>
+                    {e.papers > 0 && (
+                      <Button size="sm" variant={sheetFor === e.id ? 'primary' : 'secondary'}
+                        onClick={() => { setSheetFor(sheetFor === e.id ? '' : e.id); window.setTimeout(() => document.getElementById('date-sheet')?.scrollIntoView({ behavior: 'smooth' }), 150) }}>
+                        Date sheet
+                      </Button>
+                    )}
+                    <Button size="sm" variant={partsFor?.id === e.id ? 'primary' : 'ghost'}
+                      onClick={() => { setPartsFor(partsFor?.id === e.id ? null : { id: e.id, name: e.name }); window.setTimeout(() => document.getElementById('exam-parts')?.scrollIntoView({ behavior: 'smooth' }), 150) }}>
+                      Parts
+                    </Button>
                     <Button
                       size="sm"
                       variant={e.papers === 0 ? 'primary' : 'ghost'}
@@ -179,6 +211,16 @@ export default function Exams() {
             </Table>
           )}
         </Card>
+
+        {partsFor && <div id="exam-parts"><ExamParts key={partsFor.id} examId={partsFor.id} examName={partsFor.name} onClose={() => setPartsFor(null)} /></div>}
+        {sheetFor && <div id="date-sheet"><DateSheet key={sheetFor} examId={sheetFor} onClose={() => setSheetFor('')} /></div>}
+
+        {/* Who was asked for each paper, and by when (owner, 2026-10-19:
+            "the examination branch will set a deadline... let them click
+            'the paper is given'"). Gated the same way the server gates the
+            routes it calls, so a role without ExamsApprove never sees a
+            panel it cannot use. */}
+        {mayAssignDeadlines && <PaperDeadlines />}
       </PageBody>
     </>
   )
@@ -194,14 +236,17 @@ export default function Exams() {
    by marks entry, moderation, hall tickets and report cards -- an exam with no
    papers stops all four, and looks like four broken screens rather than one
    unfinished exam. */
+/* The kind of exam only; what it is out of is the Max marks box (owner,
+   2026-10-13: "let the school choose the max marks"). */
 const CCE = [
-  { value: 'FA1', label: 'FA1, formative, 20 marks' },
-  { value: 'FA2', label: 'FA2, formative, 20 marks' },
-  { value: 'FA3', label: 'FA3, formative, 20 marks' },
-  { value: 'FA4', label: 'FA4, formative, 20 marks' },
-  { value: 'SA1', label: 'SA1, summative, 80 marks' },
-  { value: 'SA2', label: 'SA2, summative, 80 marks' },
-  { value: 'SA3', label: 'SA3, summative, 80 marks' },
+  { value: 'FA1', label: 'FA1 · formative' },
+  { value: 'FA2', label: 'FA2 · formative' },
+  { value: 'FA3', label: 'FA3 · formative' },
+  { value: 'FA4', label: 'FA4 · formative' },
+  { value: 'SA1', label: 'SA1 · summative' },
+  { value: 'SA2', label: 'SA2 · summative' },
+  { value: 'SA3', label: 'SA3 · summative' },
+  { value: 'OTHER', label: 'Other (unit test, project, pre-board…)' },
 ]
 
 interface Klass { id: string; name: string }
@@ -210,7 +255,7 @@ function ScheduleExam({
   onDone,
   onCancel,
 }: {
-  onDone: (name: string) => void
+  onDone: (name: string, id?: string) => void
   onCancel?: () => void
 }) {
   const classes = useQuery({
@@ -225,12 +270,13 @@ function ScheduleExam({
 
   const save = useMutation({
     mutationFn: () =>
-      api.post('/api/v1/setup/exams', {
+      api.post<{ id: string }>('/api/v1/setup/exams', {
         ...f,
+        cce_component: f.cce_component === 'OTHER' ? '' : f.cce_component,
         max_marks: Number(f.max_marks) || 20,
         class_ids: [...picked],
       }),
-    onSuccess: () => onDone(f.name.trim() || 'The exam'),
+    onSuccess: (res) => onDone(f.name.trim() || 'The exam', res.id),
   })
 
   const list = classes.data?.items ?? []
@@ -261,12 +307,16 @@ function ScheduleExam({
                 setF({
                   ...f,
                   cce_component: x,
-                  kind: x.startsWith('FA') ? 'formative' : 'summative',
-                  max_marks: x.startsWith('FA') ? '20' : '80',
+                  kind: x.startsWith('FA') ? 'formative' : x.startsWith('SA') ? 'summative' : 'term',
+                  max_marks: x.startsWith('FA') ? '20' : x.startsWith('SA') ? '80' : '100',
                 })
               }
               options={CCE}
             />
+          </Field>
+          {/* Pre-filled from the component (FA 20, SA 80) and editable: schools differ (owner, 2026-10-13). */}
+          <Field label="Max marks" hint="Applies to every paper of this exam.">
+            <Input type="number" value={f.max_marks} onChange={(x) => setF({ ...f, max_marks: x })} />
           </Field>
           <Field label="Starts on">
             <Input type="date" value={f.starts_on} onChange={(x) => setF({ ...f, starts_on: x })} />

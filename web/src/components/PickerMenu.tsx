@@ -234,3 +234,151 @@ export function PickerMenu<T extends string>({
     </div>
   )
 }
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+
+/** "2026-10" -> "October 2026". Anything else comes back as it went in. */
+export function monthLabel(key: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(key)
+  if (!m) return key
+  const i = Number(m[2]) - 1
+  return i >= 0 && i < 12 ? `${MONTH_NAMES[i]} ${m[1]}` : key
+}
+
+/* A MONTH, IN THE PRODUCT'S OWN MENU (owner, 2026-10-13: "change this
+   dropdown").
+
+   `<input type="month">` hands the job to the browser, and Chrome answers
+   with its own panel: a grid of months in its own orange and blue, its own
+   typeface and its own idea of a focus ring, sitting on top of a screen
+   that looks nothing like it. It is also the one control on the page that
+   ignores the dark theme entirely, and on the browsers that do not
+   implement it at all the field degrades to a bare text box wanting
+   "2026-10" typed by hand.
+
+   The value is still YYYY-MM, exactly what the native input gave, so
+   callers and every endpoint behind them are untouched -- only the way it
+   is chosen changes. The list runs back from this month, far enough for a
+   year's reporting, and a value from outside that window is kept in the
+   list so an older saved month still shows its name rather than vanishing. */
+export function MonthPicker({
+  value, onChange, ariaLabel = 'Month', back = 24, ahead = 0, className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  ariaLabel?: string
+  /** How many months before this one to offer. */
+  back?: number
+  /** How many after — a payroll month can be set before it has run. */
+  ahead?: number
+  className?: string
+}) {
+  const now = new Date()
+  const keys: string[] = []
+  for (let i = -ahead; i <= back; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  if (value && !keys.includes(value)) keys.push(value)
+  keys.sort().reverse()
+  return (
+    <PickerMenu
+      value={value}
+      options={keys.map((k) => ({ value: k, label: monthLabel(k) }))}
+      onChange={onChange}
+      ariaLabel={ariaLabel}
+      placeholder="Choose a month"
+      align="start"
+      className={className}
+    />
+  )
+}
+
+/** "14:05" -> "2:05 pm". Anything else comes back as it went in. */
+export function timeLabel(v: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(v)
+  if (!m) return v
+  const h = Number(m[1]), mm = m[2]
+  if (h < 0 || h > 23) return v
+  const ampm = h < 12 ? 'am' : 'pm'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${mm} ${ampm}`
+}
+
+/* A TIME IS TYPED (owner, 2026-10-13: "instead of this let them write time").
+
+   It began as a menu, like the month picker, and that was wrong: a month has
+   twelve choices, a time has two hundred and eighty-eight. The list opened at
+   12:00 am -- the middle of the night, nowhere near a school day -- and
+   finding 9:30 meant scrolling past a hundred and fourteen times nobody
+   wanted. Faster to type it, which is what the native control was at least
+   letting people do.
+
+   So it is a plain field of ours, and it reads what a person actually writes:
+   "9:30", "9.30", "930", "0930", "9:30 am", "9 pm", "21:45". Bare hours below
+   8 are read as the afternoon -- a school writing "2:30" for a paper means
+   half past two, not half past two in the morning -- and anything genuinely
+   unreadable leaves the last good value alone rather than silently becoming
+   midnight. The value stays "HH:MM" on the 24-hour clock, exactly what the
+   native input gave, so every endpoint behind it is untouched. */
+export function parseTime(raw: string): string | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '')
+  if (!t) return ''
+  const m = /^(\d{1,2})(?:[:.]?(\d{2}))?(am|pm|a|p)?$/.exec(t)
+  if (!m) return null
+  let h = Number(m[1])
+  const mins = m[2] === undefined ? 0 : Number(m[2])
+  if (mins > 59) return null
+  const ap = m[3]?.[0]
+  if (m[1].length === 4) return null
+  if (ap === 'a') { if (h < 1 || h > 12) return null; if (h === 12) h = 0 }
+  else if (ap === 'p') { if (h < 1 || h > 12) return null; if (h !== 12) h += 12 }
+  else {
+    if (h > 23) return null
+    /* "930" is 9:30; "1430" is half past two. A bare 1 to 7 with no am/pm is
+       the afternoon, because a school day does not start then. */
+    if (h >= 1 && h <= 7 && m[2] === undefined) h += 12
+  }
+  return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
+export function TimePicker({
+  value, onChange, ariaLabel, srLabel, className, placeholder = '9:30 am',
+}: {
+  value: string
+  onChange: (v: string) => void
+  ariaLabel?: string
+  /** The same thing by the name the form fields use. */
+  srLabel?: string
+  className?: string
+  placeholder?: string
+}) {
+  const now = (value || '').slice(0, 5)
+  const [text, setText] = useState(() => (now ? timeLabel(now) : ''))
+  const [live, setLive] = useState(false)
+  /* While it is not being typed in, the field shows the tidy reading of
+     whatever is stored -- so "0930" becomes "9:30 am" the moment focus
+     leaves, and a value changed elsewhere on the screen shows up here. */
+  useEffect(() => { if (!live) setText(now ? timeLabel(now) : '') }, [now, live])
+  const commit = (raw: string) => {
+    const parsed = parseTime(raw)
+    if (parsed === null) { setText(now ? timeLabel(now) : ''); return }
+    if (parsed !== now) onChange(parsed)
+    setText(parsed ? timeLabel(parsed) : '')
+  }
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={text}
+      aria-label={ariaLabel ?? srLabel ?? 'Time'}
+      placeholder={placeholder}
+      onFocus={(e) => { setLive(true); setText(now); e.currentTarget.select() }}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={(e) => { setLive(false); commit(e.target.value) }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+      className={cn('field w-full [@media(pointer:coarse)]:text-[16px]', className)}
+    />
+  )
+}

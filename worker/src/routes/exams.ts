@@ -4,8 +4,10 @@ import { can } from '../identity'
 import { HttpError, badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
   numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
-import { defaultReportCardHTML, reportCardCSS } from './exams/template'
-import { DOC_PRINT_CSS, documentHTML, inr, schoolFacts, type SchoolFacts } from '../services/document'
+import { defaultReportCardHTML } from './exams/template'
+import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
+import { DOC_PRINT_CSS, SchoolPDF, documentHTML, inr, logoBytes, schoolFacts, type SchoolFacts } from '../services/document'
+import { putObject, sha256, uploadKey } from '../services/files'
 import { Messenger, scopeOf } from '../services/messaging'
 import { enqueueMany } from '../services/jobs'
 
@@ -47,6 +49,81 @@ function registerExamGroup(r: Router) {
     })))
   })
 
+  /* THE DATE SHEET (owner, 2026-10-08): when each paper is written. Set
+     here by the exam office, read by the hall ticket, the family calendar and
+     the parent and student exam screens. starts_at is stored as the paper's
+     date and time ("2026-10-12T09:30:00"), the shape the hall ticket reads. */
+  r.get('/exams/{id}/date-sheet', EXAMS_READ, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const rows = await c.db.prepare(`
+      SELECT es.id, c.name AS class_name, c.level, sub.name AS subject, ${dateOf('es.exam_date')} AS exam_date,
+             SUBSTR(es.starts_at, 12, 5) AS start_time, es.duration_minutes, CAST(es.max_marks AS INTEGER) AS max_marks
+        FROM exam_subjects es
+        JOIN class_subjects cs ON cs.id = es.class_subject_id
+        JOIN classes c ON c.id = cs.class_id
+        JOIN subjects sub ON sub.id = cs.subject_id
+       WHERE es.exam_id = ?
+       ORDER BY c.level, c.name, es.exam_date IS NULL, es.exam_date, es.starts_at, sub.name`).bind(examId).all()
+    /* When it last went out is read from the messages it sent: no column to keep in step. */
+    const ex = await c.db.prepare(`SELECT e.name, (SELECT MAX(n.created_at) FROM notifications n WHERE n.kind = 'date_sheet' AND n.source_id LIKE e.id || ':%') AS published_at
+        FROM exams e WHERE e.id = ?`).bind(examId).first<{ name: string; published_at: string | null }>()
+    return ok({ exam: ex?.name ?? '', published_at: ex?.published_at ?? null, items: rows.results.map((v) => ({
+      id: str(v.id), class_name: str(v.class_name), subject: str(v.subject), exam_date: v.exam_date == null ? '' : str(v.exam_date),
+      start_time: v.start_time == null ? '' : str(v.start_time), duration_minutes: v.duration_minutes == null ? null : Number(v.duration_minutes),
+      max_marks: v.max_marks == null ? null : Number(v.max_marks),
+    })) })
+  })
+
+  r.put('/exams/{id}/date-sheet', EXAMS_WRITE, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const body = await readJSON<{ items?: { id: string; exam_date?: string; start_time?: string; duration_minutes?: number | null }[] }>(c.req)
+    const list = Array.isArray(body.items) ? body.items : []
+    if (!list.length) throw badRequest('Nothing to save.')
+    const stmts: D1PreparedStatement[] = []
+    for (const it of list) {
+      if (!isUUID(it.id)) throw badRequest('Each paper needs its id.')
+      const d = (it.exam_date ?? '').trim(), t = (it.start_time ?? '').trim()
+      if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) throw badRequest('A date is written as YYYY-MM-DD.')
+      if (t && !/^\d{2}:\d{2}$/.test(t)) throw badRequest('A time is written as HH:MM.')
+      if (t && !d) throw badRequest('A paper with a start time needs a date too.')
+      const dur = it.duration_minutes == null || it.duration_minutes === 0 ? null : Number(it.duration_minutes)
+      if (dur !== null && !(dur > 0 && dur <= 600)) throw badRequest('A paper runs between 1 and 600 minutes.')
+      stmts.push(c.db.prepare(`UPDATE exam_subjects SET exam_date = NULLIF(?2,''), starts_at = CASE WHEN ?3 = '' THEN NULL ELSE ?2 || 'T' || ?3 || ':00' END,
+          duration_minutes = ?4 WHERE id = ?1 AND exam_id = ?5`).bind(it.id, d, t, dur, examId))
+    }
+    await c.db.batch(stmts)
+    return ok({ saved: stmts.length })
+  })
+
+  /* Publishing tells every family in the exam's classes, once per version of
+     the sheet: a changed date sheet published again is a new message. */
+  r.post('/exams/{id}/date-sheet/publish', EXAMS_WRITE, async (c) => {
+    const examId = uuidParam(c.params.id)
+    const ex = await c.db.prepare(`SELECT name FROM exams WHERE id = ?`).bind(examId).first<{ name: string }>()
+    if (!ex) throw notFound('resource not found')
+    const sheet = await c.db.prepare(`SELECT COUNT(*) AS n, SUM(exam_date IS NULL) AS undated, MIN(exam_date) AS first, group_concat(COALESCE(starts_at, exam_date, ''), '|') AS sig
+        FROM exam_subjects WHERE exam_id = ?`).bind(examId).first<{ n: number; undated: number; first: string | null; sig: string | null }>()
+    if (!sheet?.n) throw badRequest('This exam has no papers yet. Create them first.')
+    if (sheet.undated) throw coded(409, 'undated_papers', `${sheet.undated} paper${sheet.undated === 1 ? ' has' : 's have'} no date yet. Give every paper a date before publishing the date sheet.`)
+    let h = 0; for (const ch of sheet.sig ?? '') h = (h * 31 + ch.charCodeAt(0)) >>> 0
+    const version = `${examId}:${h.toString(36)}`
+    const people = await c.db.prepare(`
+      SELECT DISTINCT u, sid FROM (
+        SELECT g.user_id AS u, st.id AS sid FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+          JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active' JOIN students st ON st.id = e.student_id
+          JOIN student_guardians sg ON sg.student_id = st.id JOIN guardians g ON g.id = sg.guardian_id
+         WHERE es.exam_id = ?1 AND g.user_id IS NOT NULL
+        UNION
+        SELECT st.user_id, st.id FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+          JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active' JOIN students st ON st.id = e.student_id
+         WHERE es.exam_id = ?1 AND st.user_id IS NOT NULL)`).bind(examId).all<{ u: string; sid: string }>()
+    const first = sheet.first ? new Date(sheet.first + 'T00:00:00Z').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
+    const stmts = people.results.map((p) => notifyStmt(c, p.u, p.sid, 'date_sheet', `${ex.name}: the date sheet is out`,
+      `Papers start ${first}. Open it for every paper's date and time; the hall ticket shows the same.`, '/go/hall_ticket', 'date_sheet', version))
+    for (let i = 0; i < stmts.length; i += 80) await c.db.batch(stmts.slice(i, i + 80))
+    return ok({ told: stmts.length })
+  })
+
   r.post('/exams/{id}/papers', EXAMS_WRITE, async (c) => {
     const examId = uuidParam(c.params.id)
     const req = await readJSON<{ class_ids?: string[]; max_marks?: number }>(c.req)
@@ -65,9 +142,15 @@ function registerExamGroup(r: Router) {
     if (cs.results.length === 0) {
       throw badRequest('nothing to add. Either every subject already has a paper in this exam, or the classes chosen have no subjects attached yet.')
     }
+    /* A paper added later is out of what the exam's papers already are (its
+       chosen max, or its parts' total), not a flat 100 (owner, 2026-10-13). */
+    const ref = await c.db.prepare(`SELECT MAX(CAST(max_marks AS REAL)) AS m, MAX(CAST(pass_marks AS REAL)) AS p FROM exam_subjects WHERE exam_id = ?`)
+      .bind(examId).first<{ m: number | null; p: number | null }>()
+    const useMax = !req.max_marks && ref?.m ? ref.m : maxMarks
+    const usePass = !req.max_marks && ref?.p ? ref.p : passMarks
     await c.db.batch(cs.results.map((row) => c.db.prepare(`
       INSERT OR IGNORE INTO exam_subjects (id, institution_id, exam_id, class_subject_id, max_marks, pass_marks)
-      VALUES (?, ?, ?, ?, ?, ?)`).bind(uuid(), c.id.institution!.id, examId, row.id, String(maxMarks), String(passMarks))))
+      VALUES (?, ?, ?, ?, ?, ?)`).bind(uuid(), c.id.institution!.id, examId, row.id, String(useMax), String(usePass))))
     return ok({ papers_added: cs.results.length })
   })
 
@@ -87,7 +170,7 @@ function registerExamGroup(r: Router) {
       mine = '(' + clauses.join(' OR ') + ')'
     }
     const rows = await c.db.prepare(`
-      SELECT es.id, e.id AS exam_id, e.name AS exam_name, COALESCE(e.kind,'') AS exam_kind, sub.name AS subject,
+      SELECT es.id, e.id AS exam_id, e.name AS exam_name, COALESCE(e.kind,'') AS exam_kind, sub.name AS subject, substr(es.exam_date, 1, 10) AS exam_date,
              c.id AS class_id, c.name AS class_name,
              e.name || ' · ' || c.name || ' · ' || sub.name AS label,
              CAST(es.max_marks AS REAL) AS max_marks,
@@ -117,6 +200,10 @@ function registerExamGroup(r: Router) {
     const row = await c.db.prepare(`SELECT exam_id, (SELECT COUNT(*) FROM marks m WHERE m.exam_subject_id = ?1) AS entered
         FROM exam_subjects WHERE id = ?1`).bind(esId).first<{ exam_id: string; entered: number }>()
     if (!row) throw notFound('resource not found')
+    // A paper of an exam with parts is out of the parts' sum; it moves when the parts do.
+    if (maxMarks !== null && (await partsOf(c, row.exam_id)).length) {
+      throw coded(409, 'exam_has_parts', 'This exam is marked in parts, so each paper is out of the parts added together. Change the parts on the Exams screen.')
+    }
     if (row.entered > 0 && maxMarks !== null) {
       throw coded(409, 'marks_already_entered', 'this paper already has marks entered, so what it is out of can no longer change, 45 out of 50 is a distinction and 45 out of 100 is a fail. Clear the marks first, or set the maximum on a new paper.')
     }
@@ -140,7 +227,7 @@ function registerExamGroup(r: Router) {
     const rows = await c.db.prepare(`
       SELECT st.id AS student_id, st.admission_no, ${NAME} AS full_name,
              CAST(m.marks_obtained AS REAL) AS marks_obtained, CAST(es.max_marks AS REAL) AS max_marks,
-             m.grade, COALESCE(m.is_absent, 0) AS is_absent, COALESCE(sec.name,'') AS section
+             m.grade, COALESCE(m.is_absent, 0) AS is_absent, COALESCE(sec.name,'') AS section, e.roll_no
         FROM exam_subjects es
         JOIN class_subjects cs ON cs.id = es.class_subject_id
         JOIN enrollments e ON e.class_id = cs.class_id AND e.status = 'active'
@@ -148,11 +235,22 @@ function registerExamGroup(r: Router) {
         LEFT JOIN sections sec ON sec.id = e.section_id
         LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = st.id
        WHERE es.id = ? AND (? = '' OR e.section_id = ?)
-       ORDER BY sec.name, st.admission_no`).bind(esId, sectionId, sectionId).all()
+       /* ROLL NUMBER ORDER (owner, 2026-10-13: "let this be roll number
+          wise"). The sheet was in admission-number order, which is the order
+          children joined the school -- 2, 5, 32, 27, 22 down the page. A
+          teacher marking thirty papers has them in roll order in front of
+          them, and reading a name out of a list sorted by something else,
+          thirty times, is where a mark lands on the wrong child.
+
+          roll_no is an integer, so 9 comes before 10. A child with no roll
+          number yet goes last rather than first, where a NULL would sort,
+          and admission number breaks a tie. */
+       ORDER BY sec.name, e.roll_no IS NULL, CAST(e.roll_no AS INTEGER), e.roll_no, st.admission_no`).bind(esId, sectionId, sectionId).all()
     return items(rows.results.map((v): GradebookRow => ({
       student_id: str(v.student_id), admission_no: str(v.admission_no), full_name: str(v.full_name),
       marks_obtained: num(v.marks_obtained) ?? undefined, max_marks: numOr0(v.max_marks),
       grade: v.grade == null ? undefined : str(v.grade), is_absent: bool(v.is_absent), section: str(v.section),
+      roll_no: v.roll_no == null ? undefined : str(v.roll_no),
     })))
   })
 
@@ -180,6 +278,38 @@ function registerExamGroup(r: Router) {
 
   r.typed('POST /exams/marks', MARKS_WRITE, enterMarks)
 
+  // --- exam parts -------------------------------------------------------
+  /* Written 80, Project 10, Notebook 5, Overall 5. The parts are the exam's,
+     so every paper in it is marked the same way; the paper keeps one total in
+     marks, which is why report cards, results and moderation never notice. */
+  r.get('/exams/{id}/parts', EXAMS_READ, async (c) => {
+    const examId = uuidParam(c.params.id)
+    return ok(items(await partsOf(c, examId)))
+  })
+  r.put('/exams/{id}/parts', EXAMS_WRITE, saveExamParts)
+  r.get('/exams/subjects/{id}/part-marks', EXAMS_READ, async (c) => {
+    const esId = uuidParam(c.params.id)
+    const es = await c.db.prepare(`SELECT exam_id FROM exam_subjects WHERE id = ?`).bind(esId).first<{ exam_id: string }>()
+    if (!es) throw notFound('resource not found')
+    const parts = await partsOf(c, es.exam_id)
+    const by = new Map<string, Record<string, number | null>>()
+    if (parts.length) {
+      const rows = await c.db.prepare(`SELECT student_id, part_id, CAST(marks AS REAL) AS marks FROM mark_parts WHERE exam_subject_id = ?`)
+        .bind(esId).all<{ student_id: string; part_id: string; marks: number | null }>()
+      for (const x of rows.results) {
+        const m = by.get(x.student_id) ?? {}
+        m[x.part_id] = x.marks
+        by.set(x.student_id, m)
+      }
+    }
+    /* The paper's grade bands travel with it, so Marks entry can show the grade
+       a typed or imported mark will get before Save, by the same bands. */
+    const scale = await c.db.prepare(`SELECT e.grading_scale_id AS id FROM exam_subjects es JOIN exams e ON e.id = es.exam_id WHERE es.id = ?`).bind(esId).first<{ id: string | null }>()
+    const bands = scale?.id ? await gradeBands(c, scale.id) : []
+    return ok({ parts, bands, items: [...by].map(([student_id, p]) => ({ student_id, parts: p })) })
+  })
+  r.put('/exams/subjects/{id}/part-marks', MARKS_WRITE, savePartMarks)
+
   // --- question papers ------------------------------------------------
   r.get('/exams/question-papers', EXAMS_READ, listQuestionPapers)
   r.get('/exams/question-papers/slots', EXAMS_READ, async (c) => {
@@ -201,7 +331,14 @@ function registerExamGroup(r: Router) {
     }))))
   })
   r.post('/exams/question-papers', EXAMS_READ, submitQuestionPaper)
+  r.post('/exams/question-papers/made', EXAMS_READ, submitMadePaper)
   r.post('/exams/question-papers/{id}/decide', EXAMS_APPROVE, decideQuestionPaper)
+
+  // --- question paper deadlines (owner, 2026-10-19) --------------------
+  r.get('/exams/question-paper-deadlines', EXAMS_APPROVE, listPaperDeadlines)
+  r.post('/exams/question-paper-deadlines', EXAMS_APPROVE, setPaperDeadline)
+  r.post('/exams/question-paper-deadlines/{id}/mark-received', EXAMS_APPROVE, markPaperReceived)
+  r.get('/exams/question-paper-deadlines/mine', EXAMS_READ, listMyPaperDeadlines)
 
   // --- moderation -----------------------------------------------------
   r.get('/exams/moderation', EXAMS_APPROVE, listMarkModeration)
@@ -215,7 +352,21 @@ function registerExamGroup(r: Router) {
       template: t, placeholders: reportCardPlaceholders,
       fonts: [{ value: 'arial', label: 'Arial' }, { value: 'calibri', label: 'Calibri' }, { value: 'times', label: 'Times New Roman' }],
       default_html: defaultReportCardHTML,
+      designs: reportCardDesigns,
     })
+  })
+  /* Which built-in design prints when the school has not imported its own.
+     Saved as a setting, never over report_card_templates, so a school's
+     imported design is untouched; it takes effect once that is reset. */
+  r.post('/exams/report-cards/design', RC_GENERATE, async (c) => {
+    const req = await readJSON<{ design?: string }>(c.req)
+    const design = (req.design ?? '').trim()
+    if (!reportCardDesigns.some((d) => d.value === design)) throw badRequest('choose the standard design or the school format')
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config)
+        VALUES (?1, 'examinations', 1, json_object('report_card_design', ?2))
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = json_set(COALESCE(module_settings.config, '{}'), '$.report_card_design', ?2)`)
+      .bind(c.id.institution!.id, design).run()
+    return ok({ design })
   })
   r.get('/exams/report-cards/render', EXAMS_READ, async (c) => {
     const cardId = (c.url.searchParams.get('id') ?? '').trim()
@@ -338,6 +489,7 @@ function registerExamGroup(r: Router) {
 // ------------------------------------------------------------ marks entry
 
 interface MarksEntry { student_id: string; marks_obtained?: number | null; is_absent?: boolean; remarks?: string }
+interface Paper { max_marks: number; subject: string; grading_scale_id: string | null; academic_year_id: string }
 
 async function enterMarks(c: Ctx): Promise<{ written: number }> {
   const req = await readJSON<{ exam_subject_id?: string; entries?: MarksEntry[] }>(c.req)
@@ -345,33 +497,18 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
   if (!isUUID(esId)) throw badRequest('exam_subject_id must be a uuid')
   const entries = req.entries ?? []
   if (entries.length === 0) throw badRequest('entries must not be empty')
-  const studentIds = entries.map((e) => e.student_id)
-
-  const res = await resolveScope(c)
-  if (!res.anySection && !res.platformAdmin) {
-    const may = await c.db.prepare(`
-      SELECT EXISTS (
-        SELECT 1 FROM exam_subjects es
-          JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
-          JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
-         WHERE es.id = ?1
-      ) OR EXISTS (
-        SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
-         WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
-      ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
-    if (!may?.ok) {
-      throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
-    }
-  }
-
-  const paper = await c.db.prepare(`
-    SELECT CAST(es.max_marks AS REAL) AS max_marks, COALESCE(sub.name, '') AS subject, e.grading_scale_id, e.academic_year_id
-      FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
-      LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
-      LEFT JOIN subjects sub ON sub.id = cs.subject_id
-     WHERE es.id = ?`).bind(esId).first<{ max_marks: number; subject: string; grading_scale_id: string | null; academic_year_id: string }>()
-  if (!paper) throw notFound('resource not found')
+  await requireMarksAccess(c, esId, entries.map((e) => e.student_id))
+  const paper = await loadPaper(c, esId)
   await requireOpenYear(c, paper.academic_year_id)
+  const stmts = await marksStatements(c, esId, paper, entries)
+  await c.db.batch(stmts)
+  return { written: stmts.length }
+}
+
+/* Who may mark a paper: its subject teacher for those students, or their
+   class teacher, unless the caller already reaches every section. Shared by
+   the one-figure and the per-part entry so the rule exists once. */
+async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): Promise<void> {
   // A released report card is what the family has in hand; its marks do not move underneath it.
   const sealed = await c.db.prepare(`SELECT count(*) AS n FROM report_cards rc JOIN exam_subjects es ON es.exam_id = rc.exam_id
       WHERE es.id = ? AND rc.is_published AND rc.student_id IN ${inList(studentIds)}`).bind(esId, js(studentIds)).first<{ n: number }>()
@@ -387,6 +524,37 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
   const stray = studentIds.filter((id) => !seated.has(id))
   if (stray.length) throw badRequest(`${stray.length} of these children are not in the class this paper is set for`)
 
+  const res = await resolveScope(c)
+  if (res.anySection || res.platformAdmin) return
+  const may = await c.db.prepare(`
+    SELECT EXISTS (
+      SELECT 1 FROM exam_subjects es
+        JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
+        JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
+       WHERE es.id = ?1
+    ) OR EXISTS (
+      SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
+       WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
+    ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
+  if (!may?.ok) {
+    throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
+  }
+}
+
+async function loadPaper(c: Ctx, esId: string): Promise<Paper> {
+  const paper = await c.db.prepare(`
+    SELECT CAST(es.max_marks AS REAL) AS max_marks, COALESCE(sub.name, '') AS subject, e.grading_scale_id, e.academic_year_id
+      FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
+      LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
+      LEFT JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE es.id = ?`).bind(esId).first<Paper>()
+  if (!paper) throw notFound('resource not found')
+  return paper
+}
+
+/** The marks rows for a batch of entries: limits, grace and grade checked here. */
+async function marksStatements(c: Ctx, esId: string, paper: Paper, entries: MarksEntry[]): Promise<D1PreparedStatement[]> {
+  const studentIds = entries.map((e) => e.student_id)
   const bands = paper.grading_scale_id ? await gradeBands(c, paper.grading_scale_id) : []
   // Existing grace marks: the marks_ceiling trigger checked marks + grace against the paper.
   const existing = await c.db.prepare(`SELECT student_id, CAST(grace_marks AS REAL) AS grace FROM marks
@@ -417,8 +585,274 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
       .bind(uuid(), c.id.institution!.id, esId, e.student_id, m === null ? null : String(m), gradeStr, e.is_absent ? 1 : 0,
         e.remarks ? e.remarks : null, c.id.userId, now()))
   }
+  return stmts
+}
+
+// ------------------------------------------------------------ exam parts
+
+interface ExamPart { id: string; name: string; max_marks: number; sequence: number }
+
+/* A school whose database has not had the parts migration yet simply has no
+   parts: every read answers "none" instead of failing the screen. */
+const noPartsTable = (e: unknown) => /no such table/i.test(String((e as Error)?.message ?? e))
+
+/* THE SUBJECT'S OWN MARK IS ALWAYS ONE OF THE PARTS (owner, 2026-10-13:
+   "AS DEFAULT SUBJECT MARK WILL BE THERE THAT IS IMPORTANT AND DEFAULT",
+   "AND REMAINING ARE PARTS AND FOR THEM THERE IS A MAX MARKS").
+
+   An exam marked in parts showed Project, Notes and Oral and no box for the
+   subject itself, so there was nowhere to put the mark the paper was
+   actually written for. Seeding it only when an exam gained its first parts
+   left every exam that already had them -- which is the ones schools are
+   using -- still with no box.
+
+   So it is ensured wherever the parts are read. A exam that has parts and
+   no "Subject marks" among them gets one, carrying the maximum its papers
+   already had: 25 here means the subject is out of 25 and Project, Notes
+   and Oral are added to it. Idempotent, and it never touches an exam with
+   no parts at all -- that one is marked as a single figure and always was.
+
+   The paper's maximum follows, because a paper is out of its parts added
+   together and the subject is now one of them. */
+const SUBJECT_PART = 'Subject marks'
+
+async function ensureSubjectPart(c: Ctx, examId: string, have: ExamPart[]): Promise<boolean> {
+  if (!have.length || !c.id.institution) return false
+  if (have.some((p) => p.name.trim().toLowerCase() === SUBJECT_PART.toLowerCase())) return false
+  const paper = await c.db.prepare(`SELECT CAST(MAX(max_marks) AS REAL) AS m FROM exam_subjects WHERE exam_id = ?`)
+    .bind(examId).first<{ m: number | null }>()
+  const subjectMax = Number(paper?.m ?? 0)
+  if (!(subjectMax > 0)) return false
+  const total = subjectMax + have.reduce((a, p) => a + Number(p.max_marks), 0)
+  await c.db.batch([
+    /* Sequence -1 puts it first without renumbering what is already there,
+       so a part a teacher dragged into place keeps the order they chose. */
+    c.db.prepare(`INSERT INTO exam_parts (id, institution_id, exam_id, name, max_marks, sequence) VALUES (?, ?, ?, ?, ?, -1)`)
+      .bind(uuid(), c.id.institution.id, examId, SUBJECT_PART, subjectMax),
+    c.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE exam_id = ?`).bind(String(total), examId),
+  ])
+  return true
+}
+
+async function partsOf(c: Ctx, examId: string): Promise<ExamPart[]> {
+  try {
+    const read = () => c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts
+        WHERE exam_id = ? ORDER BY sequence, created_at`).bind(examId).all<ExamPart>()
+    const rows = await read()
+    if (await ensureSubjectPart(c, examId, rows.results)) return (await read()).results
+    return rows.results
+  } catch (e) {
+    if (noPartsTable(e)) return []
+    throw e
+  }
+}
+
+/** Parts of the exam a paper belongs to, keyed by paper: the report card reads several at once. */
+async function partsByPaper(c: Ctx, esIds: string[]): Promise<Map<string, ExamPart[]>> {
+  const out = new Map<string, ExamPart[]>()
+  if (!esIds.length) return out
+  try {
+    const rows = await c.db.prepare(`SELECT es.id AS es_id, p.id, p.name, CAST(p.max_marks AS REAL) AS max_marks, p.sequence
+        FROM exam_subjects es JOIN exam_parts p ON p.exam_id = es.exam_id
+       WHERE es.id IN ${inList(esIds)} ORDER BY p.sequence, p.created_at`).bind(js(esIds)).all<ExamPart & { es_id: string }>()
+    for (const r of rows.results) out.set(r.es_id, [...(out.get(r.es_id) ?? []), r])
+  } catch (e) {
+    if (!noPartsTable(e)) throw e
+  }
+  return out
+}
+
+async function saveExamParts(c: Ctx): Promise<Response> {
+  const examId = uuidParam(c.params.id)
+  const body = await readJSON<{ parts?: { id?: string; name?: string; max_marks?: number }[] }>(c.req)
+  const list = Array.isArray(body.parts) ? body.parts : []
+  const exam = await c.db.prepare(`SELECT academic_year_id FROM exams WHERE id = ?`).bind(examId).first<{ academic_year_id: string }>()
+  if (!exam) throw notFound('resource not found')
+  await requireOpenYear(c, exam.academic_year_id)
+
+  const seen = new Set<string>()
+  const want = list.map((p, i) => {
+    const name = (p.name ?? '').trim()
+    if (!name) throw badRequest(`Part ${i + 1} needs a name.`)
+    if (seen.has(name.toLowerCase())) throw badRequest(`Two parts are called ${name}. Give each part its own name.`)
+    seen.add(name.toLowerCase())
+    const max = Number(p.max_marks)
+    if (!Number.isFinite(max) || max <= 0 || max > 1000) throw badRequest(`${name} needs a maximum between 1 and 1000.`)
+    return { id: p.id && isUUID(p.id) ? p.id : null, name, max, sequence: i }
+  })
+
+  let have: ExamPart[]
+  try {
+    have = (await c.db.prepare(`SELECT id, name, CAST(max_marks AS REAL) AS max_marks, sequence FROM exam_parts WHERE exam_id = ?`)
+      .bind(examId).all<ExamPart>()).results
+  } catch (e) {
+    if (noPartsTable(e)) throw badRequest('Exam parts are not switched on for this school yet.')
+    throw e
+  }
+  const haveIds = new Set(have.map((p) => p.id))
+  for (const w of want) if (w.id && !haveIds.has(w.id)) throw badRequest(`${w.name} is no longer a part of this exam. Reload and try again.`)
+
+  /* THE SUBJECT PAPER IS THE FIRST PART (owner, 2026-10-13: "they will enter
+     SUBJECT MARKS TOO", and: the total is the subject and the parts added
+     together).
+
+     Parts began as the extras a report card carries -- project, notebook,
+     oral -- and a paper's total became those added up. That left nowhere to
+     type the written paper itself: a teacher opening Grade 6 English saw
+     Project, Notes and Oral and no box for English.
+
+     Rather than a second kind of mark beside the parts, with its own column,
+     its own maximum and its own arithmetic everywhere a total is worked out,
+     the paper is simply the first part. The teacher gets their box, the
+     total is still the parts added together, and every grade, rank, report
+     card and export downstream keeps the sum it already understood.
+
+     It is seeded only when an exam gains its FIRST parts, and it carries the
+     maximum the papers already had -- 80 marks of English stay 80 marks of
+     English, and the extras are added to them. After that it is an ordinary
+     part: rename it, change what it is out of, or delete it if this exam
+     really is only coursework. */
+  if (have.length === 0 && want.length > 0 && !want.some((w) => w.id)) {
+    const paper = await c.db.prepare(`SELECT CAST(MAX(max_marks) AS REAL) AS m FROM exam_subjects WHERE exam_id = ?`)
+      .bind(examId).first<{ m: number | null }>()
+    const subjectMax = Number(paper?.m ?? 0)
+    if (subjectMax > 0 && !want.some((w) => w.name.toLowerCase() === 'subject marks')) {
+      want.unshift({ id: null, name: 'Subject marks', max: subjectMax, sequence: -1 })
+      want.forEach((w, i) => { w.sequence = i })
+    }
+  }
+
+  /* Lowering a maximum below a mark already given would leave a child above
+     full marks; say whose, rather than clipping their mark in silence.
+
+     ONE QUESTION, NOT ONE PER PART (owner, 2026-10-13: "taking lot of time
+     for saving"). This asked the database once for every part, in turn, so
+     four parts meant four round trips before any writing began. The caps
+     travel as JSON and the check is a single query. */
+  const caps = want.filter((w) => w.id).map((w) => ({ id: w.id!, max: w.max, name: w.name }))
+  if (caps.length) {
+    const over = await c.db.prepare(`SELECT ${nameOf('st', false)} AS who, CAST(mp.marks AS REAL) AS marks,
+          json_extract(j.value, '$.name') AS part, json_extract(j.value, '$.max') AS cap
+        FROM json_each(?) j
+        JOIN mark_parts mp ON mp.part_id = json_extract(j.value, '$.id')
+        JOIN students st ON st.id = mp.student_id
+       WHERE mp.marks > json_extract(j.value, '$.max') LIMIT 1`)
+      .bind(JSON.stringify(caps)).first<{ who: string; marks: number; part: string; cap: number }>()
+    if (over) throw badRequest(`${over.who} already has ${trimFloat(over.marks)} in ${over.part}, so it cannot be out of ${trimFloat(over.cap)}. Change that mark first.`)
+  }
+
+  const keep = new Set(want.filter((w) => w.id).map((w) => w.id!))
+  const inst = c.id.institution!.id
+  const stmts: D1PreparedStatement[] = []
+  for (const p of have) {
+    if (keep.has(p.id)) continue
+    stmts.push(c.db.prepare(`DELETE FROM mark_parts WHERE part_id = ?`).bind(p.id))
+    stmts.push(c.db.prepare(`DELETE FROM exam_parts WHERE id = ?`).bind(p.id))
+  }
+  for (const w of want) {
+    if (w.id) stmts.push(c.db.prepare(`UPDATE exam_parts SET name = ?, max_marks = ?, sequence = ? WHERE id = ? AND exam_id = ?`)
+      .bind(w.name, w.max, w.sequence, w.id, examId))
+    else stmts.push(c.db.prepare(`INSERT INTO exam_parts (id, institution_id, exam_id, name, max_marks, sequence) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(uuid(), inst, examId, w.name, w.max, w.sequence))
+  }
+  // With no parts left the papers keep the maximum they last had; the marks stay as entered.
+  if (want.length) {
+    const total = want.reduce((a, w) => a + w.max, 0)
+    stmts.push(c.db.prepare(`UPDATE exam_subjects SET max_marks = ? WHERE exam_id = ?`).bind(String(total), examId))
+  }
+  if (stmts.length) await c.db.batch(stmts)
+
+  if (want.length) {
+    const papers = await c.db.prepare(`SELECT id FROM exam_subjects WHERE exam_id = ?`).bind(examId).all<{ id: string }>()
+    /* THE PAPERS ARE ADDED UP TOGETHER, NOT ONE AFTER ANOTHER (owner,
+       2026-10-13: "taking lot of time for saving").
+
+       Every paper of the exam has its totals re-derived, and each of those
+       is several queries. Done in turn, an exam with twenty papers waited
+       for twenty of them end to end, and the Save button sat on "Saving..."
+       for the whole of it. They do not depend on one another -- each reads
+       and writes only its own paper -- so they go at once and the wait is
+       the slowest one rather than the sum of all. */
+    await Promise.all(papers.results.map((p) => recomputeFromParts(c, p.id)))
+  }
+  return ok({ parts: await partsOf(c, examId) })
+}
+
+/* A paper's mark is the sum of its parts, re-derived after the parts change
+   shape. Only the total and grade move; absence and remarks are the
+   teacher's and stay. */
+async function recomputeFromParts(c: Ctx, esId: string): Promise<void> {
+  const paper = await loadPaper(c, esId)
+  const sums = await c.db.prepare(`SELECT mp.student_id, SUM(mp.marks) AS total, COUNT(mp.marks) AS n, COALESCE(MAX(m.is_absent), 0) AS is_absent
+      FROM mark_parts mp LEFT JOIN marks m ON m.exam_subject_id = mp.exam_subject_id AND m.student_id = mp.student_id
+     WHERE mp.exam_subject_id = ? GROUP BY mp.student_id`).bind(esId).all<{ student_id: string; total: number | null; n: number; is_absent: number }>()
+  if (!sums.results.length) return
+  const bands = paper.grading_scale_id ? await gradeBands(c, paper.grading_scale_id) : []
+  const stmts = sums.results.map((s) => {
+    const m = s.n > 0 && !s.is_absent ? Number(s.total) : null
+    const grade = m !== null && !s.is_absent && paper.grading_scale_id && paper.max_marks > 0 ? pickGrade(bands, (m / paper.max_marks) * 100) : null
+    return c.db.prepare(`
+      INSERT INTO marks (id, institution_id, exam_subject_id, student_id, marks_obtained, grade, is_absent, entered_by, entered_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+      ON CONFLICT (exam_subject_id, student_id) DO UPDATE SET marks_obtained = excluded.marks_obtained, grade = excluded.grade`)
+      .bind(uuid(), c.id.institution!.id, esId, s.student_id, m === null ? null : String(m), grade, c.id.userId, now())
+  })
   await c.db.batch(stmts)
-  return { written: stmts.length }
+}
+
+interface PartEntry { student_id: string; parts?: Record<string, number | null>; is_absent?: boolean; remarks?: string }
+
+async function savePartMarks(c: Ctx): Promise<Response> {
+  const esId = uuidParam(c.params.id)
+  const req = await readJSON<{ entries?: PartEntry[] }>(c.req)
+  const entries = req.entries ?? []
+  if (entries.length === 0) throw badRequest('entries must not be empty')
+  for (const e of entries) if (!isUUID(e.student_id)) throw badRequest('student_id must be a uuid')
+  const studentIds = entries.map((e) => e.student_id)
+  await requireMarksAccess(c, esId, studentIds)
+  const paper = await loadPaper(c, esId)
+  await requireOpenYear(c, paper.academic_year_id)
+  const es = await c.db.prepare(`SELECT exam_id FROM exam_subjects WHERE id = ?`).bind(esId).first<{ exam_id: string }>()
+  const parts = await partsOf(c, es!.exam_id)
+  if (!parts.length) throw badRequest('This exam has no parts. Enter the paper\'s mark as one figure.')
+  const byId = new Map(parts.map((p) => [p.id, p]))
+
+  // Existing part marks, so a row that sends only some parts keeps the others.
+  const prior = await c.db.prepare(`SELECT student_id, part_id, CAST(marks AS REAL) AS marks FROM mark_parts
+      WHERE exam_subject_id = ? AND student_id IN ${inList(studentIds)}`)
+    .bind(esId, js(studentIds)).all<{ student_id: string; part_id: string; marks: number | null }>()
+  const merged = new Map<string, Map<string, number | null>>()
+  for (const x of prior.results) {
+    const m = merged.get(x.student_id) ?? new Map<string, number | null>()
+    m.set(x.part_id, x.marks)
+    merged.set(x.student_id, m)
+  }
+
+  const inst = c.id.institution!.id, at = now()
+  const stmts: D1PreparedStatement[] = []
+  const totals: MarksEntry[] = []
+  for (const e of entries) {
+    const m = merged.get(e.student_id) ?? new Map<string, number | null>()
+    for (const [pid, raw] of Object.entries(e.parts ?? {})) {
+      const part = byId.get(pid)
+      if (!part) throw badRequest('One of those parts is no longer on this exam. Reload and try again.')
+      const v = raw === null || raw === undefined || (raw as unknown) === '' ? null : Number(raw)
+      if (v !== null && !Number.isFinite(v)) throw badRequest(`${part.name} needs a number.`)
+      validateMark(`${paper.subject ? paper.subject + ' ' : ''}${part.name}`, part.max_marks, v)
+      m.set(pid, v)
+      stmts.push(c.db.prepare(`INSERT INTO mark_parts (institution_id, exam_subject_id, student_id, part_id, marks, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (exam_subject_id, student_id, part_id) DO UPDATE SET marks = excluded.marks, updated_at = excluded.updated_at`)
+        .bind(inst, esId, e.student_id, pid, v, at))
+    }
+    const given = [...m].filter(([pid, v]) => byId.has(pid) && v !== null).map(([, v]) => v as number)
+    // An absent child has no total; the part marks are kept should the absence be undone.
+    totals.push({ student_id: e.student_id, marks_obtained: e.is_absent ? null : given.length ? given.reduce((a, b) => a + b, 0) : null,
+      is_absent: e.is_absent, remarks: e.remarks })
+  }
+  // The total goes through the same door as a mark typed as one figure, so grace, ceiling and grade stay one set of rules.
+  const marksStmts = await marksStatements(c, esId, paper, totals)
+  await c.db.batch([...stmts, ...marksStmts])
+  return ok({ written: entries.length })
 }
 
 function validateMark(subject: string, maxMarks: number, marks: number | null) {
@@ -487,7 +921,7 @@ async function listReportCards(c: Ctx): Promise<List<ReportCard>> {
       LEFT JOIN sections sec ON sec.id = e.section_id
       LEFT JOIN classes c ON c.id = sec.class_id
      WHERE (?1 IS NULL OR e.section_id = ?2) AND ${where}
-     ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`).bind(...args).all()
+     ORDER BY e.roll_no IS NULL, CAST(e.roll_no AS INTEGER), e.roll_no, st.admission_no`).bind(...args).all()
   const optS = (v: unknown) => (v === null || v === undefined ? undefined : str(v))
   const optN = (v: unknown) => num(v) ?? undefined
   return items(rows.results.map((v): ReportCard => ({
@@ -534,8 +968,8 @@ async function generateReportCards(c: Ctx) {
 
   const totals = await c.db.prepare(`
     SELECT e.student_id, e.id AS enrollment_id, e.academic_year_id,
-           SUM(CASE WHEN NOT COALESCE(m.is_absent,0) THEN COALESCE(CAST(m.marks_obtained AS REAL),0) + COALESCE(CAST(m.grace_marks AS REAL),0) END) AS total,
-           SUM(CASE WHEN NOT COALESCE(m.is_absent,0) THEN CAST(es.max_marks AS REAL) END) AS max_total,
+           SUM(CASE WHEN NOT COALESCE(m.is_absent,0) AND ${examinedPaper()} THEN COALESCE(CAST(m.marks_obtained AS REAL),0) + COALESCE(CAST(m.grace_marks AS REAL),0) END) AS total,
+           SUM(CASE WHEN NOT COALESCE(m.is_absent,0) AND ${examinedPaper()} THEN CAST(es.max_marks AS REAL) END) AS max_total,
            COALESCE((SELECT ROUND(100.0 * SUM(CASE WHEN sa.status IN ('present','late') THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0))
                        FROM student_attendance sa JOIN academic_years ay ON ay.id = e.academic_year_id
                       WHERE sa.student_id = e.student_id AND sa.period_id IS NULL AND sa.status NOT IN ('holiday','leave')
@@ -860,6 +1294,62 @@ async function submitQuestionPaper(c: Ctx) {
   return ok({ status })
 }
 
+/* A paper made in Question maker, sent to the examination branch: printed to a
+   PDF on the school's letterhead, kept as a file, and submitted for that exam
+   paper exactly as an uploaded one would be. */
+async function submitMadePaper(c: Ctx) {
+  const body = await readJSON<{ exam_subject_id?: string; sections?: { marks?: number; questions?: { stem?: string; options?: string[] }[] }[] }>(c.req)
+  const esId = (body.exam_subject_id ?? '').trim()
+  if (!isUUID(esId)) throw badRequest('Choose which exam paper this is for.')
+  const sections = (body.sections ?? []).map((s) => ({
+    marks: Number(s.marks) || 0,
+    questions: (s.questions ?? []).map((q) => ({ stem: String(q.stem ?? '').slice(0, 4000), options: (q.options ?? []).map((o) => String(o).slice(0, 500)).slice(0, 8) }))
+      .filter((q) => q.stem.trim() !== ''),
+  })).filter((s) => s.questions.length > 0)
+  if (sections.length === 0) throw badRequest('The paper has no questions. Make it first.')
+  if (sections.reduce((n, s) => n + s.questions.length, 0) > 300) throw badRequest('A paper can hold at most 300 questions.')
+  const sc = await resolveScope(c)
+  const head = await c.db.prepare(`
+    SELECT ex.name AS exam, c.name AS class, sub.name AS subject, CAST(es.max_marks AS INTEGER) AS max_marks,
+           EXISTS (SELECT 1 FROM sections s WHERE s.class_id = cs.class_id AND s.id IN ${inList(sc.sectionIds)}) AS ok
+      FROM exam_subjects es JOIN exams ex ON ex.id = es.exam_id JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id WHERE es.id = ?`)
+    .bind(js(sc.sectionIds), esId).first<{ exam: string; class: string; subject: string; max_marks: number | null; ok: number }>()
+  if (!head) throw notFound('That exam paper does not exist.')
+  if (!head.ok && !c.id.platformAdmin) throw forbidden('missing permission: ' + EXAMS_READ)
+
+  const facts = await schoolFacts(c.db, c.id.institution!)
+  const pdf = await SchoolPDF.create(facts, { title: `${head.exam} · ${head.subject}`, subtitle: `${head.class}${head.max_marks ? ` · Maximum marks ${head.max_marks}` : ''}`, logo: await logoBytes(c.env, c.db, facts.logoKey) })
+  let n = 0
+  sections.forEach((s, i) => {
+    pdf.heading(`Section ${String.fromCharCode(65 + i)}${s.marks ? ` · ${s.marks} mark${s.marks === 1 ? '' : 's'} each` : ''}`)
+    for (const q of s.questions) {
+      n += 1
+      pdf.paragraph(`${n}. ${q.stem}`)
+      q.options.forEach((o, k) => pdf.paragraph(`     (${String.fromCharCode(97 + k)}) ${o}`, { size: 10 }))
+      pdf.space(4)
+    }
+  })
+  const bytes = (await pdf.save()).slice().buffer as ArrayBuffer
+
+  const inst = c.id.institution!.id, fileId = uuid(), key = uploadKey(inst, fileId, 'pdf')
+  await putObject(c.env, key, bytes, 'application/pdf')
+  const name = `${head.class} ${head.subject} ${head.exam}.pdf`.replace(/[^\w .-]/g, '')
+  const ts = now()
+  await c.db.batch([
+    c.db.prepare(`INSERT INTO files (id, institution_id, object_key, original_name, content_type, size_bytes, checksum_sha256, purpose, uploaded_by, created_at)
+        VALUES (?, ?, ?, ?, 'application/pdf', ?, ?, 'question_paper', ?, ?)`)
+      .bind(fileId, inst, key, name, bytes.byteLength, await sha256(bytes), c.id.userId, ts),
+    c.db.prepare(`
+      INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
+      VALUES (?1, ?2, ?3, ?4, 'Made in Question maker', ?5, ?6, 'submitted', ?6)
+      ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, notes = excluded.notes, submitted_by = excluded.submitted_by,
+        submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
+      .bind(uuid(), inst, esId, fileId, c.id.userId, ts),
+  ])
+  return created({ status: 'submitted', file_id: fileId })
+}
+
 async function decideQuestionPaper(c: Ctx) {
   const paperId = c.params.id
   if (!isUUID(paperId)) throw badRequest('Unknown paper.')
@@ -887,6 +1377,134 @@ async function decideQuestionPaper(c: Ctx) {
       .bind(uuid(), c.id.institution!.id, row.submitted_by, text, now()),
   ])
   return ok({ status: decision })
+}
+
+/* THE EXAMINATION BRANCH'S OWN LIST: one row per subject of the exam, the
+   staff who could be asked (teaching that class's subject, any section),
+   and the deadline already set for whichever of them were asked -- so
+   setting one is "pick from who is already shown", not a second lookup. */
+async function listPaperDeadlines(c: Ctx) {
+  const examId = c.url.searchParams.get('exam_id') ?? ''
+  if (!isUUID(examId)) throw badRequest('Choose which exam.')
+  const subjects = await c.db.prepare(`
+    SELECT es.id, es.class_subject_id, c.name AS class_name, sub.name AS subject_name, es.exam_date
+      FROM exam_subjects es
+      JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes c ON c.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE es.exam_id = ?
+     ORDER BY c.name, sub.name`).bind(examId)
+    .all<{ id: string; class_subject_id: string; class_name: string; subject_name: string; exam_date: string | null }>()
+  if (subjects.results.length === 0) return ok(items([]))
+  const esIds = subjects.results.map((s) => s.id)
+  const [teachers, deadlines, papers] = await c.db.batch([
+    c.db.prepare(`SELECT DISTINCT cs.id AS class_subject_id, u.id AS teacher_id, u.full_name
+        FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+        JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id JOIN users u ON u.id = sst.teacher_user_id
+       WHERE es.id IN ${inList(esIds)}`).bind(js(esIds)),
+    c.db.prepare(`SELECT qpd.id, qpd.exam_subject_id, qpd.teacher_user_id, u.full_name AS teacher_name, qpd.deadline,
+             qpd.manually_received_at IS NOT NULL AS received_manually
+        FROM question_paper_deadlines qpd JOIN users u ON u.id = qpd.teacher_user_id
+       WHERE qpd.exam_subject_id IN ${inList(esIds)}`).bind(js(esIds)),
+    c.db.prepare(`SELECT exam_subject_id, status, submitted_at, file_id FROM question_papers WHERE exam_subject_id IN ${inList(esIds)}`).bind(js(esIds)),
+  ])
+  const teachersByClassSubject = new Map<string, { teacher_id: string; full_name: string }[]>()
+  for (const t of teachers.results as unknown as { class_subject_id: string; teacher_id: string; full_name: string }[]) {
+    const arr = teachersByClassSubject.get(t.class_subject_id) ?? []
+    arr.push({ teacher_id: t.teacher_id, full_name: t.full_name })
+    teachersByClassSubject.set(t.class_subject_id, arr)
+  }
+  const paperOf = new Map((papers.results as unknown as { exam_subject_id: string; status: string; submitted_at: string; file_id: string | null }[])
+    .map((p) => [p.exam_subject_id, p]))
+  const nowIso = now()
+  const out = subjects.results.map((s) => {
+    const paper = paperOf.get(s.id)
+    const assigned = (deadlines.results as unknown as { id: string; exam_subject_id: string; teacher_user_id: string; teacher_name: string; deadline: string; received_manually: number }[])
+      .filter((d) => d.exam_subject_id === s.id)
+      .map((d) => {
+        const onTime = !!paper && ['submitted', 'approved'].includes(paper.status) && paper.submitted_at <= d.deadline
+        const received = onTime || !!d.received_manually
+        return {
+          id: d.id, teacher_id: d.teacher_user_id, teacher_name: d.teacher_name, deadline: d.deadline,
+          status: received ? 'received' : d.deadline < nowIso ? 'late' : 'pending',
+          received_manually: !!d.received_manually,
+        }
+      })
+    return {
+      exam_subject_id: s.id, class_name: s.class_name, subject_name: s.subject_name, exam_date: s.exam_date,
+      candidate_teachers: teachersByClassSubject.get(s.class_subject_id) ?? [],
+      paper: paper ? { status: paper.status, submitted_at: paper.submitted_at, file_id: paper.file_id } : null,
+      assigned,
+    }
+  })
+  return ok(items(out))
+}
+
+async function setPaperDeadline(c: Ctx) {
+  let body: { exam_subject_id?: string; teacher_user_ids?: string[]; deadline?: string }
+  try { body = await c.req.json() } catch { throw badRequest('Send who and when.') }
+  const esId = (body.exam_subject_id ?? '').trim()
+  if (!isUUID(esId)) throw badRequest('Choose which exam paper this deadline is for.')
+  const deadline = (body.deadline ?? '').trim()
+  if (!deadline || Number.isNaN(new Date(deadline).getTime())) throw badRequest('Set a date and time for the deadline.')
+  const teacherIds = [...new Set((body.teacher_user_ids ?? []).map((x) => x.trim()).filter(isUUID))]
+  if (teacherIds.length === 0) throw badRequest('Choose at least one teacher to ask.')
+  const row = await c.db.prepare(`SELECT sub.name AS subject_name, cl.name AS class_name, ex.name AS exam_name FROM exam_subjects es
+      JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN classes cl ON cl.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id JOIN exams ex ON ex.id = es.exam_id WHERE es.id = ?`).bind(esId)
+    .first<{ subject_name: string; class_name: string; exam_name: string }>()
+  if (!row) throw notFound()
+  const inst = c.id.institution!.id
+  const t = now()
+  const stmts = teacherIds.flatMap((teacherId) => {
+    const id = uuid()
+    const noticeBody = `${row.subject_name} for ${row.class_name} (${row.exam_name}), due ${deadline.slice(0, 16).replace('T', ' ')}.`
+    return [
+      c.db.prepare(`INSERT INTO question_paper_deadlines (id, institution_id, exam_subject_id, teacher_user_id, deadline, scheduled_by, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (exam_subject_id, teacher_user_id) DO UPDATE SET deadline = excluded.deadline, scheduled_by = excluded.scheduled_by,
+            manually_received_at = NULL, remarked_at = NULL`)
+        .bind(id, inst, esId, teacherId, deadline, c.id.userId, t),
+      c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/go/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+        .bind(uuid(), inst, teacherId, noticeBody, esId, t),
+    ]
+  })
+  await c.db.batch(stmts)
+  return ok({ asked: teacherIds.length })
+}
+
+async function markPaperReceived(c: Ctx) {
+  const id = c.params.id
+  if (!isUUID(id)) throw badRequest('Unknown deadline.')
+  const res = await c.db.prepare(`UPDATE question_paper_deadlines SET manually_received_at = ?, remarked_at = COALESCE(remarked_at, ?)
+      WHERE id = ?`).bind(now(), now(), id).run()
+  if (!res.meta.changes) throw notFound()
+  return ok({ status: 'received' })
+}
+
+/* A teacher's own deadlines, for the banner on their Question papers screen
+   (owner, 2026-10-19: "they will get a deadline in dashboard"). */
+async function listMyPaperDeadlines(c: Ctx) {
+  const rows = await c.db.prepare(`
+    SELECT qpd.id, qpd.deadline, sub.name AS subject_name, cl.name AS class_name, ex.name AS exam_name,
+           qpd.manually_received_at IS NOT NULL AS received_manually,
+           (qp.status IN ('submitted','approved') AND qp.submitted_at <= qpd.deadline) AS received_on_time
+      FROM question_paper_deadlines qpd
+      JOIN exam_subjects es ON es.id = qpd.exam_subject_id
+      JOIN exams ex ON ex.id = es.exam_id
+      JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes cl ON cl.id = cs.class_id
+      JOIN subjects sub ON sub.id = cs.subject_id
+      LEFT JOIN question_papers qp ON qp.exam_subject_id = qpd.exam_subject_id
+     WHERE qpd.teacher_user_id = ?
+     ORDER BY qpd.deadline`).bind(c.id.userId)
+    .all<{ id: string; deadline: string; subject_name: string; class_name: string; exam_name: string; received_manually: number; received_on_time: number }>()
+  const nowIso = now()
+  return ok(items(rows.results.map((v) => ({
+    id: v.id, deadline: v.deadline, subject_name: v.subject_name, class_name: v.class_name, exam_name: v.exam_name,
+    status: (v.received_on_time || v.received_manually) ? 'received' : v.deadline < nowIso ? 'late' : 'pending',
+  }))))
 }
 
 // ------------------------------------------------------------ moderation
@@ -956,211 +1574,6 @@ async function moderateMarks(c: Ctx) {
         WHERE exam_subject_id = ?1 AND NOT is_absent`).bind(esId, adj, c.id.userId, now()),
   ])
   return ok({ students: upd.meta.changes })
-}
-
-// ------------------------------------------------------------ the design
-
-const reportCardPlaceholders = [
-  { token: '{{school_name}}', means: "the school's name" },
-  { token: '{{school_logo}}', means: "the school's crest, where one is configured" },
-  { token: '{{school_motto}}', means: "the school's tagline, where one is configured" },
-  { token: '{{academic_year}}', means: 'the academic year, e.g. 2024 - 2025' },
-  { token: '{{exam_name}}', means: 'which examination this card is for' },
-  { token: '{{photo}}', means: "the child's photograph, where one is on file" },
-  { token: '{{student_name}}', means: "the child's full name" },
-  { token: '{{father_name}}', means: "father's name, where recorded" },
-  { token: '{{mother_name}}', means: "mother's name, where recorded" },
-  { token: '{{guardian_name}}', means: 'the guardian on record' },
-  { token: '{{class}}', means: 'class' },
-  { token: '{{section}}', means: 'section' },
-  { token: '{{admission_no}}', means: 'admission number' },
-  { token: '{{roll_no}}', means: 'roll number' },
-  { token: '{{date_of_birth}}', means: 'date of birth' },
-  { token: '{{admission_date}}', means: 'date of admission' },
-  { token: '{{subject_rows}}', means: 'one table row per subject, marks, percentage and grade' },
-  { token: '{{performance_chart}}', means: 'a bar chart of the marks, one bar per subject' },
-  { token: '{{total_marks}}', means: 'marks the exam was out of' },
-  { token: '{{marks_obtained}}', means: 'marks the child scored' },
-  { token: '{{percentage}}', means: 'overall percentage' },
-  { token: '{{grade}}', means: 'overall grade' },
-  { token: '{{result}}', means: "PASS or FAIL, on the school's own pass mark" },
-  { token: '{{rank}}', means: 'rank in the section' },
-  { token: '{{attendance}}', means: 'attendance percentage' },
-  { token: '{{class_teacher}}', means: 'the class teacher who sent it for approval' },
-  { token: '{{class_teacher_sign}}', means: 'their signature, once they have sent it up' },
-  { token: '{{principal}}', means: 'the head who approved it' },
-  { token: '{{principal_sign}}', means: 'their signature, once they have approved it' },
-  { token: '{{issued_on}}', means: "today's date" },
-]
-
-const reportCardFonts: Record<string, string> = {
-  arial: 'Arial, Helvetica, sans-serif',
-  calibri: 'Calibri, Candara, Arial, sans-serif',
-  times: "'Times New Roman', Times, serif",
-}
-const defaultReportCardFont = 'times'
-
-interface ReportCardTemplate {
-  name: string; template_html: string; is_built_in: boolean; css?: string; font: string; updated_at?: string; updated_by?: string
-}
-
-async function loadReportCardTemplate(c: Ctx): Promise<ReportCardTemplate> {
-  const fontRow = await c.db.prepare(`SELECT json_extract(config, '$.report_card_font') AS f FROM module_settings WHERE module = 'examinations'`)
-    .first<{ f: string | null }>()
-  let font = defaultReportCardFont
-  if (fontRow?.f && (fontRow.f.toLowerCase() in reportCardFonts)) font = fontRow.f.toLowerCase()
-  const css = reportCardCSS(reportCardFonts[font], (await schoolFacts(c.db, c.id.institution!)).accent)
-  const t = await c.db.prepare(`SELECT t.name, t.template_html, ${minuteOf('t.updated_at')} AS at, u.full_name AS by
-      FROM report_card_templates t LEFT JOIN users u ON u.id = t.updated_by WHERE t.institution_id = ?`)
-    .bind(c.id.institution!.id).first<{ name: string; template_html: string; at: string; by: string | null }>()
-  if (!t) return { name: 'Standard report card', template_html: defaultReportCardHTML, is_built_in: true, css, font }
-  return { name: t.name, template_html: t.template_html, is_built_in: false, font, updated_at: t.at, updated_by: t.by ?? undefined }
-}
-
-interface RenderedCard { values: Record<string, string>; subjects: Record<string, string>[] }
-
-function imgTag(id: string): string {
-  const v = id.trim()
-  if (!isUUID(v)) return ''
-  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="width:100%;height:100%;max-width:100%;object-fit:cover;display:block">`
-}
-
-/* The crest keeps its own proportions at the card's crest height: the photo
-   and signature tag fills its box, and a logo given that treatment filled
-   the page. */
-function logoTag(id: string): string {
-  const v = id.trim()
-  if (!isUUID(v)) return ''
-  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="height:18mm;width:auto;max-width:60mm;object-fit:contain;display:inline-block">`
-}
-
-function stripUnknownPlaceholders(s: string): string {
-  for (;;) {
-    const i = s.indexOf('{{')
-    if (i < 0) return s
-    const j = s.indexOf('}}', i)
-    if (j < 0) return s
-    s = s.slice(0, i) + s.slice(j + 2)
-  }
-}
-
-function fillReportCard(tpl: string, card: RenderedCard): string {
-  let rows = ''
-  for (const sub of card.subjects) {
-    rows += '<tr>'
-    for (const k of ['subject', 'max_marks', 'marks', 'percent', 'subject_grade']) rows += '<td>' + escapeHtml(sub[k] ?? '') + '</td>'
-    rows += '</tr>'
-  }
-  let out = tpl.split('{{subject_rows}}').join(rows)
-  if (out.includes('{{performance_chart}}')) {
-    let ch = ''
-    const n = card.subjects.length
-    if (n > 0) {
-      const bw = 34, gap = 10, base = 132, top = 8
-      const w = gap + n * (bw + gap)
-      ch += `<svg viewBox="0 0 ${w} 152" width="100%" style="max-width:${w}px" font-family="sans-serif">`
-      card.subjects.forEach((sub, i) => {
-        let pct = parseFloat((sub.percent ?? '').trim()) || 0
-        if (pct < 0) pct = 0
-        if (pct > 100) pct = 100
-        const bh = Math.trunc((pct / 100) * (base - top)) + 5
-        const x = gap + i * (bw + gap), y = base - bh
-        const grade = sub.subject_grade ?? ''
-        let name = sub.subject ?? ''
-        if (name.length > 4) name = name.slice(0, 4)
-        const fill = grade.startsWith('A1') ? '#3f6bbf' : '#6b8fd4'
-        ch += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${fill}"/>`
-        ch += `<text x="${x + bw / 2}" y="${y - 3}" text-anchor="middle" font-size="9">${escapeHtml(grade)}</text>`
-        ch += `<text x="${x + bw / 2}" y="147" text-anchor="middle" font-size="8">${escapeHtml(name)}</text>`
-      })
-      ch += '</svg>'
-    }
-    out = out.split('{{performance_chart}}').join(ch)
-  }
-  out = out.split('{{photo}}').join(imgTag(card.values.photo_file_id ?? ''))
-  out = out.split('{{school_logo}}').join(logoTag(card.values.logo_file_id ?? ''))
-  out = out.split('{{class_teacher_sign}}').join(imgTag(card.values.teacher_sign_file_id ?? ''))
-  out = out.split('{{principal_sign}}').join(imgTag(card.values.principal_sign_file_id ?? ''))
-  for (const [k, v] of Object.entries(card.values)) {
-    if (['photo_file_id', 'logo_file_id', 'teacher_sign_file_id', 'principal_sign_file_id'].includes(k)) continue
-    out = out.split('{{' + k + '}}').join(escapeHtml(v))
-  }
-  return stripUnknownPlaceholders(out)
-}
-
-const ddmmyyyy = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '')
-
-async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
-  const row = await c.db.prepare(`
-    SELECT COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school,
-           COALESCE((SELECT NULLIF(b.logo_key, '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.logo_key) AS logo_key,
-           (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
-           ${NAME} AS student, COALESCE(c.name,'') AS class, COALESCE(sec.name,'') AS section, st.admission_no,
-           e.roll_no, st.date_of_birth, st.admission_date, st.photo_file_id,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1) AS father,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'mother' LIMIT 1) AS mother,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS guardian,
-           CAST(rc.max_marks AS REAL) AS total, CAST(rc.total_marks AS REAL) AS obtained, CAST(rc.percentage AS REAL) AS pct,
-           CAST(rc.attendance_percent AS REAL) AS attendance, rc.grade,
-           COALESCE((SELECT ex.name FROM exams ex WHERE ex.id = rc.exam_id), (SELECT t.name FROM terms t WHERE t.id = rc.term_id), '') AS exam_name,
-           ay.name AS year,
-           COALESCE((SELECT u.full_name FROM users u WHERE u.id = rc.submitted_by), (SELECT u.full_name FROM users u WHERE u.id = sec.class_teacher_id)) AS class_teacher,
-           (SELECT u2.full_name FROM users u2 WHERE u2.id = rc.decided_by) AS principal,
-           (SELECT u.signature_file_id FROM users u WHERE u.id = rc.submitted_by) AS teacher_sign,
-           (SELECT u2.signature_file_id FROM users u2 WHERE u2.id = rc.decided_by) AS principal_sign,
-           rc.rank_in_section AS rank
-      FROM report_cards rc
-      JOIN students st ON st.id = rc.student_id
-      JOIN institutions i ON i.id = rc.institution_id
-      JOIN enrollments e ON e.id = rc.enrollment_id
-      LEFT JOIN sections sec ON sec.id = e.section_id
-      LEFT JOIN classes c ON c.id = sec.class_id
-      LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
-     WHERE rc.id = ?`).bind(cardId).first<Record<string, unknown>>()
-  if (!row) throw new Error('report card not found')
-  const s = (k: string) => str(row[k])
-  const n = (k: string) => { const v = num(row[k]); return v === null ? '' : trimFloat(v) }
-  const values: Record<string, string> = {
-    school_name: s('school'), student_name: s('student'), logo_file_id: s('logo_key'), school_motto: s('motto'),
-    teacher_sign_file_id: s('teacher_sign'), principal_sign_file_id: s('principal_sign'),
-    class: s('class'), section: s('section'), admission_no: s('admission_no'), roll_no: s('roll_no'),
-    date_of_birth: ddmmyyyy(row.date_of_birth as string | null), admission_date: ddmmyyyy(row.admission_date as string | null),
-    photo_file_id: s('photo_file_id'), father_name: s('father'), mother_name: s('mother'), guardian_name: s('guardian'),
-    total_marks: n('total'), marks_obtained: n('obtained'), grade: s('grade'), remarks: '',
-    exam_name: s('exam_name'), academic_year: s('year'), class_teacher: s('class_teacher'), principal: s('principal'),
-    rank: s('rank'), issued_on: ddmmyyyy(todayIST()), percentage: '', attendance: '', result: '',
-  }
-  const pct = num(row.pct)
-  if (pct !== null) { values.percentage = pct.toFixed(2) + '%'; values.result = pct >= 33 ? 'PASS' : 'FAIL' }
-  const att = num(row.attendance)
-  if (att !== null) values.attendance = att.toFixed(1) + '%'
-
-  const subs = await c.db.prepare(`
-    SELECT sub.name, CAST(es.max_marks AS REAL) AS max,
-           CASE WHEN m.marks_obtained IS NULL THEN NULL ELSE CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL), 0) END AS got,
-           COALESCE((SELECT gb.grade FROM grade_bands gb WHERE gb.grading_scale_id = ex.grading_scale_id
-                       AND ROUND(100.0 * (CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL),0)) / NULLIF(CAST(es.max_marks AS REAL),0), 2)
-                           BETWEEN CAST(gb.min_percent AS REAL) AND CAST(gb.max_percent AS REAL) LIMIT 1), m.grade) AS g
-      FROM report_cards rc
-      JOIN enrollments e ON e.id = rc.enrollment_id
-      JOIN class_subjects cs ON cs.class_id = e.class_id
-      JOIN subjects sub ON sub.id = cs.subject_id
-      JOIN exam_subjects es ON es.class_subject_id = cs.id
-      JOIN exams ex ON ex.id = es.exam_id AND ex.academic_year_id = rc.academic_year_id
-                   AND (rc.exam_id IS NULL OR es.exam_id = rc.exam_id)
-                   AND (rc.exam_id IS NOT NULL OR rc.term_id IS NULL OR ex.term_id = rc.term_id)
-      LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
-     WHERE rc.id = ?
-     ORDER BY sub.name`).bind(cardId).all<{ name: string; max: number; got: number | null; g: string | null }>()
-  const subjects = subs.results.map((x) => {
-    const r: Record<string, string> = { subject: x.name, max_marks: trimFloat(x.max), marks: '-', percent: '-', subject_grade: x.g ?? '' }
-    if (x.got !== null) {
-      r.marks = trimFloat(x.got)
-      if (x.max > 0) r.percent = `${Math.round((100 * x.got) / x.max)}%`
-    }
-    return r
-  })
-  return { values, subjects }
 }
 
 // ------------------------------------------------------------ exam day
@@ -1241,7 +1654,13 @@ async function getHallTicket(c: Ctx) {
   if (!isUUID(examId)) throw badRequest('exam_id must be a uuid')
   const t = await c.db.prepare(`
     SELECT se.ticket_no, h.name AS hall, se.row_no, se.col_no, ${NAME} AS student_name, st.admission_no,
-           COALESCE(c.name,'') AS class_name, COALESCE(sec.name,'') AS section_name, ex.name AS exam_name, ex.board, i.name AS school
+           COALESCE(c.name,'') AS class_name, COALESCE(sec.name,'') AS section_name, ex.name AS exam_name, ex.board, i.name AS school,
+           st.photo_file_id, i.affiliation_no, i.affiliation_board, i.district, i.state AS school_state,
+           (SELECT ay.name FROM academic_years ay WHERE ay.id = ex.academic_year_id) AS academic_year,
+           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id ORDER BY (lower(COALESCE(g.relation,'')) = 'father') DESC, sg.is_primary DESC LIMIT 1) AS father_name,
+           (SELECT g.relation FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+             WHERE sg.student_id = st.id ORDER BY (lower(COALESCE(g.relation,'')) = 'father') DESC, sg.is_primary DESC LIMIT 1) AS guardian_relation
       FROM exam_seats se
       JOIN exam_halls h ON h.id = se.hall_id
       JOIN students st ON st.id = se.student_id
@@ -1265,6 +1684,9 @@ async function getHallTicket(c: Ctx) {
     ticket_no: t.ticket_no, student_name: t.student_name, admission_no: t.admission_no, class_name: t.class_name,
     section_name: t.section_name, exam_name: t.exam_name, board: t.board ?? undefined, hall: t.hall,
     seat: `Row ${t.row_no}, Seat ${t.col_no}`, school: t.school,
+    photo_file_id: t.photo_file_id ?? undefined, father_name: t.father_name ?? undefined, guardian_relation: t.guardian_relation ?? undefined,
+    academic_year: t.academic_year ?? undefined, affiliation_no: t.affiliation_no ?? undefined, affiliation_board: t.affiliation_board ?? undefined,
+    place: [t.district, t.school_state].filter(Boolean).join(', ') || undefined,
     papers: papers.results.map((p) => ({
       subject: p.subject, date: p.date ?? undefined, starts_at: p.starts_at ?? undefined,
       duration_minutes: p.duration_minutes ?? undefined, max_marks: p.max_marks ?? undefined,
@@ -1452,6 +1874,20 @@ function registerHpc(r: Router) {
 
   r.get('/hpc/hall-ticket', SELF_READ, getHallTicket)
 
+  /* The exams a student (or a parent's children) holds a seat in: the picker
+     on their hall-ticket screen. /exams/list is the office's, and refused them. */
+  r.get('/hpc/my-exams', SELF_READ, async (c) => {
+    const res = await resolveScope(c)
+    const ids = res.studentIds
+    if (!ids.length) return ok({ items: [] })
+    const rows = await c.db.prepare(`
+      SELECT DISTINCT e.id, e.name, e.kind, ${dateOf('e.starts_on')} AS starts_on
+        FROM exam_seats se JOIN exams e ON e.id = se.exam_id
+       WHERE se.student_id IN ${inList(ids)}
+       ORDER BY e.starts_on IS NULL, e.starts_on DESC, e.name`).bind(js(ids)).all()
+    return ok({ items: rows.results.map((v) => ({ id: str(v.id), name: str(v.name), kind: str(v.kind), starts_on: v.starts_on == null ? undefined : str(v.starts_on) })) })
+  })
+
   r.get('/hpc/competencies', SELF_READ, async (c) => {
     const domain = c.url.searchParams.get('domain') || null
     const rows = await c.db.prepare(`SELECT id, domain, code, name, COALESCE(description,'') AS description, stages
@@ -1518,6 +1954,8 @@ function registerLifecycle(r: Router) {
         LEFT JOIN sections sec ON sec.id = en.section_id
         LEFT JOIN users u ON u.id = ic.requested_by
         LEFT JOIN guardians g ON g.id = (SELECT id FROM guardians WHERE user_id = ic.requested_by LIMIT 1)
+       -- Students' certificates only: staff letters (appointment, salary revision, warning) live in HR (owner, 2026-10-07).
+       WHERE ic.student_id IS NOT NULL AND ct.subject_kind <> 'staff'
        ORDER BY ic.created_at DESC LIMIT 200`).all()
     return ok(items(rows.results.map((v) => ({
       serial_no: v.serial_no, type: v.type, student_name: v.student_name ?? '', issued_on: v.issued_on, status: v.status,
@@ -1564,6 +2002,31 @@ function registerLifecycle(r: Router) {
   })
 
   r.post('/lifecycle/certificates', STUDENTS_WRITE, issueCertificate)
+  r.post('/lifecycle/certificates/bulk', STUDENTS_WRITE, issueCertificatesBulk)
+
+  /* CERTIFICATE DESIGNS (owner, 2026-10-07: "let them add the design of the
+     certificate"). Per certificate code: a frame style (classic border or
+     plain letterhead), an optional uploaded background the details print on,
+     and an optional signature image. Kept in module_settings as one JSON
+     document, so no schema change. */
+  r.get('/lifecycle/certificate-designs', STUDENTS_READ, async (c) => {
+    const row = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(c.id.institution!.id).first<{ config: string | null }>()
+    return ok({ designs: parseJSON(row?.config ?? '{}') ?? {} })
+  })
+  r.put('/lifecycle/certificate-designs', STUDENTS_WRITE, async (c) => {
+    const req = await readJSON<{ code?: string; style?: string; background_file_id?: string | null; signature_file_id?: string | null }>(c.req)
+    const code = (req.code ?? '').trim().toUpperCase()
+    if (!/^[A-Z0-9_]{1,40}$/.test(code)) throw badRequest('Say which certificate this design is for.')
+    const style = ['classic', 'letterhead', 'background'].includes(String(req.style)) ? String(req.style) : 'classic'
+    const id = (v: unknown) => (typeof v === 'string' && isUUID(v) ? v : null)
+    const inst = c.id.institution!.id
+    const row = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(inst).first<{ config: string | null }>()
+    const all = (parseJSON(row?.config ?? '{}') ?? {}) as Record<string, unknown>
+    all[code] = { style, background_file_id: id(req.background_file_id), signature_file_id: id(req.signature_file_id) }
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'certificate_designs', 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(inst, JSON.stringify(all)).run()
+    return ok({ designs: all })
+  })
 
   r.get('/lifecycle/certificates/{id}/render', STUDENTS_READ, async (c) => {
     const certId = c.params.id
@@ -1591,7 +2054,12 @@ function registerLifecycle(r: Router) {
       rendered = body
       for (const [k, v] of Object.entries(fields)) rendered = rendered.split('{{' + k + '}}').join(escapeHtml(v))
     } else rendered = plainCertificate(str(row.type_name), str(row.code), fields, await schoolFacts(c.db, c.id.institution!))
-    return ok({ html: rendered, css: body.trim() !== '' ? undefined : DOC_PRINT_CSS, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '' })
+    const dz = await c.db.prepare(`SELECT config FROM module_settings WHERE institution_id = ? AND module = 'certificate_designs'`).bind(c.id.institution!.id).first<{ config: string | null }>()
+    const design = ((parseJSON(dz?.config ?? '{}') ?? {}) as Record<string, unknown>)[str(row.code).toUpperCase()] ?? null
+    return ok({ html: rendered, css: body.trim() !== '' ? undefined : DOC_PRINT_CSS, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '',
+      // For the designed A4 print: the parts, not only the rendered page.
+      title: str(row.type_name), code: str(row.code), serial_no: str(row.serial_no), issued_on: issuedOn, signatory: str(row.signatory), signatory_role: str(row.signatory_role),
+      body: body.trim() !== '' ? rendered : plainCertificateBody(str(row.code), fields), fields, design })
   })
 
   r.post('/lifecycle/certificates/{id}/decide', STUDENTS_WRITE, async (c) => {
@@ -1618,7 +2086,7 @@ function registerLifecycle(r: Router) {
       SELECT g.user_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ?1 AND g.user_id IS NOT NULL
       UNION SELECT u.id FROM students st JOIN users u ON u.id = st.user_id WHERE st.id = ?1`).bind(row.student_id).all<{ user_id: string }>()
     const stmts = people.results.map((p) => notifyStmt(c, p.user_id, row.student_id, 'certificate', `${row.type_name} ${decisions[status]}`, body,
-      '/portal/requests', 'certificate', cid))
+      '/go/certificate_requests', 'certificate', cid))
     if (stmts.length) await c.db.batch(stmts)
     return ok({ status, serial_no: row.serial_no })
   })
@@ -1654,6 +2122,16 @@ const tcLines: [string, string][] = [
 ]
 
 function plainCertificate(typeName: string, code: string, f: Record<string, string>, facts: SchoolFacts): string {
+  let b = plainCertificateBody(code, f)
+  b += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:48pt;font-size:10pt">` +
+    `<div style="color:#4b5563">Date of issue: ${escapeHtml(f.date_of_issue ?? '')}</div>` +
+    `<div style="text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt">${escapeHtml(f.signatory || 'Principal')}` +
+    `<div style="font-size:8.5pt;color:#6b7280">${escapeHtml(f.signatory_role || 'Signature with seal')}</div></div></div>`
+  return documentHTML(facts, { title: typeName, subtitle: f.student_name || undefined, docNo: f.serial_no || undefined, date: f.date_of_issue || undefined }, b)
+}
+
+/** The certificate's own words and particulars, without letterhead or signature (the designed print adds those). */
+function plainCertificateBody(code: string, f: Record<string, string>): string {
   /* The standard design: the school's letterhead (services/document.ts), the
      certificate's particulars as numbered facts with hairline rules, then the
      date and the signatory. A school that has imported its own design never
@@ -1694,6 +2172,8 @@ function plainCertificate(typeName: string, code: string, f: Record<string, stri
   for (const [key, label] of lines) {
     if (!(key in f)) continue
     let v = val(key)
+    // A bonafide or character certificate is not a fee or attendance statement (owner, 2026-10-07).
+    if (code !== 'TC' && (key === 'dues_paise' || key === 'attendance_percent' || key === 'dues_override_by' || v === '')) continue
     if (v === '' && key === 'dues_override_by') continue
     n++
     if (v === '') v = '-'
@@ -1702,11 +2182,7 @@ function plainCertificate(typeName: string, code: string, f: Record<string, stri
       `<td style="${cell}padding:5pt 0;font-weight:600;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`
   }
   b += '</table>'
-  b += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:48pt;font-size:10pt">` +
-    `<div style="color:#4b5563">Date of issue: ${escapeHtml(f.date_of_issue ?? '')}</div>` +
-    `<div style="text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt">${escapeHtml(f.signatory || 'Principal')}` +
-    `<div style="font-size:8.5pt;color:#6b7280">${escapeHtml(f.signatory_role || 'Signature with seal')}</div></div></div>`
-  return documentHTML(facts, { title: typeName, subtitle: f.student_name || undefined, docNo: f.serial_no || undefined, date: f.date_of_issue || undefined }, b)
+  return b
 }
 
 const ordinalSmall: Record<number, string> = {
@@ -1725,7 +2201,8 @@ function dateInWords(iso: string): string {
   return `${ordinalWords(d)} ${MONTH_NAMES[m - 1]} ${numberInWords(y)}`
 }
 const certificateName = (code: string) =>
-  code === 'TC' ? 'Transfer Certificate' : code === 'BONAFIDE' ? 'Bonafide Certificate' : code === 'CONDUCT' ? 'Character Certificate' : code
+  code === 'TC' ? 'Transfer Certificate' : code === 'BONAFIDE' ? 'Bonafide Certificate' : code === 'CONDUCT' ? 'Character Certificate'
+  : code === 'STUDY' ? 'Study Certificate' : code === 'PROMOTION' ? 'Promotion Certificate' : code === 'ACHIEVEMENT' ? 'Achievement Certificate' : code
 const formatPaise = (p: number) => `${p < 0 ? '-' : ''}₹${Math.floor(Math.abs(p) / 100)}.${String(Math.abs(p) % 100).padStart(2, '0')}`
 
 interface TcDetails {
@@ -1785,8 +2262,42 @@ async function tcExtras(c: Ctx, sid: string, d: TcDetails, reason: string): Prom
   return out
 }
 
+type IssueReq = { student_id?: string; type_code?: string; reason?: string; achievement?: string; event?: string; position?: string } & TcDetails
+
 async function issueCertificate(c: Ctx) {
-  const req = await readJSON<{ student_id?: string; type_code?: string; reason?: string } & TcDetails>(c.req)
+  return created(await issueOne(c, await readJSON<IssueReq>(c.req)))
+}
+
+/* Every child of a section (or a list of children) gets the same
+   certificate: the achievement certificates after sports day, the promotion
+   certificates at year end, the transfer certificates for a batch that
+   leaves. A child whose TC is blocked by unpaid fees is skipped and named,
+   never overridden in bulk. */
+async function issueCertificatesBulk(c: Ctx) {
+  const req = await readJSON<IssueReq & { section_id?: string; student_ids?: string[] }>(c.req)
+  const section = req.section_id ?? ''
+  let ids = uuidsOf(req.student_ids)
+  if (section !== '') {
+    if (!isUUID(section)) throw badRequest('section_id must be a uuid')
+    const rows = await c.db.prepare(`SELECT e.student_id FROM enrollments e JOIN students st ON st.id = e.student_id WHERE e.section_id = ? AND e.status = 'active' AND st.status = 'active' ORDER BY e.roll_no`).bind(section).all<{ student_id: string }>()
+    ids = rows.results.map((r) => r.student_id)
+  }
+  if (ids.length === 0) throw badRequest('choose a section with children in it, or list the children')
+  if (ids.length > 300) throw badRequest('at most 300 certificates in one go')
+  const issued: { student_id: string; serial_no: string }[] = []
+  const skipped: { student_id: string; reason: string }[] = []
+  for (const sid of ids) {
+    try {
+      const r = await issueOne(c, { ...req, student_id: sid, override_dues: false })
+      issued.push({ student_id: sid, serial_no: r.serial_no })
+    } catch (e) {
+      skipped.push({ student_id: sid, reason: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return ok({ issued: issued.length, skipped: skipped.length, items: issued, skipped_items: skipped })
+}
+
+async function issueOne(c: Ctx, req: IssueReq): Promise<{ serial_no: string; type: string; student_id: string; dues_paise: number; dues_overridden: boolean }> {
   const sid = req.student_id ?? ''
   if (!isUUID(sid)) throw badRequest('student_id must be a uuid')
   const typeCode = req.type_code || 'TC'
@@ -1809,6 +2320,17 @@ async function issueCertificate(c: Ctx) {
       overridden = true
     }
     extras = await tcExtras(c, sid, req, reason)
+  }
+  if (typeCode === 'ACHIEVEMENT') {
+    const what = (req.achievement ?? '').trim()
+    if (what === '') throw badRequest('say what was achieved: the prize, the event, the position')
+    extras = { achievement: what, event: (req.event ?? '').trim() || null, position: (req.position ?? '').trim() || null }
+  }
+  if (typeCode === 'PROMOTION') {
+    const nx = await c.db.prepare(`SELECT c2.name AS promoted_to FROM enrollments en JOIN classes c1 ON c1.id = en.class_id
+        JOIN classes c2 ON c2.campus_id = c1.campus_id AND c2.level = c1.level + 1
+        WHERE en.student_id = ? AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1`).bind(sid).first<{ promoted_to: string }>()
+    extras = { promoted_to: nx?.promoted_to ?? null, academic_year: (await c.db.prepare(`SELECT name FROM academic_years WHERE is_current = 1`).first<{ name: string }>())?.name ?? null }
   }
   let type = await c.db.prepare(`SELECT id FROM certificate_types WHERE code = ?`).bind(typeCode).first<{ id: string }>()
   if (!type) {
@@ -1846,5 +2368,5 @@ async function issueCertificate(c: Ctx) {
     stmts.push(c.db.prepare(`UPDATE enrollments SET status = 'transferred' WHERE student_id = ? AND status = 'active'`).bind(sid))
   }
   await c.db.batch(stmts)
-  return created({ serial_no: serial, type: typeCode, student_id: sid, dues_paise: duesPaise, dues_overridden: duesPaise > 0 && !!req.override_dues })
+  return { serial_no: serial, type: typeCode, student_id: sid, dues_paise: duesPaise, dues_overridden: duesPaise > 0 && !!req.override_dues }
 }

@@ -1,3 +1,4 @@
+import { TimePicker } from '@/components/PickerMenu'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -83,7 +84,7 @@ export default function PunchGrace() {
               <div className="p-5">
                 <FormGrid>
                   <Field label="Shift starts" required>
-                    <Input type="time" value={f.shift} onChange={(v) => setF({ ...f, shift: v })} />
+                    <TimePicker value={f.shift} onChange={(v) => setF({ ...f, shift: v })} />
                   </Field>
                   <Field label="Grace, minutes" hint="Late after this">
                     <Input type="number" value={f.grace} onChange={(v) => setF({ ...f, grace: v })} />

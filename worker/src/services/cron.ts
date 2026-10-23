@@ -31,6 +31,10 @@ export const SCHEDULES: Schedule[] = [
     payload: (i, j) => ({ ...env0(i, j), template_key: 'fee.overdue', overdue_since: new Date().toISOString() }) },
   { name: 'session_prune', spec: '0 3 * * *', kind: 'session:prune', perInstitution: false, payload: () => ({}) },
   { name: 'diary_reminders', spec: '*/5 * * * *', kind: 'diary:reminders', perInstitution: false, payload: () => ({}) },
+  // Question papers asked for by a deadline (owner, 2026-10-19): the first
+  // sweep after a deadline passes with nothing in on time writes the one
+  // remark and tells the teacher, once (question_paper_deadlines.remarked_at).
+  { name: 'question_paper_deadline_sweep', spec: '*/5 * * * *', kind: 'exams:paper_deadline_sweep', perInstitution: false, payload: () => ({}) },
   // Class Status (services/class_status.ts): yesterday's unpinned posts and their R2 objects, hourly.
   { name: 'status_expire', spec: '7 * * * *', kind: 'status:expire', perInstitution: false, payload: () => ({}) },
   // Go's message:dispatch; the messaging port's drain job is 'message.send'.

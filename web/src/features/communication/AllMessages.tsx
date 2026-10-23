@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send, X } from 'lucide-react'
+import { MessageSquare, ShieldAlert, Users, Megaphone, Send, X } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
@@ -84,10 +84,21 @@ export default function AllMessages() {
   const [channel, setChannel] = useState<'' | Channel>('')
   const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('all')
   const [q, setQ] = useState('')
+  /* ONE CONVERSATION IS OPEN AT A TIME (owner, 2026-10-08: "in all mesage
+     only should open one taht too whne click any chat or circular will open
+     on ONLY ON RIGHT NOW IT OPENED MULTPLE PAGES").
+
+     There were four separate pieces of state here -- parent thread, staff
+     thread, concern, circular -- and nothing cleared any of the others. Open
+     a chat and then a circular and both panes rendered, stacked down the
+     right-hand column, each with its own header and close button and neither
+     of them the one just clicked. Four opens meant four panes on screen.
+
+     A reading pane is a place, not a pile: one selection, and the channel of
+     whatever is selected decides which pane is drawn in it. Clicking a
+     second card replaces the first, which is what the single column on the
+     right was always meant to be. */
   const [open, setOpen] = useOpenState<Item | null>(null)
-  const [openStaff, setOpenStaff] = useState<Item | null>(null)
-  const [openConcern, setOpenConcern] = useState<Item | null>(null)
-  const [openCircular, setOpenCircular] = useState<Item | null>(null)
   /* Smaller questions of a big desk: what came in this week, what is one
      class saying, what has one teacher been dealing with. The tiles keep
      counting the whole school either way, so a filter cannot make the school
@@ -166,7 +177,12 @@ export default function AllMessages() {
         }
       />
       <PageBody>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {/* THE TILES ARE CARDS TOO (owner, 2026-10-09: "still i see
+            the boxes"). A .cell gets its corner from CellGrid, which clips
+            its children against one rounded container; these five sit in a
+            plain gapped grid, so each one drew its own square edge next to
+            the rounded cards under it. Rounded here, where the grid is. */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 [&>*]:overflow-hidden [&>*]:rounded-[14px]">
           <Stat label="Parent → teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
             active={channel === 'parent_teacher'} onClick={tile('parent_teacher')} />
           <Stat label="Staff → parent unread" value={counts?.staff_parent ?? '–'} icon={Send}
@@ -210,14 +226,17 @@ export default function AllMessages() {
             </Button>
           )}
         </div>
-        <p className="text-[12px] text-muted-foreground">
-          Each tile counts what is still waiting for a reply, across the whole school,
-          pressing one filters the list below without changing the counts.
-        </p>
-        <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          <HeartHandshake className="h-4 w-4" />
-          {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open, private; counted here, never read.
-        </p>
+        {/* ONE LINE, NOT THREE (owner, 2026-10-09: "remove this in all
+            messages thats all unessary right only one line abt is enough").
+
+            A sentence explaining that a tile counts things and that pressing
+            one filters the list is a sentence about how a list works, which
+            the tiles demonstrate the moment anybody presses one. The
+            counselling line was a second paragraph carrying one number that
+            is already a tile.
+
+            The counsellor's figure keeps its place in the tiles above; what
+            goes is the prose around it. */}
 
         {/* On a desk the conversation opens BESIDE the list, the way the web
             chat does: the feed narrows to the left, the thread sits on the
@@ -226,7 +245,31 @@ export default function AllMessages() {
         <div
           className={cn(
             'space-y-4',
-            (open || openStaff || openConcern || openCircular) && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
+            /* BOTH COLUMNS ARE ONE SCREEN TALL (owner, 2026-10-08, twice:
+               "this should be even").
+
+               Stretching the row was not enough and could not be. The feed
+               is as tall as its contents -- 7,344px for the 37 conversations
+               on the live desk -- while the reading pane is a sticky card
+               capped at 82vh, so the two columns ended 6,600px apart and no
+               amount of aligning the row would bring them together; against
+               a short feed the pane's old 60vh floor held it open below the
+               last card instead. Two different-shaped columns cannot finish
+               level while one of them is free to grow.
+
+               So neither grows. Each column is 82vh, the same 82vh, and each
+               scrolls inside itself: the feed on the left, the thread on the
+               right, bottoms level at every length of either. This is what a
+               mail client does, and it is the layout the pane was already
+               half-built for -- it was sticky precisely because the feed ran
+               away from it. The page itself no longer scrolls behind them,
+               which also means the filters above stay put.
+
+               Only on a desk and only with something open. The one-column
+               feed keeps the page's own scroll, and a phone opens the thread
+               as a screen of its own. */
+            open && `lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-stretch lg:gap-4 lg:space-y-0
+                     lg:h-[82vh] lg:overflow-hidden`,
           )}
         >
         {inbox.isLoading ? (
@@ -249,7 +292,9 @@ export default function AllMessages() {
             />
           </Card>
         ) : (
-          <section className="space-y-4">
+          /* The feed's own scroller, the height of the row it shares with
+             the pane. pr-1 keeps the cards' right edge off the scrollbar. */
+          <section className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <h2 className="flex items-center gap-2 text-[15px] font-bold text-foreground/80">
               {channel ? CHANNEL_LABEL[channel] : 'Every channel'}
               <span className="text-[12.5px] font-normal text-muted-foreground">
@@ -262,15 +307,7 @@ export default function AllMessages() {
                 <MessageCard
                   key={it.channel + it.key}
                   it={it}
-                  onOpen={
-                    it.channel === 'parent_teacher' || it.channel === 'staff_parent'
-                      ? () => setOpen(it)
-                      : it.channel === 'staff'
-                        ? () => setOpenStaff(it)
-                        : it.channel === 'concern'
-                          ? () => setOpenConcern(it)
-                          : () => setOpenCircular(it)
-                  }
+                  onOpen={() => setOpen(it)}
                   /* Every channel opens on the desk now. The screens that act
                      on these -- the grievance desk, circulars -- are offered
                      inside the pane rather than instead of it. */
@@ -280,13 +317,18 @@ export default function AllMessages() {
           </section>
         )}
 
-        {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
-        {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} deskHref={toStaff} />}
-        {openConcern && (
-          <ConcernPane item={openConcern} onClose={() => setOpenConcern(null)} deskHref={toGrievances} />
+        {/* The one pane, drawn for whatever kind of thing is selected. */}
+        {open && (open.channel === 'parent_teacher' || open.channel === 'staff_parent') && (
+          <ParentThread item={open} onClose={() => setOpen(null)} />
         )}
-        {openCircular && (
-          <CircularPane item={openCircular} onClose={() => setOpenCircular(null)} deskHref={toCirculars} />
+        {open && open.channel === 'staff' && (
+          <StaffThread item={open} onClose={() => setOpen(null)} deskHref={toStaff} />
+        )}
+        {open && open.channel === 'concern' && (
+          <ConcernPane item={open} onClose={() => setOpen(null)} deskHref={toGrievances} />
+        )}
+        {open && !['parent_teacher', 'staff_parent', 'staff', 'concern'].includes(open.channel) && (
+          <CircularPane item={open} onClose={() => setOpen(null)} deskHref={toCirculars} />
         )}
         </div>
       </PageBody>
@@ -461,7 +503,11 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
         ? 'Staff'
         : CHANNEL_LABEL[it.channel]
   const body = (
-    <article className="rounded-xl border bg-card shadow-sm transition-colors hover:border-primary/40">
+    /* rounded-2xl (owner, 2026-10-09: "in that screen make the cards
+       round"). The feed is a column of cards on a tinted ground and a 12px
+       corner on a card this wide reads as a box; 16px reads as a card, and
+       it is the radius the reading pane beside it already uses. */
+    <article className="rounded-2xl border bg-card shadow-sm transition-colors hover:border-primary/40">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-dashed px-5 py-3 text-[13px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2">
           <span>To:</span>
@@ -800,7 +846,11 @@ function ThreadPane({
     )
   }
   return (
-    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4">
+    /* On a desk the row sets the height and both columns take all of it, so
+       the feed and the thread end level. The phone branch above never gets
+       here. min-h-[60vh] is what used to hold this open below a short feed;
+       it stays for the in-between widths that are neither phone nor grid. */
+    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:h-full lg:max-h-none lg:min-h-0">
       <CardHeader
         title={title}
         description={subtitle}

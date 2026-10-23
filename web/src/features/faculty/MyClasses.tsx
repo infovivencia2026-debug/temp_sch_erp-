@@ -24,7 +24,22 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]!.toUpperCase()).join('')
 }
 
-function Kpi({ label, value, small, danger }: { label: string; value: string; small?: string; danger?: boolean }) {
+function Kpi({ label, value, small, danger, onClick, active }: { label: string; value: string; small?: string; danger?: boolean; onClick?: () => void; active?: boolean }) {
+  /* A figure that opens a list is a button, highlighted in the school colour
+     (owner, 2026-10-19: "highlight here ONLY PENDING HOMEWORK WITH LISTED STUDENTS"). */
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-expanded={active}
+        className={cn('flex flex-col gap-1.5 rounded-[10px] border-2 bg-primary/5 px-5 py-4 text-left transition-colors hover:bg-primary/10',
+          active ? 'border-primary' : 'border-primary/40')}>
+        <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-primary">{label} ›</span>
+        <div className={cn('flex flex-wrap items-baseline gap-x-1.5 text-[22px] font-bold', danger && 'text-destructive')}>
+          {value}
+          {small && <small className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">{small}</small>}
+        </div>
+      </button>
+    )
+  }
   return (
     <div className="flex flex-col gap-1.5 rounded-[10px] border bg-card px-5 py-4">
       <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
@@ -170,6 +185,14 @@ export default function MyClasses() {
     { key: 'full_name' },
   )
 
+  // Hooks before the early returns below, or React refuses the render.
+  const [showPending, setShowPending] = useState(false)
+  const pending = useQuery({
+    queryKey: ['pending-homework', range, filterQuery],
+    queryFn: () => api.get<{ items: { id: string; title: string; subject: string; class: string; assigned_on: string; due_on?: string; students: { id: string; name: string; admission_no: string }[] }[] }>(
+      `/api/v1/teaching/progress/pending-homework?${rangeQuery(range)}${filterQuery ? '&' + filterQuery : ''}`),
+    enabled: showPending,
+  })
   if (options.isLoading || progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
 
@@ -199,9 +222,34 @@ export default function MyClasses() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Kpi label="Class average" value={classAvg == null ? '-' : `${classAvg}%`} small={pickedSection?.label} />
           <Kpi label="Avg attendance" value={attAvg == null ? '-' : `${attAvg}%`} small={rangeLabel} />
-          <Kpi label="Pending homework" value={String(pendingHw)} small="Submissions" />
+          <Kpi label="Pending homework" value={String(pendingHw)} small={showPending ? 'Click again to go back' : 'Submissions'} onClick={() => setShowPending((v) => !v)} active={showPending} />
           <Kpi label="Needs attention" value={String(attention.length)} small="Students" danger={attention.length > 0} />
         </div>
+
+        {showPending && (
+          <Card>
+            <CardHeader title="Pending homework" description="Only work still owed, with the students who have not handed it in." />
+            {pending.isLoading ? <Loading /> : (pending.data?.items ?? []).length === 0 ? (
+              <p className="px-5 py-6 text-center text-[13.5px] text-muted-foreground">Nothing pending: everyone has handed in everything set in this period.</p>
+            ) : (
+              <ul className="divide-y">
+                {(pending.data?.items ?? []).map((h) => (
+                  <li key={h.id} className="px-5 py-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="text-[13.5px] font-semibold">{h.title} <span className="font-normal text-muted-foreground">· {h.subject} · {h.class}</span></span>
+                      <span className="text-[12px] text-muted-foreground">{h.due_on ? `due ${formatDate(h.due_on)}` : `set ${formatDate(h.assigned_on)}`} · {h.students.length} not handed in</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {h.students.map((st) => (
+                        <span key={st.id} className="rounded-full bg-[hsl(var(--sys-danger)/0.1)] px-2.5 py-1 text-[12px] font-medium text-[hsl(var(--sys-danger))]">{st.name}</span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
 
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
@@ -245,7 +293,9 @@ export default function MyClasses() {
             </div>
           </div>
 
-          {shown.length === 0 ? (
+          {/* While Pending homework is open the roster steps aside (owner,
+              2026-10-19: "dont show this when pending homework is clicked"). */}
+          {showPending ? null : shown.length === 0 ? (
             <EmptyState
               title={rows.length === 0 ? 'No children here yet' : 'Nobody in this filter'}
               body={rows.length === 0 ? 'Once the class is assigned and the register is marked, each child appears here.' : 'Choose All students to see the whole class.'}
@@ -319,7 +369,14 @@ export default function MyClasses() {
           )}
         </Card>
 
-        {progressOf && <ProgressDetail row={progressOf} onClose={() => setProgressOf(null)} />}
+        {progressOf && (
+          <ProgressDetail
+            row={progressOf}
+            onClose={() => setProgressOf(null)}
+            fullClass={pickedSection?.full ?? false}
+            mySubjects={(pickedSection?.subjects ?? []).filter((x) => x.mine).map((x) => x.name)}
+          />
+        )}
 
         {reviewDue.length > 0 && (
           <Card>

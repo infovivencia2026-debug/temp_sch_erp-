@@ -154,6 +154,12 @@ function dayOf(v: unknown): number | null {
   if (!Number.isFinite(d) || d < 1 || d > 366) throw badRequest('day must be a whole number from 1')
   return d
 }
+/** How a course is built: topics with days (the default), days only, or topics only. */
+function layoutOf(v: unknown): 'topic_day' | 'day' | 'topic' {
+  const x = str(v) || 'topic_day'
+  if (x !== 'topic_day' && x !== 'day' && x !== 'topic') throw badRequest('layout must be topic_day, day or topic')
+  return x
+}
 /** A pass mark as a percentage (1-100) or null. */
 function passOf(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
@@ -178,7 +184,8 @@ export function registerLMS(r: Router) {
     const mineOnly = !s.allStudents || c.url.searchParams.get('mine') === '1'
     /* A teacher sees the subjects they are allocated; a class teacher also every subject of their own section. */
     const rows = await c.db.prepare(`
-      SELECT sec.id AS section_id, sec.name AS section_name, cl.name AS class_name, cl.level, cs.id AS class_subject_id, sub.name AS subject,
+      SELECT sec.id AS section_id, sec.name AS section_name, cl.id AS class_id, cl.name AS class_name, cl.level, cs.id AS class_subject_id, sub.name AS subject,
+        COALESCE(lc.layout, 'topic_day') AS layout,
         (SELECT u.full_name FROM section_subject_teachers t JOIN users u ON u.id = t.teacher_user_id WHERE t.section_id = sec.id AND t.class_subject_id = cs.id LIMIT 1) AS teacher,
         (SELECT count(*) FROM syllabus_units su WHERE su.class_subject_id = cs.id AND su.is_active = 1) AS units,
         (SELECT count(*) FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id WHERE su.class_subject_id = cs.id AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = sec.id)) AS lessons,
@@ -187,6 +194,7 @@ export function registerLMS(r: Router) {
         (SELECT count(*) FROM online_tests t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id) AS quizzes,
         (SELECT count(*) FROM enrollments e WHERE e.section_id = sec.id AND e.status = 'active') AS roll
       FROM sections sec JOIN classes cl ON cl.id = sec.class_id JOIN class_subjects cs ON cs.class_id = cl.id JOIN subjects sub ON sub.id = cs.subject_id
+      ${mineOnly ? 'LEFT ' : ''}JOIN lms_courses lc ON lc.section_id = sec.id AND lc.class_subject_id = cs.id
       WHERE ${mineOnly ? `(EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)
                  OR sec.class_teacher_id = ? ${s.allStudents ? '' : `OR (sec.id IN (${marks()}) AND NOT EXISTS (SELECT 1 FROM section_subject_teachers t2 WHERE t2.teacher_user_id = ?))`})` : '1'}
       ORDER BY cl.level, cl.name, sec.name, sub.name LIMIT 400`)
@@ -195,15 +203,139 @@ export function registerLMS(r: Router) {
     return ok({ items: rows.results })
   })
 
+  /* What a course can be added to: every class with its sections and subjects (the LMS Admin). */
+  r.get('/lms/courses/options', P, async (c) => {
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin adds courses')
+    const [cls, secs, subs] = await c.db.batch([
+      c.db.prepare(`SELECT id, name FROM classes ORDER BY level, name`),
+      c.db.prepare(`SELECT id, class_id, name FROM sections ORDER BY name`),
+      c.db.prepare(`SELECT cs.id, cs.class_id, sub.name FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id ORDER BY sub.name`),
+    ])
+    return ok({ classes: cls.results, sections: secs.results, subjects: subs.results })
+  })
+
+  /* Add a subject as a course to one or more sections of its class. */
+  r.post('/lms/courses', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin adds courses')
+    const b = await readJSON<Body>(c.req)
+    const layout = layoutOf(b.layout)
+    const ids = Array.isArray(b.section_ids) ? b.section_ids.map((x) => needUUID(x, 'section_ids')) : []
+    if (!ids.length) throw badRequest('pick at least one section')
+
+    /* A COURSE THE SCHOOL DOES NOT TEACH (owner, 2026-10-10: "let them
+       choose any course make it editable").
+
+       The picker offered the class's own subjects and nothing else, so an
+       LMS admin typing "AI" was told "Nothing matches that. This list only
+       takes one of its own" -- on the one screen whose whole purpose, by
+       the owner's own description, is courses that are NOT taught in
+       class. Robotics had to be put in by hand through the database for
+       exactly this reason.
+
+       So a name may be sent instead of an id. The subject is created if the
+       school has not got one by that name, and attached to the class of the
+       sections picked, as an elective with no periods: it is a course, not
+       a timetabled lesson, and it must not start claiming periods in the
+       timetable or marks in the report card.
+
+       Matched case-insensitively on the name so a second "AI" does not
+       appear beside the first, and the code is derived from the name and
+       made unique, because the table demands one and nobody typing a course
+       name is thinking about subject codes. */
+    let cs: string
+    const typed = typeof b.subject_name === 'string' ? b.subject_name.trim().slice(0, 60) : ''
+    if (b.class_subject_id) {
+      cs = needUUID(b.class_subject_id, 'class_subject_id')
+    } else if (typed) {
+      /* THE CLASS THE FORM NAMED, CHECKED AGAINST THE SECTIONS
+         (tester, 2026-10-10: picked Grade 6, named "Chess", got
+         "Chess · Nursery").
+
+         The class used to be worked out here by looking up the sections, and
+         an inference can disagree with what the person set on screen. It did,
+         and the course was created under another class with no warning.
+
+         The form sends the class now. The sections are checked against it,
+         and a pair that does not agree is refused rather than quietly
+         resolved one way: a course lands where the form said or nowhere.
+         Falling back to the lookup only when no class was sent, so an older
+         page or a script keeps working. */
+      let classId: string
+      if (b.class_id) {
+        classId = needUUID(b.class_id, 'class_id')
+        const belong = await c.db.prepare(`SELECT count(*) AS n FROM sections WHERE class_id = ? AND id IN (${marks()})`)
+          .bind(classId, js(ids)).first<{ n: number }>()
+        if (!belong || belong.n !== new Set(ids).size) throw badRequest('those sections are not all in the class picked')
+      } else {
+        const cls = await c.db.prepare(`SELECT DISTINCT class_id FROM sections WHERE id IN (${marks()})`).bind(js(ids)).all<{ class_id: string }>()
+        if (cls.results.length !== 1) throw badRequest('pick sections from one class when naming a new course')
+        classId = cls.results[0].class_id
+      }
+      const inst0 = institutionId(c)
+      const camp = await c.db.prepare(`SELECT campus_id FROM classes WHERE id = ?`).bind(classId).first<{ campus_id: string }>()
+      if (!camp) throw badRequest('that class is not on this school')
+      let sub = await c.db.prepare(`SELECT id FROM subjects WHERE institution_id = ? AND campus_id = ? AND lower(name) = lower(?)`)
+        .bind(inst0, camp.campus_id, typed).first<{ id: string }>()
+      if (!sub) {
+        /* A code the UNIQUE (institution, campus, code) will accept: the
+           name's letters, then a number if that is taken. */
+        const base = (typed.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'CRS')
+        let code = base
+        for (let i = 2; i < 60; i++) {
+          const clash = await c.db.prepare(`SELECT 1 AS x FROM subjects WHERE institution_id = ? AND campus_id = ? AND code = ?`)
+            .bind(inst0, camp.campus_id, code).first()
+          if (!clash) break
+          code = `${base}${i}`
+        }
+        const sid = uuid()
+        await c.db.prepare(`INSERT INTO subjects (id, institution_id, campus_id, name, code, is_scholastic, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)`)
+          .bind(sid, inst0, camp.campus_id, typed, code, now()).run()
+        sub = { id: sid }
+      }
+      const link = await c.db.prepare(`SELECT id FROM class_subjects WHERE class_id = ? AND subject_id = ?`)
+        .bind(classId, sub.id).first<{ id: string }>()
+      if (link) cs = link.id
+      else {
+        const lid = uuid()
+        await c.db.prepare(`INSERT INTO class_subjects (id, institution_id, class_id, subject_id, is_elective, periods_per_week) VALUES (?, ?, ?, ?, 1, 0)`)
+          .bind(lid, inst0, classId, sub.id).run()
+        cs = lid
+      }
+    } else {
+      throw badRequest('pick a subject, or type a name for a new course')
+    }
+    const ok1 = await c.db.prepare(`SELECT count(*) AS n FROM sections sec JOIN class_subjects cs ON cs.class_id = sec.class_id WHERE cs.id = ? AND sec.id IN (${marks()})`)
+      .bind(cs, js(ids)).first<{ n: number }>()
+    if (!ok1 || ok1.n !== new Set(ids).size) throw badRequest('that course does not belong to every section picked')
+    const t = now(), inst = institutionId(c)
+    await c.db.batch(ids.map((sec) => c.db.prepare(`INSERT INTO lms_courses (institution_id, section_id, class_subject_id, layout, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (section_id, class_subject_id) DO UPDATE SET layout = excluded.layout`).bind(inst, sec, cs, layout, s.userId, t)))
+    return ok({ added: ids.length })
+  })
+
+  /* Take a course off the list. Nothing in it is deleted; adding it again brings it all back. */
+  r.del('/lms/courses', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    if (!s.allStudents) throw forbidden('only the LMS Admin removes courses')
+    const q = c.url.searchParams
+    await c.db.prepare(`DELETE FROM lms_courses WHERE section_id = ? AND class_subject_id = ?`).bind(needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id')).run()
+    return ok({ removed: true })
+  })
+
   /* One course: units and lessons with completion, assignments and quizzes. */
   r.get('/lms/course', P, async (c) => {
     const s = await resolveScope(c)
     const q = c.url.searchParams
     const co = await course(c, s, needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id'))
-    const [units, lessons, hw, quizzes, roll, days, gate] = await c.db.batch([
+    const [units, lessons, hw, quizzes, roll, days, lay] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active, parent_unit_id FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
-          l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional,
+          l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.open_now,
+          l.yt_video_id, l.yt_playlist_id, l.yt_channel, l.key_points,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           (SELECT count(*) FROM lms_lesson_progress p JOIN enrollments e ON e.student_id = p.student_id AND e.section_id = ? AND e.status = 'active' WHERE p.lesson_id = l.id) AS completed
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id LEFT JOIN lms_videos v ON v.id = l.video_id
@@ -220,15 +352,16 @@ export function registerLMS(r: Router) {
           FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = ? ORDER BY t.created_at DESC`).bind(co.section_id, co.class_subject_id),
       c.db.prepare(`SELECT count(*) AS n FROM enrollments WHERE section_id = ? AND status = 'active'`).bind(co.section_id),
       c.db.prepare(`SELECT d.unit_id, d.day, d.label FROM lms_unit_days d JOIN syllabus_units su ON su.id = d.unit_id WHERE su.class_subject_id = ? ORDER BY d.unit_id, d.day`).bind(co.class_subject_id),
-      c.db.prepare(`SELECT gating FROM lms_course_settings WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
+      c.db.prepare(`SELECT layout FROM lms_courses WHERE section_id = ? AND class_subject_id = ?`).bind(co.section_id, co.class_subject_id),
     ])
     const ls = lessons.results as Record<string, unknown>[]
     return ok({
       course: co, roll: (roll.results[0] as { n: number }).n, today: todayIST(),
-      gating: (gate.results[0] as { gating?: string } | undefined)?.gating === 'open' ? 'open' : 'sequential',
+      gating: 'sequential', // always one by one (lms_progress.ts)
       days: days.results,
+      layout: (lay.results[0] as { layout?: string } | undefined)?.layout ?? 'topic_day',
       /* Archived modules come too (is_active false), so they can be brought back. */
-      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published, is_optional: !!l.is_optional })) })),
+      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published, is_optional: !!l.is_optional, open_now: !!l.open_now })) })),
       assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, rubric: parseRubric(h.rubric), allow_submission: !!h.allow_submission })),
       quizzes: quizzes.results,
     })
@@ -370,11 +503,64 @@ export function registerLMS(r: Router) {
     return ok({ id: u.id, retired: true })
   })
 
+  /* YOUTUBE, FROM WHATEVER THE TEACHER PASTED.
+
+     A teacher copies the address out of the browser bar, and that address
+     comes in five shapes: youtu.be/ID, /watch?v=ID, /watch?v=ID&list=PL,
+     /playlist?list=PL, /embed/ID and /shorts/ID. All of them are the same
+     two facts -- a video id, a playlist id, or both -- and the player needs
+     only those.
+
+     The ID IS ALL THAT IS KEPT. Not the title, not the thumbnail, not the
+     duration: YouTube's terms cap how long its metadata may be cached, and
+     a school database quietly mirroring somebody's catalogue is what those
+     terms exist to stop. The lesson keeps the teacher's own title, as it
+     always has, and the player fetches the rest from YouTube at the moment
+     of watching.
+
+     Ids are checked against their own alphabet rather than trusted. A video
+     id is eleven characters of [A-Za-z0-9_-]; a playlist id is longer and
+     from the same set. Anything else and this is not a YouTube link, and
+     the lesson stays the plain link it already was -- no error, because a
+     teacher pasting a Khan Academy page has done nothing wrong. */
+  const YT_ID = /^[A-Za-z0-9_-]{11}$/
+  const YT_LIST = /^[A-Za-z0-9_-]{12,64}$/
+  const parseYouTube = (url: string | null): { video: string | null; list: string | null } => {
+    if (!url) return { video: null, list: null }
+    let u: URL
+    try { u = new URL(url) } catch { return { video: null, list: null } }
+    const host = u.hostname.replace(/^www\./, '').toLowerCase()
+    const isYT = host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com' || host === 'youtu.be'
+    if (!isYT) return { video: null, list: null }
+    let video: string | null = null
+    if (host === 'youtu.be') video = u.pathname.slice(1).split('/')[0] || null
+    else if (u.pathname === '/watch') video = u.searchParams.get('v')
+    else {
+      const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([^/?#]+)/)
+      if (m) video = m[2]
+    }
+    const list = u.searchParams.get('list')
+    return {
+      video: video && YT_ID.test(video) ? video : null,
+      list: list && YT_LIST.test(list) ? list : null,
+    }
+  }
+
   const lessonFields = (b: Body) => {
     const kind = str(b.kind) || 'text'
     if (!LESSON_KINDS.has(kind)) throw badRequest('kind must be text, file, pdf, video, link, image, audio or doc')
     const url = optStr(b.url)
     if (url && !/^https?:\/\//i.test(url)) throw badRequest('a link must start with http:// or https://')
+    const yt = parseYouTube(url)
+    /* Attribution, not metadata: the channel's name is shown beside the
+       player so the uploader is credited. The teacher types it; nothing
+       scrapes it, and it is allowed to be empty. */
+    const ytChannel = (optStr(b.yt_channel) ?? '').slice(0, 120) || null
+    /* THE TEACHER'S OWN WORDS. Not a summary of the video -- a summary
+       derived from somebody else's recording, or from its captions, is
+       derived from their work. This is what the teacher wants their class
+       to take away, written by the teacher. */
+    const keyPoints = (optStr(b.key_points) ?? '').slice(0, 4000) || null
     const fileId = optStr(b.file_id)
     if (fileId && !isUUID(fileId)) throw badRequest('file_id must be a uuid')
     const videoId = kind === 'video' ? optStr(b.video_id) : null
@@ -401,7 +587,11 @@ export function registerLMS(r: Router) {
     }
     if (b.section !== undefined && b.section !== null && b.section !== '' && !asSection(b.section)) throw badRequest('section must be prereq, resources, tools or assessment')
     return { kind, url: videoId ? null : url, fileId, videoId: videoId ? videoId.toLowerCase() : null, day, publishAt, minutes, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null,
-      section: asSection(b.section) ?? 'resources', optional: b.is_optional === true ? 1 : 0 }
+      section: asSection(b.section) ?? 'resources', optional: b.is_optional === true ? 1 : 0,
+      /* Null when the library video wins: a lesson is one thing to watch,
+         and a lesson carrying both a file in our own library and somebody
+         else's embed is two lessons wearing one title. */
+      ytVideo: videoId ? null : yt.video, ytList: videoId ? null : yt.list, ytChannel, keyPoints }
   }
 
   r.post('/lms/lessons', P, async (c) => {
@@ -422,19 +612,21 @@ export function registerLMS(r: Router) {
     const published = b.is_published === false ? 0 : 1
     const id = uuid(), t = now()
     /* At the end of the module, after its sources, assignments and quizzes. */
-    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id, duration_minutes, section, is_optional)
+    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id, duration_minutes, section, is_optional, yt_video_id, yt_playlist_id, yt_channel, key_points)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(COALESCE((SELECT max(sequence) FROM lms_lessons WHERE unit_id = ?), 0), COALESCE((SELECT max(lms_sequence) FROM homework WHERE lms_unit_id = ?), 0),
-          COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, u.id, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId, f.minutes, f.section, f.optional)]
+          COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, u.id, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId, f.minutes, f.section, f.optional,
+        f.ytVideo, f.ytList, f.ytChannel, f.keyPoints)]
     /* A scheduled lesson is announced by nobody: the child finds it on the day. */
     if (published && (!f.publishAt || f.publishAt <= t)) {
       const secs = sectionId ? [sectionId] : (await c.db.prepare(`SELECT id FROM sections WHERE class_id = ?`).bind(u.class_id).all<{ id: string }>()).results.map((x) => x.id)
       const kids: string[] = []
       for (const sec of secs) if (reachesSection(s, sec)) kids.push(...await sectionRoll(c, sec))
       const subj = await c.db.prepare(`SELECT sub.name FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.id = ?`).bind(u.class_subject_id).first<{ name: string }>()
-      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'lms_lesson', `New lesson in ${subj?.name ?? 'your course'}`, title, '/go/courses_subjects', 'lms_lesson', id))
+      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'lms_lesson', `New lesson in ${subj?.name ?? 'your course'}`, title, '/go/e_learning_resource_hub', 'lms_lesson', id))
     }
     await c.db.batch(stmts)
+    if (b.open_now === true) await c.db.prepare(`UPDATE lms_lessons SET open_now = 1 WHERE id = ?`).bind(id).run()
     return ok({ id })
   })
 
@@ -458,9 +650,16 @@ export function registerLMS(r: Router) {
     const had = await c.db.prepare(`SELECT video_id FROM lms_lessons WHERE id = ?`).bind(l.id).first<{ video_id: string | null }>()
     if (f.videoId && f.videoId !== had?.video_id) f.videoId = await checkLessonVideo(c, f.videoId)
     await c.db.prepare(`UPDATE lms_lessons SET title = ?, kind = ?, body = ?, file_id = ?, url = ?, video_id = ?, day = ?, publish_at = ?, is_published = COALESCE(?, is_published),
-        sequence = COALESCE(?, sequence), duration_minutes = ?, section = COALESCE(?, section), is_optional = COALESCE(?, is_optional), updated_at = ? WHERE id = ?`)
+        sequence = COALESCE(?, sequence), duration_minutes = ?, section = COALESCE(?, section), is_optional = COALESCE(?, is_optional),
+        yt_video_id = ?, yt_playlist_id = ?, yt_channel = ?,
+        /* Key points are only replaced when the editor sent the field.
+           A screen that saves a lesson without the notes box on it must not
+           wipe what the teacher wrote on another screen. */
+        key_points = CASE WHEN ? THEN ? ELSE key_points END, updated_at = ? WHERE id = ?`)
       .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.videoId, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
-        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, b.section === undefined ? null : f.section, typeof b.is_optional === 'boolean' ? f.optional : null, now(), l.id).run()
+        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, b.section === undefined ? null : f.section, typeof b.is_optional === 'boolean' ? f.optional : null,
+        f.ytVideo, f.ytList, f.ytChannel, b.key_points === undefined ? 0 : 1, f.keyPoints, now(), l.id).run()
+    if (typeof b.open_now === 'boolean') await c.db.prepare(`UPDATE lms_lessons SET open_now = ? WHERE id = ?`).bind(b.open_now ? 1 : 0, l.id).run()
     return ok({ id: l.id })
   })
 
@@ -550,7 +749,7 @@ export function registerLMS(r: Router) {
     }
     const kids = await sectionRoll(c, co.section_id)
     const label = kind === 'classwork' ? 'Classwork' : 'Assignment'
-    stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/courses_subjects', 'homework', id))
+    stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/e_learning_resource_hub', 'homework', id))
     stmts.push(...notifyMany(c, await recipients(c, kids, 'parents'), 'homework', `${label} set in ${co.subject}`, `${title}${due ? `, due ${due}` : ''}`, '/go/homework', 'homework', id))
     await c.db.batch(stmts)
     return ok({ id, told: kids.length })
@@ -630,7 +829,7 @@ export function registerLMS(r: Router) {
     if (give) {
       const title = status === 'resubmit' ? `Please redo: ${h.title}` : `Marked: ${h.title}`
       const body = marksVal !== null ? `${marksVal}${max !== null ? ` / ${max}` : ''}${optStr(b.feedback) ? `. ${str(b.feedback)}` : ''}` : (str(b.feedback) || 'Your teacher has looked at your work.')
-      stmts.push(...notifyMany(c, await recipients(c, [sid], 'students'), 'homework_graded', title, body, '/go/courses_subjects', 'homework_graded', h.id))
+      stmts.push(...notifyMany(c, await recipients(c, [sid], 'students'), 'homework_graded', title, body, '/go/e_learning_resource_hub', 'homework_graded', h.id))
       stmts.push(...notifyMany(c, await recipients(c, [sid], 'parents'), 'homework_graded', `${title} (${onRoll.name})`, body, '/go/homework', 'homework_graded', h.id))
     }
     await c.db.batch(stmts)
@@ -697,7 +896,7 @@ export function registerLMS(r: Router) {
     const t = now()
     const ids = rows.results.map((x) => x.student_id)
     const stmts: D1PreparedStatement[] = [c.db.prepare(`UPDATE homework_submissions SET returned_at = ? WHERE homework_id = ? AND status = 'graded' AND returned_at IS NULL`).bind(t, h.id)]
-    stmts.push(...notifyMany(c, await recipients(c, ids, 'students'), 'homework_graded', `Marked: ${h.title}`, 'Your marked work and your teacher\'s comments are ready.', '/go/courses_subjects', 'homework_graded', h.id))
+    stmts.push(...notifyMany(c, await recipients(c, ids, 'students'), 'homework_graded', `Marked: ${h.title}`, 'Your marked work and your teacher\'s comments are ready.', '/go/e_learning_resource_hub', 'homework_graded', h.id))
     stmts.push(...notifyMany(c, await recipients(c, ids, 'parents'), 'homework_graded', `Marked: ${h.title}`, 'Marked work and the teacher\'s comments are ready.', '/go/homework', 'homework_graded', h.id))
     await c.db.batch(stmts)
     return ok({ returned: ids.length })
@@ -717,7 +916,7 @@ export function registerLMS(r: Router) {
     const ids = missing.results.map((x) => x.student_id)
     const who = await recipients(c, ids, to)
     const msg = str(b.message) || `${h.title}${h.subject ? ` (${h.subject})` : ''} has not been handed in yet${h.due_on ? `; it was due ${h.due_on}` : ''}.`
-    const stmts = notifyMany(c, who, 'homework_nudge', 'Reminder: work not handed in', msg.slice(0, 400), '/go/courses_subjects', 'homework_nudge', h.id)
+    const stmts = notifyMany(c, who, 'homework_nudge', 'Reminder: work not handed in', msg.slice(0, 400), '/go/e_learning_resource_hub', 'homework_nudge', h.id)
     if (stmts.length) await c.db.batch(stmts)
     const reached = new Set(who.map((w) => w.student))
     return ok({ missing: ids.length, told: who.length, unreachable: ids.filter((i) => !reached.has(i)).length })
@@ -767,7 +966,7 @@ export function registerLMS(r: Router) {
     })
     if (publish) {
       const kids = await sectionRoll(c, co.section_id)
-      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'quiz', `New quiz in ${co.subject}`, `${title}${dur ? `, ${dur} minutes` : ''}`, '/go/courses_subjects', 'quiz', testId))
+      stmts.push(...notifyMany(c, await recipients(c, kids, 'students'), 'quiz', `New quiz in ${co.subject}`, `${title}${dur ? `, ${dur} minutes` : ''}`, '/go/e_learning_resource_hub', 'quiz', testId))
     }
     await c.db.batch(stmts)
     return ok({ id: testId, questions: qs.length })
@@ -983,8 +1182,13 @@ export function registerLMS(r: Router) {
     const b = await readJSON<Body>(c.req)
     const s = await resolveScope(c)
     const co = await course(c, s, needUUID(b.section_id, 'section_id'), needUUID(b.class_subject_id, 'class_subject_id'))
+    if (b.layout !== undefined) {
+      await c.db.prepare(`INSERT INTO lms_courses (institution_id, section_id, class_subject_id, layout, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT (section_id, class_subject_id) DO UPDATE SET layout = excluded.layout`).bind(institutionId(c), co.section_id, co.class_subject_id, layoutOf(b.layout), s.userId, now()).run()
+      if (b.gating === undefined) return ok({ layout: layoutOf(b.layout) })
+    }
     const gating = str(b.gating)
-    if (gating !== 'sequential' && gating !== 'open') throw badRequest('gating must be sequential or open')
+    if (gating !== 'sequential') throw badRequest('every course is one by one: the next video opens when the one before it is watched')
     await c.db.prepare(`INSERT INTO lms_course_settings (institution_id, section_id, class_subject_id, gating, updated_at) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (section_id, class_subject_id) DO UPDATE SET gating = excluded.gating, updated_at = excluded.updated_at`)
       .bind(institutionId(c), co.section_id, co.class_subject_id, gating, now()).run()
@@ -1051,7 +1255,7 @@ export function registerLMS(r: Router) {
     }
     if (text.trim().length < 40) throw badRequest('give the AI some lesson text to work from, a paragraph at least')
     const n = Math.max(1, Math.min(10, Math.trunc(Number(b.count ?? 5)) || 5))
-    if (!aiConfigured(c.env)) return ok({ configured: false, message: NOT_CONFIGURED_MSG, questions: [], label: 'AI draft' })
+    if (!(await aiConfigured(c.env))) return ok({ configured: false, message: NOT_CONFIGURED_MSG, questions: [], label: 'AI draft' })
     await assistantRateLimit(c)
     const system = ['You write multiple-choice questions for a school teacher in India, from the lesson text given. The teacher checks every question before a child sees it.',
       'Use only facts in the text. Four options each, exactly one correct. Plain text, no markdown.',

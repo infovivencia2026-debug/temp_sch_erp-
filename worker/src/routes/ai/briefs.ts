@@ -35,24 +35,24 @@ export function registerBriefs(r: Router): void {
     const inst = c.id.institution!
     const today = schoolToday(inst.timezone)
     const b = (await storedBrief(c.db, 'principal_morning', '', today)) ?? await generatePrincipalBrief(c.env, c.db, inst, { by: c.id.userId })
-    return ok({ brief: b, configured: aiConfigured(c.env), message: aiConfigured(c.env) ? undefined : NOT_CONFIGURED_MSG })
+    return ok({ brief: b, configured: (await aiConfigured(c.env)), message: (await aiConfigured(c.env)) ? undefined : NOT_CONFIGURED_MSG })
   })
   r.post('/ai/briefs/principal', 'auth', async (c) => {
     if (!principalOk(c)) throw forbidden('the morning brief is for the principal and school admins')
     await assistantRateLimit(c)
     const b = await generatePrincipalBrief(c.env, c.db, c.id.institution!, { by: c.id.userId, force: true })
-    return ok({ brief: b, configured: aiConfigured(c.env), message: aiConfigured(c.env) ? undefined : NOT_CONFIGURED_MSG })
+    return ok({ brief: b, configured: (await aiConfigured(c.env)), message: (await aiConfigured(c.env)) ? undefined : NOT_CONFIGURED_MSG })
   })
 
   r.get('/ai/briefs/student/{id}', 'auth', async (c) => {
     await staffSeesStudent(c, c.params.id)
     const b = await storedBrief(c.db, 'student_360', c.params.id, '')
     const inp = b ? await student360Inputs(c.db, c.params.id) : null
-    return ok({ brief: b, fresh: !!b && !!inp && inp.hash === b.inputs_hash, configured: aiConfigured(c.env) })
+    return ok({ brief: b, fresh: !!b && !!inp && inp.hash === b.inputs_hash, configured: (await aiConfigured(c.env)) })
   })
   r.post('/ai/briefs/student/{id}', 'auth', async (c) => {
     await staffSeesStudent(c, c.params.id)
-    if (!aiConfigured(c.env)) return ok({ brief: null, fresh: false, configured: false, message: NOT_CONFIGURED_MSG })
+    if (!(await aiConfigured(c.env))) return ok({ brief: null, fresh: false, configured: false, message: NOT_CONFIGURED_MSG })
     await assistantRateLimit(c)
     const out = await generateStudent360(c.env, c.db, c.id.institution!.id, c.params.id, c.id.userId)
     return ok({ brief: out.brief, fresh: true, cached: out.cached, configured: true })
@@ -68,7 +68,7 @@ export function registerBriefs(r: Router): void {
 
   r.get('/ai/settings', 'institution.read', async (c) => {
     const s = await aiSettings(c.db)
-    return ok({ ...s, default_daily_cap: DEFAULT_DAILY_CAP, used_today: await usageToday(c.db, schoolToday(c.id.institution?.timezone)), configured: aiConfigured(c.env) })
+    return ok({ ...s, default_daily_cap: DEFAULT_DAILY_CAP, used_today: await usageToday(c.db, schoolToday(c.id.institution?.timezone)), configured: (await aiConfigured(c.env)) })
   })
   r.put('/ai/settings', 'institution.settings.write', async (c) => {
     const b = await readJSON<Record<string, unknown>>(c.req)

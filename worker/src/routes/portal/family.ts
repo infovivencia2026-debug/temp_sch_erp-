@@ -7,7 +7,7 @@ import {
   fullName, institutionId, inList, marks, js, notifyStmt, nowInIndia, ownsStudent, requirePerm, resolveScope,
   scopeFilter, shortName, studentPredicate, todayIST, weekdayIST,
 } from '../teaching/common'
-import { defaultReportCardHTML, reportCardCSS } from '../exams/template'
+import { fillReportCard, gatherReportCard, loadReportCardTemplate } from '../exams/card'
 import { readableAccent, schoolFacts } from '../../services/document'
 
 /* The family's own side of the school: the children switcher, the day's
@@ -687,172 +687,8 @@ async function listDisciplineNotes(c: Ctx): Promise<Response> {
 
 // ---------------------------------------------------------------------------
 // GET /portal/results/card (renderFamilyReportCard)
-// loadReportCardTemplate / gatherReportCard / fillReportCard, as in routes/exams.ts
-// (which does not export them).
-
-const reportCardFonts: Record<string, string> = {
-  arial: 'Arial, Helvetica, sans-serif',
-  calibri: 'Calibri, Candara, Arial, sans-serif',
-  times: "'Times New Roman', Times, serif",
-}
-const escapeHtml = (v: string) =>
-  v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;')
-const txt = (v: unknown): string => (v === null || v === undefined ? '' : String(v))
-const trimFloat = (v: number) => String(Number(v.toFixed(10)))
-const ddmmyyyy = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '')
-
-async function loadTemplate(c: Ctx): Promise<{ html: string; css: string }> {
-  const fontRow = await c.db.prepare(`SELECT json_extract(config, '$.report_card_font') AS f FROM module_settings WHERE module = 'examinations'`)
-    .first<{ f: string | null }>()
-  let font = 'times'
-  if (fontRow?.f && fontRow.f.toLowerCase() in reportCardFonts) font = fontRow.f.toLowerCase()
-  const inst = await c.env.CONTROL.prepare('SELECT id, name, primary_color, logo_key, tagline FROM institutions WHERE id = ?').bind(institutionId(c))
-    .first<{ id: string; name: string; primary_color: string | null; logo_key: string | null; tagline: string | null }>()
-  const accent = inst ? (await schoolFacts(c.db, inst)).accent : readableAccent(null)
-  const css = reportCardCSS(reportCardFonts[font], accent)
-  const t = await c.db.prepare(`SELECT template_html FROM report_card_templates WHERE institution_id = ?`)
-    .bind(institutionId(c)).first<{ template_html: string }>()
-  // An imported design brings its own styling: Go returned an empty css for it.
-  return t ? { html: t.template_html, css: '' } : { html: defaultReportCardHTML, css }
-}
-
-function imgTag(id: string): string {
-  const v = id.trim()
-  if (!isUUID(v)) return ''
-  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="width:100%;height:100%;max-width:100%;object-fit:cover;display:block">`
-}
-/* The crest keeps its own proportions at the card's crest height: the photo
-   and signature tag fills its box, and a logo given that treatment filled
-   the page. */
-function logoTag(id: string): string {
-  const v = id.trim()
-  if (!isUUID(v)) return ''
-  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="height:18mm;width:auto;max-width:60mm;object-fit:contain;display:inline-block">`
-}
-
-function stripUnknownPlaceholders(v: string): string {
-  for (;;) {
-    const i = v.indexOf('{{'); if (i < 0) return v
-    const j = v.indexOf('}}', i); if (j < 0) return v
-    v = v.slice(0, i) + v.slice(j + 2)
-  }
-}
-function fillReportCard(tpl: string, values: Record<string, string>, subjects: Record<string, string>[]): string {
-  let rows = ''
-  for (const sub of subjects) {
-    rows += '<tr>'
-    for (const k of ['subject', 'max_marks', 'marks', 'percent', 'subject_grade']) rows += '<td>' + escapeHtml(sub[k] ?? '') + '</td>'
-    rows += '</tr>'
-  }
-  let out = tpl.split('{{subject_rows}}').join(rows)
-  if (out.includes('{{performance_chart}}')) {
-    let ch = ''
-    const n = subjects.length
-    if (n > 0) {
-      const bw = 34, gap = 10, base = 132, top = 8
-      const w = gap + n * (bw + gap)
-      ch += `<svg viewBox="0 0 ${w} 152" width="100%" style="max-width:${w}px" font-family="sans-serif">`
-      subjects.forEach((sub, i) => {
-        let pct = parseFloat((sub.percent ?? '').trim()) || 0
-        if (pct < 0) pct = 0
-        if (pct > 100) pct = 100
-        const bh = Math.trunc((pct / 100) * (base - top)) + 5
-        const x = gap + i * (bw + gap), y = base - bh
-        const grade = sub.subject_grade ?? ''
-        let name = sub.subject ?? ''
-        if (name.length > 4) name = name.slice(0, 4)
-        const fill = grade.startsWith('A1') ? '#3f6bbf' : '#6b8fd4'
-        ch += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${fill}"/>`
-        ch += `<text x="${x + bw / 2}" y="${y - 3}" text-anchor="middle" font-size="9">${escapeHtml(grade)}</text>`
-        ch += `<text x="${x + bw / 2}" y="147" text-anchor="middle" font-size="8">${escapeHtml(name)}</text>`
-      })
-      ch += '</svg>'
-    }
-    out = out.split('{{performance_chart}}').join(ch)
-  }
-  out = out.split('{{photo}}').join(imgTag(values.photo_file_id ?? ''))
-  out = out.split('{{school_logo}}').join(logoTag(values.logo_file_id ?? ''))
-  out = out.split('{{class_teacher_sign}}').join(imgTag(values.teacher_sign_file_id ?? ''))
-  out = out.split('{{principal_sign}}').join(imgTag(values.principal_sign_file_id ?? ''))
-  for (const [k, v] of Object.entries(values)) {
-    if (['photo_file_id', 'logo_file_id', 'teacher_sign_file_id', 'principal_sign_file_id'].includes(k)) continue
-    out = out.split('{{' + k + '}}').join(escapeHtml(v))
-  }
-  return stripUnknownPlaceholders(out)
-}
-
-async function gatherReportCard(c: Ctx, cardId: string): Promise<{ values: Record<string, string>; subjects: Record<string, string>[] }> {
-  const row = await c.db.prepare(`
-    SELECT COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school,
-           COALESCE((SELECT NULLIF(b.logo_key, '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.logo_key) AS logo_key,
-           (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
-           ${fullName('st')} AS student, COALESCE(c.name,'') AS class, COALESCE(sec.name,'') AS section, st.admission_no,
-           e.roll_no, st.date_of_birth, st.admission_date, st.photo_file_id,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1) AS father,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'mother' LIMIT 1) AS mother,
-           (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS guardian,
-           CAST(rc.max_marks AS REAL) AS total, CAST(rc.total_marks AS REAL) AS obtained, CAST(rc.percentage AS REAL) AS pct,
-           CAST(rc.attendance_percent AS REAL) AS attendance, rc.grade,
-           COALESCE((SELECT ex.name FROM exams ex WHERE ex.id = rc.exam_id), (SELECT t.name FROM terms t WHERE t.id = rc.term_id), '') AS exam_name,
-           ay.name AS year,
-           COALESCE((SELECT u.full_name FROM users u WHERE u.id = rc.submitted_by), (SELECT u.full_name FROM users u WHERE u.id = sec.class_teacher_id)) AS class_teacher,
-           (SELECT u2.full_name FROM users u2 WHERE u2.id = rc.decided_by) AS principal,
-           (SELECT u.signature_file_id FROM users u WHERE u.id = rc.submitted_by) AS teacher_sign,
-           (SELECT u2.signature_file_id FROM users u2 WHERE u2.id = rc.decided_by) AS principal_sign,
-           rc.rank_in_section AS rank
-      FROM report_cards rc
-      JOIN students st ON st.id = rc.student_id
-      JOIN institutions i ON i.id = rc.institution_id
-      JOIN enrollments e ON e.id = rc.enrollment_id
-      LEFT JOIN sections sec ON sec.id = e.section_id
-      LEFT JOIN classes c ON c.id = sec.class_id
-      LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
-     WHERE rc.id = ?`).bind(cardId).first<Record<string, unknown>>()
-  if (!row) throw new Error('report card not found')
-  const g = (k: string) => txt(row[k])
-  const n = (k: string) => { const v = numOrNull(row[k]); return v === null ? '' : trimFloat(v) }
-  const values: Record<string, string> = {
-    school_name: g('school'), student_name: g('student'), logo_file_id: g('logo_key'), school_motto: g('motto'),
-    teacher_sign_file_id: g('teacher_sign'), principal_sign_file_id: g('principal_sign'),
-    class: g('class'), section: g('section'), admission_no: g('admission_no'), roll_no: g('roll_no'),
-    date_of_birth: ddmmyyyy(row.date_of_birth as string | null), admission_date: ddmmyyyy(row.admission_date as string | null),
-    photo_file_id: g('photo_file_id'), father_name: g('father'), mother_name: g('mother'), guardian_name: g('guardian'),
-    total_marks: n('total'), marks_obtained: n('obtained'), grade: g('grade'), remarks: '',
-    exam_name: g('exam_name'), academic_year: g('year'), class_teacher: g('class_teacher'), principal: g('principal'),
-    rank: g('rank'), issued_on: ddmmyyyy(todayIST()), percentage: '', attendance: '', result: '',
-  }
-  const pct = numOrNull(row.pct)
-  if (pct !== null) { values.percentage = pct.toFixed(2) + '%'; values.result = pct >= 33 ? 'PASS' : 'FAIL' }
-  const att = numOrNull(row.attendance)
-  if (att !== null) values.attendance = att.toFixed(1) + '%'
-
-  const subs = await c.db.prepare(`
-    SELECT sub.name, CAST(es.max_marks AS REAL) AS max,
-           CASE WHEN m.marks_obtained IS NULL THEN NULL ELSE CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL), 0) END AS got,
-           COALESCE((SELECT gb.grade FROM grade_bands gb WHERE gb.grading_scale_id = ex.grading_scale_id
-                       AND ROUND(100.0 * (CAST(m.marks_obtained AS REAL) + COALESCE(CAST(m.grace_marks AS REAL),0)) / NULLIF(CAST(es.max_marks AS REAL),0), 2)
-                           BETWEEN CAST(gb.min_percent AS REAL) AND CAST(gb.max_percent AS REAL) LIMIT 1), m.grade) AS g
-      FROM report_cards rc
-      JOIN enrollments e ON e.id = rc.enrollment_id
-      JOIN class_subjects cs ON cs.class_id = e.class_id
-      JOIN subjects sub ON sub.id = cs.subject_id
-      JOIN exam_subjects es ON es.class_subject_id = cs.id
-      JOIN exams ex ON ex.id = es.exam_id AND ex.academic_year_id = rc.academic_year_id
-                   AND (rc.exam_id IS NULL OR es.exam_id = rc.exam_id)
-                   AND (rc.exam_id IS NOT NULL OR rc.term_id IS NULL OR ex.term_id = rc.term_id)
-      LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
-     WHERE rc.id = ?
-     ORDER BY sub.name`).bind(cardId).all<{ name: string; max: number; got: number | null; g: string | null }>()
-  const subjects = subs.results.map((x) => {
-    const r: Record<string, string> = { subject: x.name, max_marks: trimFloat(Number(x.max)), marks: '-', percent: '-', subject_grade: x.g ?? '' }
-    if (x.got !== null) {
-      r.marks = trimFloat(Number(x.got))
-      if (Number(x.max) > 0) r.percent = `${Math.round((100 * Number(x.got)) / Number(x.max))}%`
-    }
-    return r
-  })
-  return { values, subjects }
-}
+// The same engine as the staff screen (routes/exams/card.ts), so the family
+// sees exactly the card the school printed.
 
 const NOT_YOUR_CARD = 'this is not a report card you can open'
 
@@ -861,13 +697,13 @@ async function renderFamilyReportCard(c: Ctx): Promise<Response> {
   if (!isUUID(cardId)) throw badRequest('id must be a uuid')
   const scope = await resolveScope(c)
   if (scope.studentIds.length === 0) throw forbidden(NOT_YOUR_CARD)
-  const tpl = await loadTemplate(c)
+  const tpl = await loadReportCardTemplate(c)
   const own = inList('rc.student_id', scope.studentIds)
   const allowed = await c.db.prepare(`SELECT 1 AS ok FROM report_cards rc WHERE rc.id = ? AND rc.is_published = 1 AND ${own.sql}`)
     .bind(cardId.toLowerCase(), ...own.args).first<{ ok: number }>()
   if (!allowed) throw forbidden(NOT_YOUR_CARD)
   const card = await gatherReportCard(c, cardId.toLowerCase())
-  return ok({ html: fillReportCard(tpl.html, card.values, card.subjects), css: tpl.css })
+  return ok({ html: fillReportCard(tpl.template_html, card), css: tpl.css ?? '' })
 }
 
 // ---------------------------------------------------------------------------

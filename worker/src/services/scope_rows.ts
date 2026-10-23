@@ -33,7 +33,11 @@ export const SECTION_SET_SQL = `
   UNION SELECT id FROM sections WHERE class_teacher_id = ?1
   UNION SELECT DISTINCT te.section_id FROM timetable_entries te
           JOIN employees emp ON emp.user_id = te.teacher_user_id
-         WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?1)`
+         WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?1)
+  -- A subject head reaches every class of the subjects they head (owner, 2026-10-19:
+  -- "show all section to set the homework by one hod").
+  UNION SELECT sec.id FROM sections sec JOIN class_subjects cs ON cs.class_id = sec.class_id
+          JOIN subject_heads h ON h.subject_id = cs.subject_id WHERE h.head_user_id = ?1`
 
 /** Own student record plus linked children. `?1` = user id, `?2` = today. */
 export const STUDENT_SET_SQL = `

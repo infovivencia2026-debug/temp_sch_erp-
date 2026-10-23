@@ -51,6 +51,10 @@ const (
 	// four reads, which meant a school could not grant or withhold Class 360 on
 	// its own; this is the dedicated key that lets an admin do exactly that.
 	Class360Read = "academics.class360.view"
+	// SubjectHead marks the person the principal made head of a subject
+	// (Academics -> Subject overview -> Subject heads). It comes only with the
+	// subject_head role, which is given and taken away with the headship.
+	SubjectHead = "academics.subject_head"
 
 	// finance
 	FeesRead      = "finance.fees.read"
@@ -151,6 +155,9 @@ const (
 	StatusPostSchool   = "status.post_school" // feature:communication.class_status
 	HelpDeskRead       = "help.desk.read"     // feature:help.helpdesk
 	HelpDeskWrite      = "help.desk.write"    // feature:help.helpdesk
+	CommsMailRead      = "comms.mail.read"    // feature:communication.inbox
+	CommsMailWrite     = "comms.mail.write"   // feature:communication.inbox
+	CommsMailManage    = "comms.mail.manage"  // feature:communication.mail_addresses
 )
 
 // Permission is a seedable row.
@@ -184,6 +191,7 @@ var All = []Permission{
 	{ReportCardsPublish, "academics", "Approve and release report cards to families"},
 	{HomeworkWrite, "academics", "Set homework and review submissions"},
 	{Class360Read, "academics", "Open the Class 360 section overview"},
+	{SubjectHead, "academics", "Head a subject: its teachers, classes, timetable, approvals and meetings"},
 
 	{FeesRead, "finance", "View fee heads and structures"},
 	{FeesWrite, "finance", "Manage fee heads, structures and concessions"},
@@ -259,6 +267,9 @@ var All = []Permission{
 	{StatusPostSchool, "status", "Post a status as the school, with its name and logo"},                         // feature:communication.class_status
 	{HelpDeskRead, "help", "View Helpdesk"},                                                                     // feature:help.helpdesk
 	{HelpDeskWrite, "help", "Manage Helpdesk"},                                                                  // feature:help.helpdesk
+	{CommsMailRead, "comms", "View Inbox"},                                                                      // feature:communication.inbox
+	{CommsMailWrite, "comms", "Manage Inbox"},                                                                   // feature:communication.inbox
+	{CommsMailManage, "comms", "View Mail addresses"},                                                           // feature:communication.mail_addresses
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -346,6 +357,12 @@ func IsDefault(roleKey string) bool { return !optionalRoles[roleKey] }
 
 // SystemRoles mirrors the role set production seeds per institution.
 var SystemRoles = []Role{
+	// The LMS Admin's course screens read through routes guarded by
+	// academics.timetable.read (worker routes/teaching/lms.ts). Its catalogue
+	// feature alone does not carry that, and a hand edit to the generated
+	// provision_seed.ts was wiped on the next regeneration (2026-10-15), so the
+	// grant lives here, where scripts/d1/tenant_seed reads it.
+	{"lms_admin", "LMS Admin", []string{CommsMailRead, CommsMailWrite, "academics.timetable.read"}},
 	{"seller_admin", "Seller Admin", SellerAdminPermissions},
 	{"support_admin", "Support Admin", SupportAdminPermissions},
 	{"institution_admin", "Institution Admin / Principal", keysExcept(PlatformTenantsRW, PlatformPlansRW)},
@@ -355,6 +372,8 @@ var SystemRoles = []Role{
 	// Larger schools were previously forced to hand out institution_admin for
 	// this, which is every fee record and every salary as a side effect.
 	{"vice_principal", "Vice Principal / Academic Coordinator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		// A joining is an academic and pastoral decision as much as a
 		// financial one, and a vice principal already carries the timetable
 		// and the roll it lands in.
@@ -372,6 +391,8 @@ var SystemRoles = []Role{
 		Class360Read,
 		SelfProfileRead, SelfProfileWrite}},
 	{"it_admin", "IT Administrator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		UsersRead, UsersWrite, RolesRead, RolesWrite, SessionsRevoke,
 		AuditRead, JobsRead, JobsEnqueue, IntegrationsWrite, SettingsWrite,
 		InstitutionRead, SelfProfileRead, SelfProfileWrite}},
@@ -391,9 +412,14 @@ var SystemRoles = []Role{
 	   HomeworkWrite and AttendanceWrite are what the classroom half of the job
 	   needs. Every HOD in an Indian school still has a timetable; a role that
 	   assumes otherwise describes an administrator, not a head of department. */
+	// No AttendanceWrite (owner, 2026-10-19: "no need of attendance if they are
+	// not a class teacher"): a HOD who runs a class also holds Class Teacher,
+	// which carries it, so Take attendance shows for them and no one else.
 	{"hod", "HOD / Department Head", []string{
+		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead,  // feature:communication.inbox
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
-		AttendanceRead, AttendanceWrite, HomeworkWrite,
+		AttendanceRead, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
 		EmployeesRead, LeaveApprove, AnnouncementsWrite, Class360Read,
 		/* What their own teachers said to families, and what families said
@@ -405,6 +431,8 @@ var SystemRoles = []Role{
 	// Operations covers every specialism; the sub-role a user actually performs
 	// is decided by which of these they are granted, not by a separate role.
 	{"operations", "Operations Staff", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll,
 		LibraryRead, LibraryWrite, TransportRead, TransportWrite,
 		HostelRead, HostelWrite, InventoryRead, InventoryWrite, AssetsWrite,
@@ -413,23 +441,41 @@ var SystemRoles = []Role{
 	// not bring the notebook, third time" and "helped a classmate who had been
 	// ill" as a matter of course; editing the child's record, or agreeing the
 	// accommodations for one who needs them, is the class teacher's job.
+	//
+	// NO ATTENDANCE, NO CLASS 360, NO REPORT CARDS BY DEFAULT (owner,
+	// 2026-10-16, testing a subject teacher login: "why does a subject
+	// teacher have attendance... let me remove that... no need of report
+	// card also"). All three used to sit in this role's own grant, which
+	// made every subject teacher a class teacher whether they were one or
+	// not: a menu of screens for a section they do not run, most of them a
+	// dead end the moment they were opened. Being a section's class teacher
+	// is a fact about the section, not a role somebody is given by default —
+	// it is the separate "class_teacher" role below, additive on top of this
+	// one, picked for whoever actually is. A subject teacher's own view of a
+	// child is the "class_teacher" role below, additive on top of this one,
+	// picked for whoever actually is a class teacher. A subject teacher's own
+	// view of a child is Student progress (faculty.my_classes.student_progress),
+	// their own subject only — not Class 360, which is the class teacher's
+	// whole-class, every-subject view.
 	{"faculty", "Faculty / Teacher", []string{
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		StatusPost, // feature:communication.class_status
-		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
+		StudentsRead, AcademicsRead, TimetableRead,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
-		Class360Read,
-		/* Being a section's class teacher is a fact about the section, not a
-		   role somebody is given. A teacher who is class teacher of 6-B held
-		   the plain "teacher" role and met "missing permission" on the report
-		   card screen for their own section — the workflow that has them send
-		   results up to the head was unreachable by the people it is for.
-
-		   Safe to grant here because the handler checks
-		   res.IsClassTeacherOf(sectionID) regardless of the permission: a
-		   teacher who is class teacher of nothing can generate nothing. */
-		ReportCardsGenerate,
 		SelfProfileRead, SelfProfileWrite}},
+	/* SUBJECT HEAD (owner, 2026-10-19): not a department head; the person
+	   heading one subject across every grade. Given automatically when the
+	   principal picks them as a subject's head, removed when they head
+	   nothing, and additive on top of whatever they already are (HOD or
+	   teacher). */
+	{"subject_head", "Subject Head", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
+		SubjectHead, AcademicsRead, TimetableRead, HomeworkWrite, ExamsRead,
+		AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"class_teacher", "Class Teacher", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		StatusPost, // feature:communication.class_status
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,
 		AttendanceRead, AttendanceWrite, ExamsRead, MarksWrite,
@@ -439,11 +485,19 @@ var SystemRoles = []Role{
 	// widens the rows they return. This role held the widener without the
 	// opener, so its institution-wide attendance access resolved to a 403 on
 	// every attendance endpoint and the .all grant did nothing at all.
+	// ExamsApprove (owner, 2026-10-19: "there is a role Examination
+	// Controller... for that person that feature should be there" --
+	// scheduling a question-paper deadline is gated on ExamsApprove, the
+	// same permission question-paper approval already uses, and this
+	// role never held it, so its own exam screen had no deadline panel.
 	{"exam_controller", "Examination Controller", []string{
+		CommsMailWrite, // feature:communication.inbox
+		CommsMailRead, // feature:communication.inbox
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
-		AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
+		AcademicsRead, ExamsRead, ExamsWrite, ExamsApprove, MarksWrite,
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
 		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, WalletRead, WalletManage, ReportsRead,
 		SelfProfileRead, SelfProfileWrite}},
@@ -460,6 +514,7 @@ var SystemRoles = []Role{
 	   route; it can see which routes exist and put a child on one, which is
 	   the job it is being asked to do. */
 	{"admissions", "Admissions & Front Office", []string{
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		FrontDeskRead, FrontDeskWrite,
 		AcademicsRead, AdmissionsRead, AdmissionsWrite, StudentsRead, StudentsWrite,
 		/* The whole roll, because the office admits into all of it.
@@ -479,6 +534,8 @@ var SystemRoles = []Role{
 	// The receptionist could read the school and write nothing, which made the
 	// role unable to do the one job it has: sign a visitor in.
 	{"front_office", "Receptionist / Front Office", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, AdmissionsRead, StudentsRead, FrontDeskRead, FrontDeskWrite,
 		/* The receptionist is who puts the school's own notices up, so the
 		   front office posts as the school in Class Status. StatusPost is the
@@ -524,28 +581,47 @@ var SystemRoles = []Role{
 	   collection without a purpose. Students, attendance and the staff list
 	   come off. */
 	{"board_member", "Board / Trustee", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		InstitutionRead, AcademicsRead,
 		FeesRead, InvoicesRead, PaymentsRead, WalletRead, PayrollRead, InventoryRead,
 		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
+		CommsMailRead, CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},
 	{"librarian", "Librarian", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, LibraryRead, LibraryWrite, SelfProfileRead, SelfProfileWrite}},
 	{"hostel_warden", "Hostel Warden", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, HostelRead, HostelWrite, DisciplineWrite,
 		SelfProfileRead, SelfProfileWrite}},
 	{"transport_manager", "Transport Manager", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, TransportRead, TransportWrite, SelfProfileRead, SelfProfileWrite}},
 	{"driver", "Driver / Bus Attendant", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		TransportRead, SelfProfileRead, SelfProfileWrite}},
 	{"counsellor", "Counsellor", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, CounselingRead, HealthRead, SelfProfileRead, SelfProfileWrite}},
 	{"nurse", "Nurse / Clinic", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, HealthRead, HealthWrite, SelfProfileRead, SelfProfileWrite}},
 	{"discipline_officer", "Discipline Officer", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, DisciplineWrite, SelfProfileRead, SelfProfileWrite}},
 	{"activity_coord", "Activity / Sports Coordinator", []string{
+		CommsMailRead, // feature:communication.inbox
+		CommsMailWrite, // feature:communication.inbox
 		AcademicsRead, StudentsRead, StudentsReadAll, AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"student", "Student", []string{
 		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},

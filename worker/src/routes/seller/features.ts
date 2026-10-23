@@ -54,10 +54,8 @@ export const featureIdOf = (sectionSlug: string, featureSlug: string) => section
    are hidden from the catalogue only. */
 export const FEATURE_ROUTES: Record<string, string[]> = {
   'library.books_copies': ['/ops/library', '/ops/digital-library', '/portal/library'],
-  'library.accession_register': ['/ops/library'],
   'library.issue_return': ['/ops/library'],
   'library.reservations': ['/ops/library'],
-  'library.fines': ['/ops/library'],
   'hostel.hostel_rooms': ['/ops/hostel'],
   'hostel.outpasses_mess': ['/ops/hostel'],
   'hostel.night_study': ['/ops/hostel'],
@@ -65,7 +63,6 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'transport.vehicles': ['/ops/transport', '/transport/vehicles'],
   'transport.routes_stops': ['/ops/transport', '/transport/map-stops'],
   'transport.student_allocation': ['/ops/transport'],
-  'transport.live_vehicle_tracking': ['/transport/live', '/transport/trackers', '/transport/tracking-policy', '/me/child-bus'],
   'transport.my_bus_route': ['/me/child-bus'],
   'homework.homework_assignments': ['/homework'],
   'teaching.homework_classwork': ['/homework', '/teaching/assignments'],
@@ -78,6 +75,9 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'payroll.monthly_payroll': ['/payroll/run', '/payroll/payslips', '/payroll/bank-file'],
   'campus_money.cafeteria_store_sales': ['/portal/cafeteria', '/store/catalogue'],
   'communication.class_status': ['/status'], // feature:communication.class_status
+  'payroll.year_end_payout': ['/payroll/year-end'], // feature:payroll.year_end_payout
+  'communication.inbox': ['/comms/mail'], // feature:communication.inbox
+  'communication.mail_addresses': ['/comms/mail-addresses'], // feature:communication.mail_addresses
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }

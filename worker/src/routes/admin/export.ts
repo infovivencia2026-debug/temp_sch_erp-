@@ -3,13 +3,16 @@ import type { Router, Ctx } from '../../router'
 import { forbidden, notFound, ok } from '../../http'
 import { can } from '../../identity'
 import { institutionId } from './common'
+import { moreSpecs } from './export_more'
 
 /* Port of internal/api/export.go: GET /export and GET /export/{name}.
    The Postgres LATERAL joins became joins on a correlated "latest row" id,
    to_char became strftime/printf, string_agg(DISTINCT ..) a group_concat
    over a DISTINCT subquery. Timestamps are shown in Indian time. */
 
-interface Spec { perm: string; title: string; about: string; header: string[]; query: string }
+/* `params`: query-string names bound as ?1, ?2 ... in order, '' when absent,
+   so a screen can export what it shows (one month, one exam and section). */
+interface Spec { perm: string; title: string; about: string; header: string[]; query: string; params?: string[] }
 
 const name3 = (a: string) => `trim(COALESCE(${a}.first_name,'') || COALESCE(' ' || ${a}.middle_name,'') || COALESCE(' ' || ${a}.last_name,''))`
 const name2 = (a: string) => `trim(COALESCE(${a}.first_name,'') || COALESCE(' ' || ${a}.last_name,''))`
@@ -31,7 +34,7 @@ const rollQuery = (where: string) => `SELECT st.admission_no, ${name3('st')}, CO
   ${where} ORDER BY c.level NULLS LAST, sec.name, st.admission_no`
 
 // Evaluated per request: "today" in India, as CURRENT_DATE was.
-export function specs(today: string): Record<string, Spec> {
+function baseSpecs(today: string): Record<string, Spec> {
   const t = `'${today}'`
   const feeCase = (col: string, cond: string) => `sum(${col}) FILTER (WHERE ${cond})`
   const other = `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND COALESCE(hd,'') NOT LIKE '%book%' AND COALESCE(hd,'') NOT LIKE '%uniform%' AND COALESCE(hd,'') NOT LIKE '%transport%'`
@@ -115,6 +118,37 @@ export function specs(today: string): Record<string, Spec> {
         FROM students st JOIN iv ON iv.sid = st.id ${latestEnrol}
         WHERE st.status = 'active' AND iv.gross IS NOT NULL
         ORDER BY c.level NULLS LAST, sec.name, st.admission_no` },
+    /* THE SCHOOL'S OWN FEE SHEET (2026-10-12, asked by Yajur: "export the
+       whole school, term-wise, class-wise not section, with uniform and books").
+       This year's bills only, one row per child, grouped by class; ?class=
+       narrows it to one class. Fee, paid and due for every part. */
+    fee_sheet: { title: 'Fee sheet, class-wise',
+      about: 'This year: one row per child, class by class. Total fee, concession, net, then Term 1/2/3, Books, Uniform and Transport fee·paid·due, and the total paid and due.',
+      perm: 'finance.fees.read',
+      header: ['Class', 'Section', 'Admission No', 'Student', 'Father / Guardian', 'Mobile', 'Total Fee', 'Concession', 'Net Fee',
+        'Term 1 Fee', 'Term 1 Paid', 'Term 1 Due', 'Term 2 Fee', 'Term 2 Paid', 'Term 2 Due', 'Term 3 Fee', 'Term 3 Paid', 'Term 3 Due',
+        'Books Fee', 'Books Paid', 'Books Due', 'Uniform Fee', 'Uniform Paid', 'Uniform Due', 'Transport Fee', 'Transport Paid', 'Transport Due',
+        'Other Fee', 'Other Paid', 'Other Due', 'Total Paid', 'Total Due'],
+      query: `WITH iv AS (
+          SELECT inv.student_id AS sid, sum(inv.gross_paise) AS gross, sum(inv.discount_paise) AS disc,
+                 sum(inv.net_paise) AS net, sum(inv.paid_paise) AS paid,
+                 ${feeCase('inv.net_paise', 'inv.instalment_no = 1')} AS t1_bill, ${feeCase('inv.paid_paise', 'inv.instalment_no = 1')} AS t1_paid,
+                 ${feeCase('inv.net_paise', 'inv.instalment_no = 2')} AS t2_bill, ${feeCase('inv.paid_paise', 'inv.instalment_no = 2')} AS t2_paid,
+                 ${feeCase('inv.net_paise', 'inv.instalment_no = 3')} AS t3_bill, ${feeCase('inv.paid_paise', 'inv.instalment_no = 3')} AS t3_paid,
+                 ${feeCase('inv.net_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%book%'`)} AS bk_bill, ${feeCase('inv.paid_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%book%'`)} AS bk_paid,
+                 ${feeCase('inv.net_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%uniform%'`)} AS un_bill, ${feeCase('inv.paid_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%uniform%'`)} AS un_paid,
+                 ${feeCase('inv.net_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%transport%'`)} AS tr_bill, ${feeCase('inv.paid_paise', `COALESCE(inv.instalment_no,0) NOT IN (1,2,3) AND hd LIKE '%transport%'`)} AS tr_paid,
+                 ${feeCase('inv.net_paise', other)} AS ot_bill, ${feeCase('inv.paid_paise', other)} AS ot_paid
+            FROM (SELECT i2.*, ${heads('i2.id')} AS hd FROM invoices i2 WHERE i2.status <> 'cancelled'
+                    AND i2.academic_year_id = (SELECT ay.id FROM academic_years ay WHERE ${t} BETWEEN ay.starts_on AND ay.ends_on ORDER BY ay.starts_on DESC LIMIT 1)) inv
+           GROUP BY inv.student_id)
+        SELECT COALESCE(c.name,''), COALESCE(sec.name,''), st.admission_no, ${name3('st')}, COALESCE(g.full_name,''), COALESCE(g.phone,''),
+          ${rs('COALESCE(iv.gross,0)')}, ${rs('COALESCE(iv.disc,0)')}, ${rs('COALESCE(iv.net,0)')},
+          ${rs('COALESCE(iv.t1_bill,0)')}, ${rs('COALESCE(iv.t1_paid,0)')}, ${rs('COALESCE(iv.t1_bill,0)-COALESCE(iv.t1_paid,0)')}, ${rs('COALESCE(iv.t2_bill,0)')}, ${rs('COALESCE(iv.t2_paid,0)')}, ${rs('COALESCE(iv.t2_bill,0)-COALESCE(iv.t2_paid,0)')}, ${rs('COALESCE(iv.t3_bill,0)')}, ${rs('COALESCE(iv.t3_paid,0)')}, ${rs('COALESCE(iv.t3_bill,0)-COALESCE(iv.t3_paid,0)')}, ${rs('COALESCE(iv.bk_bill,0)')}, ${rs('COALESCE(iv.bk_paid,0)')}, ${rs('COALESCE(iv.bk_bill,0)-COALESCE(iv.bk_paid,0)')}, ${rs('COALESCE(iv.un_bill,0)')}, ${rs('COALESCE(iv.un_paid,0)')}, ${rs('COALESCE(iv.un_bill,0)-COALESCE(iv.un_paid,0)')}, ${rs('COALESCE(iv.tr_bill,0)')}, ${rs('COALESCE(iv.tr_paid,0)')}, ${rs('COALESCE(iv.tr_bill,0)-COALESCE(iv.tr_paid,0)')}, ${rs('COALESCE(iv.ot_bill,0)')}, ${rs('COALESCE(iv.ot_paid,0)')}, ${rs('COALESCE(iv.ot_bill,0)-COALESCE(iv.ot_paid,0)')},
+          ${rs('COALESCE(iv.paid,0)')}, ${rs('COALESCE(iv.net,0)-COALESCE(iv.paid,0)')}
+        FROM students st JOIN iv ON iv.sid = st.id ${latestEnrol} ${primaryGuardian}
+        WHERE st.status = 'active' AND (?1 = '' OR c.id = ?1) AND (?2 = '' OR sec.id = ?2)
+        ORDER BY c.level NULLS LAST, c.name, sec.name, ${name3('st')}`, params: ['class', 'section'] },
     absentee_followups: { title: 'Absentee follow-ups',
       about: 'Every absence follow-up by date: child, section, the numbers called, whether they were reached, the reason and who followed up.',
       perm: 'academics.attendance.read.all',
@@ -147,7 +181,36 @@ export function specs(today: string): Record<string, Spec> {
           CAST(ps.paid_days AS TEXT), CAST(ps.lop_days AS TEXT),
           ${rs('ps.gross_paise')}, ${rs('ps.deduction_paise')}, ${rs('ps.net_paise')}, pr.status
         FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
-        ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code` },
+        WHERE (?1 = '' OR pr.period_month = CAST(?1 AS INTEGER)) AND (?2 = '' OR pr.period_year = CAST(?2 AS INTEGER))
+        ORDER BY pr.period_year DESC, pr.period_month DESC, e.employee_code`, params: ['month', 'year'] },
+    /* THE SCHOOL'S OWN SALARY SHEET (Yajur, 2026-10-13: their register's
+       columns, in their order). One row per payslip for the month. Aadhaar
+       shows the last four digits only: the full number is never stored.
+       Subject is what the teacher is timetabled to teach. Consolidated is the
+       full month's pay before loss of pay: the salary's earnings. */
+    payroll_school: { title: 'Salary register (school format)',
+      about: "The month's payslips in the school's own sheet: bank, PAN, UAN, every earning, EPF, ESI, PT, days, LOP and net.", perm: 'hr.payroll.read',
+      header: ['S.No', 'EMP ID', 'NAME', 'DESIGNATION', 'MOBILE NUMBER', 'SUBJECT', 'D.O.J', 'A/C Number', 'IFSC CODE', 'AADHAR', 'PAN', 'UAN',
+        'LOAN', 'CONSOLIDATED', 'BASIC', 'H.R.A', 'DA', 'CA', 'OA', 'GROSS SALARY', 'Employer EPF Share (12% of Basic)', 'Employee EPF Share (12% of Basic)',
+        'PT', 'Employer ESI (3.25%)', 'Employee ESI (0.75%)', 'TOTAL ESI', 'Days', 'LOP', 'Payable Days', 'LOP AMOUNT', 'HOLIDAYS WORKED PAY', 'DEDUCTIONS', 'NET PAY'],
+      query: `SELECT CAST(ROW_NUMBER() OVER (ORDER BY e.employee_code) AS TEXT), e.employee_code, ${name2('e')}, COALESCE(dg.name,''), COALESCE(e.phone,''),
+          COALESCE((SELECT group_concat(n, ', ') FROM (SELECT DISTINCT sub.name AS n FROM timetable_entries te
+              JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+             WHERE te.teacher_user_id = e.user_id)), ''),
+          COALESCE(${dmy('e.joined_on')},''), COALESCE(e.bank_account,''), COALESCE(e.bank_ifsc,''),
+          CASE WHEN COALESCE(e.aadhaar_last4,'') <> '' THEN 'XXXX-XXXX-' || e.aadhaar_last4 ELSE '' END, COALESCE(e.pan,''), COALESCE(e.uan,''),
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ADVANCE'), 0))")},
+          ${rs("COALESCE((SELECT SUM(ssi.amount_paise) FROM salary_structures ss JOIN salary_structure_items ssi ON ssi.salary_structure_id = ss.id JOIN salary_components sc ON sc.id = ssi.component_id WHERE ss.employee_id = e.id AND sc.kind = 'earning' AND ss.effective_from <= printf('%04d-%02d-28', pr.period_year, pr.period_month) AND (ss.effective_to IS NULL OR ss.effective_to >= printf('%04d-%02d-01', pr.period_year, pr.period_month))), 0) + ABS(COALESCE(json_extract(ps.breakup, '$.PF_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.EPS'), 0))")},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.BASIC'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.HRA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.DA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.CONVEY'), json_extract(ps.breakup, '$.CA'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.SPECIAL'), json_extract(ps.breakup, '$.OA'), 0))")}, ${rs('ps.gross_paise')},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.EPS'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PF'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.PT'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0))")}, ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), json_extract(ps.breakup, '$.ESI_EE_BY_EMPLOYER'), 0))")},
+          ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.ESI_EMPLOYER'), 0)) + ABS(COALESCE(json_extract(ps.breakup, '$.ESI'), json_extract(ps.breakup, '$.ESI_EE_BY_EMPLOYER'), 0))")},
+          CAST(CAST(strftime('%d', date(printf('%04d-%02d-01', pr.period_year, pr.period_month), '+1 month', '-1 day')) AS INTEGER) AS TEXT),
+          CAST(ps.lop_days AS TEXT), CAST(ps.paid_days AS TEXT), ${rs("ABS(COALESCE(json_extract(ps.breakup, '$.LOP'), 0))")}, ${rs("COALESCE(json_extract(ps.breakup, '$.HOLIDAY_WORK'), 0)")},
+          ${rs('ps.deduction_paise')}, ${rs('ps.net_paise')}
+        FROM payslips ps JOIN payroll_runs pr ON pr.id = ps.payroll_run_id JOIN employees e ON e.id = ps.employee_id
+        LEFT JOIN designations dg ON dg.id = e.designation_id
+        WHERE pr.period_month = CAST(?1 AS INTEGER) AND pr.period_year = CAST(?2 AS INTEGER)
+        ORDER BY e.employee_code`, params: ['month', 'year'] },
     marks: { title: 'Mark sheet', about: 'Every mark entered, by exam, class and subject.', perm: 'academics.exams.read',
       header: ['Exam', 'Class', 'Subject', 'Admission No', 'Student', 'Marks', 'Grace', 'Total', 'Out Of', 'Grade', 'Absent'],
       query: `SELECT ex.name, c.name, sub.name, st.admission_no, ${name2('st')},
@@ -157,7 +220,9 @@ export function specs(today: string): Record<string, Spec> {
         FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams ex ON ex.id = es.exam_id
         JOIN class_subjects cs ON cs.id = es.class_subject_id JOIN classes c ON c.id = cs.class_id
         JOIN subjects sub ON sub.id = cs.subject_id JOIN students st ON st.id = m.student_id
-        ORDER BY ex.name, c.name, sub.name, st.admission_no` },
+        WHERE (?1 = '' OR ex.id = ?1)
+          AND (?2 = '' OR EXISTS (SELECT 1 FROM enrollments e2 WHERE e2.student_id = st.id AND e2.section_id = ?2))
+        ORDER BY ex.name, c.name, sub.name, st.admission_no`, params: ['exam', 'section'] },
     'staff-attendance': { title: 'Staff register', about: 'Who was present, absent or late, day by day.', perm: 'hr.attendance.write',
       header: ['Date', 'Code', 'Employee', 'Status', 'In', 'Out', 'Remarks'],
       query: `SELECT ${dmy('sa.on_date')}, e.employee_code, ${name2('e')}, sa.status,
@@ -172,6 +237,14 @@ export function specs(today: string): Record<string, Spec> {
           CAST(lr.days AS TEXT), lr.reason, lr.status
         FROM leave_requests lr LEFT JOIN employees e ON e.id = lr.employee_id
         LEFT JOIN students st ON st.id = lr.student_id LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+        ORDER BY lr.created_at DESC` },
+    'staff-leave': { title: 'Staff leave register', about: 'Leave applied for by staff, and how it was decided.', perm: 'hr.employees.read',
+      header: ['Employee', 'Type', 'From', 'To', 'Days', 'Reason', 'Status'],
+      query: `SELECT ${name2('e')}, COALESCE(lt.name,''), ${dmy('lr.from_date')}, ${dmy('lr.to_date')},
+          CAST(lr.days AS TEXT), lr.reason, lr.status
+        FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
+        LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+        WHERE lr.subject_kind = 'staff'
         ORDER BY lr.created_at DESC` },
     'staff-documents': { title: 'Staff document expiry', about: 'Which papers have lapsed and which lapse soon.', perm: 'hr.employees.read',
       header: ['Code', 'Employee', 'Document', 'Expires', 'Days Left', 'State'],
@@ -197,6 +270,13 @@ export function specs(today: string): Record<string, Spec> {
         FROM library_loans l LEFT JOIN library_copies cp ON cp.id = l.copy_id LEFT JOIN library_titles t ON t.id = cp.title_id
         LEFT JOIN students st ON st.id = l.student_id LEFT JOIN employees e ON e.id = l.employee_id
         ORDER BY l.issued_on DESC` },
+    'library-books': { title: 'Library catalogue', about: 'Every title, its copies, and how many are on the shelf.', perm: 'operations.library.read',
+      header: ['Title', 'Author', 'ISBN', 'Category', 'Copies', 'On shelf'],
+      query: `SELECT t.title, COALESCE(t.author,''), COALESCE(t.isbn,''), COALESCE(t.category,''),
+          CAST(COUNT(cp.id) AS TEXT),
+          CAST(SUM(CASE WHEN cp.id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM library_loans l WHERE l.copy_id = cp.id AND l.returned_on IS NULL) THEN 1 ELSE 0 END) AS TEXT)
+        FROM library_titles t LEFT JOIN library_copies cp ON cp.title_id = t.id
+        GROUP BY t.id, t.title, t.author, t.isbn, t.category ORDER BY t.title` },
     udise: { title: 'UDISE+ student data', about: 'The fields the government return asks for, with the gaps flagged.', perm: 'admin.reports.read',
       header: ['Admission No', 'Name', 'APAAR ID', 'Child Info ID', 'Date of Birth', 'Gender', 'Class', 'Medium', 'RTE', 'CWSN', 'Problems'],
       query: `SELECT st.admission_no, ${name3('st')}, COALESCE(st.apaar_id,''), COALESCE(st.child_info_id,''),
@@ -233,10 +313,11 @@ async function exportFile(c: Ctx): Promise<Response> {
   institutionId(c)
   const date = new Date().toISOString().slice(0, 10)
   const format = (c.url.searchParams.get('format') ?? '').toLowerCase()
+  const stmt = () => { const s = c.db.prepare(spec.query); return spec.params ? s.bind(...spec.params.map((p) => c.url.searchParams.get(p) ?? '')) : s }
   if (format === 'xlsx') {
     // exportXLSX: buffered, so a query error is a clean 500 rather than a truncated file.
     const n = spec.header.length
-    const rows = (await c.db.prepare(spec.query).raw<unknown[]>()).map((vals) => {
+    const rows = (await stmt().raw<unknown[]>()).map((vals) => {
       const rec: (string | null)[] = new Array(n).fill(null)
       for (let i = 0; i < n && i < vals.length; i++) if (vals[i] != null) rec[i] = String(vals[i]).trim()
       return rec
@@ -248,7 +329,7 @@ async function exportFile(c: Ctx): Promise<Response> {
   const line = (rec: string[]) => rec.map((f) => csvField(f, sep)).join(sep) + '\n'
   let body = '﻿' + line(spec.header)
   try {
-    const rows = await c.db.prepare(spec.query).raw<unknown[]>()
+    const rows = await stmt().raw<unknown[]>()
     const n = spec.header.length
     for (const vals of rows) {
       const rec: string[] = new Array(n).fill('')
@@ -273,4 +354,9 @@ export function registerExport(r: Router): void {
     return ok({ items })
   })
   r.get('/export/{name}', 'auth', exportFile)
+}
+
+/** Every export: the originals plus the reports added for schools moving from MyClassBoard (export_more.ts). */
+export function specs(today: string): Record<string, Spec> {
+  return { ...baseSpecs(today), ...moreSpecs(today) }
 }

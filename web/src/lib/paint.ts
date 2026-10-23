@@ -920,17 +920,16 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-line': '#ece6ef',
       '--bento-dock-bg': '#fdfbfe',
       '--bento-dock-ink': '#3b1a47',
-      /* The house bold hues, lime, cyan and pink, live in the tints: the cell
-         fills, the rung, the accent card's own colour. The accents themselves
-         are inks (bento-theme.css paints .text-destructive and friends with
-         them), so each is the deep shade of its hue and clears 4.6:1 on the
-         card. The light lime and cyan that used to sit here made every
-         destructive label and good/bad mark unreadable in the default palette. */
-      '--bento-mint': '#3f7a00',
+      /* The house bold accents: lime, cyan and pink, with the light tints
+         behind them. The accent itself is also drawn as text (a selected word,
+         a mark, the accent word mixed from it), so each is the deepest shade of
+         its hue that clears 4.6:1 on the white card; the neon #bcf63c,
+         #30d5e9 and #f57ba4 it used to carry were 1.3, 1.8 and 2.5:1. */
+      '--bento-mint': '#4d7c0f',
       '--bento-mint-tint': '#eafcc4',
       '--bento-purple': '#0e7490',
       '--bento-purple-tint': '#d6f4fa',
-      '--bento-pink': '#c2185b',
+      '--bento-pink': '#be185d',
       '--bento-pink-tint': '#fde3ec',
       '--bento-orange': '#916f00',
       '--bento-orange-tint': '#f6f2e5',
