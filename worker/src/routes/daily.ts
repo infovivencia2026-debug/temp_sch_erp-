@@ -1179,10 +1179,15 @@ function registerWorkflow(r: Router) {
        empty, which is what COALESCE says here. */
     const rows = await c.db.prepare(`
       SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status,
-             COALESCE(sa.check_in, bp.first_punch) AS check_in,
-             /* A tap within five minutes of the first is the same arrival: a double
-                tap at the reader, not an in and an out three seconds apart. */
-             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch END) AS check_out
+             /* A tap within an hour of the first is the same arrival; one tap
+                after noon is leaving, with the in left for the office (as
+                routes/setup/imports.ts rollUpImportedDay saves the day). */
+             CASE WHEN sa.user_id IS NOT NULL THEN sa.check_in
+                  WHEN julianday(bp.last_punch) - julianday(bp.first_punch) < 60.0 / 1440 AND time(bp.first_punch, '+330 minutes') >= '12:00' THEN NULL
+                  ELSE bp.first_punch END AS check_in,
+             CASE WHEN sa.user_id IS NOT NULL THEN sa.check_out
+                  WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch
+                  WHEN time(bp.first_punch, '+330 minutes') >= '12:00' THEN bp.last_punch END AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
         LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
@@ -1331,7 +1336,9 @@ async function decideAttendanceFix(c: Ctx): Promise<Response> {
       INSERT INTO staff_attendance (id, institution_id, campus_id, user_id, on_date, status, check_in, check_out, source, remarks, marked_by, created_at)
       VALUES (?,?,?,?,?,?,?,?,'manual',?,?,?)
       ON CONFLICT (user_id, on_date) DO UPDATE SET status = excluded.status, check_in = COALESCE(excluded.check_in, staff_attendance.check_in),
-        check_out = COALESCE(excluded.check_out, staff_attendance.check_out), remarks = excluded.remarks, marked_by = excluded.marked_by`)
+        check_out = COALESCE(excluded.check_out, staff_attendance.check_out), remarks = excluded.remarks, marked_by = excluded.marked_by,
+        /* Fixed by hand now: the reader's roll-ups leave a manual day alone, so the approved time stays. */
+        source = 'manual'`)
       .bind(uuid(), c.id.institution!.id, campus, ar.user_id, ar.on_date, ar.status_wanted,
         ar.check_in ? localToUtc(tz, ar.on_date, ar.check_in) : null, ar.check_out ? localToUtc(tz, ar.on_date, ar.check_out) : null,
         'Fixed on request' + (note ? ': ' + note : ''), c.id.userId, t))
@@ -1433,6 +1440,25 @@ async function getApprovals(c: Ctx): Promise<Response> {
     for (const v of rows.results) {
       out.push({ id: v.id, kind: 'fee_concession', title: `${v.who} - ${v.kind} concession`, detail: v.reason, raised_at: isoSec(v.created_at as string),
         amount_paise: v.amount_paise ?? undefined, decide_url: `/api/v1/workflow/concessions/${v.id}/decide` })
+    }
+  }
+  /* A staff exit HR has sent up: the institution admin's alone (lifecycle.ts). */
+  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) {
+    const rows = await c.db.prepare(`
+      SELECT x.id, ${fullName2('e')} AS who, x.kind, x.last_working_day, u.full_name AS by, x.approval_requested_at,
+             (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS departments,
+             COALESCE((SELECT sum(cl.dues_paise) FROM exit_clearances cl WHERE cl.exit_id = x.id), 0) AS dues
+        FROM staff_exits x JOIN employees e ON e.id = x.employee_id LEFT JOIN users u ON u.id = x.approval_requested_by
+       WHERE x.status = 'pending_approval' ORDER BY x.approval_requested_at`).all()
+    for (const v of rows.results) {
+      const kind = String(v.kind).replace(/_/g, ' ')
+      let detail = `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`
+      if (v.last_working_day) detail += `, last working day ${ddMon(v.last_working_day as string)}`
+      detail += `. All ${num(v.departments)} departments signed`
+      detail += num(v.dues) > 0 ? `, dues of ${Math.trunc(num(v.dues) / 100)} to recover.` : ', no dues.'
+      detail += ' Approving relieves them and switches off their login.'
+      out.push({ id: v.id, kind: 'staff_exit', title: `${v.who} leaving`, detail, requested_by: v.by ?? undefined,
+        raised_at: isoSec((v.approval_requested_at ?? '') as string), decide_url: `/api/v1/hr/exits/${v.id}/decide` })
     }
   }
   const byKind: Record<string, number> = {}
@@ -1719,7 +1745,7 @@ async function markStaffAttendance(c: Ctx): Promise<Response> {
     INSERT INTO staff_attendance (id, institution_id, campus_id, user_id, on_date, status, check_in, check_out, source, marked_by, created_at)
     VALUES (?,?,?,?,?,?,?,?,'manual',?,?)
     ON CONFLICT (user_id, on_date) DO UPDATE SET status = excluded.status, check_in = excluded.check_in,
-      check_out = excluded.check_out, marked_by = excluded.marked_by`)
+      check_out = excluded.check_out, marked_by = excluded.marked_by, source = 'manual'`)
     .bind(uuid(), inst, campus, e.user_id, onDate, e.status,
       e.check_in ? localToUtc(tz, onDate, e.check_in) : null, e.check_out ? localToUtc(tz, onDate, e.check_out) : null, c.id.userId, now()))
   await c.db.batch(stmts)

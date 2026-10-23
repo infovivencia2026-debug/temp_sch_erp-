@@ -154,15 +154,19 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
   const [ins] = await db.batch([
     db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, check_in, check_out, source, device_ref, created_at)
         SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
-               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN julianday(g.la) - julianday(g.fi) >= 60.0 / 1440 THEN g.la END, 'device', g.serial, ?3
+               ?1, g.user_id, g.d, 'present',
+               CASE WHEN julianday(g.la) - julianday(g.fi) < 60.0 / 1440 AND time(g.fi, '+330 minutes') >= '12:00' THEN NULL ELSE g.fi END,
+               CASE WHEN julianday(g.la) - julianday(g.fi) >= 60.0 / 1440 OR time(g.fi, '+330 minutes') >= '12:00' THEN g.la END, 'device', g.serial, ?3
           FROM (SELECT e.user_id, ${day} AS d, MIN(p.punched_at) AS fi, MAX(p.punched_at) AS la, MAX(bd.serial) AS serial
                   FROM biometric_punches p JOIN employees e ON e.id = p.employee_id JOIN biometric_devices bd ON bd.id = p.device_id
                  WHERE p.institution_id = ?1 AND p.punched_at >= ?2 AND e.user_id IS NOT NULL
                  GROUP BY e.user_id, d) g`).bind(inst, since, now()),
     db.prepare(`UPDATE staff_attendance SET
-          check_in = MIN(COALESCE(check_in, '9999'), (SELECT MIN(p.punched_at) FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
-              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)),
-          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 60.0 / 1440 THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+          /* Read fresh from the day's punches; one tap after noon is leaving (see rollUpImportedDay). */
+          check_in = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) < 60.0 / 1440 AND time(MIN(p.punched_at), '+330 minutes') >= '12:00' THEN NULL ELSE MIN(p.punched_at) END
+              FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
+          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 60.0 / 1440 OR time(MIN(p.punched_at), '+330 minutes') >= '12:00' THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
           status = 'present'
         WHERE institution_id = ?1 AND source = 'device' AND on_date >= date(?2, '+330 minutes')
@@ -299,17 +303,25 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
         }
       }
     }
-    const shiftFor = (day: string) => {
+    /* config.auto_from (the reader's own "YYYY-MM-DD HH:MM", when its clock
+       went wrong): a punch it wrote before then is right as it stands, so
+       history sent again does not move it. */
+    const autoFrom = typeof cfgAll.auto_from === 'string' ? cfgAll.auto_from : ''
+    const shiftFor = (stamp: string) => {
+      const day = stamp.slice(0, 10)
       const ranged = ranges.find((r) => day >= r.from && day <= r.to)
       if (ranged) return ranged.minutes
-      return cfgAll.auto ? drift : 0
+      return cfgAll.auto && stamp >= autoFrom ? drift : 0
     }
     for (const line of lines) {
       const f = punchFields(line)
       if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
-      const shift = shiftFor(f[1].slice(0, 10))
+      // The same line sent again (Fetch history) is already stored, whatever time it was moved to.
+      const uidRaw = f[0].toUpperCase()
+      if (await db.prepare(`SELECT 1 FROM biometric_punches WHERE device_id = ? AND device_user_id = ? AND raw = ?`).bind(dev.deviceId, uidRaw, line.slice(0, 300)).first()) { n++; continue }
+      const shift = shiftFor(f[1].trim().slice(0, 16))
       if (shift) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
       const uid = f[0].toUpperCase()

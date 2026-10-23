@@ -65,6 +65,8 @@ interface Exit {
   settlement_paise: number
   relieved_on?: string
   settled_on?: string
+  /** The institution admin's note when the exit was sent back. */
+  decision_note?: string
   departments: number
   outstanding: number
   dues_paise: number
@@ -128,6 +130,21 @@ const TABS = [
   ['postings', 'Transfer & deputation', Route],
 ] as const
 
+/* An exit is finished by the institution admin (owner, 2026-10-23): HR sends
+   it once every department has signed. Approved exits leave "in progress". */
+const EXIT_DONE = ['relieved', 'settled', 'withdrawn']
+const EXIT_STATE: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }> = {
+  notice: { label: 'Notice', tone: 'neutral' },
+  interviewed: { label: 'Interviewed', tone: 'neutral' },
+  cleared: { label: 'Ready to send', tone: 'warning' },
+  pending_approval: { label: 'With the admin', tone: 'warning' },
+  returned: { label: 'Sent back', tone: 'danger' },
+  relieved: { label: 'Relieved', tone: 'success' },
+  settled: { label: 'Settled', tone: 'success' },
+  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
+}
+const startParams = () => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search)
+
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 
@@ -136,7 +153,8 @@ const useEmployees = () => useEmployeeRoster<Employee>()
 export default function Lifecycle() {
   const can = useCan()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('onboarding')
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(() =>
+    TABS.find(([k]) => k === startParams().get('tab'))?.[0] ?? 'onboarding')
 
   const onboarding = useQuery({
     queryKey: ['hr', 'onboarding'],
@@ -151,7 +169,7 @@ export default function Lifecycle() {
   if (onboarding.error) return <ErrorState error={onboarding.error} />
 
   const files = onboarding.data?.items ?? []
-  const open = (exits.data?.items ?? []).filter((e) => e.status !== 'settled')
+  const open = (exits.data?.items ?? []).filter((e) => !EXIT_DONE.includes(e.status))
   const unverified = files.filter((f) => f.pending.length > 0)
   const blocked = open.filter((e) => e.outstanding > 0)
 
@@ -322,7 +340,12 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
   const [kind, setKind] = useState('resignation')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
-  const [openExit, setOpenExit] = useState('')
+  /* A notification's View lands here with ?exit=<id>. */
+  const [openExit, setOpenExit] = useState(() => startParams().get('exit') ?? '')
+  const inProgress = rows.filter((r) => !EXIT_DONE.includes(r.status))
+  const past = rows.filter((r) => EXIT_DONE.includes(r.status))
+  const toggle = (id: string) => setOpenExit(openExit === id ? '' : id)
+  const shown = rows.find((r) => r.id === openExit)
 
   const create = useMutation({
     mutationFn: () =>
@@ -374,10 +397,10 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
 
       <Card>
         <CardHeader title="Exits in progress"
-          description="Outstanding is the number of departments that have not signed. While it is above zero the final settlement is refused." />
-        <Table head={['Employee', 'Kind', 'Notice', 'Last day', 'Interview', 'Clearance', 'Dues', 'Settlement', '']}
-          empty={rows.length === 0} emptyLabel="Nobody is leaving.">
-          {rows.map((r) => (
+          description="When every department has signed, send the exit to the institution admin. It leaves this list once they approve it." />
+        <Table head={['Employee', 'Kind', 'Notice', 'Last day', 'Interview', 'Clearance', 'Dues', 'State', '']}
+          empty={inProgress.length === 0} emptyLabel="Nobody is leaving.">
+          {inProgress.map((r) => (
             <tr key={r.id}>
               <Td className="font-medium">
                 {r.full_name}
@@ -393,28 +416,56 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
                 </Badge>
               </Td>
               <Td className="tabular-nums">{r.dues_paise ? `₹${rupees(r.dues_paise)}` : '-'}</Td>
-              <Td>
-                <Badge tone={r.settlement_status === 'paid' ? 'success' : 'neutral'}>
-                  {r.settlement_status}
-                </Badge>
-              </Td>
-              <Td>
-                <Button size="sm" variant="secondary"
-                  onClick={() => setOpenExit(openExit === r.id ? '' : r.id)}>
-                  {openExit === r.id ? 'Close' : 'Open'}
-                </Button>
-              </Td>
+              <Td><ExitState status={r.status} /></Td>
+              <Td><OpenButton on={openExit === r.id} onClick={() => toggle(r.id)} /></Td>
             </tr>
           ))}
         </Table>
       </Card>
 
-      {openExit && <ExitDetail exit={rows.find((r) => r.id === openExit)!} />}
+      {past.length > 0 && (
+        <Card>
+          <CardHeader title="Past exits"
+            description="Approved by the institution admin. Their login is off and their records stay. Pay the settlement from here." />
+          <Table head={['Employee', 'Kind', 'Relieved on', 'Dues', 'Settlement', '']}>
+            {past.map((r) => (
+              <tr key={r.id}>
+                <Td className="font-medium">
+                  {r.full_name}
+                  <div className="text-[12px] font-normal text-muted-foreground">{r.employee_code}</div>
+                </Td>
+                <Td className="text-muted-foreground">{r.kind.replace('_', ' ')}</Td>
+                <Td className="text-muted-foreground">{r.relieved_on ?? '-'}</Td>
+                <Td className="tabular-nums">{r.dues_paise ? `₹${rupees(r.dues_paise)}` : '-'}</Td>
+                <Td>
+                  <Badge tone={r.settlement_status === 'paid' ? 'success' : 'neutral'}>
+                    {r.settlement_status === 'paid' ? 'paid' : 'not paid'}
+                  </Badge>
+                </Td>
+                <Td><OpenButton on={openExit === r.id} onClick={() => toggle(r.id)} /></Td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      )}
+
+      {shown && <ExitDetail key={shown.id} exit={shown} />}
     </>
   )
 }
 
+function ExitState({ status }: { status: string }) {
+  const s = EXIT_STATE[status] ?? { label: status, tone: 'neutral' as const }
+  return <Badge tone={s.tone}>{s.label}</Badge>
+}
+
+function OpenButton({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return <Button size="sm" variant="secondary" onClick={onClick}>{on ? 'Close' : 'Open'}</Button>
+}
+
 function ExitDetail({ exit }: { exit: Exit }) {
+  const done = EXIT_DONE.includes(exit.status)
+  const locked = done || exit.status === 'pending_approval'
   const qc = useQueryClient()
   const invalidate = () => qc.invalidateQueries({ queryKey: ['hr'] })
 
@@ -426,7 +477,6 @@ function ExitDetail({ exit }: { exit: Exit }) {
   const [primaryReason, setPrimaryReason] = useState(exit.primary_reason ?? '')
   const [feedback, setFeedback] = useState(exit.feedback ?? '')
   const [rejoin, setRejoin] = useState(exit.would_rejoin === false ? 'no' : 'yes')
-  const [settlement, setSettlement] = useState('')
 
   const interview = useMutation({
     mutationFn: () =>
@@ -442,17 +492,12 @@ function ExitDetail({ exit }: { exit: Exit }) {
       api.post(`/api/v1/hr/exits/${exit.id}/clearances`, v),
     onSuccess: invalidate,
   })
-  const relieve = useMutation({
-    mutationFn: () => api.post(`/api/v1/hr/exits/${exit.id}/relieve`, {}),
+  const send = useMutation({
+    mutationFn: () => api.post(`/api/v1/hr/exits/${exit.id}/send-for-approval`, {}),
     onSuccess: invalidate,
   })
-  const settle = useMutation({
-    mutationFn: () =>
-      api.post(`/api/v1/hr/exits/${exit.id}/settle`, {
-        settlement_paise: rupeesToPaise(settlement || 0),
-      }),
-    onSuccess: invalidate,
-  })
+
+  if (done) return <SettlementCard exit={exit} />
 
   return (
     <>
@@ -485,7 +530,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
         <Table loading={clearances.isLoading} head={['Department', 'Status', 'Dues', 'Note', 'Signed', '']}
           empty={(clearances.data?.items ?? []).length === 0}>
           {(clearances.data?.items ?? []).map((c) => (
-            <ClearanceLine key={c.id} row={c} onSign={(v) => sign.mutate(v)} />
+            <ClearanceLine key={c.id} row={c} locked={locked} onSign={(v) => sign.mutate(v)} />
           ))}
         </Table>
 
@@ -495,50 +540,78 @@ function ExitDetail({ exit }: { exit: Exit }) {
       </Card>
 
       <Card>
-        <CardHeader title="Relieving and settlement"
-          description="The relieving letter and the experience certificate are generated from one snapshot, so the pair the next school reads can never disagree on a date." />
-        <div className="space-y-5 p-5">
+        <CardHeader title="Approval"
+          description="The institution admin approves the exit. Approving relieves the person, issues the relieving letter and experience certificate, and switches off their login. Their records stay." />
+        <div className="space-y-4 p-5">
+          {exit.status === 'returned' && exit.decision_note && (
+            <p className="text-[14px]"><span className="font-medium">Sent back: </span>{exit.decision_note}</p>
+          )}
           <div className="flex flex-wrap items-center gap-3">
-            <ConfirmButton confirmLabel="Relieve" variant="secondary"
-              question="Issue the relieving letter and experience certificate?"
-              disabled={!exit.can_be_settled || !!exit.relieved_on || relieve.isPending}
-              onConfirm={() => relieve.mutate()}>
-              Issue the letters
-            </ConfirmButton>
-            {!exit.can_be_settled && (
+            <Button onClick={() => send.mutate()}
+              disabled={!exit.can_be_settled || exit.status === 'pending_approval'} pending={send.isPending}>
+              {exit.status === 'returned' ? 'Send for approval again' : 'Send for approval'}
+            </Button>
+            {exit.status === 'pending_approval' && (
+              <span className="text-[13px] text-muted-foreground">Waiting for the institution admin.</span>
+            )}
+            {exit.status !== 'pending_approval' && !exit.can_be_settled && (
               <span className="text-[13px] text-muted-foreground">
                 {exit.outstanding} department{exit.outstanding === 1 ? '' : 's'} still to sign.
               </span>
             )}
-            {exit.relieved_on && (
-              <span className="text-[13px] text-muted-foreground">Relieved on {exit.relieved_on}.</span>
-            )}
           </div>
-          <FormNotice error={relieve.error} />
-
-          <FormGrid>
-            <Field label="Settlement due (₹)" hint={`₹${rupees(exit.dues_paise)} of departmental dues will be deducted`}>
-              <Input value={settlement} onChange={setSettlement} type="number" placeholder="45000" />
-            </Field>
-          </FormGrid>
-          <FormNotice error={settle.error}
-            ok={settle.isSuccess ? 'Settlement recorded.' : undefined} />
-          <ConfirmButton confirmLabel="Pay" question="Pay the final settlement now?"
-            variant="primary" disabled={!settlement || settle.isPending}
-            onConfirm={() => settle.mutate()}>
-            Pay the settlement
-          </ConfirmButton>
+          <FormNotice error={send.error} />
         </div>
       </Card>
     </>
   )
 }
 
+function SettlementCard({ exit }: { exit: Exit }) {
+  const qc = useQueryClient()
+  const [settlement, setSettlement] = useState('')
+  const settle = useMutation({
+    mutationFn: () =>
+      api.post(`/api/v1/hr/exits/${exit.id}/settle`, {
+        settlement_paise: rupeesToPaise(settlement || 0),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr'] }),
+  })
+  const paid = exit.settlement_status === 'paid'
+  return (
+    <Card>
+      <CardHeader title={`Settlement · ${exit.full_name}`}
+        description={`Relieved on ${exit.relieved_on ?? '-'}. Departmental dues are deducted from what is paid.`} />
+      <div className="space-y-5 p-5">
+        {paid ? (
+          <p className="text-[14px]">Paid ₹{rupees(exit.settlement_paise)} on {exit.settled_on ?? '-'}.</p>
+        ) : (
+          <>
+            <FormGrid>
+              <Field label="Settlement due (₹)" hint={`₹${rupees(exit.dues_paise)} of departmental dues will be deducted`}>
+                <Input value={settlement} onChange={setSettlement} type="number" placeholder="45000" />
+              </Field>
+            </FormGrid>
+            <FormNotice error={settle.error} ok={settle.isSuccess ? 'Settlement recorded.' : undefined} />
+            <ConfirmButton confirmLabel="Pay" question="Pay the final settlement now?"
+              variant="primary" disabled={!settlement || settle.isPending}
+              onConfirm={() => settle.mutate()}>
+              Pay the settlement
+            </ConfirmButton>
+          </>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 function ClearanceLine({
   row,
+  locked,
   onSign,
 }: {
   row: Clearance
+  locked: boolean
   onSign: (v: { department_code: string; status: string; dues_paise: number; remarks?: string }) => void
 }) {
   const [dues, setDues] = useState(row.dues_paise ? String(row.dues_paise / 100) : '')
@@ -568,8 +641,8 @@ function ClearanceLine({
       </Td>
       <Td>
         <div className="flex gap-1.5">
-          <Button size="sm" variant="secondary" onClick={() => send('dues')}>Hold</Button>
-          <Button size="sm" onClick={() => send('cleared')}>Sign</Button>
+          <Button size="sm" variant="secondary" disabled={locked} onClick={() => send('dues')}>Hold</Button>
+          <Button size="sm" disabled={locked} onClick={() => send('cleared')}>Sign</Button>
         </div>
       </Td>
     </tr>
@@ -711,7 +784,7 @@ function LettersTab() {
       <CardHeader title="Letters issued"
         description="From the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
       <Table loading={letters.isLoading} head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
-        emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is relieved.">
+        emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is approved.">
         {rows.map((c) => (
           <tr key={c.serial_no}>
             <Td className="font-medium tabular-nums">{c.serial_no}</Td>

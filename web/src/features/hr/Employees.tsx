@@ -536,7 +536,7 @@ export default function Employees() {
                 <div className="w-[8.5rem]">
                   <Select value={expStatus} onChange={setExpStatus} options={[
                     { value: 'active', label: 'Active' },
-                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'inactive', label: 'Inactive (left)' },
                     { value: 'all', label: 'Everyone' },
                   ]} />
                 </div>

@@ -12,6 +12,7 @@ import {
   type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
+import { currentViewport, placePanel } from './place'
 import { Anchored } from './AnchoredPanel'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
@@ -2190,13 +2191,6 @@ export function Select({
          option's top edge peeping out above it -- the screenshot. The visual
          viewport is what is actually visible; measure against that, and cap
          the list's height to the room it really has. */
-      const vv = window.visualViewport
-      const vTop = vv ? vv.offsetTop : 0
-      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
-      const below = vBottom - r.bottom
-      const above = r.top - vTop
-      const wantsAbove = below < 220 && above > below
-      const maxH = Math.max(96, Math.min(256, (wantsAbove ? above : below) - 12))
       /* Opening upwards is anchored by its BOTTOM edge, not its top.
 
          Guessing the menu's height and subtracting it — which is what the top
@@ -2207,14 +2201,12 @@ export function Select({
          the trigger is correct for a menu of any height. */
       /* Kept 8px inside the screen sideways too: a field at the card's
          right edge on a tablet put the list's edge on the screen's. */
-      const vLeft = vv ? vv.offsetLeft : 0
-      const vW = vv ? vv.width : window.innerWidth
-      const width = Math.min(r.width, vW - 16)
-      const left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vW - width - 8))
+      /* Now one shared sum (components/place.ts): 16px gutters on a phone. */
+      const q = placePanel(r, currentViewport(), { width: r.width, height: 220, gap: 4, maxHeight: 256 }, window.innerHeight)
       setBox_(
-        wantsAbove
-          ? { left, bottom: window.innerHeight - r.top + 4, width, maxH }
-          : { left, top: r.bottom + 4, width, maxH },
+        q.up
+          ? { left: q.left, bottom: q.bottom, width: q.width, maxH: q.maxHeight }
+          : { left: q.left, top: q.top, width: q.width, maxH: q.maxHeight },
       )
     }
     place()

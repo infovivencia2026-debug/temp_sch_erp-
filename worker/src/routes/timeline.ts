@@ -3,6 +3,7 @@ import { badRequest, clampInt, isUUID, notFound, ok } from '../http'
 import { can } from '../identity'
 import { resolveScope, studentPredicate } from './students/common'
 import { employeeFilter, growthReach } from './hr/reach'
+import { istClock } from './admissions/util'
 
 /* EVERYTHING THAT HAPPENED TO ONE PERSON, NEWEST FIRST (owner, 2026-10-22).
 
@@ -37,7 +38,11 @@ const who = (col: string) => `COALESCE((SELECT full_name FROM users WHERE id = $
 const day = (col: string) => `(${col} || 'T00:00:00.000Z')`
 
 export const STUDENT_TYPES = ['concern', 'remark', 'behaviour', 'leave', 'attendance', 'fee', 'marks', 'notice', 'message'] as const
-export const STAFF_TYPES = ['concern', 'remark', 'leave', 'attendance', 'payroll', 'role', 'appraisal', 'task', 'notice'] as const
+export const STAFF_TYPES = ['concern', 'remark', 'leave', 'attendance', 'payroll', 'role', 'appraisal', 'task', 'notice',
+  'service', 'exit', 'document', 'teaching', 'substitution', 'message', 'status'] as const
+
+/* A punch is stored as a UTC instant, a hand-marked time as HH:MM; both read as the school clock. */
+const clock = (col: string) => `CASE WHEN length(${col}) > 8 THEN ${istClock(col)} ELSE substr(${col}, 1, 5) END`
 
 function studentParts(c: Ctx, sid: string): Part[] {
   const p = (type: string, sql: string, n: number): Part => ({ type, sql, args: Array(n).fill(sid) })
@@ -151,12 +156,53 @@ function staffParts(c: Ctx, empId: string, userId: string | null): Part[] {
       SELECT 'task:' || k.id || ':done', 'task', k.done_at, 'Task done: ' || k.title,
              substr(COALESCE(k.done_note, ''), 1, 160), '', '/go/staff_tasks', NULL
         FROM staff_tasks k WHERE k.assigned_to = ? AND k.done_at IS NOT NULL`, 2),
+    /* Every day marked, with the punches: the register is the record of
+       their days, not only of the bad ones. */
     u('attendance', `
       SELECT 'punch:' || s.id, 'attendance', ${day('s.on_date')},
-             CASE s.status WHEN 'absent' THEN 'Absent' WHEN 'late' THEN 'Late' ELSE 'Half day' END || ' on ' || s.on_date,
-             trim(COALESCE('In ' || substr(s.check_in, 1, 5), '') || ' ' || COALESCE('out ' || substr(s.check_out, 1, 5), '') || ' ' || COALESCE(s.remarks, '')),
+             upper(substr(replace(s.status, '_', ' '), 1, 1)) || substr(replace(s.status, '_', ' '), 2) || ' on ' || s.on_date,
+             trim(COALESCE('In ' || ${clock('s.check_in')}, '') || ' ' || COALESCE('out ' || ${clock('s.check_out')}, '') || ' ' || COALESCE(s.remarks, '')),
              ${who('s.marked_by')}, '/go/staff_attendance_register', NULL
-        FROM staff_attendance s WHERE s.user_id = ? AND s.status IN ('absent', 'late', 'half_day')`, 1),
+        FROM staff_attendance s WHERE s.user_id = ?`, 1),
+    /* The service book: appointment, confirmation, promotion, transfer, relieving. */
+    e('service', `
+      SELECT 'service:' || sb.id, 'service', ${day('sb.event_date')}, sb.title,
+             substr(COALESCE(sb.particulars, ''), 1, 160), ${who('sb.created_by')}, NULL, sb.pay_paise
+        FROM service_book_entries sb WHERE sb.employee_id = ?`, 1),
+    e('document', `
+      SELECT 'document:' || d.id, 'document', d.created_at, 'Document added: ' || replace(d.doc_type, '_', ' '),
+             COALESCE('Valid until ' || d.expires_on, ''), '', NULL, NULL
+        FROM employee_documents d WHERE d.employee_id = ?`, 1),
+    u('teaching', `
+      SELECT 'plan:' || lp.id, 'teaching', lp.created_at,
+             'Lesson plan: ' || COALESCE((SELECT c.name || '-' || sec.name FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.id = lp.section_id), '')
+               || COALESCE(' ' || (SELECT sub.name FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.id = lp.class_subject_id), ''),
+             'Week of ' || lp.week_of || ' · ' || lp.status, '', '/go/lesson_plans', NULL
+        FROM lesson_plans lp WHERE lp.teacher_user_id = ?
+      UNION ALL
+      SELECT 'homework:' || h.id, 'teaching', h.created_at, 'Homework set: ' || h.title,
+             COALESCE((SELECT c.name || '-' || sec.name FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.id = h.section_id), '')
+               || COALESCE(' · due ' || h.due_on, ''), '', '/go/homework_classwork', NULL
+        FROM homework h WHERE h.created_by = ?`, 2),
+    /* Covers and the remarks and messages they wrote, one line a day with a
+       count: what they did, not what they said. */
+    u('substitution', `
+      SELECT 'cover:' || sb.on_date, 'substitution', ${day('sb.on_date')},
+             'Covered ' || count(*) || CASE WHEN count(*) = 1 THEN ' period' ELSE ' periods' END, '', '', '/go/substitutions', NULL
+        FROM substitutions sb WHERE sb.substitute_user_id = ? GROUP BY sb.on_date`, 1),
+    u('remark', `
+      SELECT 'wrote:' || substr(r.created_at, 1, 10), 'remark', max(r.created_at),
+             'Wrote ' || count(*) || CASE WHEN count(*) = 1 THEN ' remark' ELSE ' remarks' END || ' about students', '', '', NULL, NULL
+        FROM student_remarks r WHERE r.recorded_by = ? GROUP BY substr(r.created_at, 1, 10)`, 1),
+    u('message', `
+      SELECT 'sent:' || substr(m.sent_at, 1, 10), 'message', max(m.sent_at),
+             'Sent ' || count(*) || CASE WHEN count(*) = 1 THEN ' message' ELSE ' messages' END, '', '', '/go/communication/messages', NULL
+        FROM (SELECT sent_at FROM parent_teacher_messages WHERE sender_user_id = ? AND deleted_at IS NULL
+              UNION ALL SELECT sent_at FROM staff_messages WHERE sender_user_id = ? AND deleted_at IS NULL) m
+       GROUP BY substr(m.sent_at, 1, 10)`, 2),
+    u('status', `
+      SELECT 'status:' || p.id, 'status', p.created_at, 'Posted a status', substr(COALESCE(p.caption, ''), 1, 160), '', NULL, NULL
+        FROM status_posts p WHERE p.posted_by = ?`, 1),
     /* The roles screen writes the whole new set to the audit log; the title
        reads it back as the set they hold from that moment. */
     u('role', `
@@ -182,6 +228,21 @@ function staffParts(c: Ctx, empId: string, userId: string | null): Part[] {
       SELECT 'grievance:' || g.id, 'concern', g.created_at, 'Concern raised: ' || g.subject, substr(g.description, 1, 160),
              ${who('g.raised_by')}, '/go/grievances', NULL
         FROM staff_grievances g WHERE g.employee_id = ? AND g.is_anonymous = 0` })
+  }
+  /* The exit file and its approval: HR and the principal. */
+  if (can(c.id, 'hr.employees.write')) {
+    parts.push({ type: 'exit', args: [empId, empId, empId], sql: `
+      SELECT 'exit:' || x.id || ':notice', 'exit', ${day('x.notice_on')}, 'Notice of ' || replace(x.kind, '_', ' '),
+             COALESCE('Last working day ' || x.last_working_day, ''), ${who('x.created_by')}, NULL, NULL
+        FROM staff_exits x WHERE x.employee_id = ?
+      UNION ALL
+      SELECT 'exit:' || x.id || ':sent', 'exit', x.approval_requested_at, 'Exit sent for approval', '', ${who('x.approval_requested_by')}, NULL, NULL
+        FROM staff_exits x WHERE x.employee_id = ? AND x.approval_requested_at IS NOT NULL
+      UNION ALL
+      SELECT 'exit:' || x.id || ':decided', 'exit', x.decided_at,
+             CASE WHEN x.status = 'returned' THEN 'Exit sent back' ELSE 'Exit approved' END,
+             substr(COALESCE(x.decision_note, ''), 1, 160), ${who('x.decided_by')}, NULL, NULL
+        FROM staff_exits x WHERE x.employee_id = ? AND x.decided_at IS NOT NULL` })
   }
   if (can(c.id, 'hr.payroll.read')) {
     parts.push({ type: 'payroll', args: [empId], sql: `
