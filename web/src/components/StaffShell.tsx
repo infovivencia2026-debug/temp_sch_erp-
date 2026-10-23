@@ -112,6 +112,8 @@ function Group({ slug, section, name, count = 0, children }: { slug: string; sec
   )
 }
 
+const isHomeSection = (s: ApiSection) => s.slug === 'home' || s.slug === 'dashboard' || s.workspace === 'Home'
+
 export interface StaffNavWorkspace { slug: string; name: string; sections: ApiSection[] }
 
 /** Every workspace's sections as collapsible groups of text links. */
@@ -151,6 +153,22 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         const list = bySection.get(section.slug) ?? []
         if (!list.length) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
+        /* Home is one item, not a group: it opens the workspace dashboard
+           (Yajur, 2026-10-22: "No need of sub-section for Home; Today's
+           classes - no need"). */
+        if (isHomeSection(section)) {
+          const first = list[0]
+          return (
+            <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
+              className={({ isActive }) => cn(
+                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
+                isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
+              )}>
+              <LineIcon name="home" size={18} />
+              <span className="truncate">{label('Home')}</span>
+            </NavLink>
+          )
+        }
         return (
           <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>

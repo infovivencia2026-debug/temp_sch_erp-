@@ -603,8 +603,8 @@ export default function StudentProfile() {
                     { value: 'active', label: 'On the roll' },
                     { value: 'suspended', label: 'Suspended' },
                     { value: 'new', label: 'New this year' },
-                    { value: 'left', label: 'Left the school' },
-                    { value: 'all', label: 'Everyone' },
+                    { value: 'left', label: 'Inactive' },
+                    { value: 'all', label: 'All students' },
                   ]}
                 />
               </div>
@@ -671,7 +671,7 @@ export default function StudentProfile() {
               <RollTile label="On the roll" value={counts.data.active ?? 0}
                 note="currently studying" active={roll === 'active'}
                 onClick={() => patch({ roll: null, list: '1', class: null, section: null })} />
-              <RollTile label="Left" value={counts.data.left ?? 0}
+              <RollTile label="Inactive" value={counts.data.left ?? 0}
                 note="TC issued, withdrawn or graduated" active={roll === 'left'}
                 onClick={() => patch({ roll: 'left', list: '1', class: null, section: null })} />
               <RollTile label="Suspended" value={counts.data.suspended ?? 0}
@@ -695,7 +695,7 @@ export default function StudentProfile() {
               <CardHeader
                 title={
                   countForTitle + (countForTitle === 1 ? ' student' : ' students') +
-                  (roll === 'left' ? ' who have left' : roll === 'active' ? ' on the roll' : '')
+                  (roll === 'left' ? ' inactive' : roll === 'active' ? ' on the roll' : '')
                 }
                 /* The "showing the first 200, choose a section to see the
                    rest" apology is gone with the thing it apologised for.
@@ -730,7 +730,7 @@ export default function StudentProfile() {
                         {[
                           ['students_on_roll', 'Students on the roll',
                             'The children here now'],
-                          ['students_left', 'Left / transferred',
+                          ['students_left', 'Inactive students',
                             'With dates, reasons and TC numbers'],
                           ['students_new_admissions', 'New admissions',
                             'Admitted this academic year'],
@@ -773,7 +773,7 @@ export default function StudentProfile() {
                 total={totalIsOurs ? (serverTotal as number) : undefined}
                 empty={!rows.length && !results.isFetchingNextPage}
                 emptyLabel={roll === 'left'
-                  ? 'Nobody has been recorded as leaving.'
+                  ? 'No inactive students.'
                   : 'No student matches.'}>
                 {rows.map((s) => (
                   <tr key={s.id}>
@@ -858,12 +858,11 @@ export default function StudentProfile() {
       // matches on the trailing slug across whichever the reader holds.
       disabled: !can('institution_admin.communication.messages'),
       disabledReason: 'Needs the messaging permission' },
-    { label: 'Move to another section', onClick: () => setMoving(true),
-      /* POST /students/{id}/section-change is gated on students.write (as in
-         Go). The catalogue key this named does not exist, so the move was
-         greyed out for everyone, the principal included. */
-      disabled: !can('students.write'),
-      disabledReason: 'Needs the students permission' },
+    /* POST /students/{id}/section-change is the office's (owner, 2026-10-22),
+       gated on the Class Promotion grant; not shown to a class teacher. */
+    ...(can('institution_admin.students.class_promotion')
+      ? [{ label: 'Move to another section', onClick: () => setMoving(true) }]
+      : []),
     /* The child's own way in. Nothing outside the demo seeder had ever given
        a student an account, so the whole student workspace was unreachable in
        a real school. The admission number becomes the username. */
@@ -1142,7 +1141,7 @@ export default function StudentProfile() {
           {p.status !== 'active' && p.status !== 'suspended' && (
             <Card className="border-warning lg:col-span-2">
               <CardHeader
-                title="This child has left the school"
+                title="This student is inactive"
                 description={
                   'Their record is kept in full, marks, attendance, fees and documents. '
                   + 'They are off the roll and out of the class lists.'

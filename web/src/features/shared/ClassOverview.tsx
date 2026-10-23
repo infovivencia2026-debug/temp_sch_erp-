@@ -297,7 +297,7 @@ function OverviewBody({
         Edit student
       </Button>
     ),
-    can('students.write') && (
+    can('institution_admin.students.class_promotion') && (
       <Button key="move" size="sm" variant="secondary" onClick={() => navigate('/go/class_promotion')}>
         <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden />
         Move student
