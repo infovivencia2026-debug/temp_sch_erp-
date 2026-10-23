@@ -71,6 +71,39 @@
         "worker/migrations/tenant/0090_feature_subject_overview.sql"
       ]
     },
+    "activity.school_activity": {
+      "name": "School activity",
+      "summary": "Everything students, parents and staff do on the platform, newest first, on one timeline: sign-ins, concerns, leave, attendance, fees, homework, messages, notices and changes to records. Filter by who, what, when and by person.",
+      "section": "activity",
+      "sectionName": "Activity",
+      "slug": "school_activity",
+      "roles": [
+        "institution_admin"
+      ],
+      "keys": [
+        "institution_admin.activity.school_activity"
+      ],
+      "module": "admin",
+      "webDir": "admin",
+      "planModule": "core",
+      "apiBase": "/admin/activity",
+      "readPerm": "admin.audit.read",
+      "writePerm": null,
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker\\migrations\\tenant\\0109_feature_school_activity.sql",
+      "files": [
+        "shared/api/feature_school_activity.ts",
+        "web/src/features/admin/SchoolActivity.tsx",
+        "worker/src/routes/admin/school_activity.ts",
+        "worker/test/integration/feature_school_activity.test.ts",
+        "worker\\migrations\\tenant\\0109_feature_school_activity.sql"
+      ]
+    },
     "communication.class_status": {
       "name": "Class Status",
       "summary": "Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.",

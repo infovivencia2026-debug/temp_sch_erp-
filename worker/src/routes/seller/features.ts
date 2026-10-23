@@ -78,6 +78,7 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'payroll.year_end_payout': ['/payroll/year-end'], // feature:payroll.year_end_payout
   'communication.inbox': ['/comms/mail'], // feature:communication.inbox
   'communication.mail_addresses': ['/comms/mail-addresses'], // feature:communication.mail_addresses
+  'activity.school_activity': ['/admin/activity'], // feature:activity.school_activity
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }

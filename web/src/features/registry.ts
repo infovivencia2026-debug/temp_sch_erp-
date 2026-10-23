@@ -245,6 +245,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      class teacher gets their sections and a read.all holder gets the school.
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
+  'institution_admin.activity.school_activity': screen(() => import('./admin/SchoolActivity')), // feature:activity.school_activity
   /* Same register, wider reach. Which sections it offers is decided by the
      permission the feature carries, not by the screen: with
      academics.attendance.write.any it lists every section in the school,
