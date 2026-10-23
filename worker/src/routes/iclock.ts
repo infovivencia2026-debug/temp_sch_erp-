@@ -265,10 +265,12 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     /* REAL TIME, WITHOUT ANYBODY SAYING BY HOW MUCH (Yajur, 2026-10-23: "no
        need of me telling always"). With {"auto": true} in the same config, a
        reader's error is measured: a punch sent the moment it is made carries
-       the reader's clock, and the server's clock is the real time. The
-       smallest gap seen that day is the error (a punch sent late only makes
-       its gap bigger), kept per reader in config.drift and applied to every
-       punch on a date no range covers. */
+       the reader's clock, and the server's clock is the real time (India,
+       UTC+5:30). Each punch that arrives live (within three hours of its own
+       time) is moved by its own gap, to the nearest five minutes; a gap under
+       three minutes is the push's delay, not a wrong clock. The last gap seen
+       is kept per reader in config.drift and moves punches sent later from the
+       reader's memory, on a date no range covers. */
     let ranges: { from: string; to: string; minutes: number }[] = []
     let cfgAll: { auto?: boolean; drift?: Record<string, { day: string; minutes: number }> } & Record<string, unknown> = {}
     try {
@@ -279,28 +281,29 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
       ranges = list.map((r) => ({ from: String(r.from ?? ''), to: String((r as { to?: string }).to ?? '9999-12-31'), minutes: Number(r.minutes) || 0 })).filter((r) => r.minutes)
     } catch { /* no correction */ }
     const lines = body.split('\n').map((l) => punchFields(l) ? l : null).filter((l): l is string => !!l)
-    let drift = 0
+    /* The batch's gap: its newest punch is the one sent live, so the smallest
+       gap in the batch is the reader's error; punches it held while offline
+       keep their spacing. A batch with nothing live (history) uses the last
+       gap kept for this reader. */
+    const kept = cfgAll.drift?.[serial]
+    let drift = kept ? kept.minutes : 0
     if (cfgAll.auto) {
-      const today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10)
-      const gaps: number[] = []
-      for (const l of lines) {
-        try {
-          const g = (Date.now() - Date.parse(parsePunchTime(punchFields(l)![1]))) / 60_000
-          if (Math.abs(g) < 180) gaps.push(g)
-        } catch { /* unreadable time */ }
+      const gaps = lines.map((l) => { try { return (Date.now() - Date.parse(parsePunchTime(punchFields(l)![1]))) / 60_000 } catch { return NaN } })
+        .filter((g) => Math.abs(g) < 180)
+      if (gaps.length) {
+        const g = Math.min(...gaps)
+        drift = Math.abs(g) < 3 ? 0 : Math.round(g)
+        if (!kept || kept.minutes !== drift) {
+          cfgAll.drift = { ...(cfgAll.drift ?? {}), [serial]: { day: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10), minutes: drift } }
+          await db.prepare(`UPDATE module_settings SET config = ? WHERE module = 'biometric_clock'`).bind(JSON.stringify(cfgAll)).run()
+        }
       }
-      const kept = cfgAll.drift?.[serial]
-      const seen = kept && kept.day === today ? kept.minutes : null
-      const measured = gaps.length ? Math.round(Math.min(...gaps)) : null
-      const best = measured === null ? seen : seen === null ? measured : Math.min(seen, measured)
-      // Under two minutes is the push's own delay, not a wrong clock.
-      drift = best !== null && Math.abs(best) >= 2 ? best : 0
-      if (best !== null && best !== seen) {
-        cfgAll.drift = { ...(cfgAll.drift ?? {}), [serial]: { day: today, minutes: best } }
-        await db.prepare(`UPDATE module_settings SET config = ? WHERE module = 'biometric_clock'`).bind(JSON.stringify(cfgAll)).run()
-      } else if (seen === null && kept) drift = Math.abs(kept.minutes) >= 2 ? kept.minutes : 0
     }
-    const shiftFor = (day: string) => ranges.find((r) => day >= r.from && day <= r.to)?.minutes ?? (cfgAll.auto ? drift : 0)
+    const shiftFor = (day: string) => {
+      const ranged = ranges.find((r) => day >= r.from && day <= r.to)
+      if (ranged) return ranged.minutes
+      return cfgAll.auto ? drift : 0
+    }
     for (const line of lines) {
       const f = punchFields(line)
       if (!f) continue
