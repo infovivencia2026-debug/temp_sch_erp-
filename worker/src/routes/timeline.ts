@@ -189,7 +189,14 @@ function staffParts(c: Ctx, empId: string, userId: string | null): Part[] {
     u('substitution', `
       SELECT 'cover:' || sb.on_date, 'substitution', ${day('sb.on_date')},
              'Covered ' || count(*) || CASE WHEN count(*) = 1 THEN ' period' ELSE ' periods' END, '', '', '/go/substitutions', NULL
-        FROM substitutions sb WHERE sb.substitute_user_id = ? GROUP BY sb.on_date`, 1),
+        FROM substitutions sb WHERE sb.substitute_user_id = ? GROUP BY sb.on_date
+      UNION ALL
+      /* And the other side (Yajur, 2026-10-23): their own periods someone else took. */
+      SELECT 'covered-for:' || sb.on_date, 'substitution', ${day('sb.on_date')},
+             count(*) || ' of their periods covered by others',
+             group_concat(DISTINCT (SELECT full_name FROM users WHERE id = sb.substitute_user_id)), '', '/go/substitutions', NULL
+        FROM substitutions sb JOIN timetable_entries te ON te.id = sb.timetable_entry_id
+       WHERE te.teacher_user_id = ? GROUP BY sb.on_date`, 2),
     u('remark', `
       SELECT 'wrote:' || substr(r.created_at, 1, 10), 'remark', max(r.created_at),
              'Wrote ' || count(*) || CASE WHEN count(*) = 1 THEN ' remark' ELSE ' remarks' END || ' about students', '', '', NULL, NULL
