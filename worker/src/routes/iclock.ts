@@ -256,22 +256,27 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     let orphans = 0
     const days = new Map<string, string>() // employee -> a punch time on that day, to roll up once each
     /* A READER WHOSE CLOCK IS WRONG (Yajur, 2026-10-22: 30 minutes ahead for a
-       week). module_settings 'biometric_clock' config {"minutes": -30, "from":
-       "2026-10-15"} moves every punch from that date on by that many minutes,
-       until the setting is removed once the reader's clock is set right. */
-    let shift = 0, shiftFrom = ''
+       week, then 30 behind). module_settings 'biometric_clock' config
+       {"ranges": [{"from": "2026-10-15", "to": "2026-10-22", "minutes": -30},
+       {"from": "2026-10-23", "minutes": 30}]} moves each punch, by the date the
+       reader wrote on it, by that range's minutes. An open range lasts until it
+       is closed once the reader's clock is set right. The older single
+       {"minutes", "from"} form still reads as one open range. */
+    let ranges: { from: string; to: string; minutes: number }[] = []
     try {
       const cfg = await db.prepare(`SELECT config FROM module_settings WHERE module = 'biometric_clock' AND enabled = 1`).first<{ config: string | null }>()
-      const v = cfg?.config ? JSON.parse(cfg.config) as { minutes?: number; from?: string } : {}
-      shift = Number(v.minutes) || 0
-      shiftFrom = typeof v.from === 'string' ? v.from : ''
+      const v = cfg?.config ? JSON.parse(cfg.config) as { minutes?: number; from?: string; ranges?: { from?: string; to?: string; minutes?: number }[] } : {}
+      const list = Array.isArray(v.ranges) ? v.ranges : v.minutes ? [v] : []
+      ranges = list.map((r) => ({ from: String(r.from ?? ''), to: String((r as { to?: string }).to ?? '9999-12-31'), minutes: Number(r.minutes) || 0 })).filter((r) => r.minutes)
     } catch { /* no correction */ }
+    const shiftFor = (day: string) => ranges.find((r) => day >= r.from && day <= r.to)?.minutes ?? 0
     for (const line of body.split('\n')) {
       const f = punchFields(line)
       if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
-      if (shift && f[1].slice(0, 10) >= shiftFrom) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
+      const shift = shiftFor(f[1].slice(0, 10))
+      if (shift) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
       const uid = f[0].toUpperCase()
       const emp = await db.prepare(`SELECT id FROM employees WHERE upper(CAST(device_user_id AS TEXT)) = ?`).bind(uid).first<{ id: string }>()
