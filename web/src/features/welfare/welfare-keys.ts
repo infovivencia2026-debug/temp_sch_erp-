@@ -16,7 +16,9 @@ import { screen } from '@/lib/screen'
  */
 export const welfareKeys = {
   // Nurse: reads and writes the clinic (health.read + health.write).
-  'nurse.home.dashboard': screen(() => import('./NurseDay')),
+  'nurse.home.dashboard': screen(() =>
+    import('./NurseDay').then((m) => ({ default: m.Classic })),
+  ),
   'nurse.clinic.visits_medication': screen(() => import('../operations/InfirmaryClinic')),
   'nurse.clinic.checkups_camps': screen(() => import('../operations/InfirmaryScreening')),
   'nurse.clinic.health_records': screen(() => import('../operations/Infirmary')),
@@ -25,7 +27,9 @@ export const welfareKeys = {
   // Counsellor: counselling threads, the conduct file read-only (the note
   // form hides itself without welfare.discipline.write), and the health master
   // file read-only (health.read).
-  'counsellor.home.dashboard': screen(() => import('./CounsellorDay')),
+  'counsellor.home.dashboard': screen(() =>
+    import('./CounsellorDay').then((m) => ({ default: m.Classic })),
+  ),
   'counsellor.counselling.family_conversations': screen(() => import('../communication/CounselorChannel')),
   'counsellor.counselling.conduct_notes': screen(() => import('../faculty/Behaviour')),
   'counsellor.counselling.health_records': screen(() => import('../operations/Infirmary')),
@@ -33,13 +37,17 @@ export const welfareKeys = {
 
   // Discipline officer: writes conduct notes (welfare.discipline.write); the
   // incident log is read, its escalation form needs students.write.
-  'discipline_officer.home.dashboard': screen(() => import('./DisciplineDay')),
+  'discipline_officer.home.dashboard': screen(() =>
+    import('./DisciplineDay').then((m) => ({ default: m.Classic })),
+  ),
   'discipline_officer.discipline.conduct_notes': screen(() => import('../faculty/Behaviour')),
   'discipline_officer.discipline.incident_log': screen(() => import('../students/DisciplineLog')),
   'discipline_officer.my_profile.my_pay': screen(() => import('../me/MyPay')),
 
   // Hostel warden: every register is hostel.read / hostel.write.
-  'hostel_warden.home.dashboard': screen(() => import('./WardenDay')),
+  'hostel_warden.home.dashboard': screen(() =>
+    import('./WardenDay').then((m) => ({ default: m.Classic })),
+  ),
   'hostel_warden.hostel.hostel_rooms': screen(() => import('../operations/Hostel')),
   'hostel_warden.hostel.outpasses_mess': screen(() => import('../operations/HostelLife')),
   'hostel_warden.hostel.night_study': screen(() => import('../operations/HostelNightStudy')),
@@ -50,7 +58,9 @@ export const welfareKeys = {
   // Activity coordinator: activities read (academics.read; the setup form
   // hides itself without academics.write), the showcase read and publish
   // (announcements.write), circulars published to the classes concerned.
-  'activity_coord.home.dashboard': screen(() => import('./ActivityDay')),
+  'activity_coord.home.dashboard': screen(() =>
+    import('./ActivityDay').then((m) => ({ default: m.Classic })),
+  ),
   'activity_coord.activities.clubs_activities': screen(() => import('../academics/ActivitiesSetup')),
   'activity_coord.activities.achievements_showcase': screen(() => import('../communication/AchievementsShowcase')),
   'activity_coord.activities.circulars': screen(() => import('../comms/Circulars')),
