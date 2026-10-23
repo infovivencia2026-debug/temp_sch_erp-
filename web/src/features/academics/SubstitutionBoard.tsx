@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   FormNotice, Input, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
@@ -47,12 +47,15 @@ interface Slot {
    * absent — leave approved at 8:40 for a proxy given at 8:20. Until now that
    * period still read "covered", and the class got nobody. */
   cover_absent?: boolean
+  /** A pick waiting for the principal. */
+  waiting_for?: string
   candidates: Candidate[]
 }
 
 interface BoardResponse {
   items: Slot[]
   on_date: string
+  can_approve: boolean
   away: { user_id: string; full_name: string; reason: string; periods_today: boolean }[]
   summary: {
     absent_teachers: number
@@ -104,17 +107,19 @@ export default function SubstitutionBoard() {
       ),
   })
 
-  // The write already exists on the timetable module; this screen decides who,
-  // and that endpoint refuses a proxy who turns out not to be free after all.
+  /* A pick goes to the principal for approval (Yajur, 2026-10-23); the
+     principal's own pick, and their Approve, write the substitution and tell
+     both teachers. The server refuses a proxy who is not free after all. */
   const cover = useMutation({
     mutationFn: (v: { timetable_entry_id: string; substitute_user_id: string }) =>
-      api.post('/api/v1/timetable-admin/substitutions', {
-        ...v,
-        on_date: onDate,
-        reason: 'Cover for an absent teacher',
-      }),
+      api.post('/api/v1/timetable-cover/propose', { ...v, on_date: onDate }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['substitution-board'] }),
   })
+  const approve = useMutation({
+    mutationFn: (timetable_entry_id: string) => api.post('/api/v1/timetable-cover/approve', { timetable_entry_id, on_date: onDate }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['substitution-board'] }),
+  })
+  const canApprove = board.data?.can_approve ?? false
 
   if (board.isLoading && !board.data) return <SkeletonTiles count={4} label="Reading this morning’s register…" />
   if (board.error) return <ErrorState error={board.error} />
@@ -214,6 +219,13 @@ export default function SubstitutionBoard() {
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {r.covered_by && !r.cover_absent ? (
                         <Badge tone="success">covered by {r.covered_by}</Badge>
+                      ) : r.waiting_for && canApprove ? (
+                        <>
+                          <Badge tone="warning">{r.waiting_for}, waiting for approval</Badge>
+                          <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate(r.timetable_entry_id)}>Approve</Button>
+                        </>
+                      ) : r.waiting_for ? (
+                        <Badge tone="warning">{r.waiting_for}, waiting for the principal</Badge>
                       ) : (
                         /* A dropdown rather than four buttons.
                          *
@@ -248,7 +260,7 @@ export default function SubstitutionBoard() {
               ))}
             </ul>
             <div className="px-5 py-4">
-              <FormNotice error={cover.error} />
+              <FormNotice error={cover.error ?? approve.error} />
             </div>
           </Card>
         )}
