@@ -109,6 +109,7 @@ export function registerInvoicing(r: Router): void {
     if (!Number.isInteger(instalmentNo) || instalmentNo <= 0) instalmentNo = 1
     let dueOn = addDays(today(), 14)
     if (req.due_on) { if (!isDate(req.due_on)) throw badRequest('due_on must be YYYY-MM-DD'); dueOn = req.due_on }
+    if (dueOn < today()) throw badRequest('the due date has already passed; a demand cannot be overdue the day it is raised')
     const allInstalments = !!req.all_instalments
 
     const fs = await c.db.prepare(`SELECT institution_id, campus_id, academic_year_id, class_id FROM fee_structures WHERE id = ? AND is_active`).bind(req.fee_structure_id)

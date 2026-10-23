@@ -794,6 +794,10 @@ export function registerLMS(r: Router) {
     const onRoll = await c.db.prepare(`SELECT ${fullName('st')} AS name FROM enrollments e JOIN students st ON st.id = e.student_id WHERE e.student_id = ? AND e.section_id = ? AND e.status = 'active'`)
       .bind(sid, h.section_id).first<{ name: string }>()
     if (!onRoll) throw notFound('that child is not on this section\'s roll')
+    const handedIn = await c.db.prepare(`SELECT 1 AS x FROM homework_submissions WHERE homework_id = ? AND student_id = ? AND submitted_at IS NOT NULL`).bind(h.id, sid).first()
+    if (!handedIn && b.without_submission !== true) {
+      throw new HttpError(409, `${onRoll.name} has not handed anything in. Mark it as not received if that is the point, or wait for the work.`, { code: 'nothing_submitted' })
+    }
     const rubric = parseRubric(h.rubric)
     const max = num(h.max_marks)
     let marksVal: number | null = null
@@ -830,6 +834,56 @@ export function registerLMS(r: Router) {
     }
     await c.db.batch(stmts)
     return ok({ student_id: sid, marks: marksVal, status, returned: give })
+  })
+
+  /* Fix an assignment already set: title, instructions, due date, maximum, whether it takes submissions.
+     The maximum and rubric are locked once anything is marked, or marks already given would change meaning. */
+  r.put('/lms/assignments/{id}', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const h = await assignmentInReach(c, s, c.params.id)
+    const b = await readJSON<Body>(c.req)
+    const sets: string[] = [], args: unknown[] = []
+    if (b.title !== undefined) { const t = str(b.title); if (!t) throw badRequest('give the assignment a title'); sets.push('title = ?'); args.push(t.slice(0, 200)) }
+    if (b.instructions !== undefined) { sets.push('instructions = ?'); args.push(optStr(b.instructions)) }
+    if (b.due_on !== undefined) {
+      const due = optStr(b.due_on)
+      if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw badRequest('due_on must be YYYY-MM-DD')
+      if (due && due < todayIST()) throw badRequest('the due date has already passed')
+      sets.push('due_on = ?'); args.push(due)
+    }
+    if (b.allow_submission !== undefined) { sets.push('allow_submission = ?'); args.push(b.allow_submission === false ? 0 : 1) }
+    if (b.max_marks !== undefined || b.rubric !== undefined) {
+      const marked = await c.db.prepare(`SELECT count(*) AS n FROM homework_submissions WHERE homework_id = ? AND marks IS NOT NULL`).bind(h.id).first<{ n: number }>()
+      if (Number(marked?.n) > 0) throw new HttpError(409, 'work has already been marked out of the current maximum; the marks and rubric cannot change now', { code: 'already_marked' })
+      const rubric = b.rubric !== undefined ? parseRubric(b.rubric) : parseRubric(h.rubric)
+      let max = b.max_marks !== undefined ? num(b.max_marks) : num(h.max_marks)
+      if (max !== null && (!Number.isFinite(max) || max < 0 || max > 1000)) throw badRequest('max_marks must be between 0 and 1000')
+      if (rubric) max = rubric.reduce((a, r) => a + r.max, 0)
+      sets.push('max_marks = ?', 'rubric = ?'); args.push(max === null ? null : String(max), rubric ? JSON.stringify(rubric) : null)
+    }
+    if (!sets.length) throw badRequest('nothing to change')
+    sets.push('updated_at = ?'); args.push(now())
+    await c.db.prepare(`UPDATE homework SET ${sets.join(', ')} WHERE id = ?`).bind(...args, h.id).run()
+    return ok({ id: h.id, updated: true })
+  })
+
+  /* Withdraw an assignment set by mistake. Once a child has handed work in, the record stays: close it instead. */
+  r.del('/lms/assignments/{id}', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const h = await assignmentInReach(c, s, c.params.id)
+    const handed = await c.db.prepare(`SELECT count(*) AS n FROM homework_submissions WHERE homework_id = ? AND submitted_at IS NOT NULL`).bind(h.id).first<{ n: number }>()
+    if (Number(handed?.n) > 0) {
+      throw new HttpError(409, `${handed!.n} children have handed this in; it cannot be deleted. Close it to submissions, or mark and return it.`, { code: 'has_submissions' })
+    }
+    await c.db.batch([
+      c.db.prepare(`DELETE FROM homework_submissions WHERE homework_id = ?`).bind(h.id),
+      c.db.prepare(`DELETE FROM homework_attachments WHERE homework_id = ?`).bind(h.id),
+      c.db.prepare(`DELETE FROM notifications WHERE source_kind IN ('homework', 'homework_nudge') AND source_id = ?`).bind(h.id),
+      c.db.prepare(`DELETE FROM homework WHERE id = ?`).bind(h.id),
+    ])
+    return ok({ id: h.id, deleted: true })
   })
 
   /* Hand back everything marked and not yet returned. */
@@ -916,6 +970,81 @@ export function registerLMS(r: Router) {
     }
     await c.db.batch(stmts)
     return ok({ id: testId, questions: qs.length })
+  })
+
+  /* Fix a quiz: title, instructions, window and time limit any time; the questions only while nobody has started it. */
+  r.put('/lms/quizzes/{id}', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const b = await readJSON<Body>(c.req)
+    const id = needUUID(c.params.id, 'id')
+    const t0 = await c.db.prepare(`SELECT section_id, class_subject_id, opens_at, closes_at FROM online_tests WHERE id = ?`).bind(id)
+      .first<{ section_id: string; class_subject_id: string; opens_at: string | null; closes_at: string | null }>()
+    if (!t0 || !reachesSection(s, t0.section_id)) throw notFound()
+    const sets: string[] = [], args: unknown[] = []
+    if (b.title !== undefined) { const t = str(b.title); if (!t) throw badRequest('give the quiz a title'); sets.push('title = ?'); args.push(t.slice(0, 200)) }
+    if (b.instructions !== undefined) { sets.push('instructions = ?'); args.push(optStr(b.instructions)) }
+    if (b.duration_minutes !== undefined) {
+      const dur = b.duration_minutes === null || b.duration_minutes === '' ? null : Math.trunc(Number(b.duration_minutes))
+      if (dur !== null && (!Number.isFinite(dur) || dur < 1 || dur > 300)) throw badRequest('the time limit must be between 1 and 300 minutes')
+      sets.push('duration_minutes = ?'); args.push(dur)
+    }
+    const iso = (v: unknown, what: string) => { const x = str(v); if (!x) return null; const t = Date.parse(x); if (Number.isNaN(t)) throw badRequest(`${what} is not a date and time`); return new Date(t).toISOString() }
+    const opens = b.opens_at !== undefined ? iso(b.opens_at, 'opens_at') : t0.opens_at
+    const closes = b.closes_at !== undefined ? iso(b.closes_at, 'closes_at') : t0.closes_at
+    if (opens && closes && closes <= opens) throw badRequest('the quiz must close after it opens')
+    if (b.opens_at !== undefined) { sets.push('opens_at = ?'); args.push(opens) }
+    if (b.closes_at !== undefined) { sets.push('closes_at = ?'); args.push(closes) }
+    if (b.max_attempts !== undefined) { sets.push('max_attempts = ?'); args.push(Math.max(1, Math.min(5, Math.trunc(Number(b.max_attempts)) || 1))) }
+    const stmts: D1PreparedStatement[] = []
+    if (b.questions !== undefined) {
+      const tried = await c.db.prepare(`SELECT count(*) AS n FROM online_test_attempts WHERE test_id = ?`).bind(id).first<{ n: number }>()
+      if (Number(tried?.n) > 0) throw new HttpError(409, 'a child has already taken this quiz; its questions cannot change. Close it and set a new one.', { code: 'has_attempts' })
+      const qs = Array.isArray(b.questions) ? b.questions as Body[] : []
+      if (!qs.length) throw badRequest('add at least one question')
+      if (qs.length > 100) throw badRequest('a quiz holds at most 100 questions')
+      const inst = institutionId(c), t = now()
+      stmts.push(c.db.prepare(`DELETE FROM online_test_questions WHERE test_id = ?`).bind(id))
+      qs.forEach((q, i) => {
+        const stem = str(q.stem)
+        const options = Array.isArray(q.options) ? (q.options as unknown[]).map(str).filter(Boolean) : []
+        const correct = Math.trunc(Number(q.correct))
+        const m = q.marks === undefined ? 1 : Number(q.marks)
+        if (!stem) throw badRequest(`question ${i + 1} has no text`)
+        if (options.length < 2 || options.length > 6) throw badRequest(`question ${i + 1} needs between two and six options`)
+        if (!Number.isInteger(correct) || correct < 0 || correct >= options.length) throw badRequest(`question ${i + 1}: mark which option is correct`)
+        if (!Number.isFinite(m) || m <= 0 || m > 20) throw badRequest(`question ${i + 1}: marks must be between 0 and 20`)
+        const qid = uuid()
+        stmts.push(c.db.prepare(`INSERT INTO question_bank_questions (id, institution_id, class_subject_id, kind, difficulty, bloom_level, stem, default_marks, explanation, is_active, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, 'mcq', 'medium', 'understand', ?, ?, ?, 1, ?, ?, ?)`).bind(qid, inst, t0.class_subject_id, stem.slice(0, 2000), String(m), optStr(q.explanation), c.id.userId, t, t))
+        options.forEach((o, j) => stmts.push(c.db.prepare(`INSERT INTO question_bank_options (id, institution_id, question_id, sequence, body, is_correct) VALUES (?, ?, ?, ?, ?, ?)`)
+          .bind(uuid(), inst, qid, j + 1, o.slice(0, 500), j === correct ? 1 : 0)))
+        stmts.push(c.db.prepare(`INSERT INTO online_test_questions (id, institution_id, test_id, question_id, sequence, marks, negative_marks) VALUES (?, ?, ?, ?, ?, ?, '0')`)
+          .bind(uuid(), inst, id, qid, i + 1, String(m)))
+      })
+    }
+    if (!sets.length && !stmts.length) throw badRequest('nothing to change')
+    sets.push('updated_at = ?'); args.push(now())
+    stmts.unshift(c.db.prepare(`UPDATE online_tests SET ${sets.join(', ')} WHERE id = ?`).bind(...args, id))
+    await c.db.batch(stmts)
+    return ok({ id, updated: true })
+  })
+
+  /* Withdraw a quiz nobody has started. One with attempts is closed, not deleted. */
+  r.del('/lms/quizzes/{id}', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const id = needUUID(c.params.id, 'id')
+    const t0 = await c.db.prepare(`SELECT section_id FROM online_tests WHERE id = ?`).bind(id).first<{ section_id: string }>()
+    if (!t0 || !reachesSection(s, t0.section_id)) throw notFound()
+    const tried = await c.db.prepare(`SELECT count(*) AS n FROM online_test_attempts WHERE test_id = ?`).bind(id).first<{ n: number }>()
+    if (Number(tried?.n) > 0) throw new HttpError(409, 'a child has already taken this quiz; close it instead of deleting it', { code: 'has_attempts' })
+    await c.db.batch([
+      c.db.prepare(`DELETE FROM online_test_questions WHERE test_id = ?`).bind(id),
+      c.db.prepare(`DELETE FROM notifications WHERE source_kind = 'quiz' AND source_id = ?`).bind(id),
+      c.db.prepare(`DELETE FROM online_tests WHERE id = ?`).bind(id),
+    ])
+    return ok({ id, deleted: true })
   })
 
   r.post('/lms/quizzes/{id}/status', P, async (c) => {
