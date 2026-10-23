@@ -98,7 +98,8 @@ export default function Timeline({ url, title = 'Timeline' }: {
     <Card>
       <CardHeader title={title} description="Everything recorded about them, newest first." />
       {types.length > 1 && (
-        <div className="px-[var(--card-pad)] pb-3">
+        /* pt: the header draws a line under the title, and the filters sat on it. */
+        <div className="px-[var(--card-pad)] pb-3 pt-3">
           <div className={SEG_BAR} role="group" aria-label="Show">
             {[['', 'All'] as const, ...types.map((t) => [t, KINDS[t]?.label ?? t] as const)].map(([k, label]) => (
               <button key={k || 'all'} type="button" aria-pressed={type === k} className={segClass(type === k)}
