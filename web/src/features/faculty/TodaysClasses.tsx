@@ -1,10 +1,12 @@
+import { useState } from 'react'
+import { CalendarPlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
-import { useActiveRole } from '@/lib/catalog'
+import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
@@ -122,6 +124,10 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const [viewing, setViewing] = useState<string | null>(null)
+  // The leave screen this person holds, wherever their role files it.
+  const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
+  const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -261,7 +267,8 @@ export default function TodaysClasses() {
           </div>
         </Card>
 
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+        <div className="flex min-w-0 flex-col gap-5">
+        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-22rem)]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[16px] font-bold">Notifications</h2>
@@ -293,11 +300,18 @@ export default function TodaysClasses() {
                           <p className={cn('min-w-0 truncate text-[14px]', n.read_at && !urgent ? 'font-medium' : 'font-semibold')}>{n.title}</p>
                           <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
                         </div>
-                        {n.body && <p className="truncate text-[13px] text-muted-foreground">{n.body}</p>}
+                        {n.body && <p className={cn('text-[13px] text-muted-foreground', viewing !== n.id && 'truncate')}>{n.body}</p>}
                       </div>
-                      {link && (
-                        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate(link)}>Open</Button>
-                      )}
+                      {/* View on every row: it opens the screen the notification is about, or,
+                          where there is none, shows the whole message here and marks it read. */}
+                      <Button variant="secondary" size="sm" className="shrink-0"
+                        onClick={() => {
+                          if (link) { navigate(link); return }
+                          setViewing(viewing === n.id ? null : n.id)
+                          if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
+                        }}>
+                        {!link && viewing === n.id ? 'Close' : 'View'}
+                      </Button>
                     </li>
                   )
                 })}
@@ -305,6 +319,19 @@ export default function TodaysClasses() {
             )}
           </div>
         </Card>
+        {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
+        {leavePath && (
+          <Card className="flex min-w-0 flex-row items-center justify-between gap-4 px-5 py-3.5">
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-bold">Apply for leave</h2>
+              <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
+            </div>
+            <Button size="sm" className="shrink-0" onClick={() => navigate(leavePath)}>
+              <CalendarPlus className="h-3.5 w-3.5" /> Apply
+            </Button>
+          </Card>
+        )}
+        </div>
       </div>
     </div></PageBody>
   )

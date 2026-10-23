@@ -1,4 +1,4 @@
-import PostalMime, { type Address } from 'postal-mime'
+import PostalMime, { type Address, type Email } from 'postal-mime'
 import type { Env } from '../env'
 import { institutionById, tenantDb } from '../tenant'
 import { loadProviders, platformProviders, type Provider } from './messaging'
@@ -103,12 +103,32 @@ export async function receiveMail(env: Env, m: Inbound): Promise<InboundResult> 
   if (m.rawSize > 30 << 20) return { reject: 'Message too large' }
 
   const mail = await PostalMime.parse(m.raw, { attachmentEncoding: 'arraybuffer' })
+  if (await alreadyHave(db, user, messageIdOf(mail), 'inbox')) return { duplicate: true }
+  const id = await storeMail(env, db, inst.id, user, 'inbox', mail, { fallbackFrom: m.from, receivedAt: new Date().toISOString(), read: false })
+  return { stored: id, user_id: user }
+}
+
+export type StoredFolder = 'inbox' | 'sent'
+
+export const messageIdOf = (mail: Email) => bareId(mail.messageId)
+
+/** A message with this Message-ID is already in this folder of the mailbox,
+    or was and now sits in Trash. Mail with no Message-ID is never a duplicate. */
+export async function alreadyHave(db: D1Database, user: string, messageId: string | null, folder: StoredFolder): Promise<boolean> {
+  if (!messageId) return false
+  const where = folder === 'sent'
+    ? `(folder = 'sent' OR trashed_from = 'sent')`
+    : `folder <> 'sent' AND COALESCE(trashed_from, '') <> 'sent'`
+  return !!(await db.prepare(`SELECT 1 AS x FROM mail_messages WHERE user_id = ? AND message_id = ? AND ${where} LIMIT 1`).bind(user, messageId).first())
+}
+
+/** One parsed message into a folder of its owner's mailbox, its attachments in
+    R2. Inbound mail and the import of old mail (services/mail_import.ts) both
+    land here. */
+export async function storeMail(env: Env, db: D1Database, institutionId: string, user: string, folder: StoredFolder, mail: Email,
+  opts: { fallbackFrom: string; receivedAt: string; read: boolean }): Promise<string> {
   const messageId = bareId(mail.messageId)
-  if (messageId) {
-    const dup = await db.prepare(`SELECT 1 AS x FROM mail_messages WHERE user_id = ? AND message_id = ? AND folder <> 'sent'`).bind(user, messageId).first()
-    if (dup) return { duplicate: true }
-  }
-  const from = flatten(mail.from)[0] ?? { name: '', address: m.from.toLowerCase() }
+  const from = flatten(mail.from)[0] ?? { name: '', address: opts.fallbackFrom.toLowerCase() }
   const html = mail.html && mail.html.length <= MAX_HTML ? mail.html : null
   const text = (mail.text?.trim() ? mail.text : mail.html ? htmlToText(mail.html) : '').slice(0, MAX_TEXT)
   const refs = refIds(mail.references)
@@ -124,7 +144,7 @@ export async function receiveMail(env: Env, m: Inbound): Promise<InboundResult> 
     const bytes = typeof a.content === 'string' ? new TextEncoder().encode(a.content) : new Uint8Array(a.content)
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_ATTACHMENT) continue
     const aid = uuid()
-    const key = `${inst.id}/mail/${user}/${id}/${aid}`
+    const key = `${institutionId}/mail/${user}/${id}/${aid}`
     const type = a.mimeType || 'application/octet-stream'
     put.push(env.FILES_WRITE.put(key, bytes, { httpMetadata: { contentType: type } }))
     rows.push(db.prepare(`INSERT INTO mail_attachments (id, message_id, user_id, filename, content_type, size_bytes, r2_key, created_at)
@@ -133,14 +153,14 @@ export async function receiveMail(env: Env, m: Inbound): Promise<InboundResult> 
   await Promise.all(put)
   await db.batch([
     db.prepare(`INSERT INTO mail_messages (id, user_id, folder, from_address, from_name, to_list, cc_list, subject, snippet, text_body, html_body,
-        message_id, in_reply_to, references_list, thread_key, has_attachments, received_at, created_at)
-        VALUES (?, ?, 'inbox', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, user, from.address, from.name, JSON.stringify(flatten(mail.to)), JSON.stringify(flatten(mail.cc)),
+        message_id, in_reply_to, references_list, thread_key, has_attachments, read_at, received_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, user, folder, from.address, from.name, JSON.stringify(flatten(mail.to)), JSON.stringify(flatten(mail.cc)),
         (mail.subject ?? '').slice(0, 998), snippetOf(text), text, html, messageId, inReplyTo, refs.length ? refs.join(' ') : null, thread,
-        rows.length ? 1 : 0, at, at),
+        rows.length ? 1 : 0, opts.read ? at : null, opts.receivedAt, at),
     ...rows,
   ])
-  return { stored: id, user_id: user }
+  return id
 }
 
 /** The Worker's email() entry: unknown or disabled addresses are refused at the SMTP stage. */

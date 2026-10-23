@@ -130,7 +130,21 @@ export async function sendReportDigest(env: Env, inst: Institution, db: D1Databa
   if (!recips.length) return
 
   const school = inst.name
-  const today = localDate(inst.timezone)
+  /* The digest goes out at 07:00, so it reports the day (or week) that has
+     ended, not the one that has barely begun: dated today it always read "no
+     attendance was marked" (Yajur, 2026-10-22). */
+  const today = localDate(inst.timezone, -1)
+  /* A day the school was closed has nothing to report (Yajur, 2026-10-22:
+     "if it is holiday why showing all this"): a calendar holiday for everyone,
+     or a Sunday the calendar does not mark as a working day. */
+  if (period === 'daily') {
+    const on = await db.prepare(`SELECT kind FROM holidays WHERE kind IN ('holiday','vacation','working_day')
+        AND applies_to IN ('all','students') AND substr(on_date, 1, 10) <= ?1 AND substr(COALESCE(to_date, on_date), 1, 10) >= ?1`)
+      .bind(today).all<{ kind: string }>().catch(() => ({ results: [] as { kind: string }[] }))
+    const kinds = new Set((on.results ?? []).map((x) => x.kind))
+    const sunday = new Date(today + 'T00:00:00Z').getUTCDay() === 0
+    if (!kinds.has('working_day') && (kinds.has('holiday') || kinds.has('vacation') || sunday)) return
+  }
   const r = rangeFor(period, today)
   const blocks: Record<string, string> = {}
   for (const k of enabled) blocks[k] = await section(db, k, r)

@@ -154,7 +154,7 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
   const [ins] = await db.batch([
     db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, check_in, check_out, source, device_ref, created_at)
         SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
-               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN julianday(g.la) - julianday(g.fi) >= 5.0 / 1440 THEN g.la END, 'device', g.serial, ?3
+               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN julianday(g.la) - julianday(g.fi) >= 60.0 / 1440 THEN g.la END, 'device', g.serial, ?3
           FROM (SELECT e.user_id, ${day} AS d, MIN(p.punched_at) AS fi, MAX(p.punched_at) AS la, MAX(bd.serial) AS serial
                   FROM biometric_punches p JOIN employees e ON e.id = p.employee_id JOIN biometric_devices bd ON bd.id = p.device_id
                  WHERE p.institution_id = ?1 AND p.punched_at >= ?2 AND e.user_id IS NOT NULL
@@ -162,7 +162,7 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
     db.prepare(`UPDATE staff_attendance SET
           check_in = MIN(COALESCE(check_in, '9999'), (SELECT MIN(p.punched_at) FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)),
-          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 5.0 / 1440 THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 60.0 / 1440 THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
           status = 'present'
         WHERE institution_id = ?1 AND source = 'device' AND on_date >= date(?2, '+330 minutes')
@@ -265,11 +265,23 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     let n = 0
     let orphans = 0
     const days = new Map<string, string>() // employee -> a punch time on that day, to roll up once each
+    /* A READER WHOSE CLOCK IS WRONG (Yajur, 2026-10-22: 30 minutes ahead for a
+       week). module_settings 'biometric_clock' config {"minutes": -30, "from":
+       "2026-10-15"} moves every punch from that date on by that many minutes,
+       until the setting is removed once the reader's clock is set right. */
+    let shift = 0, shiftFrom = ''
+    try {
+      const cfg = await db.prepare(`SELECT config FROM module_settings WHERE module = 'biometric_clock' AND enabled = 1`).first<{ config: string | null }>()
+      const v = cfg?.config ? JSON.parse(cfg.config) as { minutes?: number; from?: string } : {}
+      shift = Number(v.minutes) || 0
+      shiftFrom = typeof v.from === 'string' ? v.from : ''
+    } catch { /* no correction */ }
     for (const line of body.split('\n')) {
       const f = punchFields(line)
       if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
+      if (shift && f[1].slice(0, 10) >= shiftFrom) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
       const uid = f[0].toUpperCase()
       const emp = await db.prepare(`SELECT id FROM employees WHERE upper(CAST(device_user_id AS TEXT)) = ?`).bind(uid).first<{ id: string }>()

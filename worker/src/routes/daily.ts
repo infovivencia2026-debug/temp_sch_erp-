@@ -1166,7 +1166,7 @@ function registerWorkflow(r: Router) {
              COALESCE(sa.check_in, bp.first_punch) AS check_in,
              /* A tap within five minutes of the first is the same arrival: a double
                 tap at the reader, not an in and an out three seconds apart. */
-             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 5.0 / 1440 THEN bp.last_punch END) AS check_out
+             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch END) AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
         LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
@@ -1900,7 +1900,7 @@ async function submitHomework(c: Ctx): Promise<Response> {
   if (hw.teacher && hw.teacher !== c.id.userId) {
     const d = new Date()
     stmts.push(notifyStmt(c, hw.teacher, target, 'homework_submitted', `${hw.child} turned in ${hw.title}`,
-      `Submitted ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]}. Open the diary to mark it.`, '/faculty/teaching/homework_classwork', 'homework', hid))
+      `Submitted ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]}. Open the diary to mark it.`, '/go/teaching/homework_classwork', 'homework', hid))
   }
   await c.db.batch(stmts)
   return ok({ submitted: true })

@@ -21,6 +21,11 @@ import type { Env } from '../env'
 
 export const MODULE = 'class_status'
 export const LIFETIME_MS = 24 * 3600_000
+/* SAVED WITHIN A WEEK (Yajur, 2026-10-22: photos were lost because nobody had
+   pinned them in time). After its 24 hours a post leaves everyone's view, but
+   its poster and the school can still pin it to the gallery for 7 days before
+   it is deleted. A post waiting for approval waits until it is decided. */
+export const GRACE_MS = 7 * 24 * 3600_000
 export const MAX_BYTES = 25 << 20
 export const WHO = ['teachers', 'class_teachers', 'admins'] as const
 export type Who = (typeof WHO)[number]
@@ -89,13 +94,13 @@ export function storageWarning(used: number): string | undefined {
 
 /** Deletes expired, unpinned posts and their R2 objects. Returns how many went. */
 export async function expireStatuses(env: Pick<Env, 'FILES_WRITE'>, db: D1Database, at = new Date()): Promise<number> {
-  const nowIso = at.toISOString()
+  const graceOver = new Date(at.getTime() - GRACE_MS).toISOString()
   const dayAgo = new Date(at.getTime() - LIFETIME_MS).toISOString()
   let gone = 0
   for (;;) {
     const rows = (await db.prepare(`SELECT id, object_key, thumb_key FROM status_posts
-        WHERE pinned = 0 AND ((status = 'live' AND expires_at <= ?) OR (status <> 'live' AND created_at <= ?))
-        LIMIT 200`).bind(nowIso, dayAgo).all<{ id: string; object_key: string; thumb_key: string | null }>()).results ?? []
+        WHERE pinned = 0 AND ((status = 'live' AND expires_at <= ?) OR (status = 'rejected' AND created_at <= ?))
+        LIMIT 200`).bind(graceOver, dayAgo).all<{ id: string; object_key: string; thumb_key: string | null }>()).results ?? []
     if (!rows.length) break
     // The bytes first: a row left behind is retried next hour, an orphaned object never would be.
     const keys = rows.flatMap((r) => [r.object_key, r.thumb_key]).filter((k): k is string => !!k)

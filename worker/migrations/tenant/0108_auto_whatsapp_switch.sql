@@ -1,4 +1,4 @@
--- 0106_auto_whatsapp_switch (tenant: every school database).
+-- 0108_auto_whatsapp_switch (tenant: every school database).
 --
 -- Forward-only: once applied anywhere this file must not change (its
 -- checksum is recorded); fix a mistake with a new migration.

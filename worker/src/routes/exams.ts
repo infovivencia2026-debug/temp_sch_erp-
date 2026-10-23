@@ -1395,7 +1395,7 @@ async function setPaperDeadline(c: Ctx) {
             manually_received_at = NULL, remarked_at = NULL`)
         .bind(id, inst, esId, teacherId, deadline, c.id.userId, t),
       c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
-          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/faculty/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/go/exams/question_papers', 'question_paper_deadline', ?, ?)`)
         .bind(uuid(), inst, teacherId, noticeBody, esId, t),
     ]
   })
@@ -2003,7 +2003,7 @@ function registerLifecycle(r: Router) {
       SELECT g.user_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ?1 AND g.user_id IS NOT NULL
       UNION SELECT u.id FROM students st JOIN users u ON u.id = st.user_id WHERE st.id = ?1`).bind(row.student_id).all<{ user_id: string }>()
     const stmts = people.results.map((p) => notifyStmt(c, p.user_id, row.student_id, 'certificate', `${row.type_name} ${decisions[status]}`, body,
-      '/portal/requests', 'certificate', cid))
+      '/go/certificate_requests', 'certificate', cid))
     if (stmts.length) await c.db.batch(stmts)
     return ok({ status, serial_no: row.serial_no })
   })

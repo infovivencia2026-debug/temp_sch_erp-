@@ -56,6 +56,10 @@
   transition-duration: var(--motion-press);
   filter: brightness(0.96);
 }
+/* A row with m-press (a table row that navigates) dips and washes but keeps
+   its width: a shrinking row reads as the list collapsing. */
+:is(tr, [data-row]).m-press:active,
+:is(tr, [data-row]).m-press[data-pressed] { transform: none; }
 .dark .m-press:active,
 .dark .m-press[data-pressed] { filter: brightness(1.12); }
 

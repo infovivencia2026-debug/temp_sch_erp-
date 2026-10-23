@@ -1288,14 +1288,16 @@ export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, emp
   if (!d?.first_seen) return
   const e = await ctx.db.prepare(`SELECT user_id FROM employees WHERE id = ? AND user_id IS NOT NULL`).bind(empId).first<{ user_id: string }>()
   if (!e) return
-  // A second tap within five minutes is a double tap, not leaving.
-  const checkOut = d.last_seen && Date.parse(d.last_seen) - Date.parse(d.first_seen) >= 5 * 60_000 ? d.last_seen : null
+  // A punch within an hour of the first is a repeat tap at the door, not leaving (Yajur, 2026-10-22:
+  // a second tap nine minutes after arriving was being shown as the time she left).
+  const checkOut = d.last_seen && Date.parse(d.last_seen) - Date.parse(d.first_seen) >= 60 * 60_000 ? d.last_seen : null
   const existing = await ctx.db.prepare(`SELECT id, source, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date = ?`).bind(e.user_id, onDate)
     .first<{ id: string; source: string; check_in: string | null; check_out: string | null }>()
   if (existing) {
     if (existing.source !== 'device') return
     const inAt = existing.check_in && existing.check_in < d.first_seen ? existing.check_in : d.first_seen
-    const outAt = existing.check_out && (!checkOut || existing.check_out > checkOut) ? existing.check_out : checkOut
+    // Read again from all the day's punches, so a wrong early leaving time is replaced, not kept.
+    const outAt = checkOut
     await ctx.db.prepare(`UPDATE staff_attendance SET check_in = ?, check_out = ?, status = 'present' WHERE id = ?`).bind(inAt, outAt, existing.id).run()
     return
   }

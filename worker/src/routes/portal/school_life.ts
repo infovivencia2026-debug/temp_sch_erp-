@@ -362,7 +362,7 @@ async function bookPTMSlot(c: Ctx): Promise<Response> {
       .bind(apptID, inst, slot.employee_id, studentId, c.id.userId, user.full_name, user.phone, onDate, startText,
         slot.minutes, purpose, ts, slot.employee_id, onDate, startText),
     c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
-                  SELECT ?, ?, ?, ?, 'ptm', ?, ?, '/portal/school-life/ptm', 'appointment', ?, ?
+                  SELECT ?, ?, ?, ?, 'ptm', ?, ?, '/go/calendar_ptm', 'appointment', ?, ?
                    WHERE EXISTS (SELECT 1 FROM appointments WHERE id = ?)
                      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'ptm' AND n.source_kind IS NOT NULL
                                       AND COALESCE(n.source_id, '') = ? AND COALESCE(n.student_id, '') = ?)`)
@@ -549,7 +549,7 @@ async function claimEventPass(c: Ctx): Promise<Response> {
     c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
                   SELECT ?, ?, ?, ?, 'event', ?,
                          'Row ' || p.row_label || ', seats ' || p.seat_from || '–' || (p.seat_from + p.seats - 1) || ' on ' || ?,
-                         '/portal/school-life/events', 'event_pass', p.id, ?
+                         '/go/calendar_ptm', 'event_pass', p.id, ?
                     FROM event_seat_passes p
                    WHERE p.id = ?
                      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'event' AND n.source_kind IS NOT NULL

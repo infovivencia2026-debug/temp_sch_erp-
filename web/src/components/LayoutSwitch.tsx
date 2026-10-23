@@ -60,10 +60,13 @@ export function LayoutSwitch() {
       role="group"
       aria-label={t('shell.layout.group')}
       ref={groupRef}
-      className="relative flex items-center gap-0.5 rounded-sm bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
+      /* The shared segment strip's ground (SEG_BAR), as two equal halves sized
+         to their labels: no stretched empty track, no heavy shadow. The whole
+         control is --control-h tall (40px desk, 44px phone). */
+      className="relative inline-grid h-[var(--control-h)] grid-cols-2 gap-0.5 rounded-md bg-muted p-0.5"
     >
       <SlidingIndicator listRef={groupRef} active={layout}
-        className="rounded-sm bg-primary shadow-[var(--elev-1)]" />
+        className="rounded-sm bg-primary" />
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
@@ -76,10 +79,10 @@ export function LayoutSwitch() {
             aria-pressed={active}
             title={t(LABEL[value])}
             className={cn(
-              'h-8 rounded-sm px-2.5 text-[12.5px] transition-colors duration-100',
+              'flex h-full min-w-0 items-center justify-center rounded-sm px-3 text-[13px] transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               active
-                ? 'bg-primary font-medium text-primary-foreground shadow-[var(--elev-1)]'
-                : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+                ? 'bg-primary font-medium text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {t(LABEL[value])}

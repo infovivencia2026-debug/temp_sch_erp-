@@ -3,10 +3,12 @@
    reads or lists anyone's mail: mail_messages is never touched, by design. */
 import type { Ctx, Router } from '../../router'
 import { badRequest, conflict, notFound, readJSON, uuid } from '../../http'
-import type { MailImportPreview, MailImportPreviewRow, MailImportRow, StaffMailAddress } from '@shared/api/feature_mail_addresses'
+import type { MailImportPreview, MailImportPreviewRow, MailImportRow, MailServerSettings, StaffMailAddress } from '@shared/api/feature_mail_addresses'
 import { isDomain, isLocalPart, schoolDomain } from '../../services/mail'
+import { mailServer } from '../../services/mail_import'
 
 const MANAGE = 'comms.mail.manage'
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 
 /** Staff: an active person holding a role other than student or parent, or on the staff roll. */
 const STAFF = `u.status = 'active' AND (
@@ -50,6 +52,34 @@ export function registerMailAddresses(r: Router): void {
     await c.db.prepare(`UPDATE mail_addresses SET address = substr(address, 1, instr(address, '@')) || ?, updated_at = ?
         WHERE address NOT LIKE ? ESCAPE '\\'`).bind(domain, at, '%@' + domain.replace(/[%_\\]/g, (x) => '\\' + x)).run()
     return { domain }
+  })
+
+  // The school's mail server, for each person's connected mailbox. Host and ports only: no password lives here.
+  r.typed('GET /comms/mail-addresses/server', MANAGE, async (c) => mailServer(c.db))
+
+  r.typed('PUT /comms/mail-addresses/server', MANAGE, async (c) => {
+    const b = await readJSON<Partial<Record<keyof MailServerSettings, unknown>>>(c.req)
+    const host = (v: unknown, what: string) => {
+      const h = String(v ?? '').trim().toLowerCase().replace(/\.$/, '')
+      if (h && !isDomain(h) && !IPV4.test(h)) throw badRequest(`enter the ${what} server as a name such as mail.example.org`)
+      return h
+    }
+    const port = (v: unknown, what: string) => {
+      const n = Number(v)
+      if (!Number.isInteger(n) || n < 1 || n > 65535) throw badRequest(`the ${what} port is a number from 1 to 65535`)
+      return n
+    }
+    if (b.smtp_security !== 'tls' && b.smtp_security !== 'starttls') throw badRequest('SMTP security is tls or starttls')
+    const v: MailServerSettings = {
+      imap_host: host(b.imap_host, 'IMAP'), imap_port: port(b.imap_port, 'IMAP'),
+      smtp_host: host(b.smtp_host, 'SMTP'), smtp_port: port(b.smtp_port, 'SMTP'), smtp_security: b.smtp_security,
+    }
+    await c.db.prepare(`INSERT INTO mail_server (id, imap_host, imap_port, smtp_host, smtp_port, smtp_security, updated_by, updated_at)
+        VALUES ('school', ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET imap_host = excluded.imap_host, imap_port = excluded.imap_port,
+        smtp_host = excluded.smtp_host, smtp_port = excluded.smtp_port, smtp_security = excluded.smtp_security,
+        updated_by = excluded.updated_by, updated_at = excluded.updated_at`)
+      .bind(v.imap_host, v.imap_port, v.smtp_host, v.smtp_port, v.smtp_security, c.id.userId, new Date().toISOString()).run()
+    return v
   })
 
   r.typed('PUT /comms/mail-addresses/{user_id}', MANAGE, async (c) => {

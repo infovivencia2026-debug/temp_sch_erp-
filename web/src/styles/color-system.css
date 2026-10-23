@@ -305,7 +305,9 @@
   background: hsl(var(--sys-danger-fill));
   color: #fff;
 }
+@media (hover: hover) {
 .btn.sys-danger[data-variant='primary']:not(:disabled):hover { background: hsl(var(--sys-danger-fill) / 0.9); }
+}
 
 /* A SOLID bg-destructive always carries light ink (Button tone=danger,
    ConfirmButton, a count pill), so it is the fill in both modes -- while

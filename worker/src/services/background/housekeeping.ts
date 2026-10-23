@@ -125,7 +125,7 @@ registerJob('exams:paper_deadline_sweep', async (env) => {
           VALUES (?, ?, ?, ?, 'examination', 'concern', ?, date(?), ?)`)
         .bind(remarkID, inst.id, v.teacher_user_id, v.scheduled_by, body, at, at))
       stmts.push(db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
-          VALUES (?, ?, ?, 'question_paper_overdue', 'Question paper deadline missed', ?, '/faculty/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+          VALUES (?, ?, ?, 'question_paper_overdue', 'Question paper deadline missed', ?, '/go/exams/question_papers', 'question_paper_deadline', ?, ?)`)
         .bind(crypto.randomUUID(), inst.id, v.teacher_user_id, body, v.id, at))
     }
     // Every row, on time or not, is marked swept so the next pass does not re-check it.

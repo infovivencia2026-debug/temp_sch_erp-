@@ -1,4 +1,4 @@
--- 0105_question_maker (tenant: every school database).
+-- 0107_question_maker (tenant: every school database).
 --
 -- Forward-only: once applied anywhere this file must not change (its
 -- checksum is recorded); fix a mistake with a new migration. Make it

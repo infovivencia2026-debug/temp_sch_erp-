@@ -3362,7 +3362,18 @@ export function Reload({
    or three views of the same thing. */
 export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 
-export function tabClass(active: boolean): string {
+/* The large size is for a screen whose tabs are its main switch (the Inbox
+   folders): 48px tall, 15px text, centred. In a TAB_BAR_FILL row each tab
+   takes an equal share of the width, so on a phone the row spans the screen. */
+export const TAB_BAR_FILL = 'grid auto-cols-fr grid-flow-col gap-1 border-b'
+
+export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
+  if (size === 'lg') {
+    return cn(
+      '-mb-px flex min-h-12 items-center justify-center gap-2 whitespace-nowrap border-b-2 px-4 py-2 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+      active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+    )
+  }
   return active
     ? '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
     : '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
