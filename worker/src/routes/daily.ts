@@ -1163,10 +1163,15 @@ function registerWorkflow(r: Router) {
        empty, which is what COALESCE says here. */
     const rows = await c.db.prepare(`
       SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status,
-             COALESCE(sa.check_in, bp.first_punch) AS check_in,
-             /* A tap within five minutes of the first is the same arrival: a double
-                tap at the reader, not an in and an out three seconds apart. */
-             COALESCE(sa.check_out, CASE WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch END) AS check_out
+             /* A tap within an hour of the first is the same arrival; one tap
+                after noon is leaving, with the in left for the office (as
+                routes/setup/imports.ts rollUpImportedDay saves the day). */
+             CASE WHEN sa.user_id IS NOT NULL THEN sa.check_in
+                  WHEN julianday(bp.last_punch) - julianday(bp.first_punch) < 60.0 / 1440 AND time(bp.first_punch, '+330 minutes') >= '12:00' THEN NULL
+                  ELSE bp.first_punch END AS check_in,
+             CASE WHEN sa.user_id IS NOT NULL THEN sa.check_out
+                  WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch
+                  WHEN time(bp.first_punch, '+330 minutes') >= '12:00' THEN bp.last_punch END AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
         LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
