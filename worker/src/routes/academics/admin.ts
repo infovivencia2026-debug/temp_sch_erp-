@@ -574,12 +574,19 @@ async function applyAllocationToTimetable(c: Ctx) {
 
 // --- the substitution board ------------------------------------------------------------------------------------
 
+/* Who is away on a date: marked absent or on leave in the register, on approved
+   leave, or (Yajur, 2026-10-23: "if there is no in, absent") a teacher with classes
+   who uses the reader and has no register row that day, once it is past; today
+   from 9:30, so somebody still on the way is not listed. Binds: date x4. */
 const ABSENT_SQL = `
-  SELECT u.id AS user_id, u.full_name, CASE WHEN sa.status IS NOT NULL THEN sa.status ELSE 'leave' END AS reason
+  SELECT u.id AS user_id, u.full_name, CASE WHEN sa.status IN ('absent','leave') THEN sa.status WHEN sa.id IS NULL THEN 'no punch' ELSE 'leave' END AS reason
     FROM users u JOIN employees e ON e.user_id = u.id
-    LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ? AND sa.status IN ('absent','leave')
+    LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?
    WHERE e.status IN ('active','on_leave')
-     AND (sa.id IS NOT NULL OR EXISTS (SELECT 1 FROM leave_requests lr WHERE lr.employee_id = e.id AND lr.status = 'approved' AND ? BETWEEN lr.from_date AND lr.to_date))`
+     AND (sa.status IN ('absent','leave')
+       OR EXISTS (SELECT 1 FROM leave_requests lr WHERE lr.employee_id = e.id AND lr.status = 'approved' AND ? BETWEEN lr.from_date AND lr.to_date)
+       OR (sa.id IS NULL AND e.device_user_id IS NOT NULL AND EXISTS (SELECT 1 FROM timetable_entries tx WHERE tx.teacher_user_id = u.id)
+           AND (? < date('now', '+330 minutes') OR (? = date('now', '+330 minutes') AND strftime('%H:%M', 'now', '+330 minutes') >= '09:30'))))`
 
 async function getSubstitutionBoard(c: Ctx) {
   const onDate = q(c, 'on_date') || indiaToday()
@@ -607,7 +614,7 @@ async function getSubstitutionBoard(c: Ctx) {
       JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
       LEFT JOIN substitutions sb ON sb.timetable_entry_id = te.id AND sb.on_date = ? LEFT JOIN users su ON su.id = sb.substitute_user_id
       CROSS JOIN (SELECT ? AS d) sb_on
-     ORDER BY p.sequence, c.level, sec.name`).bind(onDate, onDate, onDate, dow, onDate, onDate).all<Record<string, unknown>>()
+     ORDER BY p.sequence, c.level, sec.name`).bind(onDate, onDate, onDate, onDate, onDate, dow, onDate, onDate).all<Record<string, unknown>>()
   const absentees = new Set<string>()
   let covered = 0, uncoverable = 0
   const items = rows.results.map((v) => {

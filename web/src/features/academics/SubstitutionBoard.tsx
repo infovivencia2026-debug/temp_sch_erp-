@@ -204,7 +204,7 @@ export default function SubstitutionBoard() {
                       </p>
                       <p className="mt-0.5 text-[14px] text-muted-foreground">
                         {r.absent_teacher} is{' '}
-                        {r.reason === 'leave' ? 'on leave' : 'marked absent'}
+                        {r.reason === 'leave' ? 'on leave' : r.reason === 'no punch' ? 'not in (no punch today)' : 'marked absent'}
                       </p>
                       {/* Said, not silently un-covered. A period that goes
                           back on the list without explanation looks like the
