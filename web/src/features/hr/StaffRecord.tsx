@@ -1083,7 +1083,7 @@ export default function StaffRecord({ employeeID, onClose }: {
     },
     {
       key: 'timeline', label: 'Timeline',
-      render: () => <Timeline url={`/api/v1/hr/employees/${employeeID}/timeline`} />,
+      render: () => <Timeline url={`/api/v1/hr/employees/${employeeID}/timeline`} bare />,
     },
   ]
 

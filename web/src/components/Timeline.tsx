@@ -55,10 +55,12 @@ const timeOf = (at: string) => (at.endsWith('T00:00:00.000Z') ? ''
   : new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit' }).format(new Date(at)))
 const dayKey = (at: string) => new Date(at).toLocaleDateString('en-CA')
 
-export default function Timeline({ url, title = 'Timeline' }: {
+export default function Timeline({ url, title = 'Timeline', bare }: {
   /** The record's timeline endpoint, e.g. /api/v1/students/{id}/timeline. */
   url: string
   title?: string
+  /** Skip the card shell: the caller already draws one, or the tab provides context. */
+  bare?: boolean
 }) {
   const [type, setType] = useState('')
   const q = useInfiniteQuery({
@@ -87,11 +89,10 @@ export default function Timeline({ url, title = 'Timeline' }: {
     else days.push({ key: k, at: e.at, items: [e] })
   }
 
-  return (
-    <Card>
-      <CardHeader title={title} description="Everything recorded about them, newest first." />
+  const content = (
+    <>
       {types.length > 1 && (
-        <div className="px-[var(--card-pad)] pb-3">
+        <div className={bare ? 'pb-3' : 'px-[var(--card-pad)] pb-3'}>
           <div className={SEG_BAR} role="group" aria-label="Show">
             {[['', 'All'] as const, ...types.map((t) => [t, KINDS[t]?.label ?? t] as const)].map(([k, label]) => (
               <button key={k || 'all'} type="button" aria-pressed={type === k} className={segClass(type === k)}
@@ -103,18 +104,18 @@ export default function Timeline({ url, title = 'Timeline' }: {
         </div>
       )}
       {q.isLoading ? (
-        <div className="px-[var(--card-pad)] py-6"><Loading shape="inline" /></div>
+        <div className={bare ? 'py-6' : 'px-[var(--card-pad)] py-6'}><Loading shape="inline" /></div>
       ) : q.error ? (
-        <div className="px-[var(--card-pad)] py-5"><ErrorState error={q.error} /></div>
+        <div className={bare ? 'py-5' : 'px-[var(--card-pad)] py-5'}><ErrorState error={q.error} /></div>
       ) : events.length === 0 ? (
-        <p className="px-[var(--card-pad)] pb-6 pt-2 text-[13.5px] text-muted-foreground">
+        <p className={cn('pb-6 pt-2 text-[13.5px] text-muted-foreground', !bare && 'px-[var(--card-pad)]')}>
           {type ? 'Nothing of this kind recorded yet.' : 'Nothing recorded yet.'}
         </p>
       ) : (
-        <div className="px-[var(--card-pad)] pb-[var(--card-pad)]">
+        <div className={bare ? 'pb-2' : 'px-[var(--card-pad)] pb-[var(--card-pad)]'}>
           {days.map((d) => (
             <section key={d.key} className="mt-3 first:mt-0">
-              <h3 className="eyebrow sticky top-0 z-[1] bg-card py-2 text-muted-foreground">{formatDate(d.at)}</h3>
+              <h3 className={cn('eyebrow sticky top-0 z-[1] py-2 text-muted-foreground', bare ? 'bg-background' : 'bg-card')}>{formatDate(d.at)}</h3>
               <ol className="relative ms-[11px] border-s ps-0">
                 {d.items.map((e) => {
                   const k = KINDS[e.type] ?? FALLBACK
@@ -135,7 +136,7 @@ export default function Timeline({ url, title = 'Timeline' }: {
                   )
                   return (
                     <li key={e.id} className="relative ps-6 pb-4 last:pb-1">
-                      <span aria-hidden className={cn('absolute -start-[5px] top-[7px] h-2.5 w-2.5 rounded-full ring-4 ring-card', k.dot)} />
+                      <span aria-hidden className={cn('absolute -start-[5px] top-[7px] h-2.5 w-2.5 rounded-full ring-4', bare ? 'ring-background' : 'ring-card', k.dot)} />
                       {e.link ? (
                         <Link to={e.link} className="block min-w-0 rounded-md px-2.5 py-1.5 -mx-2.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                           {body}
@@ -158,6 +159,15 @@ export default function Timeline({ url, title = 'Timeline' }: {
           )}
         </div>
       )}
+    </>
+  )
+
+  if (bare) return content
+
+  return (
+    <Card>
+      <CardHeader title={title} description="Everything recorded about them, newest first." />
+      {content}
     </Card>
   )
 }
