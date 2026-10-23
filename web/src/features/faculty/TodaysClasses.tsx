@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CalendarPlus } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
@@ -129,6 +129,7 @@ export default function TodaysClasses() {
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
+  const qc = useQueryClient()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   /* This home is also every staff member's at a school with the staff layout on
@@ -303,11 +304,20 @@ export default function TodaysClasses() {
                         {n.body && <p className={cn('text-[13px] text-muted-foreground', viewing !== n.id && 'truncate')}>{n.body}</p>}
                       </div>
                       {/* View on every row: it opens the screen the notification is about, or,
-                          where there is none, shows the whole message here and marks it read. */}
+                          where there is none, shows the whole message here. Viewed is gone
+                          (owner, 2026-10-23: "after viewing don't show that message"), except
+                          pending work, which stays until it is done. */}
                       <Button variant="secondary" size="sm" className="shrink-0"
                         onClick={() => {
-                          if (link) { navigate(link); return }
-                          setViewing(viewing === n.id ? null : n.id)
+                          const drop = () => {
+                            if (urgent) return
+                            void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
+                              .then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => {})
+                          }
+                          if (link) { drop(); navigate(link); return }
+                          // Read in full here, and gone once closed.
+                          if (viewing === n.id) { setViewing(null); drop(); return }
+                          setViewing(n.id)
                           if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
                         }}>
                         {!link && viewing === n.id ? 'Close' : 'View'}
