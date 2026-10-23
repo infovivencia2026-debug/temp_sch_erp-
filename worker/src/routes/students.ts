@@ -253,6 +253,12 @@ async function createStudent(c: Ctx) {
   const bad = validateStudent(req)
   if (bad) throw badRequest(bad)
   await checkVocabulary(c, req)
+  const admNo = str(req.admission_no).trim()
+  if (admNo !== '') {
+    // The importer upserts by admission number on purpose; the form never may, or a typo rewrites another child.
+    const taken = await c.db.prepare(`SELECT id, ${fullNameSQL('st')} AS name FROM students st WHERE st.admission_no = ?`).bind(admNo).first<{ id: string; name: string }>()
+    if (taken) throw new HttpError(409, `admission number ${admNo} already belongs to ${taken.name}. Open that record, or leave the number blank for the next free one.`, { code: 'admission_no_taken', id: taken.id })
+  }
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
@@ -571,7 +577,7 @@ const exitStatuses = new Set(['graduated', 'transferred', 'withdrawn', 'alumni']
 
 async function recordStudentExit(c: Ctx) {
   const id = sid(c)
-  const req = await readJSON<{ status?: string; exit_date?: string; reason?: string }>(c.req)
+  const req = await readJSON<{ status?: string; exit_date?: string; reason?: string; settle_later?: boolean }>(c.req)
   let status = str(req.status).trim().toLowerCase()
   if (status === '') status = 'withdrawn'
   if (!exitStatuses.has(status)) throw badRequest('status must be graduated, transferred, withdrawn or alumni')
@@ -581,6 +587,13 @@ async function recordStudentExit(c: Ctx) {
     if (exitDate > addDays(indiaToday(), 1)) throw badRequest('a leaving date cannot be in the future')
   }
   const pred = studentPredicate(await resolveScope(c), 'st')
+  const due = await c.db.prepare(`SELECT COALESCE(sum(COALESCE(net_paise, 0) - paid_paise), 0) AS n FROM invoices
+      WHERE student_id = ? AND status NOT IN ('cancelled', 'paid')`).bind(id).first<{ n: number }>()
+  const owed = Number(due?.n ?? 0)
+  if (owed > 0 && !req.settle_later) {
+    throw new HttpError(409, `this child still owes ₹${(owed / 100).toLocaleString('en-IN')}. Collect it first, or choose to settle later and say why.`, { code: 'student_has_dues', outstanding_paise: owed })
+  }
+  if (owed > 0 && !str(req.reason).trim()) throw badRequest('say why the child is leaving with dues unpaid; it goes on the ledger')
   const res = await c.db.prepare(`UPDATE students SET status = ?, exit_date = COALESCE(?, ?), exit_reason = ?, updated_at = ?
      WHERE id IN (SELECT st.id FROM students st WHERE st.id = ? AND ${pred.sql})`)
     .bind(status, nullStr(exitDate), indiaToday(), nullStr(str(req.reason)), now(), id, ...pred.args).run()

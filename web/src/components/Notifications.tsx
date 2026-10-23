@@ -251,6 +251,7 @@ export function useNotificationActions() {
     calendar: useFeatureHrefAny(['parent.school_life.calendar_ptm', 'student.notices_calendar.calendar', 'faculty.home.my_calendar', 'institution_admin.academics.school_calendar']),
     certificates: useFeatureHrefAny(['parent.documents.certificate_requests', 'student.requests.requests']),
     reports: useFeatureHrefAny(['institution_admin.standard.reports', 'board_member.reports.reports']),
+    staffExits: useFeatureHrefAny(['hr.onboarding_exit.staff_joinings_exits']),
   }
   const linkFor = (n: Note): string | undefined => noteDestination(n, hrefs)
   return { linkFor }

@@ -32,7 +32,7 @@ async function sessionCounts(c: Ctx, userIds?: string[], activeWithinMs?: number
   return out
 }
 
-const revokeUserSessions = (c: Ctx, userId: string, reason: string | null = null) =>
+export const revokeUserSessions = (c: Ctx, userId: string, reason: string | null = null) =>
   c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = COALESCE(?, ended_reason) WHERE user_id = ? AND revoked_at IS NULL`).bind(now(), reason, userId)
 
 /** issuedPassword in bulk_logins.go: the person's own number, else a generated value. */

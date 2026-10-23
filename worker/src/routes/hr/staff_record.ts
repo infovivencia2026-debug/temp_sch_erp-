@@ -2,7 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, isUUID, notFound, ok } from '../../http'
 import { can } from '../../identity'
 import { employeeFilter, growthReach } from './reach'
-import { todayIST } from '../admissions/util'
+import { istClock, todayIST } from '../admissions/util'
 
 /* The tabs of Staff 360 that the detail and overview calls do not carry:
    the register and punches, leave, pay, the week's timetable and open tasks.
@@ -31,7 +31,10 @@ export function registerStaffRecord(r: Router): void {
           SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) AS on_leave
         FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`).bind(uid, from, today)
       .first<{ marked: number; present: number | null; absent: number | null; late: number | null; on_leave: number | null }>() : null
-    const recent = uid ? (await c.db.prepare(`SELECT on_date, status, check_in, check_out, source, COALESCE(remarks, '') AS remarks
+    const recent = uid ? (await c.db.prepare(`SELECT on_date, status,
+          /* A device punch is stored as a UTC instant; the reader wants the school clock. */
+          CASE WHEN length(check_in) > 8 THEN ${istClock('check_in')} ELSE substr(check_in, 1, 5) END AS check_in,
+          CASE WHEN length(check_out) > 8 THEN ${istClock('check_out')} ELSE substr(check_out, 1, 5) END AS check_out, source, COALESCE(remarks, '') AS remarks
         FROM staff_attendance WHERE user_id = ? AND on_date <= ? ORDER BY on_date DESC LIMIT 30`).bind(uid, today).all()).results : []
 
     const balances = year ? (await c.db.prepare(`SELECT lt.name AS type, CAST(lb.entitled AS REAL) AS entitled, CAST(lb.taken AS REAL) AS taken

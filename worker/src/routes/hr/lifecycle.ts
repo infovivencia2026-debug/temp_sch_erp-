@@ -5,6 +5,8 @@ import { employeeFilter, growthReach, type Reach } from './reach'
 import { issueStaffCertificate } from './staff'
 import { lopRegister } from './lop'
 import { school } from '../school'
+import { revokeUserSessions } from '../admin/users'
+import type { Ctx } from '../../router'
 
 /* Port of hr_lifecycle.go (mountHRLifecycle): joining, serving, leaving. */
 
@@ -17,6 +19,50 @@ const nullDate = (v: unknown) => nz(v)
 const nullID = (v: unknown) => { const s = nz(v); if (s !== null && !isUUIDish(s.trim())) throw badRequest('ids must be uuids'); return s?.trim() ?? null }
 const numOrNull = (v: unknown) => (typeof v === 'number' ? v : null)
 const asNum = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+/* An exit is finished by the institution admin, not by HR alone (owner,
+   2026-10-23). HR sends it once every department has signed; the admin
+   approves (relieved, login switched off) or sends it back with a note. */
+const isInstitutionAdmin = (c: Ctx) => c.id.platformAdmin || c.id.roles.includes('institution_admin')
+/** Exits no longer in progress: approved and after. */
+const EXIT_DONE = ['relieved', 'settled', 'withdrawn']
+const EXIT_LINK = (id: string) => `/go/onboarding_exit/staff_joinings_exits?tab=exits&exit=${id}`
+const notify = (c: Ctx, user: string, kind: string, title: string, body: string, link: string, exitID: string) =>
+  c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?,?,?,?,?,?,?,'staff_exit',?,?)`)
+    .bind(uuid(), school(c).id, user, kind, title, body, link, exitID, now())
+
+/* What /relieve did, plus the login: relieved, employee status, letters and
+   service book, then the account suspended and every session signed out.
+   Their records stay. */
+async function relieveExit(c: Ctx, exitID: string, remarks: string | null, extra: D1PreparedStatement[] = []) {
+  const x = await c.db.prepare(`SELECT x.employee_id, x.kind, e.user_id, (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS raised,
+      (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id AND cl.status <> 'cleared') AS outstanding
+      FROM staff_exits x JOIN employees e ON e.id = x.employee_id WHERE x.id = ?`).bind(exitID)
+    .first<{ employee_id: string; kind: string; user_id: string | null; raised: number; outstanding: number }>()
+  if (!x) throw notFound()
+  if (x.raised === 0 || x.outstanding > 0) throw new HttpError(409, 'a department has not signed yet; the relieving letter cannot be issued until every one has', { code: 'clearance_outstanding' })
+  if (x.user_id === c.id.userId) throw new HttpError(409, 'you cannot approve your own exit', { code: 'own_exit' })
+  const inst = school(c).id, t = now(), relievedOn = todayIST()
+  const stmts: D1PreparedStatement[] = [
+    c.db.prepare(`UPDATE staff_exits SET relieved_on = ?, status = 'relieved', last_working_day = COALESCE(last_working_day, ?), updated_at = ? WHERE id = ?`).bind(relievedOn, relievedOn, t, exitID),
+    c.db.prepare(`UPDATE employees SET status = CASE ? WHEN 'retirement' THEN 'retired' WHEN 'termination' THEN 'terminated' ELSE 'resigned' END, relieved_on = ?, updated_at = ? WHERE id = ?`)
+      .bind(x.kind, relievedOn, t, x.employee_id),
+    ...extra,
+  ]
+  const issued: Record<string, string> = {}
+  for (const code of ['RELIEVING', 'EXPERIENCE']) {
+    const cert = await issueStaffCertificate(c.db, inst, c.id.userId, x.employee_id, code, remarks)
+    issued[code.toLowerCase()] = cert.serial
+    stmts.push(...cert.stmts)
+  }
+  stmts.push(c.db.prepare(`INSERT INTO service_book_entries (id, institution_id, employee_id, entry_kind, event_date, title, particulars, attested_by, attested_on, source, created_by, created_at)
+    VALUES (?,?,?,'relieving',?,'Relieved on completion of clearance',?,?,?,'exit',?,?)`)
+    .bind(uuid(), inst, x.employee_id, relievedOn, 'All departmental clearances signed. ' + (remarks ?? ''), c.id.userId, todayIST(), c.id.userId, t))
+  if (x.user_id) stmts.push(c.db.prepare(`UPDATE users SET status = 'suspended', updated_at = ? WHERE id = ?`).bind(t, x.user_id))
+  try { await c.db.batch(stmts) } catch (e) { bad(e) }
+  if (x.user_id) await revokeUserSessions(c, x.user_id, 'staff_exit').run()
+  return { relieved: true, login_suspended: !!x.user_id, certificates: issued }
+}
+
 const bad = (e: unknown): never => { if (e instanceof HttpError) throw e; throw badRequest(e instanceof Error ? e.message : String(e)) }
 
 async function exitInReach(db: D1Database, re: Reach, exitID: string): Promise<boolean> {
@@ -95,9 +141,9 @@ export function registerLifecycle(r: Router) {
     const rows = await c.db.prepare(`
       SELECT x.id, e.id AS employee_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name, d.name AS designation, e.joined_on,
              x.kind, x.notice_on, x.requested_last_day, x.last_working_day, x.reason, x.status, x.interview_on, x.primary_reason, x.would_rejoin, x.feedback,
-             x.settlement_status, x.settlement_paise, x.relieved_on, x.settled_on, ${exitProgress}
+             x.settlement_status, x.settlement_paise, x.relieved_on, x.settled_on, x.decision_note, x.approval_requested_at, ${exitProgress}
         FROM staff_exits x JOIN employees e ON e.id = x.employee_id LEFT JOIN designations d ON d.id = e.designation_id
-       WHERE (? IS NOT 1 OR x.status NOT IN ('settled','withdrawn')) AND ${mine.sql}
+       WHERE (? IS NOT 1 OR x.status NOT IN ('relieved','settled','withdrawn')) AND ${mine.sql}
        ORDER BY x.notice_on DESC LIMIT 300`).bind(c.url.searchParams.get('open') === 'true' ? 1 : 0, ...mine.args).all<Record<string, unknown>>()
     return ok({ items: rows.results.map((v) => omitNull({ ...v, would_rejoin: v.would_rejoin === null ? null : bool(v.would_rejoin),
       can_be_settled: Number(v.departments) > 0 && Number(v.outstanding) === 0 })) })
@@ -151,13 +197,16 @@ export function registerLifecycle(r: Router) {
     const status = str(req.status)
     if (!['pending', 'dues', 'cleared'].includes(status)) throw badRequest('status must be pending, dues or cleared')
     const dues = typeof req.dues_paise === 'number' ? req.dues_paise : 0
+    const cur = await c.db.prepare(`SELECT status FROM staff_exits WHERE id = ?`).bind(exitID).first<{ status: string }>()
+    if (!cur) throw notFound()
+    if (cur.status === 'pending_approval' || EXIT_DONE.includes(cur.status)) throw new HttpError(409, 'this exit is with the institution admin or already finished; clearances cannot change now', { code: 'exit_locked' })
     const res = await c.db.prepare(`UPDATE exit_clearances SET status = ?, dues_paise = ?, remarks = ?, cleared_by = CASE WHEN ? = 'cleared' THEN ? ELSE NULL END,
         cleared_on = CASE WHEN ? = 'cleared' THEN ? ELSE NULL END, updated_at = ?
       WHERE exit_id = ? AND department_id = (SELECT cd.id FROM clearance_departments cd WHERE cd.code = ? AND cd.institution_id = ?)`)
       .bind(status, dues, nz(req.remarks), status, c.id.userId, status, todayIST(), now(), exitID, str(req.department_code), school(c).id).run()
     if (res.meta.changes === 0) throw notFound()
     const outstanding = (await c.db.prepare(`SELECT count(*) AS n FROM exit_clearances WHERE exit_id = ? AND status <> 'cleared'`).bind(exitID).first<{ n: number }>())?.n ?? 0
-    await c.db.prepare(`UPDATE staff_exits SET status = CASE WHEN ? = 0 AND status IN ('notice','interviewed') THEN 'cleared' WHEN ? > 0 AND status = 'cleared' THEN 'interviewed' ELSE status END, updated_at = ? WHERE id = ?`)
+    await c.db.prepare(`UPDATE staff_exits SET status = CASE WHEN ? = 0 AND status IN ('notice','interviewed') THEN 'cleared' WHEN ? > 0 AND status IN ('cleared','returned') THEN 'interviewed' ELSE status END, updated_at = ? WHERE id = ?`)
       .bind(outstanding, outstanding, now(), exitID).run()
     return ok({ outstanding })
   })
@@ -167,31 +216,66 @@ export function registerLifecycle(r: Router) {
     return ok({ items: rows.results.map((v) => ({ ...v, is_active: bool(v.is_active) })) })
   })
 
+  /* Direct relieve is the institution admin's alone; HR sends for approval. */
   r.post('/hr/exits/{id}/relieve', WRITE, async (c) => {
+    if (!isInstitutionAdmin(c)) throw new HttpError(403, 'only the institution admin can relieve a member of staff; send the exit for approval instead', { code: 'needs_approval' })
     const exitID = uuidParam(c.params.id)
     const req = await readJSON(c.req)
-    const x = await c.db.prepare(`SELECT x.employee_id, x.kind, (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS raised,
-        (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id AND cl.status <> 'cleared') AS outstanding FROM staff_exits x WHERE x.id = ?`).bind(exitID)
-      .first<{ employee_id: string; kind: string; raised: number; outstanding: number }>()
+    const st = await c.db.prepare(`SELECT status FROM staff_exits WHERE id = ?`).bind(exitID).first<{ status: string }>()
+    if (!st) throw notFound()
+    if (EXIT_DONE.includes(st.status)) throw new HttpError(409, 'this exit is already finished', { code: 'exit_done' })
+    return ok(await relieveExit(c, exitID, nz(req.remarks)))
+  })
+
+  r.post('/hr/exits/{id}/send-for-approval', WRITE, async (c) => {
+    const exitID = uuidParam(c.params.id)
+    const re = await growthReach(c.db, c.id)
+    if (!(await exitInReach(c.db, re, exitID))) throw notFound()
+    const x = await c.db.prepare(`SELECT x.status, x.kind, x.last_working_day, ${fullName('e.first_name', 'e.last_name')} AS full_name, ${exitProgress}
+        FROM staff_exits x JOIN employees e ON e.id = x.employee_id WHERE x.id = ?`).bind(exitID)
+      .first<{ status: string; kind: string; last_working_day: string | null; full_name: string; departments: number; outstanding: number }>()
     if (!x) throw notFound()
-    if (x.raised === 0 || x.outstanding > 0) throw new HttpError(409, 'a department has not signed yet; the relieving letter cannot be issued until every one has', { code: 'clearance_outstanding' })
-    const inst = school(c).id, t = now(), relievedOn = nullDate(req.relieved_on) ?? todayIST()
-    const stmts: D1PreparedStatement[] = [
-      c.db.prepare(`UPDATE staff_exits SET relieved_on = ?, status = 'relieved', last_working_day = COALESCE(last_working_day, ?), updated_at = ? WHERE id = ?`).bind(relievedOn, relievedOn, t, exitID),
-      c.db.prepare(`UPDATE employees SET status = CASE ? WHEN 'retirement' THEN 'retired' WHEN 'termination' THEN 'terminated' ELSE 'resigned' END, relieved_on = ?, updated_at = ? WHERE id = ?`)
-        .bind(x.kind, relievedOn, t, x.employee_id),
-    ]
-    const issued: Record<string, string> = {}
-    for (const code of ['RELIEVING', 'EXPERIENCE']) {
-      const cert = await issueStaffCertificate(c.db, inst, c.id.userId, x.employee_id, code, nz(req.remarks))
-      issued[code.toLowerCase()] = cert.serial
-      stmts.push(...cert.stmts)
+    if (x.status === 'pending_approval') throw new HttpError(409, 'this exit is already waiting for the institution admin', { code: 'already_sent' })
+    if (EXIT_DONE.includes(x.status)) throw new HttpError(409, 'this exit is already finished', { code: 'exit_done' })
+    if (x.departments === 0 || x.outstanding > 0) throw new HttpError(409, 'every department must sign before the exit can be sent for approval', { code: 'clearance_outstanding' })
+    const t = now()
+    const admins = await c.db.prepare(`SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+        WHERE r.key = 'institution_admin' AND u.status = 'active' AND u.id <> ?`).bind(c.id.userId).all<{ id: string }>()
+    const stmts = [c.db.prepare(`UPDATE staff_exits SET status = 'pending_approval', approval_requested_by = ?, approval_requested_at = ?, decided_by = NULL, decided_at = NULL, decision_note = NULL, updated_at = ? WHERE id = ?`)
+      .bind(c.id.userId, t, t, exitID)]
+    const lastDay = x.last_working_day ? `, last day ${x.last_working_day}` : ''
+    for (const a of admins.results) stmts.push(notify(c, a.id, 'staff_exit_approval', `${x.full_name}'s exit needs your approval`,
+      `${initcap(x.kind.replace(/_/g, ' '))}${lastDay}. All ${x.departments} departments have signed. Approve or reject it from Approvals.`, '/go/approvals/approvals', exitID))
+    await c.db.batch(stmts)
+    return ok({ status: 'pending_approval', notified: admins.results.length })
+  })
+
+  r.post('/hr/exits/{id}/decide', WRITE, async (c) => {
+    if (!isInstitutionAdmin(c)) throw new HttpError(403, 'only the institution admin can approve a staff exit', { code: 'not_institution_admin' })
+    const exitID = uuidParam(c.params.id)
+    const req = await readJSON(c.req)
+    const decision = str(req.decision), note = nz(req.note)?.trim() || null
+    if (decision !== 'approved' && decision !== 'rejected') throw badRequest('decision must be approved or rejected')
+    const x = await c.db.prepare(`SELECT x.status, x.approval_requested_by, ${fullName('e.first_name', 'e.last_name')} AS full_name FROM staff_exits x JOIN employees e ON e.id = x.employee_id WHERE x.id = ?`)
+      .bind(exitID).first<{ status: string; approval_requested_by: string | null; full_name: string }>()
+    if (!x) throw notFound()
+    if (x.status !== 'pending_approval') throw new HttpError(409, 'this exit is not waiting for approval', { code: 'not_pending' })
+    const t = now()
+    const tell = (title: string, body: string) => (x.approval_requested_by && x.approval_requested_by !== c.id.userId
+      ? [notify(c, x.approval_requested_by, 'staff_exit_decided', title, body, EXIT_LINK(exitID), exitID)] : [])
+    if (decision === 'rejected') {
+      if (!note) throw badRequest('say why it is sent back, so HR knows what to fix')
+      await c.db.batch([
+        c.db.prepare(`UPDATE staff_exits SET status = 'returned', decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ? WHERE id = ?`).bind(c.id.userId, t, note, t, exitID),
+        ...tell(`${x.full_name}'s exit was sent back`, note),
+      ])
+      return ok({ status: 'returned' })
     }
-    stmts.push(c.db.prepare(`INSERT INTO service_book_entries (id, institution_id, employee_id, entry_kind, event_date, title, particulars, attested_by, attested_on, source, created_by, created_at)
-      VALUES (?,?,?,'relieving',?,'Relieved on completion of clearance',?,?,?,'exit',?,?)`)
-      .bind(uuid(), inst, x.employee_id, relievedOn, 'All departmental clearances signed. ' + str(req.remarks), c.id.userId, todayIST(), c.id.userId, t))
-    try { await c.db.batch(stmts) } catch (e) { bad(e) }
-    return ok({ relieved: true, certificates: issued })
+    const done = await relieveExit(c, exitID, note, [
+      c.db.prepare(`UPDATE staff_exits SET decided_by = ?, decided_at = ?, decision_note = ? WHERE id = ?`).bind(c.id.userId, t, note, exitID),
+      ...tell(`${x.full_name}'s exit was approved`, 'Relieved today. Their login is switched off and the letters are issued. The settlement can be paid from Exit & clearance.'),
+    ])
+    return ok({ status: 'relieved', ...done })
   })
 
   r.post('/hr/exits/{id}/settle', WRITE, async (c) => {
@@ -200,12 +284,13 @@ export function registerLifecycle(r: Router) {
     const settlement = typeof req.settlement_paise === 'number' ? req.settlement_paise : 0
     if (settlement < 0) throw badRequest('a settlement cannot be negative')
     // staff_exits_clearance_gate (00031): a settlement is refused while a department is still owed.
-    const x = await c.db.prepare(`SELECT settlement_status, (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS raised,
+    const x = await c.db.prepare(`SELECT settlement_status, status, (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS raised,
         (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id AND cl.status <> 'cleared') AS outstanding,
         COALESCE((SELECT sum(dues_paise) FROM exit_clearances cl WHERE cl.exit_id = x.id), 0) AS recovery FROM staff_exits x WHERE x.id = ?`).bind(exitID)
-      .first<{ settlement_status: string; raised: number; outstanding: number; recovery: number }>()
+      .first<{ settlement_status: string; status: string; raised: number; outstanding: number; recovery: number }>()
     if (!x) throw notFound()
     if (x.settlement_status !== 'paid') {
+      if (x.status !== 'relieved') throw new HttpError(409, 'the settlement is paid after the institution admin approves the exit', { code: 'needs_approval' })
       if (x.raised === 0) throw new HttpError(409, 'settlement blocked: no departmental clearance was raised for this exit', { code: 'clearance_outstanding' })
       if (x.outstanding > 0) throw new HttpError(409, `settlement blocked: ${x.outstanding} departmental clearance(s) still outstanding`, { code: 'clearance_outstanding' })
     }

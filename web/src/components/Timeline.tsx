@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import {
   MessageSquareWarning, NotebookPen, ShieldAlert, CalendarOff, Clock, IndianRupee,
-  GraduationCap, Megaphone, MessageCircle, Wallet, KeyRound, Award, ListChecks, type LucideIcon,
+  GraduationCap, Megaphone, MessageCircle, Wallet, KeyRound, Award, ListChecks,
+  BookUser, DoorOpen, FileText, BookOpen, Repeat, Radio, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Button, Card, CardHeader, ErrorState, Loading, SEG_BAR, segClass } from '@/components/ui'
@@ -46,6 +47,12 @@ const KINDS: Record<string, { label: string; icon: LucideIcon; dot: string; ink:
   role: { label: 'Roles', icon: KeyRound, dot: 'bg-[hsl(var(--sys-purple))]', ink: 'text-[hsl(var(--sys-purple-ink))]' },
   appraisal: { label: 'Appraisals', icon: Award, dot: 'bg-[hsl(var(--sys-pink))]', ink: 'text-[hsl(var(--sys-pink-ink))]' },
   task: { label: 'Tasks', icon: ListChecks, dot: 'bg-[hsl(var(--sys-indigo))]', ink: 'text-[hsl(var(--sys-indigo-ink))]' },
+  service: { label: 'Service book', icon: BookUser, dot: 'bg-[hsl(var(--sys-purple))]', ink: 'text-[hsl(var(--sys-purple-ink))]' },
+  exit: { label: 'Exit', icon: DoorOpen, dot: 'bg-[hsl(var(--sys-red))]', ink: 'text-[hsl(var(--sys-red-ink))]' },
+  document: { label: 'Documents', icon: FileText, dot: 'bg-[hsl(var(--sys-gray))]', ink: 'text-[hsl(var(--sys-gray-ink))]' },
+  teaching: { label: 'Teaching', icon: BookOpen, dot: 'bg-[hsl(var(--sys-blue))]', ink: 'text-[hsl(var(--sys-blue-ink))]' },
+  substitution: { label: 'Covers', icon: Repeat, dot: 'bg-[hsl(var(--sys-teal))]', ink: 'text-[hsl(var(--sys-teal-ink))]' },
+  status: { label: 'Status', icon: Radio, dot: 'bg-[hsl(var(--sys-pink))]', ink: 'text-[hsl(var(--sys-pink-ink))]' },
 }
 const FALLBACK = KINDS.notice
 
@@ -91,7 +98,7 @@ export default function Timeline({ url, title = 'Timeline' }: {
     <Card>
       <CardHeader title={title} description="Everything recorded about them, newest first." />
       {types.length > 1 && (
-        <div className="px-4 pb-3">
+        <div className="px-[var(--card-pad)] pb-3">
           <div className={SEG_BAR} role="group" aria-label="Show">
             {[['', 'All'] as const, ...types.map((t) => [t, KINDS[t]?.label ?? t] as const)].map(([k, label]) => (
               <button key={k || 'all'} type="button" aria-pressed={type === k} className={segClass(type === k)}
@@ -103,15 +110,15 @@ export default function Timeline({ url, title = 'Timeline' }: {
         </div>
       )}
       {q.isLoading ? (
-        <div className="p-5"><Loading shape="inline" /></div>
+        <div className="p-[var(--card-pad)]"><Loading shape="inline" /></div>
       ) : q.error ? (
-        <div className="p-4"><ErrorState error={q.error} /></div>
+        <div className="p-[var(--card-pad)]"><ErrorState error={q.error} /></div>
       ) : events.length === 0 ? (
-        <p className="px-5 pb-6 pt-2 text-[13.5px] text-muted-foreground">
+        <p className="m-0 px-[var(--card-pad)] pb-6 pt-2 text-[13.5px] text-muted-foreground">
           {type ? 'Nothing of this kind recorded yet.' : 'Nothing recorded yet.'}
         </p>
       ) : (
-        <div className="px-4 pb-4">
+        <div className="px-[var(--card-pad)] pb-[var(--card-pad)]">
           {days.map((d) => (
             <section key={d.key} className="mt-2 first:mt-0">
               <h3 className="eyebrow sticky top-0 z-[1] bg-card py-2 text-muted-foreground">{formatDate(d.at)}</h3>
