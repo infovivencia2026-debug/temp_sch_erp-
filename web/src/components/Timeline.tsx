@@ -92,7 +92,7 @@ export default function Timeline({ url, title = 'Timeline', bare }: {
   const content = (
     <>
       {types.length > 1 && (
-        <div className={bare ? 'pb-3' : 'px-[var(--card-pad)] pb-3'}>
+        <div className={bare ? 'pb-3 pt-4' : 'px-[var(--card-pad)] pb-3 pt-4'}>
           <div className={SEG_BAR} role="group" aria-label="Show">
             {[['', 'All'] as const, ...types.map((t) => [t, KINDS[t]?.label ?? t] as const)].map(([k, label]) => (
               <button key={k || 'all'} type="button" aria-pressed={type === k} className={segClass(type === k)}
