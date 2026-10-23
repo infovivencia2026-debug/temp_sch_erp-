@@ -57,3 +57,13 @@ it('Fetch history: the next check-in asks once for everything, and the answer is
   const n = await T().prepare(`SELECT count(*) AS n FROM biometric_punches WHERE punched_at LIKE '2026-10-01%'`).first<{ n: number }>()
   expect(n!.n).toBe(1)
 })
+
+it('with the clock set to auto, a reader 30 minutes slow has its punch stored at the real time', async () => {
+  await T().prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'biometric_clock', 1, '{"auto":true}')
+      ON CONFLICT (institution_id, module) DO UPDATE SET enabled = 1, config = excluded.config`).bind(IDS.school).run()
+  const deviceNow = new Date(Date.now() + (330 - 30) * 60_000).toISOString().slice(0, 19).replace('T', ' ')
+  await call(`/iclock/cdata?SN=${SN}&table=ATTLOG&Stamp=9`, { method: 'POST', body: `7\t${deviceNow}\t0\t1\t0\t0\n` })
+  const p = await T().prepare(`SELECT punched_at FROM biometric_punches ORDER BY created_at DESC LIMIT 1`).first<{ punched_at: string }>()
+  expect(Math.abs(Date.parse(p!.punched_at) - Date.now())).toBeLessThan(3 * 60_000)
+  await T().prepare(`DELETE FROM module_settings WHERE module = 'biometric_clock'`).run()
+})
