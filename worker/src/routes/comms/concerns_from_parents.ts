@@ -4,6 +4,7 @@
    that under "Resolved by teacher" and tells the parent. See
    parent_concerns.ts. */
 import type { Ctx, Router } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { badRequest, forbidden, isUUID, ok, readJSON } from '../../http'
 import { notify } from './concern_shared'
 import { feedbackUpdateStmt } from './grievances'
@@ -41,6 +42,7 @@ async function resolved(c: Ctx) {
     stmts.push(notify(c, p.user_id, 'A teacher resolved a parent concern', t.subject, `/go/parent_concerns?id=${c.params.id}`, 'support_ticket', c.params.id))
   }
   await c.db.batch(stmts)
+  await clearDoneWork(c, 'concern.support_ticket', c.params.id)
   return ok()
 }
 

@@ -3,7 +3,7 @@ import { staffLayoutOn } from '@/lib/staff-layout'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
 import { useTabs } from '@/lib/tabs'
-import { QueryClient, QueryClientProvider, defaultShouldDehydrateQuery, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
+import { MutationCache, QueryClient, QueryClientProvider, defaultShouldDehydrateQuery, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -56,7 +56,21 @@ function FetchBar() {
   return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 ? '' : undefined} />
 }
 
+/* WORK DONE CLEARS THE BELL AT ONCE (Yajur, 2026-10-24: the approved leave sat
+   in the admin's notifications for 1-2 minutes). The server clears the row in
+   the request that did the work (worker services/notification_done.ts), but the
+   bell kept its cached list until it went stale. Every successful write now
+   refetches the bell and the attention strip: one small request, and only
+   while they are on screen. */
+const mutationCache = new MutationCache({
+  onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    void queryClient.invalidateQueries({ queryKey: ['attention'] })
+  },
+})
+
 const queryClient = new QueryClient({
+  mutationCache,
   defaultOptions: {
     queries: {
       /* Five minutes, because thirty seconds was answering a question this
@@ -698,6 +712,8 @@ function PersistGate({ children }: { children: ReactNode }) {
                   // stale empty list from the offline cache ("nothing in your
                   // scope"). Keep it out of offline so a reload fetches fresh.
                   'sections',
+                  // The bell: a list restored from disk showed work already done (Yajur, 2026-10-24).
+                  'notifications',
                 ].includes(k)
               },
             },
