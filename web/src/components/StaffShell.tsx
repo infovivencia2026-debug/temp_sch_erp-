@@ -116,7 +116,7 @@ function Group({ slug, section, name, count = 0, children }: {
   )
 }
 
-const isHomeSection = (s: ApiSection) => s.slug === 'home' || s.slug === 'dashboard' || s.workspace === 'Home'
+export const isHomeSection = (s: ApiSection) => s.slug === 'home' || s.slug === 'dashboard' || s.workspace === 'Home'
 
 export interface StaffNavWorkspace { slug: string; name: string; sections: ApiSection[] }
 

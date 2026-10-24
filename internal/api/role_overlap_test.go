@@ -64,8 +64,9 @@ func grantableRoles() map[string]map[[2]string]bool {
 				   section — circulars and grievances are genuinely a
 				   principal's work and not a teacher's. */
 				/* The Inbox likewise: every member of staff has their own mailbox,
-				   held as a person, whatever role they hold. */
-				if f.Slug == "messages" || f.Slug == "inbox" {
+				   held as a person, whatever role they hold. The school
+				   gallery too: every member of staff sees it (2026-10-24). */
+				if f.Slug == "messages" || f.Slug == "inbox" || f.Slug == "school_gallery" {
 					continue
 				}
 				set[[2]string{sec.Slug, f.Slug}] = true
