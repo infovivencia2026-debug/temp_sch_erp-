@@ -105,4 +105,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 105, name: 'mailbox_connect', checksum: 'f32799b5acc13b7ac3cbfe911e76b3a9aebdb5f91bc78c5235fd42c08b975bba' },
   { version: 106, name: 'visitor_parent_link', checksum: '038b7270fbc7e16919cfa1722f11b2d49f4eec3411360886148fe9ea738bf187' },
   { version: 107, name: 'staff_exit_approval', checksum: 'edaa70d17182a0ab568ed60b993497f48663fb6db8cf3fe493beef060a44de5a' },
+  { version: 109, name: 'approvals_indexes', checksum: '99f7d6bb8209598f2dc04c0718213a1aab96fa8e8f506d0225ace0a16a1db6dd' },
 ]

@@ -33,14 +33,28 @@ export class CfApiError extends Error {
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>
 
+/** How long one API call may take before it is abandoned, so a stuck call
+    fails with a clear error instead of holding the request open. */
+export const CF_API_TIMEOUT_MS = 15_000
+
 /** The real API. `fetchFn` is injectable so it can be tested without the network. */
-export function cloudflareD1Api(accountId: string, token: string, fetchFn: Fetch = (u, i) => fetch(u, i)): CfD1Api {
+export function cloudflareD1Api(accountId: string, token: string, fetchFn: Fetch = (u, i) => fetch(u, i), timeoutMs = CF_API_TIMEOUT_MS): CfD1Api {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database`
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetchFn(base + path, {
-      ...init,
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(init.headers ?? {}) },
-    })
+    let res: Response
+    try {
+      res = await fetchFn(base + path, {
+        ...init,
+        signal: init.signal ?? AbortSignal.timeout(timeoutMs),
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(init.headers ?? {}) },
+      })
+    } catch (e) {
+      const name = (e as { name?: string })?.name
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        throw new CfApiError(`Cloudflare API ${init.method ?? 'GET'} d1${path.split('?')[0]}: no answer within ${Math.round(timeoutMs / 1000)}s`, 504)
+      }
+      throw e
+    }
     let body: { success?: boolean; result?: T; errors?: { code?: number; message?: string }[] } = {}
     try { body = await res.json() } catch { /* not JSON */ }
     if (!res.ok || body.success === false) {

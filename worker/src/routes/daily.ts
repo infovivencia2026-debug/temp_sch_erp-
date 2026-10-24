@@ -1352,119 +1352,137 @@ const leaveSpan = (from: string, to: string, days: unknown) => {
   return `${ddMon(from)} to ${ddMon(to)} (${d} day${d === 1 ? '' : 's'})`
 }
 
+export const APPROVALS_PER_KIND = 200
+
 async function getApprovals(c: Ctx): Promise<Response> {
-  const out: Array<Record<string, unknown>> = []
+  /* Each kind is its own query; they run together, and each list is capped so
+     one backlog cannot slow the whole inbox. */
+  type Item = Record<string, unknown>
+  const tasks: Array<Promise<Item[]>> = []
   const canLeave = can(c.id, 'hr.leave.approve')
-  if (canLeave || can(c.id, 'access.users.write')) {
-    const schoolWide = can(c.id, 'hr.employees.write') || can(c.id, 'access.users.write')
-    const rows = await c.db.prepare(`
-      SELECT lr.id, COALESCE(NULLIF(${fullName2('e')}, ''), NULLIF(${fullName2('st')}, ''), 'Someone') AS who,
-             COALESCE(lt.name, 'Leave') AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
-        FROM leave_requests lr
-        LEFT JOIN employees e ON e.id = lr.employee_id
-        LEFT JOIN students st ON st.id = lr.student_id
-        LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
-        LEFT JOIN users u ON u.id = lr.applied_by
-       WHERE lr.status = 'pending'
-         AND (? OR lr.subject_kind <> 'staff' OR e.department_id IS NULL
-              OR EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id AND d.head_user_id = ?)
-              OR EXISTS (SELECT 1 FROM employees m WHERE m.id = e.reports_to AND m.user_id = ?))
-       ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at`).bind(schoolWide ? 1 : 0, c.id.userId, c.id.userId).all()
-    for (const v of rows.results) {
-      out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
-        requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
-    }
-  }
-  if (!canLeave) {
-    const rows = await c.db.prepare(`
-      SELECT lr.id, ${fullName2('st')} AS who, COALESCE(lt.name, 'Leave') AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
-        FROM leave_requests lr
-        JOIN students st ON st.id = lr.student_id
-        JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
-             AND sec.class_teacher_id = ?
-        LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
-        LEFT JOIN users u ON u.id = lr.applied_by
-       WHERE lr.status = 'pending' AND lr.subject_kind = 'student'
-       ORDER BY lr.created_at`).bind(c.id.userId).all()
-    for (const v of rows.results) {
-      out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
-        requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
-    }
-  }
-  if (can(c.id, 'academics.attendance.read.all') || canLeave) {
-    const rows = await c.db.prepare(`
-      SELECT ac.id, ${fullName2('st')} AS who, sa.on_date, ac.from_status, ac.to_status, ac.reason, u.full_name AS by, ac.created_at
-        FROM attendance_corrections ac
-        JOIN student_attendance sa ON sa.id = ac.attendance_id
-        JOIN students st ON st.id = sa.student_id
-        LEFT JOIN users u ON u.id = ac.requested_by
-       WHERE ac.status = 'pending' ORDER BY ac.created_at`).all()
-    for (const v of rows.results) {
-      out.push({ id: v.id, kind: 'attendance_correction', title: `${v.who}, attendance on ${ddMon(v.on_date as string)}`,
-        detail: `${v.from_status} to ${v.to_status}. ${v.reason}`, requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string),
-        decide_url: `/api/v1/attendance-workflow/corrections/${v.id}/decide` })
-    }
-  }
-  if (can(c.id, 'admissions.approve')) {
-    /* The fee structure is picked per application first, the class's own
-       ahead of the school-wide one. SQLite refuses an ORDER BY that compares
-       with the outer row, which is how this was written. */
-    const rows = await c.db.prepare(`
-      WITH pick AS (
-        SELECT a.id AS app_id,
-               (SELECT fs.id FROM fee_structures fs WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
-                 ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1) AS fs_id
-          FROM applications a WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL)
-      SELECT a.id, ${fullName2('a')} AS who, COALESCE(c.name, '') AS class, COALESCE(a.parent_name, '') AS parent,
-             COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i WHERE i.fee_structure_id = p.fs_id), 0) AS fee,
-             COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
-                        ORDER BY fc.created_at DESC LIMIT 1), '') AS waiver,
-             COALESCE(a.decided_at, a.created_at) AS raised
-        FROM applications a JOIN pick p ON p.app_id = a.id LEFT JOIN classes c ON c.id = a.class_sought
-       ORDER BY a.decided_at IS NULL, a.decided_at`).all()
-    for (const v of rows.results) {
-      let detail = v.class as string
-      if (v.parent) detail += `, parent ${v.parent}`
-      const fee = num(v.fee)
-      if (fee > 0) detail += `. Fee ${Math.trunc(fee / 100)}`
-      if (v.waiver) detail += `, with an approved ${String(v.waiver).replace(/_/g, ' ')} concession`
-      out.push({ id: v.id, kind: 'admission', title: `${v.who} joining ${v.class}`, detail, raised_at: isoSec(v.raised as string),
-        decide_url: `/api/v1/admissions/workflow/pending-admissions/${v.id}/decide` })
-    }
-  }
-  if (can(c.id, 'finance.fees.write')) {
-    const rows = await c.db.prepare(`
-      SELECT fc.id, COALESCE(NULLIF(${fullName2('st')}, ''), ${fullName2('ap')}) AS who, fc.kind, COALESCE(fc.reason, '') AS reason,
-             fc.amount_paise, fc.created_at
-        FROM fee_concessions fc
-        LEFT JOIN students st ON st.id = fc.student_id
-        LEFT JOIN applications ap ON ap.id = fc.application_id
-       WHERE fc.status = 'pending' AND (st.id IS NOT NULL OR ap.id IS NOT NULL)
-       ORDER BY fc.created_at`).all()
-    for (const v of rows.results) {
-      out.push({ id: v.id, kind: 'fee_concession', title: `${v.who} - ${v.kind} concession`, detail: v.reason, raised_at: isoSec(v.created_at as string),
-        amount_paise: v.amount_paise ?? undefined, decide_url: `/api/v1/workflow/concessions/${v.id}/decide` })
-    }
-  }
+  if (canLeave || can(c.id, 'access.users.write')) tasks.push((async () => {
+    const out: Item[] = []
+      const schoolWide = can(c.id, 'hr.employees.write') || can(c.id, 'access.users.write')
+      const rows = await c.db.prepare(`
+        SELECT lr.id, COALESCE(NULLIF(${fullName2('e')}, ''), NULLIF(${fullName2('st')}, ''), 'Someone') AS who,
+               COALESCE(lt.name, 'Leave') AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
+          FROM leave_requests lr
+          LEFT JOIN employees e ON e.id = lr.employee_id
+          LEFT JOIN students st ON st.id = lr.student_id
+          LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+          LEFT JOIN users u ON u.id = lr.applied_by
+         WHERE lr.status = 'pending'
+           AND (? OR lr.subject_kind <> 'staff' OR e.department_id IS NULL
+                OR EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id AND d.head_user_id = ?)
+                OR EXISTS (SELECT 1 FROM employees m WHERE m.id = e.reports_to AND m.user_id = ?))
+         ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at LIMIT ${APPROVALS_PER_KIND}`).bind(schoolWide ? 1 : 0, c.id.userId, c.id.userId).all()
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
+          requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
+      }
+    return out
+  })())
+  if (!canLeave) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT lr.id, ${fullName2('st')} AS who, COALESCE(lt.name, 'Leave') AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
+          FROM leave_requests lr
+          JOIN students st ON st.id = lr.student_id
+          JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
+               AND sec.class_teacher_id = ?
+          LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+          LEFT JOIN users u ON u.id = lr.applied_by
+         WHERE lr.status = 'pending' AND lr.subject_kind = 'student'
+         ORDER BY lr.created_at LIMIT ${APPROVALS_PER_KIND}`).bind(c.id.userId).all()
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
+          requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
+      }
+    return out
+  })())
+  if (can(c.id, 'academics.attendance.read.all') || canLeave) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT ac.id, ${fullName2('st')} AS who, sa.on_date, ac.from_status, ac.to_status, ac.reason, u.full_name AS by, ac.created_at
+          FROM attendance_corrections ac
+          JOIN student_attendance sa ON sa.id = ac.attendance_id
+          JOIN students st ON st.id = sa.student_id
+          LEFT JOIN users u ON u.id = ac.requested_by
+         WHERE ac.status = 'pending' ORDER BY ac.created_at LIMIT ${APPROVALS_PER_KIND}`).all()
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'attendance_correction', title: `${v.who}, attendance on ${ddMon(v.on_date as string)}`,
+          detail: `${v.from_status} to ${v.to_status}. ${v.reason}`, requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string),
+          decide_url: `/api/v1/attendance-workflow/corrections/${v.id}/decide` })
+      }
+    return out
+  })())
+  if (can(c.id, 'admissions.approve')) tasks.push((async () => {
+    const out: Item[] = []
+      /* The fee structure is picked per application first, the class's own
+         ahead of the school-wide one. SQLite refuses an ORDER BY that compares
+         with the outer row, which is how this was written. */
+      const rows = await c.db.prepare(`
+        WITH pick AS (
+          SELECT a.id AS app_id,
+                 (SELECT fs.id FROM fee_structures fs WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
+                   ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1) AS fs_id
+            FROM applications a WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL)
+        SELECT a.id, ${fullName2('a')} AS who, COALESCE(c.name, '') AS class, COALESCE(a.parent_name, '') AS parent,
+               COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i WHERE i.fee_structure_id = p.fs_id), 0) AS fee,
+               COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
+                          ORDER BY fc.created_at DESC LIMIT 1), '') AS waiver,
+               COALESCE(a.decided_at, a.created_at) AS raised
+          FROM applications a JOIN pick p ON p.app_id = a.id LEFT JOIN classes c ON c.id = a.class_sought
+         ORDER BY a.decided_at IS NULL, a.decided_at LIMIT ${APPROVALS_PER_KIND}`).all()
+      for (const v of rows.results) {
+        let detail = v.class as string
+        if (v.parent) detail += `, parent ${v.parent}`
+        const fee = num(v.fee)
+        if (fee > 0) detail += `. Fee ${Math.trunc(fee / 100)}`
+        if (v.waiver) detail += `, with an approved ${String(v.waiver).replace(/_/g, ' ')} concession`
+        out.push({ id: v.id, kind: 'admission', title: `${v.who} joining ${v.class}`, detail, raised_at: isoSec(v.raised as string),
+          decide_url: `/api/v1/admissions/workflow/pending-admissions/${v.id}/decide` })
+      }
+    return out
+  })())
+  if (can(c.id, 'finance.fees.write')) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT fc.id, COALESCE(NULLIF(${fullName2('st')}, ''), ${fullName2('ap')}) AS who, fc.kind, COALESCE(fc.reason, '') AS reason,
+               fc.amount_paise, fc.created_at
+          FROM fee_concessions fc
+          LEFT JOIN students st ON st.id = fc.student_id
+          LEFT JOIN applications ap ON ap.id = fc.application_id
+         WHERE fc.status = 'pending' AND (st.id IS NOT NULL OR ap.id IS NOT NULL)
+         ORDER BY fc.created_at LIMIT ${APPROVALS_PER_KIND}`).all()
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'fee_concession', title: `${v.who} - ${v.kind} concession`, detail: v.reason, raised_at: isoSec(v.created_at as string),
+          amount_paise: v.amount_paise ?? undefined, decide_url: `/api/v1/workflow/concessions/${v.id}/decide` })
+      }
+    return out
+  })())
   /* A staff exit HR has sent up: the institution admin's alone (lifecycle.ts). */
-  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) {
-    const rows = await c.db.prepare(`
-      SELECT x.id, ${fullName2('e')} AS who, x.kind, x.last_working_day, u.full_name AS by, x.approval_requested_at,
-             (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS departments,
-             COALESCE((SELECT sum(cl.dues_paise) FROM exit_clearances cl WHERE cl.exit_id = x.id), 0) AS dues
-        FROM staff_exits x JOIN employees e ON e.id = x.employee_id LEFT JOIN users u ON u.id = x.approval_requested_by
-       WHERE x.status = 'pending_approval' ORDER BY x.approval_requested_at`).all()
-    for (const v of rows.results) {
-      const kind = String(v.kind).replace(/_/g, ' ')
-      let detail = `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`
-      if (v.last_working_day) detail += `, last working day ${ddMon(v.last_working_day as string)}`
-      detail += `. All ${num(v.departments)} departments signed`
-      detail += num(v.dues) > 0 ? `, dues of ${Math.trunc(num(v.dues) / 100)} to recover.` : ', no dues.'
-      detail += ' Approving relieves them and switches off their login.'
-      out.push({ id: v.id, kind: 'staff_exit', title: `${v.who} leaving`, detail, requested_by: v.by ?? undefined,
-        raised_at: isoSec((v.approval_requested_at ?? '') as string), decide_url: `/api/v1/hr/exits/${v.id}/decide` })
-    }
-  }
+  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT x.id, ${fullName2('e')} AS who, x.kind, x.last_working_day, u.full_name AS by, x.approval_requested_at,
+               (SELECT count(*) FROM exit_clearances cl WHERE cl.exit_id = x.id) AS departments,
+               COALESCE((SELECT sum(cl.dues_paise) FROM exit_clearances cl WHERE cl.exit_id = x.id), 0) AS dues
+          FROM staff_exits x JOIN employees e ON e.id = x.employee_id LEFT JOIN users u ON u.id = x.approval_requested_by
+         WHERE x.status = 'pending_approval' ORDER BY x.approval_requested_at LIMIT ${APPROVALS_PER_KIND}`).all()
+      for (const v of rows.results) {
+        const kind = String(v.kind).replace(/_/g, ' ')
+        let detail = `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`
+        if (v.last_working_day) detail += `, last working day ${ddMon(v.last_working_day as string)}`
+        detail += `. All ${num(v.departments)} departments signed`
+        detail += num(v.dues) > 0 ? `, dues of ${Math.trunc(num(v.dues) / 100)} to recover.` : ', no dues.'
+        detail += ' Approving relieves them and switches off their login.'
+        out.push({ id: v.id, kind: 'staff_exit', title: `${v.who} leaving`, detail, requested_by: v.by ?? undefined,
+          raised_at: isoSec((v.approval_requested_at ?? '') as string), decide_url: `/api/v1/hr/exits/${v.id}/decide` })
+      }
+    return out
+  })())
+  const out = (await Promise.all(tasks)).flat()
   const byKind: Record<string, number> = {}
   for (const a of out) byKind[a.kind as string] = (byKind[a.kind as string] ?? 0) + 1
   return ok({ items: out, total: out.length, by_kind: byKind })
