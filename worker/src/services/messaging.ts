@@ -1023,6 +1023,12 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
              AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.source_kind = 'message' AND n.source_id = m.id)`)
         .bind(crypto.randomUUID(), new Date().toISOString(), row.id).run()
       inAppSent += r.meta.changes ?? 0
+      /* A digest is a replace-latest summary: the new one takes the older
+         ones of the same kind out of that person's bell (owner, 2026-10-24). */
+      if ((r.meta.changes ?? 0) > 0 && row.user_id && /^report_digest./.test(String(row.template_code ?? ''))) {
+        await db.prepare(`UPDATE notifications SET dismissed_at = ?1 WHERE user_id = ?2 AND kind = ?3 AND dismissed_at IS NULL
+            AND NOT (source_kind = 'message' AND source_id = ?4)`).bind(new Date().toISOString(), row.user_id, row.template_code, row.id).run()
+      }
       // The bell always has it; the ladder goes on only if nobody will be told.
       if (row.ladder && row.ladder !== '[]' && row.user_id) {
         const hasToken = pushConfigured(env) && !!(await db.prepare(`SELECT 1 AS x FROM push_tokens WHERE user_id = ? LIMIT 1`).bind(row.user_id).first())

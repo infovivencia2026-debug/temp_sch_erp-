@@ -940,15 +940,21 @@ export function deliverFamilyAlerts(c: Ctx, user: string, kids: string[]): D1Pre
          AND ${notDelivered('circular', 'a.id', 'NULL')}`)
       .bind(inst, user, nowISO, monthAgo, nowISO, k, user),
     c.db.prepare(`
-      INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
-      SELECT ${SQL_UUID}, ?, ?, sa.student_id, 'attendance',
-             ${shortName('st')} || ' was marked absent',
-             ${sqlDayDDMon('sa.on_date')}, '/portal/attendance', 'attendance', sa.id,
-             COALESCE(sa.marked_at, ?)
-        FROM student_attendance sa
-        JOIN students st ON st.id = sa.student_id
-       WHERE ${inJSON('sa.student_id')} AND sa.status = 'absent' AND sa.on_date > ?
-         AND ${notDelivered('attendance', 'sa.id', 'sa.student_id')}`)
+      INSERT OR IGNORE INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+      SELECT ${SQL_UUID}, ?, ?, x.student_id, 'attendance',
+             x.short_name || ' was marked absent',
+             ${sqlDayDDMon('x.on_date')}, '/portal/attendance', 'absence', x.on_date || ':' || x.student_id,
+             COALESCE(x.marked_at, ?)
+        FROM (SELECT sa.student_id, sa.on_date, MIN(sa.marked_at) AS marked_at, MIN(${shortName('st')}) AS short_name
+                FROM student_attendance sa
+                JOIN students st ON st.id = sa.student_id
+               WHERE ${inJSON('sa.student_id')} AND sa.status = 'absent' AND sa.on_date > ?
+               GROUP BY sa.student_id, sa.on_date) x
+       -- One bell per child per day (absenceNotifyStmts in routes/daily.ts):
+       -- keyed <on_date>:<student>; older per-period rows count as told.
+       WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'attendance' AND n.student_id = x.student_id
+                           AND (n.source_id = x.on_date || ':' || x.student_id
+                                OR n.source_id IN (SELECT s2.id FROM student_attendance s2 WHERE s2.student_id = x.student_id AND s2.on_date = x.on_date)))`)
       .bind(inst, user, nowISO, k, fortnightAgo, user),
     c.db.prepare(`
       INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)

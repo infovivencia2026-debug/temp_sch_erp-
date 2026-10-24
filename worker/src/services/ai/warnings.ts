@@ -239,13 +239,13 @@ export function digestText(d: DigestCounts): string {
 
 async function sendDigest(db: D1Database, inst: Institution): Promise<number> {
   const leaders = (await db.prepare(`SELECT DISTINCT u.id, r.key FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
-      WHERE u.status = 'active' AND r.key IN ('principal','vice_principal','institution_admin','accountant','accounts')`).all<{ id: string; key: string }>()).results ?? []
-  const teachers = (await db.prepare(`SELECT DISTINCT owner_user_id AS id FROM ai_warnings WHERE owner_role = 'class_teacher' AND owner_user_id IS NOT NULL AND cleared_at IS NULL AND status <> 'resolved'`)
-    .all<{ id: string }>()).results ?? []
+      WHERE u.status = 'active' AND r.key IN ('principal','institution_admin')`).all<{ id: string; key: string }>()).results ?? []
   const stmts: D1PreparedStatement[] = []
   const at = nowIso()
   const push = (uid: string, d: DigestCounts) => {
     if (d.open === 0 && d.resolved_this_week === 0) return
+    // Replace-latest: only the newest digest stays in the bell (owner, 2026-10-24).
+    stmts.push(db.prepare(`UPDATE notifications SET dismissed_at = ? WHERE user_id = ? AND kind = 'ai.warnings.digest' AND dismissed_at IS NULL`).bind(at, uid))
     stmts.push(db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, created_at) VALUES (?, ?, ?, 'ai.warnings.digest', ?, ?, '/needs-attention', ?)`)
       .bind(crypto.randomUUID(), inst.id, uid, 'Needs attention this week', digestText(d), at))
   }
@@ -253,15 +253,10 @@ async function sendDigest(db: D1Database, inst: Institution): Promise<number> {
   for (const l of leaders) {
     if (done.has(l.id)) continue
     done.add(l.id)
-    const accounts = l.key === 'accountant' || l.key === 'accounts'
-    push(l.id, await digestCounts(db, accounts ? `owner_role = 'accounts'` : '1'))
-  }
-  for (const t of teachers) {
-    if (done.has(t.id)) continue
-    push(t.id, await digestCounts(db, `section_id IN (SELECT id FROM sections WHERE class_teacher_id = ?) AND rule <> 'fee_risk'`, [t.id]))
+    push(l.id, await digestCounts(db, '1'))
   }
   if (stmts.length) await db.batch(stmts)
-  return stmts.length
+  return stmts.length / 2 // an UPDATE and an INSERT per person
 }
 
 registerJob('ai:warnings_nightly', async (env: Env, job) => {

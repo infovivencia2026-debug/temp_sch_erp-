@@ -64,6 +64,33 @@ const guardianAlertFilter = `
                               AND NOT p.portal_blocked
                               AND (p.access_until IS NULL OR p.access_until >= ?)))`
 
+/**
+ * ONE "MARKED ABSENT" BELL PER PERSON, PER CHILD, PER DAY.
+ *
+ * Every writer (the register here, the portal catch-up in deliverFamilyAlerts)
+ * keys the row source_id `<on_date>:<student_id>`, so the
+ * notifications_one_per_source unique index plus INSERT OR IGNORE holds it to
+ * one however many periods, re-saves or guardian links there are. Older rows
+ * keyed by the attendance row id (one per period) count as already told. A
+ * row dismissed because the child was then marked present comes back if the
+ * child is marked absent again.
+ */
+export function absenceNotifyStmts(db: D1Database, inst: string, user: string, student: string, onDate: string, title: string, body: string): D1PreparedStatement[] {
+  const key = `${onDate}:${student}`
+  return [
+    db.prepare(`UPDATE notifications SET dismissed_at = NULL, read_at = NULL, created_at = ?4
+        WHERE user_id = ?1 AND kind = 'attendance' AND student_id = ?2 AND source_id = ?3 AND dismissed_at IS NOT NULL`)
+      .bind(user, student, key, now()),
+    db.prepare(`INSERT OR IGNORE INTO notifications
+          (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+        SELECT ?1, ?2, ?3, ?4, 'attendance', ?5, ?6, '/portal/attendance', 'absence', ?7, ?8
+         WHERE NOT EXISTS (SELECT 1 FROM notifications n
+                            WHERE n.user_id = ?3 AND n.kind = 'attendance' AND n.student_id = ?4
+                              AND n.source_id IN (SELECT sa.id FROM student_attendance sa WHERE sa.student_id = ?4 AND sa.on_date = ?9))`)
+      .bind(uuid(), inst, user, student, title, body, key, now(), onDate),
+  ]
+}
+
 const NIL_UUID = '00000000-0000-0000-0000-000000000000'
 /**
  * One notification row, deduplicated the way the Postgres partial unique index
@@ -532,6 +559,7 @@ function registerAttendance(r: Router) {
     const nowAbsent: string[] = []
     const ts = now()
     const onLeave: string[] = []
+    const noLongerAbsent: string[] = []
     for (const e of rolled) {
       const cur = have.get(e.student_id)
       if (cur) {
@@ -546,6 +574,7 @@ function registerAttendance(r: Router) {
           .bind(uuid(), instId, e.student_id, sectionId, onDate, periodId, e.status, e.minutes_late ?? null, e.remarks ?? null, c.id.userId, ts))
       }
       if (e.status === 'absent') nowAbsent.push(e.student_id)
+      else if (cur?.status === 'absent') noLongerAbsent.push(e.student_id)
     }
     const written = stmts.length
     const channels = cleanChannels(req.notify_channels ?? [])
@@ -583,15 +612,7 @@ function registerAttendance(r: Router) {
              is never right, whichever code path produced the first, so that
              is the condition -- not the source id, which is exactly what the
              two writers disagreed about. */
-          stmts.push(c.db.prepare(`INSERT INTO notifications
-                (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
-              SELECT ?1, ?2, ?3, ?4, 'attendance', ?5, ?6, '/portal/attendance', 'absence', ?7, ?8
-               WHERE NOT EXISTS (SELECT 1 FROM notifications n
-                                  WHERE n.user_id = ?3 AND n.kind = 'attendance'
-                                    AND COALESCE(n.student_id, '') = COALESCE(?4, '')
-                                    AND substr(n.created_at, 1, 10) = ?9)`)
-            .bind(uuid(), c.id.institution!.id, m.user_id, m.student, title, body,
-              `${onDate}:${m.student}`, now(), onDate))
+          stmts.push(...absenceNotifyStmts(c.db, c.id.institution!.id, m.user_id, m.student, onDate, title, body))
           told++
         }
         for (const ch of channels) {
@@ -602,6 +623,17 @@ function registerAttendance(r: Router) {
             student_id: m.student, source_kind: 'absence_alert', source_id: m.student, occurrence_key: `${onDate}:${to.toLowerCase()}` })
         }
       }
+    }
+    /* Marked present (or late) after an absent mark: that day's "marked
+       absent" bell is wrong now, so it leaves the bell -- unless another
+       period of the same day still has the child absent. Runs after the
+       register writes in the same batch. */
+    for (const sid of noLongerAbsent) {
+      stmts.push(c.db.prepare(`UPDATE notifications SET dismissed_at = ?1, read_at = COALESCE(read_at, ?1)
+          WHERE kind = 'attendance' AND student_id = ?2 AND dismissed_at IS NULL
+            AND (source_id = ?3 OR source_id IN (SELECT id FROM student_attendance WHERE student_id = ?2 AND on_date = ?4))
+            AND NOT EXISTS (SELECT 1 FROM student_attendance WHERE student_id = ?2 AND on_date = ?4 AND status = 'absent')`)
+        .bind(now(), sid, `${onDate}:${sid}`, onDate))
     }
     if (stmts.length) await c.db.batch(stmts)
     // announceAbsences' QueueMessage leg, after the register is written. A
