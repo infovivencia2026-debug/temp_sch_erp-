@@ -21,6 +21,11 @@ describe('noteDestination', () => {
     expect(noteDestination({ kind: 'status', link: `/?status=${post}` }, hrefs)).toBe(`/faculty/communication/class_status?status=${post}`)
     expect(noteDestination({ kind: 'status', link: `/?status=${post}` }, {})).toBeUndefined()
   })
+  it('opens a gallery post in the school gallery', () => {
+    const l = `/go/school_gallery/school_gallery?post=${post}`
+    expect(noteDestination({ kind: 'gallery', link: l }, hrefs)).toBe(l)
+    expect(noteDestination({ kind: 'gallery', link: null }, { gallery: '/faculty/school_gallery/school_gallery' })).toBe('/faculty/school_gallery/school_gallery')
+  })
   it('keeps a /go/ link, thread and all', () => {
     const l = '/go/communication/messages?with=fa3cf005-1ed5-4c29-9341-ec7c6aafc07d'
     expect(noteDestination({ kind: 'staff_message', link: l }, hrefs)).toBe(l)

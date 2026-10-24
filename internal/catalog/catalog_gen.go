@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 441 features.
+// Roles is the catalog: 24 roles, 461 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -500,6 +500,14 @@ var Roles = []Role{
 					{Key: "institution_admin.help.helpdesk", Slug: "helpdesk", Name: "Helpdesk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "institution_admin.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -545,6 +553,14 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "board_member.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "board_member.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -648,6 +664,14 @@ var Roles = []Role{
 					{Key: "hod.exams.mark_moderation", Slug: "mark_moderation", Name: "Mark moderation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark, so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "hod.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -690,6 +714,14 @@ var Roles = []Role{
 					{Key: "exam_controller.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "exam_controller.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "exam_controller.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "exam_controller.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -829,6 +861,14 @@ var Roles = []Role{
 					{Key: "faculty.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "faculty.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -866,6 +906,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "librarian.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "librarian.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "librarian.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -929,6 +977,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "transport_manager.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "transport_manager.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "transport_manager.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -997,6 +1053,14 @@ var Roles = []Role{
 					{Key: "operations.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "operations.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1035,6 +1099,14 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "driver.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "driver.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -1079,6 +1151,14 @@ var Roles = []Role{
 					{Key: "nurse.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "nurse.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1121,6 +1201,14 @@ var Roles = []Role{
 					{Key: "counsellor.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "counsellor.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1160,6 +1248,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "discipline_officer.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "discipline_officer.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "discipline_officer.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -1206,6 +1302,14 @@ var Roles = []Role{
 					{Key: "hostel_warden.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "hostel_warden.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1246,6 +1350,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "activity_coord.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "activity_coord.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "activity_coord.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -1329,6 +1441,14 @@ var Roles = []Role{
 				Workspace: "Fees",
 				Features: []Feature{
 					{Key: "finance.student_dues.automated_fee_reminders", Slug: "automated_fee_reminders", Name: "Automated Fee Reminders", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "finance.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -1415,6 +1535,14 @@ var Roles = []Role{
 					{Key: "admissions.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "admissions.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1446,6 +1574,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "front_office.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 					{Key: "front_office.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "front_office.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},
@@ -1572,6 +1708,14 @@ var Roles = []Role{
 					{Key: "hr.welfare.staff_welfare", Slug: "staff_welfare", Name: "Staff welfare", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "hr.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1625,6 +1769,14 @@ var Roles = []Role{
 					{Key: "it_admin.my_profile.leave_self_service", Slug: "leave_self_service", Name: "Leave & self service", Scope: Scope("self"), Tier: Tier("core"), Summary: "Apply for your own leave and see where each request has got to: pending, approved or turned down."},
 				},
 			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "it_admin.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
 		},
 	},
 	{
@@ -1645,6 +1797,14 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "lms_admin.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
+				},
+			},
+			{
+				Slug: "school_gallery",
+				Name: "School Gallery",
+				Workspace: "School Gallery",
+				Features: []Feature{
+					{Key: "lms_admin.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
 				},
 			},
 		},

@@ -11,7 +11,7 @@ import { statusPostIdOf } from './notification-shown'
 export type NoteDest =
   | 'status' | 'messages' | 'circular' | 'fee' | 'attendance' | 'homework' | 'result'
   | 'transport' | 'timetable' | 'concern' | 'questionPapers' | 'leaveApprovals'
-  | 'leaveSelf' | 'calendar' | 'certificates' | 'reports' | 'staffExits'
+  | 'leaveSelf' | 'calendar' | 'certificates' | 'reports' | 'staffExits' | 'gallery'
 
 export type NoteHrefs = Partial<Record<NoteDest, string>>
 
@@ -19,6 +19,7 @@ export type NoteHrefs = Partial<Record<NoteDest, string>>
 export function destOfKind(kind: string): NoteDest | undefined {
   const k = kind.toLowerCase()
   if (k === 'status') return 'status'
+  if (k === 'gallery') return 'gallery'
   if (k.startsWith('transport') || k.includes('bus')) return 'transport'
   if (k.startsWith('fee')) return 'fee'
   if (k.startsWith('attendance') || k.startsWith('absen')) return 'attendance'

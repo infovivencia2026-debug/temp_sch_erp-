@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BookOpen, Bus, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
+  BookOpen, Bus, Images, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
   Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { featurePath, type ApiSection } from '@/lib/catalog'
-import { useLayout } from '@/lib/layout'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -42,6 +41,7 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/homework|assignment|classwork|submission/, NotebookPen],
   [/class|student|progress|360|behaviour|detail/, Users],
   [/remark|anecdot|ptm|note/, MessageSquareText],
+  [/gallery/, Images],
   [/inbox|mail/, Mail],
   [/message|communication|chat|status|circular|notice|concern|complaint/, MessageSquare],
   [/leave/, Plane],
@@ -88,16 +88,12 @@ function Count({ n }: { n: number }) {
   return <span aria-label={`${n} open`} className="ml-auto min-w-[20px] shrink-0 rounded-full bg-destructive px-1.5 text-center text-[11px] font-semibold leading-5 text-destructive-foreground tabular-nums">{n}</span>
 }
 
-/* `go`: pressing the heading also lands on this path (Home in Work mode goes
-   straight to the dashboard, owner 2026-10-22), and opens rather than closes. */
-function Group({ slug, section, name, count = 0, go, onNavigate, children }: {
-  slug: string; section: string; name: string; count?: number; go?: string; onNavigate?: () => void; children: React.ReactNode
+function Group({ slug, section, name, count = 0, children }: {
+  slug: string; section: string; name: string; count?: number; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
-  const navigate = useNavigate()
   const toggle = () => {
-    if (go) { navigate(go); onNavigate?.() }
-    const next = go ? true : !open
+    const next = !open
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
@@ -141,7 +137,6 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   /* Regrouped (StaffCombos.tsx): some screens shown under another group, and a
      group of related screens shown once, its others reached as tabs. */
   const { pathname } = useLocation()
-  const { layout } = useLayout()
   const here = pathname.split('/')[3] ?? ''
   const listed = groups.map((g) => ({ ...g, list: items(g.section) }))
   const held = new Set(listed.flatMap((g) => g.list.map((f) => f.slug)))
@@ -164,25 +159,29 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         const title = ws.sections.length > 1 ? section.name : ws.name
         /* Home is one item, not a group: it opens the workspace dashboard
            (Yajur, 2026-10-22: "No need of sub-section for Home; Today's
-           classes - no need"). */
-        if (isHomeSection(section)) {
+           classes - no need"). A group holding one screen is that screen,
+           not a drawer around it (owner, 2026-10-24: "no need of again one
+           sub section"). */
+        const home = isHomeSection(section)
+        if (home || list.length === 1) {
           const first = list[0]
+          const name = home ? 'Home' : first.f.name
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
+              title={home ? undefined : first.f.summary}
               className={({ isActive }) => cn(
-                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
-                isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
+                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
+                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
               )}>
-              <LineIcon name="home" size={18} />
-              <span className="truncate">{label('Home')}</span>
+              <LineIcon name={home ? 'home' : `${section.slug} ${first.f.slug} ${name}`} size={18} />
+              <span className="truncate">{label(name)}</span>
+              {first.f.slug === 'concerns_from_parents' && <Count n={concerns} />}
             </NavLink>
           )
         }
-        const go = layout === 'classic' && section.slug === 'home' ? featurePath(roleKey, list[0].section, list[0].f.slug) : undefined
         return (
           <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}
-            count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}
-            go={go} onNavigate={onNavigate}>
+            count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
             {list.map(({ section: from, f }) => (
               <NavLink key={f.key} to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {

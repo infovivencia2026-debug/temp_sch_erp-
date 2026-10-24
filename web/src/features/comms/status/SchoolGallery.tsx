@@ -23,7 +23,7 @@ import { FEED_KEY, useStatusFeed, type AddMode } from './status-api'
    it plays full screen like a status. "Add to gallery" posts a status and
    pins it in one go. Opened from Notifications > Activity, the owner's one
    home for status. */
-export default function SchoolGallery({ onClose }: { onClose: () => void }) {
+export default function SchoolGallery({ onClose, initialPost = null }: { onClose: () => void; initialPost?: string | null }) {
   const qc = useQueryClient()
   const session = useSession()
   const feed = useStatusFeed(true)
@@ -52,7 +52,7 @@ export default function SchoolGallery({ onClose }: { onClose: () => void }) {
      back to everything (it used to stick on Whole school, hiding class videos). */
   const [scope, setScope] = useState<string>('')
   const [kind, setKind] = useState<'' | 'photo' | 'video'>('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(initialPost)
   const [choose, setChoose] = useState(false)
   const [compose, setCompose] = useState<{ file: File | null; mode?: AddMode } | null>(null)
   const photoIn = useRef<HTMLInputElement>(null)

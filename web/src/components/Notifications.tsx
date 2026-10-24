@@ -62,6 +62,9 @@ export interface Note {
    it — "Fee due: term 2" rather than "Term 2". A mark down the left lets the
    eye sort a fortnight's feed into fees, homework and notices without reading
    a word, which is what somebody catching up actually does first. */
+/* The school gallery under each staff workspace that has it. */
+const GALLERY_KEYS = ['activity_coord', 'admissions', 'board_member', 'counsellor', 'discipline_officer', 'driver', 'exam_controller', 'faculty', 'finance', 'front_office', 'hod', 'hostel_warden', 'hr', 'institution_admin', 'it_admin', 'librarian', 'lms_admin', 'nurse', 'operations', 'transport_manager'].map((r) => `${r}.school_gallery.school_gallery`)
+
 const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
   fee: { icon: IndianRupee, label: 'Fees' },
   fees: { icon: IndianRupee, label: 'Fees' },
@@ -71,6 +74,8 @@ const KINDS: Record<string, { icon: typeof Bell; label: string }> = {
   notice: { icon: Megaphone, label: 'Notice' },
   // Class Status: opens the home with the viewer on that post (/?status=<id>).
   status: { icon: Camera, label: 'Status' },
+  // A post pinned to the school gallery: opens the gallery on that post.
+  gallery: { icon: Images, label: 'Gallery' },
 }
 
 /* The server's kinds are finer than a reader's: fee_due and fee_overdue are
@@ -121,7 +126,7 @@ const FILTERS: { key: string; label: string; kinds?: string[] }[] = [
   { key: 'message', label: 'Messages', kinds: ['message', 'chat'] },
   { key: 'academic', label: 'Academic', kinds: ['homework', 'timetable', 'exam', 'result', 'results', 'report', 'attendance', 'leave'] },
   { key: 'fees', label: 'Fees', kinds: ['fee', 'fees', 'payment'] },
-  { key: 'status', label: 'Status', kinds: ['status'] },
+  { key: 'status', label: 'Status', kinds: ['status', 'gallery'] },
   { key: 'other', label: 'Other' },
 ]
 
@@ -253,6 +258,7 @@ export function useNotificationActions() {
     certificates: useFeatureHrefAny(['parent.documents.certificate_requests', 'student.requests.requests']),
     reports: useFeatureHrefAny(['institution_admin.standard.reports', 'board_member.reports.reports']),
     staffExits: useFeatureHrefAny(['hr.onboarding_exit.staff_joinings_exits']),
+    gallery: useFeatureHrefAny(GALLERY_KEYS),
   }
   const linkFor = (n: Note): string | undefined => noteDestination(n, hrefs)
   return { linkFor }
