@@ -1,5 +1,5 @@
 import { TimePicker } from '@/components/PickerMenu'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
@@ -11,7 +11,7 @@ import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan, useSession } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
-import { Printer } from 'lucide-react'
+import { ChevronDown, Printer } from 'lucide-react'
 import { printHtml } from '@/features/finance/receipt-print'
 import { leaveHtml } from './leave-print'
 import DecisionNote from '@/components/ai/DecisionNote'
@@ -88,7 +88,8 @@ export default function Leave() {
    * workspace in the URL says which door somebody came through: HR's is staff,
    * everybody else's is unchanged, and the principal still sees one queue
    * because they genuinely decide both from the same desk. */
-  const path = useLocation().pathname
+  const loc = useLocation()
+  const path = loc.pathname
   const workspace = path.split('/')[1]
 
   /* MY LEAVE IS MINE, WHOEVER ELSE'S I AM ALLOWED TO SEE.
@@ -151,7 +152,20 @@ export default function Leave() {
    * with database access to take a day off.
    *
    * Everyone gets the form. Approving is the part that needs a right. */
-  const [apply, setApply] = useState(false)
+  /* "When clicked Apply for leave, the form should open directly" (Yajur,
+     2026-10-24). The form opened in place below the fold, so on a phone the
+     press looked like it did nothing. Opening now scrolls the form into view
+     and puts the cursor in its first field; the home card's Apply lands here
+     with ?apply=1 and the form already open. */
+  const [apply, setApply] = useState(() => new URLSearchParams(loc.search).get('apply') === '1')
+  const formRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!apply) return
+    const el = formRef.current
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.querySelector<HTMLElement>('input, button[role="combobox"], select, textarea, button')?.focus({ preventScroll: true })
+  }, [apply])
   const [form, setForm] = useState({
     from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
     employee_id: '', kind: 'leave', hours: '',
@@ -221,7 +235,24 @@ export default function Leave() {
       ),
     retry: false,
   })
-  const leaveTypes = types.data?.items ?? []
+  /* Only the types this person was given (Yajur, 2026-10-24), with what is
+     left of each. Somebody applying for another member of staff still picks
+     from the school's list. */
+  const mineTypes = useQuery({
+    queryKey: ['leave-types', 'mine'],
+    queryFn: () =>
+      api.get<{ items: { id: string; name: string; remaining?: number; entitled?: number }[] }>(
+        '/api/v1/hr/leave-types?for=mine',
+      ),
+    enabled: apply,
+    retry: false,
+  })
+  const own = !form.employee_id
+  const leaveTypes: { id: string; name: string; label: string }[] = own
+    ? (mineTypes.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.remaining != null ? `${t.name} · ${t.remaining} left` : t.name }))
+    : (types.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.annual_quota ? `${t.name} (${t.annual_quota} a year)` : t.name }))
+  // The school has leave types but none is given to this person: say so rather than show an empty picker.
+  const noneGiven = own && (types.data?.items.length ?? 0) > 0 && mineTypes.isSuccess && leaveTypes.length === 0
   const [applied, setApplied] = useState('')
   const send = useMutation({
     mutationFn: () =>
@@ -241,6 +272,7 @@ export default function Leave() {
         leave_type_id: '', employee_id: '', kind: 'leave', hours: '',
       })
       setApply(false)
+      qc.invalidateQueries({ queryKey: ['leave-types', 'mine'] })
       qc.invalidateQueries({ queryKey: ['leave'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
     },
@@ -336,7 +368,6 @@ export default function Leave() {
           />
         </CellGrid>
 
-        {selfService && <AttendanceFix />}
         {mayApply && (
         <Card>
           <CardHeader
@@ -374,7 +405,7 @@ export default function Leave() {
             }
           />
           {apply && (
-            <div className="px-5 pb-5">
+            <div ref={formRef} className="scroll-mt-24 flex flex-col gap-3" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>
               <FormGrid>
                 {mayDecide && (
                   <Field
@@ -447,12 +478,14 @@ export default function Leave() {
                     value={form.leave_type_id}
                     onChange={(v) => setForm({ ...form, leave_type_id: v })}
                     placeholder="Choose"
-                    options={leaveTypes.map((t) => ({
-                      value: t.id,
-                      label: t.annual_quota ? `${t.name} (${t.annual_quota} a year)` : t.name,
-                    }))}
+                    options={leaveTypes.map((t) => ({ value: t.id, label: t.label }))}
                   />
                 </Field>
+              )}
+              {noneGiven && form.kind === 'leave' && (
+                <p className="m-0 text-[13.5px] text-muted-foreground">
+                  No leave types are given to you yet. Ask HR to set your leave for this year.
+                </p>
               )}
               <Field label="Reason" required>
                 <Input
@@ -462,7 +495,7 @@ export default function Leave() {
                 />
               </Field>
               {form.kind !== 'permission' && (
-              <label className="mt-2 flex items-center gap-2 text-[13.5px]">
+              <label className="m-0 flex items-center gap-2 text-[13.5px]">
                 <input
                   type="checkbox"
                   checked={form.is_half_day}
@@ -473,14 +506,14 @@ export default function Leave() {
               )}
               <FormNotice error={send.error} />
               <Button
-                className="mt-3"
+                className="m-0 self-start"
                 disabled={
                   !form.from_date ||
                   (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) ||
                   !form.reason.trim() ||
                   // Only when there is something to choose. A school that has
                   // not set its leave types up must still be able to apply.
-                  (form.kind === 'leave' && leaveTypes.length > 0 && !form.leave_type_id) ||
+                  (form.kind === 'leave' && (noneGiven || (leaveTypes.length > 0 && !form.leave_type_id))) ||
                   send.isPending
                 }
                 onClick={() => send.mutate()}
@@ -490,10 +523,12 @@ export default function Leave() {
             </div>
           )}
           {!apply && applied && (
-            <p className="px-5 pb-4 text-[13.5px] text-muted-foreground">{applied}</p>
+            <p className="m-0 text-[13.5px] text-muted-foreground" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>{applied}</p>
           )}
         </Card>
         )}
+        {/* Below the leave form, not above it: applying is what most people come here for (Yajur, 2026-10-24). */}
+        {selfService && <AttendanceFix />}
 
         <Card>
           <CardHeader
@@ -611,6 +646,9 @@ export default function Leave() {
    approved request writes the mark. */
 function AttendanceFix() {
   const qc = useQueryClient()
+  /* Collapsed until asked for (Yajur, 2026-10-24): one row with a chevron;
+     the form opens on tap. Most visits here are to apply for leave. */
+  const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ on_date: '', check_in: '', check_out: '', reason: '' })
   const mine = useQuery({
     queryKey: ['attendance-requests', 'mine'],
@@ -623,8 +661,17 @@ function AttendanceFix() {
   const rows = mine.data?.items ?? []
   return (
     <Card>
-      <CardHeader title="Fix a day's attendance" description="Forgot to punch, or the reader was down. HR decides; an approved request corrects the register." />
-      <div className="px-5 pb-5">
+      <CardHeader
+        title="Fix a day's attendance"
+        description="Forgot to punch, or the reader was down. HR decides; an approved request corrects the register."
+        action={
+          <Button variant="ghost" aria-expanded={open} aria-label={open ? 'Close' : 'Open'} onClick={() => setOpen((v) => !v)}>
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </Button>
+        }
+      />
+      {open && (
+      <div className="flex flex-col gap-3" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>
         <FormGrid>
           <Field label="Day" required><Input type="date" value={form.on_date} onChange={(v) => setForm({ ...form, on_date: v })} /></Field>
           <Field label="Came in"><TimePicker value={form.check_in} onChange={(v) => setForm({ ...form, check_in: v })} /></Field>
@@ -632,9 +679,9 @@ function AttendanceFix() {
         </FormGrid>
         <Field label="What happened" required><Input value={form.reason} onChange={(v) => setForm({ ...form, reason: v })} placeholder="The reader at the main gate was off; the guard saw me come in at 8:50" /></Field>
         <FormNotice error={send.error} />
-        <Button className="mt-3" disabled={!form.on_date || form.reason.trim().length < 5 || send.isPending} onClick={() => send.mutate()}>{send.isPending ? 'Sending…' : 'Ask HR to fix it'}</Button>
+        <Button className="m-0 self-start" disabled={!form.on_date || form.reason.trim().length < 5 || send.isPending} onClick={() => send.mutate()}>{send.isPending ? 'Sending…' : 'Ask HR to fix it'}</Button>
         {rows.length > 0 && (
-          <div className="mt-4">
+          <div>
             <Table head={['Day', 'Times', 'Reason', 'Status']}>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -648,6 +695,7 @@ function AttendanceFix() {
           </div>
         )}
       </div>
+      )}
     </Card>
   )
 }

@@ -318,7 +318,7 @@ export default function TodaysClasses() {
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
             </div>
-            <Button className="shrink-0" onClick={() => navigate(leavePath)}>
+            <Button className="shrink-0" onClick={() => navigate(`${leavePath}?apply=1`)}>
               <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
           </Card>
