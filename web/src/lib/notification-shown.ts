@@ -25,3 +25,23 @@ export function noteShown(n: ShownNote, livePosts: ReadonlySet<string> | null): 
 export function pendingFirst<T extends ShownNote>(items: T[]): T[] {
   return [...items].sort((a, b) => Number(!!b.pending) - Number(!!a.pending))
 }
+
+/* VIEWED IS GONE AT ONCE (Yajur, 2026-10-24: "after a notification is clicked
+   or the work is done, it should be gone immediately"). The cached feed after
+   one row is opened: an ordinary row leaves the list; work owed stays, read,
+   until the work is done (the server keeps it the same way). */
+export interface FeedNote extends ShownNote { id: string; read_at?: string }
+export function dropFromFeed<T extends FeedNote>(
+  feed: { items?: T[]; unread?: number } | undefined, id: string, at = new Date().toISOString(),
+): { items?: T[]; unread?: number } | undefined {
+  if (!feed) return feed
+  const items = feed.items ?? []
+  const hit = items.find((n) => n.id === id)
+  if (!hit) return feed
+  const unread = hit.read_at ? feed.unread : Math.max(0, (feed.unread ?? 0) - 1)
+  return {
+    ...feed,
+    unread,
+    items: hit.pending ? items.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? at } : n)) : items.filter((n) => n.id !== id),
+  }
+}

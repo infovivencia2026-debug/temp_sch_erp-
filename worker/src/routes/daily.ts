@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../router'
+import { clearDoneWork } from '../services/notification_done'
 import type { AttendanceRow, MarkAttendanceResult, Period, Teacher, TimetableEntry } from '@shared/api'
 import { Messenger, enqueueMessageSends, scopeOf, type SendRequest } from '../services/messaging'
 import { can } from '../identity'
@@ -1708,6 +1709,7 @@ async function decideLeave(c: Ctx): Promise<Response> {
       .bind(Number(row.days), row.employee_id, row.leave_type_id))
   }
   await c.db.batch(stmts)
+  await clearDoneWork(c, 'leave_request', lid)
   return ok({ id: lid, status: req.decision })
 }
 
