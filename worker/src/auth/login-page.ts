@@ -93,3 +93,34 @@ export function loginHTML(o: { csrf: string; next: string; identifier?: string; 
     .replace('@@PWATTR@@', described + (id ? ' autofocus' : ''))
     .replace('@@ERROR@@', o.error ? `<p class="error" role="alert" id="login-error">${esc(o.error)}</p>` : '')
 }
+
+/* ---- School-code page (school.<SCHOOL_DOMAIN>/login) -------------------------
+   Smallest version, so the host routing can land on its own; the full page
+   comes with the sign-in page redesign and replaces this block on merge. */
+export function chooserHTML(o: { csrf: string; next: string; code?: string; error?: string; lang?: LoginLang }): string {
+  const lang = o.lang ?? 'en'
+  return `<!doctype html>
+<html lang="${lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find your school \u00b7 XULO</title>
+<link rel="stylesheet" href="/static/app.css?v=7a164c6107">
+</head>
+<body class="auth">
+  <div class="auth-split">
+    <main class="card">
+      <h1>Find your school</h1>
+      <p class="lede">Enter the code your school office gave you.</p>${o.error ? `<p class="error" role="alert" id="login-error">${esc(o.error)}</p>` : ''}
+      <form method="get" action="/login" id="chooser-form">
+        <input type="hidden" name="next" value="${esc(o.next)}">
+        <label for="code">School code</label>
+        <input id="code" type="text" name="code" required autocomplete="organization" autocapitalize="none"
+               autocorrect="off" spellcheck="false" enterkeyhint="go" value="${esc(o.code ?? '')}" autofocus>
+        <button type="submit">Continue</button>
+      </form>
+    </main>
+  </div>
+</body>
+</html>`
+}
