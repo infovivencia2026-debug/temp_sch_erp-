@@ -72,20 +72,6 @@ const LEAD_MOVES: Record<string, string[]> = {
 const isStage = (s: string) => (LEAD_STAGES as readonly string[]).includes(s)
 const canMove = (from: string, to: string) => (LEAD_MOVES[from] ?? []).includes(to)
 
-/* ── Broadcast times ────────────────────────────────────────────────────── */
-
-/** RFC3339, 'YYYY-MM-DDTHH:MM' or 'YYYY-MM-DD'; the zoneless layouts are UTC as Go's time.Parse made them. */
-function parseWhen(v: string | undefined): string | null | undefined {
-  const s = (v ?? '').trim()
-  if (s === '') return null
-  let t: Date
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) t = new Date(s + 'T00:00:00Z')
-  else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) t = new Date(s + ':00Z')
-  else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(s)) t = new Date(s)
-  else return undefined
-  return Number.isNaN(t.getTime()) ? undefined : t.toISOString()
-}
-
 export function registerSellerPlatform(r: Router): void {
   /* --- the recharge queue -------------------------------------------- */
 
@@ -439,65 +425,7 @@ export function registerSellerPlatform(r: Router): void {
       .bind(...vals.map(Math.trunc), req.notes ?? '', c.id.userId, now()).run()
     return ok({ saved: true })
   })
-
-  /* --- one notice to every school ------------------------------------ */
-
-  r.get('/seller/broadcasts', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const ts = now()
-    const rows = await c.env.CONTROL.prepare(`
-      SELECT b.id, b.severity, b.title, b.body, b.starts_at, b.ends_at, u.full_name AS created_by,
-             (b.retired_at IS NULL AND b.starts_at <= ? AND (b.ends_at IS NULL OR b.ends_at > ?)) AS live
-        FROM platform_broadcasts b
-        LEFT JOIN platform_users u ON u.id = b.created_by
-       ORDER BY b.starts_at DESC
-       LIMIT 100`).bind(ts, ts)
-      .all<{ id: string; severity: string; title: string; body: string; starts_at: string; ends_at: string | null; created_by: string | null; live: number }>()
-    const items = rows.results.map((v) => ({
-      id: v.id, severity: v.severity, title: v.title,
-      ...(v.body ? { body: v.body } : {}),
-      starts_at: minute(v.starts_at),
-      ...(v.ends_at != null ? { ends_at: minute(v.ends_at) } : {}),
-      ...(v.created_by != null ? { created_by: v.created_by } : {}),
-      live: bool(v.live),
-    }))
-    return ok({ items })
-  })
-
-  r.post('/seller/broadcasts', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const req = await readJSON<{ severity?: string; title?: string; body?: string; starts_at?: string; ends_at?: string }>(c.req)
-    const title = (req.title ?? '').trim()
-    if (title === '') throw badRequest('a notice needs a title. It is the only part most people read')
-    let severity = req.severity ?? ''
-    if (severity === '' || severity === 'info') severity = 'info'
-    else if (severity !== 'warning' && severity !== 'critical') throw badRequest('severity must be info, warning or critical')
-
-    const startsAt = parseWhen(req.starts_at)
-    if (startsAt === undefined) throw badRequest('starts_at must be a date and time')
-    const endsAt = parseWhen(req.ends_at)
-    if (endsAt === undefined) throw badRequest('ends_at must be a date and time')
-    const ts = now()
-    const starts = startsAt ?? ts
-    // platform_broadcasts_window_check, done here since SQLite has no CHECK to name.
-    if (endsAt !== null && endsAt <= starts) throw badRequest('that notice ends before it starts, so nobody would ever see it')
-
-    const id = uuid()
-    await c.env.CONTROL.prepare(`
-      INSERT INTO platform_broadcasts (id, severity, title, body, starts_at, ends_at, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, severity, title, (req.body ?? '').trim(), starts, endsAt, c.id.userId, ts).run()
-    return created({ id })
-  })
-
-  r.del('/seller/broadcasts/{id}', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const bid = c.params.id
-    if (!isUUID(bid)) throw badRequest('invalid broadcast id')
-    // Retired, not deleted: "which schools were told, and when" is asked afterwards.
-    const res = await c.env.CONTROL.prepare(`UPDATE platform_broadcasts SET retired_at = ? WHERE id = ? AND retired_at IS NULL`)
-      .bind(now(), bid).run()
-    if ((res.meta.changes ?? 0) === 0) throw conflict('that notice is already down, or there is no such notice')
-    return ok({ retired: true })
-  })
+  /* One notice to every school: /seller/announcements (announcements.ts), which
+     reads and writes the same platform_broadcasts rows. The older
+     /seller/broadcasts routes were a second door to them and are gone. */
 }
