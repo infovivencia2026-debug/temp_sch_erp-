@@ -13,10 +13,11 @@ import { useStatusFeed } from '@/features/comms/status/status-api'
 import type { StatusItem } from '@shared/api/feature_class_status'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import NotificationRow, { channelOf } from '@/components/NotificationRow'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
-import { Badge, Button, Dialog } from '@/components/ui'
+import { Button, Dialog } from '@/components/ui'
 import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
 import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
@@ -702,55 +703,17 @@ export default function Notifications() {
                           const [who] = n.title.split(' added a status')
                           const excerpt = post ? post.caption : n.body && !['Photo', 'Video', 'Text'].includes(n.body) ? n.body : undefined
                           return (
-                            <div key={n.id} className="relative">
-                            <button type="button" onClick={() => openNote(n)}
-                              className={cn('flex min-h-[44px] w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-[transform,background-color,box-shadow,color] hover:shadow-md pb-12',
-                                n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
-                              <StatusThumb post={post} read={!!n.read_at} />
-                              <span className="min-w-0 flex-1">
-                                <span className="flex items-baseline justify-between gap-2">
-                                  <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at ? 'font-semibold' : 'font-bold')}>{who || n.title}</span>
-                                  <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
-                                </span>
-                                <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px]">
-                                  <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px font-semibold text-primary">{chip}</span>
-                                  <span className="min-w-0 truncate text-muted-foreground">{post?.audience || ''}{n.student_name ? ` · ${n.student_name}` : ''}</span>
-                                </span>
-                                {excerpt && post?.media_kind !== 'text' && (
-                                  <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-muted-foreground">{excerpt}</span>
-                                )}
-                                {!post && statusFeed.data && <span className="mt-1 block text-[11.5px] text-muted-foreground">No longer showing</span>}
-                              </span>
-                            </button>
-                              <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
-                            </div>
+                            <NotificationRow key={n.id} title={who || n.title} time={timeOf(n.created_at)} label={label} icon={Icon}
+                              media={<StatusThumb post={post} read={!!n.read_at} />} extra={chip} unread={!n.read_at}
+                              snippet={[post?.audience, n.student_name, post?.media_kind !== 'text' ? excerpt : undefined, !post && statusFeed.data ? 'No longer showing' : undefined].filter(Boolean).join(' · ') || undefined}
+                              onOpen={() => openNote(n)} onView={() => openNote(n, true)} />
                           )
                         }
                         return (
-                          <div key={n.id} className="relative">
-                          <button type="button" onClick={() => openNote(n)}
-                            className={cn('flex w-full items-start gap-3.5 rounded-2xl border bg-card px-4 py-3.5 text-left transition-[transform,background-color,box-shadow,color] hover:-translate-y-px hover:bg-muted/30 pb-12',
-                              n.read_at ? 'border-border/70' : 'border-primary/30 shadow-sm')}>
-                            <span className={cn('grid size-8 shrink-0 place-items-center rounded-full',
-                              n.read_at ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')} aria-hidden>
-                              <Icon className="size-3.5" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-baseline justify-between gap-2">
-                                <span className={cn('min-w-0 truncate text-[13.5px]', n.read_at && !n.pending ? 'font-semibold' : 'font-bold')}>{n.title}</span>
-                                <span className="shrink-0 text-[11px] text-muted-foreground">{timeOf(n.created_at)}</span>
-                              </span>
-                              <span className="block text-[11.5px] font-medium text-primary">
-                                <span className="capitalize">{label}</span>{n.student_name ? ` · ${n.student_name}` : ''}
-                              </span>
-                              {n.pending && <Badge tone="warning" className="mt-1">Pending</Badge>}
-                              {n.body && (
-                                <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{n.body}</span>
-                              )}
-                            </span>
-                          </button>
-                            <Button size="sm" variant="secondary" className="absolute bottom-3 right-3" onClick={() => openNote(n, true)}>View</Button>
-                          </div>
+                          <NotificationRow key={n.id} title={n.title} time={timeOf(n.created_at)} label={label} icon={Icon}
+                            extra={channelOf(n.body)} unread={!n.read_at} pending={n.pending}
+                            snippet={[n.student_name, n.body].filter(Boolean).join(' · ') || undefined}
+                            onOpen={() => openNote(n)} onView={() => openNote(n, true)} />
                         )
                       })}
                     </div>
