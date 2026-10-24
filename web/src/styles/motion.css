@@ -300,3 +300,12 @@ html[data-reduce-motion] .m-press,
 html[data-reduce-motion] .m-sheet,
 html[data-reduce-motion] .m-swipe { transition-duration: 1ms !important; }
 html[data-reduce-motion] .m-large-title { transform: none; opacity: 1; }
+
+/* --- notification row: lift on pointer hover (components/NotificationRow) --- */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .note-row {
+    transition: transform var(--spring-dur-fast) var(--spring-gentle), box-shadow var(--spring-dur-fast) var(--spring-gentle), border-color var(--spring-dur-fast) var(--spring-gentle);
+  }
+  .note-row:hover { transform: translateY(-3px) scale(1.01); }
+}
+html[data-reduce-motion] .note-row:hover { transform: none; }

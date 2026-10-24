@@ -1,7 +1,8 @@
-import { useState } from 'react'
 import { cn, WEEKDAYS } from '@/lib/utils'
-import { Badge, SEG_BAR, segClass } from '@/components/ui'
+import { Badge } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
+import DayTimeline from '@/components/DayTimeline'
+import type { Period } from '@/lib/api'
 
 /* The week, as it is pinned to the staff-room wall.
  *
@@ -98,7 +99,6 @@ export default function WeekGrid({
   const phone = usePhone()
   const days = weekdays?.length ? weekdays : [1, 2, 3, 4, 5, 6]
   const { today, hhmm } = nowParts()
-  const [day, setDay] = useState(days.includes(today) ? today : days[0])
 
   // One lookup rather than a scan per cell.
   const at = new Map<string, WeekEntry>()
@@ -112,38 +112,15 @@ export default function WeekGrid({
   const isLive = (d: number, p: WeekPeriod) =>
     d === today && !!p.ends_at && p.starts_at.slice(0, 5) <= hhmm && hhmm < p.ends_at.slice(0, 5)
 
+  /* ON A PHONE, THE DAY AS A TIMELINE (Yajur, 2026-10-24: "timetable is not
+     like timeline in phones"): the same day strip, times down the left and a
+     card per period as the teacher's own timetable, for every week grid. */
   if (phone) {
     return (
-      <div id={id} className="space-y-3">
-        <div className={cn(SEG_BAR, 'flex w-full')} role="tablist" aria-label="Day">
-          {days.map((d) => (
-            <button key={d} type="button" role="tab" aria-selected={day === d} className={cn(segClass(day === d), 'flex-1 text-center')} onClick={() => setDay(d)}>
-              {(WEEKDAYS[d - 1] ?? `Day ${d}`).slice(0, 3)}
-            </button>
-          ))}
-        </div>
-        <ul className="space-y-2">
-          {periods.map((p) => {
-            if (p.is_break) {
-              return (
-                <li key={p.id} className="rounded-md bg-muted px-3 py-1.5 text-center text-[12px] text-muted-foreground">
-                  {p.name} · {time(p)}
-                </li>
-              )
-            }
-            const e = at.get(`${day}:${p.id}`)
-            const live = isLive(day, p)
-            return (
-              <li key={p.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-stretch gap-3">
-                <div className="py-2">
-                  <div className="text-[13px] font-semibold">{p.name}</div>
-                  <div className="text-[12px] tabular-nums text-muted-foreground">{time(p)}</div>
-                </div>
-                {e ? <Lesson e={e} live={live} /> : <Free live={live} className="min-h-[3.25rem]" />}
-              </li>
-            )
-          })}
-        </ul>
+      <div id={id}>
+        <DayTimeline bare who="" where=""
+          periods={periods.map((p) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: null }) as unknown as Period)}
+          entries={entries.map((e) => ({ weekday: e.weekday, period_id: e.period_id, title: e.title, detail: [e.detail, e.room].filter(Boolean).join(' · ') || undefined }))} />
       </div>
     )
   }

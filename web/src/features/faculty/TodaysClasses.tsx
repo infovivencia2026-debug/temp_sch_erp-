@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import {
   notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
+import NotificationRow, { channelOf } from '@/components/NotificationRow'
 
 /* A teacher's own day, from their own timetable.
 
@@ -65,18 +66,6 @@ function ago(iso: string): string {
 }
 
 
-/* The left edge of a notification says what family it is from. */
-const KIND_EDGE: Record<string, string> = {
-  Fees: 'border-l-warning',
-  Messages: 'border-l-primary',
-  Message: 'border-l-primary',
-  Attendance: 'border-l-success',
-  Homework: 'border-l-info',
-  Results: 'border-l-info',
-  Lessons: 'border-l-info',
-  Timetable: 'border-l-info',
-  Notice: 'border-l-destructive',
-}
 
 type Row =
   | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string
@@ -310,26 +299,19 @@ export default function TodaysClasses() {
                     stay until done, so they lead the list and carry a tag. */}
                 {noteItems.map((n) => {
                   const link = linkFor(n)
-                  const family = notificationKind(n.kind).label
+                  const { icon, label } = notificationKind(n.kind)
                   const urgent = n.pending
                   return (
-                    <li key={n.id}
-                      className={cn('flex items-start gap-3 rounded-lg border px-3 py-2.5',
-                        urgent ? 'border-l-4 border-l-warning bg-warning/10' : cn('border-l-2', KIND_EDGE[family] ?? 'border-l-muted-foreground'))}>
-                      <div className="min-w-0 flex-1">
-                        {urgent && <Badge tone="warning" className="mb-1">Pending</Badge>}
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className={cn('min-w-0 truncate text-[14px]', n.read_at && !urgent ? 'font-medium' : 'font-semibold')}>{n.title}</p>
-                          <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
-                        </div>
-                        {n.body && <p className={cn('text-[13px] text-muted-foreground', viewing !== n.id && 'truncate')}>{n.body}</p>}
-                      </div>
+                    <li key={n.id}>
                       {/* View on every row: it opens the screen the notification is about, or,
                           where there is none, shows the whole message here. Viewed is gone
                           (owner, 2026-10-23: "after viewing don't show that message"), except
                           pending work, which stays until it is done. */}
-                      <Button variant="secondary" size="sm" className="shrink-0"
-                        onClick={() => {
+                      <NotificationRow title={n.title} time={ago(n.created_at)} label={label} icon={icon}
+                        extra={channelOf(n.body)} unread={!n.read_at} pending={urgent}
+                        snippet={n.body} expanded={viewing === n.id}
+                        viewLabel={!link && viewing === n.id ? 'Close' : 'View'}
+                        onView={() => {
                           const drop = () => {
                             if (urgent) return
                             void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
@@ -340,9 +322,7 @@ export default function TodaysClasses() {
                           if (viewing === n.id) { setViewing(null); drop(); return }
                           setViewing(n.id)
                           if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
-                        }}>
-                        {!link && viewing === n.id ? 'Close' : 'View'}
-                      </Button>
+                        }} />
                     </li>
                   )
                 })}
