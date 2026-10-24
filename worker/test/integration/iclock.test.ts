@@ -65,7 +65,7 @@ it('Fetch history: the next check-in asks once for everything, and the answer is
 it('sets the reader clock to India time on first contact, then not again within the hour', async () => {
   await T().prepare(`DELETE FROM module_settings WHERE module LIKE 'iclock_clock:%'`).run()
   const first = await (await call(`/iclock/getrequest?SN=${SN}`)).text()
-  const m = /^C:\d+:SET OPTIONS DateTime=(\d+)\n$/.exec(first)
+  const m = /^C:\d+:SET OPTION DateTime=(\d+)\n$/.exec(first)
   expect(m).not.toBeNull()
   expect(Math.abs(Number(m![1]) - zkTime(new Date()))).toBeLessThan(5)
   expect(await (await call(`/iclock/getrequest?SN=${SN}`)).text()).toBe('OK')

@@ -237,7 +237,8 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
        server's time, and eSSL firmware reads the zone in whole hours: India's
        5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
        2026-10-22). The clock is set to India time directly instead, by
-       SET OPTIONS DateTime below, which carries no zone to misread. */
+       SET OPTION DateTime below (the command name the X2008 and other ZMM220
+       readers read), which carries no zone to misread. */
     return text([
       `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
       'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
@@ -398,7 +399,7 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     if (!(at > Date.now() - CLOCK_EVERY_MS)) {
       await db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 0, ?)
           ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(dev.inst.id, ckey, JSON.stringify({ sent_at: now() })).run()
-      return text(`C:${id + 4}:SET OPTIONS DateTime=${zkTime(new Date())}\n`)
+      return text(`C:${id + 4}:SET OPTION DateTime=${zkTime(new Date())}\n`)
     }
   }
 
