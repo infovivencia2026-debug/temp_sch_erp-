@@ -1719,13 +1719,24 @@ async function decideConcession(c: Ctx): Promise<Response> {
       .bind(status, c.id.userId, status === 'rejected' ? null : ts, ts, note, cid),
   ]
   const word = status === 'rejected' ? 'not approved' : 'approved'
-  let body = `${studentName} · ${row.kind} concession ${word}.`
-  if (note) body += ' ' + note
+  const label = status === 'rejected' ? 'Rejected' : 'Approved'
+  let body = `${studentName} · ${row.kind.replace(/_/g, ' ')} concession ${word} by ${c.id.fullName}.`
+  if (note) body += ` ${label}: ${note}`
   if (row.requested_by && row.requested_by !== c.id.userId) {
-    stmts.push(notifyStmt(c, row.requested_by, row.student_id, 'fee_concession', `Concession ${word}`, body, '/go/concessions', 'concession', cid))
+    /* Back to the screen the request was raised on: the fee desk's
+       Concessions tab for finance staff, Fee & Enrolment for admissions. */
+    const fin = await c.db.prepare(`SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
+                                     WHERE ur.user_id = ? AND rp.permission_key = 'finance.fees.read' LIMIT 1`).bind(row.requested_by).first()
+    const link = fin || !row.application_id ? '/go/fees/class_transport_fee_setup?view=concessions' : '/go/admissions/fee_enrollment'
+    stmts.push(notifyStmt(c, row.requested_by, row.student_id, 'fee_concession', `Concession ${word}`, body, link, 'concession', cid))
   }
+  /* The approvers' "to approve" rows are answered: marked read and retitled
+     with the outcome, so nobody opens a request that is no longer waiting. */
+  stmts.push(c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?), title = ?, body = ?
+                            WHERE kind = 'concession_request' AND source_kind = 'concession' AND source_id = ?`)
+    .bind(ts, `Concession ${word}: ${studentName}`, body, cid))
   await c.db.batch(stmts)
-  return ok({ id: cid, status: req.decision })
+  return ok({ id: cid, status, decision_note: note })
 }
 
 // permission: came late with leave to (Yajur, 2026-10-13); payroll does not count it as late up to an hour.

@@ -416,6 +416,8 @@ export function registerAdmissionsWorkflow(r: Router) {
              COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id ORDER BY fc.created_at DESC LIMIT 1), '') AS concession_kind,
              COALESCE((SELECT CASE WHEN fc.percent IS NOT NULL THEN fc.percent || '%' ELSE CAST(fc.amount_paise / 100 AS TEXT) END FROM fee_concessions fc WHERE fc.application_id = a.id ORDER BY fc.created_at DESC LIMIT 1), '') AS concession_value,
              COALESCE((SELECT fc.status FROM fee_concessions fc WHERE fc.application_id = a.id ORDER BY fc.created_at DESC LIMIT 1), '') AS concession_status,
+             COALESCE((SELECT fc.reason FROM fee_concessions fc WHERE fc.application_id = a.id ORDER BY fc.created_at DESC LIMIT 1), '') AS concession_reason,
+             COALESCE((SELECT fc.decision_note FROM fee_concessions fc WHERE fc.application_id = a.id ORDER BY fc.created_at DESC LIMIT 1), '') AS concession_note,
              (a.enrolment_approved_at IS NOT NULL) AS enrolment_approved
         FROM applications a LEFT JOIN classes c ON c.id = a.class_sought
        WHERE a.status = 'offered' AND a.student_id IS NULL

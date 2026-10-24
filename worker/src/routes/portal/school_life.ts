@@ -860,7 +860,7 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
         (SELECT max(n.created_at) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ?) AS notes,
         (SELECT max(h.updated_at) FROM homework h WHERE h.institution_id = ?) AS homework,
         (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${where('rc.student_id')}) AS results,
-        (SELECT max(fc.decided_at) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
+        (SELECT max(COALESCE(fc.decided_at, fc.created_at)) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
     .bind(arg, arg, arg, arg, inst, c.id.userId, inst, arg, arg)
     .first<Record<string, string | null>>()
   const v = r ?? {}

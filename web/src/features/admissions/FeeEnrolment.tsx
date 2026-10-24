@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { refreshConcessions } from '@/lib/concession-refresh'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select,
   Input, Textarea, FormNotice, Table, Td, Badge, Button, SkeletonTable, ErrorState,
@@ -54,6 +55,8 @@ interface Pending {
   concession_kind: string
   concession_value: string
   concession_status: string
+  concession_reason?: string
+  concession_note?: string
   enrolment_approved: boolean
 }
 
@@ -155,7 +158,7 @@ export default function FeeEnrolment() {
           <ApplicantFee
             row={openRow}
             mayAsk={mayAsk}
-            onChanged={() => qc.invalidateQueries({ queryKey: ['pending-admissions'] })}
+            onChanged={() => refreshConcessions(qc)}
           />
         )}
       </PageBody>
@@ -335,6 +338,14 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           A {row.concession_kind.replace('_', ' ')} concession of{' '}
           <span className="font-medium">{row.concession_value}</span> is{' '}
           <span className="font-medium">{row.concession_status}</span>.
+          {row.concession_reason && (
+            <span className="block text-muted-foreground">Asked: {row.concession_reason}</span>
+          )}
+          {row.concession_note && (
+            <span className="block text-muted-foreground">
+              {row.concession_status === 'rejected' ? 'Rejected' : 'Approved'}: {row.concession_note}
+            </span>
+          )}
           {row.concession_status === 'pending' && (
             /* Said here as well as enforced on the server, because the person
                who enrols is often not the person who asked. */
