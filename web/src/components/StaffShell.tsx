@@ -11,6 +11,7 @@ import { buzz } from '@/lib/haptics'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
 import { LayoutSwitch } from './LayoutSwitch'
+import { usePhone } from '@/lib/viewport'
 import { featurePath, type ApiSection } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
@@ -206,6 +207,7 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof useTodaySignIns> }) {
   const session = useSession()
+  const phone = usePhone()
   const now = new Date()
   const hour = now.getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -216,6 +218,31 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
   const firstAt = clock(d?.first_sign_in_at, d?.timezone)
   const lastAt = clock(d?.last_activity_at, d?.timezone)
   const times = firstAt && lastAt ? `First ${firstAt} · Last ${lastAt}` : lastAt ? `Last ${lastAt}` : null
+  /* ON A PHONE, THE OWNER'S HEADER (Yajur, 2026-10-24,
+     docs/owner-designs/2026-10-24-teacher-home-phone.html): avatar and bell on
+     the top row beside the menu, then the greeting, the full name large, the
+     staff ID with today's sign-in times, and search across the width. */
+  if (phone) {
+    return (
+      <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
+          <Notifications />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>
+          <p className="truncate text-[20px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
+          {(d?.employee_code || times) && (
+            <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground tabular-nums">
+              {d?.employee_code && <>ID: <span className="font-bold text-warning">{d.employee_code}</span></>}
+              {d?.employee_code && times && ' • '}{times}
+            </p>
+          )}
+        </div>
+        <CommandSearch wide fill />
+      </div>
+    )
+  }
   return (
     <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
       <div className="min-w-0">
