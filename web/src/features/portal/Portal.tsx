@@ -90,10 +90,11 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
 
   /* Only the days worth naming, oldest first — a list in calendar order reads
      as the month, and one in fetch order reads as noise. */
-  const named = days
-    .filter((d) => d.label)
-    .slice()
-    .sort((a, b) => a.date.localeCompare(b.date))
+  /* Today only (Yajur, 2026-10-24: "only show current days"): the month's
+     whole list ran down the screen; the rest is on each day's tooltip. */
+  const now = new Date()
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const named = days.filter((d) => d.label && d.date === todayIso)
 
   const iso = (day: number) =>
     `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
