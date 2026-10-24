@@ -24,10 +24,15 @@ export async function sessionBody(env: Env, req: Request, id?: Identity | null):
   if (!s) return { authenticated: false, permissions: [], ...(!id && await wipeRequested(env, req) ? { wipe: true } : {}) }
 
   if (s.institution_id === null) {
-    const u = await env.CONTROL.prepare('SELECT full_name FROM platform_users WHERE id = ?').bind(s.user_id).first<{ full_name: string }>()
+    const [u, pr] = await Promise.all([
+      env.CONTROL.prepare('SELECT full_name FROM platform_users WHERE id = ?').bind(s.user_id).first<{ full_name: string }>(),
+      // The platform roles (seller_admin, support_admin, the area roles): the console hides what a role may not do.
+      id ? null : env.CONTROL.prepare('SELECT role_key FROM platform_user_roles WHERE user_id = ? ORDER BY role_key').bind(s.user_id).all<{ role_key: string }>(),
+    ])
+    const roles = id ? id.roles : (pr?.results ?? []).map((r) => r.role_key)
     return {
       authenticated: true, permissions: ['*'],
-      user: { id: s.user_id, full_name: u?.full_name ?? '', roles: ['platform_admin'], platform_admin: true },
+      user: { id: s.user_id, full_name: u?.full_name ?? '', roles: roles.length ? roles : ['platform_admin'], platform_admin: true },
     }
   }
 

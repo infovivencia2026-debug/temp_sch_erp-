@@ -6,6 +6,9 @@ import { Copy, ExternalLink, KeyRound, Network, Palette, Plus, X } from 'lucide-
 import { SchoolGroups } from './SchoolGroups'
 import { NewSchool } from './NewSchool'
 import { Features } from './Features'
+import { School360 } from './School360'
+import { BulkActions } from './BulkActions'
+import { useVendorCan } from './vendor-roles'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -162,6 +165,11 @@ export default function Tenants() {
   const [featuresOpen, setFeaturesOpen] = useState(false)
   // '' every school, '-' schools in no group, otherwise a group id.
   const [groupFilter, setGroupFilter] = useState('')
+  const [view360, setView360] = useState<string | null>(null)
+  // Schools ticked for a bulk action (plan, renewal reminder, announcement).
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const can = useVendorCan()
 
   const tenants = useQuery({
     queryKey: ['seller-tenants'],
@@ -210,14 +218,18 @@ export default function Tenants() {
         description={description}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setGroupsOpen((o) => !o)}>
-              <Network className="h-3.5 w-3.5" />
-              {groupsOpen ? 'Hide groups' : 'School groups'}
-            </Button>
-            <Button variant="secondary" onClick={() => setFeaturesOpen((o) => !o)}>
-              {featuresOpen ? 'Hide features' : 'Feature switches'}
-            </Button>
-            <Button
+            {can('groups_features') && (
+              <>
+                <Button variant="secondary" onClick={() => setGroupsOpen((o) => !o)}>
+                  <Network className="h-3.5 w-3.5" />
+                  {groupsOpen ? 'Hide groups' : 'School groups'}
+                </Button>
+                <Button variant="secondary" onClick={() => setFeaturesOpen((o) => !o)}>
+                  {featuresOpen ? 'Hide features' : 'Feature switches'}
+                </Button>
+              </>
+            )}
+            {can('setup') && <Button
               onClick={() => {
                 setHandover(null)
                 setCreating((c) => !c)
@@ -225,7 +237,7 @@ export default function Tenants() {
             >
               {creating ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {creating ? 'Cancel' : 'New school'}
-            </Button>
+            </Button>}
           </div>
         }
       />
@@ -266,8 +278,15 @@ export default function Tenants() {
           <CardHeader
             title="Every school"
             description={`${rows.length} registered, plan, roll, setup and when each was last used.`}
-            action={(groupOptions.length > 0 || groupFilter !== '') && (
-              <div className="w-56">
+            action={(groupOptions.length > 0 || groupFilter !== '' || picked.size > 0) && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+              {picked.size > 0 && (
+                <>
+                  <Button size="sm" onClick={() => setBulkOpen(true)}>Act on {picked.size}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
+                </>
+              )}
+              {(groupOptions.length > 0 || groupFilter !== '') && <div className="w-56">
                 <Select
                   value={groupFilter}
                   onChange={setGroupFilter}
@@ -278,6 +297,7 @@ export default function Tenants() {
                     { value: '-', label: 'Not in a group' },
                   ]}
                 />
+              </div>}
               </div>
             )}
           />
@@ -291,6 +311,7 @@ export default function Tenants() {
             <Table
               wide
               head={[
+                ...(can('bulk') ? [''] : []),
                 { label: 'School', key: 'name' },
                 { label: 'Plan', key: 'plan_name' },
                 { label: 'Students', key: 'students' },
@@ -303,6 +324,16 @@ export default function Tenants() {
             >
               {sort.sorted.map((t) => (
                 <tr key={t.id}>
+                  {can('bulk') && (
+                    <Td>
+                      <Checkbox
+                        checked={picked.has(t.id)}
+                        srLabel={`Choose ${t.name}`}
+                        label=""
+                        onChange={(on) => setPicked((cur) => { const n = new Set(cur); if (on) n.add(t.id); else n.delete(t.id); return n })}
+                      />
+                    </Td>
+                  )}
                   {/* A school's name is not a paragraph, and neither is a
                       date: both were breaking mid-word once the columns were
                       squeezed. */}
@@ -369,7 +400,10 @@ export default function Tenants() {
                   </Td>
                   <Td className="whitespace-nowrap">
                     <div className="flex flex-wrap justify-end gap-1.5">
-                      <Button
+                      <Button size="sm" variant="secondary" title="Plan, use, money, faults and backups on one sheet" onClick={() => setView360(t.id)}>
+                        School 360
+                      </Button>
+                      {can('act_in_school') && <Button
                         size="sm"
                         variant="secondary"
                         title="Work inside this school to reproduce a fault"
@@ -379,7 +413,8 @@ export default function Tenants() {
                         }}
                       >
                         Open
-                      </Button>
+                      </Button>}
+                      {can('setup') && <>
                       <Button
                         size="sm"
                         variant="secondary"
@@ -397,7 +432,8 @@ export default function Tenants() {
                       >
                         <KeyRound className="h-3.5 w-3.5" />
                       </ConfirmButton>
-                      {t.subscription_status === 'suspended' ? (
+                      </>}
+                      {can('suspend') && (t.subscription_status === 'suspended' ? (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -415,7 +451,7 @@ export default function Tenants() {
                         >
                           Suspend
                         </ConfirmButton>
-                      )}
+                      ))}
                     </div>
                   </Td>
                 </tr>
@@ -428,6 +464,15 @@ export default function Tenants() {
             </div>
           )}
         </Card>
+        )}
+
+        {view360 && <School360 id={view360} onClose={() => setView360(null)} />}
+        {bulkOpen && (
+          <BulkActions
+            ids={[...picked]}
+            plans={plans.data?.items ?? []}
+            onClose={(changed) => { setBulkOpen(false); if (changed) setPicked(new Set()) }}
+          />
         )}
 
         {branding && (

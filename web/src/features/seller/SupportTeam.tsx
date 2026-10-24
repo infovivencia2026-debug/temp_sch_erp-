@@ -17,10 +17,11 @@ import { formatDate } from '@/lib/utils'
    administrator, a support engineer who has left, a forgotten password and a
    change of role were all SQL on the platform database.
 
-   Two roles are offered. Support is read-only by construction: it sees that
-   a school exists, that its jobs run and what its audit trail says, and no
-   child's records. Seller administrator runs this console. Super admin is
-   listed when there is one and is never created or changed from here.
+   Support is read-only by construction: it sees that a school exists, that
+   its jobs run and what its audit trail says, and no child's records. Seller
+   administrator runs this console. Sales, Billing, Onboarding and Support
+   lead each hold one area of it (worker/src/identity.ts VENDOR_ROLES). Super
+   admin is listed when there is one and is never created or changed here.
 
    The server holds three rules whatever is pressed: nobody changes their
    own access, a super admin is only touched by a super admin, and the last
@@ -54,10 +55,18 @@ const ROLE_NAME: Record<string, string> = {
   super_admin: 'Super admin',
   seller_admin: 'Seller administrator',
   support_admin: 'Support',
+  sales: 'Sales',
+  billing: 'Billing',
+  onboarding: 'Onboarding',
+  support_lead: 'Support lead',
 }
 const ROLE_OPTIONS = [
   { value: 'support_admin', label: 'Support', about: 'Answers schools’ tickets. Looks across schools, changes nothing, and sees no child’s records.' },
   { value: 'seller_admin', label: 'Seller administrator', about: 'Runs this console: schools, plans, billing and this team.' },
+  { value: 'sales', label: 'Sales', about: 'Leads, quotes and demo schools. Reads the school list; cannot change a plan or suspend a school.' },
+  { value: 'billing', label: 'Billing', about: 'Invoices, payments, plan changes, partners and commission. Cannot enter a school.' },
+  { value: 'onboarding', label: 'Onboarding', about: 'Sets up new schools and demo schools and follows their setup. Cannot bill or change a plan.' },
+  { value: 'support_lead', label: 'Support lead', about: 'The support desk and its team, school health and announcements. Enters a school only on a recorded session.' },
 ]
 const STATUS_NAME: Record<string, string> = { active: 'Active', suspended: 'Suspended', invited: 'Invited' }
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
@@ -107,7 +116,7 @@ export default function SupportTeam() {
      table to those people, pressing it again shows everyone. */
   const [focus, setFocus] = useState<{ by: string; key: string } | null>(null)
   const all = staff.data?.items ?? []
-  const isAdmin = (a: Staff) => a.roles.some((r) => r !== 'support_admin')
+  const isAdmin = (a: Staff) => a.roles.some((r) => r === 'seller_admin' || r === 'super_admin')
   const weekAgo = Date.now() - 7 * 86_400_000
   const seen = (a: Staff) => (!a.last_login_at ? 'never' : new Date(a.last_login_at).getTime() >= weekAgo ? 'week' : 'earlier')
   const tests: Record<string, (a: Staff, k: string) => boolean> = {
@@ -171,10 +180,10 @@ export default function SupportTeam() {
             <Stat
               label="People"
               value={all.length}
-              detail={`${admins} run the console and ${all.length - admins} answer support.`}
+              detail={`${admins} run the console; ${all.length - admins} hold support or one area of it.`}
               parts={[
                 { key: 'seller_admin', label: 'Seller administrators', value: admins, tone: 'primary' },
-                { key: 'support_admin', label: 'Support', value: all.length - admins, tone: 'info' },
+                { key: 'support_admin', label: 'Support and areas', value: all.length - admins, tone: 'info' },
               ]}
               onPart={pick('role')}
               activePart={on('role')}
