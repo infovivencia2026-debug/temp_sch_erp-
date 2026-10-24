@@ -306,6 +306,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   routes_stops: 'alt_route', // Routes & stops
   rte_quota: 'diversity_1', // RTE Quota
   salary_setup: 'request_page', // Salary setup
+  school_activity: 'timeline', // School activity
   school_achievements_showcase: 'emoji_events', // School Achievements Showcase
   school_calendar: 'calendar_month', // School Calendar
   school_management_type: 'corporate_fare', // School Management Type
@@ -417,6 +418,7 @@ export const SECTION_ICONS: Record<string, string> = {
   admissions: 'how_to_reg', // Admissions
   ai_automation: 'auto_awesome', // AI & Automation
   alerts_preferences: 'notifications', // Alerts & Preferences
+  activity: 'timeline', // Activity
   alumni: 'diversity_3', // Alumni
   applications: 'description', // Applications
   approvals: 'task_alt', // Approvals
