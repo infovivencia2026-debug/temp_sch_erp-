@@ -1248,7 +1248,7 @@
      centre. An empty state already pads itself (p-10), so its last line takes
      no extra bottom margin either, which had pushed its text above centre. */
   .card > :is(.form-grid, form, fieldset) + :is(.form-grid, form, fieldset) { padding-top: 0; }
-  .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
+  .card > :is(p, label, button.btn, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
     margin-inline: var(--card-pad);
   }
   /* A BUTTON'S OWN px- IS INSIDE PADDING, NOT A MARGIN.
@@ -1263,10 +1263,10 @@
      Only a MARGIN utility means "I place myself"; padding describes the inside
      of the box and says nothing about where the box goes. So buttons are
      excused from the padding tests and kept out of the margin ones. */
-  .card > :is(button, a.btn):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']) {
+  .card > :is(button.btn, a.btn):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']) {
     margin-inline: var(--card-pad);
   }
-  .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
+  .card:not(.empty-state) > :is(p, label, button.btn, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
   /* A body padded by hand with p-4 or p-5 sat 14 or 17.5px in from the edge
      while the header above it sat at --card-pad (16 / 20px), so the text of
      a card did not line up with its own title. Block children padded that
