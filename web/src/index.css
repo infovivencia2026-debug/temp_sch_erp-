@@ -5201,7 +5201,7 @@ a.nav-pill.nav-pill__head { padding: 3px 14px 3px 4px; }
 @media (prefers-reduced-motion: reduce) { .nav-pill:hover { transform: none; } }
 
 /* Thin rows sit closer together (owner, 2026-10-24: "make them thin"). */
-nav:has(> .nav-pill) { gap: 8px !important; }
+nav:has(> .nav-pill) { gap: 12px !important; }
 /* Smoother open and close (owner, 2026-10-24: "open and closing the dropdowns
    still need to be improved"). A 9999px radius cannot animate to 22px without
    a jump, so a closed pill uses 24px (still fully round at this height); the
