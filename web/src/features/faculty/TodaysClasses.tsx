@@ -3,14 +3,14 @@ import { CalendarPlus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
-import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
+import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
+import DayTimeline from '@/components/DayTimeline'
 import { useSession } from '@/lib/session'
 import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import {
   notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
@@ -179,11 +179,7 @@ export default function TodaysClasses() {
     }))
   const rows = [...lessonRows, ...breakRows].sort((a, b) => a.start - b.start || a.end - b.end)
 
-  /* Done, Now and Upcoming are read off the clock rather than stored, so the
-     screen is right whenever it is opened. */
   const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const statusOf = (r: Row) => (r.end <= nowMin ? 'done' : r.start <= nowMin ? 'now' : 'upcoming')
 
   const hour = now.getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -242,38 +238,21 @@ export default function TodaysClasses() {
                   : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
               />
             ) : (
-              <ul>
-                {rows.map((r) => {
-                  if (r.kind === 'break') {
-                    return (
-                      <li key={r.key} className="flex items-center gap-3 px-5 py-1.5 text-[12px] text-muted-foreground">
-                        <span className="h-px flex-1 bg-border" />
-                        <span className="shrink-0">{r.label} · {r.span}</span>
-                        <span className="h-px flex-1 bg-border" />
-                      </li>
-                    )
-                  }
-                  const st = statusOf(r)
-                  return (
-                    <li key={r.key}
-                      className={cn('flex items-center gap-3 border-b border-l-2 border-l-transparent px-5 py-3 last:border-b-0',
-                        st === 'now' && 'border-l-primary bg-primary/[0.07]')}>
-                      <span className={cn('w-16 shrink-0 truncate text-[13px] font-semibold',
-                        st === 'now' ? 'text-primary' : 'text-muted-foreground')}>{r.label}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold">{r.title}</p>
-                        <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">
-                          {r.span}{r.room ? ` · ${r.room}` : ''}
-                        </p>
-                        {r.cover && <p className="truncate text-[12.5px] font-medium text-primary">{r.cover}</p>}
-                      </div>
-                      <Badge tone={st === 'now' ? 'primary' : st === 'done' ? 'neutral' : 'info'} className="shrink-0">
-                        {st === 'now' ? 'Now' : st === 'done' ? 'Done' : 'Upcoming'}
-                      </Badge>
-                    </li>
-                  )
-                })}
-              </ul>
+              /* Today as the parents' timetable shows it (Yajur, 2026-10-24): times
+                 down the left, a card per period, breaks between, the period on
+                 now marked, no other days. */
+              <DayTimeline bare todayOnly who="" where=""
+                periods={periods.data?.items ?? []}
+                entries={[
+                  ...mine.map((e) => ({
+                    weekday: e.weekday, period_id: e.period_id, title: e.subject_name,
+                    detail: [`${e.class_name} ${e.section_name}`, takenBy.get(e.id) && `${takenBy.get(e.id)} is taking this class`, e.room].filter(Boolean).join(' · '),
+                  })),
+                  ...coverItems.filter((x) => x.kind === 'covering').map((x) => ({
+                    weekday, period_id: x.period_id, title: `Cover: ${x.subject}`,
+                    detail: [x.section, `for ${x.other}`, x.note].filter(Boolean).join(' · '),
+                  })),
+                ]} />
             )}
           </div>
         </Card>
