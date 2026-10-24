@@ -122,14 +122,16 @@ export function staffItemClass(on: boolean, live = true) {
 
 /* `go`: pressing the head also lands on that screen and opens rather than
    closes (Home holding the workspace's other screens, owner 2026-10-24). */
-export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, go, onNavigate, children }: {
-  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; go?: string; onNavigate?: () => void; children: React.ReactNode
+export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, go, children }: {
+  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; go?: string; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
   const navigate = useNavigate()
   const toggle = () => {
-    if (go) { navigate(go); onNavigate?.() }
-    const next = go ? true : !open
+    const next = !open
+    /* Opening Home also shows the dashboard; a second press closes the group
+       (owner, 2026-10-24: "after clicking Home it is not closing"). */
+    if (go && next) navigate(go)
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
@@ -219,7 +221,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           const name = homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
             <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={label(name)}
-              hue={hue} icon={uniqueIcon('home', usedIcons)} go={featurePath(roleKey, first.section, first.f.slug)} onNavigate={onNavigate}>
+              hue={hue} icon={uniqueIcon('home', usedIcons)} go={featurePath(roleKey, first.section, first.f.slug)}>
               {[...list, ...inHome].map(({ section: from, f }) => (
                 <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
                   className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>

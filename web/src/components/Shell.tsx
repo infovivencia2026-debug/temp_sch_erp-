@@ -553,6 +553,9 @@ export function Shell({
      with it, which is why BentoEscape exists and why it renders before this is
      allowed to hide anything. */
   const { layout } = useLayout()
+  /* Switching Focus | Work from the phone menu closes the menu; its backdrop
+     stayed over the tile view and greyed the whole screen (owner, 2026-10-24). */
+  useEffect(() => { setNavOpen(false) }, [layout])
   /* Work pages arrive softly (owner, 2026-10-09: "opening hard"): a short
      fade, no movement, so nothing appears to jump. */
   useEffect(() => {
@@ -1254,7 +1257,7 @@ export function Shell({
       {/* The scrim belongs to the drawer, so it stops where the drawer does.
           Phone and the opened tablet drawer both dim the page; a desktop
           sidebar sits in the page and has nothing to dim. */}
-      {navOpen && (
+      {navOpen && !chromeless && (
         <div
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setNavOpen(false)}
