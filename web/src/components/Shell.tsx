@@ -1263,7 +1263,8 @@ export function Shell({
                 <PanelLeftOpen className="h-5 w-5" />
               </button>
             )}
-            <StaffHeaderContent signIns={signIns} />
+            {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} />}
           </header>
         )}
         {!chromeless && !staffLayout && (
