@@ -14,6 +14,7 @@ import {
   type Pred, type Scope,
 } from '../students/common'
 import { school } from '../school'
+import { ACCOUNT_PROBES } from './account_alerts'
 
 /* The loose top-level routes of internal/api/api.go that belong to no module:
    /api-keys, /attention, /board/money, /metrics, /platform-notices, /tour,
@@ -151,8 +152,11 @@ function attendancePredicate(s: Scope, alias: string): Pred {
   return { sql: '(' + clauses.join(' OR ') + ')', args }
 }
 
-interface ProbeResult { count: number; amount?: number; detail?: string }
-interface Probe {
+/* severity and headline, when a probe returns them, replace the probe's own:
+   the plan and paperwork probes go from warning to critical as a limit or a
+   date is passed, and say so in different words. */
+export interface ProbeResult { count: number; amount?: number; detail?: string; severity?: Probe['severity']; headline?: string }
+export interface Probe {
   key: string; needs: string; daily?: boolean; severity: 'critical' | 'warning' | 'info'; action: string; href: string
   headline: (n: number, amount: number) => string
   run: (c: Ctx, sc: Scope, today: string) => Promise<ProbeResult>
@@ -268,6 +272,7 @@ const PROBES: Probe[] = [
       const s = ddMon(r?.soonest ?? null)
       return { count: Number(r?.n ?? 0), detail: s ? 'Soonest due ' + s : '' }
     } },
+  ...ACCOUNT_PROBES,
 ]
 const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 }
 const canAny = (c: Ctx, needs: string) => needs.split(/\s+/).filter(Boolean).some((k) => can(c.id, k))
@@ -372,7 +377,7 @@ export async function attentionBody(c: Ctx, role = c.url.searchParams.get('role'
     const res = results[i]
     if (!res || res.count === 0) return
     const amount = res.amount ?? 0
-    const item: Record<string, unknown> = { key: p.key, severity: p.severity, count: res.count, headline: p.headline(res.count, amount) }
+    const item: Record<string, unknown> = { key: p.key, severity: res.severity ?? p.severity, count: res.count, headline: res.headline ?? p.headline(res.count, amount) }
     if (res.detail) item.detail = res.detail
     item.action = p.action
     if (p.href) item.href = p.href

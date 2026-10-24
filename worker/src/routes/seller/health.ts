@@ -44,11 +44,12 @@ export function registerSchoolHealth(r: Router): void {
     return ok(h)
   })
 
-  // The school admin's banner: this school's open plan-limit alerts.
+  // The school admin's banner: this school's open plan-limit alerts. The
+  // subscription ones (trial, renewal, invoice) are on the board instead.
   r.get('/usage-alerts', 'auth', async (c) => {
     const inst = c.id.institution
     if (!inst || !c.id.roles.includes('institution_admin')) return ok({ items: [] })
-    const rows = await c.env.CONTROL.prepare(`SELECT metric, level, pct, message, raised_at FROM usage_alerts WHERE institution_id = ? ORDER BY level DESC`)
+    const rows = await c.env.CONTROL.prepare(`SELECT metric, level, pct, message, raised_at FROM usage_alerts WHERE institution_id = ? AND metric IN ('students','storage','sms') ORDER BY level DESC`)
       .bind(inst.id).all()
     return ok({ items: rows.results })
   })
