@@ -18,6 +18,8 @@ beforeAll(async () => {
 
 it('answers the hello with its options, and an unknown reader politely', async () => {
   const r = await call(`/iclock/cdata?SN=${SN}&options=all&pushver=2.4.1`)
+  // No time zone: eSSL firmware read 5.5 as whole hours and set its clock half an hour out.
+  expect(await r.clone().text()).not.toMatch(/TimeZone/)
   expect(r.status).toBe(200)
   expect(await r.text()).toContain(`GET OPTION FROM: ${SN}`)
   expect(await (await call('/iclock/getrequest?SN=NOSUCH')).text()).toBe('OK')
@@ -60,7 +62,7 @@ it('Fetch history: the next check-in asks once for everything, and the answer is
   expect(n!.n).toBe(1)
 })
 
-it('sets the reader clock to India time on first contact, then not again for six hours', async () => {
+it('sets the reader clock to India time on first contact, then not again within the hour', async () => {
   await T().prepare(`DELETE FROM module_settings WHERE module LIKE 'iclock_clock:%'`).run()
   const first = await (await call(`/iclock/getrequest?SN=${SN}`)).text()
   const m = /^C:\d+:SET OPTIONS DateTime=(\d+)\n$/.exec(first)
