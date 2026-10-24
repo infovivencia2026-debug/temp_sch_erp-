@@ -2215,9 +2215,9 @@
          [role='option'], .lch-app, .parent-list__row a):active {
     /* Fallback for engines without color-mix: a neutral translucent grey wash.
        The color-mix line below overrides it on modern browsers. */
-    background-color: rgba(128, 128, 128, 0.12);
-    background-color: color-mix(in srgb, currentColor 8%, transparent);
-    transition-duration: var(--motion-press);
+    /* No wash (owner, 2026-10-24: "still clicking hover effect"): a tapped row
+       simply opens; nothing greys out or shifts under the finger. */
+    background-color: transparent;
   }
 }
 
