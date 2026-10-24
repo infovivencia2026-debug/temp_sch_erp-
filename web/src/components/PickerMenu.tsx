@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { currentViewport, placePanel } from './place'
 import { useOpenState } from '@/lib/motion'
+import { OptionSheet, useIsPhone } from './OptionSheet'
 
 /* ONE DROPDOWN, EVERYWHERE OUTSIDE A FORM FIELD.
 
@@ -59,6 +60,7 @@ export function PickerMenu<T extends string>({
   children?: ReactNode
 }) {
   const [open, setOpen] = useOpenState(false)
+  const phone = useIsPhone()
   const [active, setActive] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
   /* The menu lives in a portal on document.body, so it is NOT inside `wrap`.
@@ -74,7 +76,7 @@ export function PickerMenu<T extends string>({
   // when the space below is short — the same discipline the shared Select uses,
   // so a picker in a scrolling bar is never clipped or dropped off-screen.
   useLayoutEffect(() => {
-    if (!open) { setPos(null); return }
+    if (!open || phone) { setPos(null); return }
     const place = () => {
       const el = wrap.current
       if (!el) return
@@ -99,7 +101,7 @@ export function PickerMenu<T extends string>({
       vv?.removeEventListener('resize', place)
       vv?.removeEventListener('scroll', place)
     }
-  }, [open, align])
+  }, [open, align, phone])
 
   /* CHOOSING AN OPTION WAS AN OUTSIDE CLICK.
 
@@ -120,7 +122,7 @@ export function PickerMenu<T extends string>({
 
      Both elements are consulted now. */
   useEffect(() => {
-    if (!open) return
+    if (!open || phone) return
     const away = (e: PointerEvent) => {
       const t = e.target as Node
       if (wrap.current?.contains(t)) return
@@ -129,7 +131,7 @@ export function PickerMenu<T extends string>({
     }
     document.addEventListener('pointerdown', away)
     return () => document.removeEventListener('pointerdown', away)
-  }, [open])
+  }, [open, phone])
 
   useEffect(() => {
     if (open) setActive(Math.max(0, options.findIndex((o) => o.value === value)))
@@ -182,7 +184,16 @@ export function PickerMenu<T extends string>({
         )}
       </button>
 
-      {open && pos && createPortal(
+      {/* Phones: the shared bottom sheet (components/OptionSheet.tsx). */}
+      <OptionSheet
+        open={open && phone}
+        onClose={() => setOpen(false)}
+        title={ariaLabel}
+        options={options}
+        value={value}
+        onPick={(v) => { const o = options.find((x) => x.value === v); if (o) choose(o) }}
+      />
+      {open && !phone && pos && createPortal(
         <ul
           ref={menu}
           role="listbox"
