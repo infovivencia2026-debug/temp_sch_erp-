@@ -605,7 +605,7 @@ function newMigration(name, body) {
     if (!r.ok) die('migrate.mjs new failed:\n' + r.out)
     const file = r.stdout.trim().split('\n').pop()
     fs.appendFileSync(file, body)
-    const rel = path.relative(ROOT, file)
+    const rel = path.relative(ROOT, file).split(path.sep).join("/")
     did(`migration ${rel} (worker/scripts/migrate.mjs new tenant ${name})`)
     return rel
   }
