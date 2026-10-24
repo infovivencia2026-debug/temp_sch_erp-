@@ -492,6 +492,12 @@ export default function Portal() {
   const s = summary.data
   const days = attendance.data?.items ?? []
   const month = monthFacts(days, thisMonth())
+  // Today's named day (an activity, a holiday) for the dashboard card.
+  const todayEvents = (() => {
+    const n = new Date()
+    const iso = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+    return month.monthDays.filter((d) => d.date === iso && d.label).map((d) => ({ date: d.date, label: d.label as string }))
+  })()
   /* Each figure opens its own screen, in whichever workspace this is (parent or student). */
   const role = location.pathname.split('/')[1] || 'parent'
   const go = (rest: string) => () => navigate(`/${role}/${rest}${activeId ? `?student_id=${activeId}` : ''}`)
@@ -646,23 +652,6 @@ export default function Portal() {
                   )}
                 </Card>
                 <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
-                {/* The next school day, as the student's My day shows it. */}
-                {s.next_day && s.next_day.periods.some((x) => x.subject !== 'Free') && (
-                  <Card className="mt-6">
-                    <CardHeader title={`Next school day · ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][s.next_day.weekday - 1]}`} />
-                    <ul className="space-y-2 p-4">
-                      {s.next_day.periods.filter((x) => x.subject !== 'Free').map((c, i) => (
-                        <li key={`${c.period}-${i}`} className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
-                          <span className="w-28 shrink-0 whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-muted-foreground">
-                            {c.starts_at ?? '-'}{c.ends_at ? `–${c.ends_at}` : ''}
-                          </span>
-                          <span className="min-w-[8rem] flex-1 text-[14px] font-semibold">{c.subject}</span>
-                          <span className="text-[12.5px] text-muted-foreground">{c.period}{c.teacher ? ` · ${c.teacher}` : ''}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                )}
               </div>
 
               <div className="order-1 space-y-6 lg:order-2">
@@ -675,22 +664,18 @@ export default function Portal() {
                     <Button onClick={go('fees/fees_payments')}>Pay now <ArrowRight className="h-3.5 w-3.5" /></Button>
                   </div>
                 )}
-                <Card>
-                  <CardHeader
-                    title={monthName(thisMonth())}
-                    action={month.pct !== null ? (
-                      <span className={cn('text-[12.5px] font-semibold', month.pct >= 75 ? 'text-success' : 'text-destructive')}>{month.pct}% present</span>
-                    ) : undefined}
-                  />
-                  <div className="px-5 pb-4">
-                    <MonthGrid days={month.monthDays} ym={thisMonth()} />
-                    <div className="mt-3"><Legend /></div>
-                    <button type="button" onClick={go('attendance/attendance')}
-                      className="mt-3 text-[12.5px] font-medium text-primary hover:underline">
-                      Full attendance report
-                    </button>
-                  </div>
-                </Card>
+                {/* Today at school only (Yajur, 2026-10-24): the day's activity or
+                    holiday, no month calendar and no next day on the dashboard. */}
+                {todayEvents.length > 0 && (
+                  <Card>
+                    <CardHeader title="Today at school" />
+                    <ul className="space-y-2 px-5 pb-4">
+                      {todayEvents.map((d) => (
+                        <li key={d.date + d.label} className="rounded-xl bg-muted/50 px-4 py-3 text-[14px] font-semibold">{d.label}</li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
               </div>
             </div>
             </>

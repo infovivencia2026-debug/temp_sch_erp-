@@ -1101,7 +1101,7 @@ export function Shell({
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
-        <nav aria-label="Sections" className={cn('flex-1 overflow-y-auto', staffLayout ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
+        <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', staffLayout ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
           {/* Recent was here, above the workspace.
 
               It read as part of the menu without being part of it: five

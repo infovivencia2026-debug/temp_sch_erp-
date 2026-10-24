@@ -49,6 +49,7 @@ export default function DayTimeline({
   periods,
   entries,
   breaks = true,
+  todayOnly,
 }: {
   who: string
   where: string
@@ -59,6 +60,8 @@ export default function DayTimeline({
   breaks?: boolean
   /** Skip the card shell: the caller already draws one. */
   bare?: boolean
+  /** Today only, no day strip: a home page shows today, not the week (Yajur, 2026-10-24). */
+  todayOnly?: boolean
 }) {
   // The days the timetable actually has something on, Monday first. A school
   // that runs Saturday shows it; one that does not never shows an empty chip.
@@ -79,6 +82,7 @@ export default function DayTimeline({
   // Today if the school runs today, else the next school day.
   const [day, setDay] = useState<number>(() => {
     const t = isoWeekday(new Date())
+    if (todayOnly) return t
     return days.includes(t) ? t : (days.find((d) => d > t) ?? days[0])
   })
 
@@ -147,7 +151,7 @@ export default function DayTimeline({
             )}
           </div>
         )}
-        <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+        {!todayOnly && <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
           {days.map((d) => (
             <button
               key={d}
@@ -168,7 +172,7 @@ export default function DayTimeline({
               {WEEKDAYS[d - 1]}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {rows.length === 0 ? (
