@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
   School, UserRound, X,
+  Settings2,
 } from 'lucide-react'
 import {
   useCatalog, useActiveRole, featurePath, allRolesOn, type ApiSection,
@@ -1232,9 +1233,19 @@ export function Shell({
         {staffLayout ? (
           <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />
         ) : (
-          <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
-            <LayoutSwitch />
-          </div>
+          <>
+            {/* Below md the rail and its cog are off screen, so Settings is the
+                last row of the menu (owner, 2026-10-24). */}
+            <div className="shrink-0 border-t px-3 py-2 md:hidden">
+              <NavLink to="/settings" onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, true)}>
+                <Settings2 aria-hidden className="h-6 w-6 shrink-0" />
+                <span className="truncate">Settings</span>
+              </NavLink>
+            </div>
+            <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
+              <LayoutSwitch />
+            </div>
+          </>
         )}
         </div>
       </aside>
@@ -1280,7 +1291,7 @@ export function Shell({
               </button>
             )}
             {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
-            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} />}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')} />}
           </header>
         )}
         {!chromeless && !staffLayout && (
@@ -1352,7 +1363,8 @@ export function Shell({
               search alone and every other control sits at the foot of the
               rail (see there). A phone has no rail, so it keeps them here. */}
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <CommandSearch wide />
+            {/* No search on a phone, for every role (owner, 2026-10-24). */}
+            <div className="max-sm:hidden"><CommandSearch wide /></div>
             <div className="flex items-center gap-1 md:hidden">
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
