@@ -5070,7 +5070,7 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button svg { width: 24px; height: 24px; }
 }
 /* Help, Settings and Sign out on the profile card show the same hover
-   (owner, 2026-10-24): a clear wash and the icon in full ink. */
+   (owner, 2026-10-24): the same wash as the side-menu rows and the icon in full ink. */
 .staff-foot-settings button {
   display: grid; place-items: center;
   border-radius: 10px; color: hsl(var(--muted-foreground));
@@ -5080,7 +5080,7 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 40px; height: 40px; }
 }
 @media (hover: hover) {
-  .staff-foot-settings button:hover { background: hsl(var(--foreground) / 0.08); color: hsl(var(--foreground)); }
+  .staff-foot-settings button:hover { background: hsl(var(--surface-hover)); color: hsl(var(--foreground)); }
 }
 
 /* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
