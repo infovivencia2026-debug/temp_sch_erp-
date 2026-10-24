@@ -89,7 +89,8 @@ const LIVE_WORDS: string[][] = [
   [...COMMON, 'attendance', 'absen', 'register'],
   [...COMMON, 'mark', 'exam', 'result', 'academics', 'grade'],
   [...COMMON, 'invoice', 'ledger', 'fee', 'finance', 'collection', 'defaulter', 'payment', 'receipt'],
-  ['notification', 'attention', 'inbox', 'alert'],
+  // A decision arrives as a notification (leave_decided): the applicant's own request list must refetch too.
+  ['notification', 'attention', 'inbox', 'alert', 'leave'],
   [...COMMON, 'homework', 'lesson', 'academics', 'workflow'],
   [...COMMON, 'report', 'exam', 'result', 'academics'],
   [...COMMON, 'concession', 'ledger', 'fee', 'finance', 'approval', 'student-detail', 'pending-admission'],

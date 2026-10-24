@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
+import { OptionSheet, SEARCH_AT, SheetTrigger, useIsPhone, type SheetOption } from './OptionSheet'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -2114,6 +2115,7 @@ export function Select({
   allowCustom?: boolean
 }) {
   const [open, setOpen] = useOpenState(false)
+  const phone = useIsPhone()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   /* Whether anything has been typed since the menu opened. Until then the
@@ -2174,7 +2176,7 @@ export function Select({
     { left: number; width: number; top?: number; bottom?: number; maxH?: number } | null>(null)
 
   useEffect(() => {
-    if (!open) {
+    if (!open || phone) {
       setBox_(null)
       return
     }
@@ -2221,7 +2223,7 @@ export function Select({
       vv?.removeEventListener('resize', place)
       vv?.removeEventListener('scroll', place)
     }
-  }, [open])
+  }, [open, phone])
 
   const all = kind ? [...options, ...custom] : options
   const selected = all.find((o) => o.value === value)
@@ -2296,6 +2298,43 @@ export function Select({
   }
 
   const rows = shown.length + (canAdd || canUseTyped ? 1 : 0)
+
+  /* PHONE: A BUTTON AND A BOTTOM SHEET (owner, 2026-10-24). No text box in
+     the field, so no caret and no keyboard on tap; the list opens in the
+     shared OptionSheet. A search box appears inside the sheet only for a
+     list longer than SEARCH_AT, or one that takes typed answers. */
+  if (phone) {
+    const sheetOpts: SheetOption[] = [
+      ...(placeholder && !q && !options.some((o) => o.value === '')
+        ? [{ value: '', label: placeholder, muted: true }] : []),
+      ...shown,
+    ]
+    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-3 py-2 text-left text-[16px] active:bg-accent'
+    return (
+      <div ref={box} className="relative">
+        <SheetTrigger label={shownLabel} placeholder={placeholder || 'Choose'} open={open}
+          onOpen={() => { setOpen(true); setQuery(''); setTyped(false) }} />
+        <OptionSheet
+          open={open}
+          onClose={() => { setOpen(false); setQuery(''); setTyped(false) }}
+          title={placeholder || 'Choose'}
+          options={sheetOpts}
+          value={value}
+          onPick={(v) => choose(v)}
+          searchable={all.length > SEARCH_AT || all.length === 0 || allowCustom === true || !!kind}
+          query={query}
+          onQuery={(t) => { setQuery(t); setTyped(true) }}
+          footer={(canAdd || canUseTyped || err) ? (
+            <>
+              {canAdd && <button type="button" disabled={busy} onClick={add} className={extraRow}>{busy ? 'Adding…' : `+ ${addLabel}: “${query.trim()}”`}</button>}
+              {canUseTyped && <button type="button" onClick={() => choose(query.trim())} className={extraRow}>{kind ? `Use “${query.trim()}” for this record only` : `Use “${query.trim()}”`}</button>}
+              {err && <p className="px-3 py-1.5 text-[14px] text-destructive">{err}</p>}
+            </>
+          ) : undefined}
+        />
+      </div>
+    )
+  }
 
   return (
     <div ref={box} className="relative">

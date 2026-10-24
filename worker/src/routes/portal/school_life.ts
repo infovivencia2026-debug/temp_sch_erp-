@@ -3,6 +3,7 @@ import type { Notification } from '@shared/api'
 import { json } from '../../env'
 import { readJSON, ok, created, notFound, badRequest, forbidden, isUUID, now } from '../../http'
 import { can } from '../../identity'
+import { pendingDoneSql } from '../../services/notification_done'
 import {
   familyChildren, portalChild, resolveScope, requirePerm, institutionId, marks, js,
   nowInIndia, todayIST, ymd, addDays, parseYMD, str, fullName, shortName,
@@ -858,10 +859,11 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
         (SELECT max(m.entered_at) FROM marks m WHERE ${where('m.student_id')}) AS marks,
         (SELECT max(i.updated_at) FROM invoices i WHERE ${where('i.student_id')}) AS invoices,
         (SELECT max(n.created_at) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ?) AS notes,
+        (SELECT count(*) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ? AND n.dismissed_at IS NULL) AS notes_open,
         (SELECT max(h.updated_at) FROM homework h WHERE h.institution_id = ?) AS homework,
         (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${where('rc.student_id')}) AS results,
         (SELECT max(COALESCE(fc.decided_at, fc.created_at)) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
-    .bind(arg, arg, arg, arg, inst, c.id.userId, inst, arg, arg)
+    .bind(arg, arg, arg, arg, inst, c.id.userId, inst, c.id.userId, inst, arg, arg)
     .first<Record<string, string | null>>()
   const v = r ?? {}
   // Postgres greatest() ignores nulls; concat_ws skips them.
@@ -873,6 +875,10 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
      (a parent with no attendance yet saw homework changes as notifications). */
   const parts: string[] = [att, v.marks, v.invoices, v.notes, v.homework, v.results, v.concessions]
     .map((s) => ist(s)?.compact ?? '')
+  /* The bell's part also counts open rows: a notification cleared because its
+     work was done (services/notification_done.ts) moves it, so every other
+     user who had the same one refetches on the next poll (Yajur, 2026-10-24). */
+  parts[3] += ':' + String(v.notes_open ?? 0)
   /* AN EIGHTH PART: THE STAFF ROLL AND WHAT IT IS PAID (Yajur, 2026-10-14:
      "when one staff is added, show in the staff register and in salary setup
      and everywhere directly"). Somebody added on one login stayed missing on
@@ -993,19 +999,8 @@ const PENDING_KEPT_SQL = `(kind IN ('concern.support_ticket', 'question_paper_de
 
 const PENDING_KEPT_N = PENDING_KEPT_SQL.split('notifications.').join('n.').replace('(kind IN', '(n.kind IN').replace('OR (kind =', 'OR (n.kind =')
 
-/* When each pending kind is done (?1 = the user). */
-const PENDING_DONE_SQL = [
-  `kind = 'concern.support_ticket' AND EXISTS (SELECT 1 FROM support_tickets t WHERE t.id = notifications.source_id AND (t.status IN ('resolved', 'closed')
-     OR EXISTS (SELECT 1 FROM grievance_updates gu WHERE gu.ticket_id = t.id AND gu.kind = 'teacher_resolved')))`,
-  `kind = 'question_paper_deadline' AND (
-     EXISTS (SELECT 1 FROM question_papers qp WHERE qp.exam_subject_id = notifications.source_id AND qp.status IN ('submitted', 'approved'))
-     OR EXISTS (SELECT 1 FROM question_paper_deadlines d WHERE d.exam_subject_id = notifications.source_id AND d.teacher_user_id = ?1 AND d.manually_received_at IS NOT NULL))`,
-  `kind = 'leave_request' AND source_kind = 'leave_request' AND EXISTS (SELECT 1 FROM leave_requests l WHERE l.id = notifications.source_id AND l.status <> 'pending')`,
-  `kind = 'staff_exit_approval' AND EXISTS (SELECT 1 FROM staff_exits x WHERE x.id = notifications.source_id AND x.status <> 'pending_approval')`,
-  `kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m JOIN parent_teacher_messages r
-       ON r.student_id = m.student_id AND r.parent_user_id = m.parent_user_id AND r.teacher_user_id = m.teacher_user_id
-     WHERE m.id = notifications.source_id AND m.teacher_user_id = ?1 AND r.sender_user_id = ?1 AND r.sent_at > m.sent_at)`,
-]
+/* When each pending kind is done (?1 = the user); services/notification_done.ts. */
+const PENDING_DONE_SQL = pendingDoneSql('?1')
 
 async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[]; unread: number }> {
   const { scope, studentIds: kids } = await familyChildren(c, c.url.searchParams.get('student_id'))

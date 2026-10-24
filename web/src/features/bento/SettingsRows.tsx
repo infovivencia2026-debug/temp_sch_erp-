@@ -4,6 +4,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
+import { OptionSheet, useIsPhone } from '@/components/OptionSheet'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
@@ -246,6 +247,7 @@ export function DropdownRow<T extends string>({
   optionStyle?: (v: T) => React.CSSProperties
 }) {
   const [open, setOpen] = useOpenState(false)
+  const phone = useIsPhone()
   const ref = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   /* ON TOP OF THE PAGE, NOT INSIDE THE CARD (owner, 2026-10-09: the menu was
@@ -253,7 +255,7 @@ export function DropdownRow<T extends string>({
      when there is not room under it. */
   const [pos, setPos] = useState<React.CSSProperties | null>(null)
   useLayoutEffect(() => {
-    if (!open) { setPos(null); return }
+    if (!open || phone) { setPos(null); return }
     const place = () => {
       const b = ref.current?.getBoundingClientRect()
       if (!b) return
@@ -268,7 +270,7 @@ export function DropdownRow<T extends string>({
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
-  }, [open, options.length])
+  }, [open, options.length, phone])
 
   // Close on a click anywhere outside, and on Escape -- the two exits every
   // menu needs, mirrored on what the native picker did for free.
@@ -308,7 +310,15 @@ export function DropdownRow<T extends string>({
             aria-hidden="true"
           />
         </button>
-        {open && pos && createPortal(
+        <OptionSheet
+          open={open && phone}
+          onClose={() => setOpen(false)}
+          title={label}
+          options={options.map((o) => ({ value: o, label: name(o), text: name(o), style: optionStyle?.(o) }))}
+          value={value}
+          onPick={(v) => onPick(v as T)}
+        />
+        {open && !phone && pos && createPortal(
           <ul
             ref={listRef}
             role="listbox"

@@ -307,6 +307,9 @@ export function useLiveStream() {
     invalidateNotifications = () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
+      // A leave decision arrives as a notification; the applicant's Requests list
+      // (keyed 'leave', five-minute staleTime, persisted) otherwise kept "pending".
+      qc.invalidateQueries({ queryKey: ['leave'] })
     }
     return () => { invalidateNotifications = null }
   }, [qc])
@@ -378,6 +381,7 @@ export function useLiveStream() {
         case 'notification':
           qc.invalidateQueries({ queryKey: ['notifications'] })
           qc.invalidateQueries({ queryKey: ['attention'] })
+          qc.invalidateQueries({ queryKey: ['leave'] })
           break
         case 'typing': {
           const key = keyFromEvent(ev)
