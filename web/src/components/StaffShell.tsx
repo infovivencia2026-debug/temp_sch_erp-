@@ -3,7 +3,8 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BookOpen, Bus, Images, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
+  BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
+  Award, Bookmark, Briefcase, ChevronRight, Compass, Flag, GraduationCap, Megaphone, Puzzle, Shapes, Star,
   LogOut, Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -62,6 +63,23 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/meeting/, CalendarClock],
   [/online test|quiz/, MonitorCheck],
 ]
+/* THE PILL MENU (Yajur, 2026-10-24, owner's designs): every top-level row is a
+   rounded card with a round pastel badge and an arrow, and every one is
+   unique -- its own hue and its own icon, so no two rows look alike. */
+const PILL_HUES = [199, 160, 262, 38, 330, 347, 173, 239, 24, 142, 280, 210, 52, 0, 190, 300]
+const SPARE_ICONS: LucideIcon[] = [Star, Compass, Bookmark, Flag, Shapes, Briefcase, GraduationCap, Megaphone, Award, Puzzle, LayoutGrid]
+/** The matching icon not yet used in this menu, else the first unused spare. */
+function uniqueIcon(name: string, used: Set<LucideIcon>): LucideIcon {
+  const n = name.toLowerCase()
+  const pick = LINE_ICONS.filter(([re]) => re.test(n)).map(([, I]) => I).find((I) => !used.has(I))
+    ?? SPARE_ICONS.find((I) => !used.has(I)) ?? LayoutGrid
+  used.add(pick)
+  return pick
+}
+function PillBadge({ icon: Icon }: { icon: LucideIcon }) {
+  return <span className="nav-pill__badge"><Icon aria-hidden strokeWidth={2} /></span>
+}
+
 export function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
   // On a phone .nav-line-icon goes to 24px (index.css, owner 2026-10-24).
@@ -97,13 +115,13 @@ function Count({ n }: { n: number }) {
 export function staffItemClass(on: boolean, live = true) {
   return cn(
     'flex min-h-[calc(44px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-3.5 rounded-[10px] px-3.5 py-2.5 text-[calc(14.5px*var(--font-scale,1))] transition-colors',
-    on ? 'bg-primary/10 font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+    on ? 'nav-pill__item--on font-bold' : 'font-medium text-muted-foreground hover:text-foreground',
     !live && !on && 'text-muted-foreground/70',
   )
 }
 
-export function StaffNavGroup({ slug, name, count = 0, children }: {
-  slug: string; name: string; count?: number; children: React.ReactNode
+export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, children }: {
+  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
   const toggle = () => {
@@ -111,21 +129,17 @@ export function StaffNavGroup({ slug, name, count = 0, children }: {
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
-  /* A soft card per group (owner's side-panel design, 2026-10-24): the
-     heading row is the card's full width, the screens sit inside it. */
   return (
     /* shrink-0: in the menu's fixed-height scroll column a card must keep its
        height and let the column scroll; shrinking sliced titles and items. */
-    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-card">
-      <button type="button" data-row onClick={toggle} aria-expanded={open}
-        className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
-                   text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
-                   transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        <span className="truncate">{name}</span>
+    <div className="nav-pill shrink-0" data-open={open || undefined} style={{ '--h': hue } as React.CSSProperties}>
+      <button type="button" data-row onClick={toggle} aria-expanded={open} className="nav-pill__head">
+        <PillBadge icon={icon} />
+        <span className="min-w-0 flex-1 truncate">{name}</span>
         <Count n={count} />
-        <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !open && '-rotate-90')} />
+        <ChevronRight aria-hidden className="nav-pill__arrow" />
       </button>
-      {open && <div className="flex flex-col gap-1 px-2.5 pb-3 pt-1">{children}</div>}
+      {open && <div className="nav-pill__sub">{children}</div>}
     </div>
   )
 }
@@ -168,6 +182,8 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   /* Only the first Home is called Home; a role with several workspaces names
      the others after their workspace (owner, 2026-10-24: three Homes). */
   let homes = 0
+  let row = 0
+  const usedIcons = new Set<LucideIcon>()
   return (
     <>
       {listed.map(({ ws, section }) => {
@@ -180,25 +196,24 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
            not a drawer around it (owner, 2026-10-24: "no need of again one
            sub section"). */
         const home = isHomeSection(section)
+        const hue = PILL_HUES[row++ % PILL_HUES.length]
         if (home || list.length === 1) {
           const first = list[0]
           const name = !home ? first.f.name : homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
-              title={home ? undefined : first.f.summary}
-              className={({ isActive }) => cn(
-                /* A one-screen group is a white card like the others, not a bare row (owner, 2026-10-24). */
-                'flex min-h-[calc(48px*var(--font-scale,1))] shrink-0 items-center gap-2.5 rounded-[14px] border px-4 text-[calc(15px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] font-semibold transition-colors',
-                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-surface-hover',
-              )}>
-              <LineIcon name={home ? 'home' : `${section.slug} ${first.f.slug} ${name}`} size={18} />
-              <span className="truncate">{label(name)}</span>
+              title={home ? undefined : first.f.summary} style={{ '--h': hue } as React.CSSProperties}
+              className={({ isActive }) => cn('nav-pill nav-pill__head shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
+              <PillBadge icon={uniqueIcon(home ? 'home' : `${section.slug} ${first.f.slug} ${name}`, usedIcons)} />
+              <span className="min-w-0 flex-1 truncate">{label(name)}</span>
               {first.f.slug === 'concerns_from_parents' && <Count n={concerns} />}
+              <ChevronRight aria-hidden className="nav-pill__arrow" />
             </NavLink>
           )
         }
         return (
           <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={title}
+            hue={hue} icon={uniqueIcon(`${section.slug} ${title}`, usedIcons)}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
             {list.map(({ section: from, f }) => (
               <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}

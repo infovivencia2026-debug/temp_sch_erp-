@@ -34,8 +34,8 @@ corner setting the viewer has chosen.
 | PrintButton / Reload / ExportButton / ExportTable | `ui.tsx` | busy state | ok | in gallery |
 | Input (text, password, date, number) | `ui.tsx` `Input` → `.field` | focused, disabled, invalid, Telugu | fixed | borderless + `--field-shadow` |
 | Textarea | `ui.tsx` | | fixed | same `.field` |
-| Select (combobox) | `ui.tsx` `Select` | searchable, add-your-own | fixed | rides `.field` |
-| PickerMenu (dropdown pill) | `components/PickerMenu.tsx` | | fixed | was bordered `rounded-md`; now input radius + field shadow |
+| Select (combobox) | `ui.tsx` `Select` | searchable, add-your-own; phone: button + OptionSheet bottom sheet, search only > 12 / kind / allowCustom | fixed 2026-10-24 | rides `.field` |
+| PickerMenu (dropdown pill) | `components/PickerMenu.tsx` | phone: OptionSheet bottom sheet | fixed | was bordered `rounded-md`; now input radius + field shadow |
 | RangePicker | `ui.tsx` | grouped options | ok | uses PickerMenu |
 | SearchBox (search pill) | `components/rows.tsx` | empty / clear | fixed | inherits borderless field |
 | Checkbox | `ui.tsx` | checked, unchecked, hint, Telugu | ok | |
@@ -91,3 +91,5 @@ corner setting the viewer has chosen.
 - Dev only: under StrictMode an overlay using `useOverlayHistory` can close itself at once in headless Chromium (the teardown's `history.back()` pops the new entry). Production unverified; see `lib/overlay-history.ts`.
 - RTL: most spacing utilities are physical (`ml-`, `pl-`), not logical.
 - At 390px in a mouse browser a `size="sm"` button stays 32px beside a 44px field; real phones (coarse pointer) get the 44px floor.
+
+- Dropdowns (2026-10-24): every dropdown is Select, PickerMenu or settings DropdownRow; on phones all open `components/OptionSheet.tsx` (bottom sheet, 48px rows, 16px text, safe-area aware, max 70vh). `components/dropdown-guard.test.ts` fails on any new raw <select>, <datalist>, combobox or listbox outside an explicit allowlist.
