@@ -104,6 +104,8 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 104, name: 'inbox_all_staff', checksum: '670fb6e1227f15b76ccd1c9d6377816bb0bb8ff1deaa0942849208f047242060' },
   { version: 105, name: 'mailbox_connect', checksum: 'f32799b5acc13b7ac3cbfe911e76b3a9aebdb5f91bc78c5235fd42c08b975bba' },
   { version: 106, name: 'visitor_parent_link', checksum: '038b7270fbc7e16919cfa1722f11b2d49f4eec3411360886148fe9ea738bf187' },
-  { version: 107, name: 'question_maker', checksum: 'a21fd46ff36db33c6da4f4394d1031db34d3893c48aabf8c73b557250a27d082' },
-  { version: 108, name: 'auto_whatsapp_switch', checksum: 'f8f23a1cf7a335b667859a26caa74feeaf01de7522d542887650a83787169895' },
+  { version: 107, name: 'staff_exit_approval', checksum: 'edaa70d17182a0ab568ed60b993497f48663fb6db8cf3fe493beef060a44de5a' },
+  { version: 108, name: 'question_maker', checksum: '9ae7ef34ab188ef938a6db01051363b086b00fe8f7da29902464145a574a552c' },
+  { version: 109, name: 'auto_whatsapp_switch', checksum: '82e69d934b87c8f5bf05793016ee0d860e69590e8061f46d8bd0b35aae3514e7' },
+  { version: 110, name: 'feature_school_activity', checksum: 'c551d27047dd0b9a7b775c35e60245a54d9c8b46caf4e39f44e498963f141938' },
 ]

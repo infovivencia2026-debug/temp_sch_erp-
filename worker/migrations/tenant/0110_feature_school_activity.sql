@@ -1,4 +1,4 @@
--- 0109_feature_school_activity (tenant: every school database).
+-- 0110_feature_school_activity (tenant: every school database).
 -- What and why, in a sentence or two.
 --
 -- Forward-only: once applied anywhere this file must not change (its

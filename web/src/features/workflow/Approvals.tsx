@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CalendarDays, Check, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus,
+  CalendarDays, Check, CheckCheck, DoorOpen, Inbox, IndianRupee, PencilLine, UserPlus,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
@@ -48,6 +48,10 @@ const KINDS: Record<string, { label: string; icon: typeof CalendarDays }> = {
      admissions desk has, so a school requiring the head's signature had a
      head with nowhere to sign. */
   admission: { label: 'Joining', icon: UserPlus },
+  /* A member of staff leaving, sent up by HR once every department signed.
+     Approving relieves them and switches off their login; rejecting needs a
+     note, which goes back to HR. */
+  staff_exit: { label: 'Staff exit', icon: DoorOpen },
 }
 
 export default function Approvals() {
@@ -113,7 +117,7 @@ export default function Approvals() {
       <PageHead
         eyebrow="Approvals"
         title={d.total === 0 ? 'Nothing is waiting on you' : `${d.total} waiting on you`}
-        description="Leave, attendance corrections and fee concessions, in the order they were raised."
+        description="Leave, attendance corrections, fee concessions, joinings and staff exits, in the order they were raised."
       />
       <PageBody>
         {/* FIVE ZEROES IS NOT A SUMMARY.
@@ -135,7 +139,7 @@ export default function Approvals() {
             </span>
             <p className="text-[15px] font-medium">Nothing is waiting on you</p>
             <p className="max-w-sm text-[13px] text-muted-foreground">
-              Every leave request, attendance correction and fee concession has been
+              Every leave request, attendance correction, concession and staff exit has been
               decided. New ones appear here as they are raised.
             </p>
           </Card>
@@ -220,7 +224,7 @@ export default function Approvals() {
                         <Input
                           value={note[it.id] ?? ''}
                           onChange={(x) => setNote({ ...note, [it.id]: x })}
-                          placeholder="Note (optional)"
+                          placeholder={it.kind === 'staff_exit' ? 'Note (needed to reject)' : 'Note (optional)'}
                           className="col-span-2 w-full sm:w-40"
                         />
                         <Button

@@ -4,7 +4,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import {
   MessageSquareWarning, NotebookPen, ShieldAlert, CalendarOff, Clock, IndianRupee,
   GraduationCap, Megaphone, MessageCircle, Wallet, KeyRound, Award, ListChecks, LogIn,
-  BookOpenCheck, PencilLine, type LucideIcon,
+  BookOpenCheck, PencilLine, BookUser, DoorOpen, FileText, BookOpen, Repeat, Radio, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Button, Card, CardHeader, ErrorState, Field, Input, Loading, SEG_BAR, segClass } from '@/components/ui'
@@ -54,6 +54,12 @@ const KINDS: Record<string, { label: string; icon: LucideIcon; dot: string; ink:
   appraisal: { label: 'Appraisals', icon: Award, dot: 'bg-[hsl(var(--sys-pink))]', ink: 'text-[hsl(var(--sys-pink-ink))]' },
   task: { label: 'Tasks', icon: ListChecks, dot: 'bg-[hsl(var(--sys-indigo))]', ink: 'text-[hsl(var(--sys-indigo-ink))]' },
   change: { label: 'Changes', icon: PencilLine, dot: 'bg-[hsl(var(--sys-purple))]', ink: 'text-[hsl(var(--sys-purple-ink))]' },
+  service: { label: 'Service book', icon: BookUser, dot: 'bg-[hsl(var(--sys-purple))]', ink: 'text-[hsl(var(--sys-purple-ink))]' },
+  exit: { label: 'Exit', icon: DoorOpen, dot: 'bg-[hsl(var(--sys-red))]', ink: 'text-[hsl(var(--sys-red-ink))]' },
+  document: { label: 'Documents', icon: FileText, dot: 'bg-[hsl(var(--sys-gray))]', ink: 'text-[hsl(var(--sys-gray-ink))]' },
+  teaching: { label: 'Teaching', icon: BookOpen, dot: 'bg-[hsl(var(--sys-blue))]', ink: 'text-[hsl(var(--sys-blue-ink))]' },
+  substitution: { label: 'Covers', icon: Repeat, dot: 'bg-[hsl(var(--sys-teal))]', ink: 'text-[hsl(var(--sys-teal-ink))]' },
+  status: { label: 'Status', icon: Radio, dot: 'bg-[hsl(var(--sys-pink))]', ink: 'text-[hsl(var(--sys-pink-ink))]' },
 }
 const FALLBACK = KINDS.notice
 
@@ -132,7 +138,8 @@ export default function Timeline({ url, title = 'Timeline', description = 'Every
   return (
     <Card>
       <CardHeader title={title} description={description} />
-      <div className="space-y-3 px-4 pb-3">
+      {/* pt: the header draws a line under the title, and the filters sat on it. */}
+      <div className="space-y-3 px-[var(--card-pad)] pb-3 pt-3">
         {filters && (
           <div className="flex flex-wrap items-end gap-3">
             <div className={SEG_BAR} role="group" aria-label="Who">
@@ -167,16 +174,16 @@ export default function Timeline({ url, title = 'Timeline', description = 'Every
         )}
       </div>
       {q.isLoading ? (
-        <div className="p-5"><Loading shape="inline" /></div>
+        <div className="p-[var(--card-pad)]"><Loading shape="inline" /></div>
       ) : q.error ? (
-        <div className="p-4"><ErrorState error={q.error} /></div>
+        <div className="p-[var(--card-pad)]"><ErrorState error={q.error} /></div>
       ) : events.length === 0 ? (
-        <div className="px-5 pb-6 pt-2 text-[13.5px] text-muted-foreground">
+        <div className="px-[var(--card-pad)] pb-6 pt-2 text-[13.5px] text-muted-foreground">
           <p>{narrowed ? 'Nothing matches these filters.' : 'Nothing recorded yet.'}</p>
           {narrowed && <Button size="sm" variant="secondary" onClick={clear} className="mt-3">Clear filters</Button>}
         </div>
       ) : (
-        <div className="px-4 pb-4">
+        <div className="px-[var(--card-pad)] pb-[var(--card-pad)]">
           {days.map((d) => (
             <section key={d.key} className="mt-2 first:mt-0">
               <h3 className="eyebrow sticky top-0 z-[1] flex items-baseline justify-between bg-card py-2 text-muted-foreground">

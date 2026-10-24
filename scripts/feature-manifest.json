@@ -95,13 +95,13 @@
       "grants": {},
       "grantWhere": {},
       "addedSectionModule": false,
-      "migration": "worker\\migrations\\tenant\\0109_feature_school_activity.sql",
+      "migration": "worker\\migrations\\tenant\\0110_feature_school_activity.sql",
       "files": [
         "shared/api/feature_school_activity.ts",
         "web/src/features/admin/SchoolActivity.tsx",
         "worker/src/routes/admin/school_activity.ts",
         "worker/test/integration/feature_school_activity.test.ts",
-        "worker\\migrations\\tenant\\0109_feature_school_activity.sql"
+        "worker\\migrations\\tenant\\0110_feature_school_activity.sql"
       ]
     },
     "communication.class_status": {

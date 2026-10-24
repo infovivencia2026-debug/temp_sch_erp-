@@ -138,7 +138,7 @@ export function toGroups(feed: StatusFeed, schoolName: string, schoolLogo: strin
         <HeartButton post={p} dark />
         {(p.mine || canManage) && onPin && (
           <button type="button" onClick={() => onPin(p.id, !p.pinned)}>
-            {p.pinned ? '📌 In the gallery · Remove' : '📌 Add to gallery'}
+            {p.pinned ? 'In the gallery · Remove' : 'Add to gallery'}
           </button>
         )}
       </span>

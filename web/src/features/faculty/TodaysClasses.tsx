@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CalendarPlus } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
@@ -79,7 +79,9 @@ const KIND_EDGE: Record<string, string> = {
 }
 
 type Row =
-  | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string }
+  | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string
+      /** Cover today (Yajur, 2026-10-23): a class taken for an absent teacher, or this teacher's class somebody else is taking. */
+      cover?: string }
   | { kind: 'break'; key: string; start: number; end: number; label: string; span: string }
 
 export default function TodaysClasses() {
@@ -124,11 +126,16 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const cover = useQuery({
+    queryKey: ['cover-today'],
+    queryFn: () => api.get<{ items: { kind: 'covering' | 'covered'; entry_id: string; period_id: string; note: string | null; period: string; starts_at: string | null; section: string; subject: string; other: string }[] }>('/api/v1/timetable-cover/today'),
+  })
   const [viewing, setViewing] = useState<string | null>(null)
   // The leave screen this person holds, wherever their role files it.
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
+  const qc = useQueryClient()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   /* This home is also every staff member's at a school with the staff layout on
@@ -146,17 +153,31 @@ export default function TodaysClasses() {
      first lesson and the last; a break from another schedule is not this
      teacher's. */
   const span = (a: string, b: string) => `${a.slice(0, 5)} – ${b.slice(0, 5)}`
-  const lessonRows: Row[] = mine.map((e) => {
+  const coverItems = holiday ? [] : cover.data?.items ?? []
+  const takenBy = new Map(coverItems.filter((x) => x.kind === 'covered').map((x) => [x.entry_id, x.other]))
+  const lessonRows: Row[] = [...mine.map((e) => {
     const p = bell.get(e.period_id)
+    const by = takenBy.get(e.id)
     return {
-      kind: 'lesson', key: e.id,
+      kind: 'lesson' as const, key: e.id,
       start: p ? minutesInto(p.starts_at) : 0, end: p ? minutesInto(p.ends_at) : 0,
       label: p?.name ?? e.period_name,
       title: `${e.subject_name} · ${e.class_name} ${e.section_name}`,
       room: e.room || undefined,
       span: p ? span(p.starts_at, p.ends_at) : '',
+      cover: by ? `${by} is taking this class` : undefined,
     }
-  })
+  }), ...coverItems.filter((x) => x.kind === 'covering').map((x) => {
+    const p = bell.get(x.period_id)
+    return {
+      kind: 'lesson' as const, key: 'cover-' + x.entry_id,
+      start: p ? minutesInto(p.starts_at) : 0, end: p ? minutesInto(p.ends_at) : 0,
+      label: p?.name ?? x.period,
+      title: `Cover: ${x.subject} · ${x.section}`,
+      span: p ? span(p.starts_at, p.ends_at) : x.starts_at ?? '',
+      cover: `For ${x.other}${x.note ? `. ${x.note}` : ''}`,
+    }
+  })]
   const schedules = new Set(mine.map((e) => bell.get(e.period_id)?.bell_schedule_id ?? null))
   const firstStart = Math.min(...lessonRows.map((r) => r.start))
   const lastEnd = Math.max(...lessonRows.map((r) => r.end))
@@ -255,6 +276,7 @@ export default function TodaysClasses() {
                         <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">
                           {r.span}{r.room ? ` · ${r.room}` : ''}
                         </p>
+                        {r.cover && <p className="truncate text-[12.5px] font-medium text-primary">{r.cover}</p>}
                       </div>
                       <Badge tone={st === 'now' ? 'primary' : st === 'done' ? 'neutral' : 'info'} className="shrink-0">
                         {st === 'now' ? 'Now' : st === 'done' ? 'Done' : 'Upcoming'}
@@ -303,11 +325,20 @@ export default function TodaysClasses() {
                         {n.body && <p className={cn('text-[13px] text-muted-foreground', viewing !== n.id && 'truncate')}>{n.body}</p>}
                       </div>
                       {/* View on every row: it opens the screen the notification is about, or,
-                          where there is none, shows the whole message here and marks it read. */}
+                          where there is none, shows the whole message here. Viewed is gone
+                          (owner, 2026-10-23: "after viewing don't show that message"), except
+                          pending work, which stays until it is done. */}
                       <Button variant="secondary" size="sm" className="shrink-0"
                         onClick={() => {
-                          if (link) { navigate(link); return }
-                          setViewing(viewing === n.id ? null : n.id)
+                          const drop = () => {
+                            if (urgent) return
+                            void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
+                              .then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => {})
+                          }
+                          if (link) { drop(); navigate(link); return }
+                          // Read in full here, and gone once closed.
+                          if (viewing === n.id) { setViewing(null); drop(); return }
+                          setViewing(n.id)
                           if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
                         }}>
                         {!link && viewing === n.id ? 'Close' : 'View'}
