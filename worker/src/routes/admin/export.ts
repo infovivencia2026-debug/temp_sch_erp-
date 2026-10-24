@@ -42,7 +42,7 @@ function baseSpecs(today: string): Record<string, Spec> {
     students_on_roll: { title: 'Students on the roll', about: 'The children here now, no leavers, no transfers. The file to work from.', perm: 'students.read',
       header: ['Admission No', 'Name', 'Class', 'Section', 'Roll', 'Gender', 'Date of Birth', 'Medium', 'Guardian', 'Phone', 'Status'],
       query: rollQuery(`WHERE st.status = 'active'`) },
-    students_left: { title: 'Children who have left', about: 'Leavers and transfers, with the date they left, why, and the certificate number.', perm: 'students.read',
+    students_left: { title: 'Inactive students', about: 'Leavers and transfers, with the date they left, why, and the certificate number.', perm: 'students.read',
       header: ['Admission No', 'Name', 'Last class', 'Section', 'Status', 'Left on', 'Reason', 'Guardian', 'Phone'],
       query: `SELECT st.admission_no, ${name3('st')}, COALESCE(c.name,''), COALESCE(sec.name,''), st.status,
           COALESCE(${dmy('st.exit_date')},''), COALESCE(st.exit_reason,''), COALESCE(g.full_name,''), COALESCE(g.phone,'')

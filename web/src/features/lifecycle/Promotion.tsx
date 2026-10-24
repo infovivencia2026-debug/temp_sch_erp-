@@ -5,7 +5,7 @@ import { api, type List, type Section, type AcademicYear } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Button,
-  Select, SkeletonTable, ErrorState, FormNotice, EmptyState, Checkbox,
+  Badge, Select, SkeletonTable, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 
 /* Class and section promotion — the one job a school does once a year and
@@ -17,7 +17,7 @@ import {
  * in and when, and a promotion that overwrote the previous row would make that
  * unanswerable.
  *
- * Retentions are the reason for the per-student checkboxes. A whole section
+ * Retentions are the reason for the per-student Hold back buttons. A whole section
  * moving up is the common case, but the two children repeating the year are
  * exactly the case a bulk-only button gets wrong.
  */
@@ -83,6 +83,12 @@ export default function Promotion() {
     value: s.id,
     label: `${s.class_name}-${s.name} (${s.enrolled})`,
   }))
+  const nameOf = (id: string) => {
+    const s = (sections.data?.items ?? []).find((x) => x.id === id)
+    return s ? `${s.class_name}-${s.name}` : ''
+  }
+  const fromName = nameOf(from)
+  const toName = nameOf(to)
   const students = roster.data?.items ?? []
   const moving = students.length - held.size
   const ready = from && to && year && from !== to && students.length > 0
@@ -147,13 +153,11 @@ export default function Promotion() {
           <ErrorState error={roster.error} />
         ) : (
           <Card>
+            {/* Everyone is promoted unless held back (owner, 2026-10-22: read
+                as "select who to promote"). The exception is the action. */}
             <CardHeader
-              title={`Roster · ${students.length} enrolled`}
-              description={
-                held.size
-                  ? `${moving} will move up, ${held.size} held back`
-                  : 'Tick a child to hold them back'
-              }
+              title="Everyone moves to the next class. Mark only the students who stay back."
+              description={`${moving} promoted · ${held.size} held back`}
               action={
                 <Button
                   disabled={!ready || promote.isPending}
@@ -167,25 +171,32 @@ export default function Promotion() {
               }
             />
             <Table
-              head={['Hold back', 'Roll', 'Admission no.', 'Name']}
+              head={['Roll', 'Admission no.', 'Name', 'Next year', '']}
               empty={!students.length}
               emptyLabel="Nobody is actively enrolled in this section."
             >
-              {students.map((s) => (
-                <tr key={s.id} className={held.has(s.id) ? 'opacity-60' : undefined}>
-                  <Td>
-                    <Checkbox
-                      checked={held.has(s.id)}
-                      onChange={() => toggle(s.id)}
-                      label=""
-                      srLabel={`Hold ${s.full_name} back in this class`}
-                    />
-                  </Td>
-                  <Td className="tabular-nums text-muted-foreground">{s.roll_no ?? '-'}</Td>
-                  <Td className="font-mono text-[12px]">{s.admission_no}</Td>
-                  <Td className="font-medium">{s.full_name}</Td>
-                </tr>
-              ))}
+              {students.map((s) => {
+                const stays = held.has(s.id)
+                return (
+                  <tr key={s.id}>
+                    <Td className="tabular-nums text-muted-foreground">{s.roll_no ?? '-'}</Td>
+                    <Td className="font-mono text-[12px]">{s.admission_no}</Td>
+                    <Td className="font-medium">{s.full_name}</Td>
+                    <Td>
+                      {stays
+                        ? <Badge tone="warning">Held back in {fromName}</Badge>
+                        : <Badge tone="success">Promote to {toName || 'the next class'}</Badge>}
+                    </Td>
+                    <Td className="text-right">
+                      <Button variant={stays ? 'ghost' : 'secondary'} aria-pressed={stays}
+                        aria-label={stays ? `Promote ${s.full_name} after all` : `Hold ${s.full_name} back in ${fromName}`}
+                        onClick={() => toggle(s.id)}>
+                        {stays ? 'Undo hold back' : 'Hold back'}
+                      </Button>
+                    </Td>
+                  </tr>
+                )
+              })}
             </Table>
           </Card>
         )}

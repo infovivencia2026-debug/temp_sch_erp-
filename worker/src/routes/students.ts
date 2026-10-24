@@ -50,8 +50,9 @@ export function registerStudents(r: Router) {
   r.del('/students/{id}', 'students.write', deleteStudent)
   r.typed('GET /students/{id}/profile', 'students.read', getStudentProfile)
   r.typed('GET /students/{id}/detail', 'students.read', getStudentDetail)
-  r.post('/students/{id}/section', 'students.write', moveStudentSection)
-  r.post('/students/{id}/section-change', 'students.write', changeStudentSection)
+  // Both moves: moving a child between sections is the office's (owner, 2026-10-22): not a class teacher's, who holds students.write.
+  r.post('/students/{id}/section', 'institution_admin.students.class_promotion', moveStudentSection)
+  r.post('/students/{id}/section-change', 'institution_admin.students.class_promotion', changeStudentSection)
   r.put('/students/{id}/photo', 'students.write', setStudentPhoto)
   r.put('/students/{id}/guardians/{gid}/photo', 'students.write', setGuardianPhoto)
   r.post('/students/{id}/guardians', 'students.write', saveStudentGuardian)

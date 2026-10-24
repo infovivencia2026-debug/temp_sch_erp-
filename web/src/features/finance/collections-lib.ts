@@ -285,7 +285,6 @@ export interface CatalogueVariant {
   label: string
   price: number
   in_stock: boolean
-  stock: number
 }
 
 export interface CatalogueProduct {
@@ -295,6 +294,8 @@ export interface CatalogueProduct {
   description: string
   price: number
   image_url: string
+  /** Any of it on the shelf; parents never see a count. */
+  in_stock: boolean
   variants: CatalogueVariant[]
 }
 

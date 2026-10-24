@@ -6,13 +6,51 @@ import { instId } from './common'
    the movement ledger. Postgres kept inventory_items.on_hand in step with a
    trigger (sync_inventory_on_hand, migration 00005); here the handler
    recomputes it from the ledger in the same batch. */
+interface ItemReq {
+  name?: string; category?: string; unit?: string; reorder_level?: number
+  /** Selling price in the parent store, in paise; null or absent = not priced. */
+  sale_price_paise?: number | null
+  /** Listed in the parent store. Needs a price. */
+  in_store?: boolean
+}
+
+function itemFields(req: ItemReq) {
+  const name = (req.name ?? '').trim()
+  if (!name) throw badRequest('every item needs a name')
+  const reorder = Number(req.reorder_level ?? 0)
+  if (!Number.isInteger(reorder) || reorder < 0) throw badRequest('the reorder level must be zero or more')
+  const price = req.sale_price_paise == null ? null : Number(req.sale_price_paise)
+  if (price != null && (!Number.isInteger(price) || price < 0)) throw badRequest('the selling price must be zero or more')
+  const inStore = req.in_store === true
+  if (inStore && price == null) throw badRequest('give a selling price to show the item in the parent store')
+  return { name, category: (req.category ?? '').trim() || null, unit: (req.unit ?? '').trim() || 'nos', reorder, price, inStore }
+}
+
 export function registerInventory(r: Router) {
   r.get('/ops/inventory/stock', 'operations.inventory.read', async (c) => {
-    const rows = await c.db.prepare(`SELECT id, code, name, category, unit, on_hand, reorder_level,
+    const rows = await c.db.prepare(`SELECT id, code, name, category, unit, on_hand, reorder_level, sale_price_paise, in_store,
         on_hand <= reorder_level AS below_reorder FROM inventory_items ORDER BY name`).all<Record<string, unknown>>()
     return ok({ items: rows.results.map((v) => ({
       id: v.id, code: v.code, name: v.name, category: v.category ?? undefined, unit: v.unit,
-      on_hand: v.on_hand, reorder_level: v.reorder_level, below_reorder: bool(v.below_reorder) })) })
+      on_hand: v.on_hand, reorder_level: v.reorder_level, below_reorder: bool(v.below_reorder),
+      sale_price_paise: v.sale_price_paise == null ? null : Number(v.sale_price_paise), in_store: bool(v.in_store) })) })
+  })
+
+  /* Editing an item: its name, category, unit, reorder level, and whether the
+     parent store sells it at a price (Yajur, 2026-10-22: one list for the
+     store). The balance is never edited here; it comes from the ledger. */
+  r.patch('/ops/inventory/items/{id}', 'operations.inventory.write', async (c) => {
+    const id = c.params.id
+    if (!isUUID(id)) throw badRequest('id must be a uuid')
+    const req = await readJSON<ItemReq>(c.req)
+    const cur = await c.db.prepare('SELECT id FROM inventory_items WHERE institution_id = ? AND id = ?')
+      .bind(instId(c), id).first<{ id: string }>()
+    if (!cur) throw notFound('item not found')
+    const v = itemFields(req)
+    await c.db.prepare(`UPDATE inventory_items SET name = ?, category = ?, unit = ?, reorder_level = ?, sale_price_paise = ?, in_store = ?
+                        WHERE institution_id = ? AND id = ?`)
+      .bind(v.name, v.category, v.unit, v.reorder, v.price, v.inStore ? 1 : 0, instId(c), id).run()
+    return ok({ id })
   })
 
   /* THE ITEM ITSELF, WHICH NOTHING COULD CREATE.
@@ -31,13 +69,10 @@ export function registerInventory(r: Router) {
      thing the movements design is careful never to do. The item starts at
      zero and the first receipt says where the forty came from. */
   r.post('/ops/inventory/items', 'operations.inventory.write', async (c) => {
-    const req = await readJSON<{ code?: string; name?: string; category?: string; unit?: string; reorder_level?: number }>(c.req)
+    const req = await readJSON<ItemReq & { code?: string }>(c.req)
     const code = (req.code ?? '').trim()
-    const name = (req.name ?? '').trim()
     if (!code) throw badRequest('every item needs a code, it is what a stores register is read by')
-    if (!name) throw badRequest('every item needs a name')
-    const reorder = Number(req.reorder_level ?? 0)
-    if (!Number.isInteger(reorder) || reorder < 0) throw badRequest('the reorder level must be zero or more')
+    const { name, category, unit, reorder, price, inStore } = itemFields(req)
 
     // Named, not merely refused: the clerk needs to know it is already there.
     const clash = await c.db.prepare('SELECT name FROM inventory_items WHERE institution_id = ? AND code = ?')
@@ -45,12 +80,12 @@ export function registerInventory(r: Router) {
     if (clash) throw conflict(`the code ${code} is already ${clash.name}`)
 
     const id = uuid()
-    await c.db.prepare(`INSERT INTO inventory_items (id, institution_id, code, name, category, unit, reorder_level, on_hand)
-                        VALUES (?,?,?,?,?,?,?,0)`)
-      .bind(id, instId(c), code, name, (req.category ?? '').trim() || null, (req.unit ?? '').trim() || 'nos', reorder)
+    await c.db.prepare(`INSERT INTO inventory_items (id, institution_id, code, name, category, unit, reorder_level, on_hand, sale_price_paise, in_store)
+                        VALUES (?,?,?,?,?,?,?,0,?,?)`)
+      .bind(id, instId(c), code, name, category, unit, reorder, price, inStore ? 1 : 0)
       .run()
-    return created({ id, code, name, category: (req.category ?? '').trim() || undefined,
-      unit: (req.unit ?? '').trim() || 'nos', reorder_level: reorder, on_hand: 0, below_reorder: reorder >= 0 })
+    return created({ id, code, name, category: category ?? undefined,
+      unit, reorder_level: reorder, on_hand: 0, below_reorder: reorder >= 0, sale_price_paise: price, in_store: inStore })
   })
 
   r.post('/ops/inventory/movements', 'operations.inventory.write', async (c) => {

@@ -222,7 +222,7 @@ export default function TodaysClasses() {
       </div>}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+        <Card className="flex min-w-0 flex-col">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
             <h2 className="text-[16px] font-bold">Today's timetable</h2>
             {!holiday && (
@@ -231,7 +231,7 @@ export default function TodaysClasses() {
               </span>
             )}
           </div>
-          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+          <div className="min-h-0 flex-1">
             {holiday ? (
               <EmptyState title="Holiday" body={`${holiday}. No classes today.`} />
             ) : rows.length === 0 ? (
@@ -279,14 +279,14 @@ export default function TodaysClasses() {
         </Card>
 
         <div className="flex min-w-0 flex-col gap-5">
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-22rem)]">
+        <Card className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[16px] font-bold">Notifications</h2>
               {unread > 0 && <span className="text-[13px] text-muted-foreground">{unread} new</span>}
             </div>
           </div>
-          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+          <div className="min-h-0 flex-1">
             {notes.isLoading ? (
               <Loading label="Loading notifications" />
             ) : notes.error ? (
@@ -332,13 +332,13 @@ export default function TodaysClasses() {
         </Card>
         {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
         {leavePath && (
-          <Card className="flex min-w-0 flex-row items-center justify-between gap-4 px-5 py-3.5">
+          <Card className="flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
             </div>
-            <Button size="sm" className="shrink-0" onClick={() => navigate(leavePath)}>
-              <CalendarPlus className="h-3.5 w-3.5" /> Apply
+            <Button className="shrink-0" onClick={() => navigate(leavePath)}>
+              <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
           </Card>
         )}

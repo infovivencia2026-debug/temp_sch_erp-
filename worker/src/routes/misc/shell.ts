@@ -471,27 +471,35 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
 
 async function storeCatalogue(c: Ctx): Promise<Response> {
   const inst = institutionId(c)
-  const [prods, vars] = await c.db.batch<Record<string, unknown>>([
+  const [prods, vars, stores] = await c.db.batch<Record<string, unknown>>([
     c.db.prepare(`SELECT p.id, p.code, p.name, p.category, COALESCE(p.notes, '') AS description, p.sale_price_paise, p.image_key
         FROM store_products p WHERE p.institution_id = ? AND p.is_active ORDER BY p.category, p.name`).bind(inst),
     c.db.prepare(`SELECT v.product_id, v.size, v.colour, v.variant_note, COALESCE(v.sale_price_paise, p.sale_price_paise) AS price, i.on_hand
         FROM store_product_variants v JOIN store_products p ON p.id = v.product_id JOIN inventory_items i ON i.id = v.item_id
        WHERE p.institution_id = ? AND p.is_active AND v.is_active
        ORDER BY p.name, (v.size IS NOT NULL), v.size, (v.colour IS NOT NULL), v.colour`).bind(inst),
+    /* Items on the stores register marked "Show in parent store" (Yajur,
+       2026-10-22: one list). Priced, never with a count. */
+    c.db.prepare(`SELECT code, name, category, sale_price_paise, on_hand FROM inventory_items
+       WHERE institution_id = ? AND in_store = 1 AND sale_price_paise IS NOT NULL ORDER BY category, name`).bind(inst),
   ])
-  const byProduct = new Map<string, unknown[]>()
+  const byProduct = new Map<string, { label: string; price: number; in_stock: boolean }[]>()
   for (const v of vars.results) {
     const parts = [v.size, v.colour, v.variant_note].map((p) => (typeof p === 'string' ? p.trim() : '')).filter((p) => p !== '')
     const on = Number(v.on_hand ?? 0)
     const list = byProduct.get(String(v.product_id)) ?? []
-    list.push({ label: parts.join(' / '), price: Number(v.price ?? 0), in_stock: on > 0, stock: on })
+    list.push({ label: parts.join(' / '), price: Number(v.price ?? 0), in_stock: on > 0 })
     byProduct.set(String(v.product_id), list)
   }
-  return ok({ items: prods.results.map((p) => {
+  const products = prods.results.map((p) => {
     const key = typeof p.image_key === 'string' ? p.image_key.trim() : ''
+    const variants = byProduct.get(String(p.id)) ?? []
     return { code: p.code, name: p.name, category: p.category, description: p.description, price: Number(p.sale_price_paise ?? 0),
-      image_url: key ? '/api/v1/files/' + key + '?inline=1' : '', variants: byProduct.get(String(p.id)) ?? [] }
-  }) })
+      image_url: key ? '/api/v1/files/' + key + '?inline=1' : '', in_stock: variants.length === 0 || variants.some((v) => v.in_stock), variants }
+  })
+  const items = stores.results.map((i) => ({ code: i.code, name: i.name, category: i.category ?? 'other', description: '',
+    price: Number(i.sale_price_paise ?? 0), image_url: '', in_stock: Number(i.on_hand ?? 0) > 0, variants: [] }))
+  return ok({ items: [...products, ...items] })
 }
 
 export function registerShell(r: Router): void {
