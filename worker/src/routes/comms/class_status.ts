@@ -377,12 +377,39 @@ async function notifyAudience(c: Ctx, p: PostRow): Promise<number> {
   return people.length
 }
 
+/* NEW IN THE SCHOOL GALLERY (owner, 2026-10-24): when a live post is
+   pinned, the staff it was for are told once. One row per person per post
+   (notifications_one_per_source, kind 'gallery'), so unpinning and pinning
+   again, or opening it, never writes a second one. Families are not told:
+   they had the status notification when it went live. */
+async function notifyGallery(c: Ctx, p: PostRow): Promise<number> {
+  if (p.status !== 'live' || !p.pinned) return 0
+  const staff = (await audience(c, p.id, p.posted_by)).filter(([, child]) => child === null).map(([u]) => u)
+  if (!staff.length) return 0
+  const where = (await audienceLabels(c, [p.id])).get(p.id) ?? ''
+  const what = (p.caption ?? '').trim().slice(0, 160) || (p.media_kind === 'video' ? 'Video' : p.media_kind === 'text' ? 'Text' : 'Photo')
+  const body = (where ? `${where} · ${what}` : what).slice(0, 240)
+  const link = `/go/school_gallery/school_gallery?post=${p.id}`
+  const inst = institutionId(c), at = now()
+  const stmts: D1PreparedStatement[] = []
+  for (let i = 0; i < staff.length; i += 400) {
+    const ids = JSON.stringify(staff.slice(i, i + 400).map((u) => [u, uuid()]))
+    stmts.push(c.db.prepare(`INSERT OR IGNORE INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+        SELECT json_extract(j.value, '$[1]'), ?, json_extract(j.value, '$[0]'), NULL, 'gallery', 'New in the school gallery', ?, ?, 'gallery', ?, ? FROM json_each(?) j`)
+      .bind(inst, body, link, p.id, at, ids))
+  }
+  for (let i = 0; i < stmts.length; i += 40) await c.db.batch(stmts.slice(i, i + 40))
+  await publish(c.env, inst, { users: staff, type: 'notification', scope: '', from: p.posted_by, keys: { kind: 'gallery', post: p.id } })
+  return staff.length
+}
+
 async function goLive(c: Ctx, p: PostRow): Promise<PostRow> {
   const at = new Date()
   const live = { ...p, status: 'live', published_at: at.toISOString(), expires_at: new Date(at.getTime() + LIFETIME_MS).toISOString() }
   await c.db.prepare(`UPDATE status_posts SET status = 'live', published_at = ?, expires_at = ?, decided_by = COALESCE(decided_by, ?), decided_at = COALESCE(decided_at, ?) WHERE id = ?`)
     .bind(live.published_at, live.expires_at, p.posted_by === c.id.userId ? null : c.id.userId, p.posted_by === c.id.userId ? null : live.published_at, p.id).run()
   await notifyAudience(c, live)
+  await notifyGallery(c, live)
   return live
 }
 
@@ -764,6 +791,7 @@ export function registerClassStatus(r: Router): void {
     const b = await readJSON<{ pinned?: boolean }>(c.req).catch(() => ({} as { pinned?: boolean }))
     const pinned = b.pinned === undefined ? !p.pinned : !!b.pinned
     await c.db.prepare(`UPDATE status_posts SET pinned = ? WHERE id = ?`).bind(pinned ? 1 : 0, p.id).run()
+    if (pinned && !p.pinned) await notifyGallery(c, { ...p, pinned: 1 })
     return ok({ id: p.id, pinned })
   })
 

@@ -213,6 +213,7 @@ export function entitlementAllows(st: Entitlement, sectionSlug: string): boolean
 // --- the catalog ------------------------------------------------------------------
 
 // Help stays reachable while a school is still being set up: that is when it is needed most.
+const GALLERY_KEY = '.school_gallery.school_gallery'
 const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile', 'help'])
 const EVIDENCE_KEYS = new Set([
   'parent.my_childs_bus.live_bus_tracking', 'parent.alerts_preferences.parent_bus_proximity_radius_customizer',
@@ -327,12 +328,15 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     return true
   }
   const canKey = (k: string) => viewingAll || can(c.id, k)
+  /* The school gallery is every staff member's, like the bell's own link to
+     it: no grant to hand out (owner, 2026-10-24). Who may post is unchanged. */
+  const staffHere = c.id.roles.some((r) => r !== 'parent' && r !== 'student')
   const gate = async (secSlug: string, f: CatalogFeature): Promise<boolean> => {
     const sw = catalogFeatureAllowed(ov, secSlug, f.slug)
     if (sw === false) return false
     if (sw !== true && !entitlementAllows(ent, secSlug)) return false
     if (locked && !SETUP_SECTIONS.has(secSlug)) return false
-    if (!canKey(f.key)) return false
+    if (!canKey(f.key) && !(f.key.endsWith(GALLERY_KEY) && staffHere)) return false
     if (EVIDENCE_KEYS.has(f.key) && !(await evidenceFor(f.key))) return false
     if (STAGE_KEYS.has(f.key) && !(await stageAllowed(f.key))) return false
     return true

@@ -245,6 +245,26 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
   'board_member.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'lms_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'activity_coord.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'admissions.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'board_member.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'counsellor.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'discipline_officer.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'driver.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'exam_controller.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'faculty.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'finance.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'front_office.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hod.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hostel_warden.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hr.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'institution_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'it_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'librarian.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'lms_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'nurse.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'operations.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'transport_manager.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.

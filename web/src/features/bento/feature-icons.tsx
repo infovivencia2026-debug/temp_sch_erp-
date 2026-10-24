@@ -49,6 +49,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   year_end_payout: 'savings', // Year-end payout
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
+  school_gallery: 'photo_library', // School Gallery
   scheduled_digests: 'schedule', // Scheduled digests
   interaction_log: 'timeline', // Interaction log
   store_catalogue: 'inventory_2', // Store catalogue
@@ -430,6 +431,7 @@ export const SECTION_ICONS: Record<string, string> = {
   channel_setup: 'cell_tower', // Channel Setup
   clinic: 'medical_services', // Clinic
   communication: 'forum', // Communication
+  school_gallery: 'photo_library', // School Gallery
   consent_permissions: 'approval', // Consent & Permissions
   counselling: 'psychology', // Counselling
   dashboard: 'dashboard', // Dashboard

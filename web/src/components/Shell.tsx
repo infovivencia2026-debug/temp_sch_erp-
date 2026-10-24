@@ -58,7 +58,7 @@ import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import { ComboTabs } from '@/components/StaffCombos'
-import { StaffHeaderContent, StaffNavList, StaffPanelFoot, useTodaySignIns } from '@/components/StaffShell'
+import { StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -818,6 +818,10 @@ export function Shell({
                 type="button"
                 onClick={() => {
                   setRailPick(ws.slug)
+                  /* Home opens the dashboard at once, in every workspace (owner, 2026-10-24). */
+                  const homeSec = ws.sections.find(isHomeSection)
+                  const dash = homeSec && role ? visibleFeatures(homeSec, showPlanned, showAdvanced, permSet)[0] : undefined
+                  if (homeSec && dash && ws.sections.every(isHomeSection)) { navigate(featurePath(role!.key, homeSec.slug, dash.slug)); return }
                   /* On a tablet the mark OPENS the panel, it is not the whole
                      journey.
 
@@ -1147,7 +1151,20 @@ export function Shell({
                 {ws.sections.map((section) => {
                   const items = visibleFeatures(section, showPlanned, showAdvanced, permSet)
                   if (!items.length) return null
-                  const labelled = ws.sections.length > 1
+                  /* Home is one item that opens the dashboard, and a section
+                     holding one screen is that screen with no heading over it
+                     (owner, 2026-10-24), as in the staff layout's menu. */
+                  const home = isHomeSection(section)
+                  if (home) {
+                    const first = items[0]
+                    return (
+                      <NavLink key={section.slug} to={featurePath(role!.key, section.slug, first.slug)}
+                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, !first.live)}>
+                        <span className="truncate">{shortLabel('Home')}</span>
+                      </NavLink>
+                    )
+                  }
+                  const labelled = ws.sections.length > 1 && items.length > 1
                   return (
                     /* GROUPS HAVE TO BE FURTHER APART THAN THEIR OWN ROWS.
 
