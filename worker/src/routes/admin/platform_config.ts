@@ -1,10 +1,12 @@
 import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, clampInt, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { tenantDb, type Institution } from '../../tenant'
-import { institutionId, notImplemented, parseJSON, platformOnly, requireAny, today } from './common'
+import { institutionId, parseJSON, platformOnly, requireAny, today } from './common'
 import { school } from '../school'
 import { SUPPORT_DESK } from '../../identity'
 import { subscriptionsByInstitution } from '../seller/tenants'
+import { setSchoolSettings } from '../seller/controls'
+import { settingDefs } from '../../services/settings_registry'
 import { slaPolicy, vendorHours } from '../help/content'
 
 /* Port of internal/api/platform_config.go: statutory masters, board
@@ -818,18 +820,22 @@ export function registerPlatformConfig(r: Router): void {
     }
     return ok({ plans: planRows, schools, modules: [...modules].sort() })
   })
+  /* One module switch for one school. It goes through the Controls registry
+     (docs/seller-controls.md): only a module whose on/off switch is declared
+     there, and editable by the vendor, is accepted, a reason is required, the change is in seller_audit, and a
+     setting marked notify puts a notice on the school's board. Plan modules
+     change with the plan or on Features, not here. */
   r.put('/admin/platform/entitlements', plans, async (c) => {
     platformOnly(c)
-    const req = await readJSON<{ institution_id?: string; module?: string; enabled?: boolean }>(c.req)
+    const req = await readJSON<{ institution_id?: string; module?: string; enabled?: boolean; reason?: string; dry_run?: boolean }>(c.req)
     const iid = (req.institution_id ?? '').trim()
     if (!isUUID(iid)) throw badRequest('institution_id must be a uuid')
     const module = (req.module ?? '').trim()
     if (module === '') throw badRequest('module is required')
-    const inst = await c.env.CONTROL.prepare(`SELECT * FROM institutions WHERE id = ?`).bind(iid).first<Institution>()
-    if (!inst) throw badRequest('no such school')
-    await tenantDb(c.env, inst).prepare(`INSERT INTO module_settings (institution_id, module, enabled) VALUES (?, ?, ?) ON CONFLICT (institution_id, module) DO UPDATE SET enabled = excluded.enabled`).bind(iid, module, req.enabled ? 1 : 0).run()
-    return ok({ institution_id: iid, module, enabled: !!req.enabled })
+    // The registry setting that stores this module's switch; none means it is not the vendor's to change here.
+    const def = settingDefs().find((d) => d.store.kind === 'module_enabled' && d.store.module === module)
+    if (!def) throw badRequest(`${module} is not a switch the vendor changes here; plan modules change with the plan or on Features`)
+    const res = await setSchoolSettings(c, iid, [{ key: def.key, value: !!req.enabled }], req.reason, !!req.dry_run)
+    return ok({ institution_id: iid, module, enabled: !!req.enabled, applied: res.applied, changes: res.schools[0]?.changes ?? [] })
   })
-
-  void notImplemented
 }
