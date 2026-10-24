@@ -574,12 +574,19 @@ async function applyAllocationToTimetable(c: Ctx) {
 
 // --- the substitution board ------------------------------------------------------------------------------------
 
+/* Who is away on a date: marked absent or on leave in the register, on approved
+   leave, or (Yajur, 2026-10-23: "if there is no in, absent") a teacher with classes
+   who uses the reader and has no register row that day, once it is past; today
+   from 9:30, so somebody still on the way is not listed. Binds: date x4. */
 const ABSENT_SQL = `
-  SELECT u.id AS user_id, u.full_name, CASE WHEN sa.status IS NOT NULL THEN sa.status ELSE 'leave' END AS reason
+  SELECT u.id AS user_id, u.full_name, CASE WHEN sa.status IN ('absent','leave') THEN sa.status WHEN sa.id IS NULL THEN 'no punch' ELSE 'leave' END AS reason
     FROM users u JOIN employees e ON e.user_id = u.id
-    LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ? AND sa.status IN ('absent','leave')
+    LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?
    WHERE e.status IN ('active','on_leave')
-     AND (sa.id IS NOT NULL OR EXISTS (SELECT 1 FROM leave_requests lr WHERE lr.employee_id = e.id AND lr.status = 'approved' AND ? BETWEEN lr.from_date AND lr.to_date))`
+     AND (sa.status IN ('absent','leave')
+       OR EXISTS (SELECT 1 FROM leave_requests lr WHERE lr.employee_id = e.id AND lr.status = 'approved' AND ? BETWEEN lr.from_date AND lr.to_date)
+       OR (sa.id IS NULL AND e.device_user_id IS NOT NULL AND EXISTS (SELECT 1 FROM timetable_entries tx WHERE tx.teacher_user_id = u.id)
+           AND (? < date('now', '+330 minutes') OR (? = date('now', '+330 minutes') AND strftime('%H:%M', 'now', '+330 minutes') >= '09:30'))))`
 
 async function getSubstitutionBoard(c: Ctx) {
   const onDate = q(c, 'on_date') || indiaToday()
@@ -590,6 +597,9 @@ async function getSubstitutionBoard(c: Ctx) {
            substr(p.starts_at,1,5) AS starts_at, c.name AS class_name, sec.name AS section, sub.name AS subject,
            sb.substitute_user_id AS covered_by_user_id, su.full_name AS covered_by,
            (sb.substitute_user_id IS NOT NULL AND EXISTS (SELECT 1 FROM absent a3 WHERE a3.user_id = sb.substitute_user_id)) AS cover_absent,
+           /* A pick waiting for the principal (scheduling/cover.ts proposeCover). */
+           (SELECT wu.full_name FROM substitution_request_periods srp JOIN users wu ON wu.id = srp.assigned_user_id
+             WHERE srp.timetable_entry_id = te.id AND srp.on_date = sb_on.d AND srp.status = 'pending') AS waiting_for,
            (SELECT json_group_array(json_object('user_id', x.user_id, 'full_name', x.full_name, 'teaches_subject', x.teaches_subject, 'periods_today', x.periods_today))
               FROM (SELECT u2.id AS user_id, u2.full_name,
                            EXISTS (SELECT 1 FROM section_subject_teachers t2 JOIN class_subjects cs2 ON cs2.id = t2.class_subject_id WHERE t2.teacher_user_id = u2.id AND cs2.subject_id = cs.subject_id) AS teaches_subject,
@@ -603,7 +613,8 @@ async function getSubstitutionBoard(c: Ctx) {
       JOIN periods p ON p.id = te.period_id JOIN sections sec ON sec.id = te.section_id JOIN classes c ON c.id = sec.class_id
       JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
       LEFT JOIN substitutions sb ON sb.timetable_entry_id = te.id AND sb.on_date = ? LEFT JOIN users su ON su.id = sb.substitute_user_id
-     ORDER BY p.sequence, c.level, sec.name`).bind(onDate, onDate, onDate, dow, onDate).all<Record<string, unknown>>()
+      CROSS JOIN (SELECT ? AS d) sb_on
+     ORDER BY p.sequence, c.level, sec.name`).bind(onDate, onDate, onDate, onDate, onDate, dow, onDate, onDate).all<Record<string, unknown>>()
   const absentees = new Set<string>()
   let covered = 0, uncoverable = 0
   const items = rows.results.map((v) => {
@@ -614,7 +625,7 @@ async function getSubstitutionBoard(c: Ctx) {
     const coverAbsent = bool(v.cover_absent)
     if (v.covered_by_user_id !== null && !coverAbsent) covered++
     else if (candidates.length === 0) uncoverable++
-    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id'])
+    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id', 'waiting_for'])
   })
   const awayRows = await c.db.prepare(`
     SELECT u.id, u.full_name, CASE WHEN sa.id IS NOT NULL THEN sa.status ELSE 'on approved leave' END AS why
@@ -628,7 +639,7 @@ async function getSubstitutionBoard(c: Ctx) {
     absentees.add(r.id)
     return { user_id: r.id, full_name: r.full_name, reason: r.why, periods_today: hasPeriods }
   })
-  return ok({ items, on_date: onDate, away, summary: { absent_teachers: absentees.size, periods: items.length, covered, uncovered: items.length - covered, no_candidate: uncoverable } })
+  return ok({ items, on_date: onDate, away, can_approve: c.id.platformAdmin || c.id.roles.includes('institution_admin'), summary: { absent_teachers: absentees.size, periods: items.length, covered, uncovered: items.length - covered, no_candidate: uncoverable } })
 }
 
 // --- OBE / outcomes -------------------------------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { currentViewport, placePanel } from './place'
 
 /* ONE PLACEMENT FOR EVERY PANEL OPENED FROM A TRIGGER.
 
@@ -13,7 +14,7 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObjec
    coordinates, by the same rules PickerMenu already followed:
 
    - it lines up with the trigger's start or end edge, and is shifted back on
-     screen, with an 8px margin, when it is wider than the room on that side;
+     screen, with a 16px gutter on phones and 8px elsewhere, when it is wider than the room on that side;
    - it opens below unless the space below is short and there is more above,
      in which case it flips;
    - its height is capped to the space on the side it opened, so a long list
@@ -35,7 +36,7 @@ export interface AnchorOptions {
   gap?: number
   /** Upper bound on the panel's height, before the space available. */
   maxHeight?: number
-  /** Distance kept from every edge of the screen. */
+  /** Distance kept from every edge of the screen; default 16px on phones, 8px elsewhere. */
   margin?: number
 }
 
@@ -50,7 +51,7 @@ export function useAnchoredPosition(
   panel: RefObject<HTMLElement | null>,
   opts: AnchorOptions = {},
 ): CSSProperties {
-  const { align = 'start', width, minWidth = 0, gap = 6, maxHeight = 360, margin = 8 } = opts
+  const { align = 'start', width, minWidth = 0, gap = 6, maxHeight = 360, margin } = opts
   const [style, setStyle] = useState<CSSProperties>(HIDDEN)
 
   useLayoutEffect(() => {
@@ -60,31 +61,16 @@ export function useAnchoredPosition(
       const p = panel.current
       if (!a) return
       const r = a.getBoundingClientRect()
-      const vv = window.visualViewport
-      const vLeft = vv ? vv.offsetLeft : 0
-      const vTop = vv ? vv.offsetTop : 0
-      const vW = vv ? vv.width : window.innerWidth
-      const vH = vv ? vv.height : window.innerHeight
-
       const natural = p ? p.scrollWidth : 0
       let w = width === 'trigger' ? r.width : typeof width === 'number' ? width : natural || 200
       w = Math.max(w, minWidth)
-      w = Math.min(w, vW - margin * 2)
-
-      let left = align === 'end' ? r.right - w : r.left
-      left = Math.max(vLeft + margin, Math.min(left, vLeft + vW - w - margin))
-
-      const tall = p ? p.scrollHeight : maxHeight
-      const below = vTop + vH - r.bottom - gap - margin
-      const above = r.top - vTop - gap - margin
-      const up = tall > below && above > below
-      const room = Math.max(Math.min(96, vH - margin * 2), up ? above : below)
-      const maxH = Math.min(maxHeight, room)
-
+      const q = placePanel(r, currentViewport(), {
+        width: w, height: p ? p.scrollHeight : 0, align, gap, maxHeight, margin,
+      }, window.innerHeight)
       setStyle(
-        up
-          ? { position: 'fixed', left, width: w, bottom: window.innerHeight - r.top + gap, maxHeight: maxH, overflowY: 'auto' }
-          : { position: 'fixed', left, width: w, top: r.bottom + gap, maxHeight: maxH, overflowY: 'auto' },
+        q.up
+          ? { position: 'fixed', left: q.left, width: q.width, bottom: q.bottom, maxHeight: q.maxHeight, overflowY: 'auto' }
+          : { position: 'fixed', left: q.left, width: q.width, top: q.top, maxHeight: q.maxHeight, overflowY: 'auto' },
       )
     }
     place()

@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   FormNotice, Input, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
+import { cn } from '@/lib/utils'
 
 /* The first job of the morning in every Indian school.
 
@@ -47,12 +48,15 @@ interface Slot {
    * absent — leave approved at 8:40 for a proxy given at 8:20. Until now that
    * period still read "covered", and the class got nobody. */
   cover_absent?: boolean
+  /** A pick waiting for the principal. */
+  waiting_for?: string
   candidates: Candidate[]
 }
 
 interface BoardResponse {
   items: Slot[]
   on_date: string
+  can_approve: boolean
   away: { user_id: string; full_name: string; reason: string; periods_today: boolean }[]
   summary: {
     absent_teachers: number
@@ -91,29 +95,21 @@ const spellDate = (iso: string) => {
   })
 }
 
+/* ONE ABSENT TEACHER AT A TIME (Yajur, 2026-10-23). The absent list on the
+   left; their periods on the right, each a card with who is free, an optional
+   note for the substitute, and Send for approval. A card says Pending until
+   the principal approves and Approved after; the principal's own pick is
+   Pending too. Approval tells both teachers and puts the class on the
+   substitute's timetable (scheduling/cover.ts). */
 export default function SubstitutionBoard() {
   const nav = useRouteFeature()
   const qc = useQueryClient()
   const [onDate, setOnDate] = useState(today())
+  const [who, setWho] = useState('')
 
   const board = useQuery({
     queryKey: ['substitution-board', onDate],
-    queryFn: () =>
-      api.get<BoardResponse>(
-        `/api/v1/academics/admin/substitution-board?on_date=${onDate}`,
-      ),
-  })
-
-  // The write already exists on the timetable module; this screen decides who,
-  // and that endpoint refuses a proxy who turns out not to be free after all.
-  const cover = useMutation({
-    mutationFn: (v: { timetable_entry_id: string; substitute_user_id: string }) =>
-      api.post('/api/v1/timetable-admin/substitutions', {
-        ...v,
-        on_date: onDate,
-        reason: 'Cover for an absent teacher',
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['substitution-board'] }),
+    queryFn: () => api.get<BoardResponse>(`/api/v1/academics/admin/substitution-board?on_date=${onDate}`),
   })
 
   if (board.isLoading && !board.data) return <SkeletonTiles count={4} label="Reading this morning’s register…" />
@@ -121,198 +117,144 @@ export default function SubstitutionBoard() {
 
   const rows = board.data?.items ?? []
   const s = board.data?.summary
-  /* Somebody away with no timetabled periods used to make the whole board say
-   * "nobody is absent", which is not "nothing to arrange" — it is "we have no
-   * idea". Six of this school's twelve teachers have no periods at all. */
-  const awayWithoutPeriods = (board.data?.away ?? []).filter((a) => !a.periods_today)
+  const canApprove = board.data?.can_approve ?? false
+  const away = board.data?.away ?? []
+  const periodsOf = (id: string) => rows.filter((r) => r.absent_user_id === id)
+  const selected = away.find((a) => a.user_id === who) ?? away.find((a) => a.periods_today) ?? away[0]
+  const theirs = selected ? periodsOf(selected.user_id) : []
 
   return (
     <>
       <PageHead
         eyebrow={nav.section?.name ?? 'Academics'}
         title={nav.feature?.name ?? 'Substitutions'}
-        description="Who is absent, the periods that leaves open, and the staff actually free to take them."
+        description="Pick an absent teacher, then a free teacher for each of their periods."
         actions={
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={onDate}
-              onChange={setOnDate}
-              aria-label="Board date"
-              className="w-44"
-            />
+            <Input type="date" value={onDate} onChange={(v) => { setOnDate(v); setWho('') }} aria-label="Date" className="w-44" />
             <span className="text-[13px] text-muted-foreground">{spellDate(onDate)}</span>
           </div>
         }
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Absent today" value={s?.absent_teachers ?? 0} icon={UserMinus} />
-          <Stat label="Periods affected" value={s?.periods ?? 0} icon={CalendarX2} />
-          <Stat label="Covered" value={s?.covered ?? 0} icon={CheckCircle2} />
-          <Stat
-            label="Nobody free"
-            value={s?.no_candidate ?? 0}
-            icon={ShieldAlert}
-            hint="Merge the class or send it to the library"
-          />
+          <Stat label="Absent" value={away.length} icon={UserMinus} />
+          <Stat label="Periods to cover" value={s?.periods ?? 0} icon={CalendarX2} />
+          <Stat label="Approved" value={s?.covered ?? 0} icon={CheckCircle2} />
+          <Stat label="Nobody free" value={s?.no_candidate ?? 0} icon={ShieldAlert} />
         </CellGrid>
 
-        {awayWithoutPeriods.length > 0 && (
+        {away.length === 0 ? (
           <Card>
-            <CardHeader
-              title="Away today, with nothing timetabled"
-              description="Nothing to cover for these, they have no periods on the timetable. Worth knowing: it usually means their subjects were never allocated, not that they teach nothing."
-            />
-            <ul className="divide-y">
-              {awayWithoutPeriods.map((a) => (
-                <li key={a.user_id} className="flex items-center gap-3 px-1 py-2 text-[14px]">
-                  <span className="font-medium">{a.full_name}</span>
-                  <span className="text-muted-foreground">{a.reason}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
-        {rows.length === 0 ? (
-
-          <Card>
-            <EmptyState
-              title="Nobody is absent"
-              body="Absence is read from the staff register and from approved leave. Both are empty for this date."
-            />
+            <EmptyState title="Nobody is absent" body="Mark absent teachers in the Staff register, or approve their leave; they then appear here to cover." />
           </Card>
         ) : (
-          <Card>
-            <CardHeader
-              title="Periods to cover"
-              description="A teacher who already takes the subject is offered first; everybody listed is genuinely free in the period."
-            />
-            <ul className="divide-y">
-              {rows.map((r) => (
-                <li key={r.timetable_entry_id} className="px-5 py-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-medium">
-                        {r.period} · {r.starts_at} · {r.class_name}-{r.section} · {r.subject}
-                      </p>
-                      <p className="mt-0.5 text-[14px] text-muted-foreground">
-                        {r.absent_teacher} is{' '}
-                        {r.reason === 'leave' ? 'on leave' : 'marked absent'}
-                      </p>
-                      {/* Said, not silently un-covered. A period that goes
-                          back on the list without explanation looks like the
-                          board losing the morning's work. */}
-                      {r.cover_absent && r.covered_by && (
-                        <p className="mt-0.5 text-[13.5px] text-destructive">
-                          {r.covered_by} was covering this and is now absent too, it needs
-                          somebody else.
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {r.covered_by && !r.cover_absent ? (
-                        <Badge tone="success">covered by {r.covered_by}</Badge>
-                      ) : (
-                        /* A dropdown rather than four buttons.
-                         *
-                         * The board printed the first four free teachers as
-                         * buttons and silently dropped the rest, so a period
-                         * with nine free teachers offered four of them and a
-                         * head of department who wanted the fifth had no way
-                         * to say so. And "nobody free" was shown as a dead end
-                         * — which is exactly the period somebody has to be
-                         * asked to cover anyway.
-                         *
-                         * Free teachers come first, marked with what they are
-                         * carrying today and whether they take the subject.
-                         * Everybody else follows under a heading that says
-                         * what choosing them means, because the person doing
-                         * this at eight in the morning already knows their
-                         * staff and is entitled to overrule the list. */
-                        <AssignSelect
-                          slot={r}
-                          busy={cover.isPending}
-                          onAssign={(userID) =>
-                            cover.mutate({
-                              timetable_entry_id: r.timetable_entry_id,
-                              substitute_user_id: userID,
-                            })
-                          }
-                        />
-                      )}
-                    </div>
+          <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <Card className="min-w-0">
+              <CardHeader title="Absent" />
+              <ul className="flex flex-col gap-2 p-3">
+                {away.map((a) => {
+                  const n = periodsOf(a.user_id).length
+                  const on = selected?.user_id === a.user_id
+                  return (
+                    <li key={a.user_id}>
+                      <button type="button" onClick={() => setWho(a.user_id)} aria-pressed={on}
+                        className={cn('flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-[14px] font-medium transition-colors',
+                          on ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-surface-hover')}>
+                        <span className="min-w-0 truncate">{a.full_name}</span>
+                        <Badge tone={n ? 'danger' : 'neutral'} className="shrink-0">{n} {n === 1 ? 'class' : 'classes'}</Badge>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </Card>
+
+            <div className="flex min-w-0 flex-col gap-4">
+              {selected && (
+                <Card>
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
+                    <h2 className="text-[16px] font-bold">{selected.full_name}</h2>
+                    <span className="text-[13px] text-muted-foreground">
+                      {selected.reason === 'absent' ? 'Marked absent' : 'On leave'} · {theirs.length} {theirs.length === 1 ? 'period' : 'periods'} to cover
+                    </span>
                   </div>
-                </li>
+                </Card>
+              )}
+              {selected && theirs.length === 0 && (
+                <Card><EmptyState title="No classes today" body="Nothing to cover for this teacher on this date." /></Card>
+              )}
+              {theirs.map((r) => (
+                <PeriodCard key={r.timetable_entry_id} slot={r} onDate={onDate} canApprove={canApprove}
+                  onDone={() => qc.invalidateQueries({ queryKey: ['substitution-board'] })} />
               ))}
-            </ul>
-            <div className="px-5 py-4">
-              <FormNotice error={cover.error} />
             </div>
-          </Card>
+          </div>
         )}
       </PageBody>
     </>
   )
 }
 
-
-/**
- * Choosing who takes the period.
- *
- * Two groups in one list. The server worked out who is genuinely free in this
- * slot — no class of their own, not already promised elsewhere, not absent
- * themselves — and those are offered first with their load for the day. The
- * rest of the staff follow, labelled as busy, because a period nobody is free
- * for still has to be covered by somebody and the alternative on offer was a
- * red badge saying it could not be done.
- */
-function AssignSelect({
-  slot,
-  busy,
-  onAssign,
-}: {
-  slot: Slot
-  busy: boolean
-  onAssign: (userID: string) => void
-}) {
+/** One period of the absent teacher: who takes it, a note, and where it stands. */
+function PeriodCard({ slot, onDate, canApprove, onDone }: { slot: Slot; onDate: string; canApprove: boolean; onDone: () => void }) {
+  const [pick, setPick] = useState('')
+  const [note, setNote] = useState('')
   const teachers = useQuery({
     queryKey: ['timetable-teachers'],
     queryFn: () => api.call('GET /timetable/teachers'),
     staleTime: 5 * 60_000,
   })
-
+  const send = useMutation({
+    mutationFn: () => api.post('/api/v1/timetable-cover/propose', { timetable_entry_id: slot.timetable_entry_id, substitute_user_id: pick, on_date: onDate, note }),
+    onSuccess: () => { setPick(''); setNote(''); onDone() },
+  })
+  const approve = useMutation({
+    mutationFn: () => api.post('/api/v1/timetable-cover/approve', { timetable_entry_id: slot.timetable_entry_id, on_date: onDate }),
+    onSuccess: onDone,
+  })
   const free = new Set(slot.candidates.map((c) => c.user_id))
-  const others = (teachers.data?.items ?? []).filter(
-    (t) => !free.has(t.user_id) && t.user_id !== slot.absent_user_id,
-  )
+  const others = (teachers.data?.items ?? []).filter((t) => !free.has(t.user_id) && t.user_id !== slot.absent_user_id)
+  const approved = !!slot.covered_by && !slot.cover_absent
 
   return (
-    <div className="min-w-[16rem]">
-      <Select
-        value=""
-        onChange={(v) => v && onAssign(v)}
-        placeholder={
-          slot.candidates.length
-            ? `${slot.candidates.length} free, choose one`
-            : 'Nobody free, choose anyway'
-        }
-        options={[
-          ...slot.candidates.map((c) => ({
-            value: c.user_id,
-            label:
-              `${c.full_name}, free` +
-              (c.teaches_subject ? `, takes ${slot.subject}` : '') +
-              `, ${c.periods_today} today`,
-          })),
-          ...others.map((t) => ({
-            value: t.user_id,
-            label: `${t.full_name}, busy this period`,
-          })),
-        ]}
-      />
-      {busy && <p className="mt-1 text-[12px] text-muted-foreground">Assigning…</p>}
-    </div>
+    <Card>
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+            <Badge tone="neutral" className="tabular-nums">{slot.period} · {slot.starts_at}</Badge>
+            <span className="text-[14.5px] font-semibold">{slot.class_name} - {slot.section}</span>
+            <Badge tone="info">{slot.subject}</Badge>
+          </div>
+          <span className="text-[13px] text-muted-foreground">{slot.candidates.length} free</span>
+        </div>
+
+        {approved ? (
+          <Badge tone="success" className="self-start">Approved · {slot.covered_by} is taking this class</Badge>
+        ) : slot.waiting_for ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="warning">Pending · {slot.waiting_for}</Badge>
+            {canApprove && <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate()}>Approve</Button>}
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center">
+            <Select value={pick} onChange={setPick}
+              placeholder={slot.candidates.length ? 'Choose a free teacher' : 'Nobody free, choose anyway'}
+              options={[
+                ...slot.candidates.map((c) => ({ value: c.user_id, label: `${c.full_name}, free${c.teaches_subject ? `, takes ${slot.subject}` : ''}` })),
+                ...others.map((t) => ({ value: t.user_id, label: `${t.full_name}, busy this period` })),
+              ]} />
+            <Input value={note} onChange={setNote} placeholder="Note for the substitute (optional)" />
+            <Button disabled={!pick || send.isPending} onClick={() => send.mutate()}>
+              Send for approval
+            </Button>
+          </div>
+        )}
+        {slot.cover_absent && slot.covered_by && (
+          <p className="text-[13.5px] text-destructive">{slot.covered_by} was covering this and is now absent too; choose somebody else.</p>
+        )}
+        <FormNotice error={send.error ?? approve.error} />
+      </div>
+    </Card>
   )
 }

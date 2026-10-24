@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { currentViewport, placePanel } from './place'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE DROPDOWN, EVERYWHERE OUTSIDE A FORM FIELD.
@@ -80,21 +81,11 @@ export function PickerMenu<T extends string>({
       const r = el.getBoundingClientRect()
       // Against the visual viewport, so the on-screen keyboard counts as
       // the bottom of the screen (see the combobox in ui.tsx).
-      const vv = window.visualViewport
-      const vTop = vv ? vv.offsetTop : 0
-      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
-      const below = vBottom - r.bottom
-      const above = r.top - vTop
-      const wantsAbove = below < 240 && above > below
-      const maxH = Math.max(96, Math.min(320, (wantsAbove ? above : below) - 12))
-      const width = Math.max(r.width, 190)
-      // Keep the menu on screen when it is wider than the trigger.
-      const left = align === 'end'
-        ? Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8))
-        : Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
-      setPos(wantsAbove
-        ? { left, width, bottom: window.innerHeight - r.top + 6, maxH }
-        : { left, width, top: r.bottom + 6, maxH })
+      // Kept fully on screen, 16px from a phone's edges (components/place.ts).
+      const q = placePanel(r, currentViewport(), { width: Math.max(r.width, 190), height: 240, align, maxHeight: 320 }, window.innerHeight)
+      setPos(q.up
+        ? { left: q.left, width: q.width, bottom: q.bottom, maxH: q.maxHeight }
+        : { left: q.left, width: q.width, top: q.top, maxH: q.maxHeight })
     }
     place()
     window.addEventListener('scroll', place, true)

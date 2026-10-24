@@ -2,7 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, isUUID, notFound, ok } from '../../http'
 import { can } from '../../identity'
 import { employeeFilter, growthReach } from './reach'
-import { todayIST } from '../admissions/util'
+import { istClock, todayIST } from '../admissions/util'
 
 /* The tabs of Staff 360 that the detail and overview calls do not carry:
    the register and punches, leave, pay, the week's timetable and open tasks.
@@ -31,7 +31,10 @@ export function registerStaffRecord(r: Router): void {
           SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) AS on_leave
         FROM staff_attendance WHERE user_id = ? AND on_date BETWEEN ? AND ?`).bind(uid, from, today)
       .first<{ marked: number; present: number | null; absent: number | null; late: number | null; on_leave: number | null }>() : null
-    const recent = uid ? (await c.db.prepare(`SELECT on_date, status, check_in, check_out, source, COALESCE(remarks, '') AS remarks
+    const recent = uid ? (await c.db.prepare(`SELECT on_date, status,
+          /* A device punch is stored as a UTC instant; the reader wants the school clock. */
+          CASE WHEN length(check_in) > 8 THEN ${istClock('check_in')} ELSE substr(check_in, 1, 5) END AS check_in,
+          CASE WHEN length(check_out) > 8 THEN ${istClock('check_out')} ELSE substr(check_out, 1, 5) END AS check_out, source, COALESCE(remarks, '') AS remarks
         FROM staff_attendance WHERE user_id = ? AND on_date <= ? ORDER BY on_date DESC LIMIT 30`).bind(uid, today).all()).results : []
 
     const balances = year ? (await c.db.prepare(`SELECT lt.name AS type, CAST(lb.entitled AS REAL) AS entitled, CAST(lb.taken AS REAL) AS taken
@@ -54,10 +57,24 @@ export function registerStaffRecord(r: Router): void {
         FROM timetable_entries te JOIN sections sec ON sec.id = te.section_id JOIN classes c ON c.id = sec.class_id
         JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
        WHERE te.teacher_user_id = ? AND te.academic_year_id = ?`).bind(uid, year.id).all()).results : []
-    const periods = entries.length ? (await c.db.prepare(`SELECT p.id, p.name, p.starts_at, p.ends_at, p.is_break FROM periods p
+    const allPeriods = entries.length ? (await c.db.prepare(`SELECT p.id, p.name, p.starts_at, p.ends_at, p.is_break FROM periods p
        WHERE p.bell_schedule_id IN (SELECT p2.bell_schedule_id FROM timetable_entries te JOIN periods p2 ON p2.id = te.period_id
                                      WHERE te.teacher_user_id = ? AND te.academic_year_id = ?)
-       ORDER BY p.sequence`).bind(uid, year!.id).all()).results : []
+       ORDER BY p.starts_at, p.sequence`).bind(uid, year!.id).all<{ id: string; name: string; starts_at: string; ends_at: string; is_break: number }>()).results : []
+    /* One row per period of the day (Yajur, 2026-10-23: "so many times repeated").
+       A teacher whose lessons sit in several bell schedules got every schedule's
+       Period 1, Period 2, ... as separate rows; the same name and times are one
+       row, and every lesson points at that row. */
+    const rowOf = new Map<string, string>()
+    const periods: typeof allPeriods = []
+    const byShape = new Map<string, string>()
+    for (const p of allPeriods) {
+      const shape = `${p.name}|${p.starts_at}|${p.ends_at}|${p.is_break ? 1 : 0}`
+      const row = byShape.get(shape)
+      if (row) { rowOf.set(p.id, row); continue }
+      byShape.set(shape, p.id); rowOf.set(p.id, p.id); periods.push(p)
+    }
+    for (const e of entries as { period_id: string }[]) e.period_id = rowOf.get(e.period_id) ?? e.period_id
 
     const tasks = (await c.db.prepare(`SELECT k.id, k.title, k.due_on, k.priority, k.status,
           COALESCE((SELECT full_name FROM users WHERE id = k.assigned_by), '') AS assigned_by

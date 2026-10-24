@@ -1,4 +1,4 @@
--- 0107_inventory_in_store (tenant: every school database).
+-- 0108_inventory_in_store (tenant: every school database).
 -- One list for the store (Yajur, 2026-10-22): an item on the stores register
 -- can also be sold in the parent store, at its own selling price. Parents see
 -- whether it is in stock, never the count.

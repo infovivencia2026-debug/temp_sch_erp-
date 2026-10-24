@@ -389,7 +389,7 @@ export default function LiveVehicleMap() {
                             v.battery_pct < 20 && !v.charging && 'font-medium text-destructive',
                           )}
                         >
-                          {v.battery_pct}%{v.charging ? ' ⚡' : ''}
+                          {v.battery_pct}%{v.charging ? ', charging' : ''}
                         </span>
                       )}
                     </Td>
