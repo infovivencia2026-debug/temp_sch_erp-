@@ -1,7 +1,7 @@
 import type { Ctx, Router } from '../../router'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { hashPassword } from '../../auth/password'
-import { defaultAppId, institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
+import { defaultAppId, institutionById, schoolPath, slideUrl, tenantDb, type Institution } from '../../tenant'
 import type { Env } from '../../env'
 import { VENDOR_ROLES } from '../../identity'
 import { notImplemented, requirePlatformAdmin } from './common'
@@ -439,6 +439,65 @@ export function registerSellerTenants(r: Router): void {
     const db = openTenant(c.env, inst)
     if (db) await db.prepare('UPDATE institutions SET logo_key = ? WHERE id = ?').bind(key, inst.id).run()
     return ok(brandingOut((await institutionById(c.env, inst.id))!))
+  })
+
+  /* Sign-in pictures: square pictures shown as a sliding gallery on the
+     school's public sign-in page. Uploaded here, by the vendor, and kept apart
+     from the School Gallery, whose class posts show children and are never
+     public. Same data: URL upload as the logo. */
+  const MAX_SLIDES = 8
+  const slidesOf = async (env: Env, inst: Institution) => {
+    const rows = await env.CONTROL.prepare('SELECT id, file_key, position, created_at FROM login_slides WHERE institution_id = ? ORDER BY position, created_at')
+      .bind(inst.id).all<{ id: string; file_key: string; position: number; created_at: string }>()
+    return { items: rows.results.map((s) => ({ id: s.id, position: s.position, url: slideUrl(inst, s), created_at: s.created_at })), max: MAX_SLIDES }
+  }
+  const schoolFor = async (c: Ctx) => {
+    requirePlatformAdmin(c)
+    const inst = await institutionById(c.env, uuidParam(c.params.id))
+    if (!inst) throw notFound('no such school')
+    return inst
+  }
+
+  r.get('/seller/tenants/{id}/slides', PERM, async (c) => ok(await slidesOf(c.env, await schoolFor(c))))
+
+  r.post('/seller/tenants/{id}/slides', PERM, async (c) => {
+    const inst = await schoolFor(c)
+    const { data_url } = await readJSON<{ data_url?: string }>(c.req)
+    const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(data_url ?? '')
+    if (!m) throw badRequest('send a PNG, JPEG or WebP picture')
+    const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0))
+    if (bytes.length > 1024 * 1024) throw badRequest('each picture must be under 1 MB')
+    const top = await c.env.CONTROL.prepare('SELECT count(*) AS n, coalesce(max(position), 0) AS p FROM login_slides WHERE institution_id = ?')
+      .bind(inst.id).first<{ n: number; p: number }>()
+    if ((top?.n ?? 0) >= MAX_SLIDES) throw badRequest(`a school can have ${MAX_SLIDES} sign-in pictures; remove one before adding another`)
+    const id = uuid()
+    const key = `branding/${inst.id}/slide-${id}`
+    await c.env.FILES_WRITE.put(key, bytes, { httpMetadata: { contentType: m[1] } })
+    await c.env.CONTROL.prepare('INSERT INTO login_slides (id, institution_id, file_key, position, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, inst.id, key, (top?.p ?? 0) + 1, now()).run()
+    return created(await slidesOf(c.env, inst))
+  })
+
+  r.del('/seller/tenants/{id}/slides/{slideId}', PERM, async (c) => {
+    const inst = await schoolFor(c)
+    const slideId = uuidParam(c.params.slideId)
+    const row = await c.env.CONTROL.prepare('SELECT file_key FROM login_slides WHERE id = ? AND institution_id = ?').bind(slideId, inst.id).first<{ file_key: string }>()
+    if (!row) throw notFound('no such picture')
+    await c.env.CONTROL.prepare('DELETE FROM login_slides WHERE id = ?').bind(slideId).run()
+    await c.env.FILES_WRITE.delete(row.file_key)
+    return ok(await slidesOf(c.env, inst))
+  })
+
+  r.put('/seller/tenants/{id}/slides/order', PERM, async (c) => {
+    const inst = await schoolFor(c)
+    const { ids } = await readJSON<{ ids?: unknown }>(c.req)
+    const have = (await slidesOf(c.env, inst)).items.map((s) => s.id)
+    const want = Array.isArray(ids) ? ids : []
+    if (want.length !== have.length || new Set(want).size !== want.length || !want.every((x) => have.includes(x as string))) {
+      throw badRequest('send every picture of this school once, in the new order')
+    }
+    await c.env.CONTROL.batch(want.map((x, i) => c.env.CONTROL.prepare('UPDATE login_slides SET position = ? WHERE id = ? AND institution_id = ?').bind(i + 1, x, inst.id)))
+    return ok(await slidesOf(c.env, inst))
   })
 
   // --- plans ---
