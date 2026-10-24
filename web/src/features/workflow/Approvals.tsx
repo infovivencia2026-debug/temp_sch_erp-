@@ -61,18 +61,38 @@ export default function Approvals() {
   const [note, setNote] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState('')
 
-  // The inbox polls only while somebody is looking at it, not from a background tab.
-  const every = useVisibleInterval(60_000)
+  /* The inbox polls only while somebody is looking at it, not from a
+     background tab; it asks again on returning to the tab and on every
+     opening, including from a notification. */
+  const every = useVisibleInterval(20_000)
   const { data, isLoading, error } = useQuery({
     queryKey: ['approvals'],
     queryFn: () => api.get<Inboxed>('/api/v1/workflow/approvals'),
     refetchInterval: every,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   })
 
+  /* Rows waiting on the server: only the pressed row is held, the rest of
+     the list stays usable while it saves. */
+  const [busy, setBusy] = useState<Record<string, boolean>>({})
+  const removeRow = (old: Inboxed | undefined, id: string, kind: string): Inboxed | undefined => {
+    if (!old || !old.items.some((i) => i.id === id)) return old
+    return {
+      ...old,
+      items: old.items.filter((i) => i.id !== id),
+      total: Math.max(0, old.total - 1),
+      by_kind: { ...old.by_kind, [kind]: Math.max(0, (old.by_kind[kind] ?? 1) - 1) },
+    }
+  }
   const decide = useMutation({
-    mutationFn: ({ url, approve, reason }: { url: string; approve: boolean; reason?: string }) =>
+    mutationFn: ({ url, approve, reason }: { id: string; kind: string; url: string; approve: boolean; reason?: string }) =>
       api.post(url, { decision: approve ? 'approved' : 'rejected', note: reason }),
+    onMutate: (v) => setBusy((b) => ({ ...b, [v.id]: true })),
+    onSettled: (_r, _e, v) => setBusy((b) => { const n = { ...b }; delete n[v.id]; return n }),
     onSuccess: (_res, v) => {
+      // The server has recorded it: drop the row here instead of re-reading the whole inbox.
+      qc.setQueryData<Inboxed>(['approvals'], (old) => removeRow(old, v.id, v.kind))
       refreshConcessions(qc)
       toast.ok(v.approve ? 'Approved' : 'Rejected, the requester is told')
     },
@@ -82,30 +102,22 @@ export default function Approvals() {
 
      Optimistic (lib/optimistic): the row goes and the counts drop at once;
      a refusal brings it back with the reason. A fee concession (money) and a
-     joining (admission) are NOT faked -- those keep `decide` above, with the
-     buttons held while the server records it, and say so only after. */
+     joining (admission) and a staff exit (it switches off a login) are NOT
+     faked -- those keep `decide` above, with that row's buttons held while
+     the server records it, and say so only after. */
   type Vote = { id: string; kind: string; url: string; approve: boolean; reason?: string }
   const quick = useOptimisticMutation<Vote>({
     mutationFn: ({ url, approve, reason }) =>
       api.post(url, { decision: approve ? 'approved' : 'rejected', note: reason }),
     queryKeys: [['approvals']],
-    apply: (old, v) => {
-      const o = old as Inboxed
-      if (!o.items.some((i) => i.id === v.id)) return old
-      return {
-        ...o,
-        items: o.items.filter((i) => i.id !== v.id),
-        total: Math.max(0, o.total - 1),
-        by_kind: { ...o.by_kind, [v.kind]: Math.max(0, (o.by_kind[v.kind] ?? 1) - 1) },
-      }
-    },
+    apply: (old, v) => removeRow(old as Inboxed, v.id, v.kind),
     confirm: (v) => (v.approve ? 'Approved' : 'Rejected, the requester is told'),
     failure: "Couldn't record that decision",
   })
   const fast = (kind: string) => kind === 'leave' || kind === 'attendance_correction'
   const vote = (it: Approval, approve: boolean) => {
     if (fast(it.kind)) quick.mutate({ id: it.id, kind: it.kind, url: it.decide_url, approve, reason: note[it.id] })
-    else decide.mutate({ url: it.decide_url, approve, reason: note[it.id] })
+    else decide.mutate({ id: it.id, kind: it.kind, url: it.decide_url, approve, reason: note[it.id] })
   }
 
   if (isLoading && !data) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
@@ -230,8 +242,8 @@ export default function Approvals() {
                         />
                         <Button
                           size="sm"
-                          disabled={!fast(it.kind) && decide.isPending}
-                          pending={!fast(it.kind) && decide.isPending && decide.variables?.url === it.decide_url && decide.variables?.approve}
+                          disabled={!!busy[it.id]}
+                          pending={!!busy[it.id] && decide.variables?.id === it.id && decide.variables?.approve}
                           onClick={() => vote(it, true)}
                         >
                           <CheckCheck className="h-3.5 w-3.5" />
@@ -240,7 +252,7 @@ export default function Approvals() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={!fast(it.kind) && decide.isPending}
+                          disabled={!!busy[it.id]}
                           onClick={() => vote(it, false)}
                         >
                           Reject

@@ -109,4 +109,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 109, name: 'auto_whatsapp_switch', checksum: '82e69d934b87c8f5bf05793016ee0d860e69590e8061f46d8bd0b35aae3514e7' },
   { version: 110, name: 'feature_school_activity', checksum: 'c551d27047dd0b9a7b775c35e60245a54d9c8b46caf4e39f44e498963f141938' },
   { version: 111, name: 'task_pipeline', checksum: '96e7b29915b6a970536182d0fbf81d2fa6490f39f7bb878360133b447336b6a3' },
+  { version: 112, name: 'approvals_indexes', checksum: '99f7d6bb8209598f2dc04c0718213a1aab96fa8e8f506d0225ace0a16a1db6dd' },
 ]
