@@ -92,6 +92,7 @@ export function registerRefunds(r: Router): void {
     const amount = hasAmount ? paise(req.amount_paise) : null
     if (amount !== null && amount < 0) throw badRequest('amount cannot be negative')
     if (percent !== '' && !Number.isFinite(Number(percent))) throw badRequest('percent must be a number')
+    if (percent !== '' && (Number(percent) <= 0 || Number(percent) > 100)) throw badRequest('percent must be above 0 and at most 100')
     const id = crypto.randomUUID()
     const reason = (req.reason ?? '').trim()
     const stmts: D1PreparedStatement[] = [

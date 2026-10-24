@@ -125,7 +125,7 @@ export function StudentQuiz({ id, back }: { id: string; back: () => void }) {
               </div>
               {mine && (
                 <p role="status" className={cn('text-[15px] font-semibold', mine.right ? 'text-success' : 'text-[#be123c]')}>
-                  {mine.right ? 'Correct! Nice one.' : mine.correct ? 'Not quite. The right answer is marked in green.' : 'Not quite. Keep going!'}
+                  {mine.right ? 'Correct.' : mine.correct ? 'Not quite. The right answer is marked in green.' : 'Not quite. Keep going.'}
                 </p>
               )}
               <FormNotice error={check.error} />
@@ -174,7 +174,7 @@ function Summary({ r, s, checked, ringRef, back }: { r: Result; s: Started; chec
             <span className="text-[13px] text-muted-foreground">{pct}%</span>
           </span>
         </div>
-        <p className="text-[18px] font-semibold">{pct >= 90 ? 'Brilliant!' : pct >= 60 ? 'Well done!' : pct >= 40 ? 'Good try!' : 'Keep practising!'}</p>
+        <p className="text-[18px] font-semibold">{pct >= 90 ? 'Full marks, or close to it.' : pct >= 60 ? 'Well done.' : pct >= 40 ? 'A fair attempt.' : 'Keep practising.'}</p>
         <p className="text-[14px] text-muted-foreground">{right} of {s.questions.length} right.{r.timed_out ? ' The time ran out; answers you checked in time still count.' : ''}</p>
         <Button className="mt-2 min-h-[48px] px-6" onClick={back}>Back to the course</Button>
       </div>

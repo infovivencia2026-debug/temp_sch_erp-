@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Z_ABOVE_DIALOGS } from './anchored'
+import { currentViewport, placePanel } from './place'
 
 /* ONE CALENDAR, EVERYWHERE A DATE IS ASKED FOR.
  *
@@ -85,12 +86,11 @@ function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObj
       const a = anchor.current
       if (!a) return
       const r = a.getBoundingClientRect()
-      const margin = 8
-      const left = Math.min(Math.max(margin, r.left), window.innerWidth - width - margin)
       const h = box.current?.offsetHeight ?? 0
-      const room = window.innerHeight - 2 * margin
-      const top = Math.max(margin, Math.min(r.bottom + 6, window.innerHeight - margin - h))
-      setStyle({ position: 'fixed', left, top, maxHeight: room, overflowY: h > room ? 'auto' : undefined, opacity: 1 })
+      // Kept inside the visible screen with the phone's 16px gutters (components/place.ts).
+      const p = placePanel(r, currentViewport(), { width, height: h, lift: true, maxHeight: 10_000 })
+      const { left, top, maxHeight: room } = p
+      setStyle({ position: 'fixed', left, top, width: p.width, maxHeight: room, overflowY: h > room ? 'auto' : undefined, opacity: 1 })
     }
     place()
     // Measured again once painted, and whenever its height changes (month to month, or the month grid).
@@ -99,7 +99,12 @@ function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObj
     if (ro && box.current) ro.observe(box.current)
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', place)
+    vv?.addEventListener('scroll', place)
     return () => {
+      vv?.removeEventListener('resize', place)
+      vv?.removeEventListener('scroll', place)
       cancelAnimationFrame(raf)
       ro?.disconnect()
       window.removeEventListener('resize', place)
@@ -107,6 +112,24 @@ function below(anchor: RefObject<HTMLElement | null>, width: number, box: RefObj
     }
   }, [anchor, width, box, open])
   return style
+}
+
+/* THE CALENDAR CRASHED THE SCREEN IT WAS OPENED ON (owner, 2026-10-23:
+   "when I admit a student, where I click the DOB dropdown, the page shows no
+   screen exists; I have to reload").
+
+   The holiday lookup was a Map. Staff query caches are persisted to
+   IndexedDB as JSON (App.tsx PersistGate), and JSON writes a Map as {}. On
+   the next load the calendar got {} back, called .get on it, threw while
+   rendering, and the screen's error boundary replaced the page with "This
+   screen did not load". The lookup is a plain record now, and whatever comes
+   back from storage is read defensively. */
+export function holidayLookup(data: unknown): Record<string, string> {
+  if (data instanceof Map) return Object.fromEntries(data) as Record<string, string>
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(data as Record<string, unknown>)) if (typeof v === 'string') out[k] = v
+  return out
 }
 
 export function DatePopover({
@@ -137,13 +160,14 @@ export function DatePopover({
     queryFn: async () => {
       const last = new Date(view.y, view.m + 1, 0).getDate()
       const r = await fetch(`/api/v1/calendar/holiday-days?from=${monthKey}-01&to=${monthKey}-${pad(last)}`, { credentials: 'include' })
-      if (!r.ok) return new Map<string, string>()
+      if (!r.ok) return {} as Record<string, string>
       const j = await r.json() as { items?: { date: string; name: string }[]; data?: { items?: { date: string; name: string }[] } }
       const list = j.items ?? j.data?.items ?? []
-      return new Map(list.map((h) => [h.date, h.name]))
+      return Object.fromEntries(list.map((h) => [h.date, h.name])) as Record<string, string>
     },
     staleTime: 10 * 60_000, retry: false,
   })
+  const holidays = holidayLookup(hol.data)
   const box = useRef<HTMLDivElement>(null)
   const pos = below(anchor, 310, box)
 
@@ -191,7 +215,7 @@ export function DatePopover({
       role="dialog"
       aria-label="Choose a date"
       style={{ ...pos, zIndex: Z_ABOVE_DIALOGS }}
-      className="w-[310px] select-none rounded-[20px] border bg-popover p-3.5 shadow-[var(--lift-float)]"
+      className="select-none rounded-[20px] border bg-popover p-3.5 shadow-[var(--lift-float)]"
     >
       <div className="mb-3 flex items-center justify-between px-1">
         <button
@@ -246,7 +270,7 @@ export function DatePopover({
               const isToday = today.getFullYear() === view.y && today.getMonth() === view.m
                 && today.getDate() === d
               const off = outOfRange(d)
-              const holiday = hol.data?.get(iso(view.y, view.m, d))
+              const holiday = holidays[iso(view.y, view.m, d)]
               return (
                 <button
                   key={d}

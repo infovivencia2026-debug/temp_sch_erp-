@@ -977,11 +977,11 @@ const STATUS_LIVE_SQL = `SELECT 1 FROM status_posts p WHERE p.status = 'live' AN
   AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = notifications.source_id`
 
 /** Kinds that stay in the bell until the work behind them is done, even once opened. */
-export const PENDING_KINDS = ['concern.support_ticket', 'question_paper_deadline', 'leave_request', 'parent_message'] as const
+export const PENDING_KINDS = ['concern.support_ticket', 'question_paper_deadline', 'leave_request', 'parent_message', 'staff_exit_approval'] as const
 
 /* Opening one of these only reads it. A parent message is pending only for the
    teacher it was sent to (a parent's copy of a teacher's reply is just news). */
-const PENDING_KEPT_SQL = `(kind IN ('concern.support_ticket', 'question_paper_deadline', 'leave_request')
+const PENDING_KEPT_SQL = `(kind IN ('concern.support_ticket', 'question_paper_deadline', 'leave_request', 'staff_exit_approval')
   OR (kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m WHERE m.id = notifications.source_id
        AND m.teacher_user_id = notifications.user_id AND m.sender_user_id <> notifications.user_id)))`
 
@@ -995,6 +995,7 @@ const PENDING_DONE_SQL = [
      EXISTS (SELECT 1 FROM question_papers qp WHERE qp.exam_subject_id = notifications.source_id AND qp.status IN ('submitted', 'approved'))
      OR EXISTS (SELECT 1 FROM question_paper_deadlines d WHERE d.exam_subject_id = notifications.source_id AND d.teacher_user_id = ?1 AND d.manually_received_at IS NOT NULL))`,
   `kind = 'leave_request' AND source_kind = 'leave_request' AND EXISTS (SELECT 1 FROM leave_requests l WHERE l.id = notifications.source_id AND l.status <> 'pending')`,
+  `kind = 'staff_exit_approval' AND EXISTS (SELECT 1 FROM staff_exits x WHERE x.id = notifications.source_id AND x.status <> 'pending_approval')`,
   `kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m JOIN parent_teacher_messages r
        ON r.student_id = m.student_id AND r.parent_user_id = m.parent_user_id AND r.teacher_user_id = m.teacher_user_id
      WHERE m.id = notifications.source_id AND m.teacher_user_id = ?1 AND r.sender_user_id = ?1 AND r.sent_at > m.sent_at)`,
