@@ -6,7 +6,7 @@ import { tick } from './services/cron'
 import { handleEmail } from './services/mail'
 import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
-import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } from './routes/login'
+import { homeOf, loginAt, schoolAppConfig, schoolLogin, schoolLogo } from './routes/login'
 import { getSession } from './routes/session'
 import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
@@ -49,8 +49,7 @@ export default {
       // Biometric readers push here; a reader is known by its registered serial, not a session (routes/iclock.ts).
       { const r = await handleIclock(env, req, url); if (r) return r }
       if (originRefused(env, pathname, verified)) return new Response('Not Found', { status: 404 })
-      if (pathname === '/login' && m === 'GET') return showLogin(env, req)
-      if (pathname === '/login' && m === 'POST') return login(env, req)
+      if (pathname === '/login' && (m === 'GET' || m === 'POST')) return loginAt(env, req)
       /* Public server-rendered pages: password reset, pricing, signup, apps,
          and the second sign-in step. See pages/index.ts. */
       const pageRes = await handlePages(env, req, url)
