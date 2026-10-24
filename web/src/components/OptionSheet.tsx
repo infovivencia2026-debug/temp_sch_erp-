@@ -99,13 +99,13 @@ export function OptionSheet({
         aria-modal="true"
         aria-label={title}
         className="relative flex max-h-[70vh] w-full flex-col rounded-t-[20px] bg-popover text-popover-foreground shadow-[0_-10px_30px_rgba(0,0,0,0.2)]"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
       >
         <button type="button" aria-label="Close" onClick={onClose}
           className="mx-auto flex h-6 w-full shrink-0 items-center justify-center">
           <span className="h-1.5 w-10 rounded-full bg-muted-foreground/40" />
         </button>
-        <p className="shrink-0 px-4 pb-2 text-[14px] font-semibold text-muted-foreground">{title}</p>
+        <p className="shrink-0 px-4 pb-2 pt-1 text-[14px] font-semibold text-muted-foreground">{title}</p>
         {search && (
           <label className="mx-4 mb-2 flex h-12 shrink-0 items-center gap-2 rounded-[12px] bg-card px-3 shadow-[var(--field-shadow)]">
             <Search className="size-5 shrink-0 opacity-60" aria-hidden="true" />
@@ -119,7 +119,7 @@ export function OptionSheet({
             />
           </label>
         )}
-        <ul role="listbox" aria-label={title} className="menu-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2">
+        <ul role="listbox" aria-label={title} className="menu-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [scrollbar-gutter:auto] [scrollbar-width:none]">
           {shown.map((o) => {
             const on = o.value === value
             return (
@@ -145,7 +145,7 @@ export function OptionSheet({
             <li className="px-3 py-3 text-[14px] text-muted-foreground">Nothing matches.</li>
           )}
         </ul>
-        {footer && <div className="shrink-0 px-2">{footer}</div>}
+        {footer && <div className="shrink-0 px-4">{footer}</div>}
       </div>
     </div>,
     document.body,
