@@ -314,6 +314,41 @@ export function registerStaff(r: Router) {
 
   r.get('/hr/leave-types', 'auth', async (c) => {
     const applies = (c.url.searchParams.get('applies_to') ?? '').trim()
+    /* ONLY THE TYPES THIS PERSON HAS (Yajur, 2026-10-24: "in this dropdown
+       only show their given leave types"). `for=mine` answers for the signed-in
+       employee: the types they hold a balance for in the current year, with
+       what is left. A school that has not handed out balances (none are set
+       for this person) falls back to the staff types their leave policy makes
+       them eligible for (the gender rule), counting this year's approved days
+       against the annual quota, so nobody is left unable to apply. */
+    if (c.url.searchParams.get('for') === 'mine') {
+      const emp = await c.db.prepare(`SELECT id, gender FROM employees WHERE user_id = ? ORDER BY status = 'active' DESC LIMIT 1`)
+        .bind(c.id.userId).first<{ id: string; gender: string | null }>()
+      if (!emp) return ok({ items: [], source: 'none' })
+      const held = await c.db.prepare(`
+        SELECT lt.id, lt.code, lt.name, lt.annual_quota, lb.entitled, lb.taken
+          FROM leave_balances lb JOIN leave_types lt ON lt.id = lb.leave_type_id
+         WHERE lb.employee_id = ? AND lt.applies_to = 'staff'
+           AND lb.academic_year_id = COALESCE((SELECT id FROM academic_years WHERE is_current = 1 LIMIT 1), lb.academic_year_id)
+           AND CAST(lb.entitled AS REAL) > 0
+         ORDER BY lt.name`).bind(emp.id).all<Record<string, unknown>>()
+      if (held.results.length) {
+        return ok({ source: 'balances', items: held.results.map((v) => ({ id: v.id, code: v.code, name: v.name,
+          entitled: Number(v.entitled), remaining: Math.max(0, Number(v.entitled) - Number(v.taken)) })) })
+      }
+      const year = todayIST().slice(0, 4)
+      const elig = await c.db.prepare(`
+        SELECT lt.id, lt.code, lt.name, lt.annual_quota,
+               (SELECT COALESCE(SUM(CAST(lr.days AS REAL)), 0) FROM leave_requests lr
+                 WHERE lr.employee_id = ? AND lr.leave_type_id = lt.id AND lr.status = 'approved' AND substr(lr.from_date, 1, 4) = ?) AS taken
+          FROM leave_types lt LEFT JOIN leave_policy_rules pr ON pr.leave_type_id = lt.id
+         WHERE lt.applies_to = 'staff'
+           AND (pr.applies_to_gender IS NULL OR pr.applies_to_gender = '' OR lower(pr.applies_to_gender) = lower(COALESCE(?, pr.applies_to_gender)))
+         ORDER BY lt.name`).bind(emp.id, year, emp.gender).all<Record<string, unknown>>()
+      return ok({ source: 'policy', items: elig.results.map((v) => omitNull({ id: v.id, code: v.code, name: v.name,
+        entitled: v.annual_quota === null ? null : Number(v.annual_quota),
+        remaining: v.annual_quota === null ? null : Math.max(0, Number(v.annual_quota) - Number(v.taken)) })) })
+    }
     const rows = await c.db.prepare(`SELECT id, code, name, applies_to, annual_quota, is_paid, carry_forward FROM leave_types WHERE (? = '' OR applies_to = ?) ORDER BY applies_to, name`)
       .bind(applies, applies).all<Record<string, unknown>>()
     return ok({ items: rows.results.map((v) => omitNull({ id: v.id, code: v.code, name: v.name, applies_to: v.applies_to,
