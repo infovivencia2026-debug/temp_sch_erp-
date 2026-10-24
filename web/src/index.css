@@ -4996,3 +4996,60 @@ input[type="number"]::-webkit-inner-spin-button {
 @media (max-width: 767px) {
   .bento-dock { animation: none !important; opacity: 1 !important; view-transition-name: none !important; }
 }
+
+/* PHONE SIZES (owner, 2026-10-24: "the buttons and icons look small").
+   One block, below 640px only, after every utility so it wins over the
+   desktop h-8 / text-[13px] in the shared pieces. Desktop is untouched.
+   Text follows --font-scale; the root stays 14px so rem spacing does not
+   swell every layout -- body copy, controls and headings are set here.
+   Scale: body 16, secondary 14, caption 12, title 24, section 20.
+   Controls: buttons 48 (small 44), fields 52, radius 12, targets >= 48. */
+@media (max-width: 639.98px) {
+  :root {
+    --control-h: 48px;
+    --radius-control: 12px;
+    --radius-input: 12px;
+    --radius-card: 14px;
+    --page-gutter: 16px;
+    --card-pad: 16px;
+  }
+  body { font-size: calc(16px * var(--font-scale)); }
+  h1 { font-size: calc(24px * var(--font-scale)); }
+  h2 { font-size: calc(20px * var(--font-scale)); }
+  h3 { font-size: calc(16px * var(--font-scale)); }
+
+  /* Buttons: 48 tall, 16px label, 12 radius; a small button 44. */
+  .btn {
+    min-height: 48px !important;
+    min-width: 48px !important;
+    padding-inline: 16px !important;
+    font-size: calc(16px * var(--font-scale)) !important;
+    border-radius: 12px !important;
+  }
+  .btn[data-size='sm'] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding-inline: 14px !important;
+  }
+  .btn svg { width: 20px; height: 20px; }
+  /* An icon-only button (its title is its aria-label) draws a 24px glyph. */
+  .btn[aria-label]:not(:has(span)) svg { width: 24px; height: 24px; }
+
+  /* Fields, selects, picker and date triggers: 52 tall, 16px text. */
+  .field {
+    min-height: 52px;
+    height: auto;
+    font-size: calc(16px * var(--font-scale)) !important;
+    padding-inline: 14px;
+    border-radius: 12px;
+  }
+  textarea.field { min-height: 104px; }
+
+  /* Top bar, staff panel and tabs: every target 48, icons 24. */
+  header[data-paint='topbar'] button,
+  header[data-paint='topbar'] a[aria-label] { min-width: 48px; min-height: 48px; }
+  header[data-paint='topbar'] button svg,
+  header[data-paint='topbar'] a[aria-label] svg { width: 24px; height: 24px; }
+  .nav-line-icon { width: 24px !important; height: 24px !important; }
+  [role='tab'] { min-height: 48px; }
+}
