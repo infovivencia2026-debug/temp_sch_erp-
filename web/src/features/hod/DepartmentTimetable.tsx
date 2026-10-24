@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarRange, Gauge, TriangleAlert, UserCheck } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -95,7 +96,10 @@ export default function DepartmentTimetable() {
 
   const d = q.data!
   const s = d.summary
-  const shown = teacher ? d.teachers.filter((t) => t.user_id === teacher) : d.teachers
+  /* ONE TEACHER'S WEEK AT A TIME (Yajur, 2026-10-24: every teacher's grid one
+     under another read as endless scrolling). Pick a name in the Load table
+     or the picker; only that week is drawn. */
+  const shown = teacher ? d.teachers.filter((t) => t.user_id === teacher) : []
 
   return (
     <>
@@ -120,7 +124,7 @@ export default function DepartmentTimetable() {
             <Select
               value={teacher}
               onChange={setTeacher}
-              placeholder="Everyone"
+              placeholder="Choose a teacher"
               options={d.teachers.map((t) => ({ value: t.user_id, label: t.full_name }))}
             />
           </>
@@ -187,13 +191,16 @@ export default function DepartmentTimetable() {
         <Card>
           <CardHeader
             title="Load"
-            description="Against each teacher's own cap. Under-loaded is not an accusation, it is who has room when cover is needed."
+            description="Against each teacher's own cap. Tap a name to see that teacher's week."
           />
           <Table head={['Teacher', 'Department', 'Periods', 'Cap', 'Free slots', 'Load']}>
             {d.teachers.map((t) => (
-              <tr key={t.user_id}>
+              <tr key={t.user_id} className={cn(teacher === t.user_id && 'bg-primary/[0.07]')}>
                 <Td>
-                  <div className="font-medium">{t.full_name}</div>
+                  <button type="button" onClick={() => setTeacher(teacher === t.user_id ? '' : t.user_id)}
+                    className="text-left font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {t.full_name}
+                  </button>
                   <div className="text-[12px] text-muted-foreground">{t.employee_code}</div>
                 </Td>
                 <Td className="text-[13px] text-muted-foreground">{t.department}</Td>
