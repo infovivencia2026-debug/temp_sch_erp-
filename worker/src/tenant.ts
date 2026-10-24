@@ -58,6 +58,10 @@ export const defaultAppId = (i: Pick<Institution, 'slug'>) => `com.wisen.${i.slu
 /** Where a school's sign-in page lives on the shared host. */
 export const schoolPath = (i: Pick<Institution, 'country' | 'slug'>) => `/${i.country}/${i.slug}`
 
+/** One sign-in picture's public address; ?v= changes with each upload. */
+export const slideUrl = (i: Pick<Institution, 'country' | 'slug'>, s: { id: string; file_key: string }) =>
+  `${schoolPath(i)}/slide/${s.id}?v=${encodeURIComponent(s.file_key.slice(-12))}`
+
 /**
  * The school's own database. Isolation is the database boundary: a query on
  * this handle cannot reach another school's rows, so no WHERE institution_id

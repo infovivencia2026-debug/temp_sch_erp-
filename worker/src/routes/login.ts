@@ -6,7 +6,7 @@ import { loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
 import { askForCode } from '../pages/mfa'
 import { studentLoginRefusal, studentOnlyAccount } from '../services/student_logins'
-import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
+import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, slideUrl, tenantDb, type Institution } from '../tenant'
 
 const CSRF = 'erp_csrf'
 const MAX_FAILS = 8
@@ -66,10 +66,10 @@ function errorIn(lang: LoginLang, msg: string | undefined): string | undefined {
   return ERRORS_TE[msg] ?? msg
 }
 
-function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean; req?: Request }): Response {
+async function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean; req?: Request }): Promise<Response> {
   const tok = csrfToken()
   const action = opts.action ?? '/login'
-  const brand = opts.school ? brandOf(opts.school, action) : undefined
+  const brand = opts.school ? brandOf(opts.school, action, await loginSlides(env, opts.school)) : undefined
   const { lang, asked } = loginLang(opts.req, opts.school)
   let switchHref: string | undefined
   if (opts.req) {
@@ -98,14 +98,35 @@ export function homeOf(req: Request): string | null {
   return p && SCHOOL_PATH.test(p) ? p : null
 }
 
-export function brandOf(i: Institution, action: string): Brand {
+/** The school's sign-in pictures, in order, as public URLs. */
+export async function loginSlides(env: Env, i: Institution): Promise<string[]> {
+  const rows = await env.CONTROL.prepare('SELECT id, file_key FROM login_slides WHERE institution_id = ? ORDER BY position, created_at')
+    .bind(i.id).all<{ id: string; file_key: string }>()
+  return rows.results.map((s) => slideUrl(i, s))
+}
+
+export function brandOf(i: Institution, action: string, slides: string[] = []): Brand {
   return {
-    name: i.name, action,
+    name: i.name, action, slides,
     logoUrl: i.logo_key ? `${schoolPath(i)}/logo?v=${encodeURIComponent(i.logo_key.slice(-12))}` : null,
     primary: i.primary_color, accent: i.accent_color,
     eyebrow: i.tagline, headline: i.login_headline, message: i.login_message,
     supportEmail: i.support_email, supportPhone: i.support_phone,
   }
+}
+
+/** One sign-in picture, public like the logo. Another school's picture is a 404. */
+export async function schoolSlide(env: Env, country: string, slug: string, id: string): Promise<Response | null> {
+  const school = await institutionByPath(env, country, slug)
+  if (!school) return null
+  const row = await env.CONTROL.prepare('SELECT file_key FROM login_slides WHERE id = ? AND institution_id = ?').bind(id, school.id).first<{ file_key: string }>()
+  if (!row) return null
+  const obj = (await env.FILES_WRITE.get(row.file_key)) ?? (await env.FILES.get(row.file_key))
+  if (!obj) return null
+  return new Response(obj.body, { headers: {
+    'content-type': obj.httpMetadata?.contentType ?? 'image/jpeg',
+    'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff',
+  } })
 }
 
 /** The host the visitor typed: the Pages proxy passes it on, the Worker's own URL otherwise. */

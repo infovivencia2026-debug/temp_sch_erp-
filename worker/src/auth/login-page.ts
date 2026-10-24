@@ -13,6 +13,8 @@ export interface Brand {
   name: string
   action: string
   logoUrl?: string | null
+  /** Sign-in pictures, public URLs in order. */
+  slides?: string[]
   primary?: string | null
   accent?: string | null
   eyebrow?: string | null
