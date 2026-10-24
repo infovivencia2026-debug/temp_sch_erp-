@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -120,12 +120,16 @@ export function staffItemClass(on: boolean, live = true) {
   )
 }
 
-export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, children }: {
-  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; children: React.ReactNode
+/* `go`: pressing the head also lands on that screen and opens rather than
+   closes (Home holding the workspace's other screens, owner 2026-10-24). */
+export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, go, onNavigate, children }: {
+  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; go?: string; onNavigate?: () => void; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
+  const navigate = useNavigate()
   const toggle = () => {
-    const next = !open
+    if (go) { navigate(go); onNavigate?.() }
+    const next = go ? true : !open
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
@@ -139,7 +143,8 @@ export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon 
         <Count n={count} />
         <ChevronRight aria-hidden className="nav-pill__arrow" />
       </button>
-      {open && <div className="nav-pill__sub">{children}</div>}
+      {/* Always mounted, so opening slides (grid rows 0fr to 1fr) instead of popping in. */}
+      <div className="nav-pill__body" {...({ inert: open ? undefined : '' } as Record<string, string | undefined>)}><div className="nav-pill__sub">{children}</div></div>
     </div>
   )
 }
@@ -184,11 +189,22 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   let homes = 0
   let row = 0
   const usedIcons = new Set<LucideIcon>()
+  /* Home holds the other screens of its workspace (owner, 2026-10-24: "Getting
+     started, Approvals, all those used to be inside one"): pressing Home opens
+     the dashboard and the group; the screens sit inside it. */
+  const homeHeld = new Map<string, { section: string; f: ApiSection['features'][number] }[]>()
+  const folded = new Set<string>()
+  for (const { ws, section } of listed) {
+    if (!isHomeSection(section) || homeHeld.has(ws.slug)) continue
+    const rest = listed.filter((g) => g.ws.slug === ws.slug && !isHomeSection(g.section))
+      .flatMap((g) => { const l = bySection.get(g.section.slug) ?? []; if (l.length) folded.add(g.section.slug); return l })
+    homeHeld.set(ws.slug, rest)
+  }
   return (
     <>
       {listed.map(({ ws, section }) => {
         const list = bySection.get(section.slug) ?? []
-        if (!list.length) return null
+        if (!list.length || folded.has(section.slug)) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
         /* Home is one item, not a group: it opens the workspace dashboard
            (Yajur, 2026-10-22: "No need of sub-section for Home; Today's
@@ -197,6 +213,23 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
            sub section"). */
         const home = isHomeSection(section)
         const hue = PILL_HUES[row++ % PILL_HUES.length]
+        const inHome = home ? homeHeld.get(ws.slug) ?? [] : []
+        if (home && inHome.length) {
+          const first = list[0]
+          const name = homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
+          return (
+            <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={label(name)}
+              hue={hue} icon={uniqueIcon('home', usedIcons)} go={featurePath(roleKey, first.section, first.f.slug)} onNavigate={onNavigate}>
+              {[...list, ...inHome].map(({ section: from, f }) => (
+                <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+                  className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>
+                  <LineIcon name={`${f.slug} ${f.name}`} size={20} />
+                  <span className="truncate">{label(f.name)}</span>
+                </NavLink>
+              ))}
+            </StaffNavGroup>
+          )
+        }
         if (home || list.length === 1) {
           const first = list[0]
           const name = !home ? first.f.name : homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)

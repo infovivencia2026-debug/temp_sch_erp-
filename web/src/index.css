@@ -5164,3 +5164,24 @@ a.nav-pill.nav-pill__head { padding: 5px 14px 5px 6px; }
   nav .nav-pill__head, nav button.nav-pill__head { min-height: 40px !important; }
   nav .nav-pill__badge svg { width: 17px !important; height: 17px !important; }
 }
+/* A pill group opens smoothly (owner's design: max-height .35s
+   cubic-bezier(.4,0,.2,1)); grid rows animate to the content's real height. */
+.nav-pill__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body { grid-template-rows: 1fr; }
+.nav-pill__body > .nav-pill__sub { min-height: 0; overflow: hidden; padding-bottom: 0; transition: padding-bottom .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { padding-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .nav-pill__body, .nav-pill__body > .nav-pill__sub { transition: none; } }
+/* Hover, as in the owner's design: the card lifts 2px and takes its hue's wash,
+   border and shadow; the badge grows and the arrow steps right. Pointer
+   devices only, so a finger never leaves a row stuck in its hover state. */
+@media (hover: hover) {
+  .nav-pill { transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease, transform .25s ease; }
+  .nav-pill:hover {
+    background: var(--pill-wash); border-color: var(--pill-ink); transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+  }
+  .nav-pill[data-open]:hover { transform: none; }
+  .nav-pill:hover > .nav-pill__head .nav-pill__badge, a.nav-pill:hover .nav-pill__badge { transform: scale(1.1); }
+  .nav-pill:not([data-open]):hover .nav-pill__arrow { color: var(--pill-ink); transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { .nav-pill:hover { transform: none; } }
