@@ -629,7 +629,6 @@ export default function StaffMessages() {
                 }
                 onSend={(m) => replyToParent.mutateAsync(m)}
                 error={replyToParent.error}
-                placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
                 height="min-h-0"
               />
             </ConversationPane>
@@ -733,7 +732,6 @@ export default function StaffMessages() {
               empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
               onSend={(m) => send.mutateAsync(m)}
               error={send.error}
-              placeholder={`Write to ${open?.full_name ?? 'them'}`}
               height="min-h-0"
             />
           </ConversationPane>

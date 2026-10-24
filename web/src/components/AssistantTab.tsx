@@ -1589,9 +1589,9 @@ export function AssistantTab() {
                 disabled={state !== 'idle'}
                 aria-label="Attach a spreadsheet to import"
                 title="Attach a spreadsheet to import"
-                className="grid size-9 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+                className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
               >
-                <Plus className="size-4" />
+                <Plus className="size-6 sm:size-5" />
               </button>
               <AssistantImportWithAI disabled={state !== 'idle'} />
             </div>
@@ -1628,11 +1628,11 @@ export function AssistantTab() {
                     aria-pressed={dictation.listening}
                     title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
                     className={cn(
-                      'grid size-[34px] shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
+                      'grid size-12 sm:size-10 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
                       dictation.listening ? 'bg-destructive text-white' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                   >
-                    {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-4" />}
+                    {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-6 sm:size-5" />}
                   </button>
                 )}
                 {state !== 'idle' || printingIdx >= 0 ? (
@@ -1641,7 +1641,7 @@ export function AssistantTab() {
                     onClick={stopGenerating}
                     aria-label="Stop generating"
                     title="Stop generating"
-                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85"
+                    className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85"
                   >
                     <Square className="size-3 fill-current" />
                   </button>
@@ -1651,10 +1651,10 @@ export function AssistantTab() {
                     disabled={!draft.trim()}
                     aria-label="Send"
                     title="Send"
-                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-[opacity,background-color]
+                    className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[opacity,background-color]
                                hover:opacity-85 disabled:bg-muted disabled:text-muted-foreground disabled:hover:opacity-100"
                   >
-                    <ArrowUp className="size-[18px]" strokeWidth={2.5} />
+                    <ArrowUp className="size-6 sm:size-5" strokeWidth={2.5} />
                   </button>
                 )}
               </div>

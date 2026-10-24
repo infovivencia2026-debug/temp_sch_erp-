@@ -415,7 +415,6 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         sending={reply.isPending}
         error={reply.error}
         allowAttachments={false}
-        placeholder="Reply to the parent, sent in your name; the teacher sees it too"
         height="min-h-0"
       />
     </ThreadPane>
