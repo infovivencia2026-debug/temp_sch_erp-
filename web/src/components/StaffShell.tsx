@@ -342,7 +342,7 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
 /* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
    one full-width pill, then a card with who is signed in and Help, Settings
    and Sign out. The avatar and name open the account page. */
-const FOOT_ICON = 'grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const FOOT_ICON = 'grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: string | null; onNavigate: () => void }) {
   const session = useSession()
