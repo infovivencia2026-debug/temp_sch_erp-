@@ -6,6 +6,8 @@ import { api, ApiError } from '@/lib/api'
 import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import DayTimeline from '@/components/DayTimeline'
+import WeekGrid from '@/components/WeekGrid'
+import { usePhone } from '@/lib/viewport'
 import { useSession } from '@/lib/session'
 import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
@@ -125,6 +127,7 @@ export default function TodaysClasses() {
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
   const qc = useQueryClient()
+  const phone = usePhone()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   /* This home is also every staff member's at a school with the staff layout on
@@ -144,6 +147,16 @@ export default function TodaysClasses() {
   const span = (a: string, b: string) => `${a.slice(0, 5)} – ${b.slice(0, 5)}`
   const coverItems = holiday ? [] : cover.data?.items ?? []
   const takenBy = new Map(coverItems.filter((x) => x.kind === 'covered').map((x) => [x.entry_id, x.other]))
+  const todayEntries = [
+      ...mine.map((e) => ({
+        weekday: e.weekday, period_id: e.period_id, title: e.subject_name,
+        detail: [`${e.class_name} ${e.section_name}`, takenBy.get(e.id) && `${takenBy.get(e.id)} is taking this class`, e.room].filter(Boolean).join(' · '),
+      })),
+      ...coverItems.filter((x) => x.kind === 'covering').map((x) => ({
+        weekday, period_id: x.period_id, title: `Cover: ${x.subject}`,
+        detail: [x.section, `for ${x.other}`, x.note].filter(Boolean).join(' · '),
+      })),
+  ]
   const lessonRows: Row[] = [...mine.map((e) => {
     const p = bell.get(e.period_id)
     const by = takenBy.get(e.id)
@@ -238,21 +251,10 @@ export default function TodaysClasses() {
                   : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
               />
             ) : (
-              /* Today as the parents' timetable shows it (Yajur, 2026-10-24): times
-                 down the left, a card per period, breaks between, the period on
-                 now marked, no other days. */
-              <DayTimeline bare todayOnly who="" where=""
-                periods={periods.data?.items ?? []}
-                entries={[
-                  ...mine.map((e) => ({
-                    weekday: e.weekday, period_id: e.period_id, title: e.subject_name,
-                    detail: [`${e.class_name} ${e.section_name}`, takenBy.get(e.id) && `${takenBy.get(e.id)} is taking this class`, e.room].filter(Boolean).join(' · '),
-                  })),
-                  ...coverItems.filter((x) => x.kind === 'covering').map((x) => ({
-                    weekday, period_id: x.period_id, title: `Cover: ${x.subject}`,
-                    detail: [x.section, `for ${x.other}`, x.note].filter(Boolean).join(' · '),
-                  })),
-                ]} />
+              /* Today only (Yajur, 2026-10-24): on a phone as the parents' timeline,
+                 on a computer in the web week-grid style with just today's column. */
+              phone ? <DayTimeline bare todayOnly who="" where="" periods={periods.data?.items ?? []} entries={todayEntries} />
+                : <WeekGrid weekdays={[weekday]} periods={periods.data?.items ?? []} entries={todayEntries} />
             )}
           </div>
         </Card>
