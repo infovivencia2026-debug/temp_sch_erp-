@@ -5121,7 +5121,7 @@ input[type="number"]::-webkit-inner-spin-button {
   --pill-ink: hsl(var(--h) 75% 38%);
   --pill-badge: hsl(var(--h) 85% 93%);
   --pill-wash: hsl(var(--h) 90% 97%);
-  display: block; padding: 4px; border-radius: 9999px;
+  display: block; padding: 2px; border-radius: 9999px;
   border: 1px solid hsl(var(--border)); background: hsl(var(--card));
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / .02), 0 2px 4px -1px rgb(0 0 0 / .02);
   transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease;
@@ -5132,21 +5132,21 @@ input[type="number"]::-webkit-inner-spin-button {
   --pill-wash: hsl(var(--h) 30% 13%);
 }
 .nav-pill[data-open], .nav-pill.nav-pill--on {
-  border-radius: 28px; border-color: var(--pill-ink); background: var(--pill-wash);
+  border-radius: 22px; border-color: var(--pill-ink); background: var(--pill-wash);
   box-shadow: 0 10px 20px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
 }
 .nav-pill.nav-pill--on { border-radius: 9999px; }
 .nav-pill__head {
-  display: flex; width: 100%; align-items: center; gap: 16px; min-height: 48px;
-  padding: 8px 14px 8px 8px; border-radius: 9999px; text-align: left;
+  display: flex; width: 100%; align-items: center; gap: 12px; min-height: 40px;
+  padding: 3px 12px 3px 4px; border-radius: 9999px; text-align: left;
   font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; color: hsl(var(--foreground));
 }
-a.nav-pill.nav-pill__head { padding: 12px 18px 12px 12px; }
+a.nav-pill.nav-pill__head { padding: 5px 14px 5px 6px; }
 .nav-pill__badge {
-  display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 9999px;
+  display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 9999px;
   background: var(--pill-badge); color: var(--pill-ink); transition: transform .25s ease;
 }
-.nav-pill__badge svg { width: 20px; height: 20px; }
+.nav-pill__badge svg { width: 17px; height: 17px; }
 .nav-pill__arrow { width: 18px; height: 18px; flex-shrink: 0; color: hsl(var(--muted-foreground) / .5); transition: transform .3s ease, color .25s ease; }
 .nav-pill[data-open] .nav-pill__arrow, .nav-pill--on .nav-pill__arrow { transform: rotate(90deg); color: var(--pill-ink); }
 .nav-pill--on .nav-pill__arrow { transform: none; }
@@ -5157,4 +5157,10 @@ a.nav-pill.nav-pill__head { padding: 12px 18px 12px 12px; }
 @media (max-width: 639.98px) {
   .nav-pill__head { font-size: 16px; }
   .nav-pill__sub a { font-size: 15px; min-height: 48px; }
+}
+/* Thin pills (owner, 2026-10-24: "make those thin" in the sidebar): the phone
+   48px floor for buttons does not apply to a pill's head row. */
+@media (max-width: 639.98px) {
+  nav .nav-pill__head, nav button.nav-pill__head { min-height: 40px !important; }
+  nav .nav-pill__badge svg { width: 17px !important; height: 17px !important; }
 }
