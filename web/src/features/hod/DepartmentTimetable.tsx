@@ -91,11 +91,32 @@ export default function DepartmentTimetable() {
       ),
   })
 
+  /* Every bell schedule's periods (Yajur runs several): an entry on another
+     schedule's Period3 belongs on this grid's Period3 row, matched by name. */
+  const allPeriods = useQuery({
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
+  })
+
   if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading the department's week…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const d = q.data!
   const s = d.summary
+  const rowByName = new Map(d.periods.filter((p) => !p.is_break).map((p) => [p.name.trim().toLowerCase(), p.id]))
+  const nameOf = new Map((allPeriods.data?.items ?? []).map((p) => [p.id, p.name.trim().toLowerCase()]))
+  const weekly = (uid: string) => {
+    const m = new Map<string, { key: string; cls: string; subject: string; n: number }>()
+    for (const e of d.entries) {
+      if (e.teacher_id !== uid) continue
+      const key = `${e.class_name}-${e.section_name}|${e.subject_name}`
+      const w = m.get(key) ?? { key, cls: `${e.class_name}-${e.section_name}`, subject: e.subject_name, n: 0 }
+      w.n++
+      m.set(key, w)
+    }
+    return [...m.values()].sort((a, b) => a.cls.localeCompare(b.cls) || a.subject.localeCompare(b.subject))
+  }
+  const rowOf = (periodID: string) => (d.periods.some((p) => p.id === periodID) ? periodID : rowByName.get(nameOf.get(periodID) ?? '') ?? periodID)
   /* ONE TEACHER'S WEEK AT A TIME (Yajur, 2026-10-24: every teacher's grid one
      under another read as endless scrolling). Pick a name in the Load table
      or the picker; only that week is drawn. */
@@ -223,13 +244,23 @@ export default function DepartmentTimetable() {
               title={t.full_name}
               description={`${t.periods} periods a week, ${t.free_slots} slots free, cap ${t.max_periods_per_week}.`}
             />
+            {/* What they teach in a week: each class and subject with its periods (Yajur, 2026-10-24). */}
+            <Table head={['Class', 'Subject', 'Periods a week']}>
+              {weekly(t.user_id).map((w) => (
+                <tr key={w.key}>
+                  <Td>{w.cls}</Td>
+                  <Td className="font-medium">{w.subject}</Td>
+                  <Td className="tabular-nums">{w.n}</Td>
+                </tr>
+              ))}
+            </Table>
             <div className="p-4">
               <WeekGrid
                 weekdays={d.weekdays}
                 periods={d.periods}
                 entries={d.entries.filter((e) => e.teacher_id === t.user_id).map((e) => ({
                   weekday: e.weekday,
-                  period_id: e.period_id,
+                  period_id: rowOf(e.period_id),
                   title: `${e.class_name}-${e.section_name}`,
                   detail: e.subject_name,
                   room: e.room,

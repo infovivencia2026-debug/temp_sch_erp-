@@ -135,15 +135,18 @@ export default function DayTimeline({
     <Shell>
       {/* Sticky head: who, and the day strip. Stays put while the day scrolls. */}
       <div className="sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{who}</div>
-            <div className="text-[12px] font-medium text-muted-foreground">{where}</div>
+        {/* No name line when the caller's card already says whose week it is (WeekGrid on a phone). */}
+        {(who || where || live) && (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              {who && <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{who}</div>}
+              {where && <div className="text-[12px] font-medium text-muted-foreground">{where}</div>}
+            </div>
+            {live && (
+              <Badge tone="success" className="shrink-0">{live.name} now</Badge>
+            )}
           </div>
-          {live && (
-            <Badge tone="success" className="shrink-0">{live.name} now</Badge>
-          )}
-        </div>
+        )}
         <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
           {days.map((d) => (
             <button

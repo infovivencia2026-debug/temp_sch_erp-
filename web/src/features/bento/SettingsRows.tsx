@@ -83,7 +83,7 @@ export function SignOutButton({ className, href = '/logout' }: { className?: str
       <a
         href={href}
         role="button"
-        className="flex min-h-[var(--srow-h,50px)] w-full items-center gap-3 px-4 text-left transition-colors active:bg-muted"
+        className="flex min-h-[var(--srow-h,50px)] w-full items-center gap-3 px-4 text-left transition-colors"
       >
         <SectionIcon id="signout"><LogOut /></SectionIcon>
         <span className="min-w-0 flex-1 truncate text-[15px] font-normal text-[#ff3b30]">
