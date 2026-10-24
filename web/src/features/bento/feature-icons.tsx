@@ -50,6 +50,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
   school_gallery: 'photo_library', // School Gallery
+  school_activity: 'browse_activity', // School activity
   scheduled_digests: 'schedule', // Scheduled digests
   interaction_log: 'timeline', // Interaction log
   store_catalogue: 'inventory_2', // Store catalogue
@@ -405,6 +406,7 @@ export const FEATURE_ICONS: Record<string, string> = {
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
   tasks: 'checklist', // Tasks
+  activity: 'browse_activity', // Activity
   handbook: 'menu_book', // Handbook
   help: 'help',
   lms: 'cast_for_education', // LMS
@@ -432,6 +434,7 @@ export const SECTION_ICONS: Record<string, string> = {
   clinic: 'medical_services', // Clinic
   communication: 'forum', // Communication
   school_gallery: 'photo_library', // School Gallery
+  school_activity: 'browse_activity', // School activity
   consent_permissions: 'approval', // Consent & Permissions
   counselling: 'psychology', // Counselling
   dashboard: 'dashboard', // Dashboard
