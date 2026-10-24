@@ -6,8 +6,6 @@ import { api, ApiError } from '@/lib/api'
 import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import DayTimeline from '@/components/DayTimeline'
-import WeekGrid from '@/components/WeekGrid'
-import { usePhone } from '@/lib/viewport'
 import { useSession } from '@/lib/session'
 import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
@@ -127,7 +125,6 @@ export default function TodaysClasses() {
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
-  const phone = usePhone()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   /* This home is also every staff member's at a school with the staff layout on
@@ -251,10 +248,9 @@ export default function TodaysClasses() {
                   : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
               />
             ) : (
-              /* Today only (Yajur, 2026-10-24): on a phone as the parents' timeline,
-                 on a computer in the web week-grid style with just today's column. */
-              phone ? <DayTimeline bare todayOnly who="" where="" periods={periods.data?.items ?? []} entries={todayEntries} />
-                : <WeekGrid weekdays={[weekday]} periods={periods.data?.items ?? []} entries={todayEntries} />
+              /* Today only (Yajur, 2026-10-24): the day timeline at every size; a one-day grid
+                 left half the dashboard card empty (Yajur, 2026-10-24). */
+              <DayTimeline bare todayOnly who="" where="" periods={periods.data?.items ?? []} entries={todayEntries} />
             )}
           </div>
         </Card>

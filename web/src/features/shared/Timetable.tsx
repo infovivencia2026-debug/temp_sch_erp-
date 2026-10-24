@@ -5,7 +5,6 @@ import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTa
 import { Printer } from 'lucide-react'
 import { printDocument } from '@/lib/print'
 import { cn } from '@/lib/utils'
-import DayTimeline from '@/components/DayTimeline'
 import WeekGrid from '@/components/WeekGrid'
 import { useSession } from '@/lib/session'
 import { usePhone } from '@/lib/viewport'
@@ -212,21 +211,12 @@ function Grid({ isStaff }: { isStaff: boolean }) {
         </div>
       )}
 
+      {/* One component: the grid on a computer, the day timeline on a phone. */}
       {phone ? (
         <div className="px-1 pb-2">
-          <DayTimeline
-            bare
-            who={title}
+          <WeekGrid id="staff-timetable" entries={gridCells} periods={rows} who={title}
             where={view.mode === 'me' ? 'Every period you teach, across all your classes' : 'The whole week for this class'}
-            breaks={view.mode !== 'me'}
-            periods={allPeriods}
-            entries={cells.map((c) => ({
-              weekday: c.weekday,
-              period_id: c.period_id,
-              title: c.subject,
-              detail: [c.who, c.room].filter(Boolean).join(' • '),
-            }))}
-          />
+            empty={view.mode === 'me' ? 'No periods are timetabled for you yet.' : 'Nothing is timetabled for this class yet.'} />
         </div>
       ) : (
         <div className="p-4">
