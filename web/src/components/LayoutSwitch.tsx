@@ -6,6 +6,7 @@ import { useLayout, reconcileLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { cn } from '@/lib/utils'
 import { crossfade } from '@/lib/motion'
 import { SlidingIndicator } from '@/components/SlidingIndicator'
+import { Briefcase, Focus } from 'lucide-react'
 
 /* Two buttons, side by side, in the shell header.
 
@@ -23,7 +24,8 @@ const LABEL: Record<Layout, 'shell.layout.classic' | 'shell.layout.bento'> = {
   bento: 'shell.layout.bento',
 }
 
-export function LayoutSwitch() {
+/** `pill`: the staff panel's full-width pill track with icons (owner's side-panel design, 2026-10-24). */
+export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
   const { layout, setLayout } = useLayout()
   const t = useT()
   const qc = useQueryClient()
@@ -63,13 +65,16 @@ export function LayoutSwitch() {
       /* The shared segment strip's ground (SEG_BAR), as two equal halves sized
          to their labels: no stretched empty track, no heavy shadow. The whole
          control is --control-h tall (40px desk, 44px phone). */
-      className="relative inline-grid h-[var(--control-h)] grid-cols-2 gap-0.5 rounded-md bg-muted p-0.5"
+      className={pill
+        ? 'relative grid h-12 w-full grid-cols-2 gap-1 rounded-full border bg-muted p-1'
+        : 'relative inline-grid h-[var(--control-h)] grid-cols-2 gap-0.5 rounded-md bg-muted p-0.5'}
     >
       <SlidingIndicator listRef={groupRef} active={layout}
-        className="rounded-sm bg-primary" />
+        className={pill ? 'rounded-full bg-primary shadow-[0_4px_12px_hsl(var(--primary)/0.25)]' : 'rounded-sm bg-primary'} />
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
+        const Icon = value === 'bento' ? Focus : Briefcase
         return (
           <button
             key={value}
@@ -79,12 +84,14 @@ export function LayoutSwitch() {
             aria-pressed={active}
             title={t(LABEL[value])}
             className={cn(
-              'flex h-full min-w-0 items-center justify-center rounded-sm px-3 text-[13px] transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex h-full min-w-0 items-center justify-center px-3 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              pill ? 'gap-2 rounded-full text-[calc(14px*var(--font-scale,1))] font-bold' : 'rounded-sm text-[13px]',
               active
-                ? 'bg-primary font-medium text-primary-foreground'
+                ? cn('bg-primary text-primary-foreground', !pill && 'font-medium')
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
+            {pill && <Icon aria-hidden className="h-4 w-4 shrink-0" />}
             {t(LABEL[value])}
           </button>
         )
