@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PageHead, PageBody, Select, ErrorState, EmptyState, Card } from '@/components/ui'
-import DayTimeline from '@/components/DayTimeline'
 import WeekGrid from '@/components/WeekGrid'
 import { usePhone } from '@/lib/viewport'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -97,18 +96,11 @@ export default function ChildTimetable() {
         ) : (
           /* The week as a grid on a computer, the day as a timeline on a phone
              (Yajur, 2026-10-24: one timetable look everywhere). */
-          phone ? (
-            <DayTimeline
-              who={`${child?.full_name ?? ''}`}
-              where={`${child?.class_name ?? ''} ${child?.section_name ?? ''}`.trim()}
-              periods={periods.data?.items ?? []}
-              entries={week}
-            />
-          ) : (
-            <Card className="p-4">
-              <WeekGrid periods={periods.data?.items ?? []} entries={week} />
-            </Card>
-          )
+          <Card className={phone ? undefined : 'p-4'}>
+            <WeekGrid periods={periods.data?.items ?? []} entries={week}
+              who={child?.full_name ?? ''}
+              where={`${child?.class_name ?? ''} ${child?.section_name ?? ''}`.trim()} />
+          </Card>
         )}
       </PageBody>
     </>
