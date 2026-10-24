@@ -127,7 +127,6 @@ const CLASS_TEACHER_ONLY: Record<string, string> = {
   'hod.attendance.take_attendance': 'academics.attendance.write',
   // Subject overview only for the people the principal made a subject's head (owner, 2026-10-19).
   'hod.academics.subject_overview': 'academics.subject_head',
-  'faculty.academics.subject_overview': 'academics.subject_head',
 }
 function visibleFeatures(section: ApiSection, showPlanned: boolean, showAdvanced: boolean, perms: ReadonlySet<string>) {
   return section.features.filter(

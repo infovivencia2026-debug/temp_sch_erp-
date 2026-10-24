@@ -136,6 +136,8 @@ interface BankQuestionRequest {
   explanation: string
   is_active: boolean | null
   options: BankOptionInput[]
+  /** The question as printed (Question maker): one box tree, JSON text. */
+  body: string | null
 }
 
 function decodeBankRequest(raw: Row): BankQuestionRequest {
@@ -150,8 +152,21 @@ function decodeBankRequest(raw: Row): BankQuestionRequest {
     explanation: s(raw.explanation),
     is_active: optBool(raw.is_active),
     options: arr<Row>(raw.options).map((o) => ({ body: s(o?.body), is_correct: b(o?.is_correct) })),
+    body: richBody(raw.body),
   }
 }
+
+/** A banked box: an object with an id, small enough to keep, pictures by file id only. */
+const MAX_BODY_BYTES = 200_000
+function richBody(v: unknown): string | null {
+  if (v === undefined || v === null || v === '') return null
+  if (typeof v !== 'object' || Array.isArray(v) || typeof (v as Row).id !== 'string') throw badRequest('the question could not be read. Reload and try again')
+  const text = JSON.stringify(v)
+  if (text.length > MAX_BODY_BYTES) throw badRequest('this question is too large to bank. Make its pictures smaller')
+  if (text.includes('data:image/')) throw badRequest('a picture in this question was not uploaded. Remove it and add it again')
+  return text
+}
+const parsedBody = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : JSON.parse(String(v)))
 
 const NO_CORRECT_OPTION = 'an objective question with no correct answer'
 
@@ -179,10 +194,10 @@ function validateBankQuestion(req: BankQuestionRequest, requireOptions: boolean)
 function insertQuestionStmts(c: Ctx, qId: string, csId: string, req: BankQuestionRequest, active: boolean): Stmt[] {
   const t = now()
   const out: Stmt[] = [c.db.prepare(`INSERT INTO question_bank_questions (id, institution_id, class_subject_id, syllabus_unit_id,
-      kind, difficulty, bloom_level, stem, default_marks, explanation, is_active, created_by, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,NULLIF(?,''),?,?,?,?)`)
+      kind, difficulty, bloom_level, stem, default_marks, explanation, is_active, created_by, created_at, updated_at, body)
+      VALUES (?,?,?,?,?,?,?,?,?,NULLIF(?,''),?,?,?,?,?)`)
     .bind(qId, institutionId(c), csId, nullUUID(req.syllabus_unit_id), req.kind, req.difficulty, req.bloom_level,
-      req.stem, String(req.default_marks), req.explanation, active ? 1 : 0, c.id.userId, t, t)]
+      req.stem, String(req.default_marks), req.explanation, active ? 1 : 0, c.id.userId, t, t, req.body)]
   return out.concat(insertOptionStmts(c, qId, req))
 }
 
@@ -231,7 +246,7 @@ async function listBankQuestions(c: Ctx): Promise<Response> {
   const rs = await c.db.prepare(`
     SELECT q.id, q.class_subject_id, c.name AS class_name, sub.name AS subject,
            q.syllabus_unit_id, su.title AS chapter, q.kind, q.difficulty, q.bloom_level, q.stem,
-           q.default_marks, q.explanation, q.is_active, ${optionsSQL('q')} AS options,
+           q.default_marks, q.explanation, q.is_active, q.body, ${optionsSQL('q')} AS options,
            (SELECT count(*) FROM online_test_questions tq WHERE tq.question_id = q.id) AS used_on,
            u.full_name AS created_by
       FROM question_bank_questions q
@@ -263,6 +278,7 @@ function bankQuestionJSON(r: Row, options: string[], usedOn: number): Row {
   o.objective = objectiveKinds.has(String(r.kind))
   o.used_on_tests = usedOn
   opt(o, 'created_by', r.created_by)
+  opt(o, 'body', parsedBody(r.body))
   return o
 }
 
@@ -300,7 +316,7 @@ async function getBankQuestion(c: Ctx): Promise<Response> {
   const r = await c.db.prepare(`
     SELECT q.id, q.class_subject_id, c.name AS class_name, sub.name AS subject,
            q.syllabus_unit_id, su.title AS chapter, q.kind, q.difficulty,
-           q.bloom_level, q.stem, q.default_marks, q.explanation, q.is_active
+           q.bloom_level, q.stem, q.default_marks, q.explanation, q.is_active, q.body
       FROM question_bank_questions q
       JOIN class_subjects cs ON cs.id = q.class_subject_id
       JOIN classes         c ON c.id = cs.class_id
@@ -358,9 +374,10 @@ async function updateBankQuestion(c: Ctx): Promise<Response> {
            default_marks = ?,
            explanation   = COALESCE(NULLIF(?,''), explanation),
            is_active     = COALESCE(?, is_active),
+           body          = COALESCE(?, body),
            updated_at    = ?
      WHERE id = ?`).bind(nullUUID(req.syllabus_unit_id), req.kind, req.difficulty, req.bloom_level, req.stem.trim(),
-      String(req.default_marks), req.explanation, req.is_active === null ? null : req.is_active ? 1 : 0, now(), qId)]
+      String(req.default_marks), req.explanation, req.is_active === null ? null : req.is_active ? 1 : 0, req.body, now(), qId)]
   if (req.options.length > 0) {
     stmts.push(c.db.prepare(`DELETE FROM question_bank_options WHERE question_id = ?`).bind(qId))
     stmts.push(...insertOptionStmts(c, qId, req))
@@ -380,6 +397,40 @@ async function retireBankQuestion(c: Ctx): Promise<Response> {
   if (!(await classSubjectTaught(c, res, cur.class_subject_id))) throw notFoundGo()
   await c.db.prepare(`UPDATE question_bank_questions SET is_active = 0, updated_at = ? WHERE id = ?`).bind(now(), qId).run()
   return ok({ id: qId, is_active: false })
+}
+
+/* Many questions into one subject at once: a .qbank file brought from the
+   desktop QMaker, or every question of a paper banked together. Each item is
+   checked like a single create and the whole lot goes in one batch, so a file
+   with one bad question adds nothing and says which one. A chapter named in
+   the file is matched to the subject's syllabus by title; one not found is
+   left blank rather than invented. */
+const IMPORT_MAX = 500
+
+async function importBankQuestions(c: Ctx): Promise<Response> {
+  requirePerm(c, HOMEWORK_WRITE)
+  const raw = await body(c)
+  const csId = s(raw.class_subject_id)
+  if (!isUUID(csId)) throw badRequest('choose a subject first')
+  const list = arr<Row>(raw.items)
+  if (list.length === 0) throw badRequest('there are no questions to add')
+  if (list.length > IMPORT_MAX) throw badRequest(`add at most ${IMPORT_MAX} questions at a time`)
+  const res = await resolveScope(c)
+  if (!(await classSubjectTaught(c, res, csId))) throw forbid('banking a question for this subject')
+  const units = await c.db.prepare(`SELECT id, title FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1`).bind(csId).all<{ id: string; title: string }>()
+  const unitByTitle = new Map(units.results.map((u) => [u.title.trim().toLowerCase(), u.id]))
+  const stmts: Stmt[] = []
+  list.forEach((item, i) => {
+    if (item === null || typeof item !== 'object') throw badRequest(`question ${i + 1} could not be read`)
+    const req = decodeBankRequest({ ...item, class_subject_id: csId, syllabus_unit_id: unitByTitle.get(s(item.chapter).trim().toLowerCase()) ?? '' })
+    req.stem = req.stem.trim()
+    if (req.stem === '') throw badRequest(`question ${i + 1} has no text`)
+    const verr = validateBankQuestion(req, false)
+    if (verr) throw badRequest(`question ${i + 1}: ${verr}`)
+    stmts.push(...insertQuestionStmts(c, uuid(), csId, req, true))
+  })
+  await c.db.batch(stmts)
+  return ok({ added: list.length })
 }
 
 // --- paper_compose.go ------------------------------------------------------
@@ -427,7 +478,9 @@ async function composePaper(c: Ctx): Promise<Response> {
     args.push(row.count)
     const rs = await c.db.prepare(`
       SELECT q.id, q.stem, q.kind, q.difficulty, q.bloom_level, su.title AS chapter,
-             q.default_marks, ${optionsSQL('q')} AS options
+             q.default_marks, q.body, ${optionsSQL('q')} AS options,
+             COALESCE((SELECT json_group_array(oc.is_correct) FROM
+               (SELECT o.is_correct FROM question_bank_options o WHERE o.question_id = q.id ORDER BY o.sequence) oc), '[]') AS correct
         FROM question_bank_questions q
         LEFT JOIN syllabus_units su ON su.id = q.syllabus_unit_id
        WHERE ${where}
@@ -440,6 +493,9 @@ async function composePaper(c: Ctx): Promise<Response> {
       return {
         id: q.id, stem: q.stem, kind: q.kind, difficulty: q.difficulty, bloom_level: q.bloom_level,
         chapter: q.chapter ?? null, marks: m, options: JSON.parse(String(q.options ?? '[]')) as string[],
+        body: parsedBody(q.body) ?? null,
+        // The answer key of a drawn paper: which options are correct, in order.
+        correct: (JSON.parse(String(q.correct ?? '[]')) as number[]).map((v) => v === 1),
       }
     })
     const found = questions.length
@@ -601,7 +657,7 @@ function matchAnswerIndex(opts: string[], answer: string): number {
 function genToBankRequest(csId: string, q: GenQuestion): BankQuestionRequest {
   const req: BankQuestionRequest = {
     class_subject_id: csId, syllabus_unit_id: '', kind: normalizeGenKind(q.kind), difficulty: q.difficulty,
-    bloom_level: '', stem: q.text.trim(), default_marks: q.marks, explanation: '', is_active: null, options: [],
+    bloom_level: '', stem: q.text.trim(), default_marks: q.marks, explanation: '', is_active: null, options: [], body: null,
   }
   if (req.kind === '') req.kind = q.kind
   const ans = q.answer.trim()
@@ -1195,6 +1251,7 @@ export function registerAssessment(r: Router): void {
   r.get('/teaching/question-bank', GROUP, listBankQuestions)
   r.get('/teaching/question-bank/summary', GROUP, getBankSummary)
   r.post('/teaching/question-bank/compose', GROUP, composePaper)
+  r.post('/teaching/question-bank/import', GROUP, importBankQuestions)
   r.post('/teaching/question-bank/generate', GROUP, generateBankQuestions)
   r.post('/teaching/question-bank/generate/save', GROUP, saveGeneratedBankQuestions)
   r.get('/teaching/question-bank/{id}', GROUP, getBankQuestion)

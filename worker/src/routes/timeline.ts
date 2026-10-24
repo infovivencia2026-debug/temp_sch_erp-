@@ -27,15 +27,21 @@ export interface TimelineEvent {
   detail: string
   by: string
   link: string | null
+  /** School activity only: whether a student, a parent, staff or the system did it. */
+  who?: 'student' | 'parent' | 'staff' | 'system'
 }
 
-interface Part { type: string; sql: string; args: unknown[] }
+export interface Part { type: string; sql: string; args: unknown[] }
+
+/* What the school-wide list adds: every part also selects actor_id (the user
+   who did it), and the page may be narrowed by who, when and by name. */
+export interface Narrow { where: string; args: unknown[] }
 
 /* Every part selects the same seven columns in this order:
    id, type, at, title, detail, by, link. `amount` rides along for fee rows
    and is folded into the title here, where Intl can format rupees. */
-const who = (col: string) => `COALESCE((SELECT full_name FROM users WHERE id = ${col}), '')`
-const day = (col: string) => `(${col} || 'T00:00:00.000Z')`
+export const who = (col: string) => `COALESCE((SELECT full_name FROM users WHERE id = ${col}), '')`
+export const day = (col: string) => `(${col} || 'T00:00:00.000Z')`
 
 export const STUDENT_TYPES = ['concern', 'remark', 'behaviour', 'leave', 'attendance', 'fee', 'marks', 'notice', 'message'] as const
 export const STAFF_TYPES = ['concern', 'remark', 'leave', 'attendance', 'payroll', 'role', 'appraisal', 'task', 'notice',
@@ -267,7 +273,7 @@ const rupees = (paise: number) =>
   '₹' + (paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 
 /** Reads one page of the union. `types` narrows it; an unknown type is ignored. */
-async function page(c: Ctx, all: Part[], known: readonly string[]): Promise<{ items: TimelineEvent[]; next: string | null; types: string[] }> {
+export async function page(c: Ctx, all: Part[], known: readonly string[], narrow?: Narrow): Promise<{ items: TimelineEvent[]; next: string | null; types: string[] }> {
   const q = c.url.searchParams
   const limit = clampInt(q.get('limit'), 30, 1, 100)
   const want = new Set((q.get('types') ?? '').split(',').map((s) => s.trim()).filter((s) => known.includes(s)))
@@ -286,10 +292,21 @@ async function page(c: Ctx, all: Part[], known: readonly string[]): Promise<{ it
      returns at most a page past the cursor, and the newest `limit` of all of
      them is the page. */
   type Row = Omit<TimelineEvent, 'by'> & { actor: string | null; amount: number | null }
-  const stmts = parts.map((p) => c.db.prepare(`WITH ev (id, type, at, title, detail, actor, link, amount) AS (${p.sql})
-     SELECT id, type, at, title, detail, actor, link, amount FROM ev
-     WHERE at IS NOT NULL AND (? IS NULL OR at < ? OR (at = ? AND id < ?))
-     ORDER BY at DESC, id DESC LIMIT ?`).bind(...p.args, cAt, cAt, cAt, cId, limit + 1))
+  /* A school-wide part also names who acted; whether that is a student, a
+     parent or staff is read from their account, once, here. */
+  const stmts = parts.map((p) => (narrow
+    ? c.db.prepare(`WITH ev (id, type, at, title, detail, actor, link, amount, actor_id) AS (${p.sql}),
+         ew AS (SELECT ev.*, CASE WHEN actor_id IS NULL THEN 'system'
+                  WHEN EXISTS (SELECT 1 FROM students s WHERE s.user_id = ev.actor_id) THEN 'student'
+                  WHEN EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = ev.actor_id) THEN 'parent'
+                  ELSE 'staff' END AS who FROM ev)
+       SELECT id, type, at, title, detail, actor, link, amount, who FROM ew
+       WHERE at IS NOT NULL AND (? IS NULL OR at < ? OR (at = ? AND id < ?)) AND ${narrow.where}
+       ORDER BY at DESC, id DESC LIMIT ?`).bind(...p.args, cAt, cAt, cAt, cId, ...narrow.args, limit + 1)
+    : c.db.prepare(`WITH ev (id, type, at, title, detail, actor, link, amount) AS (${p.sql})
+       SELECT id, type, at, title, detail, actor, link, amount FROM ev
+       WHERE at IS NOT NULL AND (? IS NULL OR at < ? OR (at = ? AND id < ?))
+       ORDER BY at DESC, id DESC LIMIT ?`).bind(...p.args, cAt, cAt, cAt, cId, limit + 1)))
   const rows = (await c.db.batch<Row>(stmts)).flatMap((res) => res.results)
     .sort((a, b) => (a.at === b.at ? (a.id < b.id ? 1 : -1) : a.at < b.at ? 1 : -1))
   const more = rows.length > limit

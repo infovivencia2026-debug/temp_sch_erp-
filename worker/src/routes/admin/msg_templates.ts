@@ -37,11 +37,11 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.enquiry_link': {
     subject: 'Applying to {{school_name}}',
-    body: 'Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} at {{school_name}}.\n\nYou can fill in the application here:\n{{apply_url}}\n\nCall us if you need any help.',
+    body: 'Dear {{parent_name}}, thank you for your enquiry about {{student_name}} at {{school_name}}.\n\nYou can fill in the application here:\n{{apply_url}}\n\nCall us if you need any help.',
   },
   'admissions.portal_login': {
     subject: 'Your parent login for {{school_name}}',
-    body: 'Namaste {{parent_name}}, welcome to {{school_name}}.\n\n' +
+    body: 'Dear {{parent_name}}, welcome to {{school_name}}.\n\n' +
       'You can now see fees, attendance, homework and the bus here:\n{{portal_url}}\n\n' +
       'Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n' +
       'That is your own mobile number, so anyone could guess it - the app ' +
@@ -49,7 +49,7 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.applicant_login': {
     subject: 'Track your admission at {{school_name}}',
-    body: 'Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} ' +
+    body: 'Dear {{parent_name}}, thank you for your enquiry about {{student_name}} ' +
       'at {{school_name}}.\n\nYou can follow the admission here - the form, the ' +
       'documents, the test and the decision:\n{{portal_url}}\n\n' +
       'Sign in as: {{sign_in_as}}\nPassword: {{password}}\n\n' +
@@ -58,33 +58,33 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.applicant_ready': {
     subject: 'Track your admission at {{school_name}}',
-    body: 'Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} ' +
+    body: 'Dear {{parent_name}}, thank you for your enquiry about {{student_name}} ' +
       'at {{school_name}}.\n\nYou can follow the admission here:\n{{portal_url}}\n\n' +
       'Sign in as: {{sign_in_as}}\nYour password has been sent to your email address. ' +
       'If you did not give one, the school office will hand it to you.',
   },
   'admissions.portal_ready': {
     subject: 'Your parent login for {{school_name}}',
-    body: 'Namaste {{parent_name}}, welcome to {{school_name}}.\n\n' +
+    body: 'Dear {{parent_name}}, welcome to {{school_name}}.\n\n' +
       'You can now see fees, attendance, homework and the bus here:\n{{portal_url}}\n\n' +
       'Sign in as: {{sign_in_as}}\nYour password has been sent to your email address. ' +
       'If you did not give one, the school office will hand it to you.',
   },
   'admissions.applicant_existing': {
     subject: '{{school_name}}: your enquiry is on your existing login',
-    body: 'Namaste {{parent_name}}, your enquiry about {{student_name}} at ' +
+    body: 'Dear {{parent_name}}, your enquiry about {{student_name}} at ' +
       '{{school_name}} can be followed on the login you already use.\n\n' +
       'Sign in as: {{sign_in_as}}\n{{portal_url}}\n\nYour password is unchanged.',
   },
   'admissions.portal_existing': {
     subject: '{{school_name}}: your second child is now on your login',
-    body: 'Namaste {{parent_name}}, your new admission at {{school_name}} is on the ' +
+    body: 'Dear {{parent_name}}, your new admission at {{school_name}} is on the ' +
       'same login you already use.\n\nSign in as: {{sign_in_as}}\n{{portal_url}}\n\n' +
       'Your password is unchanged.',
   },
   'admissions.application_received': {
     subject: 'We have your application for {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nWe have received your application for ' +
+    body: 'Dear {{parent_name}},\n\nWe have received your application for ' +
       '{{student_name}} for {{class_sought}} at {{school_name}}. Your ' +
       'application number is {{application_no}} - please quote it when you ' +
       'contact us.\n\nYou can follow it here at any time:\n{{portal_url}}\n\n' +
@@ -92,34 +92,34 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.under_review': {
     subject: '{{school_name}}: application {{application_no}} is being reviewed',
-    body: 'Namaste {{parent_name}},\n\nThe application for {{student_name}} ' +
+    body: 'Dear {{parent_name}},\n\nThe application for {{student_name}} ' +
       '({{application_no}}) is now with the admissions committee. There is ' +
       'nothing you need to do at this stage; we will write when there is ' +
       'news.\n\n{{portal_url}}\n\n{{school_name}}',
   },
   'admissions.documents_pending': {
     subject: 'Documents still needed for {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nWe still need some papers before the ' +
+    body: 'Dear {{parent_name}},\n\nWe still need some papers before the ' +
       'application for {{student_name}} ({{application_no}}) can go ' +
       'forward.\n\nSign in to see exactly which ones are outstanding:\n' +
       '{{portal_url}}\n\n{{school_name}}',
   },
   'admissions.test_scheduled': {
     subject: 'Entrance test for {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nAn entrance test has been scheduled for ' +
+    body: 'Dear {{parent_name}},\n\nAn entrance test has been scheduled for ' +
       '{{student_name}} ({{application_no}}). The date, the time and where ' +
       'to come are on your admission page:\n{{portal_url}}\n\n{{school_name}}',
   },
   'admissions.interviewed': {
     subject: 'Thank you for coming in - {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nThank you for bringing {{student_name}} ' +
+    body: 'Dear {{parent_name}},\n\nThank you for bringing {{student_name}} ' +
       'in. The interview for application {{application_no}} is done and the ' +
       'decision now rests with the school; we will write to you as soon as ' +
       'it is made.\n\n{{portal_url}}\n\n{{school_name}}',
   },
   'admissions.offered': {
     subject: 'A place has been offered to {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nWe are glad to tell you that a place in ' +
+    body: 'Dear {{parent_name}},\n\nWe are glad to tell you that a place in ' +
       '{{class_sought}} has been offered to {{student_name}} at ' +
       '{{school_name}} against application {{application_no}}.\n\nPlease ' +
       'contact the admissions office to confirm the seat. The details are ' +
@@ -127,14 +127,14 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.accepted': {
     subject: 'Welcome to {{school_name}}, {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nThe admission of {{student_name}} to ' +
+    body: 'Dear {{parent_name}},\n\nThe admission of {{student_name}} to ' +
       '{{class_sought}} at {{school_name}} is confirmed against application ' +
       '{{application_no}}.\n\nWhat happens next - the papers, the fees and ' +
       'the first day - is on your admission page:\n{{portal_url}}',
   },
   'admissions.rejected': {
     subject: '{{school_name}}: about your application for {{student_name}}',
-    body: 'Namaste {{parent_name}},\n\nWe are sorry to tell you that we are ' +
+    body: 'Dear {{parent_name}},\n\nWe are sorry to tell you that we are ' +
       'unable to offer {{student_name}} a place in {{class_sought}} this ' +
       'session (application {{application_no}}).\n\nThank you for ' +
       'considering {{school_name}}, and we wish {{student_name}} ' +
@@ -142,14 +142,14 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   },
   'admissions.waitlisted': {
     subject: '{{student_name}} is on the waiting list',
-    body: 'Namaste {{parent_name}},\n\n{{student_name}} has been placed on the ' +
+    body: 'Dear {{parent_name}},\n\n{{student_name}} has been placed on the ' +
       'waiting list for {{class_sought}} at {{school_name}} against ' +
       'application {{application_no}}. We will write to you the moment a ' +
       'place becomes available.\n\n{{portal_url}}',
   },
   'admissions.office_message': {
     subject: "{{school_name}}: about {{student_name}}'s application",
-    body: 'Namaste {{parent_name}},\n\n{{message}}\n\nThis is about the ' +
+    body: 'Dear {{parent_name}},\n\n{{message}}\n\nThis is about the ' +
       'application for {{student_name}} ({{application_no}}).\n\n' +
       '{{portal_url}}\n\n{{school_name}}',
   },

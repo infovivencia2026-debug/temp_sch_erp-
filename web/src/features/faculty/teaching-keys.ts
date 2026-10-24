@@ -26,10 +26,10 @@ export const teachingKeys = {
   'faculty.question_papers_online_tests.objective_online_test_creation': lazy(
     () => import('./OnlineTests'),
   ),
-  // A draw from the bank by blueprint. Not a generator: nothing is written,
-  // and a row the bank cannot fill says by how many.
+  // Question maker: papers written on the page, with the blueprint draw from
+  // the bank inside it (a row the bank cannot fill says by how many).
   'faculty.question_papers_online_tests.ai_examcell_paper_generator': screen(
-    () => import('./PaperFromBlueprint'),
+    () => import('../qmaker/QuestionMaker'),
   ),
   'faculty.assessment_schemes.cce_formative_assessment_entry': lazy(
     () => import('./CCEFormative'),

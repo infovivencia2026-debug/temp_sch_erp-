@@ -1,3 +1,4 @@
+import type { Box } from '@/features/qmaker/lib/box'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 
@@ -155,6 +156,8 @@ export interface BankQuestion {
   used_on_tests: number
   created_by?: string
   answer_key?: BankOption[]
+  /** As it prints, when written or edited in Question maker. */
+  body?: Box
 }
 
 export interface BankSummary {

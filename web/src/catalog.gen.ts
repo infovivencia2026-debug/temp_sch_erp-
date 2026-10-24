@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 441 features. */
+/** 24 roles, 440 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -453,6 +453,14 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.help.helpdesk', slug: 'helpdesk', name: 'Helpdesk', scope: 'institution', tier: 'core', summary: 'Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.' },
         ],
       },
+      {
+        slug: 'activity',
+        name: 'Activity',
+        workspace: 'Activity',
+        features: [
+          { key: 'institution_admin.activity.school_activity', slug: 'school_activity', name: 'School activity', scope: 'institution', tier: 'core', summary: 'Everything students, parents and staff do on the platform, newest first, on one timeline: sign-ins, concerns, leave, attendance, fees, homework, messages, notices and changes to records. Filter by who, what, when and by person.' },
+        ],
+      },
     ],
   },
   {
@@ -771,15 +779,6 @@ export const ROLES: Role[] = [
         workspace: 'My Work',
         features: [
           { key: 'faculty.exams.question_papers', slug: 'question_papers', name: 'Question papers', scope: 'assigned_classes', tier: 'core', summary: 'Attach the paper for each exam you set and send it to your head of department. Shows where each one has got to, and what to change on any that came back.' },
-        ],
-      },
-      {
-        slug: 'academics',
-        name: 'Academics',
-        workspace: 'Academics',
-        features: [
-          { key: 'faculty.academics.subject_meetings', slug: 'subject_meetings', name: 'Subject meetings', scope: 'institution', tier: 'core', summary: 'Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can\'t come with a note.' },
-          { key: 'faculty.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
         ],
       },
     ],
