@@ -196,7 +196,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const folded = new Set<string>()
   for (const { ws, section } of listed) {
     if (!isHomeSection(section) || homeHeld.has(ws.slug)) continue
-    const rest = listed.filter((g) => g.ws.slug === ws.slug && !isHomeSection(g.section))
+    const rest = listed.filter((g) => g.ws.slug === ws.slug && g.section.slug !== section.slug)
       .flatMap((g) => { const l = bySection.get(g.section.slug) ?? []; if (l.length) folded.add(g.section.slug); return l })
     homeHeld.set(ws.slug, rest)
   }
