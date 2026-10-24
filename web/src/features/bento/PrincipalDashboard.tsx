@@ -180,6 +180,8 @@ type AttentionTarget = keyof typeof ATTENTION_TARGETS
    literal: the catalogue key is built as `bento.principal.attn_${slot}`, and a
    `string` there would widen it out of `MessageKey` and lose the compile-time
    check that every one of these strings actually exists in en.ts. */
+const PRINCIPAL_COVERS: readonly string[] = ['attendance.students']
+
 const ATTENTION_WIDGETS = [
   { id: 'attn-fees-overdue', probe: 'fees.overdue', target: 'fees', slot: 'fees_overdue', money: true },
   { id: 'attn-payments-failed', probe: 'payments.failed', target: 'payments', slot: 'payments_failed', money: false },
@@ -4395,7 +4397,10 @@ export default function BentoPrincipalDashboard() {
 
   return (
     <BentoPage eyebrow={t('bento.principal.eyebrow')} title={t('bento.principal.title')}>
-      <WidgetLayer dashboard="principal">
+      {/* `attendance.students` is the Pulse card's own figure: offered as a
+          metric cell too, a principal ended up with two "attendance today"
+          cards (owner, 2026-10-24). */}
+      <WidgetLayer dashboard="principal" covers={PRINCIPAL_COVERS}>
       {/* THE ANCHOR — 2x2, the mint gradient, the largest number on the page,
           its two actions along the bottom edge.
 
