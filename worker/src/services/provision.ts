@@ -1,3 +1,4 @@
+import { seedDemoSchool } from './demo_seed'
 import type { Env } from '../env'
 import { registerJob } from './jobs'
 import { cfApiFromEnv, httpD1, type CfD1Api } from './d1http'
@@ -78,6 +79,8 @@ export interface ProvisionRow {
   created_at: string
   updated_at: string
   finished_at: string | null
+  /** The won lead this school was set up for (CONTROL 0061). */
+  enquiry_id?: string | null
 }
 
 export interface ProvisionDeps {
@@ -308,6 +311,12 @@ export async function runProvision(d: ProvisionDeps, id: string): Promise<Provis
     await setStage(d, id, stage)
     const db = httpD1(d.cf, dbId)
     await seedTenant(d, p, db)
+    // A demo school (seller/sales.ts) also gets its invented classes and children.
+    const demo = await d.control.prepare('SELECT 1 FROM seller_demos WHERE provisioning_id = ?').bind(id).first().catch(() => null)
+    if (demo) {
+      await seedDemoSchool(db, p.institution_id)
+      await d.control.prepare('UPDATE seller_demos SET seeded_at = ? WHERE provisioning_id = ?').bind((d.now ?? iso)(), id).run()
+    }
 
     // 4. Attach: the directory row and sign-in index, then prove the school answers.
     stage = 'attaching'
@@ -318,6 +327,11 @@ export async function runProvision(d: ProvisionDeps, id: string): Promise<Provis
 
     const t = (d.now ?? iso)()
     await setStage(d, id, 'ready', { finished_at: t })
+    // "Won, set up the school": the lead now points at its school.
+    if (p.enquiry_id) {
+      await d.control.prepare(`UPDATE purchase_enquiries SET provisioned_institution_id = ?, updated_at = ? WHERE id = ? AND provisioned_institution_id IS NULL`)
+        .bind(p.institution_id, t, p.enquiry_id).run()
+    }
     await recordEvent(d, p, true, `plan ${p.plan_code ?? '-'}, administrator ${p.admin_name}` +
       (d.hasBinding(p.d1_binding) ? '' : `; served over the D1 API until a deploy adds ${p.d1_binding}`))
   } catch (e) {

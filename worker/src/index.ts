@@ -10,7 +10,7 @@ import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } fr
 import { getSession } from './routes/session'
 import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
-import { identityFrom, can, type Identity } from './identity'
+import { identityFrom, can, vendorArea, type Identity } from './identity'
 import { HttpError, errorResponse, forbidden, unauthorized, unexpectedError } from './http'
 import { newErrorRef, recordErrorRef } from './services/error_refs'
 import { tenantSession, type TenantSession } from './tenant'
@@ -91,9 +91,11 @@ export default {
         if (id.readOnly && m !== 'GET' && m !== 'HEAD' && !/\/impersonation\/[^/]+\/end$/.test(pathname)) {
           throw new HttpError(403, 'this support session can only look. Nothing can be changed during it.', { code: 'read_only_session' })
         }
-        if (hit.route.perm !== 'auth' && !can(id, hit.route.perm)) throw forbidden()
+        // An area role (identity.ts VENDOR_ROLES) is held to its own routes on the console, whatever the route's key.
+        const area = vendorArea(id, m, pathname)
+        if (area === 'deny' || (hit.route.perm !== 'auth' && !can(id, hit.route.perm) && area !== 'allow')) throw forbidden()
         // Go's group-level RequirePermission, password gate and paywall; see gates.ts.
-        groupGate(id, pathname)
+        if (area !== 'allow') groupGate(id, pathname)
         passwordGate(id, m, pathname)
         await subscriptionGate(env, id, pathname)
         // The school's database opens lazily, in a D1 Session (tenant.ts tenantSession: replicas + bookmark).

@@ -74,6 +74,86 @@ async function loadRow(c: Ctx): Promise<ProvisionRow> {
   return p
 }
 
+/** Accepts a request for a new school and queues its job; the password is returned once. Also starts demo
+    schools (seller/sales.ts). enquiryId: the won lead it is for, written to the lead when the school is ready. */
+export async function startProvisioning(c: Ctx, req: Record<string, unknown>,
+  opts: { enquiryId?: string | null; demo?: { enquiryId: string | null; expiresOn: string } } = {}) {
+  const s = (k: string) => (typeof req[k] === 'string' ? (req[k] as string).trim() : '')
+  const orNull = (v: string) => (v === '' ? null : v)
+  const name = s('school_name') || s('name')
+  const adminName = s('admin_name')
+  const adminEmail = s('admin_email').toLowerCase(), adminPhone = s('admin_phone'), adminUsername = s('admin_username').toLowerCase()
+  const slug = (s('slug') || suggestSlug(name)).toLowerCase()
+  const country = (s('country') || 'in').toLowerCase()
+  const planCode = s('plan_code')
+  const trialDays = Math.max(1, Math.min(365, Math.trunc(Number(req.trial_days) || 30)))
+
+  if (!name) throw badRequest('the school needs a name')
+  if (!adminName) throw badRequest('the first administrator needs a name')
+  if (!adminEmail && !adminPhone && !adminUsername) {
+    throw badRequest('give the administrator an email, a phone number or a username - without one of the three they cannot sign in')
+  }
+  if (!/^[a-z]{2}$/.test(country)) throw badRequest('country must be a two-letter code')
+  const problem = await slugProblem(c, slug)
+  if (problem) throw new HttpError(409, problem, { code: 'slug_taken', field: 'slug' })
+  if (planCode && !(await c.env.CONTROL.prepare('SELECT 1 FROM plans WHERE code = ?').bind(planCode).first())) {
+    throw badRequest('that plan does not exist')
+  }
+  // One sign-in name must lead to one school, or login cannot tell which.
+  for (const [kind, value] of [['email', adminEmail], ['phone', adminPhone], ['username', adminUsername]] as const) {
+    if (value && await c.env.CONTROL.prepare('SELECT 1 FROM login_index WHERE kind = ? AND value = ?').bind(kind, value).first()) {
+      throw badRequest(`that ${kind} is already used to sign in elsewhere`, { field: 'admin_' + kind })
+    }
+  }
+  const b = (req.branding && typeof req.branding === 'object' ? req.branding : {}) as Record<string, unknown>
+  const branding: Record<string, string> = {}
+  for (const k of ['primary_color', 'accent_color', 'tagline', 'support_email', 'support_phone']) {
+    const v = typeof b[k] === 'string' ? (b[k] as string).trim() : ''
+    if (!v) continue
+    if (k.endsWith('_color') && !/^#[0-9a-fA-F]{6}$/.test(v)) throw badRequest(`${k} must look like #1e40af`)
+    branding[k] = v.slice(0, 300)
+  }
+
+  const enquiryId = opts.enquiryId ?? null
+  if (enquiryId) {
+    const lead = await c.env.CONTROL.prepare('SELECT status, provisioned_institution_id FROM purchase_enquiries WHERE id = ?').bind(enquiryId)
+      .first<{ status: string; provisioned_institution_id: string | null }>()
+    if (!lead) throw badRequest('no such lead')
+    if (lead.status !== 'won') throw new HttpError(409, 'set up a school only for a lead marked won')
+    if (lead.provisioned_institution_id) throw new HttpError(409, 'this lead already has its school')
+  }
+  const id = uuid(), t = now(), instId = uuid()
+  const password = temporaryPassword()
+  const hash = await hashPassword(c.env.PASSWORD_PEPPER, password)
+  try {
+    await c.env.CONTROL.prepare(`INSERT INTO provisioning (id, slug, country, name, short_name, plan_code, trial_days, district, state, affiliation_board,
+        admin_name, admin_email, admin_phone, admin_username, admin_password_hash, branding, institution_id, admin_user_id,
+        db_name, d1_binding, stage, created_by, created_at, updated_at, enquiry_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'queued',?,?,?,?)`)
+      .bind(id, slug, country, name, s('short_name') || deriveShortName(name), orNull(planCode), trialDays,
+        orNull(s('district')), orNull(s('state')), orNull(s('affiliation_board')),
+        adminName, orNull(adminEmail), orNull(adminPhone), orNull(adminUsername), hash, JSON.stringify(branding),
+        instId, uuid(), dbNameFor(slug, id), bindingFor(slug), c.id.userId, t, t, enquiryId).run()
+    if (opts.demo) {
+      await c.env.CONTROL.prepare(`INSERT INTO seller_demos (provisioning_id, institution_id, enquiry_id, expires_on, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        .bind(id, instId, opts.demo.enquiryId, opts.demo.expiresOn, c.id.userId, t).run()
+    }
+  } catch (e) {
+    if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
+      throw new HttpError(409, 'a school already uses that address', { code: 'slug_taken', field: 'slug' })
+    }
+    throw e
+  }
+  const jobId = await enqueue(c.env, PROVISION_JOB, { provisioning_id: id })
+  await c.env.CONTROL.prepare('UPDATE provisioning SET job_id = ? WHERE id = ?').bind(jobId, id).run()
+  const row = await c.env.CONTROL.prepare('SELECT * FROM provisioning WHERE id = ?').bind(id).first<ProvisionRow>()
+  return {
+    ...view(row!, c.env),
+    password,
+    note: 'The password is shown once and is not stored. If it is lost, reset it from the school row rather than looking it up. They are asked to change it on first sign-in.',
+  }
+}
+
 export function registerSellerProvisioning(r: Router): void {
   r.get('/seller/provisioning/slug', PERM, async (c) => {
     requirePlatformAdmin(c)
@@ -100,68 +180,8 @@ export function registerSellerProvisioning(r: Router): void {
   r.post('/seller/provisioning', PERM, async (c) => {
     requirePlatformAdmin(c)
     const req = await readJSON<Record<string, unknown>>(c.req)
-    const s = (k: string) => (typeof req[k] === 'string' ? (req[k] as string).trim() : '')
-    const orNull = (v: string) => (v === '' ? null : v)
-    const name = s('school_name') || s('name')
-    const adminName = s('admin_name')
-    const adminEmail = s('admin_email').toLowerCase(), adminPhone = s('admin_phone'), adminUsername = s('admin_username').toLowerCase()
-    const slug = (s('slug') || suggestSlug(name)).toLowerCase()
-    const country = (s('country') || 'in').toLowerCase()
-    const planCode = s('plan_code')
-    const trialDays = Math.max(1, Math.min(365, Math.trunc(Number(req.trial_days) || 30)))
-
-    if (!name) throw badRequest('the school needs a name')
-    if (!adminName) throw badRequest('the first administrator needs a name')
-    if (!adminEmail && !adminPhone && !adminUsername) {
-      throw badRequest('give the administrator an email, a phone number or a username - without one of the three they cannot sign in')
-    }
-    if (!/^[a-z]{2}$/.test(country)) throw badRequest('country must be a two-letter code')
-    const problem = await slugProblem(c, slug)
-    if (problem) throw new HttpError(409, problem, { code: 'slug_taken', field: 'slug' })
-    if (planCode && !(await c.env.CONTROL.prepare('SELECT 1 FROM plans WHERE code = ?').bind(planCode).first())) {
-      throw badRequest('that plan does not exist')
-    }
-    // One sign-in name must lead to one school, or login cannot tell which.
-    for (const [kind, value] of [['email', adminEmail], ['phone', adminPhone], ['username', adminUsername]] as const) {
-      if (value && await c.env.CONTROL.prepare('SELECT 1 FROM login_index WHERE kind = ? AND value = ?').bind(kind, value).first()) {
-        throw badRequest(`that ${kind} is already used to sign in elsewhere`, { field: 'admin_' + kind })
-      }
-    }
-    const b = (req.branding && typeof req.branding === 'object' ? req.branding : {}) as Record<string, unknown>
-    const branding: Record<string, string> = {}
-    for (const k of ['primary_color', 'accent_color', 'tagline', 'support_email', 'support_phone']) {
-      const v = typeof b[k] === 'string' ? (b[k] as string).trim() : ''
-      if (!v) continue
-      if (k.endsWith('_color') && !/^#[0-9a-fA-F]{6}$/.test(v)) throw badRequest(`${k} must look like #1e40af`)
-      branding[k] = v.slice(0, 300)
-    }
-
-    const id = uuid(), t = now()
-    const password = temporaryPassword()
-    const hash = await hashPassword(c.env.PASSWORD_PEPPER, password)
-    try {
-      await c.env.CONTROL.prepare(`INSERT INTO provisioning (id, slug, country, name, short_name, plan_code, trial_days, district, state, affiliation_board,
-          admin_name, admin_email, admin_phone, admin_username, admin_password_hash, branding, institution_id, admin_user_id,
-          db_name, d1_binding, stage, created_by, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'queued',?,?,?)`)
-        .bind(id, slug, country, name, s('short_name') || deriveShortName(name), orNull(planCode), trialDays,
-          orNull(s('district')), orNull(s('state')), orNull(s('affiliation_board')),
-          adminName, orNull(adminEmail), orNull(adminPhone), orNull(adminUsername), hash, JSON.stringify(branding),
-          uuid(), uuid(), dbNameFor(slug, id), bindingFor(slug), c.id.userId, t, t).run()
-    } catch (e) {
-      if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
-        throw new HttpError(409, 'a school already uses that address', { code: 'slug_taken', field: 'slug' })
-      }
-      throw e
-    }
-    const jobId = await enqueue(c.env, PROVISION_JOB, { provisioning_id: id })
-    await c.env.CONTROL.prepare('UPDATE provisioning SET job_id = ? WHERE id = ?').bind(jobId, id).run()
-    const row = await c.env.CONTROL.prepare('SELECT * FROM provisioning WHERE id = ?').bind(id).first<ProvisionRow>()
-    return created({
-      ...view(row!, c.env),
-      password,
-      note: 'The password is shown once and is not stored. If it is lost, reset it from the school row rather than looking it up. They are asked to change it on first sign-in.',
-    })
+    const enquiry = typeof req.enquiry_id === 'string' && req.enquiry_id ? uuidParam(req.enquiry_id, 'enquiry_id') : null
+    return created(await startProvisioning(c, req, { enquiryId: enquiry }))
   })
 
   r.post('/seller/provisioning/{id}/retry', PERM, async (c) => {

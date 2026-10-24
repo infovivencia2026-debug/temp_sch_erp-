@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 441 features. */
+/** 24 roles, 444 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -59,6 +59,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'sales',
+        name: 'Sales',
+        workspace: 'Sales',
+        features: [
+          { key: 'seller_admin.sales.leads', slug: 'leads', name: 'Leads', scope: 'platform', tier: 'core', summary: 'Every enquiry from a school that may buy, by stage from new to won or lost, with its owner, next follow-up and value. Add one by hand, search and filter, write a quote from its value, book a demo school, and set up the school when it is won.' },
+        ],
+      },
+      {
         slug: 'delivery',
         name: 'Delivery',
         workspace: 'Settings',
@@ -76,6 +84,8 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
           { key: 'seller_admin.subscriptions_billing.license_capacity', slug: 'license_capacity', name: 'License & Capacity', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
           { key: 'seller_admin.subscriptions_billing.message_credits', slug: 'message_credits', name: 'Message Credits', scope: 'platform', tier: 'core', summary: 'Every school\'s request for more SMS or WhatsApp messages, oldest first, with what was asked and by whom. Grant it in full or in part and the credits land the same moment; decline it with a reason the school reads. Nothing here moves money, the unit is messages, and what a bundle cost lives in whatever you invoice with.' },
+          { key: 'seller_admin.subscriptions_billing.renewals', slug: 'renewals', name: 'Renewals', scope: 'platform', tier: 'core', summary: 'Schools whose plan renews in the next 30, 60 or 90 days, each with a churn-risk flag read from real signals: payment overdue, nobody signed in for 14 days, or low use.' },
+          { key: 'seller_admin.subscriptions_billing.partners', slug: 'partners', name: 'Partners', scope: 'platform', tier: 'core', summary: 'Resellers who bring schools: each partner\'s schools, its commission rate, the commission earned when those schools pay an invoice, and the payouts made.' },
         ],
       },
       {
