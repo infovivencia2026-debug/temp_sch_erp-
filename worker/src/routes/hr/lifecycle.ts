@@ -27,7 +27,10 @@ const isInstitutionAdmin = (c: Ctx) => c.id.platformAdmin || c.id.roles.includes
 const EXIT_DONE = ['relieved', 'settled', 'withdrawn']
 const EXIT_LINK = (id: string) => `/go/onboarding_exit/staff_joinings_exits?tab=exits&exit=${id}`
 const notify = (c: Ctx, user: string, kind: string, title: string, body: string, link: string, exitID: string) =>
-  c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?,?,?,?,?,?,?,'staff_exit',?,?)`)
+  c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?,?,?,?,?,?,?,'staff_exit',?,?)`
+    // A second send (after a return) or decision refreshes the earlier note instead of tripping notifications_one_per_source.
+    + ` ON CONFLICT (user_id, kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000')) WHERE source_kind IS NOT NULL`
+    + ` DO UPDATE SET title = excluded.title, body = excluded.body, link = excluded.link, created_at = excluded.created_at, read_at = NULL, dismissed_at = NULL`)
     .bind(uuid(), school(c).id, user, kind, title, body, link, exitID, now())
 
 /* What /relieve did, plus the login: relieved, employee status, letters and

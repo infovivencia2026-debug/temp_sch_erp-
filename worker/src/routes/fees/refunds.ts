@@ -123,16 +123,20 @@ export function registerRefunds(r: Router): void {
     if (reason === '') throw badRequest('say why the money is going back. It is what the family is told and what an auditor reads')
     let payment: string | null = null
     if ((req.payment_id ?? '').trim()) { if (!isUUID(req.payment_id)) throw badRequest('payment_id must be a uuid'); payment = req.payment_id }
-    const rr = await c.db.prepare(`
-      SELECT COALESCE((SELECT sum(amount_paise) FROM payments WHERE student_id = ?1 AND status = 'success' AND mode <> 'adjustment'), 0)
-           - COALESCE((SELECT sum(amount_paise) FROM refunds WHERE student_id = ?1 AND status <> 'rejected'), 0) AS refundable`).bind(req.student_id).first<{ refundable: number }>()
-    const refundable = p(rr?.refundable)
-    if (amount > refundable) {
+    /* The check and the insert are one statement, so two clerks asking at the same
+       moment cannot both pass the check before either row lands (D1 runs each
+       statement atomically). */
+    const refundableSql = `COALESCE((SELECT sum(amount_paise) FROM payments WHERE student_id = ?3 AND status = 'success' AND mode <> 'adjustment'), 0)
+           - COALESCE((SELECT sum(amount_paise) FROM refunds WHERE student_id = ?3 AND status <> 'rejected'), 0)`
+    const id = crypto.randomUUID()
+    const ins = await c.db.prepare(`INSERT INTO refunds (id, institution_id, student_id, payment_id, amount_paise, reason, mode, status, requested_by, created_at)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, NULLIF(?7, ''), 'pending', ?8, ?9 WHERE ?5 <= (${refundableSql})`)
+      .bind(id, school(c).id, req.student_id, payment, amount, reason, (req.mode ?? '').trim(), c.id.userId, now()).run()
+    if (!ins.meta.changes) {
+      const rr = await c.db.prepare(`SELECT ${refundableSql.split('?3').join('?1')} AS refundable`).bind(req.student_id).first<{ refundable: number }>()
+      const refundable = Math.max(0, p(rr?.refundable))
       throw new HttpError(409, `that is more than this family has paid and not already been refunded. At most ₹${indianGroup(Math.trunc(refundable / 100))} can go back`, { code: 'refund_exceeds_paid' })
     }
-    const id = crypto.randomUUID()
-    await c.db.prepare(`INSERT INTO refunds (id, institution_id, student_id, payment_id, amount_paise, reason, mode, status, requested_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), 'pending', ?, ?)`)
-      .bind(id, school(c).id, req.student_id, payment, amount, reason, (req.mode ?? '').trim(), c.id.userId, now()).run()
     return created({ id, status: 'pending' })
   })
 

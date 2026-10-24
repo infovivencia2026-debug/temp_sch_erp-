@@ -1411,7 +1411,7 @@ async function getApprovals(c: Ctx): Promise<Response> {
              COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i
                         WHERE i.fee_structure_id = (SELECT fs.id FROM fee_structures fs
                                                      WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
-                                                     ORDER BY (fs.class_id = a.class_sought) DESC, fs.created_at DESC LIMIT 1)), 0) AS fee,
+                                                     ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1)), 0) AS fee,
              COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
                         ORDER BY fc.created_at DESC LIMIT 1), '') AS waiver,
              COALESCE(a.decided_at, a.created_at) AS raised
