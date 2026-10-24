@@ -5069,3 +5069,30 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 48px; height: 48px; }
   .staff-foot-settings button svg { width: 24px; height: 24px; }
 }
+
+/* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
+   screens use hard-coded Tailwind sizes (text-[13px], h-4 icons, h-9 buttons)
+   that escaped the block above. On phones they are pulled onto the scale:
+   body 16, secondary 14, caption 12, icons in controls 24, targets 48.
+   Desktop keeps the classes as written. */
+@media (max-width: 639.98px) {
+  .text-\[13px\], .text-\[15px\], .text-base {
+    font-size: calc(16px * var(--font-scale)) !important;
+    line-height: 1.45 !important;
+  }
+  .text-sm, .text-\[14px\] { font-size: calc(14px * var(--font-scale)) !important; }
+  .text-xs, .text-\[10px\], .text-\[11px\], .text-\[12px\] {
+    font-size: calc(12px * var(--font-scale)) !important;
+  }
+  .text-lg, .text-xl, .text-\[17px\], .text-\[18px\] { font-size: calc(20px * var(--font-scale)) !important; }
+  .text-2xl { font-size: calc(24px * var(--font-scale)) !important; }
+  input:not([type='checkbox']):not([type='radio']), select, textarea {
+    font-size: calc(16px * var(--font-scale)) !important;
+  }
+  /* Every button and button-like link is a 48 target; its icon draws at 24. */
+  main button:not([role='switch']), main a[role='button'], nav button, nav a[aria-label] {
+    min-height: 48px;
+  }
+  main button[aria-label], nav button[aria-label], nav a[aria-label] { min-width: 48px; }
+  main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
+}
