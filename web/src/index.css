@@ -5054,7 +5054,8 @@ input[type="number"]::-webkit-inner-spin-button {
   header[data-paint='topbar'] button svg,
   header[data-paint='topbar'] a[aria-label] svg { width: 24px; height: 24px; }
   .nav-line-icon { width: 24px !important; height: 24px !important; }
-  [role='tab'] { min-height: 48px; }
+  /* Not the Focus page dots: a 48px-tall 7px dot is a line (owner, 2026-10-24). */
+  [role='tab']:not(.bento-dot) { min-height: 48px; }
 }
 
 /* Side-panel rows (owner's side-panel design, 2026-10-24): a nav row or group
