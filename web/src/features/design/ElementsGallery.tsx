@@ -3,8 +3,6 @@ import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
 import { Navigate, useLocation } from 'react-router-dom'
 import NotificationRow, { channelOf } from '@/components/NotificationRow'
-import { LineIcon, StaffNavGroup, StaffProfileCard, staffItemClass } from '@/components/StaffShell'
-import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { UserPlus, Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
@@ -84,7 +82,6 @@ export default function ElementsGallery() {
 
 function Gallery() {
   const toast = useToast()
-  const session = useSession()
   const [text, setText] = useState('')
   const [sel, setSel] = useState('a')
   const [area, setArea] = useState('')
@@ -216,17 +213,6 @@ function Gallery() {
               extra={channelOf('Sent by WhatsApp')} unread pending snippet="Asked about seats and the fee for next year." onView={() => {}} />
             <NotificationRow title="Fee due: term 2" time="Yesterday" label="Fees" icon={Wallet}
               snippet="Pay before the 30th to avoid a late fee." onView={() => {}} />
-          </Card>
-        </Section>
-
-        <Section id="staff-panel" title="Staff side panel">
-          <Card className="max-w-[440px] space-y-4 p-[var(--card-pad)]">
-            <StaffNavGroup slug="gallery.teaching" name="Teaching">
-              <span className={staffItemClass(true)}><LineIcon name="timetable" size={20} /><span className="truncate">My timetable</span></span>
-              <span className={staffItemClass(false)}><LineIcon name="attendance" size={20} /><span className="truncate">Attendance</span></span>
-            </StaffNavGroup>
-            <LayoutSwitch pill />
-            <StaffProfileCard name={session.user?.full_name ?? ''} sub="EMP-0142" photoId={session.user?.avatar_key} />
           </Card>
         </Section>
 

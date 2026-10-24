@@ -1,16 +1,12 @@
 import { useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
-  LogOut, Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
+  Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { buzz } from '@/lib/haptics'
-import { BentoSettings } from '@/features/bento/BentoSettings'
-import { HelpButton } from '@/features/help/HelpEntry'
-import { LayoutSwitch } from './LayoutSwitch'
 import { featurePath, type ApiSection } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
@@ -61,7 +57,7 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/meeting/, CalendarClock],
   [/online test|quiz/, MonitorCheck],
 ]
-export function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
+function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
   // On a phone .nav-line-icon goes to 24px (index.css, owner 2026-10-24).
   return <Icon aria-hidden className="nav-line-icon shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
@@ -94,17 +90,8 @@ function Count({ n }: { n: number }) {
 
 /* `go`: pressing the heading also lands on this path (Home in Work mode goes
    straight to the dashboard, owner 2026-10-22), and opens rather than closes. */
-/** One rounded row inside a group; active = accent tint (also used by the Elements gallery). */
-export function staffItemClass(on: boolean, live = true) {
-  return cn(
-    'flex min-h-[calc(44px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-3.5 rounded-[10px] px-3.5 py-2.5 text-[calc(14.5px*var(--font-scale,1))] transition-colors',
-    on ? 'bg-primary/10 font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-surface-hover hover:text-foreground',
-    !live && !on && 'text-muted-foreground/70',
-  )
-}
-
-export function StaffNavGroup({ slug, name, count = 0, go, onNavigate, children }: {
-  slug: string; name: string; count?: number; go?: string; onNavigate?: () => void; children: React.ReactNode
+function Group({ slug, section, name, count = 0, go, onNavigate, children }: {
+  slug: string; section: string; name: string; count?: number; go?: string; onNavigate?: () => void; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
   const navigate = useNavigate()
@@ -114,19 +101,21 @@ export function StaffNavGroup({ slug, name, count = 0, go, onNavigate, children 
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
-  /* A soft card per group (owner's side-panel design, 2026-10-24): the
-     heading row is the card's full width, the screens sit inside it. */
   return (
-    <div className="overflow-hidden rounded-[14px] border bg-surface-subtle">
-      <button type="button" data-row onClick={toggle} aria-expanded={open}
-        className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
-                   text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
-                   transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        <span className="truncate">{name}</span>
+    <div className="pt-1">
+      <button type="button" onClick={toggle} aria-expanded={open}
+        className="flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
+                   text-[calc(14px*var(--font-scale,1))] font-semibold text-foreground
+                   transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <LineIcon name={`${section} ${name}`} size={18} />
+          <span className="truncate">{name}</span>
+        </span>
         <Count n={count} />
         <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !open && '-rotate-90')} />
       </button>
-      {open && <div className="flex flex-col gap-1 px-2.5 pb-3 pt-1">{children}</div>}
+      {/* One level in, under a guide line, so a screen reads as part of its group. */}
+      {open && <div className="ml-[19px] flex flex-col border-l pl-2">{children}</div>}
     </div>
   )
 }
@@ -173,22 +162,26 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         const title = ws.sections.length > 1 ? section.name : ws.name
         const go = layout === 'classic' && section.slug === 'home' ? featurePath(roleKey, list[0].section, list[0].f.slug) : undefined
         return (
-          <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={title}
+          <Group key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} section={section.slug} name={title}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}
             go={go} onNavigate={onNavigate}>
             {list.map(({ section: from, f }) => (
-              <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+              <NavLink key={f.key} to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {
                   // A grouped item stays lit while one of its tabs is open.
                   const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)
-                  return staffItemClass(on, f.live)
+                  return cn(
+                    'flex min-h-[calc(34px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:gap-3 max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
+                    on ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
+                    !f.live && !on && 'text-muted-foreground/70',
+                  )
                 }}>
-                <LineIcon name={`${f.slug} ${f.name}`} size={20} />
+                <LineIcon name={`${f.slug} ${f.name}`} size={15} />
                 <span className="truncate">{label(f.name)}</span>
                 {f.slug === 'concerns_from_parents' && <Count n={concerns} />}
               </NavLink>
             ))}
-          </StaffNavGroup>
+          </Group>
         )
       })}
     </>
@@ -233,48 +226,6 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
           {d?.employee_code && <p className="truncate text-[calc(13px*var(--font-scale,1))] font-semibold tabular-nums">{d.employee_code}</p>}
           {times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         </div>
-      </div>
-    </div>
-  )
-}
-
-/* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
-   one full-width pill, then a card with who is signed in and Help, Settings
-   and Sign out. The avatar and name open the account page. */
-const FOOT_ICON = 'grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-
-export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: string | null; onNavigate: () => void }) {
-  const session = useSession()
-  const fullName = session.user?.full_name ?? ''
-  return (
-    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      <LayoutSwitch pill />
-      <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
-    </div>
-  )
-}
-
-/** Who is signed in, with Help, Settings and Sign out. Also shown in the Elements gallery. */
-export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
-  name: string; sub?: string | null; photoId?: string; onNavigate?: () => void
-}) {
-  return (
-    <div className="flex min-w-0 items-center justify-between gap-2 rounded-[14px] border bg-surface-subtle py-2.5 pl-3 pr-2">
-      <Link to="/account" data-help-anchor="account" onClick={onNavigate}
-        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
-        <span className="min-w-0">
-          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
-          {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
-        </span>
-      </Link>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <HelpButton className={FOOT_ICON} iconClassName="h-5 w-5 max-sm:h-6 max-sm:w-6" />
-        <div className="staff-foot-settings"><BentoSettings placement="rail" /></div>
-        <a href="/logout" onClick={() => buzz('warn')} aria-label="Sign out" title="Sign out"
-          className={cn(FOOT_ICON, 'hover:bg-destructive/10 hover:text-destructive')}>
-          <LogOut aria-hidden className="h-5 w-5 max-sm:h-6 max-sm:w-6" />
-        </a>
       </div>
     </div>
   )
