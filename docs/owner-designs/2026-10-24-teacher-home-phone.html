@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Dashboard - Full Name Layout</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --accent-blue: #0284c7;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding: 20px 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .phone-container {
+            width: 100%;
+            max-width: 390px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* --- EXECUTIVE HEADER WITH SPLIT LINES --- */
+        .exec-header {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding-bottom: 4px;
+        }
+
+        .exec-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .exec-avatar {
+            width: 40px;
+            height: 40px;
+            background: #0f172a;
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .exec-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .exec-btn {
+            background: transparent;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--text-primary);
+            transition: background 0.2s;
+        }
+
+        .exec-btn:hover {
+            background: var(--border-color);
+        }
+
+        /* Welcome Block with Greeting & Full Name Split */
+        .exec-welcome-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .exec-greeting {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .exec-fullname {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .exec-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .exec-meta-pill span {
+            color: #ea580c;
+            font-weight: 700;
+        }
+
+        /* Search Bar */
+        .exec-search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .exec-search-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 16px 0 42px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            font-size: 13px;
+            color: var(--text-primary);
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+
+        .exec-search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+        }
+
+        .exec-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* --- DASHBOARD CARDS --- */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .period-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .timetable-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .period-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .period-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .period-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .period-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .period-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .period-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .badge.done {
+            background-color: #f1f5f9;
+            color: #334155;
+        }
+
+        .badge.upcoming {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .break-divider {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: #f8fafc;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .notification-body {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .notification-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .notification-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .leave-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .leave-info h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .leave-info p {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .apply-btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        <!-- HEADER WITH SPLIT GREETING AND FULL NAME -->
+        <header class="exec-header">
+            <div class="exec-nav-bar">
+                <div class="exec-avatar">KB</div>
+                <div class="exec-actions">
+                    <button class="exec-btn" aria-label="Notifications">🔔</button>
+                    <button class="exec-btn" aria-label="Menu">☰</button>
+                </div>
+            </div>
+
+            <div class="exec-welcome-block">
+                <div class="exec-greeting">Good morning</div>
+                <div class="exec-fullname">KADIDELA BHAVANA</div>
+                <div class="exec-meta-pill">
+                    ID: <span>YPS59100016</span> • First 09:29 · Last 10:25 AM
+                </div>
+            </div>
+            
+            <div class="exec-search-wrapper">
+                <span class="exec-search-icon">🔍</span>
+                <input type="text" class="exec-search-input" placeholder="Search screens, students, staff...">
+            </div>
+        </header>
+
+        <!-- TIMETABLE CARD -->
+        <div class="card">
+            <div class="section-header">
+                <h2>Today's timetable</h2>
+                <span class="period-count">4 periods</span>
+            </div>
+            <div class="timetable-list">
+                <div class="period-item">
+                    <div class="period-info">
+                        <span class="period-name">Period 1</span>
+                        <span class="period-title">ENGLISH · Grade 5 BODHA</span>
+                        <span class="period-time">09:15 – 10:00</span>
+                    </div>
+                    <span class="badge done">Done</span>
+                </div>
+
+                <div class="break-divider">Break · 10:45 – 11:00</div>
+
+                <div class="period-item">
+                    <div class="period-info">
+                        <span class="period-name">Period 4</span>
+                        <span class="period-title">ENGLISH · Grade 9 HITHA</span>
+                        <span class="period-time">11:45 – 12:30</span>
+                    </div>
+                    <span class="badge upcoming">Upcoming</span>
+                </div>
+
+                <div class="break-divider">Lunch · 12:30 – 13:10</div>
+
+                <div class="period-item">
+                    <div class="period-info">
+                        <span class="period-name">Period 5</span>
+                        <span class="period-title">ENGLISH · Grade 8 HITHA</span>
+                        <span class="period-time">13:10 – 13:55</span>
+                    </div>
+                    <span class="badge upcoming">Upcoming</span>
+                </div>
+
+                <div class="period-item">
+                    <div class="period-info">
+                        <span class="period-name">Period 6</span>
+                        <span class="period-title">ENGLISH · Grade 6 HITHA</span>
+                        <span class="period-time">13:55 – 14:40</span>
+                    </div>
+                    <span class="badge upcoming">Upcoming</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTIFICATIONS CARD -->
+        <div class="card">
+            <div class="section-header" style="margin-bottom: 0;">
+                <h2>Notifications</h2>
+            </div>
+            <div class="notification-body">
+                <p class="notification-title">No notifications</p>
+                <p class="notification-desc">New notices and messages for you appear here.</p>
+            </div>
+        </div>
+
+        <!-- APPLY FOR LEAVE CARD -->
+        <div class="card leave-card">
+            <div class="leave-info">
+                <h3>Apply for leave</h3>
+                <p>Ask for a day off or half day, and check request status.</p>
+            </div>
+            <button class="apply-btn">Apply</button>
+        </div>
+    </div>
+
+</body>
+</html>

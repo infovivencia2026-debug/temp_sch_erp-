@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarRange, Gauge, TriangleAlert, UserCheck } from 'lucide-react'
+import { CalendarRange, Download, Gauge, TriangleAlert, UserCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Table, Td,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Table, Td,
   Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import WeekGrid from '@/components/WeekGrid'
@@ -116,6 +116,28 @@ export default function DepartmentTimetable() {
     }
     return [...m.values()].sort((a, b) => a.cls.localeCompare(b.cls) || a.subject.localeCompare(b.subject))
   }
+  /* EXPORT (Yajur, 2026-10-24): each period on its own row, day, period,
+     time, class and section, subject and room, for one teacher or all of them. */
+  const exportWeek = (people: { user_id: string; full_name: string; employee_code?: string }[]) => {
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    const order = new Map(d.periods.map((p, i) => [p.id, i]))
+    const cell = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+    const lines = [['Teacher', 'Code', 'Day', 'Period', 'Starts', 'Class', 'Section', 'Subject', 'Room'].join(',')]
+    for (const t of people) {
+      const rows = d.entries.filter((e) => e.teacher_id === t.user_id)
+        .map((e) => ({ e, p: d.periods.find((x) => x.id === rowOf(e.period_id)) }))
+        .sort((a, b) => a.e.weekday - b.e.weekday || (order.get(a.p?.id ?? '') ?? 0) - (order.get(b.p?.id ?? '') ?? 0))
+      for (const { e, p } of rows) {
+        lines.push([t.full_name, t.employee_code ?? '', DAYS[e.weekday - 1] ?? String(e.weekday), p?.name ?? '',
+          p ? p.starts_at.slice(0, 5) : '', e.class_name, e.section_name, e.subject_name, e.room ?? ''].map(cell).join(','))
+      }
+    }
+    const url = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = people.length === 1 ? `timetable-${people[0].full_name.replace(/\s+/g, '-')}.csv` : 'department-timetable.csv'
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
   const rowOf = (periodID: string) => (d.periods.some((p) => p.id === periodID) ? periodID : rowByName.get(nameOf.get(periodID) ?? '') ?? periodID)
   /* ONE TEACHER'S WEEK AT A TIME (Yajur, 2026-10-24: every teacher's grid one
      under another read as endless scrolling). Pick a name in the Load table
@@ -142,6 +164,7 @@ export default function DepartmentTimetable() {
                 options={d.departments.map((x) => ({ value: x.id, label: x.name }))}
               />
             )}
+            <Button variant="secondary" onClick={() => exportWeek(d.teachers)}><Download className="h-4 w-4" /> Export all</Button>
             <Select
               value={teacher}
               onChange={setTeacher}
@@ -243,6 +266,7 @@ export default function DepartmentTimetable() {
             <CardHeader
               title={t.full_name}
               description={`${t.periods} periods a week, ${t.free_slots} slots free, cap ${t.max_periods_per_week}.`}
+              action={<Button size="sm" variant="secondary" onClick={() => exportWeek([t])}><Download className="h-4 w-4" /> Export</Button>}
             />
             {/* What they teach in a week: each class and subject with its periods (Yajur, 2026-10-24). */}
             <Table head={['Class', 'Subject', 'Periods a week']}>
@@ -253,6 +277,11 @@ export default function DepartmentTimetable() {
                   <Td className="tabular-nums">{w.n}</Td>
                 </tr>
               ))}
+              <tr>
+                <Td className="font-semibold">Total</Td>
+                <Td className="text-muted-foreground">{weekly(t.user_id).length} {weekly(t.user_id).length === 1 ? 'class' : 'classes'}</Td>
+                <Td className="font-semibold tabular-nums">{weekly(t.user_id).reduce((n, w) => n + w.n, 0)}</Td>
+              </tr>
             </Table>
             <div className="p-4">
               <WeekGrid

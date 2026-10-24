@@ -281,6 +281,11 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     } else {
       for (const role of CATALOG_ROLES) if (mine.has(role.key)) held.add(role.key)
     }
+  } else if (!c.id.institution) {
+    /* A seller signed in to the console sees the seller workspace, not every
+       school workspace (owner, 2026-10-24). Opening a school for support sets
+       an institution and brings that school's screens back. */
+    for (const role of CATALOG_ROLES) if (mine.has(role.key)) held.add(role.key)
   }
   const features = allCatalogFeatureKeys()
   const directFeatures = new Set<string>()
