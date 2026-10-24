@@ -4154,7 +4154,7 @@ export default function BentoPrincipalDashboard() {
 
   // Every cue is checked against the catalogue before it is drawn: a link to a
   // screen this account cannot open is worse than no link.
-  const attendanceHref = useFeatureHref('institution_admin.standard.attendance_overview')
+  const attendanceHref = useFeatureHref('institution_admin.academics.attendance_audit')
   const feesHref = useFeatureHref('institution_admin.standard.fee_collection')
   const defaultersHref = useFeatureHref('institution_admin.fees.fee_default')
   /* Both of these used to name catalogue keys that do not exist —
@@ -4164,7 +4164,7 @@ export default function BentoPrincipalDashboard() {
      them and nothing said so. These are the real keys nearest what each cell
      is counting. */
   const studentsHref = useFeatureHref('institution_admin.students.student_360')
-  const staffHref = useFeatureHref('institution_admin.staff.leaves_subs')
+  const staffHref = useFeatureHref('institution_admin.academics.substitutions')
   const applicationsHref = useFeatureHref('institution_admin.admissions.admissions_pipeline')
   const subjectsHref = useFeatureHref('institution_admin.academics.teacher_assignment')
   const approvalsHref = useFeatureHref('institution_admin.approvals.approvals')
@@ -4190,7 +4190,7 @@ export default function BentoPrincipalDashboard() {
   const calendarHref = useFeatureHref('institution_admin.academics.school_calendar')
   const examsHref = useFeatureHref('institution_admin.examinations.exams_papers')
   const performanceHref = useFeatureHref('institution_admin.examinations.performance_overview')
-  const academicPerformanceHref = useFeatureHref('institution_admin.students.academic_performance')
+  const academicPerformanceHref = useFeatureHref('institution_admin.analysis.performance_analytics')
   const messagesHref = useFeatureHref('institution_admin.communication.messages')
   /* Filed under Staff since My Profile came off this role: the workspace held
      nothing but this one screen, and the account it appeared to offer is the

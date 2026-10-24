@@ -868,13 +868,13 @@ export default function BentoFinanceDashboard() {
     queryFn: () => api.get<List<InvoiceRow>>('/api/v1/finance/invoices?overdue=true'),
   })
 
-  const collectHref = useFeatureHref('finance.collections.collect_payment')
-  const receiptsHref = useFeatureHref('finance.collections.receipts')
-  const defaultersHref = useFeatureHref('finance.student_dues.defaulters_reminders')
-  const ledgerHref = useFeatureHref('finance.student_dues.student_ledger')
-  const reconciliationHref = useFeatureHref('finance.reconciliation.reconciliation')
-  const refundsHref = useFeatureHref('finance.concessions_refunds.refunds')
-  const invoicesHref = useFeatureHref('finance.fee_structure.demand_invoice_generation')
+  const collectHref = useFeatureHref('finance.fees.take_fee_payment')
+  const receiptsHref = useFeatureHref('finance.fees.take_fee_payment')
+  const defaultersHref = useFeatureHref('finance.fees.unpaid_fees_reminders')
+  const ledgerHref = useFeatureHref('finance.fees.student_wallets')
+  const reconciliationHref = useFeatureHref('finance.banking_reports.match_bank_records')
+  const refundsHref = useFeatureHref('finance.fees.fee_corrections')
+  const invoicesHref = useFeatureHref('finance.fees.class_transport_fee_setup')
 
   if (kpis.isLoading) return <BentoLoading message={t('bento.finance.loading')} />
   // Never a zero that is really a failed fetch. On a finance dashboard that is

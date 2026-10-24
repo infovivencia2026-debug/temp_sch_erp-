@@ -523,10 +523,10 @@ export default function AdmissionsDesk() {
     queryFn: () => api.get<List<EnquiryRow>>('/api/v1/admissions/enquiries'),
   })
 
-  const enquiriesHref = useFeatureHref('admissions.admissions_workspace.enquiries_leads')
-  const followUpsHref = useFeatureHref('admissions.admissions_workspace.follow_ups')
-  const applicationsHref = useFeatureHref('admissions.admissions_workspace.applications')
-  const offersHref = useFeatureHref('admissions.admissions_workspace.offers_admission_decisions')
+  const enquiriesHref = useFeatureHref('admissions.enquiries.enquiries')
+  const followUpsHref = useFeatureHref('admissions.enquiries.enquiries')
+  const applicationsHref = useFeatureHref('admissions.applications.application_forms')
+  const offersHref = useFeatureHref('admissions.admissions.waitlist')
 
   if (kpis.isLoading) return <BentoLoading message={t('bento.admissions.loading')} />
   // Never a zero that is really a failed fetch. "No enquiries" and "we could
