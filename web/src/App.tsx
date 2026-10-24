@@ -3,7 +3,7 @@ import { staffLayoutOn } from '@/lib/staff-layout'
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
 import { useTabs } from '@/lib/tabs'
-import { QueryClient, QueryClientProvider, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, defaultShouldDehydrateQuery, keepPreviousData, useIsFetching, useIsMutating } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
   indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE, forgetOtherPersisted,
@@ -664,7 +664,11 @@ function PersistGate({ children }: { children: ReactNode }) {
             persister: perUserPersister(userId, institutionId),
             /* Same value as the key; if the stored namespace ever fails to
                match, the persisted cache is discarded rather than trusted. */
-            buster: namespace,
+            /* ':2' threw away caches saved before the rule below kept only
+               finished data: they held a half-loaded query whose restore
+               threw ("promise.then is not a function") and left every
+               screen loading. */
+            buster: `${namespace}:2`,
             maxAge: PERSIST_MAX_AGE,
             /* Never persist the authority queries — identity, the menu, and the
                permission/role editors. Persisting them means a feature or
@@ -673,7 +677,12 @@ function PersistGate({ children }: { children: ReactNode }) {
                memory for the session) means a plain reload always reflects the
                current grants. Everything else is still persisted for offline. */
             dehydrateOptions: {
-              shouldDehydrateQuery: (query: { queryKey: readonly unknown[] }) => {
+              /* Only finished data is saved (the library's own rule, kept
+                 here). A query still loading would be saved with its request
+                 written as an empty object, and restoring it threw on the
+                 next start: the app stayed on the loading screen. */
+              shouldDehydrateQuery: (query: Parameters<typeof defaultShouldDehydrateQuery>[0]) => {
+                if (!defaultShouldDehydrateQuery(query)) return false
                 const k = String(query.queryKey[0] ?? '')
                 return ![
                   'session',
