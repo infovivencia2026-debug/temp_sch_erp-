@@ -306,7 +306,9 @@ async function todaySummary(c: Ctx, sc: Scope, today: string): Promise<Record<st
     const total = await count(c, `SELECT count(*) FROM students st WHERE st.id IN (SELECT e.student_id FROM enrollments e WHERE e.status = 'active') AND ${p.sql}`, ...p.args)
     return total > 0 ? [{ label: 'Students', value: String(total) }] : []
   })
-  if (can(c.id, 'academics.attendance.read')) figures.push(async () => {
+  // Office days (principal, admin) read attendance in the overview's
+  // "Attendance today" card; the Today row left it out (owner, 2026-10-24).
+  if (!officeDay && can(c.id, 'academics.attendance.read')) figures.push(async () => {
     const p = attendancePredicate(sc, 'sa')
     const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE sa.status IN ('present','late')) AS present, count(*) AS marked
       FROM student_attendance sa WHERE sa.on_date = ? AND ${p.sql}`).bind(today, ...p.args).first<{ present: number; marked: number }>()
