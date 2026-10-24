@@ -28,6 +28,7 @@ import { TriLoader } from '@/components/Loader'
 import { useToast } from '@/components/Toast'
 import { useSession } from '@/lib/session'
 import { Menu } from '@/features/bento/Menu'
+import { ChatThread } from '@/components/Chat'
 import { CardShell } from '@/features/bento/bento-cards'
 import { Rows, Row, NavRow, SwitchRow, SegmentRow, SliderRow, DropdownRow } from '@/features/bento/SettingsRows'
 
@@ -216,6 +217,22 @@ function Gallery() {
               extra={channelOf('Sent by WhatsApp')} unread pending snippet="Asked about seats and the fee for next year." onView={() => {}} />
             <NotificationRow title="Fee due: term 2" time="Yesterday" label="Fees" icon={Wallet}
               snippet="Pay before the 30th to avoid a late fee." onView={() => {}} />
+          </Card>
+        </Section>
+
+        <Section id="chat-composer" title="Chat composer">
+          {/* The one message bar: attach, words, mic and send on one line;
+              48px targets and 24px icons on phones, 40/20 on a desk. */}
+          <Card className="flex h-[22rem] flex-col overflow-hidden">
+            <ChatThread
+              messages={[
+                { id: 'g1', body: 'Is the bus late today?', at: '2026-10-24T08:10:00Z', mine: false, sender: 'Asha Rao' },
+                { id: 'g2', body: 'About ten minutes. It is on its way.', at: '2026-10-24T08:12:00Z', mine: true },
+              ]}
+              peerName="Asha Rao"
+              onSend={() => {}}
+              height="min-h-0"
+            />
           </Card>
         </Section>
 
