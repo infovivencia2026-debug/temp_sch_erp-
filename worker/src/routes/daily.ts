@@ -1385,14 +1385,17 @@ async function getApprovals(c: Ctx): Promise<Response> {
   if (can(c.id, 'admissions.approve')) {
     const rows = await c.db.prepare(`
       SELECT a.id, ${fullName2('a')} AS who, COALESCE(c.name, '') AS class, COALESCE(a.parent_name, '') AS parent,
-             COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i
-                        WHERE i.fee_structure_id = (SELECT fs.id FROM fee_structures fs
-                                                     WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
-                                                     ORDER BY (fs.class_id = a.class_sought) DESC, fs.created_at DESC LIMIT 1)), 0) AS fee,
+             COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i WHERE i.fee_structure_id = fs.id), 0) AS fee,
              COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
                         ORDER BY fc.created_at DESC LIMIT 1), '') AS waiver,
              COALESCE(a.decided_at, a.created_at) AS raised
         FROM applications a LEFT JOIN classes c ON c.id = a.class_sought
+        /* The structure is joined, not looked up two subqueries deep: D1
+           refused a.class_sought there ("no such column"), which failed the
+           whole Approvals inbox for anyone who approves admissions. */
+        LEFT JOIN fee_structures fs ON fs.id = (SELECT f2.id FROM fee_structures f2
+                                                 WHERE f2.is_active AND (f2.class_id = a.class_sought OR f2.class_id IS NULL)
+                                                 ORDER BY (f2.class_id IS NOT NULL) DESC, f2.created_at DESC LIMIT 1)
        WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL
        ORDER BY a.decided_at IS NULL, a.decided_at`).all()
     for (const v of rows.results) {
