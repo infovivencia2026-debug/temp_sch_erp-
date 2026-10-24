@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { Announcements } from './Announcements'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, Building2, Megaphone, TrendingUp } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Activity, Building2, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Button, Input, Textarea, Field, FormGrid, FormNotice, Select,
-  SkeletonTiles, ErrorState, EmptyState, ConfirmButton,
+  Badge, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise, formatDate } from '@/lib/utils'
 
@@ -47,28 +45,9 @@ interface Plan {
   max_students: number
 }
 
-interface Notice {
-  id: string
-  severity: 'info' | 'warning' | 'critical'
-  title: string
-  body?: string
-  starts_at: string
-  ends_at?: string
-  created_by?: string
-  live: boolean
-}
-
-const SEVERITY_TONE = {
-  info: 'info',
-  warning: 'warning',
-  critical: 'danger',
-} as const
-
 const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
 
 export default function SellerDashboard() {
-  const qc = useQueryClient()
-
   const tenants = useQuery({
     queryKey: ['seller-tenants'],
     queryFn: () => api.get<List<Tenant>>('/api/v1/seller/tenants'),
@@ -77,41 +56,6 @@ export default function SellerDashboard() {
     queryKey: ['seller-plans'],
     queryFn: () => api.get<List<Plan>>('/api/v1/seller/plans'),
   })
-  const notices = useQuery({
-    queryKey: ['platform-broadcasts'],
-    queryFn: () => api.get<List<Notice>>('/api/v1/seller/broadcasts'),
-  })
-
-  const [composing, setComposing] = useState(false)
-  const [form, setForm] = useState({
-    severity: 'info',
-    title: '',
-    body: '',
-    starts_at: '',
-    ends_at: '',
-  })
-
-  const raise = useMutation({
-    mutationFn: () =>
-      api.post('/api/v1/seller/broadcasts', {
-        severity: form.severity,
-        title: form.title,
-        body: form.body || undefined,
-        starts_at: form.starts_at || undefined,
-        ends_at: form.ends_at || undefined,
-      }),
-    onSuccess: () => {
-      setComposing(false)
-      setForm({ severity: 'info', title: '', body: '', starts_at: '', ends_at: '' })
-      qc.invalidateQueries({ queryKey: ['platform-broadcasts'] })
-    },
-  })
-
-  const retire = useMutation({
-    mutationFn: (id: string) => api.del(`/api/v1/seller/broadcasts/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-broadcasts'] }),
-  })
-
   if (tenants.isLoading && !tenants.data) return <SkeletonTiles count={2} label="Reading the book…" />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
@@ -156,21 +100,12 @@ export default function SellerDashboard() {
   })
 
   const overCap = rows.filter((t) => t.over_by > 0)
-  const noticeRows = notices.data?.items ?? []
-  const liveNotices = noticeRows.filter((n) => n.live)
-
   return (
     <>
       <PageHead
         eyebrow="Platform"
         title="The business"
         description="What the book looks like, whether the schools are actually using it, and the one place to tell all of them something at once."
-        actions={
-          <Button onClick={() => setComposing((v) => !v)}>
-            <Megaphone className="h-3.5 w-3.5" />
-            {composing ? 'Cancel' : 'Broadcast a notice'}
-          </Button>
-        }
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -211,122 +146,7 @@ export default function SellerDashboard() {
           />
         </CellGrid>
 
-        {/* The notice, above everything, because a live one is the most
-            important thing on the vendor's own screen too — and because a
-            vendor who cannot see what they broadcast forgets to take it down. */}
-        {composing && (
-          <Card>
-            <CardHeader
-              title="Broadcast to every school"
-              description="This appears to every signed-in user on the installation, principals, teachers, parents. Not a circular: a circular belongs to one school and reaches its own families."
-            />
-            {/* Card draws the border; the screen supplies the padding inside
-                it. Without this the fields ran to the card's own edge and the
-                button was clipped by it. */}
-            <div className="space-y-4 px-5 pb-5">
-              {raise.isError && <FormNotice error={raise.error} />}
-              <FormGrid>
-              <Field label="Kind" required>
-                <Select
-                  value={form.severity}
-                  onChange={(v) => setForm({ ...form, severity: v })}
-                  options={[
-                    { value: 'info', label: 'Notice, something to know' },
-                    { value: 'warning', label: 'Warning, something is coming' },
-                    { value: 'critical', label: 'Critical, something is wrong now' },
-                  ]}
-                />
-              </Field>
-              <Field label="Title" required hint="The only part most people read.">
-                <Input
-                  value={form.title}
-                  onChange={(v) => setForm({ ...form, title: v })}
-                  placeholder="Maintenance on Sunday, 6am to 6.30am"
-                />
-              </Field>
-              <Field label="From" hint="Leave blank to show it now.">
-                <Input
-                  type="datetime-local"
-                  value={form.starts_at}
-                  onChange={(v) => setForm({ ...form, starts_at: v })}
-                />
-              </Field>
-              <Field label="Until" hint="Leave blank to keep it up until you take it down.">
-                <Input
-                  type="datetime-local"
-                  value={form.ends_at}
-                  onChange={(v) => setForm({ ...form, ends_at: v })}
-                />
-              </Field>
-              <Field label="Detail" wide>
-                <Textarea
-                  value={form.body}
-                  onChange={(v) => setForm({ ...form, body: v })}
-                  rows={3}
-                  placeholder="Fee payments will be unavailable. Nothing already recorded is affected."
-                />
-              </Field>
-              </FormGrid>
-              <Button
-                onClick={() => raise.mutate()}
-                disabled={!form.title.trim() || raise.isPending}
-              >
-                {raise.isPending ? 'Publishing…' : 'Publish to every school'}
-              </Button>
-            </div>
-          </Card>
-        )}
-
         <Announcements />
-
-        <Card>
-          <CardHeader
-            title="Notices"
-            description={
-              liveNotices.length
-                ? `${liveNotices.length} showing to every school right now`
-                : 'Nothing is showing to the schools at the moment.'
-            }
-          />
-          <Table
-            head={['', 'Notice', 'From', 'Until', 'Raised by', '']}
-            empty={noticeRows.length === 0}
-            emptyLabel="No notice has been broadcast yet."
-          >
-            {noticeRows.map((n) => (
-              <tr key={n.id}>
-                <Td>
-                  <Badge tone={SEVERITY_TONE[n.severity]}>
-                    {n.live ? n.severity : n.ends_at && !n.live ? 'ended' : 'scheduled'}
-                  </Badge>
-                </Td>
-                <Td>
-                  <div className="font-medium">{n.title}</div>
-                  {n.body && (
-                    <div className="text-[12.5px] text-muted-foreground">{n.body}</div>
-                  )}
-                </Td>
-                <Td className="num text-muted-foreground">{n.starts_at.replace('T', ' ')}</Td>
-                <Td className="num text-muted-foreground">
-                  {n.ends_at ? n.ends_at.replace('T', ' ') : 'until taken down'}
-                </Td>
-                <Td className="text-muted-foreground">{n.created_by ?? '-'}</Td>
-                <Td>
-                  {n.live && (
-                    <ConfirmButton
-                      confirmLabel="Take it down"
-                      question="Every school stops seeing this. The record of it is kept."
-                      onConfirm={() => retire.mutate(n.id)}
-                      disabled={retire.isPending}
-                    >
-                      Take down
-                    </ConfirmButton>
-                  )}
-                </Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
 
         {/* What needs somebody today. Deliberately three narrow lists rather
             than one "alerts" feed: each has a different remedy, and a mixed

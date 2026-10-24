@@ -187,6 +187,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Billing')),
   'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
+  // Schools renewing in 30/60/90 days with a churn-risk flag; resellers and their commission.
+  'seller_admin.subscriptions_billing.renewals': screen(() => import('./seller/Renewals')),
+  'seller_admin.subscriptions_billing.partners': screen(() => import('./seller/Partners')),
+  // The sales pipeline: leads, quotes, demo schools, "Set up school" when won.
+  'seller_admin.sales.leads': screen(() => import('./super_admin/Leads')),
 
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),

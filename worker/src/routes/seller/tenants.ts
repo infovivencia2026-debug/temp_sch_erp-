@@ -3,6 +3,7 @@ import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, r
 import { hashPassword } from '../../auth/password'
 import { defaultAppId, institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
 import type { Env } from '../../env'
+import { VENDOR_ROLES } from '../../identity'
 import { notImplemented, requirePlatformAdmin } from './common'
 
 /* Port of internal/api/seller.go, plans_write.go, tenant_limits.go,
@@ -163,6 +164,48 @@ export async function subscriptionsByInstitution(env: Env, where = ''): Promise<
   return new Map(r.results.map((s) => [s.institution_id, s]))
 }
 
+/** A school's subscription: plan, status, renewal, seats. A suspended or cancelled one locks the school. Used by the
+    subscription route and by bulk plan changes (seller/accounts.ts). */
+export interface SubscriptionChange { plan_code?: string; status?: string; renews_on?: string; licensed_students?: number | null; notes?: string }
+export async function changeSubscription(env: Env, instId: string, req: SubscriptionChange): Promise<void> {
+  const status = req.status ?? ''
+  if (status && !SUBSCRIPTION_STATUSES.includes(status)) throw badRequest(`status must be one of ${SUBSCRIPTION_STATUSES.join(', ')}`)
+  const licensed = typeof req.licensed_students === 'number' ? req.licensed_students : null
+  // Both are foreign keys: say which one is wrong instead of failing the batch with a 500.
+  if (!(await env.CONTROL.prepare('SELECT 1 FROM institutions WHERE id = ?').bind(instId).first())) throw notFound('resource not found')
+  if (req.plan_code && !(await env.CONTROL.prepare('SELECT 1 FROM plans WHERE code = ?').bind(req.plan_code).first())) {
+    throw badRequest('unknown plan: ' + req.plan_code)
+  }
+  const t = now()
+  const stmts: D1PreparedStatement[] = [
+    env.CONTROL.prepare(`INSERT INTO subscriptions (institution_id, plan_code, status, started_on, renews_on, licensed_students, notes, updated_at)
+        VALUES (?, COALESCE(NULLIF(?,''), 'starter'), COALESCE(NULLIF(?,''), 'trial'), ?, NULLIF(?,''), ?, NULLIF(?,''), ?)
+        ON CONFLICT (institution_id) DO UPDATE SET
+          plan_code = COALESCE(NULLIF(?,''), subscriptions.plan_code),
+          status = COALESCE(NULLIF(?,''), subscriptions.status),
+          renews_on = COALESCE(NULLIF(?,''), subscriptions.renews_on),
+          licensed_students = COALESCE(?, subscriptions.licensed_students),
+          notes = COALESCE(NULLIF(?,''), subscriptions.notes),
+          updated_at = ?`)
+      .bind(instId, req.plan_code ?? '', status, today(), req.renews_on ?? '', licensed, req.notes ?? '', t,
+        req.plan_code ?? '', status, req.renews_on ?? '', licensed, req.notes ?? '', t),
+  ]
+  // A suspended subscription must actually lock the door.
+  let instStatus: string | null = null
+  if (status === 'suspended' || status === 'cancelled') instStatus = 'suspended'
+  else if (status === 'trial' || status === 'active') instStatus = 'active'
+  if (instStatus) stmts.push(env.CONTROL.prepare('UPDATE institutions SET status = ?, updated_at = ? WHERE id = ?').bind(instStatus, t, instId))
+  await env.CONTROL.batch(stmts)
+
+  const inst = await institutionById(env, instId)
+  if (inst) {
+    const sub = await env.CONTROL.prepare(`SELECT plan_code FROM subscriptions WHERE institution_id = ? AND status <> 'cancelled'`).bind(instId).first<{ plan_code: string }>()
+    if (sub) await applyPlan(env, inst, sub.plan_code)
+    const db = openTenant(env, inst)
+    if (db && instStatus) await db.prepare('UPDATE institutions SET status = ?, updated_at = ? WHERE id = ?').bind(instStatus, t, instId).run()
+  }
+}
+
 // --- routes -------------------------------------------------------------------------
 
 export function registerSellerTenants(r: Router): void {
@@ -310,43 +353,7 @@ export function registerSellerTenants(r: Router): void {
     requirePlatformAdmin(c)
     if (!isUUID(c.params.id)) throw badRequest('invalid institution id')
     const instId = c.params.id
-    const req = await readJSON<{ plan_code?: string; status?: string; renews_on?: string; licensed_students?: number | null; notes?: string }>(c.req)
-    const status = req.status ?? ''
-    if (status && !SUBSCRIPTION_STATUSES.includes(status)) throw badRequest(`status must be one of ${SUBSCRIPTION_STATUSES.join(', ')}`)
-    const licensed = typeof req.licensed_students === 'number' ? req.licensed_students : null
-    // Both are foreign keys: say which one is wrong instead of failing the batch with a 500.
-    if (!(await c.env.CONTROL.prepare('SELECT 1 FROM institutions WHERE id = ?').bind(instId).first())) throw notFound('resource not found')
-    if (req.plan_code && !(await c.env.CONTROL.prepare('SELECT 1 FROM plans WHERE code = ?').bind(req.plan_code).first())) {
-      throw badRequest('unknown plan: ' + req.plan_code)
-    }
-    const t = now()
-    const stmts: D1PreparedStatement[] = [
-      c.env.CONTROL.prepare(`INSERT INTO subscriptions (institution_id, plan_code, status, started_on, renews_on, licensed_students, notes, updated_at)
-          VALUES (?, COALESCE(NULLIF(?,''), 'starter'), COALESCE(NULLIF(?,''), 'trial'), ?, NULLIF(?,''), ?, NULLIF(?,''), ?)
-          ON CONFLICT (institution_id) DO UPDATE SET
-            plan_code = COALESCE(NULLIF(?,''), subscriptions.plan_code),
-            status = COALESCE(NULLIF(?,''), subscriptions.status),
-            renews_on = COALESCE(NULLIF(?,''), subscriptions.renews_on),
-            licensed_students = COALESCE(?, subscriptions.licensed_students),
-            notes = COALESCE(NULLIF(?,''), subscriptions.notes),
-            updated_at = ?`)
-        .bind(instId, req.plan_code ?? '', status, today(), req.renews_on ?? '', licensed, req.notes ?? '', t,
-          req.plan_code ?? '', status, req.renews_on ?? '', licensed, req.notes ?? '', t),
-    ]
-    // A suspended subscription must actually lock the door.
-    let instStatus: string | null = null
-    if (status === 'suspended' || status === 'cancelled') instStatus = 'suspended'
-    else if (status === 'trial' || status === 'active') instStatus = 'active'
-    if (instStatus) stmts.push(c.env.CONTROL.prepare('UPDATE institutions SET status = ?, updated_at = ? WHERE id = ?').bind(instStatus, t, instId))
-    await c.env.CONTROL.batch(stmts)
-
-    const inst = await institutionById(c.env, instId)
-    if (inst) {
-      const sub = await c.env.CONTROL.prepare(`SELECT plan_code FROM subscriptions WHERE institution_id = ? AND status <> 'cancelled'`).bind(instId).first<{ plan_code: string }>()
-      if (sub) await applyPlan(c.env, inst, sub.plan_code)
-      const db = openTenant(c.env, inst)
-      if (db && instStatus) await db.prepare('UPDATE institutions SET status = ?, updated_at = ? WHERE id = ?').bind(instStatus, t, instId).run()
-    }
+    await changeSubscription(c.env, instId, await readJSON<SubscriptionChange>(c.req))
     return ok({ institution_id: instId })
   })
 
@@ -640,7 +647,9 @@ export function registerSellerTenants(r: Router): void {
      hold whatever is asked: nobody changes their own access here, a super
      admin is only ever touched by a super admin, and the last active
      operator cannot be suspended or demoted, or the console locks itself. */
-  const STAFF_ROLES = new Set(['seller_admin', 'support_admin'])
+  // The area roles (identity.ts VENDOR_ROLES) are held to one part of the console each.
+  const STAFF_ROLES = new Set(['seller_admin', 'support_admin', ...VENDOR_ROLES.map((r) => r.key)])
+  const ROLE_LIST = [...STAFF_ROLES].join(', ')
   const OPERATORS = new Set(['seller_admin', 'super_admin'])
   const operatorOnly = (c: Ctx) => {
     requirePlatformAdmin(c)
@@ -688,7 +697,7 @@ export function registerSellerTenants(r: Router): void {
     const email = (req.email ?? '').trim().toLowerCase()
     const phone = (req.phone ?? '').trim()
     const role = (req.role ?? 'support_admin').trim()
-    if (!STAFF_ROLES.has(role)) throw badRequest('role must be seller_admin or support_admin')
+    if (!STAFF_ROLES.has(role)) throw badRequest(`role must be one of ${ROLE_LIST}`)
     if (!fullName) throw badRequest('the account needs a name')
     if (!email && !phone) throw badRequest('an email or a phone number is required to sign in')
     const subject = email ? `${fullName} <${email}>` : fullName
@@ -747,14 +756,14 @@ export function registerSellerTenants(r: Router): void {
     operatorOnly(c)
     const u = await staffTarget(c)
     const role = ((await readJSON<{ role?: string }>(c.req)).role ?? '').trim()
-    if (!STAFF_ROLES.has(role)) throw badRequest('role must be seller_admin or support_admin')
+    if (!STAFF_ROLES.has(role)) throw badRequest(`role must be one of ${ROLE_LIST}`)
     if (u.roles.includes('super_admin')) throw badRequest('a super admin keeps that role; it is not changed from this screen')
-    if (role === 'support_admin' && u.status === 'active' && u.roles.some((k) => OPERATORS.has(k)) && await otherActiveOperators(c.env, u.id) === 0) {
+    if (!OPERATORS.has(role) && u.status === 'active' && u.roles.some((k) => OPERATORS.has(k)) && await otherActiveOperators(c.env, u.id) === 0) {
       throw badRequest('this is the last active seller administrator; make another before changing this one')
     }
     const t = now()
     await c.env.CONTROL.batch([
-      c.env.CONTROL.prepare(`DELETE FROM platform_user_roles WHERE user_id = ? AND role_key IN ('seller_admin','support_admin')`).bind(u.id),
+      c.env.CONTROL.prepare(`DELETE FROM platform_user_roles WHERE user_id = ? AND role_key IN (SELECT value FROM json_each(?))`).bind(u.id, JSON.stringify([...STAFF_ROLES])),
       c.env.CONTROL.prepare('INSERT INTO platform_user_roles (user_id, role_key, created_at) VALUES (?, ?, ?)').bind(u.id, role, t),
       // What they may do changed: the next request re-reads it rather than a cached session carrying the old role.
       endPlatformSessions(c.env, u.id, 'role changed'),

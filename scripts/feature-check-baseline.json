@@ -28,8 +28,7 @@
       "web/src/features/setup/PeriodUpload.tsx",
       "web/src/features/students/Alumni.tsx",
       "web/src/features/students/DepartmentStudents.tsx",
-      "web/src/features/students/StudentCouncil.tsx",
-      "web/src/features/super_admin/Leads.tsx"
+      "web/src/features/students/StudentCouncil.tsx"
     ]
   }
 }

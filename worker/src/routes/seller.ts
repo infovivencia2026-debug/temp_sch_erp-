@@ -10,6 +10,9 @@ import { registerSchoolHealth } from './seller/health'
 import { registerSellerBilling } from './seller/billing'
 import { registerSellerOnboarding } from './seller/onboarding'
 import { registerSellerControls } from './seller/controls'
+import { registerSellerSales } from './seller/sales'
+import { registerSellerPartners } from './seller/partners'
+import { registerSellerAccounts } from './seller/accounts'
 
 /* Port of the /seller group in internal/api/api.go (lines 1387-1445): the
    vendor's own back office. The Go group guarded everything with
@@ -32,4 +35,8 @@ export function registerSeller(r: Router): void {
   registerSellerOnboarding(r)
   // Controls: every school setting, platform and plan defaults, role templates (docs/seller-controls.md).
   registerSellerControls(r)
+  // Quotes and demo schools; resellers and commission; School 360, renewals and bulk actions.
+  registerSellerSales(r)
+  registerSellerPartners(r)
+  registerSellerAccounts(r)
 }

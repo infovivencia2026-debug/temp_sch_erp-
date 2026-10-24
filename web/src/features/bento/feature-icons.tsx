@@ -243,6 +243,9 @@ export const FEATURE_ICONS: Record<string, string> = {
   meritto_leadsquared_sync: 'sync_alt', // Meritto / LeadSquared Sync
   message_channels: 'cell_tower', // Message Channels
   message_credits: 'toll', // Message Credits
+  leads: 'contacts', // Leads
+  renewals: 'event_available', // Renewals
+  partners: 'handshake', // Partners
   messages: 'mail', // Messages
   module_configuration: 'tune', // Module configuration
   module_entitlement_matrix: 'grid_view', // Module Entitlement Matrix
@@ -476,6 +479,7 @@ export const SECTION_ICONS: Record<string, string> = {
   stores: 'inventory_2', // Stores
   students: 'person', // Students
   subscriptions_billing: 'receipt_long', // Subscriptions & Billing
+  sales: 'trending_up', // Sales
   support: 'help', // Support
   systems: 'dns', // Systems
   teaching: 'cast_for_education', // Teaching

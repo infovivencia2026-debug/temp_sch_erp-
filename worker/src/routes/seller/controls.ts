@@ -121,6 +121,16 @@ async function applyToSchool(c: Ctx, s: School, plan: Plan[], reason: string, dr
   return out
 }
 
+/** One school's change through the registry: declared, vendor-editable keys only, audited, with the notice
+    when the setting asks for one. For routes outside Controls that write a school setting
+    (admin/platform_config.ts PUT /admin/platform/entitlements). */
+export async function setSchoolSettings(c: Ctx, institutionId: string, changes: unknown, reason: unknown, dryRun = false): Promise<ApplyResult> {
+  const plan = parseChanges(changes)
+  const why = dryRun ? '' : reasonOf(reason)
+  const s = await loadSchool(c.env, uuidParam(institutionId, 'institution_id'))
+  return { applied: !dryRun, schools: [await applyToSchool(c, s, plan, why, dryRun, false)] }
+}
+
 /** A notice on the school administrators' board: what changed and why. */
 async function notifySchool(c: Ctx, s: School, changes: { label: string; before: SettingValue; after: SettingValue }[], reason: string): Promise<void> {
   const id = uuid(), t = now()

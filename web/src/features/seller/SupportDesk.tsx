@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session'
 import { cn, formatDateTime } from '@/lib/utils'
 import { buzz } from '@/lib/haptics'
 import { useToast } from '@/components/Toast'
+import { fillCanned } from './canned-fill'
 import type { Grant, VendorTicket } from '../super_admin/platform-lib'
 import type { HelpDiagnostics, HelpThreadEntry } from '@shared/api/feature_helpdesk'
 
@@ -172,10 +173,6 @@ export function DeskPanes({ items, everything = false }: { items: VendorTicket[]
   )
 }
 
-function fill(body: string, t: { raised_by?: string; school?: string }, agent: string): string {
-  return body.replace(/\{\{name\}\}/g, (t.raised_by ?? '').split(' ')[0] || 'there').replace(/\{\{school\}\}/g, t.school ?? 'your school').replace(/\{\{agent\}\}/g, agent)
-}
-
 function Conversation({ t, onClose }: { t: VendorTicket; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -232,7 +229,7 @@ function Conversation({ t, onClose }: { t: VendorTicket; onClose: () => void }) 
             <div className="space-y-2 border-t p-3">
               {cannedOptions.length > 0 && (
                 <PickerMenu ariaLabel="Canned reply" value={'' as string} placeholder="Canned reply" align="start" options={cannedOptions}
-                  onChange={(k) => { const c = canned.data?.items.find((x) => x.item.key === k)?.item; if (c) setBody(fill(c.body, t, agent)) }} />
+                  onChange={(k) => { const c = canned.data?.items.find((x) => x.item.key === k)?.item; if (c) setBody(fillCanned(c.body, t, agent)) }} />
               )}
               <Textarea value={body} onChange={setBody} rows={3} aria-label="Reply" placeholder={internal ? 'A note only the desk sees' : `Reply to ${t.school}`} />
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

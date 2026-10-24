@@ -72,20 +72,6 @@ const LEAD_MOVES: Record<string, string[]> = {
 const isStage = (s: string) => (LEAD_STAGES as readonly string[]).includes(s)
 const canMove = (from: string, to: string) => (LEAD_MOVES[from] ?? []).includes(to)
 
-/* ── Broadcast times ────────────────────────────────────────────────────── */
-
-/** RFC3339, 'YYYY-MM-DDTHH:MM' or 'YYYY-MM-DD'; the zoneless layouts are UTC as Go's time.Parse made them. */
-function parseWhen(v: string | undefined): string | null | undefined {
-  const s = (v ?? '').trim()
-  if (s === '') return null
-  let t: Date
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) t = new Date(s + 'T00:00:00Z')
-  else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) t = new Date(s + ':00Z')
-  else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(s)) t = new Date(s)
-  else return undefined
-  return Number.isNaN(t.getTime()) ? undefined : t.toISOString()
-}
-
 export function registerSellerPlatform(r: Router): void {
   /* --- the recharge queue -------------------------------------------- */
 
@@ -171,26 +157,54 @@ export function registerSellerPlatform(r: Router): void {
 
   /* --- the sales desk ------------------------------------------------ */
 
+  /* The list, filtered and paged on the server: q (school, contact, email,
+     phone or district), stage, owner (a platform user id, or "none"), and
+     limit/offset. Ordered by follow-up date, then newest. */
   r.get('/seller/enquiries', PERM, async (c) => {
     requirePlatformAdmin(c)
-    const rows = await c.env.CONTROL.prepare(`
+    const sp = c.url.searchParams
+    const q = (sp.get('q') ?? '').trim().toLowerCase()
+    const stage = (sp.get('stage') ?? '').trim()
+    const owner = (sp.get('owner') ?? '').trim()
+    if (stage && !isStage(stage)) throw badRequest('stage must be one of new, contacted, demo_booked, won, lost')
+    if (owner && owner !== 'none' && !isUUID(owner)) throw badRequest('owner must be a user id or none')
+    const limit = Math.min(200, Math.max(1, Math.trunc(Number(sp.get('limit')) || 50)))
+    const offset = Math.max(0, Math.trunc(Number(sp.get('offset')) || 0))
+    const conds: string[] = [], binds: unknown[] = []
+    if (q) {
+      conds.push(`(lower(e.school_name) LIKE ?1 OR lower(e.contact_name) LIKE ?1 OR lower(COALESCE(e.email, '')) LIKE ?1
+        OR COALESCE(e.phone, '') LIKE ?1 OR lower(COALESCE(e.district, '')) LIKE ?1)`)
+      binds.push('%' + q.replace(/[%_]/g, '') + '%')
+    }
+    const n = () => `?${binds.length + 1}`
+    if (stage) { conds.push(`e.status = ${n()}`); binds.push(stage) }
+    if (owner === 'none') conds.push('e.owner_user_id IS NULL')
+    else if (owner) { conds.push(`e.owner_user_id = ${n()}`); binds.push(owner) }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : ''
+    const [rows, total, owners] = await Promise.all([
+      c.env.CONTROL.prepare(`
       SELECT e.id, e.school_name, e.contact_name, e.email, e.phone,
              e.district, e.students, e.plan_code, e.message, e.status, e.source,
              substr(e.created_at, 1, 10) AS created_at,
-             (e.provisioned_institution_id IS NOT NULL) AS provisioned,
+             (e.provisioned_institution_id IS NOT NULL) AS provisioned, e.provisioned_institution_id,
              u.full_name AS owner, e.owner_user_id, e.next_follow_up,
              e.lost_reason, e.value_paise,
              (SELECT COUNT(*) FROM purchase_enquiry_notes n WHERE n.enquiry_id = e.id) AS notes
         FROM purchase_enquiries e
         LEFT JOIN platform_users u ON u.id = e.owner_user_id
-       ORDER BY (e.next_follow_up IS NULL), e.next_follow_up, e.created_at DESC
-       LIMIT 200`).all<Record<string, unknown>>()
+       ${where}
+       ORDER BY (e.next_follow_up IS NULL), e.next_follow_up, e.created_at DESC, e.id
+       LIMIT ${limit} OFFSET ${offset}`).bind(...binds).all<Record<string, unknown>>(),
+      c.env.CONTROL.prepare(`SELECT COUNT(*) AS n FROM purchase_enquiries e ${where}`).bind(...binds).first<{ n: number }>(),
+      c.env.CONTROL.prepare(`SELECT id, full_name FROM platform_users WHERE status = 'active' ORDER BY full_name`).all<{ id: string; full_name: string }>(),
+    ])
     const items = rows.results.map((v) => {
       const o: Record<string, unknown> = {
         id: v.id, school_name: v.school_name, contact_name: v.contact_name,
       }
       for (const k of ['email', 'phone', 'district', 'students', 'plan_code', 'message'] as const) if (v[k] != null) o[k] = v[k]
       o.status = v.status; o.source = v.source; o.created_at = v.created_at; o.provisioned = bool(v.provisioned)
+      if (v.provisioned_institution_id != null) o.institution_id = v.provisioned_institution_id
       if (v.owner != null) o.owner = v.owner
       if (v.owner_user_id != null) o.owner_user_id = v.owner_user_id
       if (v.next_follow_up != null) o.next_follow_up = String(v.next_follow_up).slice(0, 10)
@@ -199,7 +213,46 @@ export function registerSellerPlatform(r: Router): void {
       o.notes = v.notes ?? 0
       return o
     })
-    return ok({ items })
+    const count = total?.n ?? 0
+    return ok({ items, total: count, has_more: offset + items.length < count, owners: owners.results })
+  })
+
+  /* A lead entered by hand: a call, a walk-in, a referral. */
+  r.post('/seller/enquiries', PERM, async (c) => {
+    requirePlatformAdmin(c)
+    const req = await readJSON<{
+      school_name?: string; contact_name?: string; email?: string; phone?: string; district?: string; students?: number | null
+      plan_code?: string; message?: string; value_paise?: number | null; owner_user_id?: string | null; next_follow_up?: string | null
+    }>(c.req)
+    const str = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+    const school = str(req.school_name), contact = str(req.contact_name)
+    const email = str(req.email).toLowerCase(), phone = str(req.phone, 30)
+    if (!school) throw badRequest('the school needs a name')
+    if (!contact) throw badRequest('say who to speak to')
+    if (!email && !phone) throw badRequest('give an email or a phone number to reach them')
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw badRequest('that email does not look right')
+    const students = req.students == null ? null : Math.trunc(Number(req.students))
+    if (students !== null && !(students >= 0 && students <= 100000)) throw badRequest('students must be a number from 0 to 100000')
+    const value = req.value_paise == null ? null : Math.round(Number(req.value_paise))
+    if (value !== null && !(value >= 0)) throw badRequest('value_paise must be zero or more')
+    const plan = str(req.plan_code, 60)
+    if (plan && !(await c.env.CONTROL.prepare('SELECT 1 FROM plans WHERE code = ?').bind(plan).first())) throw badRequest('unknown plan: ' + plan)
+    const owner = str(req.owner_user_id, 60) || null
+    if (owner && !(await c.env.CONTROL.prepare(`SELECT 1 FROM platform_users WHERE id = ? AND status = 'active'`).bind(owner).first())) {
+      throw badRequest('the owner must be an active member of the platform team')
+    }
+    const follow = str(req.next_follow_up, 10) || null
+    if (follow && (!/^\d{4}-\d{2}-\d{2}$/.test(follow) || Number.isNaN(Date.parse(follow + 'T00:00:00Z')))) throw badRequest('next_follow_up must be YYYY-MM-DD')
+    const id = uuid(), ts = now()
+    await c.env.CONTROL.batch([
+      c.env.CONTROL.prepare(`INSERT INTO purchase_enquiries (id, school_name, contact_name, email, phone, district, students, plan_code, message,
+          status, source, owner_user_id, next_follow_up, value_paise, created_at, updated_at)
+          VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), 'new', 'manual', ?, ?, ?, ?, ?)`)
+        .bind(id, school, contact, email, phone, str(req.district, 100), students, plan, str(req.message, 2000), owner, follow, value, ts, ts),
+      c.env.CONTROL.prepare(`INSERT INTO purchase_enquiry_notes (id, enquiry_id, kind, body, author_id, created_at) VALUES (?, ?, 'note', 'Added by hand', ?, ?)`)
+        .bind(uuid(), id, c.id.userId, ts),
+    ])
+    return created({ id })
   })
 
   r.get('/seller/enquiries/pipeline', PERM, async (c) => {
@@ -439,65 +492,7 @@ export function registerSellerPlatform(r: Router): void {
       .bind(...vals.map(Math.trunc), req.notes ?? '', c.id.userId, now()).run()
     return ok({ saved: true })
   })
-
-  /* --- one notice to every school ------------------------------------ */
-
-  r.get('/seller/broadcasts', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const ts = now()
-    const rows = await c.env.CONTROL.prepare(`
-      SELECT b.id, b.severity, b.title, b.body, b.starts_at, b.ends_at, u.full_name AS created_by,
-             (b.retired_at IS NULL AND b.starts_at <= ? AND (b.ends_at IS NULL OR b.ends_at > ?)) AS live
-        FROM platform_broadcasts b
-        LEFT JOIN platform_users u ON u.id = b.created_by
-       ORDER BY b.starts_at DESC
-       LIMIT 100`).bind(ts, ts)
-      .all<{ id: string; severity: string; title: string; body: string; starts_at: string; ends_at: string | null; created_by: string | null; live: number }>()
-    const items = rows.results.map((v) => ({
-      id: v.id, severity: v.severity, title: v.title,
-      ...(v.body ? { body: v.body } : {}),
-      starts_at: minute(v.starts_at),
-      ...(v.ends_at != null ? { ends_at: minute(v.ends_at) } : {}),
-      ...(v.created_by != null ? { created_by: v.created_by } : {}),
-      live: bool(v.live),
-    }))
-    return ok({ items })
-  })
-
-  r.post('/seller/broadcasts', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const req = await readJSON<{ severity?: string; title?: string; body?: string; starts_at?: string; ends_at?: string }>(c.req)
-    const title = (req.title ?? '').trim()
-    if (title === '') throw badRequest('a notice needs a title. It is the only part most people read')
-    let severity = req.severity ?? ''
-    if (severity === '' || severity === 'info') severity = 'info'
-    else if (severity !== 'warning' && severity !== 'critical') throw badRequest('severity must be info, warning or critical')
-
-    const startsAt = parseWhen(req.starts_at)
-    if (startsAt === undefined) throw badRequest('starts_at must be a date and time')
-    const endsAt = parseWhen(req.ends_at)
-    if (endsAt === undefined) throw badRequest('ends_at must be a date and time')
-    const ts = now()
-    const starts = startsAt ?? ts
-    // platform_broadcasts_window_check, done here since SQLite has no CHECK to name.
-    if (endsAt !== null && endsAt <= starts) throw badRequest('that notice ends before it starts, so nobody would ever see it')
-
-    const id = uuid()
-    await c.env.CONTROL.prepare(`
-      INSERT INTO platform_broadcasts (id, severity, title, body, starts_at, ends_at, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, severity, title, (req.body ?? '').trim(), starts, endsAt, c.id.userId, ts).run()
-    return created({ id })
-  })
-
-  r.del('/seller/broadcasts/{id}', PERM, async (c) => {
-    requirePlatformAdmin(c)
-    const bid = c.params.id
-    if (!isUUID(bid)) throw badRequest('invalid broadcast id')
-    // Retired, not deleted: "which schools were told, and when" is asked afterwards.
-    const res = await c.env.CONTROL.prepare(`UPDATE platform_broadcasts SET retired_at = ? WHERE id = ? AND retired_at IS NULL`)
-      .bind(now(), bid).run()
-    if ((res.meta.changes ?? 0) === 0) throw conflict('that notice is already down, or there is no such notice')
-    return ok({ retired: true })
-  })
+  /* One notice to every school: /seller/announcements (announcements.ts), which
+     reads and writes the same platform_broadcasts rows. The older
+     /seller/broadcasts routes were a second door to them and are gone. */
 }

@@ -6,8 +6,8 @@ import { requirePlatformAdmin } from './common'
 /* Targeted platform announcements: platform_broadcasts plus
    platform_broadcast_targets (who) and platform_broadcast_reads (seen /
    dismissed, per school user). See db/changes/control_features.sql. A
-   broadcast with no target row is for every school and every audience, so
-   the older /seller/broadcasts routes keep working unchanged. */
+   broadcast with no target row is for every school and every audience (rows
+   raised by help/incidents.ts and by the retired /seller/broadcasts). */
 
 const PERM = 'platform.tenants.write'
 const KINDS = ['all', 'group', 'plan', 'schools'] as const

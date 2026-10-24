@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 430 of the catalog's features are implemented.
+// 433 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -352,13 +352,16 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.delivery.password_reset_delivery":                       true,
 	"seller_admin.entitlements.module_entitlement_matrix":                 true,
 	"seller_admin.home.dashboard":                                         true,
+	"seller_admin.sales.leads":                                            true,
 	"seller_admin.schools.access":                                         true,
 	"seller_admin.schools.add_school":                                     true,
 	"seller_admin.schools.schools":                                        true,
 	"seller_admin.schools.setup":                                          true,
 	"seller_admin.subscriptions_billing.license_capacity":                 true,
 	"seller_admin.subscriptions_billing.message_credits":                  true,
+	"seller_admin.subscriptions_billing.partners":                         true,
 	"seller_admin.subscriptions_billing.plans_pricing":                    true,
+	"seller_admin.subscriptions_billing.renewals":                         true,
 	"seller_admin.subscriptions_billing.subscription_ledger":              true,
 	"seller_admin.support.audit":                                          true,
 	"seller_admin.support.board_members":                                  true,

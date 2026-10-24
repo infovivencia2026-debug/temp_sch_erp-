@@ -30,7 +30,7 @@ const KINDS: { key: Kind; label: string; fields: FieldDef[]; title: string }[] =
     { name: 'title', label: 'Title' }, { name: 'body', label: 'Text', long: true }, { name: 'since', label: 'Release', hint: 'Year and month, for example 2026-10. Newer shows first.' },
     { name: 'title_te', label: 'Title in Telugu', hint: 'Optional. Leave empty rather than guess.' }, { name: 'body_te', label: 'Text in Telugu', long: true, hint: 'Optional.' } ] },
   { key: 'canned', label: 'Canned replies', title: 'title', fields: [
-    { name: 'title', label: 'Title' }, { name: 'body', label: 'Reply', long: true, hint: '{{name}}, {{school}} and {{agent}} are filled in before sending.' } ] },
+    { name: 'title', label: 'Title' }, { name: 'body', label: 'Reply', long: true, hint: '{{name}}, {{school}} and {{agent}} are filled in before sending. {{screen:fees.fee_dashboard}} becomes the menu path, Fees → Fee Dashboard.' } ] },
   { key: 'category', label: 'Request topics', title: 'label', fields: [
     { name: 'label', label: 'Label' }, { name: 'hint', label: 'What to write', long: true }, { name: 'sort', label: 'Order', number: true },
     { name: 'label_te', label: 'Label in Telugu', hint: 'Optional.' }, { name: 'hint_te', label: 'What to write, in Telugu', long: true, hint: 'Optional.' } ] },

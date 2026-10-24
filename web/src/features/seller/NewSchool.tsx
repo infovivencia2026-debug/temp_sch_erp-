@@ -60,7 +60,18 @@ function useDebounced<T>(v: T, ms = 350): T {
   return d
 }
 
-export function NewSchool({ plans, onClose }: { plans: PlanOption[]; onClose: () => void }) {
+/** What a won lead already says about the school (Sales → Leads, "Set up school"). */
+export interface NewSchoolPrefill {
+  enquiry_id: string
+  school_name: string
+  admin_name?: string
+  admin_email?: string
+  admin_phone?: string
+  district?: string
+  plan_code?: string
+}
+
+export function NewSchool({ plans, onClose, prefill }: { plans: PlanOption[]; onClose: () => void; prefill?: NewSchoolPrefill }) {
   const qc = useQueryClient()
   // The request being watched, and its password when this session created it.
   const [watching, setWatching] = useState<{ id: string; password?: string; note?: string } | null>(null)
@@ -86,6 +97,7 @@ export function NewSchool({ plans, onClose }: { plans: PlanOption[]; onClose: ()
       <Unfinished onOpen={(id) => setWatching({ id })} />
       <NewSchoolForm
         plans={plans}
+        prefill={prefill}
         onCreated={(c) => {
           qc.invalidateQueries({ queryKey: ['seller-provisioning'] })
           setWatching({ id: c.id, password: c.password, note: c.note })
@@ -126,25 +138,27 @@ function Unfinished({ onOpen }: { onOpen: (id: string) => void }) {
 
 function NewSchoolForm({
   plans,
+  prefill,
   onCreated,
   onCancel,
 }: {
   plans: PlanOption[]
+  prefill?: NewSchoolPrefill
   onCreated: (c: Created) => void
   onCancel: () => void
 }) {
   const [f, setF] = useState({
-    school_name: '',
+    school_name: prefill?.school_name ?? '',
     short_name: '',
     slug: '',
-    plan_code: plans[0]?.code ?? '',
+    plan_code: prefill?.plan_code || plans[0]?.code || '',
     trial_days: '30',
-    district: '',
+    district: prefill?.district ?? '',
     state: 'Telangana',
     affiliation_board: '',
-    admin_name: '',
-    admin_email: '',
-    admin_phone: '',
+    admin_name: prefill?.admin_name ?? '',
+    admin_email: prefill?.admin_email ?? '',
+    admin_phone: prefill?.admin_phone ?? '',
     admin_username: '',
   })
   const [slugEdited, setSlugEdited] = useState(false)
@@ -172,6 +186,7 @@ function NewSchoolForm({
       api.post<Created>('/api/v1/seller/provisioning', {
         ...f,
         slug,
+        ...(prefill ? { enquiry_id: prefill.enquiry_id } : {}),
         trial_days: Number(f.trial_days) || 30,
         branding: Object.fromEntries(Object.entries(brand).filter(([, v]) => v.trim() !== '')),
       }),
