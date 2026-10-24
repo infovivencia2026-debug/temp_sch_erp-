@@ -192,7 +192,11 @@ function MetricCard({ metricKey, period, span, periods, onPeriod }: {
 export function MetricCells() {
   const layer = useWidgetLayer()
   const { layout, setPeriod } = useLayout(layer?.dashboard ?? 'default')
-  const ids = layout.placed.map((p) => p.id).filter((id) => id.startsWith(METRIC_PREFIX))
+  /* Once per id, and never a figure the board's own cards already draw:
+     a saved layout holding either would show the same card twice. */
+  const covers = layer?.covers ?? []
+  const ids = [...new Set(layout.placed.map((p) => p.id))]
+    .filter((id) => id.startsWith(METRIC_PREFIX) && !covers.includes(id.slice(METRIC_PREFIX.length)))
   const catalogue = useMetricCatalogue()
   if (!layer || ids.length === 0) return null
   const known = new Map((catalogue.data?.items ?? []).map((m) => [m.key, m]))

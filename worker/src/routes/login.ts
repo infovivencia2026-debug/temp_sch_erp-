@@ -2,11 +2,11 @@ import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
 import { issueSession } from '../auth/session'
-import { loginHTML, type Brand, type LoginLang } from '../auth/login-page'
+import { chooserHTML, loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
 import { askForCode } from '../pages/mfa'
 import { studentLoginRefusal, studentOnlyAccount } from '../services/student_logins'
-import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
+import { defaultAppId, institutionById, institutionByHost, institutionByPath, institutionBySlug, schoolPath, siteOf, slideUrl, SLUG, tenantDb, type Institution } from '../tenant'
 
 const CSRF = 'erp_csrf'
 const MAX_FAILS = 8
@@ -66,10 +66,10 @@ function errorIn(lang: LoginLang, msg: string | undefined): string | undefined {
   return ERRORS_TE[msg] ?? msg
 }
 
-function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean; req?: Request }): Response {
+async function pageFor(env: Env, opts: { error?: string; next?: string; identifier?: string; status?: number; school?: Institution | null; action?: string; remember?: boolean; req?: Request }): Promise<Response> {
   const tok = csrfToken()
   const action = opts.action ?? '/login'
-  const brand = opts.school ? brandOf(opts.school, action) : undefined
+  const brand = opts.school ? brandOf(opts.school, action, await loginSlides(env, opts.school)) : undefined
   const { lang, asked } = loginLang(opts.req, opts.school)
   let switchHref: string | undefined
   if (opts.req) {
@@ -98,14 +98,35 @@ export function homeOf(req: Request): string | null {
   return p && SCHOOL_PATH.test(p) ? p : null
 }
 
-export function brandOf(i: Institution, action: string): Brand {
+/** The school's sign-in pictures, in order, as public URLs. */
+export async function loginSlides(env: Env, i: Institution): Promise<string[]> {
+  const rows = await env.CONTROL.prepare('SELECT id, file_key FROM login_slides WHERE institution_id = ? ORDER BY position, created_at')
+    .bind(i.id).all<{ id: string; file_key: string }>()
+  return rows.results.map((s) => slideUrl(i, s))
+}
+
+export function brandOf(i: Institution, action: string, slides: string[] = []): Brand {
   return {
-    name: i.name, action,
+    name: i.name, action, slides,
     logoUrl: i.logo_key ? `${schoolPath(i)}/logo?v=${encodeURIComponent(i.logo_key.slice(-12))}` : null,
     primary: i.primary_color, accent: i.accent_color,
     eyebrow: i.tagline, headline: i.login_headline, message: i.login_message,
     supportEmail: i.support_email, supportPhone: i.support_phone,
   }
+}
+
+/** One sign-in picture, public like the logo. Another school's picture is a 404. */
+export async function schoolSlide(env: Env, country: string, slug: string, id: string): Promise<Response | null> {
+  const school = await institutionByPath(env, country, slug)
+  if (!school) return null
+  const row = await env.CONTROL.prepare('SELECT file_key FROM login_slides WHERE id = ? AND institution_id = ?').bind(id, school.id).first<{ file_key: string }>()
+  if (!row) return null
+  const obj = (await env.FILES_WRITE.get(row.file_key)) ?? (await env.FILES.get(row.file_key))
+  if (!obj) return null
+  return new Response(obj.body, { headers: {
+    'content-type': obj.httpMetadata?.contentType ?? 'image/jpeg',
+    'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff',
+  } })
 }
 
 /** The host the visitor typed: the Pages proxy passes it on, the Worker's own URL otherwise. */
@@ -119,6 +140,43 @@ export async function showLogin(env: Env, req: Request): Promise<Response> {
   const home = url.searchParams.has('any') ? null : homeOf(req)
   if (home) return new Response(null, { status: 302, headers: { location: next === '/' ? home : `${home}?next=${encodeURIComponent(next)}` } })
   return pageFor(env, { next, req })
+}
+
+/** /login on any host: which page it shows and whose accounts it takes depend on the host (tenant.ts siteOf). */
+export async function loginAt(env: Env, req: Request): Promise<Response> {
+  const site = await siteOf(env, hostOf(req))
+  const get = req.method === 'GET'
+  if (site.kind === 'school') {
+    if (get) return pageFor(env, { next: safeNext(new URL(req.url).searchParams.get('next')), school: site.school, req })
+    return login(env, req, site.school)
+  }
+  if (site.kind === 'chooser') return chooseSchool(env, req)
+  if (site.kind === 'unknown') return chooserPage(env, req, { next: '/', code: site.code, error: noSchool(site.code), status: 404 })
+  if (site.kind === 'vendor') return get ? pageFor(env, { next: safeNext(new URL(req.url).searchParams.get('next')), req }) : login(env, req, null, '/login', true)
+  return get ? showLogin(env, req) : login(env, req)
+}
+
+const noSchool = (code: string) => `No school uses the code ${code}. Check it with the school office.`
+
+/* school.<SCHOOL_DOMAIN>/login: ask for the school code (the school's slug), then send the
+   browser to that school's own address, keeping where it was going. */
+async function chooseSchool(env: Env, req: Request): Promise<Response> {
+  // The page posts its form; a link with ?code= works too. Only a lookup, so no CSRF check.
+  const q = req.method === 'POST' ? await req.formData().catch(() => new FormData()) : new URL(req.url).searchParams
+  if (req.method !== 'GET' && req.method !== 'POST') return chooserPage(env, req, { next: '/', status: 405 })
+  const next = safeNext(String(q.get('next') ?? ''))
+  const code = String(q.get('code') ?? '').trim().toLowerCase()
+  if (!code) return chooserPage(env, req, { next })
+  const school = SLUG.test(code) ? await institutionBySlug(env, code) : null
+  if (!school) return chooserPage(env, req, { next, code, error: noSchool(code), status: 404 })
+  const to = `https://${school.slug.toLowerCase()}.${env.SCHOOL_DOMAIN}/login` + (next === '/' ? '' : `?next=${encodeURIComponent(next)}`)
+  return new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } })
+}
+
+function chooserPage(env: Env, req: Request, o: { next: string; code?: string; error?: string; status?: number }): Response {
+  const { lang } = loginLang(req, null)
+  const html = chooserHTML({ csrf: csrfToken(), next: o.next, code: o.code, error: o.error, lang })
+  return new Response(html, { status: o.status ?? 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-language': lang } })
 }
 
 /* A school's own sign-in page: /<country>/<slug>. GET shows it, POST signs in,
@@ -200,10 +258,10 @@ interface Candidate { institution_id: string | null; user_id: string; hash: stri
    internal/auth/handler.go: the password chooses between candidates, a
    paused school is reported only after the password matches, and a genuine
    tie is an error. */
-async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string):
+async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
   const idx = await env.CONTROL.prepare(
-    `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : ''} LIMIT ?`)
+    `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()
   const candidates: Candidate[] = []
   for (const r of idx.results) {
@@ -234,7 +292,7 @@ async function authenticate(env: Env, identifier: string, password: string, only
   return { ok: true, c: live[0] }
 }
 
-export async function login(env: Env, req: Request, school?: Institution | null, action = '/login'): Promise<Response> {
+export async function login(env: Env, req: Request, school?: Institution | null, action = '/login', vendorOnly = false): Promise<Response> {
   /* On a school's own domain /login is that school's page too. */
   if (school === undefined) school = await institutionByHost(env, hostOf(req))
   const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action, req })
@@ -258,7 +316,13 @@ export async function login(env: Env, req: Request, school?: Institution | null,
     return page(env, { error: `Too many attempts. Wait ${Math.ceil(wait / 60000)} minute(s), then try again.`, next, identifier, status: 429 })
   }
 
-  const r = await authenticate(env, identifier, password, school?.id)
+  const r = await authenticate(env, identifier, password, vendorOnly ? null : school?.id)
+  /* The vendor's address takes only platform accounts; a school account whose password
+     is right is told where its own page is, not that the password is wrong. */
+  if (!r.ok && vendorOnly && r.outcome !== 'wrong_password' && (await authenticate(env, identifier, password)).ok) {
+    await record(env, req, identifier, 'wrong_site', null, null)
+    return page(env, { error: `This page is for XULO staff. Sign in at your school's own address, such as yourschool.${env.SCHOOL_DOMAIN}, or find it at school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
+  }
   if (!r.ok) {
     await failed(env, idKey)
     await failed(env, 'ip:' + ip, 1 / 5)

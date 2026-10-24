@@ -29,7 +29,9 @@
     // Session lifetime and idle limit, seconds. Same defaults as the Go server.
     "SESSION_TTL_SECONDS": "2592000",
     "SESSION_IDLE_SECONDS": "86400",
-    "COOKIE_SECURE": "true"
+    "COOKIE_SECURE": "true",
+    // <slug>.xulo.in is a school's sign-in page, school.xulo.in asks for the code, xulo.in is the vendor's (tenant.ts siteOf).
+    "SCHOOL_DOMAIN": "xulo.in"
   },
   // Secrets, set with `wrangler secret put <NAME>`:
   //   PASSWORD_PEPPER   the same value the Go server uses, or no stored hash verifies
