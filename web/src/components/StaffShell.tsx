@@ -116,7 +116,7 @@ export function StaffNavGroup({ slug, name, count = 0, children }: {
   return (
     /* shrink-0: in the menu's fixed-height scroll column a card must keep its
        height and let the column scroll; shrinking sliced titles and items. */
-    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-surface-subtle">
+    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-card">
       <button type="button" data-row onClick={toggle} aria-expanded={open}
         className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
                    text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
@@ -187,8 +187,9 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
               title={home ? undefined : first.f.summary}
               className={({ isActive }) => cn(
-                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
-                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
+                /* A one-screen group is a white card like the others, not a bare row (owner, 2026-10-24). */
+                'flex min-h-[calc(48px*var(--font-scale,1))] shrink-0 items-center gap-2.5 rounded-[14px] border px-4 text-[calc(15px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] font-semibold transition-colors',
+                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-surface-hover',
               )}>
               <LineIcon name={home ? 'home' : `${section.slug} ${first.f.slug} ${name}`} size={18} />
               <span className="truncate">{label(name)}</span>

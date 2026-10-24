@@ -69,8 +69,9 @@ export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
         ? 'relative grid h-12 w-full grid-cols-2 gap-1 rounded-full border bg-muted p-1'
         : 'relative inline-grid h-[var(--control-h)] grid-cols-2 gap-0.5 rounded-md bg-muted p-0.5'}
     >
-      <SlidingIndicator listRef={groupRef} active={layout}
-        className={pill ? 'rounded-full bg-primary shadow-[0_4px_12px_hsl(var(--primary)/0.25)]' : 'rounded-sm bg-primary'} />
+      {/* The pill colours its own active half; a measured slider overshot the
+          track on phones (owner, 2026-10-24). */}
+      {!pill && <SlidingIndicator listRef={groupRef} active={layout} className="rounded-sm bg-primary" />}
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
@@ -87,7 +88,7 @@ export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
               'flex h-full min-w-0 items-center justify-center px-3 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               pill ? 'gap-2 rounded-full text-[calc(14px*var(--font-scale,1))] font-bold' : 'rounded-sm text-[13px]',
               active
-                ? cn('bg-primary text-primary-foreground', !pill && 'font-medium')
+                ? cn('bg-primary text-primary-foreground', pill ? 'shadow-[0_4px_12px_hsl(var(--primary)/0.25)]' : 'font-medium')
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
