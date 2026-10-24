@@ -13,6 +13,15 @@ export function staffLayoutOn(session: Pick<SessionResponse, 'modules'>, roleKey
   return !!session.modules?.some((m) => m.module === 'staff_layout' && m.enabled)
 }
 
+/** The staff menu (sidebar only) for every role: module_settings
+    'staff_layout_all_roles', per school (Yajur, 2026-10-24: "for all roles use the
+    sidebar we designed for teaching staff ... only sidebar"). The top bar is
+    still decided by staffLayoutOn. */
+export function staffSidebarOn(session: Pick<SessionResponse, 'modules'>, roleKey: string | undefined): boolean {
+  if (staffLayoutOn(session, roleKey)) return true
+  return !!roleKey && !!session.modules?.some((m) => m.module === 'staff_layout_all_roles' && m.enabled)
+}
+
 export interface TodaySignIns {
   date: string
   /** The school's IANA timezone; the times are shown in it. */

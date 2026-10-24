@@ -20,6 +20,9 @@ export interface Env {
   SESSION_TTL_SECONDS: string
   SESSION_IDLE_SECONDS: string
   COOKIE_SECURE: string
+  /** The domain schools live under, e.g. "xulo.in": <slug>.<domain> is a school's sign-in page,
+      school.<domain> asks for the school code, <domain> itself is the vendor's. Unset: none of that applies. */
+  SCHOOL_DOMAIN?: string
   // TENANT_<slug> bindings, added per school by scripts/provision-school.sh.
   [binding: string]: D1Database | R2Bucket | Queue | DurableObjectNamespace | Fetcher | string | undefined
 }
