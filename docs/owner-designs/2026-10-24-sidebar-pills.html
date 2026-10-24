@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Icon Pastel School Menu</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .menu-container {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .menu-item {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 50px;
+            padding: 16px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-decoration: none;
+            color: #1e293b;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s ease;
+        }
+
+        .menu-item:hover {
+            background-color: var(--hover-bg);
+            border-color: var(--theme-color);
+            box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
+            transform: translateY(-2px);
+        }
+
+        .menu-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .icon-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background-color: var(--badge-bg);
+            color: var(--theme-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s ease;
+        }
+
+        .icon-badge svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .menu-item:hover .icon-badge {
+            transform: scale(1.1);
+        }
+
+        .arrow {
+            color: #cbd5e1;
+            font-size: 16px;
+            font-weight: bold;
+            transition: color 0.25s, transform 0.25s;
+        }
+
+        .menu-item:hover .arrow {
+            color: var(--theme-color);
+            transform: translateX(3px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="menu-container">
+        <!-- My Classes -->
+        <a href="#" class="menu-item" style="--theme-color: #0284c7; --badge-bg: #e0f2fe; --hover-bg: #f0f9ff; --shadow-color: rgba(2, 132, 199, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                </div>
+                <span>My Classes</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- Attendance -->
+        <a href="#" class="menu-item" style="--theme-color: #059669; --badge-bg: #d1fae5; --hover-bg: #ecfdf5; --shadow-color: rgba(5, 150, 105, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <span>Attendance</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- Teaching -->
+        <a href="#" class="menu-item" style="--theme-color: #7c3aed; --badge-bg: #ede9fe; --hover-bg: #f5f3ff; --shadow-color: rgba(124, 58, 237, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.25 19.5c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l2.09-2.09C9.33 19.26 10.63 19.5 12 19.5c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-9.5h-2v4l3.5 2.1.75-1.23-2.25-1.37V8.5z"/></svg>
+                </div>
+                <span>Teaching</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- Timetable -->
+        <a href="#" class="menu-item" style="--theme-color: #d97706; --badge-bg: #fef3c7; --hover-bg: #fffbeb; --shadow-color: rgba(217, 119, 6, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                </div>
+                <span>Timetable</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- Communication -->
+        <a href="#" class="menu-item" style="--theme-color: #e11d48; --badge-bg: #ffe4e6; --hover-bg: #fff1f2; --shadow-color: rgba(225, 29, 72, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                </div>
+                <span>Communication</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- School Gallery -->
+        <a href="#" class="menu-item" style="--theme-color: #db2777; --badge-bg: #fce7f3; --hover-bg: #fdf2f8; --shadow-color: rgba(219, 39, 119, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M21 19V5C21 3.9 20.1 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19ZM8.5 13.5L11 16.5L14.5 12L19 18H5L8.5 13.5Z"/></svg>
+                </div>
+                <span>School Gallery</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- Exams -->
+        <a href="#" class="menu-item" style="--theme-color: #0d9488; --badge-bg: #ccfbf1; --hover-bg: #f0fdfa; --shadow-color: rgba(13, 148, 136, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                </div>
+                <span>Exams</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+
+        <!-- My Profile -->
+        <a href="#" class="menu-item" style="--theme-color: #4f46e5; --badge-bg: #e0e7ff; --hover-bg: #eef2ff; --shadow-color: rgba(79, 70, 229, 0.1);">
+            <div class="menu-left">
+                <div class="icon-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </div>
+                <span>My Profile</span>
+            </div>
+            <span class="arrow">&#10095;</span>
+        </a>
+    </div>
+
+</body>
+</html>

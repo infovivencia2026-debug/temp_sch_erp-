@@ -5096,3 +5096,65 @@ input[type="number"]::-webkit-inner-spin-button {
   main button[aria-label], nav button[aria-label], nav a[aria-label] { min-width: 48px; }
   main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
 }
+
+/* NO GREY ON PRESS (owner, 2026-10-24: "I still see grey when cursor click and
+   hold, and also same on phones"). A wash-only control (a hover tint and no
+   background of its own) shows no tint while held, and on a touch screen,
+   where :hover sticks after a tap, no tint at all. Long-press selects no text
+   and opens no callout on controls. */
+:is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):active {
+  background-color: transparent !important;
+}
+@media (hover: none) {
+  :is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):hover {
+    background-color: transparent !important;
+  }
+  :is(button, a, [role='button'], [role='tab'], [data-row], summary) {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+}
+
+/* THE PILL MENU (Yajur, 2026-10-24; StaffShell PILL_HUES). Each row carries its
+   own hue in --h: a pastel round badge in that hue, and when a group is open
+   its card takes a wash and a border of the same hue. */
+.nav-pill {
+  --pill-ink: hsl(var(--h) 75% 38%);
+  --pill-badge: hsl(var(--h) 85% 93%);
+  --pill-wash: hsl(var(--h) 90% 97%);
+  display: block; padding: 4px; border-radius: 9999px;
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .02), 0 2px 4px -1px rgb(0 0 0 / .02);
+  transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease;
+}
+.dark .nav-pill, [data-theme='dark'] .nav-pill {
+  --pill-ink: hsl(var(--h) 70% 72%);
+  --pill-badge: hsl(var(--h) 35% 22%);
+  --pill-wash: hsl(var(--h) 30% 13%);
+}
+.nav-pill[data-open], .nav-pill.nav-pill--on {
+  border-radius: 28px; border-color: var(--pill-ink); background: var(--pill-wash);
+  box-shadow: 0 10px 20px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+}
+.nav-pill.nav-pill--on { border-radius: 9999px; }
+.nav-pill__head {
+  display: flex; width: 100%; align-items: center; gap: 16px; min-height: 48px;
+  padding: 8px 14px 8px 8px; border-radius: 9999px; text-align: left;
+  font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; color: hsl(var(--foreground));
+}
+a.nav-pill.nav-pill__head { padding: 12px 18px 12px 12px; }
+.nav-pill__badge {
+  display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 9999px;
+  background: var(--pill-badge); color: var(--pill-ink); transition: transform .25s ease;
+}
+.nav-pill__badge svg { width: 20px; height: 20px; }
+.nav-pill__arrow { width: 18px; height: 18px; flex-shrink: 0; color: hsl(var(--muted-foreground) / .5); transition: transform .3s ease, color .25s ease; }
+.nav-pill[data-open] .nav-pill__arrow, .nav-pill--on .nav-pill__arrow { transform: rotate(90deg); color: var(--pill-ink); }
+.nav-pill--on .nav-pill__arrow { transform: none; }
+.nav-pill__sub { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 10px; }
+.nav-pill__sub a { border-radius: 14px; font-size: calc(15px * var(--font-scale, 1)); }
+.nav-pill__sub a:hover { color: var(--pill-ink); }
+.nav-pill__sub .nav-pill__item--on { color: var(--pill-ink); background: hsl(var(--card) / .7); }
+@media (max-width: 639.98px) {
+  .nav-pill__head { font-size: 16px; }
+  .nav-pill__sub a { font-size: 15px; min-height: 48px; }
+}
