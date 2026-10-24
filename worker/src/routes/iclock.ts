@@ -205,7 +205,7 @@ async function findDevice(env: Env, serial: string) {
 }
 
 const CLOCK_KEY = (deviceId: string) => `iclock_clock:${deviceId}`
-const CLOCK_EVERY_MS = 6 * 3600_000
+const CLOCK_EVERY_MS = 3600_000
 
 /** India time in the readers' packed form: seconds counted on a calendar of 31-day months from 2000. */
 export function zkTime(d: Date): number {
@@ -232,10 +232,15 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
 
   if (path === '/iclock/cdata' && req.method === 'GET') {
     /* The reader's settings: send every punch at once (Realtime), from the
-       start of its log, and check in every 30 seconds. */
+       start of its log, and check in every 30 seconds.
+       No TimeZone. A reader given one sets its own clock from it and the
+       server's time, and eSSL firmware reads the zone in whole hours: India's
+       5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
+       2026-10-22). The clock is set to India time directly instead, by
+       SET OPTIONS DateTime below, which carries no zone to misread. */
     return text([
       `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
-      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'TimeZone=5.5', 'Realtime=1', 'Encrypt=None',
+      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
     ].join('\n') + '\n')
   }
 
@@ -386,7 +391,7 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     }
     /* The reader's clock. Nothing else sets it, and a reader left to its own
        clock drifts by minutes a month, so late marks stop meaning anything.
-       Set on first contact and every six hours after, to India time. */
+       Set on first contact and every hour after, to India time. */
     const ckey = CLOCK_KEY(dev.deviceId)
     const last = await db.prepare(`SELECT config FROM module_settings WHERE module = ?`).bind(ckey).first<{ config: string | null }>()
     const at = Date.parse((JSON.parse(last?.config ?? '{}') as { sent_at?: string }).sent_at ?? '')
