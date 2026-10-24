@@ -13,7 +13,14 @@ import { formatDate, cn } from '@/lib/utils'
 type Kind = 'article' | 'tip' | 'canned' | 'category' | 'sla'
 interface Entry { item: Record<string, unknown> & { key: string }; source: 'default' | 'edited' | 'added'; hidden: boolean; updated_at?: string; updated_by?: string }
 
-const KINDS: { key: Kind; label: string; fields: { name: string; label: string; long?: boolean; hint?: string; number?: boolean }[]; title: string }[] = [
+type Item = Record<string, unknown>
+/** A field kept somewhere other than a plain string on the item: read it as text, write the text back. */
+interface FieldDef { name: string; label: string; long?: boolean; hint?: string; number?: boolean; get?: (i: Item) => string; set?: (d: Item, v: string) => void }
+type Hours = { days: number[]; start: string; end: string; tz_offset_minutes: number }
+const hoursOf = (i: Item): Hours => ({ days: [1, 2, 3, 4, 5, 6], start: '09:00', end: '18:00', tz_offset_minutes: 330, ...(i.business_hours as Partial<Hours> | undefined) })
+const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const KINDS: { key: Kind; label: string; fields: FieldDef[]; title: string }[] = [
   { key: 'article', label: 'Articles', title: 'title', fields: [
     { name: 'title', label: 'Title' }, { name: 'topic', label: 'Topic', hint: 'The key of a request topic, for example sign_in or fees.' },
     { name: 'body', label: 'Text', long: true, hint: 'One paragraph per line. A line starting "1." is a step.' },
@@ -29,7 +36,15 @@ const KINDS: { key: Kind; label: string; fields: { name: string; label: string; 
     { name: 'label_te', label: 'Label in Telugu', hint: 'Optional.' }, { name: 'hint_te', label: 'What to write, in Telugu', long: true, hint: 'Optional.' } ] },
   { key: 'sla', label: 'SLA', title: 'key', fields: [
     { name: 'respond_hours', label: 'School helpdesk: first reply within (hours)', number: true },
-    { name: 'resolve_hours', label: 'School helpdesk: answer within (hours)', number: true } ] },
+    { name: 'resolve_hours', label: 'School helpdesk: answer within (hours)', number: true },
+    // The vendor's clock (worker services/ticket_index.ts): it runs only in these hours, not on holidays, and stops while a ticket waits on the school.
+    { name: 'bh_days', label: 'Vendor working days', hint: 'For example Mon, Tue, Wed, Thu, Fri, Sat.',
+      get: (i) => hoursOf(i).days.map((d) => DAY[d]).join(', '),
+      set: (d, v) => { d.business_hours = { ...hoursOf(d), days: v.split(/[\s,]+/).filter(Boolean).map((x) => DAY.findIndex((n) => n.toLowerCase() === x.slice(0, 3).toLowerCase())) } } },
+    { name: 'bh_start', label: 'Vendor day starts', hint: 'India time, HH:MM.', get: (i) => hoursOf(i).start, set: (d, v) => { d.business_hours = { ...hoursOf(d), start: v } } },
+    { name: 'bh_end', label: 'Vendor day ends', hint: 'India time, HH:MM.', get: (i) => hoursOf(i).end, set: (d, v) => { d.business_hours = { ...hoursOf(d), end: v } } },
+    { name: 'holidays', label: 'Vendor holidays', long: true, hint: 'Dates as YYYY-MM-DD, one per line. The clock does not run on them.',
+      get: (i) => (Array.isArray(i.holidays) ? (i.holidays as string[]).join('\n') : ''), set: (d, v) => { d.holidays = v.split(/[\s,]+/).filter(Boolean) } } ] },
 ]
 
 export function HelpContent() {
@@ -68,13 +83,13 @@ function Editor({ kind, entry, onClose }: { kind: Kind; entry: Entry | null; onC
   const qc = useQueryClient()
   const def = KINDS.find((k) => k.key === kind)!
   const [key, setKey] = useState(entry?.item.key ?? '')
-  const [vals, setVals] = useState<Record<string, string>>(() => Object.fromEntries(def.fields.map((f) => [f.name, entry?.item[f.name] === undefined ? '' : String(entry.item[f.name])])))
+  const [vals, setVals] = useState<Record<string, string>>(() => Object.fromEntries(def.fields.map((f) => [f.name, f.get ? f.get(entry?.item ?? {}) : entry?.item[f.name] === undefined ? '' : String(entry.item[f.name])])))
   const [hidden, setHidden] = useState(entry?.hidden ?? false)
   const done = () => { qc.invalidateQueries({ queryKey: ['help-content'] }); onClose() }
   const save = useMutation({
     mutationFn: () => {
       const data: Record<string, unknown> = { ...(entry?.item ?? {}) }
-      for (const f of def.fields) { const v = vals[f.name].trim(); if (v === '') delete data[f.name]; else data[f.name] = f.number ? Number(v) : v }
+      for (const f of def.fields) { const v = vals[f.name].trim(); if (f.set) f.set(data, v); else if (v === '') delete data[f.name]; else data[f.name] = f.number ? Number(v) : v }
       if (!('roles' in data)) data.roles = []
       return api.put(`/api/v1/admin/platform/help-content/${kind}/${key.trim()}`, { data, hidden })
     },

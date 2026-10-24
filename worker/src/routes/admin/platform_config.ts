@@ -1,11 +1,13 @@
 import type { Router, Ctx } from '../../router'
-import { HttpError, badRequest, clampInt, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
+import { HttpError, badRequest, clampInt, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { tenantDb, type Institution } from '../../tenant'
 import { institutionId, notImplemented, parseJSON, platformOnly, requireAny, today } from './common'
 import { school } from '../school'
 import { SUPPORT_DESK } from '../../identity'
-import { subscriptionsByInstitution } from '../seller/tenants'
-import { slaPolicy, vendorHours } from '../help/content'
+import { slaPolicy } from '../help/content'
+import { bell, deskLink, requestLink, updateStmt } from '../help/shared'
+import { auditDetail } from '../../services/seller_audit'
+import { clockOf, ensureIndexed, plansBySchool, syncSchoolTickets, type IndexRow } from '../../services/ticket_index'
 
 /* Port of internal/api/platform_config.go: statutory masters, board
    affiliation and disclosure, board rules, SQAA, campus classification, the
@@ -177,11 +179,14 @@ async function getBackupPosture(c: Ctx): Promise<Response> {
   return ok(out)
 }
 
-const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_name AS operator, g.reason, g.read_only, g.consent_user_name, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
+/* An operator's change inside a school: a row by its own user id (none, for a platform account), or the row the
+   acting-as recorder writes for every write it makes there (services/seller_audit.ts, entity operator_session). */
+const OPERATOR_ROWS = "(a.actor_user_id = g.operator_user_id OR (a.entity_type = 'operator_session' AND a.entity_id = g.operator_user_id))"
+const GRANT_SELECT = `SELECT g.id, g.institution_id, g.operator_user_id, g.operator_name AS operator, g.reason, g.read_only, g.consent_user_name, g.ticket_id, g.started_at, g.expires_at, g.ended_at, g.ended_by_name AS ended_by, g.ended_reason,
     (g.ended_at IS NULL AND g.expires_at > ?1) AS live,
-    (SELECT count(*) FROM audit_log a WHERE a.actor_user_id = g.operator_user_id AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at)) AS changes
+    (SELECT count(*) FROM audit_log a WHERE ${OPERATOR_ROWS} AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at)) AS changes
     FROM impersonation_grants g`
-const grantView = (g: Record<string, unknown>, school: string | undefined) => ({ id: g.id, institution_id: g.institution_id, school, operator: g.operator, reason: g.reason, ticket_id: und(g.ticket_id as string | null),
+const grantView = (g: Record<string, unknown>, school: string | undefined) => ({ id: g.id, institution_id: g.institution_id, school, operator: g.operator, operator_id: g.operator_user_id, reason: g.reason, ticket_id: und(g.ticket_id as string | null),
   started_at: g.started_at, expires_at: g.expires_at, ended_at: und(g.ended_at as string | null), ended_by: und(g.ended_by as string | null), ended_reason: und(g.ended_reason as string | null), live: !!g.live, changes: g.changes,
   // Quick Assist (help/assist.ts): read-only, and who in the school agreed to it.
   read_only: !!g.read_only, consented_by: und(g.consent_user_name as string | null) })
@@ -587,53 +592,101 @@ export function registerPlatformConfig(r: Router): void {
      Each ticket carries what was promised for its school's plan and how long
      it has been open, which the screen draws and this route never sent. */
   const desk = SUPPORT_DESK
+  /* Read from the CONTROL index (services/ticket_index.ts), not by opening
+     every school: paged, filtered by status, searched by school, subject or
+     ticket id. A blank status hides closed tickets; "all" shows every one;
+     "merged" the ones joined to another. Schools the index could not copy are
+     named in failed_schools, never silently left out. */
+  const QUEUE_STATUSES = new Set(['open', 'in_progress', 'waiting', 'resolved', 'closed', 'merged', 'all'])
   r.get('/admin/platform/seller/tickets', desk, async (c) => {
     platformOnly(c)
-    const status = (c.url.searchParams.get('status') ?? '').trim() || null
-    const items: Record<string, unknown>[] = []
-    const subs = await subscriptionsByInstitution(c.env, `WHERE sub.status IN ('active','trial')`)
+    const sp = c.url.searchParams
+    const status = (sp.get('status') ?? '').trim()
+    if (status && !QUEUE_STATUSES.has(status)) throw badRequest('status must be one of open, in_progress, waiting, resolved, closed, merged or all')
+    const q = (sp.get('q') ?? '').trim().toLowerCase().slice(0, 100)
+    const limit = clampInt(sp.get('limit'), 200, 1, 500), offset = clampInt(sp.get('offset'), 0, 0, 1_000_000)
+    const failed = await ensureIndexed(c.env)
+    const where: string[] = []
+    const args: unknown[] = []
+    if (status === 'merged') where.push('merged_into IS NOT NULL')
+    else if (status === 'closed') where.push(`status = 'closed' AND merged_into IS NULL`)
+    else if (status && status !== 'all') { where.push('status = ?'); args.push(status) }
+    else if (!status) where.push(`status <> 'closed'`)
+    if (q) { where.push(`(lower(school) LIKE ? OR lower(subject) LIKE ? OR ticket_id LIKE ?)`); const like = `%${q}%`; args.push(like, like, like) }
+    const w = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    const order = `ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, created_at`
+    const [rows, total] = await Promise.all([
+      c.env.CONTROL.prepare(`SELECT * FROM support_ticket_index ${w} ${order} LIMIT ? OFFSET ?`).bind(...args, limit, offset).all<IndexRow>(),
+      c.env.CONTROL.prepare(`SELECT count(*) AS n FROM support_ticket_index ${w}`).bind(...args).first<{ n: number }>(),
+    ])
     const sla = await slaPolicy(c.env)
-    for (const f of await fleet(c)) {
-      try {
-        const rows = await f.db.prepare(`${TICKET_SQL} AND (? IS NULL OR t.status = ?) AND (? IS NOT NULL OR t.status <> 'closed')`).bind(status, status, status).all<Record<string, unknown>>()
-        const sub = subs.get(f.inst.id)
-        for (const t of rows.results) {
-          const hours = Math.max(0, Math.trunc((Date.now() - Date.parse(String(t.created_at))) / 3_600_000))
-          // One SLA mechanism: the vendor's promise by plan and urgency, from the policy the desk keeps (help/content.ts).
-          const promised = vendorHours(sla, sub?.plan_code ?? '', String(t.priority))
-          const settled = t.status === 'resolved' || t.status === 'closed'
-          items.push({ ...ticketView(t, f.inst.name), open_hours: hours, promised_hours: promised, breached: !settled && hours > promised,
-            plan_code: sub?.plan_code ?? undefined, plan_name: sub?.plan_name ?? undefined,
-            // What the three-pane desk needs (help/desk.ts): the school's id to open the ticket, who holds it, whose turn it is.
-            institution_id: f.inst.id, agent_id: und(t.vendor_agent_id as string | null), last_reply_side: und(t.last_reply_side as string | null),
-            last_reply_at: und(t.last_reply_at as string | null), escalated: !!t.parent_ticket_id, route: und(t.route as string | null),
-            error_ref: und(t.error_ref as string | null), created_at_full: t.created_at })
-        }
-      } catch { /* skip */ }
-    }
-    const pr = (p: unknown) => ({ urgent: 0, high: 1, normal: 2 } as Record<string, number>)[String(p)] ?? 3
-    items.sort((a, b) => pr(a.priority) - pr(b.priority) || (String(a.created_at) < String(b.created_at) ? -1 : 1))
-    return ok({ items })
+    const plansOf = await plansBySchool(c.env)
+    const t0 = Date.now()
+    const items = rows.results.map((t) => {
+      const plan = plansOf.get(t.institution_id)
+      const k = clockOf(t, sla, plan ?? { code: '', tier: null }, t0)
+      return {
+        id: t.ticket_id, school: t.school, subject: t.subject, category: t.category, priority: t.priority, status: t.status, raised_by: und(t.raised_by), assigned_to: und(t.assigned_to),
+        created_at: t.created_at.slice(0, 10), open_days: Math.floor((t0 - Date.parse(t.created_at)) / 86_400_000), body: und(t.body),
+        open_hours: Math.max(0, Math.trunc((t0 - Date.parse(t.created_at)) / 3_600_000)),
+        // The promise by plan (or the tier stored on the plan) and urgency, in business hours, with time waiting on the school left out.
+        sla_hours: k.sla_hours, promised_hours: k.promised_hours, breached: k.breached, waiting_hours: k.waiting_hours,
+        response_hours: k.response_hours, response_promised_hours: k.response_promised_hours, response_breached: k.response_breached, acknowledged: !!t.acknowledged_at,
+        plan_code: plan?.code || undefined, plan_name: und(plan?.name ?? null),
+        institution_id: t.institution_id, agent_id: und(t.agent_id), last_reply_side: und(t.last_reply_side), last_reply_at: und(t.last_reply_at),
+        escalated: !!t.parent_ticket_id, merged: !!t.merged_into, route: und(t.route), error_ref: und(t.error_ref), created_at_full: t.created_at,
+      }
+    })
+    return ok({ items, total: total?.n ?? 0, limit, offset, failed_schools: failed.map((f) => ({ institution_id: f.institution_id, school: f.school })) })
   })
+  /* One ticket in the school the request names: no loop over every school.
+     The school is told (a line in the conversation and a bell), and the
+     register records which school it was. */
+  const TICKET_STATUSES = new Set(['open', 'in_progress', 'waiting', 'resolved', 'closed'])
+  const TICKET_PRIORITIES = new Set(['low', 'normal', 'high', 'urgent'])
+  const STATUS_WORDS: Record<string, string> = { open: 'open', in_progress: 'in progress', waiting: 'waiting on you', resolved: 'solved', closed: 'closed' }
   r.post('/admin/platform/seller/tickets/{id}', desk, async (c) => {
     platformOnly(c)
     if (!isUUID(c.params.id)) throw badRequest('id must be a uuid')
-    const req = await readJSON<{ status?: string; priority?: string; assigned_to?: string; resolution?: string }>(c.req)
+    const req = await readJSON<{ institution_id?: string; status?: string; priority?: string; assigned_to?: string; resolution?: string }>(c.req)
+    const iid = (req.institution_id ?? '').trim()
+    if (!isUUID(iid)) throw badRequest('institution_id must be the school of the ticket')
     const assign = req.assigned_to || null
     if (assign && !isUUID(assign)) throw badRequest('assigned_to must be a uuid')
-    const status = nz(req.status)
-    for (const f of await fleet(c)) {
-      try {
-        const res = await f.db.prepare(`UPDATE support_tickets SET status = COALESCE(?, status), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), resolution = COALESCE(?, resolution),
-            resolved_at = CASE WHEN ? IN ('resolved','closed') THEN COALESCE(resolved_at, ?) ELSE resolved_at END,
-            vendor_agent_id = COALESCE(vendor_agent_id, ?), vendor_agent_name = COALESCE(vendor_agent_name, ?), updated_at = ?
-            WHERE id = ? AND audience = 'vendor'`)
-          // Whoever on the desk first acts on a ticket holds it (tenant migration 0024): the queue says whose it is.
-          .bind(status, nz(req.priority), assign, nz(req.resolution), status, now(), c.id.userId, c.id.fullName, now(), c.params.id).run()
-        if ((res.meta.changes ?? 0) > 0) return ok({ updated: true })
-      } catch { /* skip */ }
+    const status = nz(req.status), priority = nz(req.priority)
+    if (status && !TICKET_STATUSES.has(status)) throw badRequest('status must be one of open, in_progress, waiting, resolved or closed')
+    if (priority && !TICKET_PRIORITIES.has(priority)) throw badRequest('priority must be one of low, normal, high or urgent')
+    if (!status && !priority && !assign && !nz(req.resolution)) throw badRequest('nothing to change')
+    const inst = await c.env.CONTROL.prepare(`SELECT * FROM institutions WHERE id = ?`).bind(iid).first<Institution>()
+    if (!inst) throw notFound('resource not found')
+    let db: D1Database
+    try { db = tenantDb(c.env, inst) } catch { throw notFound('resource not found') }
+    const t = await db.prepare(`SELECT id, status, priority, raised_by, parent_ticket_id FROM support_tickets WHERE id = ? AND audience = 'vendor'`).bind(c.params.id)
+      .first<{ id: string; status: string; priority: string; raised_by: string; parent_ticket_id: string | null }>()
+    if (!t) throw notFound('resource not found')
+    const n = now()
+    const said: string[] = []
+    if (status && status !== t.status) said.push(`Status is now ${STATUS_WORDS[status]}.`)
+    if (priority && priority !== t.priority) said.push(`Priority is now ${priority}.`)
+    if (nz(req.resolution)) said.push(nz(req.resolution)!)
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(`UPDATE support_tickets SET status = COALESCE(?, status), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), resolution = COALESCE(?, resolution),
+          resolved_at = CASE WHEN ? IN ('resolved','closed') THEN COALESCE(resolved_at, ?) ELSE resolved_at END,
+          vendor_agent_id = COALESCE(vendor_agent_id, ?), vendor_agent_name = COALESCE(vendor_agent_name, ?), updated_at = ?
+          WHERE id = ? AND audience = 'vendor'`)
+        // Whoever on the desk first acts on a ticket holds it (tenant migration 0024): the queue says whose it is.
+        .bind(status, priority, assign, nz(req.resolution), status, n, c.id.userId, c.id.fullName, n, t.id),
+    ]
+    if (said.length) {
+      const body = said.join(' ')
+      stmts.push(updateStmt(db, inst.id, t.id, { kind: 'status', body, side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: status && status !== t.status ? status : null }))
+      stmts.push(bell(db, inst.id, t.raised_by, 'XULO support updated your ticket', body, t.parent_ticket_id ? deskLink(t.id) : requestLink(t.id), t.id))
     }
-    throw notFound('resource not found')
+    await db.batch(stmts)
+    auditDetail(c, { action: 'desk.ticket.update', institution_id: inst.id, institution_name: inst.name, target: t.id,
+      before: { status: t.status, priority: t.priority }, after: { status: status ?? undefined, priority: priority ?? undefined, assigned_to: assign ?? undefined } })
+    await syncSchoolTickets(c.env, inst)
+    return ok({ updated: true })
   })
   r.get('/admin/platform/support/tickets', read, async (c) => {
     institutionId(c)
@@ -655,23 +708,29 @@ export function registerPlatformConfig(r: Router): void {
   })
 
   // impersonation
+  /* A support login (restricted) sees and ends only its own sessions; an
+     operator, and a school's own administrator in its school, see them all. */
+  const ownOnly = (c: Ctx) => c.id.platformAdmin && c.id.restricted
   r.get('/admin/platform/impersonation', 'auth', async (c) => {
     requireAny(c, 'admin.audit.read', vendor)
     const limit = clampInt(c.url.searchParams.get('limit'), 100, 1, 500)
+    const mine = ownOnly(c) ? c.id.userId : null
     const items: Record<string, unknown>[] = []
+    const failed: string[] = []
     for (const s of await grantScopes(c)) {
       try {
-        const rows = await s.db.prepare(`${GRANT_SELECT} ORDER BY g.started_at DESC LIMIT ?2`).bind(now(), limit).all<Record<string, unknown>>()
+        const rows = await s.db.prepare(`${GRANT_SELECT} WHERE (?3 IS NULL OR g.operator_user_id = ?3) ORDER BY g.started_at DESC LIMIT ?2`).bind(now(), limit, mine).all<Record<string, unknown>>()
         for (const g of rows.results) items.push(grantView(g, s.school))
-      } catch { /* skip */ }
+      } catch { failed.push(s.school) }
     }
     items.sort((a, b) => (String(a.started_at) < String(b.started_at) ? 1 : -1))
-    return ok({ items: items.slice(0, limit) })
+    return ok({ items: items.slice(0, limit), failed_schools: failed })
   })
   /* Any platform account may open a session for itself: an operator, and a
      support login, which is the one that cannot enter a school without it
      (identity.ts). The reason and the time limit are the control, and the
-     school reads both. */
+     school reads both. A session started from a ticket must name a ticket
+     that school really raised with the vendor. */
   r.post('/admin/platform/impersonation', 'auth', async (c) => {
     platformOnly(c)
     const req = await readJSON<{ institution_id?: string; reason?: string; ticket_id?: string; minutes?: number }>(c.req)
@@ -687,6 +746,9 @@ export function registerPlatformConfig(r: Router): void {
     const inst = await c.env.CONTROL.prepare(`SELECT * FROM institutions WHERE id = ? AND status = 'active'`).bind(iid).first<Institution>()
     if (!inst) throw notFound('resource not found')
     const db = tenantDb(c.env, inst)
+    if (ticket && !(await db.prepare(`SELECT 1 AS x FROM support_tickets WHERE id = ? AND audience = 'vendor'`).bind(ticket).first())) {
+      throw new HttpError(404, 'this school has no such ticket', { code: 'ticket_not_found' })
+    }
     const id = uuid()
     const expires = new Date(Date.now() + minutes * 60_000).toISOString()
     /* The operator is a platform account, so operator_user_id is not a key into this school's users
@@ -695,6 +757,7 @@ export function registerPlatformConfig(r: Router): void {
       db.prepare(`UPDATE impersonation_grants SET ended_at = ?, ended_by = NULL, ended_by_name = ?, ended_reason = 'superseded by a new session' WHERE operator_user_id = ? AND ended_at IS NULL`).bind(now(), c.id.fullName, c.id.userId),
       db.prepare(`INSERT INTO impersonation_grants (id, institution_id, operator_user_id, operator_name, reason, ticket_id, started_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, iid, c.id.userId, c.id.fullName, reason, ticket, now(), expires),
     ])
+    auditDetail(c, { action: 'impersonation.start', institution_id: inst.id, institution_name: inst.name, target: id, after: { reason, minutes, ticket_id: ticket ?? undefined } })
     const g = await db.prepare(`${GRANT_SELECT} WHERE g.id = ?2`).bind(now(), id).first<Record<string, unknown>>()
     if (!g) throw notFound('resource not found')
     return created(grantView(g, inst.name))
@@ -705,14 +768,12 @@ export function registerPlatformConfig(r: Router): void {
     for (const s of await grantScopes(c)) {
       const g = await s.db.prepare(`${GRANT_SELECT} WHERE g.id = ?2`).bind(now(), c.params.id).first<Record<string, unknown>>().catch(() => null)
       if (!g) continue
+      if (ownOnly(c) && g.operator_user_id !== c.id.userId) throw forbidden('only your own sessions')
       const rows = await s.db.prepare(`SELECT a.id, a.created_at AS at, COALESCE(u.full_name, g.operator_name) AS actor, a.action, a.entity_type, a.ip, a.before, a.after
           FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id JOIN impersonation_grants g ON g.id = ?
-         WHERE a.actor_user_id = g.operator_user_id AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at) ORDER BY a.id DESC LIMIT 500`).bind(c.params.id).all<Record<string, unknown>>()
-      const unattributed = await s.db.prepare(`SELECT count(*) AS n FROM audit_log a JOIN impersonation_grants g ON g.id = ? WHERE a.actor_user_id = g.operator_user_id AND a.institution_id IS NULL AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at)`).bind(c.params.id).first<{ n: number }>()
-      const n = unattributed?.n ?? 0
+         WHERE ${OPERATOR_ROWS} AND a.institution_id = g.institution_id AND a.created_at BETWEEN g.started_at AND COALESCE(g.ended_at, g.expires_at) ORDER BY a.id DESC LIMIT 500`).bind(c.params.id).all<Record<string, unknown>>()
       return ok({ grant: grantView(g, s.school), items: rows.results.map((a) => ({ id: a.id, at: a.at, actor: und(a.actor as string | null), action: a.action, entity_type: a.entity_type, ip: und(a.ip as string | null), request: parseJSON<unknown>(a.before, undefined), response: parseJSON<unknown>(a.after, undefined) })),
-        covers: 'Changes made during the session. Reads are not recorded: the audit middleware records state-changing requests only, so an empty list means nothing was altered, not that nothing was seen.',
-        unattributed_changes: n, unattributed_note: n > 0 ? "This operator made changes during the session that were recorded against no school and so cannot be listed here. The audit middleware runs above the acting-institution middleware and never sees the school the operator named; until that is corrected, a platform operator's edits inside a school do not reach that school's audit trail." : undefined })
+        covers: 'Changes made during the session. Reads are not recorded, so an empty list means nothing was changed, not that nothing was seen.' })
     }
     throw notFound('resource not found')
   })
@@ -723,6 +784,9 @@ export function registerPlatformConfig(r: Router): void {
     if (Number(c.req.headers.get('content-length') ?? 0) > 0) reason = ((await readJSON<{ reason?: string }>(c.req)).reason ?? '').trim()
     if (reason === '') reason = 'ended by ' + c.id.fullName
     for (const s of await grantScopes(c)) {
+      const g = await s.db.prepare(`SELECT operator_user_id FROM impersonation_grants WHERE id = ? AND ended_at IS NULL`).bind(c.params.id).first<{ operator_user_id: string }>().catch(() => null)
+      if (!g) continue
+      if (ownOnly(c) && g.operator_user_id !== c.id.userId) throw forbidden('only your own sessions')
       const res = await s.db.prepare(`UPDATE impersonation_grants SET ended_at = ?, ended_by = ?, ended_by_name = ?, ended_reason = ? WHERE id = ? AND ended_at IS NULL`)
         .bind(now(), c.id.platformAdmin ? null : c.id.userId, c.id.fullName, reason, c.params.id).run().catch(() => null)
       if (res && (res.meta.changes ?? 0) > 0) return ok({ ended: true })
@@ -739,32 +803,34 @@ export function registerPlatformConfig(r: Router): void {
     const planOf = new Map(subs.results.map((s) => [s.institution_id, s.plan_code]))
     const sess = await c.env.CONTROL.prepare(`SELECT institution_id, count(*) AS n, count(DISTINCT user_id) AS users FROM sessions WHERE created_at >= datetime('now', '-28 days') AND institution_id IS NOT NULL GROUP BY institution_id`).all<{ institution_id: string; n: number; users: number }>()
     const sessOf = new Map(sess.results.map((s) => [s.institution_id, s]))
+    const failed = new Map<string, { institution_id: string; school: string }>()
+    const miss = (f: { inst: Institution }) => failed.set(f.inst.id, { institution_id: f.inst.id, school: f.inst.name })
+    const byDay: { d: string; n: number }[] = []
     for (const f of await fleet(c)) {
       try {
-        const row = await f.db.prepare(`SELECT (SELECT count(*) FROM students WHERE status = 'active') AS students, (SELECT count(*) FROM employees WHERE status = 'active') AS staff,
+        // One round trip per school: the figures and the changes by day for the weekly trend below.
+        const [one, ch] = await f.db.batch([f.db.prepare(`SELECT (SELECT count(*) FROM students WHERE status = 'active') AS students, (SELECT count(*) FROM employees WHERE status = 'active') AS staff,
             (SELECT count(*) FROM users WHERE status = 'active') AS accounts, (SELECT count(*) FROM audit_log WHERE created_at >= datetime('now', '-28 days')) AS changes,
-            (SELECT max(last_login_at) FROM users) AS last_login`).first<{ students: number; staff: number; accounts: number; changes: number; last_login: string | null }>()
+            (SELECT max(last_login_at) FROM users) AS last_login`),
+          f.db.prepare(`SELECT substr(created_at, 1, 10) AS d, count(*) AS n FROM audit_log WHERE created_at >= datetime('now', '-84 days') GROUP BY d`)])
+        const row = one.results[0] as { students: number; staff: number; accounts: number; changes: number; last_login: string | null } | undefined
         if (!row) continue
+        byDay.push(...(ch.results as { d: string; n: number }[]))
         const s = sessOf.get(f.inst.id)
         const quiet = row.last_login ? Math.floor((Date.now() - Date.parse(row.last_login)) / 86_400_000) : undefined
         if (quiet === undefined || quiet >= 14) atRisk++
         items.push({ institution_id: f.inst.id, school: f.inst.name, plan: planOf.get(f.inst.id), students: row.students, staff: row.staff, accounts: row.accounts, sign_ins_28_days: s?.n ?? 0, active_users_28_days: s?.users ?? 0,
           changes_28_days: row.changes, active_percent: row.accounts > 0 ? Math.floor(((s?.users ?? 0) * 100) / row.accounts) : 0, last_sign_in: row.last_login ? row.last_login.slice(0, 10) : undefined, quiet_days: quiet })
-      } catch { /* skip */ }
+      } catch { miss(f) }
     }
     // The installation's trend by week (Monday-start), sign-ins from CONTROL and changes summed over the fleet.
     const weekOf = (iso: string) => { const d = new Date(iso); const off = (d.getUTCDay() + 6) % 7; const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - off)); return m.toISOString().slice(0, 10) }
     const wk = new Map<string, { sign_ins: number; users: Set<string>; changes: number }>()
     const ws = await c.env.CONTROL.prepare(`SELECT created_at, user_id FROM sessions WHERE created_at >= datetime('now', '-84 days')`).all<{ created_at: string; user_id: string }>()
     for (const s of ws.results) { const k = weekOf(s.created_at); const e = wk.get(k) ?? { sign_ins: 0, users: new Set(), changes: 0 }; e.sign_ins++; e.users.add(s.user_id); wk.set(k, e) }
-    for (const f of await fleet(c)) {
-      try {
-        const ch = await f.db.prepare(`SELECT substr(created_at, 1, 10) AS d, count(*) AS n FROM audit_log WHERE created_at >= datetime('now', '-84 days') GROUP BY d`).all<{ d: string; n: number }>()
-        for (const x of ch.results) { const k = weekOf(x.d); const e = wk.get(k); if (e) e.changes += x.n }
-      } catch { /* skip */ }
-    }
+    for (const x of byDay) { const k = weekOf(x.d); const e = wk.get(k); if (e) e.changes += x.n }
     const weeks = [...wk.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([week_start, v]) => ({ week_start, sign_ins: v.sign_ins, active_users: v.users.size, changes: v.changes }))
-    return ok({ items, weeks, at_risk: atRisk })
+    return ok({ items, weeks, at_risk: atRisk, failed_schools: [...failed.values()] })
   })
 
   // health
@@ -774,6 +840,7 @@ export function registerPlatformConfig(r: Router): void {
     const sess = await c.env.CONTROL.prepare(`SELECT institution_id, count(*) AS n FROM sessions WHERE created_at >= datetime('now', '-24 hours') GROUP BY institution_id`).all<{ institution_id: string; n: number }>()
     const sessOf = new Map(sess.results.map((s) => [s.institution_id, s.n]))
     const istHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }).format(new Date())) % 24
+    const failed: { institution_id: string; school: string }[] = []
     for (const f of await fleet(c)) {
       try {
         const failing = `g.institution_id = ?1 AND g.enabled AND g.last_error IS NOT NULL AND (g.last_ok_at IS NULL OR g.last_ok_at < datetime('now', '-24 hours'))`
@@ -792,9 +859,9 @@ export function registerPlatformConfig(r: Router): void {
         if (row.marked === 0 && istHour >= 11) concerns++
         items.push({ institution_id: f.inst.id, school: f.inst.name, integrations_enabled: row.on_, integrations_failing: row.failed, failing_providers: row.providers ? row.providers.split(',') : [], messages_failed_24h: row.msg_failed,
           payments_failed_24h: row.pay_failed, open_vendor_tickets: row.tickets, attendance_marked_today: row.marked, sessions_24h: sessOf.get(f.inst.id) ?? 0, concerns })
-      } catch { /* skip */ }
+      } catch { failed.push({ institution_id: f.inst.id, school: f.inst.name }) }
     }
-    return ok({ items, queues: {}, not_measured: 'Per-endpoint error rates and response times are written to the structured log and are not stored, so they cannot be reported here. What is below is measured from the database: failing integrations, undelivered messages, failed payments and whether the register was taken.' })
+    return ok({ items, failed_schools: failed, queues: {}, not_measured: 'Per-endpoint error rates and response times are written to the structured log and are not stored, so they cannot be reported here. What is below is measured from the database: failing integrations, undelivered messages, failed payments and whether the register was taken.' })
   })
 
   // entitlements

@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, setActingInstitution } from '@/lib/api'
-import { Badge, Button, Card, Checkbox, ErrorState, FormNotice, Input, Loading, Textarea } from '@/components/ui'
+import { Badge, Button, Card, Checkbox, Dialog, ErrorState, FormNotice, Input, Loading, Textarea } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { ConversationPane } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
 import { cn, formatDateTime } from '@/lib/utils'
 import { buzz } from '@/lib/haptics'
 import { useToast } from '@/components/Toast'
-import type { VendorTicket } from '../super_admin/platform-lib'
+import type { Grant, VendorTicket } from '../super_admin/platform-lib'
 import type { HelpDiagnostics, HelpThreadEntry } from '@shared/api/feature_helpdesk'
 
 /* THE DESK: queues on the left, tickets in the middle, the conversation and
@@ -26,11 +26,12 @@ const BASE = '/api/v1/admin/platform'
 const STATUS: Record<string, string> = { open: 'Open', in_progress: 'In progress', waiting: 'Waiting on school', resolved: 'Solved', closed: 'Closed' }
 const PRIORITY_TONE = (p: string) => (p === 'urgent' ? 'danger' : p === 'high' ? 'warning' : 'neutral') as 'danger' | 'warning' | 'neutral'
 
-/** "5 h left", "2 h over": the clock against what the school's plan was promised. */
+/** "5 h left", "2 h over": working hours against what the school's plan was promised, with time waiting on the school left out. */
 export function slaClock(t: VendorTicket): { text: string; late: boolean; close: boolean } {
   if (t.status === 'resolved' || t.status === 'closed' || !t.promised_hours) return { text: '', late: false, close: false }
-  const left = t.promised_hours - t.open_hours
-  const fmt = (h: number) => (h >= 48 ? `${Math.floor(h / 24)} d` : `${h} h`)
+  const left = t.promised_hours - (t.sla_hours ?? t.open_hours)
+  // Working hours, never days: a working day is nine hours, not twenty-four.
+  const fmt = (h: number) => `${h} h`
   return left < 0 ? { text: `${fmt(-left)} over`, late: true, close: false } : { text: `${fmt(left)} left`, late: false, close: left <= t.promised_hours * 0.25 }
 }
 
@@ -49,7 +50,8 @@ interface Context {
 }
 interface Canned { key: string; title: string; body: string }
 
-export function DeskPanes({ items }: { items: VendorTicket[] }) {
+/** everything: the list was filtered by status on the server, so the first queue shows all of it rather than only open tickets. */
+export function DeskPanes({ items, everything = false }: { items: VendorTicket[]; everything?: boolean }) {
   const me = useSession().user?.id
   const [queue, setQueue] = useState('open')
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -58,9 +60,9 @@ export function DeskPanes({ items }: { items: VendorTicket[] }) {
   const toast = useToast()
 
   const queues = useMemo<Queue[]>(() => {
-    const live = (t: VendorTicket) => t.status !== 'resolved' && t.status !== 'closed'
+    const live = (t: VendorTicket) => everything || (t.status !== 'resolved' && t.status !== 'closed')
     const base: Queue[] = [
-      { key: 'open', label: 'All open', test: live },
+      { key: 'open', label: everything ? 'All shown' : 'All open', test: live },
       { key: 'unassigned', label: 'Unassigned', test: (t) => live(t) && !t.assigned_to },
       { key: 'mine', label: 'Mine', test: (t) => live(t) && !!me && t.agent_id === me },
       { key: 'reply', label: 'School replied', test: (t) => live(t) && t.last_reply_side === 'raiser' },
@@ -73,18 +75,22 @@ export function DeskPanes({ items }: { items: VendorTicket[] }) {
       ...schools.map((s) => ({ key: `s:${s}`, label: s, test: (t: VendorTicket) => live(t) && t.school === s })),
       ...cats.map((k) => ({ key: `c:${k}`, label: k.replace(/_/g, ' '), test: (t: VendorTicket) => live(t) && t.category === k })),
     ]
-  }, [items, me])
+  }, [items, me, everything])
   const q = queues.find((x) => x.key === queue) ?? queues[0]
   const shown = items.filter(q.test)
   const keyOf = (t: VendorTicket) => `${t.institution_id}/${t.id}`
   const open = items.find((t) => keyOf(t) === openKey)
 
   const bulk = useMutation({
-    mutationFn: (b: { action: string; into?: { school: string; id: string } }) => api.post<{ done: number }>(`${BASE}/desk/bulk`, {
+    mutationFn: (b: { action: string; into?: { school: string; id: string } }) => api.post<{ done: number; results: { ok: boolean; error?: string }[] }>(`${BASE}/desk/bulk`, {
       ...b, items: [...picked].map((k) => { const [school, id] = k.split('/'); return { school, id } }) }),
     onSuccess: (r, b) => {
       buzz('tap'); setPicked(new Set())
-      toast.ok(b.action === 'take' ? `${r.done} taken` : b.action === 'close' ? `${r.done} closed` : `${r.done} merged`)
+      const done = b.action === 'take' ? `${r.done} taken` : b.action === 'close' ? `${r.done} closed` : `${r.done} merged`
+      const refused = r.results.filter((x) => !x.ok)
+      // Each ticket is answered on its own: say how many were left as they were, and why the first one was.
+      if (refused.length) toast.error(`${done}. ${refused.length} left as they were: ${refused[0].error ?? 'refused'}.`)
+      else toast.ok(done)
       qc.invalidateQueries({ queryKey: ['platform', 'tickets'] })
     },
   })
@@ -183,6 +189,11 @@ function Conversation({ t, onClose }: { t: VendorTicket; onClose: () => void }) 
   const [waiting, setWaiting] = useState(false)
   const [tab, setTab] = useState<'talk' | 'context'>('talk')
   const refresh = () => { qc.invalidateQueries({ queryKey: ['desk', t.id] }); qc.invalidateQueries({ queryKey: ['platform', 'tickets'] }) }
+  const [entering, setEntering] = useState(false)
+  const priority = useMutation({
+    mutationFn: (p: string) => api.post(`${BASE}/seller/tickets/${t.id}`, { institution_id: t.institution_id, priority: p }),
+    onSuccess: () => refresh(),
+  })
   const reply = useMutation({ mutationFn: () => api.post(`${path}/reply`, { body, internal, waiting }), onSuccess: () => { setBody(''); setWaiting(false); refresh() } })
   const solve = useMutation({ mutationFn: () => api.post(`${path}/resolve`, { resolution: body }), onSuccess: () => { buzz('tap'); setBody(''); toast.ok('Solved. The school is told.'); refresh() } })
   const v = d.data
@@ -192,6 +203,14 @@ function Conversation({ t, onClose }: { t: VendorTicket; onClose: () => void }) 
   return (
     <ConversationPane open title={<span>{t.subject}</span>} onBack={onClose}
       subtitle={`${t.school} · ${STATUS[t.status] ?? t.status}${slaClock(t).text ? ` · ${slaClock(t).text}` : ''}`}>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+        <PickerMenu ariaLabel="Priority" value={t.priority} align="start" onChange={(p) => p !== t.priority && priority.mutate(p)}
+          options={[{ value: 'urgent', label: 'Urgent' }, { value: 'high', label: 'High' }, { value: 'normal', label: 'Normal' }, { value: 'low', label: 'Low' }]} />
+        {!settled && <Button size="sm" variant="secondary" onClick={() => setEntering(true)}>Enter this school for this ticket</Button>}
+        <OwnSession school={t.institution_id!} />
+      </div>
+      <FormNotice error={priority.error} />
+      {entering && <EnterSchool t={t} onClose={() => setEntering(false)} />}
       <div className="flex shrink-0 gap-1 border-b px-3 py-2" role="tablist">
         {(['talk', 'context'] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
@@ -230,6 +249,51 @@ function Conversation({ t, onClose }: { t: VendorTicket; onClose: () => void }) 
         </div>
       )}
     </ConversationPane>
+  )
+}
+
+const MINUTES = [{ value: '30', label: '30 minutes' }, { value: '60', label: '1 hour' }, { value: '120', label: '2 hours' }, { value: '240', label: '4 hours' }]
+
+/* A recorded session in the school, started from the ticket: the reason and
+   the time limit are what the school's administrator reads in their register
+   (worker admin/platform_config.ts POST /admin/platform/impersonation). */
+function EnterSchool({ t, onClose }: { t: VendorTicket; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [reason, setReason] = useState('')
+  const [minutes, setMinutes] = useState('60')
+  const start = useMutation({
+    mutationFn: () => api.post<Grant>(`${BASE}/impersonation`, { institution_id: t.institution_id, ticket_id: t.id, reason: reason.trim(), minutes: Number(minutes) }),
+    onSuccess: () => { buzz('tap'); qc.invalidateQueries({ queryKey: ['platform', 'grants'] }); setActingInstitution(t.institution_id!); window.location.assign('/') },
+  })
+  return (
+    <Dialog onClose={onClose} scrimClassName="!z-[130]" title="Enter this school" description={`${t.school}. The school's administrator sees who entered, why and until when.`}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button disabled={reason.trim().length < 8} pending={start.isPending} onClick={() => start.mutate()}>Enter school</Button>
+      </>}>
+      <div className="space-y-3">
+        <Textarea value={reason} onChange={setReason} rows={2} aria-label="Reason" placeholder="Why you are entering, in a few words" />
+        <PickerMenu ariaLabel="Time limit" value={minutes} align="start" options={MINUTES} onChange={setMinutes} />
+        <FormNotice error={start.error} />
+      </div>
+    </Dialog>
+  )
+}
+
+/** The signed-in account's live session in this school, if any: open it, or end it. */
+function OwnSession({ school }: { school: string }) {
+  const me = useSession().user?.id
+  const qc = useQueryClient()
+  const grants = useQuery({ queryKey: ['platform', 'grants'], queryFn: () => api.get<{ items: Grant[] }>(`${BASE}/impersonation?limit=100`) })
+  const g = grants.data?.items.find((x) => x.live && x.institution_id === school && x.operator_id === me)
+  const end = useMutation({ mutationFn: () => api.post(`${BASE}/impersonation/${g!.id}/end`, {}), onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'grants'] }) })
+  if (!g) return null
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-[13px]">
+      <span className="text-muted-foreground">In this school until {new Date(g.expires_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}</span>
+      <Button size="sm" variant="ghost" onClick={() => { setActingInstitution(school); window.location.assign('/') }}>Open the school</Button>
+      <Button size="sm" variant="ghost" pending={end.isPending} onClick={() => end.mutate()}>End</Button>
+    </span>
   )
 }
 
@@ -293,6 +357,33 @@ function ContextPanel({ v, c, error }: { v: Detail; c?: Context; error: unknown 
         </>
       )}
     </div>
+  )
+}
+
+/* Notes for the signed-in account when a ticket passes its promise (worker
+   services/ticket_index.ts, every 15 minutes, once per ticket). */
+export function DeskAlerts() {
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['desk', 'alerts'], queryFn: () => api.get<{ items: { id: string; title: string; body?: string; created_at: string; read_at?: string }[]; unread: number }>(`${BASE}/desk/alerts`) })
+  const read = useMutation({ mutationFn: (id: string) => api.post(`${BASE}/desk/alerts/${id}/read`, {}), onSuccess: () => qc.invalidateQueries({ queryKey: ['desk', 'alerts'] }) })
+  const unread = (q.data?.items ?? []).filter((x) => !x.read_at)
+  if (!unread.length) return null
+  return (
+    <Card className="p-[var(--card-pad)]">
+      <h3 className="mb-2 text-[14px] font-semibold">Past the promise ({unread.length})</h3>
+      <ul className="divide-y">
+        {unread.slice(0, 10).map((a) => (
+          <li key={a.id} className="flex items-start gap-2 py-2 text-[14px]">
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium">{a.title}</div>
+              {a.body && <div className="break-words text-[13px] text-muted-foreground">{a.body} {formatDateTime(a.created_at)}</div>}
+            </div>
+            <Button size="sm" variant="ghost" pending={read.isPending && read.variables === a.id} onClick={() => read.mutate(a.id)}>Mark read</Button>
+          </li>
+        ))}
+      </ul>
+      <FormNotice error={read.error} />
+    </Card>
   )
 }
 

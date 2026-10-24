@@ -166,17 +166,6 @@ export default function Impersonation() {
               title="What changed during that session"
               description={activity.data?.covers}
             />
-            {activity.data?.unattributed_note && (
-              <div className="border-b bg-warning/5 px-5 py-3">
-                <p className="text-[13px] font-medium text-warning">
-                  {activity.data.unattributed_changes} change
-                  {activity.data.unattributed_changes > 1 ? 's are' : ' is'} missing from this list.
-                </p>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  {activity.data.unattributed_note}
-                </p>
-              </div>
-            )}
             {activity.isLoading ? (
               <SkeletonTable columns={5} />
             ) : activity.error ? (

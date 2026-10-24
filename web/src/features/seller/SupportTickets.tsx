@@ -1,13 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, type List } from '@/lib/api'
-import { PageHead, PageBody, CellGrid, Stat, Button, SkeletonTable, ErrorState, TAB_BAR, tabClass } from '@/components/ui'
+import { api } from '@/lib/api'
+import { PageHead, PageBody, CellGrid, Stat, Button, SkeletonTable, ErrorState, FormNotice, TAB_BAR, tabClass } from '@/components/ui'
+import { PickerMenu } from '@/components/PickerMenu'
+import { SearchBox } from '@/components/rows'
 import { type VendorTicket } from '../super_admin/platform-lib'
-import { DeskPanes, JoinWithCode } from './SupportDesk'
+import { DeskAlerts, DeskPanes, JoinWithCode } from './SupportDesk'
 import { HelpContent } from './HelpContent'
 import { HelpReports, KnownIssues } from './HelpIssues'
 
 const BASE = '/api/v1/admin/platform/seller/tickets'
+/** What the server filters on (admin/platform_config.ts). Blank leaves out closed tickets. */
+const FILTERS = [
+  { value: '', label: 'Not closed' }, { value: 'open', label: 'Open' }, { value: 'in_progress', label: 'In progress' },
+  { value: 'waiting', label: 'Waiting on school' }, { value: 'resolved', label: 'Resolved' }, { value: 'closed', label: 'Closed' },
+  { value: 'merged', label: 'Merged' }, { value: 'all', label: 'All' },
+] as const
+type Filter = (typeof FILTERS)[number]['value']
+type Queue = { items: VendorTicket[]; total: number; failed_schools: { institution_id: string; school: string }[] }
 
 const STATUS_NAME: Record<string, string> = { open: 'Open', in_progress: 'In progress', waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed' }
 const STATUS_TONE: Record<string, 'info' | 'warning' | 'success' | 'neutral'> = { open: 'info', in_progress: 'warning', waiting: 'neutral', resolved: 'success', closed: 'neutral' }
@@ -26,11 +36,16 @@ const STATUS_TONE: Record<string, 'info' | 'warning' | 'success' | 'neutral'> = 
  */
 export default function SupportTickets() {
   const [view, setView] = useState<'tickets' | 'issues' | 'reports' | 'content'>('tickets')
-  const status = ''
+  const [status, setStatus] = useState<Filter>('')
+  const [typed, setTyped] = useState('')
+  const [q, setQ] = useState('')
+  // Asked of the server a moment after typing stops, not on every key.
+  useEffect(() => { const h = setTimeout(() => setQ(typed.trim()), 300); return () => clearTimeout(h) }, [typed])
   const [focus, setFocus] = useState<{ by: string; key: string } | null>(null)
   const { data, isLoading, error } = useQuery({
-    queryKey: ['platform', 'tickets', status],
-    queryFn: () => api.get<List<VendorTicket>>(status ? `${BASE}?status=${status}` : BASE),
+    queryKey: ['platform', 'tickets', status, q],
+    queryFn: () => api.get<Queue>(`${BASE}?${new URLSearchParams({ ...(status ? { status } : {}), ...(q ? { q } : {}), limit: '500' })}`),
+    placeholderData: (prev) => prev,
   })
 
   if (isLoading && !data) return <SkeletonTable columns={8} />
@@ -44,7 +59,8 @@ export default function SupportTickets() {
      trial school's cosmetic question is not failed after five days. The
      promise comes from the plan the school actually pays for, so the number
      that matters is how many of those promises are broken right now. */
-  const close = (t: VendorTicket) => !t.breached && t.promised_hours > 0 && t.open_hours >= t.promised_hours * 0.75
+  const clock = (t: VendorTicket) => t.sla_hours ?? t.open_hours
+  const close = (t: VendorTicket) => !t.breached && t.promised_hours > 0 && clock(t) >= t.promised_hours * 0.75
   const sla = (t: VendorTicket) => (t.breached ? 'past' : close(t) ? 'close' : 'kept')
 
   /* THE FIGURES ARE THE FILTERS. Each card says what its number is made of,
@@ -71,7 +87,7 @@ export default function SupportTickets() {
   const unassigned = byOwner.get('') ?? 0
   const age = (h: number) => (h < 48 ? `${h} h` : `${Math.floor(h / 24)} days`)
   const oldest = all.reduce<VendorTicket | null>((a, t) => (!a || t.open_hours > a.open_hours ? t : a), null)
-  const worst = all.filter((t) => t.breached).reduce<VendorTicket | null>((a, t) => (!a || t.open_hours - t.promised_hours > a.open_hours - a.promised_hours ? t : a), null)
+  const worst = all.filter((t) => t.breached).reduce<VendorTicket | null>((a, t) => (!a || clock(t) - t.promised_hours > clock(a) - a.promised_hours ? t : a), null)
   const waiting = all.filter((t) => !t.assigned_to).reduce<VendorTicket | null>((a, t) => (!a || t.open_hours > a.open_hours ? t : a), null)
   const busiest = [...byOwner].filter(([k]) => k).sort((a, b) => b[1] - a[1])[0]
   /* Raised per day over the last fortnight, from the tickets on screen. */
@@ -105,7 +121,16 @@ export default function SupportTickets() {
           <button type="button" className={tabClass(view === 'content')} aria-current={view === 'content' ? 'page' : undefined} onClick={() => setView('content')}>Help content</button>
         </nav>
         {view === 'content' ? <HelpContent /> : view === 'issues' ? <KnownIssues /> : view === 'reports' ? <HelpReports /> : <>
+        <DeskAlerts />
         <JoinWithCode />
+        <div className="flex flex-wrap items-center gap-2">
+          <PickerMenu ariaLabel="Status" value={status} align="start" options={FILTERS} onChange={(v) => { setStatus(v); setFocus(null) }} />
+          <SearchBox value={typed} onChange={setTyped} placeholder="School, subject or ticket id" />
+          {data && data.total > all.length && <span className="text-[13px] text-muted-foreground">Showing {all.length} of {data.total}</span>}
+        </div>
+        {!!data?.failed_schools.length && (
+          <FormNotice error={new Error(`Could not read tickets from ${data.failed_schools.map((f) => f.school).join(', ')}. Their tickets are missing below; the list tries again in a few minutes.`)} />
+        )}
         <CellGrid cols={4}>
           <Stat
             label="In the queue"
@@ -130,7 +155,7 @@ export default function SupportTickets() {
             value={breached}
             detail={
               worst
-                ? <>Furthest over: <b className="font-semibold text-foreground">{age(worst.open_hours - worst.promised_hours)}</b> past the {worst.promised_hours} h promised to {worst.school ?? 'a school'}.</>
+                ? <>Furthest over: <b className="font-semibold text-foreground">{clock(worst) - worst.promised_hours} h</b> past the {worst.promised_hours} working hours promised to {worst.school ?? 'a school'}.</>
                 : nearly ? `None broken yet; ${nearly} within a quarter of the limit.` : all.length ? 'Every promise is being kept.' : 'No promises running.'
             }
             parts={[
@@ -167,7 +192,7 @@ export default function SupportTickets() {
         )}
 
         {/* The queue as a desk: queues, tickets, the conversation and what is known (SupportDesk.tsx). */}
-        <DeskPanes items={items} />
+        <DeskPanes items={items} everything={status !== ''} />
         </>}
       </PageBody>
     </>
