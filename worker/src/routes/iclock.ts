@@ -204,6 +204,16 @@ async function findDevice(env: Env, serial: string) {
   return null
 }
 
+const CLOCK_KEY = (deviceId: string) => `iclock_clock:${deviceId}`
+const CLOCK_EVERY_MS = 3600_000
+
+/** India time in the readers' packed form: seconds counted on a calendar of 31-day months from 2000. */
+export function zkTime(d: Date): number {
+  const t = new Date(d.getTime() + 330 * 60_000)
+  const y = t.getUTCFullYear(), mo = t.getUTCMonth() + 1, day = t.getUTCDate()
+  return ((y - 2000) * 12 * 31 + (mo - 1) * 31 + day - 1) * 86400 + (t.getUTCHours() * 60 + t.getUTCMinutes()) * 60 + t.getUTCSeconds()
+}
+
 export async function handleIclock(env: Env, req: Request, url: URL): Promise<Response | null> {
   if (!url.pathname.startsWith('/iclock/')) return null
   const serial = (url.searchParams.get('SN') ?? '').trim()
@@ -222,10 +232,16 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
 
   if (path === '/iclock/cdata' && req.method === 'GET') {
     /* The reader's settings: send every punch at once (Realtime), from the
-       start of its log, and check in every 30 seconds. */
+       start of its log, and check in every 30 seconds.
+       No TimeZone. A reader given one sets its own clock from it and the
+       server's time, and eSSL firmware reads the zone in whole hours: India's
+       5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
+       2026-10-22). The clock is set to India time directly instead, by
+       SET OPTION DateTime below (the command name the X2008 and other ZMM220
+       readers read), which carries no zone to misread. */
     return text([
       `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
-      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'TimeZone=5.5', 'Realtime=1', 'Encrypt=None',
+      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
     ].join('\n') + '\n')
   }
 
@@ -373,6 +389,17 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     if (want) {
       await db.prepare(`UPDATE module_settings SET enabled = 0, config = ? WHERE module = ?`).bind(JSON.stringify({ sent_at: now() }), key).run()
       return text(`C:${id}:DATA QUERY ATTLOG StartTime=2000-01-01 00:00:00\tEndTime=2099-12-31 23:59:59\nC:${id + 1}:CHECK\n`)
+    }
+    /* The reader's clock. Nothing else sets it, and a reader left to its own
+       clock drifts by minutes a month, so late marks stop meaning anything.
+       Set on first contact and every hour after, to India time. */
+    const ckey = CLOCK_KEY(dev.deviceId)
+    const last = await db.prepare(`SELECT config FROM module_settings WHERE module = ?`).bind(ckey).first<{ config: string | null }>()
+    const at = Date.parse((JSON.parse(last?.config ?? '{}') as { sent_at?: string }).sent_at ?? '')
+    if (!(at > Date.now() - CLOCK_EVERY_MS)) {
+      await db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 0, ?)
+          ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(dev.inst.id, ckey, JSON.stringify({ sent_at: now() })).run()
+      return text(`C:${id + 4}:SET OPTION DateTime=${zkTime(new Date())}\n`)
     }
   }
 
