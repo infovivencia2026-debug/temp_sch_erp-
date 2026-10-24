@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'rea
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
-  School, UserRound, X,
+  UserRound, X,
 } from 'lucide-react'
 import {
   useCatalog, useActiveRole, featurePath, allRolesOn, type ApiSection,
@@ -58,7 +58,7 @@ import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import { ComboTabs } from '@/components/StaffCombos'
-import { StaffHeaderContent, StaffNavList, StaffPanelFoot, useTodaySignIns } from '@/components/StaffShell'
+import { StaffHeaderContent, StaffNavList, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -196,7 +196,7 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
     // The row grows with its type, or larger text is set in a 36px box and
     // clipped by it. min-height rather than height for the same reason: a
     // two-line label at 116% has to be allowed to be two lines.
-    'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-[10px] pr-2',
+    'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-sm pr-2',
     /* THE SAME SIZE AS THE PAGE IT NAVIGATES.
 
        13.5 against a 14px body is not a hierarchy, it is a half-pixel nobody
@@ -220,15 +220,24 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
        Hover is where the surface appears, and only there: a wash and a
        darkening of the ink, so pointing at a row shows it can be pressed. That
        is the whole button — it is drawn by the cursor and put away after. */
-    /* Owner's side-panel design (2026-10-24): the item you are on is an
-       accent tint with accent ink, the same as the staff panel. */
     active
-      ? 'bg-primary/10 font-semibold text-primary'
+      ? 'font-medium text-foreground hover:bg-surface-hover'
       : dim
         // Unbuilt, and only on screen because the roadmap toggle is on. A
         // lighter weight says so without a chip beside every second label.
         ? 'text-muted-foreground/70 hover:bg-surface-hover hover:text-secondary-foreground'
         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
+  )
+}
+
+/** A 2px mark on the active item. Enough to find at a glance, quiet enough
+    not to turn the rail into a column of colour. */
+function ActiveMark() {
+  return (
+    <span
+      aria-hidden
+      className="absolute left-0 top-1/2 h-[18px] w-[2px] -translate-y-1/2 rounded-full bg-primary"
+    />
   )
 }
 
@@ -909,7 +918,7 @@ export function Shell({
         <div className={cn('flex min-w-0 flex-1 flex-col', !tabletDrawer && 'md:max-lg:hidden')}>
 
         {/* --- workspace header: where am I, and whose -------------------- */}
-        <div className={cn('relative shrink-0', staffLayout ? 'border-b px-5 py-4 max-sm:px-4' : 'px-3 pb-2 pt-3')}>
+        <div className="relative shrink-0 px-3 pb-2 pt-3">
           {/* Icon only, and only where there is a rail to put away. It sits
               over the switcher's right edge rather than in a row of its own:
               a control for hiding navigation should not itself cost a line of
@@ -947,9 +956,7 @@ export function Shell({
               /* Stacked: the mark on its own row, the role and the school under
                  it. Side by side, a 48px logo left the names a truncated
                  stub ("Instit…"). */
-              staffLayout
-                ? 'flex w-full items-center gap-3.5 rounded-[10px] py-1 pl-1 pr-14 text-left'
-                : 'flex w-full flex-col items-start gap-2 rounded-sm py-2 pl-2 pr-2 text-left',
+              'flex w-full flex-col items-start gap-2 rounded-sm py-2 pl-2 pr-2 text-left',
               'transition-colors duration-100',
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
@@ -964,32 +971,25 @@ export function Shell({
                 theme -- a global override would fight text contrast on every
                 screen, and this is the one square that should be the brand. */}
             {staffLayout ? (
-              /* The staff layout's brand block (owner's side-panel design, 2026-10-24):
-                 the logo in a 48px tile, then the school and the desk. */
-              <>
-                {session.institution?.logo_key ? (
+              /* The staff layout's brand block: the logo, the school, the desk, the campus. */
+              <span className="block w-full min-w-0 pr-10">
+                {session.institution?.logo_key && (
                   <img src={`/api/v1/files/${session.institution.logo_key}?inline=1`} alt=""
-                    className="aspect-square h-12 w-12 shrink-0 rounded-xl border bg-white object-contain" />
-                ) : (
-                  <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border bg-primary/10 text-primary">
-                    <School className="h-6 w-6" strokeWidth={1.75} />
-                  </span>
+                    className="mb-2 aspect-square h-12 w-12 rounded-lg bg-white object-contain" />
                 )}
-                <span className="block min-w-0 flex-1">
-                  <span className="block whitespace-normal break-words text-[calc(16px*var(--font-scale,1))] font-extrabold leading-tight">
-                    {brandName}
-                  </span>
-                  <span className="mt-0.5 flex items-center gap-1 text-[calc(13.5px*var(--font-scale,1))] font-semibold text-muted-foreground">
-                    <span className="truncate">{role?.name ?? ''}</span>
-                    {catalog.roles.length > 1 && (
-                      <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', switcherOpen && 'rotate-180')} />
-                    )}
-                  </span>
-                  {signIns.data?.campus && (
-                    <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
+                <span className="block whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-bold uppercase leading-tight tracking-[0.04em]">
+                  {brandName}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1 text-[calc(13px*var(--font-scale,1))] text-secondary-foreground">
+                  <span className="truncate">{role?.name ?? ''}</span>
+                  {catalog.roles.length > 1 && (
+                    <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', switcherOpen && 'rotate-180')} />
                   )}
                 </span>
-              </>
+                {signIns.data?.campus && (
+                  <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
+                )}
+              </span>
             ) : session.institution?.logo_key ? (
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
@@ -1086,10 +1086,11 @@ export function Shell({
               A 44px touch target with a focus ring, matching the app's other
               icon buttons — the bare 16px X had neither. */}
           <button
-            className={cn('absolute grid place-items-center text-muted-foreground transition-colors duration-100',
-              'hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden',
-              /* Round on the staff panel, per the owner's design. */
-              staffLayout ? 'right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted max-sm:h-12 max-sm:w-12' : 'right-4 top-5 h-10 w-10 rounded-sm')}
+            className="absolute right-4 top-5 grid h-10 w-10 place-items-center rounded-sm
+                       text-muted-foreground transition-colors duration-100
+                       hover:bg-surface-hover hover:text-foreground
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                       lg:hidden"
             onClick={() => setNavOpen(false)}
             aria-label="Close menu"
           >
@@ -1098,7 +1099,7 @@ export function Shell({
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
-        <nav aria-label="Sections" className={cn('flex-1 overflow-y-auto', staffLayout ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
+        <nav aria-label="Sections" className="flex-1 overflow-y-auto px-3 pb-3">
           {/* Recent was here, above the workspace.
 
               It read as part of the menu without being part of it: five
@@ -1135,10 +1136,14 @@ export function Shell({
                   key={ws.slug}
                   to={featurePath(role.key, ws.sections[0].slug, onlyItem.slug)}
                   onClick={() => setNavOpen(false)}
-                  data-row
                   className={({ isActive }) => navItem(isActive, 0, !onlyItem.live)}
                 >
-                  <span className="truncate">{ws.name}</span>
+                  {({ isActive }) => (
+                    <>
+                      {isActive && <ActiveMark />}
+                      <span className="truncate">{ws.name}</span>
+                    </>
+                  )}
                 </NavLink>
               )
             }
@@ -1166,9 +1171,7 @@ export function Shell({
                        heading closer to the item above it than to its own. */
                     <div
                       key={section.slug}
-                      /* Each labelled group a soft rounded card (owner's side-panel
-                         design, 2026-10-24), so the card edge does the hairline's job. */
-                      className={labelled ? 'mt-3 rounded-[14px] border bg-surface-subtle p-1.5 pt-2.5 first:mt-0' : undefined}
+                      className={labelled ? 'mt-5 border-t border-border/60 pt-3 first:mt-0 first:border-t-0 first:pt-0' : undefined}
                     >
                       {labelled && (
                         /* Smaller and wider-tracked than an item, and short of
@@ -1191,10 +1194,14 @@ export function Shell({
                           to={featurePath(role!.key, section.slug, f.slug)}
                           onClick={() => setNavOpen(false)}
                           title={f.summary}
-                          data-row
                           className={({ isActive }) => navItem(isActive, 0, !f.live)}
                         >
-                          <span className="truncate">{shortLabel(f.name)}</span>
+                          {({ isActive }) => (
+                            <>
+                              {isActive && <ActiveMark />}
+                              <span className="truncate">{shortLabel(f.name)}</span>
+                            </>
+                          )}
                         </NavLink>
                       ))}
                     </div>
@@ -1214,7 +1221,24 @@ export function Shell({
         </nav>
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
         {staffLayout ? (
-          <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />
+          /* The rail's foot, as one compact row: the staff layout has no rail. */
+          /* Centred, the links and the Focus | Work switch alike (Yajur, 2026-10-24). */
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-1 gap-y-1 border-t px-3 py-2 text-center text-[calc(13px*var(--font-scale,1))]">
+            <HelpButton
+              className="grid size-10 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+              iconClassName="h-4 w-4"
+            />
+            <Link to="/account" data-help-anchor="account" onClick={() => setNavOpen(false)}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Profile
+            </Link>
+            <a href="/logout" onClick={() => buzz('warn')}
+              className="rounded-sm px-2 py-2 text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Sign out
+            </a>
+            <div className="min-w-0"><BentoSettings placement="sidebar" /></div>
+            <div className="flex basis-full justify-center"><LayoutSwitch /></div>
+          </div>
         ) : (
           <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
             <LayoutSwitch />
