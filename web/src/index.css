@@ -5069,3 +5069,119 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 48px; height: 48px; }
   .staff-foot-settings button svg { width: 24px; height: 24px; }
 }
+
+/* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
+   screens use hard-coded Tailwind sizes (text-[13px], h-4 icons, h-9 buttons)
+   that escaped the block above. On phones they are pulled onto the scale:
+   body 16, secondary 14, caption 12, icons in controls 24, targets 48.
+   Desktop keeps the classes as written. */
+@media (max-width: 639.98px) {
+  .text-\[13px\], .text-\[15px\], .text-base {
+    font-size: calc(16px * var(--font-scale)) !important;
+    line-height: 1.45 !important;
+  }
+  .text-sm, .text-\[14px\] { font-size: calc(14px * var(--font-scale)) !important; }
+  .text-xs, .text-\[10px\], .text-\[11px\], .text-\[12px\] {
+    font-size: calc(12px * var(--font-scale)) !important;
+  }
+  .text-lg, .text-xl, .text-\[17px\], .text-\[18px\] { font-size: calc(20px * var(--font-scale)) !important; }
+  .text-2xl { font-size: calc(24px * var(--font-scale)) !important; }
+  input:not([type='checkbox']):not([type='radio']), select, textarea {
+    font-size: calc(16px * var(--font-scale)) !important;
+  }
+  /* Every button and button-like link is a 48 target; its icon draws at 24. */
+  main button:not([role='switch']), main a[role='button'], nav button, nav a[aria-label] {
+    min-height: 48px;
+  }
+  main button[aria-label], nav button[aria-label], nav a[aria-label] { min-width: 48px; }
+  main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
+}
+
+/* NO GREY ON PRESS (owner, 2026-10-24: "I still see grey when cursor click and
+   hold, and also same on phones"). A wash-only control (a hover tint and no
+   background of its own) shows no tint while held, and on a touch screen,
+   where :hover sticks after a tap, no tint at all. Long-press selects no text
+   and opens no callout on controls. */
+:is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):active {
+  background-color: transparent !important;
+}
+@media (hover: none) {
+  :is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):hover {
+    background-color: transparent !important;
+  }
+  :is(button, a, [role='button'], [role='tab'], [data-row], summary) {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+}
+
+/* THE PILL MENU (Yajur, 2026-10-24; StaffShell PILL_HUES). Each row carries its
+   own hue in --h: a pastel round badge in that hue, and when a group is open
+   its card takes a wash and a border of the same hue. */
+.nav-pill {
+  --pill-ink: hsl(var(--h) 75% 38%);
+  --pill-badge: hsl(var(--h) 85% 93%);
+  --pill-wash: hsl(var(--h) 90% 97%);
+  display: block; padding: 2px; border-radius: 9999px;
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .02), 0 2px 4px -1px rgb(0 0 0 / .02);
+  transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease;
+}
+.dark .nav-pill, [data-theme='dark'] .nav-pill {
+  --pill-ink: hsl(var(--h) 70% 72%);
+  --pill-badge: hsl(var(--h) 35% 22%);
+  --pill-wash: hsl(var(--h) 30% 13%);
+}
+.nav-pill[data-open], .nav-pill.nav-pill--on {
+  border-radius: 22px; border-color: var(--pill-ink); background: var(--pill-wash);
+  box-shadow: 0 10px 20px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+}
+.nav-pill.nav-pill--on { border-radius: 9999px; }
+.nav-pill__head {
+  display: flex; width: 100%; align-items: center; gap: 12px; min-height: 40px;
+  padding: 3px 12px 3px 4px; border-radius: 9999px; text-align: left;
+  font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; color: hsl(var(--foreground));
+}
+a.nav-pill.nav-pill__head { padding: 5px 14px 5px 6px; }
+.nav-pill__badge {
+  display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 9999px;
+  background: var(--pill-badge); color: var(--pill-ink); transition: transform .25s ease;
+}
+.nav-pill__badge svg { width: 17px; height: 17px; }
+.nav-pill__arrow { width: 18px; height: 18px; flex-shrink: 0; color: hsl(var(--muted-foreground) / .5); transition: transform .3s ease, color .25s ease; }
+.nav-pill[data-open] .nav-pill__arrow, .nav-pill--on .nav-pill__arrow { transform: rotate(90deg); color: var(--pill-ink); }
+.nav-pill--on .nav-pill__arrow { transform: none; }
+.nav-pill__sub { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 10px; }
+.nav-pill__sub a { border-radius: 14px; font-size: calc(15px * var(--font-scale, 1)); }
+.nav-pill__sub a:hover { color: var(--pill-ink); }
+.nav-pill__sub .nav-pill__item--on { color: var(--pill-ink); background: hsl(var(--card) / .7); }
+@media (max-width: 639.98px) {
+  .nav-pill__head { font-size: 16px; }
+  .nav-pill__sub a { font-size: 15px; min-height: 48px; }
+}
+/* Thin pills (owner, 2026-10-24: "make those thin" in the sidebar): the phone
+   48px floor for buttons does not apply to a pill's head row. */
+@media (max-width: 639.98px) {
+  nav .nav-pill__head, nav button.nav-pill__head { min-height: 40px !important; }
+  nav .nav-pill__badge svg { width: 17px !important; height: 17px !important; }
+}
+/* A pill group opens smoothly (owner's design: max-height .35s
+   cubic-bezier(.4,0,.2,1)); grid rows animate to the content's real height. */
+.nav-pill__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body { grid-template-rows: 1fr; }
+.nav-pill__body > .nav-pill__sub { min-height: 0; overflow: hidden; padding-bottom: 0; transition: padding-bottom .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { padding-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .nav-pill__body, .nav-pill__body > .nav-pill__sub { transition: none; } }
+/* Hover, as in the owner's design: the card lifts 2px and takes its hue's wash,
+   border and shadow; the badge grows and the arrow steps right. Pointer
+   devices only, so a finger never leaves a row stuck in its hover state. */
+@media (hover: hover) {
+  .nav-pill { transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease, transform .25s ease; }
+  .nav-pill:hover {
+    background: var(--pill-wash); border-color: var(--pill-ink); transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+  }
+  .nav-pill[data-open]:hover { transform: none; }
+  .nav-pill:hover > .nav-pill__head .nav-pill__badge, a.nav-pill:hover .nav-pill__badge { transform: scale(1.1); }
+  .nav-pill:not([data-open]):hover .nav-pill__arrow { color: var(--pill-ink); transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { .nav-pill:hover { transform: none; } }

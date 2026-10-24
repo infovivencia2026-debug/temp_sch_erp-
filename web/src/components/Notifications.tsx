@@ -18,7 +18,7 @@ import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
 import { Button, Dialog } from '@/components/ui'
-import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
+import { dropFromFeed, noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
 import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
 /* The bell in the header, and the panel it opens.
@@ -193,12 +193,26 @@ export function useNotificationFeed() {
     queryKey: ['notifications'],
     queryFn: () => api.call('GET /portal/notifications'),
     refetchOnWindowFocus: true,
-    staleTime: 60_000,
+    /* Ten seconds, not a minute: a list a minute old still showed work already
+       done (Yajur, 2026-10-24). The revision poll and every mutation
+       (App.tsx) invalidate it anyway; this only covers a remount. */
+    staleTime: 10_000,
     retry: false,
   })
 }
 
 type Feed = { items?: Note[]; unread?: number }
+
+/** Opening a row: gone from the bell and the home panel at once, then the
+    server is told (lib/notification-shown dropFromFeed). Work owed stays. */
+export function useDismissNotification() {
+  return useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
+    queryKeys: [['notifications']],
+    apply: (old, id) => dropFromFeed(old as Feed, id),
+    failure: "Couldn't clear it",
+  })
+}
 
 /** Where a notification leads: shared by the bell and the home panels, so
     both open the same screen for the same row. */
@@ -331,20 +345,7 @@ export default function Notifications() {
      but still there, so the only way the drawer ever shrank was the blunt
      Clear All. Opening a status post is unaffected -- that reads the post
      itself over in status-api.ts, not this table -- see openNote below. */
-  const dismissOne = useOptimisticMutation<string>({
-    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
-    queryKeys: [['notifications']],
-    apply: (old, id) => {
-      const f = old as Feed
-      const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
-      return {
-        ...f,
-        unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
-        items: (f.items ?? []).filter((n) => n.id !== id),
-      }
-    },
-    failure: "Couldn't clear it",
-  })
+  const dismissOne = useDismissNotification()
   /* The message being read in full, over the drawer. */
   const [viewing, setViewing] = useState<Note | null>(null)
 

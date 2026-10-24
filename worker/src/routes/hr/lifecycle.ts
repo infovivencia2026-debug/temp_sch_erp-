@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { HttpError, badRequest, bool, created, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { addDays, fullName, initcap, isUUIDish, isUniqueViolation, istMinuteT, nextNumber, nowIST, nz, parseJSON, str, todayIST } from '../admissions/util'
 import { employeeFilter, growthReach, type Reach } from './reach'
@@ -274,12 +275,14 @@ export function registerLifecycle(r: Router) {
         c.db.prepare(`UPDATE staff_exits SET status = 'returned', decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ? WHERE id = ?`).bind(c.id.userId, t, note, t, exitID),
         ...tell(`${x.full_name}'s exit was sent back`, note),
       ])
+      await clearDoneWork(c, 'staff_exit_approval', exitID)
       return ok({ status: 'returned' })
     }
     const done = await relieveExit(c, exitID, note, [
       c.db.prepare(`UPDATE staff_exits SET decided_by = ?, decided_at = ?, decision_note = ? WHERE id = ?`).bind(c.id.userId, t, note, exitID),
       ...tell(`${x.full_name}'s exit was approved`, 'Relieved today. Their login is switched off and the letters are issued. The settlement can be paid from Exit & clearance.'),
     ])
+    await clearDoneWork(c, 'staff_exit_approval', exitID)
     return ok({ status: 'relieved', ...done })
   })
 

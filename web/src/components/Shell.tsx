@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
   School, UserRound, X,
+  Settings2,
 } from 'lucide-react'
 import {
   useCatalog, useActiveRole, featurePath, allRolesOn, type ApiSection,
@@ -56,7 +57,7 @@ import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
-import { staffLayoutOn } from '@/lib/staff-layout'
+import { staffLayoutOn, staffSidebarOn } from '@/lib/staff-layout'
 import { ComboTabs } from '@/components/StaffCombos'
 import { StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
@@ -563,8 +564,9 @@ export function Shell({
   /* The school's staff layout (module_settings 'staff_layout'): the same menu
      and search, drawn as a text sidebar and one top bar. See StaffShell.tsx. */
   const staffLayout = !chromeless && staffLayoutOn(session, role?.key)
+  const staffNav = !chromeless && staffSidebarOn(session, role?.key)
   const schoolLayout = !chromeless && !!session.modules?.some((m) => m.module === 'staff_layout' && m.enabled)
-  const signIns = useTodaySignIns(staffLayout)
+  const signIns = useTodaySignIns(staffNav)
   useRootReduceMotion()
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
@@ -744,7 +746,7 @@ export function Shell({
              and hiding either would leave nothing to open. */
           railHidden ? 'lg:!hidden' : '',
           // The staff layout has no icon rail, so a resting tablet uses the drawer.
-          staffLayout && !tabletDrawer && 'md:max-lg:!hidden',
+          staffNav && !tabletDrawer && 'md:max-lg:!hidden',
           // On a phone the staff menu opens across the whole screen (owner, 2026-10-19).
           // Every role at a school with the staff layout gets the full-screen phone menu (Yajur, 2026-10-24).
           schoolLayout && 'max-md:!w-full max-md:border-r-0',
@@ -808,7 +810,7 @@ export function Shell({
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
         <div className={cn('relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-1 border-r py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:overflow-y-auto',
-                           staffLayout && '!hidden')}>
+                           staffNav && '!hidden')}>
           {railWorkspaces.map((ws, i) => {
             const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
             const on = ws.slug === activeWs?.slug
@@ -912,7 +914,7 @@ export function Shell({
         <div className={cn('flex min-w-0 flex-1 flex-col', !tabletDrawer && 'md:max-lg:hidden')}>
 
         {/* --- workspace header: where am I, and whose -------------------- */}
-        <div className={cn('relative shrink-0', staffLayout ? 'border-b px-5 py-4 max-sm:px-4' : 'px-3 pb-2 pt-3')}>
+        <div className={cn('relative shrink-0', staffNav ? 'border-b px-5 py-4 max-sm:px-4' : 'px-3 pb-2 pt-3')}>
           {/* Icon only, and only where there is a rail to put away. It sits
               over the switcher's right edge rather than in a row of its own:
               a control for hiding navigation should not itself cost a line of
@@ -950,7 +952,7 @@ export function Shell({
               /* Stacked: the mark on its own row, the role and the school under
                  it. Side by side, a 48px logo left the names a truncated
                  stub ("Instit…"). */
-              staffLayout
+              staffNav
                 ? 'flex w-full items-center gap-3.5 rounded-[10px] py-1 pl-1 pr-14 text-left'
                 : 'flex w-full flex-col items-start gap-2 rounded-sm py-2 pl-2 pr-2 text-left',
               'transition-colors duration-100',
@@ -966,7 +968,7 @@ export function Shell({
                 school's colour without repainting the whole application's
                 theme -- a global override would fight text contrast on every
                 screen, and this is the one square that should be the brand. */}
-            {staffLayout ? (
+            {staffNav ? (
               /* The staff layout's brand block (owner's side-panel design, 2026-10-24):
                  the logo in a 48px tile, then the school and the desk. */
               <>
@@ -1011,7 +1013,7 @@ export function Shell({
                 {session.institution?.short_name?.[0] ?? 'E'}
               </span>
             )}
-            {!staffLayout && <span className="block w-full min-w-0">
+            {!staffNav && <span className="block w-full min-w-0">
               <span className="flex items-center gap-1">
                 <span className="whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-semibold leading-tight">
                   {role?.name ?? 'Workspace'}
@@ -1092,7 +1094,7 @@ export function Shell({
             className={cn('absolute grid place-items-center text-muted-foreground transition-colors duration-100',
               'hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden',
               /* Round on the staff panel, per the owner's design. */
-              staffLayout ? 'right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted max-sm:h-12 max-sm:w-12' : 'right-4 top-5 h-10 w-10 rounded-sm')}
+              staffNav ? 'right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted max-sm:h-12 max-sm:w-12' : 'right-4 top-5 h-10 w-10 rounded-sm')}
             onClick={() => setNavOpen(false)}
             aria-label="Close menu"
           >
@@ -1101,7 +1103,7 @@ export function Shell({
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
-        <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', staffLayout ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
+        <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', staffNav ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
           {/* Recent was here, above the workspace.
 
               It read as part of the menu without being part of it: five
@@ -1109,7 +1111,7 @@ export function Shell({
               under somebody who was learning where things live. A menu is
               worth learning precisely because it does not move, and the rail
               is short enough that a habit is one glance down it. */}
-          {staffLayout && role && (
+          {staffNav && role && (
             <StaffNavList
               roleKey={role.key}
               workspaces={railWorkspaces}
@@ -1118,7 +1120,7 @@ export function Shell({
               label={shortLabel}
             />
           )}
-          {(activeWs && !staffLayout ? [activeWs] : []).map((ws) => {
+          {(activeWs && !staffNav ? [activeWs] : []).map((ws) => {
             const count = ws.sections.reduce(
               (n, sec) => n + visibleFeatures(sec, showPlanned, showAdvanced, permSet).length,
               0,
@@ -1229,12 +1231,22 @@ export function Shell({
               things until somebody presses both. */}
         </nav>
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
-        {staffLayout ? (
+        {staffNav ? (
           <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />
         ) : (
-          <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
-            <LayoutSwitch />
-          </div>
+          <>
+            {/* Below md the rail and its cog are off screen, so Settings is the
+                last row of the menu (owner, 2026-10-24). */}
+            <div className="shrink-0 border-t px-3 py-2 md:hidden">
+              <NavLink to="/settings" onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, true)}>
+                <Settings2 aria-hidden className="h-6 w-6 shrink-0" />
+                <span className="truncate">Settings</span>
+              </NavLink>
+            </div>
+            <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
+              <LayoutSwitch />
+            </div>
+          </>
         )}
         </div>
       </aside>
@@ -1280,7 +1292,7 @@ export function Shell({
               </button>
             )}
             {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
-            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} />}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')} />}
           </header>
         )}
         {!chromeless && !staffLayout && (
@@ -1352,7 +1364,8 @@ export function Shell({
               search alone and every other control sits at the foot of the
               rail (see there). A phone has no rail, so it keeps them here. */}
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <CommandSearch wide />
+            {/* No search on a phone, for every role (owner, 2026-10-24). */}
+            <div className="max-sm:hidden"><CommandSearch wide /></div>
             <div className="flex items-center gap-1 md:hidden">
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
@@ -1483,7 +1496,7 @@ export function Shell({
             )}
           >
             {/* Related screens as tabs over the page (staff layout; StaffCombos.tsx). */}
-            {staffLayout && <div className="px-4 pt-4 md:px-6"><ComboTabs /></div>}
+            {staffNav && <div className="px-4 pt-4 md:px-6"><ComboTabs /></div>}
             {split && renderAt ? (
               <PaneArea renderAt={renderAt}>{children}</PaneArea>
             ) : (

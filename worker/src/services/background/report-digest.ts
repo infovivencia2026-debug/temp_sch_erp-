@@ -107,6 +107,18 @@ async function csvAttachments(db: D1Database, enabled: string[], r: Range, today
   return out
 }
 
+/** Owner, 2026-10-24: the daily (and weekly) digest goes only to the
+    principal and the school admin. Teachers, other staff, parents and
+    students never get one. */
+export const DIGEST_ROLES = ['principal', 'institution_admin'] as const
+
+export async function digestRecipients(db: D1Database, instId: string): Promise<{ user_id: string }[]> {
+  return (await db.prepare(`SELECT u.id AS user_id FROM users u
+      JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+     WHERE u.institution_id = ? AND u.status = 'active' AND r.key IN (${DIGEST_ROLES.map(() => '?').join(',')})
+     GROUP BY u.id, u.full_name ORDER BY u.full_name`).bind(instId, ...DIGEST_ROLES).all<{ user_id: string }>()).results ?? []
+}
+
 export async function sendReportDigest(env: Env, inst: Institution, db: D1Database, period: 'daily' | 'weekly'): Promise<void> {
   const row = await db.prepare(`SELECT config, daily_enabled, weekly_enabled FROM report_digest_settings WHERE institution_id = ?`)
     .bind(inst.id).first<{ config: string; daily_enabled: number; weekly_enabled: number }>()
@@ -123,10 +135,7 @@ export async function sendReportDigest(env: Env, inst: Institution, db: D1Databa
   const enabled = REPORT_KEYS.filter((k) => cfg[k]?.enabled && (cfg[k].channels?.length ?? 0) > 0)
   if (!enabled.length) return
 
-  const recips = (await db.prepare(`SELECT u.id AS user_id FROM users u
-      JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
-     WHERE u.institution_id = ? AND u.status = 'active' AND r.key IN ('board_member','institution_admin')
-     GROUP BY u.id, u.full_name ORDER BY u.full_name`).bind(inst.id).all<{ user_id: string }>()).results ?? []
+  const recips = await digestRecipients(db, inst.id)
   if (!recips.length) return
 
   const school = inst.name

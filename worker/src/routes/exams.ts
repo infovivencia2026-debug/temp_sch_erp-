@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../router'
+import { clearDoneWork } from '../services/notification_done'
 import type { ExamSummary, GradebookRow, List, PendingReportCards, ReportCard, ReportCardReadiness, ReportCardStatus } from '@shared/api'
 import { can } from '../identity'
 import { HttpError, badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
@@ -1291,6 +1292,7 @@ async function submitQuestionPaper(c: Ctx) {
     ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, doc = NULL, draft_id = NULL, notes = excluded.notes, submitted_by = excluded.submitted_by,
       submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
+  if (status === 'submitted') await clearDoneWork(c, 'question_paper_deadline', esId)
   return ok({ status })
 }
 
@@ -1320,6 +1322,7 @@ async function decideQuestionPaper(c: Ctx) {
         VALUES (?, ?, ?, 'question_paper', 'Question paper', ?, '/go/exams/question_papers', ?)`)
       .bind(uuid(), c.id.institution!.id, row.submitted_by, text, now()),
   ])
+  await clearDoneWork(c, 'question_paper_deadline')
   return ok({ status: decision })
 }
 
@@ -1424,6 +1427,7 @@ async function markPaperReceived(c: Ctx) {
   const res = await c.db.prepare(`UPDATE question_paper_deadlines SET manually_received_at = ?, remarked_at = COALESCE(remarked_at, ?)
       WHERE id = ?`).bind(now(), now(), id).run()
   if (!res.meta.changes) throw notFound()
+  await clearDoneWork(c, 'question_paper_deadline')
   return ok({ status: 'received' })
 }
 

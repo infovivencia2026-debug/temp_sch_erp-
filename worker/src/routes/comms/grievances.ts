@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid, bool } from '../../http'
 import { institutionId, requirePerm } from '../teaching/common'
 import { firstLast, hoursBetween, isoZ, omitNull, optBool, optInt, trim } from './common'
@@ -304,6 +305,7 @@ async function addFeedbackUpdate(c: Ctx): Promise<Response> {
   if (visible) stmts.push(...tellRaiser(c, r, ticket, 'The school replied to your concern', body))
   else if (newStatus !== '') stmts.push(...tellRaiser(c, r, ticket, `Your concern is now: ${STAGE_LABEL[newStatus] ?? newStatus}`, null))
   await c.db.batch(stmts)
+  if (newStatus !== '') await clearDoneWork(c, 'concern.support_ticket', ticket)
   return created({ added: true })
 }
 

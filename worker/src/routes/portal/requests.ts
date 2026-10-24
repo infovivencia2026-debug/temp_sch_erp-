@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { enqueueMessageSends, longDateIST } from '../../services/messaging'
 import { HttpError, badRequest, bool, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
@@ -144,6 +145,7 @@ async function cancelPortalLeave(c: Ctx): Promise<Response> {
        AND student_id IN (${marks(s.studentIds)}) AND status = 'pending'`)
     .bind(leaveID, js(s.studentIds)).run()
   if (!res.meta.changes) throw coded(409, 'not_pending', 'that application has already been decided or withdrawn')
+  await clearDoneWork(c, 'leave_request', leaveID)
   return ok({ status: 'cancelled' })
 }
 
@@ -899,6 +901,8 @@ async function sendPortalMessage(c: Ctx): Promise<Response> {
   } catch (e) {
     throw badRequest(errMsg(e))
   }
+  // A teacher's reply clears the parent's message from their bell now.
+  await clearDoneWork(c, 'parent_message')
   await publish(c.env, institutionId(c), { users: [to, me], type: 'message', scope: 'parent', from: me,
     keys: { student: sid, parent: parentID, teacher: teacherID, from_name: from.full_name, child: child.name } })
   // Out of the building as well (Go: TypeMessageSend student.remark to the other party); a failed enqueue is logged only.

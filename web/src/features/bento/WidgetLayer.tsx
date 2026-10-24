@@ -68,6 +68,9 @@ import { useOpenState } from '@/lib/motion'
 
 interface LayerValue {
   dashboard: string
+  /** Metric keys this board's own cards already draw. Not offered in Add, and
+      not drawn as a metric cell, so a figure never shows twice. */
+  covers: readonly string[]
   editing: boolean
   declare: (w: BoardWidget) => void
   visible: BoardWidget[]
@@ -505,11 +508,16 @@ function flipPage(board: HTMLElement, dir: 1 | -1, still: boolean) {
      and this used to make that landing buzz twice. */
 }
 
+const NO_COVERS: readonly string[] = []
+
 export function WidgetLayer({
   dashboard,
+  covers = NO_COVERS,
   children,
 }: {
   dashboard: string
+  /** Metric keys the board's own cards already show (see LayerValue.covers). */
+  covers?: readonly string[]
   children: ReactNode
 }) {
   const [declared, setDeclared] = useState<BoardWidget[]>([])
@@ -923,11 +931,11 @@ export function WidgetLayer({
 
   const value = useMemo<LayerValue>(
     () => ({
-      dashboard, editing: arranging, declare, visible, fitted, maxRows, phone, spots: spotMap,
+      dashboard, covers, editing: arranging, declare, visible, fitted, maxRows, phone, spots: spotMap,
       setDragging, still, enterFor, say, focusUndo, focusAfterRemove,
     }),
     [
-      dashboard, arranging, declare, maxRows, phone, spotMap, setDragging, still,
+      dashboard, covers, arranging, declare, maxRows, phone, spotMap, setDragging, still,
       enterFor, say, focusUndo, focusAfterRemove,
       /* Sizes as well as ids: `visible` seeds `move` for every widget nobody
          has explicitly placed, and a key of ids alone would hand it the
@@ -958,7 +966,7 @@ export function WidgetLayer({
     phone ? true : rowsNeeded([...visibleDims, dimsForTier(tier, false)]) <= maxRows,
   )
   const metricItems: GalleryItem[] = (catalogue.data?.items ?? [])
-    .filter((m) => !onBoard.has(METRIC_PREFIX + m.key))
+    .filter((m) => !onBoard.has(METRIC_PREFIX + m.key) && !covers.includes(m.key))
     .map((m) => ({
       id: METRIC_PREFIX + m.key,
       label: m.label,

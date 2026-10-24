@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CalendarPlus } from 'lucide-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
 import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
@@ -14,7 +14,7 @@ import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
 import {
-  notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
+  notificationDay, notificationKind, useDismissNotification, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
 import NotificationRow, { channelOf } from '@/components/NotificationRow'
 
@@ -117,6 +117,7 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const dismissNote = useDismissNotification()
   const cover = useQuery({
     queryKey: ['cover-today'],
     queryFn: () => api.get<{ items: { kind: 'covering' | 'covered'; entry_id: string; period_id: string; note: string | null; period: string; starts_at: string | null; section: string; subject: string; other: string }[] }>('/api/v1/timetable-cover/today'),
@@ -126,7 +127,6 @@ export default function TodaysClasses() {
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
-  const qc = useQueryClient()
   const phone = usePhone()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -295,8 +295,8 @@ export default function TodaysClasses() {
                         onView={() => {
                           const drop = () => {
                             if (urgent) return
-                            void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
-                              .then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => {})
+                            // Gone from this panel and the bell at once (useDismissNotification).
+                            dismissNote.mutate(n.id)
                           }
                           if (link) { drop(); navigate(link); return }
                           // Read in full here, and gone once closed.
@@ -318,7 +318,7 @@ export default function TodaysClasses() {
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
             </div>
-            <Button className="shrink-0" onClick={() => navigate(leavePath)}>
+            <Button className="shrink-0" onClick={() => navigate(`${leavePath}?apply=1`)}>
               <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
           </Card>

@@ -10,6 +10,7 @@
    'teacher_resolved' newer than the last time the desk passed it on; the
    ticket itself stays open until the desk tells the parent. */
 import type { Ctx, Router } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { badRequest, forbidden, isUUID, notFound, now, ok, readJSON } from '../../http'
 import { notify, raiserLink } from './concern_shared'
 import { feedbackUpdateStmt } from './grievances'
@@ -128,6 +129,7 @@ async function tellParent(c: Ctx) {
     feedbackUpdateStmt(c, c.params.id, 'resolution', msg, 'resolved', true, c.id.userId),
     notify(c, t.raised_by, 'Your concern has been resolved', msg, raiserLink(c.params.id), 'support_ticket', c.params.id, t.student_id),
   ])
+  await clearDoneWork(c, 'concern.support_ticket', c.params.id)
   return ok()
 }
 

@@ -91,7 +91,6 @@ const PARENT_KEY_PREFIXES = [
   'child-bus',
   'attention',
   'catalog',
-  'notifications',
   'student-id-card',
   'gallery-',
   'event-passes',
