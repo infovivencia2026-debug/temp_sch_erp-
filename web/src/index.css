@@ -5069,6 +5069,19 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 48px; height: 48px; }
   .staff-foot-settings button svg { width: 24px; height: 24px; }
 }
+/* Help, Settings and Sign out on the profile card show the same hover
+   (owner, 2026-10-24): a clear wash and the icon in full ink. */
+.staff-foot-settings button {
+  display: grid; place-items: center;
+  border-radius: 10px; color: hsl(var(--muted-foreground));
+  transition: background-color 150ms, color 150ms;
+}
+@media (min-width: 640px) {
+  .staff-foot-settings button { width: 40px; height: 40px; }
+}
+@media (hover: hover) {
+  .staff-foot-settings button:hover { background: hsl(var(--foreground) / 0.08); color: hsl(var(--foreground)); }
+}
 
 /* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
    screens use hard-coded Tailwind sizes (text-[13px], h-4 icons, h-9 buttons)
