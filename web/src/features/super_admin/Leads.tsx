@@ -430,7 +430,7 @@ function Quotes({ lead, onSaved }: { lead: Lead; onSaved: (msg: string) => void 
   const qc = useQueryClient()
   const key = ['sales-quotes', lead.id]
   const quotes = useQuery({ queryKey: key, queryFn: () => api.get<List<Quote>>(`/api/v1/seller/quotes?enquiry_id=${lead.id}`) })
-  const done = (msg: string) => { void qc.invalidateQueries({ queryKey: key }); onSaved(msg) }
+  const done = (msg: string) => { void qc.invalidateQueries({ queryKey: key }); void qc.invalidateQueries({ queryKey: ['sales-lead-notes', lead.id] }); onSaved(msg) }
   const write = useMutation({ mutationFn: () => api.post<Quote>('/api/v1/seller/quotes', { enquiry_id: lead.id }), onSuccess: (q) => done(`Quote ${q.number} written`) })
   const convert = useMutation({
     mutationFn: (id: string) => api.post<{ invoice: { number: string } }>(`/api/v1/seller/quotes/${id}/convert`, {}),
@@ -488,7 +488,7 @@ function DemoSchool({ lead, onSaved }: { lead: Lead; onSaved: (msg: string) => v
   const demos = useQuery({ queryKey: key, queryFn: () => api.get<List<Demo>>(`/api/v1/seller/demos?enquiry_id=${lead.id}`), refetchInterval: (q) => (q.state.data?.items.some((d) => d.stage !== 'ready' && d.stage !== 'failed') ? 5000 : false) })
   const create = useMutation({
     mutationFn: () => api.post<DemoCreated>('/api/v1/seller/demos', { enquiry_id: lead.id, days: Number(days) }),
-    onSuccess: (d) => { setMade(d); void qc.invalidateQueries({ queryKey: key }); onSaved('Demo school started') },
+    onSuccess: (d) => { setMade(d); void qc.invalidateQueries({ queryKey: key }); void qc.invalidateQueries({ queryKey: ['sales-lead-notes', lead.id] }); onSaved('Demo school started') },
   })
   const rows = demos.data?.items ?? []
   const live = rows.some((d) => !d.expired && !d.suspended_at)
