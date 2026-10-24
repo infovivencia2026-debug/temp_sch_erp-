@@ -164,7 +164,7 @@ export default function Leave() {
     const el = formRef.current
     if (!el) return
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    el.querySelector<HTMLElement>('input, button[role="combobox"], select, textarea, button')?.focus({ preventScroll: true })
+    el.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true })
   }, [apply])
   const [form, setForm] = useState({
     from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
