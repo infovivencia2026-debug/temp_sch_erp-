@@ -114,7 +114,7 @@ export function StaffNavGroup({ slug, name, count = 0, children }: {
   /* A soft card per group (owner's side-panel design, 2026-10-24): the
      heading row is the card's full width, the screens sit inside it. */
   return (
-    <div className="overflow-hidden rounded-[14px] border bg-surface-subtle">
+    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-surface-subtle">
       <button type="button" data-row onClick={toggle} aria-expanded={open}
         className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
                    text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
