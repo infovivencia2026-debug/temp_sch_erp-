@@ -12,6 +12,7 @@ import {
   type HTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type RefObject, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
+import { currentViewport, placePanel } from './place'
 import { Anchored } from './AnchoredPanel'
 import { useAutoGrow } from '@/lib/auto-grow'
 import {
@@ -2056,6 +2057,43 @@ export function Checkbox({
    mouse user reads at a glance stays dense. */
 const COARSE_ROW = '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[15px]'
 
+/* An on/off switch. ON is the system green (.sys-switch in
+   styles/color-system.css). 44px tap area on phones, 40px on desktop. */
+export function Switch({
+  on,
+  onChange,
+  label,
+  disabled,
+  title,
+}: {
+  on: boolean
+  onChange: (v: boolean) => void
+  /** The accessible name: a switch beside a row's text still needs its own. */
+  label: string
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className="m-0 inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 sm:h-10"
+    >
+      <span
+        aria-hidden="true"
+        className={cn('sys-switch relative h-6 w-10 rounded-full border transition-colors duration-150', on ? 'bg-primary' : 'border-border bg-muted')}
+      >
+        <span className={cn('absolute top-[3px] size-4 rounded-full bg-card shadow-sm transition-[left] duration-150', on ? 'left-[19px]' : 'left-[3px]')} />
+      </span>
+    </button>
+  )
+}
+
 export function Select({
   value,
   onChange,
@@ -2153,13 +2191,6 @@ export function Select({
          option's top edge peeping out above it -- the screenshot. The visual
          viewport is what is actually visible; measure against that, and cap
          the list's height to the room it really has. */
-      const vv = window.visualViewport
-      const vTop = vv ? vv.offsetTop : 0
-      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
-      const below = vBottom - r.bottom
-      const above = r.top - vTop
-      const wantsAbove = below < 220 && above > below
-      const maxH = Math.max(96, Math.min(256, (wantsAbove ? above : below) - 12))
       /* Opening upwards is anchored by its BOTTOM edge, not its top.
 
          Guessing the menu's height and subtracting it — which is what the top
@@ -2170,14 +2201,12 @@ export function Select({
          the trigger is correct for a menu of any height. */
       /* Kept 8px inside the screen sideways too: a field at the card's
          right edge on a tablet put the list's edge on the screen's. */
-      const vLeft = vv ? vv.offsetLeft : 0
-      const vW = vv ? vv.width : window.innerWidth
-      const width = Math.min(r.width, vW - 16)
-      const left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vW - width - 8))
+      /* Now one shared sum (components/place.ts): 16px gutters on a phone. */
+      const q = placePanel(r, currentViewport(), { width: r.width, height: 220, gap: 4, maxHeight: 256 }, window.innerHeight)
       setBox_(
-        wantsAbove
-          ? { left, bottom: window.innerHeight - r.top + 4, width, maxH }
-          : { left, top: r.bottom + 4, width, maxH },
+        q.up
+          ? { left: q.left, bottom: q.bottom, width: q.width, maxH: q.maxHeight }
+          : { left: q.left, top: q.top, width: q.width, maxH: q.maxHeight },
       )
     }
     place()
@@ -2693,12 +2722,12 @@ export function Field({
 }) {
   return (
     <label className={cn('block', wide && 'sm:col-span-2')}>
-      <span className="mb-1.5 block text-[13px] font-medium text-secondary-foreground">
+      <span className="mb-1.5 block text-[13px] font-medium text-secondary-foreground max-sm:text-[14px]">
         {label}
         {required && <span className="ml-1 text-destructive">*</span>}
       </span>
       {children}
-      {hint && <span className="mt-1.5 block text-[13px] text-muted-foreground">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-[13px] text-muted-foreground max-sm:text-[14px]">{hint}</span>}
     </label>
   )
 }
@@ -3325,7 +3354,18 @@ export function Reload({
    or three views of the same thing. */
 export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 
-export function tabClass(active: boolean): string {
+/* The large size is for a screen whose tabs are its main switch (the Inbox
+   folders): 48px tall, 15px text, centred. In a TAB_BAR_FILL row each tab
+   takes an equal share of the width, so on a phone the row spans the screen. */
+export const TAB_BAR_FILL = 'grid auto-cols-fr grid-flow-col gap-1 border-b'
+
+export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
+  if (size === 'lg') {
+    return cn(
+      '-mb-px flex min-h-12 items-center justify-center gap-2 whitespace-nowrap border-b-2 px-4 py-2 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+      active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+    )
+  }
   return active
     ? '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
     : '-mb-px flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'

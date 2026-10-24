@@ -13,12 +13,16 @@ import {
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import CardViewer from '@/components/CardViewer'
-import { formatDate, formatPaise, cn } from '@/lib/utils'
+import { formatDate, formatPaise, formatTime, cn } from '@/lib/utils'
 import { RecordShell, type RecordTab, type RecordAction } from '@/components/RecordShell'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import WeekGrid from '@/components/WeekGrid'
 import Timeline from '@/components/Timeline'
 import { useOverlayHistory } from '@/lib/overlay-history'
+
+/** A register day in full, "Thu, 23 Oct 2026": the day of the week is half of what a reader checks. */
+const dayLong = (ymd: string) =>
+  new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${ymd}T00:00:00`))
 
 /* What a member of staff carries, at a glance.
 
@@ -889,14 +893,14 @@ export default function StaffRecord({ employeeID, onClose }: {
               emptyLabel="Nothing marked yet.">
               {s.attendance.recent.map((a) => (
                 <tr key={a.on_date}>
-                  <Td>{formatDate(a.on_date)}</Td>
+                  <Td className="whitespace-nowrap">{dayLong(a.on_date)}</Td>
                   <Td>
                     <Badge tone={a.status === 'absent' ? 'danger' : a.status === 'late' ? 'warning' : a.status === 'present' ? 'success' : 'neutral'}>
                       {a.status.replace(/_/g, ' ')}
                     </Badge>
                   </Td>
-                  <Td className="tabular-nums">{a.check_in ? a.check_in.slice(0, 5) : '-'}</Td>
-                  <Td className="tabular-nums">{a.check_out ? a.check_out.slice(0, 5) : '-'}</Td>
+                  <Td className="tabular-nums whitespace-nowrap">{formatTime(a.check_in)}</Td>
+                  <Td className="tabular-nums whitespace-nowrap">{formatTime(a.check_out)}</Td>
                   <Td className="text-muted-foreground">{a.source}</Td>
                 </tr>
               ))}
@@ -1083,7 +1087,7 @@ export default function StaffRecord({ employeeID, onClose }: {
     },
     {
       key: 'timeline', label: 'Timeline',
-      render: () => <Timeline url={`/api/v1/hr/employees/${employeeID}/timeline`} bare />,
+      render: () => <Timeline url={`/api/v1/hr/employees/${employeeID}/timeline`} />,
     },
   ]
 
@@ -1119,7 +1123,7 @@ export default function StaffRecord({ employeeID, onClose }: {
             )}
           </button>
         }
-        subtitle={[d.designation, d.department, d.employee_code].filter(Boolean).join(' · ')}
+        subtitle={[d.relieved_on && `Left on ${formatDate(d.relieved_on)}`, d.designation, d.department, d.employee_code].filter(Boolean).join(' · ')}
         status={d.status}
         tabs={tabs}
         actions={actions}

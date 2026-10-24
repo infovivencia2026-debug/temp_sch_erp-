@@ -161,6 +161,20 @@ export default function StaffAttendance() {
     setNote('')
   }
 
+  /* NOT PUNCHED IN (Yajur, 2026-10-23: "add a button mark absent who didn't
+     punch in"): nobody is made absent on their own; the office fills Absent
+     for everyone with no punch and no mark, checks, and saves. */
+  const noPunch = rows.filter((r) => !r.needs_login && !r.check_in && !r.check_out && !value(r))
+  function markNoPunchAbsent() {
+    setDraft({ ...draft, ...Object.fromEntries(noPunch.map((r) => [r.user_id, 'absent'])) })
+    setNote('')
+  }
+
+  // Find a member of staff by name or code.
+  const [search, setSearch] = useState('')
+  const needle = search.trim().toLowerCase()
+  const shown = needle ? rows.filter((r) => r.full_name.toLowerCase().includes(needle) || r.employee_code.toLowerCase().includes(needle)) : rows
+
   return (
     <>
       <PageHead
@@ -222,12 +236,16 @@ export default function StaffAttendance() {
             title="Register"
             description="Tap a mark to set it; tap it again to clear"
             action={
-              <span className="flex items-center gap-2">
+              <span className="flex flex-wrap items-center gap-2">
+                <Input value={search} onChange={setSearch} placeholder="Search staff" className="w-48" />
                 <Input value={onDate} onChange={setOnDate} type="date" />
                 {mayMark && (
                   <>
                     <Button size="sm" variant="secondary" onClick={() => markAll('present')}>
                       All present
+                    </Button>
+                    <Button size="sm" variant="secondary" disabled={!noPunch.length} onClick={markNoPunchAbsent}>
+                      Mark absent: not punched in ({noPunch.length})
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setDraft({})}>
                       Reset
@@ -255,10 +273,10 @@ export default function StaffAttendance() {
           ) : (
             <Table
               head={['Code', 'Employee', 'In', 'Out', 'Mark']}
-              empty={!rows.length}
-              emptyLabel="No active employees."
+              empty={!shown.length}
+              emptyLabel={needle ? 'Nobody matches that search.' : 'No active employees.'}
             >
-              {rows.map((r) => {
+              {shown.map((r) => {
                 const v = value(r)
                 return (
                   <tr key={r.user_id || r.employee_code}>

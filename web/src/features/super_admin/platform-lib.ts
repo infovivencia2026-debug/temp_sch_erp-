@@ -478,6 +478,15 @@ export interface VendorTicket {
   plan_name?: string
   promised_hours: number
   breached: boolean
+  /** Business hours on the clock, with time waiting on the school left out (worker services/ticket_index.ts). */
+  sla_hours?: number
+  waiting_hours?: number
+  response_hours?: number
+  response_promised_hours?: number
+  response_breached?: boolean
+  acknowledged?: boolean
+  /** Closed by joining it to another ticket. */
+  merged?: boolean
 }
 
 // --- impersonation -----------------------------------------------------------
@@ -487,6 +496,8 @@ export interface Grant {
   institution_id: string
   school?: string
   operator: string
+  /** The platform account that holds the session. */
+  operator_id?: string
   reason: string
   ticket_id?: string
   started_at: string
@@ -511,11 +522,6 @@ export interface GrantActivity {
   grant: Grant
   items: AuditEntry[]
   covers: string
-  /* Changes made during the session that landed in no school's audit trail.
-     A measured defect rather than a curiosity — see the note the server sends
-     with it. */
-  unattributed_changes: number
-  unattributed_note?: string
 }
 
 // --- adoption and health -----------------------------------------------------

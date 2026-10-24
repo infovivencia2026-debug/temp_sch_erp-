@@ -26,6 +26,10 @@ export interface MarkAttendanceResult {
   parents_told: number
   messages_queued: number
   channels: string[]
+  /** Entries dropped because the child is not on this section's active roll. */
+  not_in_section?: string[]
+  /** Entries left as `leave` because the day is covered by approved leave. */
+  on_leave?: string[]
 }
 
 export interface AttendanceApi {

@@ -363,7 +363,7 @@ export function buildProvider(channel: string, rawCfg: unknown, secret: string):
 
 // --- sealed credentials (same format as routes/admin/providers.ts) --------
 
-async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
+export async function openSecretEnv(env: Env, sealed: unknown): Promise<string> {
   if (!sealed) return ''
   const bytes = sealed instanceof Uint8Array ? sealed : new Uint8Array(sealed as ArrayBuffer | number[])
   if (bytes.length === 0) return ''
@@ -602,12 +602,14 @@ export class Messenger {
     const reach = (ch: string) => ch === 'in_app' ? !!user
       : ch === 'email' ? live.email && contact.email !== ''
       : live[ch] && phoneOf(contact.phone) !== ''
-    let rungs = pol.ladder.filter(reach)
+    // The school's switch for automatic WhatsApp: off, WhatsApp is not a rung.
+    const ladder = settings.auto_whatsapp ? pol.ladder : pol.ladder.filter((ch) => ch !== 'whatsapp')
+    let rungs = ladder.filter(reach)
     // Nothing on the ladder can reach them, but they have an account: the bell is free and always there.
     if (!rungs.length && user) rungs = ['in_app']
     if (!rungs.length) {
-      const why = pol.ladder.map((ch) => ch === 'in_app' ? 'in-app needs an account' : live[ch] ? `${ch}: no address on file` : `${ch}: not live`).join('; ')
-      throw notConfigured(req.channel === 'auto' ? pol.ladder[0] ?? 'in_app' : req.channel, `no channel on the ${t.label.toLowerCase()} ladder can reach this recipient (${why})`)
+      const why = ladder.map((ch) => ch === 'in_app' ? 'in-app needs an account' : live[ch] ? `${ch}: no address on file` : `${ch}: not live`).join('; ')
+      throw notConfigured(req.channel === 'auto' ? ladder[0] ?? 'in_app' : req.channel, `no channel on the ${t.label.toLowerCase()} ladder can reach this recipient (${why})`)
     }
     let sendAfter = req.send_after ?? null
     if (!t.urgent && !req.force) {

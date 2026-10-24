@@ -38,7 +38,7 @@ gallery (`?elements=1`) is the living checklist: add every new variant to it.
 - **Shared components only.** Button, Input, Textarea, PickerMenu, Badge, Dialog,
   Card, Stat, Table, EmptyState and the shared tab styles from `components/ui.tsx`.
   No hand-rolled buttons, inputs, pills, selects or dialogs.
-- **Sizes.** Controls 40px on desktop, 44px on phones. Phone gutters 16px. No
+- **Sizes.** Controls 40px on desktop, 48px on phones (phone = below 640px; block at the end of web/src/index.css). Phone type scale (owner, 2026-10-24): body 16, secondary 14, caption 12, button/input text 16, title 24, section 20; fields 52, radius 12, icons 24, targets >= 48. Phone gutters 16px. No
   horizontal page scroll. Long text truncates with an ellipsis or wraps on purpose.
 - **Fields.** No borders on inputs or search boxes: the soft `--field-shadow`.
   Text areas grow with their content.

@@ -64,13 +64,24 @@ export const schoolPath = (i: Pick<Institution, 'country' | 'slug'>) => `/${i.co
  * can be forgotten. The binding name is stored on the school's row so the
  * Worker does not have to derive it.
  */
+const httpFallbackWarned = new Map<string, number>()
+
 export function tenantDb(env: Env, inst: Institution): D1Database {
   const db = env[inst.d1_binding]
   if (!db || typeof db !== 'object' || !('prepare' in db)) {
     // A school created from the seller console before a deploy carried its
     // binding: reach it over the D1 HTTP API (services/provision.ts).
+    // Every query then makes an HTTP round trip, so say so in the Workers logs,
+    // once a minute per school (tenantDb is called several times a request).
     const viaApi = httpTenantDb(env, inst.d1_database_id)
-    if (viaApi) return viaApi
+    if (viaApi) {
+      const now = Date.now()
+      if ((httpFallbackWarned.get(inst.id) ?? 0) < now - 60_000) {
+        httpFallbackWarned.set(inst.id, now)
+        console.warn(`school ${inst.id} (${inst.slug}) has no D1 binding ${inst.d1_binding}; using the slower D1 HTTP API`)
+      }
+      return viaApi
+    }
     throw new Error(`no D1 binding ${inst.d1_binding} for school ${inst.slug}; run scripts/provision-school.sh and redeploy`)
   }
   return db as D1Database

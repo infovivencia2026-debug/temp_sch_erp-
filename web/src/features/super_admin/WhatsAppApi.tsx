@@ -391,7 +391,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
           <p className="mb-3 text-[13px] text-muted-foreground">
             Sends a real message through this account, by the same route a fee reminder takes, 
             including the allowlist, so a test cannot reach a number a real message could not.
-            Choose an approved template: without one, WhatsApp will refuse.
+            Choose an approved template: without one, WhatsApp will refuse. hello_world works on every account.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
@@ -406,8 +406,12 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
               <Select
                 value={testCode}
                 onChange={setTestCode}
-                placeholder="No template (will be refused)"
-                options={mapped.map((t) => ({ value: t.code, label: `${t.code} → ${t.wa_template_name}` }))}
+                placeholder="Choose a template"
+                options={[
+                  // Meta gives every account this approved sample; it works before any of the school's are approved.
+                  { value: 'meta:hello_world', label: "hello_world (Meta's sample, English)" },
+                  ...mapped.map((t) => ({ value: t.code, label: `${t.code} → ${t.wa_template_name}` })),
+                ]}
               />
             </div>
             <Button

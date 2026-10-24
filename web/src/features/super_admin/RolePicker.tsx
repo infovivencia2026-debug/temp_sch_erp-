@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, Sparkles } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui'
 
 /* Choosing what an account can do, both ways round.
 
@@ -56,17 +57,22 @@ export function RolePicker({
   onChange,
   roles,
   presets,
+  automatic = {},
 }: {
   value: string[]
   onChange: (next: string[]) => void
   roles: Role[]
   presets: Preset[]
+  /* Roles the school's records hand out rather than this screen (class
+     teacher, subject head): key -> what gives them. Shown, ticked when held,
+     never toggled here. */
+  automatic?: Record<string, string>
 }) {
   const matched = presets.find((p) => same(p.role_keys, value))
   const picked = new Set(value)
 
   const toggle = (key: string) =>
-    onChange(picked.has(key) ? value.filter((k) => k !== key) : [...value, key])
+    !(key in automatic) && onChange(picked.has(key) ? value.filter((k) => k !== key) : [...value, key])
 
   const totalPermissions = roles
     .filter((r) => picked.has(r.key))
@@ -109,25 +115,32 @@ export function RolePicker({
       <div className="border-t pt-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="eyebrow">Roles on this account</p>
-          <button
-            type="button"
-            onClick={() => onChange([])}
-            className="text-[13px] text-muted-foreground hover:text-foreground"
-          >
-            Clear
-          </button>
+          <span className="flex items-baseline gap-3">
+            <span className="text-[13px] text-muted-foreground">
+              {roles.filter((r) => picked.has(r.key)).length} of {roles.length} assigned
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((k) => k in automatic))}
+              className="text-[13px] text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          </span>
         </div>
         <div className="grid gap-1.5 sm:grid-cols-2">
           {roles.map((r) => {
             const on = picked.has(r.key)
+            const auto = automatic[r.key]
             return (
               <button
                 key={r.key}
                 type="button"
+                disabled={!!auto}
                 onClick={() => toggle(r.key)}
                 className={cn(
                   'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                  on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
+                  on ? 'border-primary/40 bg-accent' : auto ? 'cursor-default bg-muted/50' : 'hover:bg-accent/60',
                 )}
               >
                 <span
@@ -141,8 +154,13 @@ export function RolePicker({
                 <span className="min-w-0">
                   <span className="block text-[14px]">{r.name}</span>
                   <span className="block text-[13px] leading-snug text-muted-foreground">
-                    {r.description}
+                    {auto ? `Automatic: given by ${auto}.` : r.description}
                   </span>
+                  {on && (
+                    <Badge tone={auto ? 'info' : 'primary'} className="mt-1">
+                      {auto ? 'Assigned automatically' : 'Assigned'}
+                    </Badge>
+                  )}
                 </span>
               </button>
             )

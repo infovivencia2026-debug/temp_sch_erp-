@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { refreshConcessions } from '@/lib/concession-refresh'
 import {
   Card, CardHeader, FormGrid, Field as FormField, Select, Input, Textarea,
   FormNotice, Table, Td, Badge, Button,
@@ -66,6 +67,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
   const [percent, setPercent] = useState('')
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
+  const qc = useQueryClient()
 
   const quote = useQuery({
     queryKey: ['admission-fee', classID],
@@ -93,7 +95,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
       setPercent('')
       setAmount('')
       setReason('')
-      detail.refetch()
+      refreshConcessions(qc)
       onChanged()
     },
   })
@@ -153,7 +155,11 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
               )}
             </Td>
             <Td className="text-muted-foreground">
-              {c.decision_note || c.reason || '-'}
+              {c.reason && <span className="block">Asked: {c.reason}</span>}
+              {c.decision_note && (
+                <span className="block">{c.status === 'rejected' ? 'Rejected' : 'Approved'}: {c.decision_note}</span>
+              )}
+              {!c.reason && !c.decision_note && '-'}
             </Td>
           </tr>
         ))}

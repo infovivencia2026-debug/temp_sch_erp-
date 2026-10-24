@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Bus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
 import { Gauge, Rows } from './bento-cards'
@@ -133,7 +134,7 @@ function BusCell({ span, items, to }: { span: CellSpan; items: Vehicle[]; to?: s
     <PersonaCard
       span={span}
       title="Buses"
-      glyph="⛟"
+      glyph={<Bus className="h-5 w-5" aria-hidden />}
       value={live.length}
       change={lapsing > 0 ? `${lapsing} with papers about to lapse` : 'Papers in date'}
       to={to}

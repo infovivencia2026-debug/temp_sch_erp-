@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { can } from '../../identity'
-import { indianGroup, isDate, items, omitNulls, p, paise, today, workingYear } from './common'
+import { indianGroup, isDate, items, notifyStmt, omitNulls, p, paise, today, workingYear } from './common'
 import { school } from '../school'
 
 /* Port of refunds.go, concessions_grant.go, and the listConcessions /
@@ -92,11 +92,33 @@ export function registerRefunds(r: Router): void {
     const amount = hasAmount ? paise(req.amount_paise) : null
     if (amount !== null && amount < 0) throw badRequest('amount cannot be negative')
     if (percent !== '' && !Number.isFinite(Number(percent))) throw badRequest('percent must be a number')
+    if (percent !== '' && (Number(percent) <= 0 || Number(percent) > 100)) throw badRequest('percent must be above 0 and at most 100')
     const id = crypto.randomUUID()
-    await c.db.prepare(`INSERT INTO fee_concessions (id, institution_id, student_id, application_id, academic_year_id, fee_head_id, kind, percent, amount_paise, reason, requested_by, pay_by, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, NULLIF(?, ''), ?, NULLIF(?, ''), 'pending', ?)`)
-      .bind(id, school(c).id, student, application, year, head, kind, percent, amount, (req.reason ?? '').trim(), c.id.userId, payBy, now()).run()
-    return created({ id })
+    const reason = (req.reason ?? '').trim()
+    const stmts: D1PreparedStatement[] = [
+      c.db.prepare(`INSERT INTO fee_concessions (id, institution_id, student_id, application_id, academic_year_id, fee_head_id, kind, percent, amount_paise, reason, requested_by, pay_by, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, NULLIF(?, ''), ?, NULLIF(?, ''), 'pending', ?)`)
+        .bind(id, school(c).id, student, application, year, head, kind, percent, amount, reason, c.id.userId, payBy, now()),
+    ]
+    /* The principal is told (owner, 2026-10-23: "after a concession is saved,
+       I don't see that message in notifications for the principal"). Each
+       person who signs concessions off, the principal and the school admin,
+       gets one row that opens Approvals, where it is decided. */
+    const who = student
+      ? await c.db.prepare(`SELECT TRIM(first_name || COALESCE(' ' || last_name, '')) AS n FROM students WHERE id = ?`).bind(student).first<{ n: string }>()
+      : await c.db.prepare(`SELECT TRIM(COALESCE(first_name, '') || COALESCE(' ' || last_name, '')) AS n FROM applications WHERE id = ?`).bind(application).first<{ n: string }>()
+    const approvers = await c.db.prepare(`
+      SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+       WHERE u.status = 'active' AND u.id <> ? AND r.key IN ('institution_admin', 'principal')`).bind(c.id.userId).all<{ id: string }>()
+    const worth = percent !== '' ? `${percent}%` : `Rs ${indianGroup(Math.trunc((amount ?? 0) / 100))}`
+    const body = `${c.id.fullName} asked for a ${kind.replace(/_/g, ' ')} concession of ${worth}.`
+      + (reason ? ` Note: ${reason}` : '') + ' Approve or reject it from Approvals.'
+    for (const a of approvers.results) {
+      stmts.push(notifyStmt(c, a.id, student, 'concession_request', `Concession to approve: ${who?.n || 'a child'}`, body,
+        '/go/approvals/approvals', 'concession', id))
+    }
+    await c.db.batch(stmts)
+    return created({ id, status: 'pending' })
   })
 
   // ---------------------------------------------------------------- refunds
@@ -122,16 +144,20 @@ export function registerRefunds(r: Router): void {
     if (reason === '') throw badRequest('say why the money is going back. It is what the family is told and what an auditor reads')
     let payment: string | null = null
     if ((req.payment_id ?? '').trim()) { if (!isUUID(req.payment_id)) throw badRequest('payment_id must be a uuid'); payment = req.payment_id }
-    const rr = await c.db.prepare(`
-      SELECT COALESCE((SELECT sum(amount_paise) FROM payments WHERE student_id = ?1 AND status = 'success' AND mode <> 'adjustment'), 0)
-           - COALESCE((SELECT sum(amount_paise) FROM refunds WHERE student_id = ?1 AND status <> 'rejected'), 0) AS refundable`).bind(req.student_id).first<{ refundable: number }>()
-    const refundable = p(rr?.refundable)
-    if (amount > refundable) {
+    /* The check and the insert are one statement, so two clerks asking at the same
+       moment cannot both pass the check before either row lands (D1 runs each
+       statement atomically). */
+    const refundableSql = `COALESCE((SELECT sum(amount_paise) FROM payments WHERE student_id = ?3 AND status = 'success' AND mode <> 'adjustment'), 0)
+           - COALESCE((SELECT sum(amount_paise) FROM refunds WHERE student_id = ?3 AND status <> 'rejected'), 0)`
+    const id = crypto.randomUUID()
+    const ins = await c.db.prepare(`INSERT INTO refunds (id, institution_id, student_id, payment_id, amount_paise, reason, mode, status, requested_by, created_at)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, NULLIF(?7, ''), 'pending', ?8, ?9 WHERE ?5 <= (${refundableSql})`)
+      .bind(id, school(c).id, req.student_id, payment, amount, reason, (req.mode ?? '').trim(), c.id.userId, now()).run()
+    if (!ins.meta.changes) {
+      const rr = await c.db.prepare(`SELECT ${refundableSql.split('?3').join('?1')} AS refundable`).bind(req.student_id).first<{ refundable: number }>()
+      const refundable = Math.max(0, p(rr?.refundable))
       throw new HttpError(409, `that is more than this family has paid and not already been refunded. At most ₹${indianGroup(Math.trunc(refundable / 100))} can go back`, { code: 'refund_exceeds_paid' })
     }
-    const id = crypto.randomUUID()
-    await c.db.prepare(`INSERT INTO refunds (id, institution_id, student_id, payment_id, amount_paise, reason, mode, status, requested_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), 'pending', ?, ?)`)
-      .bind(id, school(c).id, req.student_id, payment, amount, reason, (req.mode ?? '').trim(), c.id.userId, now()).run()
     return created({ id, status: 'pending' })
   })
 

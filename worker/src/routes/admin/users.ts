@@ -32,7 +32,7 @@ async function sessionCounts(c: Ctx, userIds?: string[], activeWithinMs?: number
   return out
 }
 
-const revokeUserSessions = (c: Ctx, userId: string, reason: string | null = null) =>
+export const revokeUserSessions = (c: Ctx, userId: string, reason: string | null = null) =>
   c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = COALESCE(?, ended_reason) WHERE user_id = ? AND revoked_at IS NULL`).bind(now(), reason, userId)
 
 /** issuedPassword in bulk_logins.go: the person's own number, else a generated value. */
@@ -151,7 +151,6 @@ const DERIVED_ROLES: Record<string, string> = {
 }
 const OVERLAPPING: [string, string, string][] = [
   ['hod', 'faculty', 'A head of department who teaches gets marks entry, homework and the register from the hod role as soon as somebody allocates them a subject in Faculty allocation.'],
-  ['admissions', 'front_office', 'Admissions already contains the four front-desk registers. Give front_office alone to somebody who only works the desk, or admissions alone to somebody who does both.'],
   ['institution_admin', 'hostel_warden', "The principal's workspace already holds the whole hostel section. Give hostel_warden alone to the person who runs the hostel; a principal who also does so already has every register from their own role."],
 ]
 function checkGrantable(keys: string[], platformAdmin: boolean, alreadyHeld: ReadonlySet<string> = new Set()): void {
@@ -883,12 +882,11 @@ export function registerAdminUsers(r: Router): void {
     items: PERMISSIONS.filter((p) => c.id.platformAdmin || (p.key !== 'platform.tenants.write' && p.key !== 'platform.plans.write')),
   }))
 
-  r.get('/admin/features', 'access.users.read', () => {
+  r.get('/admin/features', 'access.users.read', (c) => {
     const desc = new Map(PERMISSIONS.map((p) => [p.key, p.description]))
     const skip = new Set(['dashboard', 'home', 'my_day', 'todays_classes', 'my_work', 'my_calendar', 'my_run'])
-    type Item = { name: string; summary: string; unlocks: string[]; key: string; keys: string[] }
+    type Item = { key: string; name: string; summary: string; unlocks: string[]; role_key: string; role_name: string; section: string }
     const items: Item[] = []
-    const idx = new Map<string, Item>()
     /* ONLY SCREENS THAT EXIST.
 
        This offered every entry in the catalogue -- about 590 tiles -- and only
@@ -901,17 +899,23 @@ export function registerAdminUsers(r: Router): void {
 
        It also made the list twice as long as it needed to be, in alphabetical
        order, which is why "Take attendance" could not be found without
-       searching for it. */
+       searching for it.
+
+       ONE ITEM PER KEY, NOT PER NAME (owner, 2026-10-21). "Take attendance"
+       under faculty is a teacher's register; under institution_admin it is the
+       office register with import and export. Merged by name, a tick granted
+       whichever came first, "held" lit for any of them and revoking cleared
+       all. Each item now names the workspace it lives in so the editor can
+       show and grant exactly one; catalogue order (role, then section). */
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
+      // The vendor's workspaces (Seller Admin, Super Admin) are not a school's to hand out.
+      if (PLATFORM_ONLY_ROLES.has(role.key) && !c.id.platformAdmin) continue
       if (!IMPLEMENTED_FEATURES.has(f.key)) continue
       if (skip.has(featureSlug(f.key)) || f.name === '') continue
-      let it = idx.get(f.name)
-      if (!it) { it = { name: f.name, summary: f.summary, unlocks: [], key: f.key, keys: [] }; idx.set(f.name, it); items.push(it) }
-      if (it.summary === '' && f.summary !== '') it.summary = f.summary
-      if (!it.keys.includes(f.key)) it.keys.push(f.key)
-      for (const cap of FEATURE_UNLOCKS[featureSlug(f.key)] ?? []) { const d = desc.get(cap) || cap; if (!it.unlocks.includes(d)) it.unlocks.push(d) }
+      const unlocks: string[] = []
+      for (const cap of FEATURE_UNLOCKS[featureSlug(f.key)] ?? []) { const d = desc.get(cap) || cap; if (!unlocks.includes(d)) unlocks.push(d) }
+      items.push({ key: f.key, name: f.name, summary: f.summary, unlocks, role_key: role.key, role_name: role.name, section: sec.name })
     }
-    items.sort((a, b) => { const x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0 })
     return ok({ items })
   })
 

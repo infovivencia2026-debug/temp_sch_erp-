@@ -10,6 +10,60 @@ const OPERATOR_ROLES = new Set(['super_admin', 'seller_admin'])
 /** The vendor's ticket queue (Support → Support): the one screen a support login holds. */
 export const SUPPORT_DESK = 'seller_admin.support.support'
 
+/* VENDOR ROLES BY AREA. seller_admin and super_admin hold everything; these
+   four hold one area of the console each, so a salesperson cannot suspend a
+   school and a billing clerk cannot enter one. Each role lists the catalogue
+   screens it is shown and the /api/v1 routes it may call. A route not listed
+   is refused to them, including writes under /seller and /admin/platform that
+   would otherwise be open to any platform account (impersonation). The
+   Staff screen (seller/tenants.ts) assigns them. */
+type Rule = [methods: string, path: RegExp]
+const R = (methods: string, path: string): Rule => [methods, new RegExp('^/api/v1' + path + '$')]
+const ID = '[0-9a-fA-F-]{36}'
+const ANY = 'GET,POST,PUT,PATCH,DELETE'
+/** Reads every area role needs to know which school is which. */
+const SCHOOL_READS: Rule[] = [R('GET', '/seller/tenants'), R('GET', '/seller/plans'), R('GET', `/seller/school360/${ID}`), R('GET', '/seller/renewals')]
+export interface VendorRole { key: string; name: string; about: string; screens: string[]; permissions: string[]; routes: Rule[] }
+export const VENDOR_ROLES: VendorRole[] = [
+  { key: 'sales', name: 'Sales', about: 'Leads, quotes and demo schools. Reads the school list; cannot change a plan or suspend a school.',
+    screens: ['seller_admin.sales.leads', 'seller_admin.schools.schools', 'seller_admin.subscriptions_billing.renewals'], permissions: [],
+    routes: [...SCHOOL_READS, R(ANY, '/seller/enquiries(/.*)?'), R(ANY, '/seller/quotes(/.*)?'), R('GET,POST', '/seller/demos(/.*)?'), R('GET', '/seller/partners')] },
+  { key: 'billing', name: 'Billing', about: 'Invoices, payments, plan changes, quotes, partners and commission. Cannot enter a school.',
+    screens: ['seller_admin.subscriptions_billing.subscription_ledger', 'seller_admin.subscriptions_billing.plans_pricing',
+      'seller_admin.subscriptions_billing.license_capacity', 'seller_admin.subscriptions_billing.message_credits',
+      'seller_admin.subscriptions_billing.renewals', 'seller_admin.subscriptions_billing.partners', 'seller_admin.schools.schools', 'seller_admin.sales.leads'],
+    permissions: [],
+    routes: [...SCHOOL_READS, R(ANY, '/seller/billing(/.*)?'), R(ANY, '/seller/quotes(/.*)?'), R(ANY, '/seller/partners(/.*)?'),
+      R('PUT', `/seller/tenants/${ID}/subscription`), R('POST', '/seller/bulk'),
+      R('POST,PUT', '/seller/plans(/[a-z0-9_-]+)?'), R(ANY, '/seller/recharges(/.*)?'), R('GET', '/seller/enquiries(/.*)?')] },
+  { key: 'onboarding', name: 'Onboarding', about: 'Sets up new schools and demo schools and follows their setup. Cannot change a plan or bill.',
+    screens: ['seller_admin.schools.schools', 'seller_admin.schools.add_school', 'seller_admin.schools.setup', 'seller_admin.sales.leads',
+      'seller_admin.usage_health.instance_health'],
+    permissions: [],
+    routes: [...SCHOOL_READS, R(ANY, '/seller/provisioning(/.*)?'), R(ANY, '/seller/onboarding(/.*)?'), R('POST', '/seller/tenants'),
+      R(ANY, `/seller/tenants/${ID}/(branding|logo|reset-admin)`), R(ANY, '/seller/health(/.*)?'), R('GET,POST', '/seller/demos(/.*)?'),
+      R('GET', '/seller/enquiries(/.*)?')] },
+  { key: 'support_lead', name: 'Support lead', about: 'Runs the support desk and its team, school health and announcements. Enters a school only on a recorded session.',
+    screens: [SUPPORT_DESK, 'seller_admin.support.support_team', 'seller_admin.support.audit', 'seller_admin.schools.schools',
+      'seller_admin.usage_health.instance_health'],
+    permissions: ['institution.read', 'admin.reports.read', 'admin.jobs.read', 'admin.audit.read', 'self.profile.read', 'self.profile.write'],
+    routes: [...SCHOOL_READS, R(ANY, '/seller/tickets(/.*)?'), R(ANY, '/seller/support-accounts(/.*)?'), R(ANY, '/seller/health(/.*)?'),
+      R(ANY, '/seller/announcements(/.*)?'), R(ANY, '/admin/platform/impersonation(/.*)?'), R(ANY, '/admin/platform/seller/tickets(/.*)?')] },
+]
+const VENDOR_ROLE = new Map(VENDOR_ROLES.map((r) => [r.key, r]))
+export const isVendorRole = (k: string) => VENDOR_ROLE.has(k)
+
+/** For a login holding an area role: 'allow' when one of its roles lists the route, 'deny' for any other
+    console route, null when the request is outside the console (left to the usual checks). */
+export function vendorArea(id: Identity, method: string, path: string): 'allow' | 'deny' | null {
+  if (!id.platformAdmin || !id.restricted) return null
+  const mine = id.roles.map((k) => VENDOR_ROLE.get(k)).filter((r): r is VendorRole => !!r)
+  if (mine.length === 0) return null
+  if (mine.some((r) => r.routes.some(([m, re]) => m.split(',').includes(method) && re.test(path)))) return 'allow'
+  if (/^\/api\/v1\/(seller|admin\/platform)\//.test(path) || path === '/api/v1/seller') return 'deny'
+  return null
+}
+
 /* Who is calling, resolved once per request from the session cookie. Mirrors
    internal/httpx.Identity. A platform admin acts as a school by sending
    X-Acting-Institution, which the Go server also honours. */
@@ -53,7 +107,7 @@ export async function identityFrom(env: Env, req: Request, ctx?: ExecutionContex
   } catch {
     row = await sessionStmt(env, hash).first<Session>()
   }
-  const s = await liveSession(env, row, ctx)
+  const s = await liveSession(env, row, ctx, home?.timezone || undefined)
   if (!s) return null
   const key = cacheKey(hash, acting)
   const ttl = cacheTtl(env)
@@ -96,6 +150,8 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
     const operator = roleKeys.some((k) => OPERATOR_ROLES.has(k))
     const permissions = new Set<string>(operator ? ['*'] : [])
     if (!operator) for (const k of roleKeys) for (const p of SYSTEM_ROLES.find((r) => r.key === k)?.permissions ?? []) permissions.add(p)
+    // An area role's screens (menu) and its few capability keys; its routes are checked in vendorArea.
+    if (!operator) for (const k of roleKeys) { const v = VENDOR_ROLE.get(k); if (v) for (const p of [...v.screens, ...v.permissions]) permissions.add(p) }
     /* THE SUPPORT DESK'S OWN SCREEN. The role's grants are capabilities and
        name no screen, so a support login signed in to an empty console and
        could not open the queue it exists to answer. A catalogue key, added

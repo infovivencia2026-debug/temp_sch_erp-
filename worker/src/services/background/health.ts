@@ -1,6 +1,7 @@
 import type { Env } from '../../env'
 import { tenantDb, type Institution } from '../../tenant'
 import { registerJob } from '../jobs'
+import { accountFacts, subscriptionAlerts } from '../../routes/admin/account_alerts'
 import { setupStatus } from '../../routes/setup/academics'
 
 /* School health board and usage alerts (Seller → Instance Health).
@@ -140,7 +141,20 @@ export async function refreshHealthSnapshot(env: Env): Promise<number> {
 
 /* ---- usage against plan limits ---- */
 
-interface Usage { metric: string; used: number; lim: number; pct: number; message: string }
+interface Usage { metric: string; used: number; lim: number; pct: number; message: string; title?: string; link?: string }
+
+/* Trial, renewal and provider-invoice states, at the same
+   thresholds as the admin's board (routes/admin/account_alerts.ts). Every
+   metric is always listed, at pct 0 when quiet, so a cleared one is deleted
+   and a later return is told again. */
+async function accountUsage(env: Env, inst: Institution): Promise<Usage[]> {
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10)
+  const alerts = subscriptionAlerts(await accountFacts(env.CONTROL, inst.id, today, new Date().toISOString()), today)
+  return (['trial', 'renewal', 'invoice'] as const).map((metric) => {
+    const a = alerts.find((x) => x.metric === metric)
+    return a ? { metric, used: 0, lim: 0, pct: a.level, message: a.detail, title: a.title, link: '/go/dashboard' } : { metric, used: 0, lim: 0, pct: 0, message: '' }
+  })
+}
 
 async function usageOf(env: Env, inst: Institution): Promise<Usage[]> {
   const lim = await env.CONTROL.prepare(`SELECT COALESCE(s.licensed_students, p.max_students) AS students, COALESCE(s.storage_gb, p.max_storage_gb) AS storage_gb
@@ -174,7 +188,7 @@ export async function runUsageAlerts(env: Env): Promise<void> {
   const list = await schools(env)
   const at = new Date().toISOString()
   await mapLimit(list, FANOUT, async (inst) => {
-    const usage = await usageOf(env, inst)
+    const usage = [...await usageOf(env, inst), ...await accountUsage(env, inst)]
     const prev = new Map((await env.CONTROL.prepare(`SELECT metric, notified_level FROM usage_alerts WHERE institution_id = ?`).bind(inst.id)
       .all<{ metric: string; notified_level: number }>()).results.map((r) => [r.metric, r.notified_level]))
     const stmts: D1PreparedStatement[] = []
@@ -196,8 +210,8 @@ export async function runUsageAlerts(env: Env): Promise<void> {
       const admins = await db.prepare(`SELECT DISTINCT ur.user_id FROM user_roles ur JOIN roles r ON r.id = ur.role_id JOIN users u ON u.id = ur.user_id
           WHERE r.key = 'institution_admin' AND u.status = 'active'`).all<{ user_id: string }>()
       const ins = admins.results.flatMap((a) => notify.map((u) => db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
-          VALUES (?, ?, ?, 'usage_alert', ?, ?, '/go/getting_started/school_setup', 'usage_alert', ?, ?)`)
-        .bind(crypto.randomUUID(), inst.id, a.user_id, `Plan limit: ${u.metric} at ${u.pct >= 100 ? '100' : '80'}%`, u.message, `${u.metric}:${u.pct >= 100 ? 100 : 80}`, at)))
+          VALUES (?, ?, ?, 'usage_alert', ?, ?, ?, 'usage_alert', ?, ?)`)
+        .bind(crypto.randomUUID(), inst.id, a.user_id, u.title ?? `Plan limit: ${u.metric} at ${u.pct >= 100 ? '100' : '80'}%`, u.message, u.link ?? '/go/getting_started/school_setup', `${u.metric}:${u.pct >= 100 ? 100 : 80}`, at)))
       if (ins.length) await db.batch(ins)
     }
     if (stmts.length) await env.CONTROL.batch(stmts)

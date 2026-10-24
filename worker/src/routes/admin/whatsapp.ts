@@ -117,6 +117,9 @@ for (const k of ['attendance.absent', 'fees.overdue', 'homework.set', 'ptm.remin
     whatever the code's usual category: submitted as UTILITY it is a policy breach that gets
     the template, and in time the number, disabled. */
 const SECRET_PARAM = /^(password|temp_password|new_password|otp|code|login_code|verify_code|pin)$/
+/** The test send's choice of Meta's sample template, apart from the school's own codes. */
+export const HELLO_WORLD = 'meta:hello_world'
+
 export function waCategoryOf(code: string, params: string[]): string {
   if (params.some((p) => SECRET_PARAM.test(p)) || /(^|[._])(otp|login_code|verify_code|password_reset)($|[._])/.test(code)) return 'AUTHENTICATION'
   return WA_CATEGORIES[code] || 'UTILITY'
@@ -210,7 +213,11 @@ export function registerWhatsApp(r: Router): void {
     if (!allowed) throw new HttpError(409, why, { code: 'not_on_allowlist' })
     const school = (await c.db.prepare(`SELECT name FROM institutions WHERE id = ?`).bind(inst).first<{ name: string }>())?.name ?? ''
     let wa = null
-    if (code !== '') { try { wa = await whatsappSendFor(c.db, code, { school_name: school }) } catch (e) { throw badRequest((e as Error).message) } }
+    /* Meta's own sample template: every WhatsApp Business account has it,
+       approved, with no variables. It proves the number, the token and the
+       recipient before any of the school's templates are approved. */
+    if (code === HELLO_WORLD) wa = { name: 'hello_world', language: 'en_US', params: [] }
+    else if (code !== '') { try { wa = await whatsappSendFor(c.db, code, { school_name: school }) } catch (e) { throw badRequest((e as Error).message) } }
     if (!p || !p.configured) throw new HttpError(409, p ? p.why : 'WhatsApp is not set up', { code: 'provider_not_configured' })
     const t = BUILTIN_TEMPLATES['messaging.test'], vars = { school_name: school }
     let msgId = '', sendErr: Error | null = null

@@ -213,6 +213,7 @@ export function entitlementAllows(st: Entitlement, sectionSlug: string): boolean
 // --- the catalog ------------------------------------------------------------------
 
 // Help stays reachable while a school is still being set up: that is when it is needed most.
+const GALLERY_KEY = '.school_gallery.school_gallery'
 const SETUP_SECTIONS = new Set(['getting_started', 'home', 'my_profile', 'help'])
 const EVIDENCE_KEYS = new Set([
   'parent.my_childs_bus.live_bus_tracking', 'parent.alerts_preferences.parent_bus_proximity_radius_customizer',
@@ -280,6 +281,11 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     } else {
       for (const role of CATALOG_ROLES) if (mine.has(role.key)) held.add(role.key)
     }
+  } else if (!c.id.institution) {
+    /* A seller signed in to the console sees the seller workspace, not every
+       school workspace (owner, 2026-10-24). Opening a school for support sets
+       an institution and brings that school's screens back. */
+    for (const role of CATALOG_ROLES) if (mine.has(role.key)) held.add(role.key)
   }
   const features = allCatalogFeatureKeys()
   const directFeatures = new Set<string>()
@@ -322,23 +328,26 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     return true
   }
   const canKey = (k: string) => viewingAll || can(c.id, k)
+  /* The school gallery is every staff member's, like the bell's own link to
+     it: no grant to hand out (owner, 2026-10-24). Who may post is unchanged. */
+  const staffHere = c.id.roles.some((r) => r !== 'parent' && r !== 'student')
   const gate = async (secSlug: string, f: CatalogFeature): Promise<boolean> => {
     const sw = catalogFeatureAllowed(ov, secSlug, f.slug)
     if (sw === false) return false
     if (sw !== true && !entitlementAllows(ent, secSlug)) return false
     if (locked && !SETUP_SECTIONS.has(secSlug)) return false
-    if (!canKey(f.key)) return false
+    if (!canKey(f.key) && !(f.key.endsWith(GALLERY_KEY) && staffHere)) return false
     if (EVIDENCE_KEYS.has(f.key) && !(await evidenceFor(f.key))) return false
     if (STAGE_KEYS.has(f.key) && !(await stageAllowed(f.key))) return false
     return true
   }
-  /* Question maker (setting `academics.question_maker_in_menu`): the AI paper
-     generator and the question bank sit in the normal menu, not behind Show advanced. */
+  /* Question maker (setting `academics.question_maker_in_menu`): the paper
+     generator and the question bank open as tabs of Question papers, so they
+     leave the menu as screens of their own; the grants stay, and gate the tabs. */
   // Asked only of a person in a school who holds one of the two screens: no read for families or platform staff.
   const qmaker = !!c.id.institution && !c.id.platformAdmin && [...QUESTION_MAKER].some((k) => can(c.id, k)) &&
     !!(await c.db.prepare(`SELECT enabled FROM module_settings WHERE module = 'question_maker_in_menu'`).first<{ enabled: number }>())?.enabled
-  const tierOf = (f: CatalogFeature) => (qmaker && QUESTION_MAKER.has(f.key) ? 'core' : f.tier)
-  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: tierOf(f), in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
+  const feat = (f: CatalogFeature, inScope: boolean) => ({ key: f.key, slug: f.slug, name: f.name, summary: f.summary, scope: f.scope, tier: f.tier, in_scope: inScope, live: IMPLEMENTED_FEATURES.has(f.key) })
 
   type Sec = { slug: string; name: string; workspace: string; features: ReturnType<typeof feat>[] }
   type Role = { key: string; name: string; sections: Sec[] }
@@ -376,7 +385,7 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
        person holds the key for their own workspace and no other.
 
        It stops being invisible the moment a feature is granted directly.
-       /admin/features groups the tick boxes by NAME and grants every key with
+       /admin/features used to group the tick boxes by NAME and grant every key with
        that name, so one tick on "Present & absent" writes both keys, and this
        list then drew a row for each: the same screen twice in the sidebar,
        under the same words, going to the same place.
@@ -427,6 +436,10 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     }
   }
 
+  if (qmaker) {
+    for (const ro of roles) for (const s of ro.sections) s.features = s.features.filter((f) => !QUESTION_MAKER.has(f.key))
+  }
+
   /* ABSENTEE FOLLOW-UP IS THE OFFICE'S, NOT A TEACHER'S (the owner's rule):
      a teacher takes attendance and sees present and absent for their class;
      the calling-round is for whoever reads the whole school's attendance.
@@ -462,27 +475,35 @@ export async function getCatalog(c: Ctx): Promise<CatalogResponse> {
 
 async function storeCatalogue(c: Ctx): Promise<Response> {
   const inst = institutionId(c)
-  const [prods, vars] = await c.db.batch<Record<string, unknown>>([
+  const [prods, vars, stores] = await c.db.batch<Record<string, unknown>>([
     c.db.prepare(`SELECT p.id, p.code, p.name, p.category, COALESCE(p.notes, '') AS description, p.sale_price_paise, p.image_key
         FROM store_products p WHERE p.institution_id = ? AND p.is_active ORDER BY p.category, p.name`).bind(inst),
     c.db.prepare(`SELECT v.product_id, v.size, v.colour, v.variant_note, COALESCE(v.sale_price_paise, p.sale_price_paise) AS price, i.on_hand
         FROM store_product_variants v JOIN store_products p ON p.id = v.product_id JOIN inventory_items i ON i.id = v.item_id
        WHERE p.institution_id = ? AND p.is_active AND v.is_active
        ORDER BY p.name, (v.size IS NOT NULL), v.size, (v.colour IS NOT NULL), v.colour`).bind(inst),
+    /* Items on the stores register marked "Show in parent store" (Yajur,
+       2026-10-22: one list). Priced, never with a count. */
+    c.db.prepare(`SELECT code, name, category, sale_price_paise, on_hand FROM inventory_items
+       WHERE institution_id = ? AND in_store = 1 AND sale_price_paise IS NOT NULL ORDER BY category, name`).bind(inst),
   ])
-  const byProduct = new Map<string, unknown[]>()
+  const byProduct = new Map<string, { label: string; price: number; in_stock: boolean }[]>()
   for (const v of vars.results) {
     const parts = [v.size, v.colour, v.variant_note].map((p) => (typeof p === 'string' ? p.trim() : '')).filter((p) => p !== '')
     const on = Number(v.on_hand ?? 0)
     const list = byProduct.get(String(v.product_id)) ?? []
-    list.push({ label: parts.join(' / '), price: Number(v.price ?? 0), in_stock: on > 0, stock: on })
+    list.push({ label: parts.join(' / '), price: Number(v.price ?? 0), in_stock: on > 0 })
     byProduct.set(String(v.product_id), list)
   }
-  return ok({ items: prods.results.map((p) => {
+  const products = prods.results.map((p) => {
     const key = typeof p.image_key === 'string' ? p.image_key.trim() : ''
+    const variants = byProduct.get(String(p.id)) ?? []
     return { code: p.code, name: p.name, category: p.category, description: p.description, price: Number(p.sale_price_paise ?? 0),
-      image_url: key ? '/api/v1/files/' + key + '?inline=1' : '', variants: byProduct.get(String(p.id)) ?? [] }
-  }) })
+      image_url: key ? '/api/v1/files/' + key + '?inline=1' : '', in_stock: variants.length === 0 || variants.some((v) => v.in_stock), variants }
+  })
+  const items = stores.results.map((i) => ({ code: i.code, name: i.name, category: i.category ?? 'other', description: '',
+    price: Number(i.sale_price_paise ?? 0), image_url: '', in_stock: Number(i.on_hand ?? 0) > 0, variants: [] }))
+  return ok({ items: [...products, ...items] })
 }
 
 export function registerShell(r: Router): void {

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import JoinActivities from './JoinActivities'
 import { useCollapsingTitle } from '@/lib/motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarCheck, ChevronRight, Megaphone, PlayCircle, Sparkles, Star, Timer } from 'lucide-react'
+import { ArrowRight, CalendarCheck, CheckCircle2, ChevronRight, Megaphone, PlayCircle, Star, Timer } from 'lucide-react'
 import { api, ApiError, type List } from '@/lib/api'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 import { ErrorState } from '@/components/ui'
@@ -143,7 +143,7 @@ export default function StudentHome() {
         <div className="space-y-4">
         {summary.error && !s ? <ErrorState error={summary.error} /> : s ? (s.today.length === 0 ? (
           <section className="flex items-center gap-4 rounded-2xl border border-[#a7f3d0] bg-gradient-to-br from-[#f0fdf4] to-card px-5 py-5 shadow-sm">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card text-[22px]">🌴</span>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card"><CalendarCheck className="h-6 w-6 text-success" aria-hidden /></span>
             <span>
               <span className="block text-[16px] font-bold text-[#065f46]">No classes today</span>
               <span className="block text-[13px] text-[#047857]">Enjoy your day off. School is not in session.</span>
@@ -181,12 +181,12 @@ export default function StudentHome() {
           ) : homework.error ? (
             <p className="px-4 py-3 text-[14px] text-destructive">Could not load your homework. Pull down to try again.</p>
           ) : pending.length === 0 ? (
-            <p className="flex items-center gap-2 px-4 py-3 text-[14px] text-muted-foreground"><Sparkles className="h-4 w-4 text-success" /> Nothing due today or tomorrow. Nice!</p>
+            <p className="flex items-center gap-2 px-4 py-3 text-[14px] text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-success" /> Nothing due today or tomorrow.</p>
           ) : (
             <ul className="mt-1 divide-y border-t">
               {pending.slice(0, 4).map((h) => (
                 <li key={h.id}>
-                  <Link to={`${toHomework}?open=${h.id}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2 active:bg-muted/50">
+                  <Link to={`${toHomework}?open=${h.id}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 block text-[15px] font-medium leading-snug">{h.title}</span>
                       <span className="block truncate text-[13px] text-muted-foreground">{h.subject ?? 'Homework'}</span>

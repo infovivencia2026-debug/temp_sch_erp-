@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Button, SkeletonTable, ErrorState,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Button, SkeletonTable, ErrorState, Input,
 } from '@/components/ui'
+import { ExportButton } from '@/components/DataPortActions'
 
 /* Everything this account may take out of the system, in one place.
  *
@@ -47,6 +49,12 @@ export default function Exports() {
   })
 
   const items = q.data?.items ?? []
+  /* Attendance files (owner, 2026-10-21): the same two downloads the register
+   * screen offers, kept here too so every export lives in Reports. Shown only
+   * when the server lists the attendance dataset for this account; both
+   * endpoints scope by the caller exactly as they do on the register. */
+  const hasAttendance = items.some((x) => x.name === 'attendance')
+  const [onDate, setOnDate] = useState(() => new Date().toLocaleDateString('en-CA'))
 
   return (
     <>
@@ -112,6 +120,51 @@ export default function Exports() {
             </Table>
           )}
         </Card>
+
+        {hasAttendance && (
+          <Card>
+            <CardHeader title="Attendance" />
+            <Table head={['File', 'Date', '']}>
+              <tr>
+                <Td className="min-w-[14rem] whitespace-normal font-medium">
+                  Attendance — one day, every section
+                  <span className="block text-[12.5px] font-normal text-muted-foreground">
+                    Every child on the rolls for the date you pick, marked or not marked.
+                  </span>
+                </Td>
+                <Td>
+                  <Input type="date" value={onDate} onChange={setOnDate} srLabel="Date" className="w-full sm:w-auto" />
+                </Td>
+                <Td>
+                  <div className="flex flex-nowrap justify-end gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={!onDate}
+                      onClick={() => window.location.assign(`/api/v1/attendance/day.csv?on_date=${onDate}`)}
+                    >
+                      <Download className="h-3.5 w-3.5" /> CSV
+                    </Button>
+                  </div>
+                </Td>
+              </tr>
+              <tr>
+                <Td className="min-w-[14rem] whitespace-normal font-medium">
+                  Attendance — last 90 days
+                  <span className="block text-[12.5px] font-normal text-muted-foreground">
+                    The whole register you can see, day by day.
+                  </span>
+                </Td>
+                <Td />
+                <Td>
+                  <div className="flex flex-nowrap justify-end gap-1.5">
+                    <ExportButton name="attendance" label="Export 90 days" />
+                  </div>
+                </Td>
+              </tr>
+            </Table>
+          </Card>
+        )}
 
         <p className="text-[12.5px] leading-relaxed text-muted-foreground">
           Exports carry the same scope as the screens: a teacher's student export contains their own

@@ -47,8 +47,8 @@ export default function StoreCatalogue() {
             className="grid gap-4"
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
           >
-            {items.map((p) => (
-              <ProductCard key={p.code} product={p} />
+            {items.map((p, i) => (
+              <ProductCard key={`${i}-${p.code}`} product={p} />
             ))}
           </div>
         )}
@@ -58,10 +58,10 @@ export default function StoreCatalogue() {
 }
 
 function ProductCard({ product }: { product: CatalogueProduct }) {
-  // A product with sizes is "in stock" when any size is; a product with none is
-  // judged on nothing here, so it reads as available and the till decides.
+  // In stock when any size is (the server decides); a product with no sizes and
+  // no stock link reads as available and the till decides.
   const variants = product.variants ?? []
-  const anyStock = variants.length === 0 || variants.some((v) => v.in_stock)
+  const anyStock = product.in_stock
 
   return (
     <Card className="overflow-hidden">
@@ -109,7 +109,7 @@ function ProductCard({ product }: { product: CatalogueProduct }) {
                   <td className="py-0.5 pr-2 text-right tabular-nums">{inr(v.price)}</td>
                   <td className="py-0.5 text-right">
                     {v.in_stock ? (
-                      <span className="text-success">{v.stock} left</span>
+                      <span className="text-success">In stock</span>
                     ) : (
                       <span className="text-destructive">Out</span>
                     )}

@@ -10,14 +10,14 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
   Field, FormGrid, FormNotice, Dialog,
 } from '@/components/ui'
-import { SearchBox } from '@/components/rows'
 import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
-import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
+import { useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
 import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard, downloadLogins, printSlips } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
+import { FeatureAccess, type FeatureItem } from './featureCatalog'
 
 /* Who can sign in to this school.
 
@@ -241,7 +241,7 @@ export default function Logins() {
      the tab it was pressed on. */
   const pickTab = (k: string) => { setTileLens(''); setRollFilter(''); setRecord(k) }
 
-  const { roles, presets } = useRoleCatalog()
+  const { roles } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [devicesFor, setDevicesFor] = useState<AdminUser | null>(null)
@@ -492,12 +492,11 @@ export default function Logins() {
         )}
 
         {creating && (record === '' || record === 'staff') && (
-          <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
+          <AccountForm roles={roles} onClose={() => setCreating(false)} />
         )}
         {editing && (
           <AccountForm
             roles={roles}
-            presets={presets}
             user={editing}
             onClose={() => setEditing(null)}
           />
@@ -1037,12 +1036,10 @@ function screenLabel(key: string): string {
    and custom-role flows a principal does not need next to this. */
 function AccountForm({
   roles,
-  presets,
   user,
   onClose,
 }: {
   roles: ReturnType<typeof useRoleCatalog>['roles']
-  presets: ReturnType<typeof useRoleCatalog>['presets']
   user?: AdminUser
   onClose: () => void
 }) {
@@ -1230,7 +1227,16 @@ function AccountForm({
           </FormGrid>
         )}
 
-        <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
+        {editing
+          ? <PermissionOverrides user={user!} pickedRoles={picked} roles={roles} roleEditor={(
+              <>
+                <RolesList value={picked} onChange={setPicked} roles={roles} />
+                {[...picked].sort().join() !== [...(user!.role_keys ?? [])].sort().join() && (
+                  <p className="text-[13px] text-warning">Role changes are not saved yet. Press Save roles below.</p>
+                )}
+              </>
+            )} />
+          : <RolesList value={picked} onChange={setPicked} roles={roles} />}
 
         {/* Campuses, only when there is more than one to choose from — a
             single-campus school has nothing to pick and the row would be noise.
@@ -1282,8 +1288,6 @@ function AccountForm({
             </div>
           </div>
         )}
-
-        {editing && <PermissionOverrides user={user!} pickedRoles={picked} roles={roles} />}
 
         {editing && (
           <div className="border-t pt-5">
@@ -1409,36 +1413,24 @@ export function PortalFeatures({
   const roleKeys = new Set(current.data?.role_keys ?? [])
   const picked = new Set(direct ?? [])
 
-  /* Only this portal's own features, decided here rather than by the person
-     reading the list. A feature reaches the list if any of its variant keys
-     belongs to the namespace; the key we grant is that variant, never the
-     catalogue's canonical one, which may belong to a staff workspace that
-     happens to share the feature's name. */
-  const all = (features.data?.items ?? [])
-    .map((f) => ({ f, grant: f.keys.find((k) => k.startsWith(ns)) }))
-    .filter((x): x is { f: FeatureItem; grant: string } => Boolean(x.grant))
+  /* Only this portal's own screens, by exact key: the portal is one workspace,
+     so a same-named staff screen never reaches this list. */
+  const all = (features.data?.items ?? []).filter((f) => f.key.startsWith(ns))
 
   const q = search.trim().toLowerCase()
   const shown = q
-    ? all.filter((x) => x.f.name.toLowerCase().includes(q) || x.f.summary.toLowerCase().includes(q))
+    ? all.filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q))
     : all
 
   // From the role, from this screen, or not at all.
-  const held = (x: { f: FeatureItem; grant: string }) =>
-    x.f.keys.some((k) => k.startsWith(ns) && roleKeys.has(k))
-  const granted = (x: { f: FeatureItem; grant: string }) =>
-    x.f.keys.some((k) => k.startsWith(ns) && picked.has(k))
+  const held = (f: FeatureItem) => roleKeys.has(f.key)
+  const granted = (f: FeatureItem) => picked.has(f.key)
 
-  const toggle = (x: { f: FeatureItem; grant: string }) =>
+  const toggle = (f: FeatureItem) =>
     setDirect((prev) => {
       const set = new Set(prev ?? [])
-      if (granted(x)) {
-        // Off clears every variant in THIS portal, so a feature granted under
-        // an older key does not survive as a half-revoked grant.
-        for (const k of x.f.keys) if (k.startsWith(ns)) set.delete(k)
-      } else {
-        set.add(x.grant)
-      }
+      if (set.has(f.key)) set.delete(f.key)
+      else set.add(f.key)
       return [...set]
     })
 
@@ -1487,7 +1479,7 @@ export function PortalFeatures({
               const on = fromRole || granted(x)
               return (
                 <button
-                  key={x.grant}
+                  key={x.key}
                   type="button"
                   disabled={fromRole}
                   onClick={() => !fromRole && toggle(x)}
@@ -1509,9 +1501,9 @@ export function PortalFeatures({
                     {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[14px]">{x.f.name}</span>
-                    {x.f.summary && (
-                      <span className="block text-[12.5px] text-muted-foreground">{x.f.summary}</span>
+                    <span className="block text-[14px]">{x.name}</span>
+                    {x.summary && (
+                      <span className="block text-[12.5px] text-muted-foreground">{x.summary}</span>
                     )}
                     {fromRole && (
                       <span className="block text-[12px] text-muted-foreground">from their role</span>
@@ -1530,73 +1522,82 @@ export function PortalFeatures({
   )
 }
 
-/* One account's extra capabilities, beyond what its roles give.
-
-   Roles are the right unit for almost everybody, but now and then a single
-   login needs one key that no role it holds carries — and the alternatives were
-   inventing a whole role for one grant, or widening a shared role and handing
-   the key to everyone in it. This is the narrow door: a direct grant to this
-   account alone, unioned with the role-based keys at sign-in.
-
-   The two are kept visibly apart. A key a role already grants shows ticked and
-   locked, labelled "from a role", because taking it away means editing the role
-   and not this account. Everything else is a plain toggle, and Save replaces
-   the direct set. */
-interface PermCatalogItem {
-  key: string
-  module: string
-  description: string
+/* Roles the school's records give, not this screen: the server refuses to
+   grant class_teacher here, and subject_head follows Subjects. */
+const AUTOMATIC_ROLES: Record<string, string> = {
+  class_teacher: 'Automatic: given by naming them class teacher of a section',
+  subject_head: 'Automatic: given by naming them head of a subject',
 }
+
+/* The roles this person has, each removable unless it is automatic, and an
+   Add role picker of the ones they do not have. The server only offers roles
+   this school may hand out, so platform roles never appear for a school. */
+function RolesList({ value, onChange, roles }: {
+  value: string[]
+  onChange: (next: string[]) => void
+  roles: Role[]
+}) {
+  const name = (k: string) => roles.find((r) => r.key === k)?.name ?? k
+  const addable = roles.filter((r) => !value.includes(r.key) && !(r.key in AUTOMATIC_ROLES))
+  return (
+    <section className="space-y-2">
+      <p className="eyebrow">Roles</p>
+      {value.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">No roles yet. Add one so they can sign in to a workspace.</p>
+      ) : (
+        <ul className="divide-y rounded-md border">
+          {value.map((k) => (
+            <li key={k} className="flex min-h-[44px] items-center gap-2 px-3 py-1.5 sm:min-h-[40px]">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px]">{name(k)}</span>
+                {AUTOMATIC_ROLES[k] && <span className="block text-[12px] text-muted-foreground">{AUTOMATIC_ROLES[k]}</span>}
+              </span>
+              {!AUTOMATIC_ROLES[k] && (
+                <Button size="sm" variant="ghost" onClick={() => onChange(value.filter((x) => x !== k))}>
+                  <X className="h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {addable.length > 0 && (
+        <Select
+          value=""
+          placeholder="Add role"
+          onChange={(k) => k && onChange([...value, k])}
+          options={addable.map((r) => ({ value: r.key, label: r.name }))}
+        />
+      )}
+    </section>
+  )
+}
+
 interface UserPerms {
   user_id: string
   role_keys: string[]
   direct_keys: string[]
 }
 
-// One grantable feature in the "Individual features" exception editor, as served
-// by GET /api/v1/admin/features — a flat list de-duplicated by name. `key` is the
-// canonical variant to grant; `keys` are ALL variant keys sharing this name, so
-// the feature reads as "held" if the account holds any of them and revoking
-// clears every variant.
-interface FeatureItem {
-  key: string
-  keys: string[]
-  name: string
-  summary: string
-  unlocks: string[]
-}
-
-const MODULE_LABEL: Record<string, string> = {
-  students: 'Students',
-  academics: 'Academics',
-  finance: 'Finance',
-  admissions: 'Admissions',
-  office: 'Front office',
-  hr: 'HR & payroll',
-  operations: 'Operations',
-  welfare: 'Welfare',
-  comms: 'Communication',
-  institution: 'Institution',
-  access: 'Access & roles',
-  admin: 'Administration',
-  platform: 'Platform',
-  self: 'Self-service',
-}
-
+/* One account's extra features, beyond what its roles give, and what it can
+   open in all. Each switch is saved at once: a direct grant to this
+   account alone, unioned with the role-based keys at sign-in. Non-feature
+   keys already in the direct set are kept as they are on every save. */
 function PermissionOverrides({
   user,
   pickedRoles,
   roles,
+  roleEditor,
 }: {
   user: AdminUser
   pickedRoles: string[]
   roles: Role[]
+  /** The Add/Remove role list, opened from the header card. */
+  roleEditor: ReactNode
 }) {
+  const [rolesOpen, setRolesOpen] = useState(false)
   const qc = useQueryClient()
-  const catalog = useQuery({
-    queryKey: ['permission-catalog'],
-    queryFn: () => api.get<List<PermCatalogItem>>('/api/v1/admin/permissions'),
-  })
   const current = useQuery({
     queryKey: ['user-permissions', user.id],
     queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${user.id}/permissions`),
@@ -1605,291 +1606,74 @@ function PermissionOverrides({
     queryKey: ['feature-catalog'],
     queryFn: () => api.get<List<FeatureItem>>('/api/v1/admin/features'),
   })
-  // The feature-tile search. Local to this editor; the tile list is long.
-  const [featureSearch, setFeatureSearch] = useState('')
 
-  // The direct set the editor is building. Seeded once the account's current
-  // grants arrive; a plain Set kept in a piece of state keyed off the load.
-  const [direct, setDirect] = useState<string[] | null>(null)
-  const loaded = current.data?.direct_keys
-  if (direct === null && loaded) setDirect(loaded)
-
-  /* What the roles grant, computed from the roles ticked RIGHT NOW rather than
-     from what was last saved. Tick "Admissions & Front Office" and its keys
-     light up ticked-and-locked here immediately, before Save. Falls back to the
-     server's role_keys until the role catalogue has loaded, so nothing flickers
-     on first paint. */
+  /* What the roles grant, from the roles in the list RIGHT NOW rather than
+     from what was last saved, so an added role's screens count before Save.
+     Falls back to the server's role_keys until the role catalogue loads. */
   const pickedSet = new Set(pickedRoles)
-  const liveRoleKeys = roles
-    .filter((r) => pickedSet.has(r.key))
-    .flatMap((r) => r.permission_keys ?? [])
-  const roleKeys = new Set(liveRoleKeys.length ? liveRoleKeys : current.data?.role_keys ?? [])
-  const picked = new Set(direct ?? [])
+  const liveRoleKeys = roles.filter((r) => pickedSet.has(r.key)).flatMap((r) => r.permission_keys ?? [])
+  const roleGrants = new Map<string, string[]>()
+  if (liveRoleKeys.length) {
+    for (const r of roles) if (pickedSet.has(r.key)) for (const k of r.permission_keys ?? []) roleGrants.set(k, [...(roleGrants.get(k) ?? []), r.name])
+  } else for (const k of current.data?.role_keys ?? []) roleGrants.set(k, ['their roles'])
 
   const save = useMutation({
-    mutationFn: () =>
-      api.put(`/api/v1/admin/users/${user.id}/permissions`, {
-        permission_keys: direct ?? [],
-      }),
+    mutationFn: (keys: string[]) => api.put(`/api/v1/admin/users/${user.id}/permissions`, { permission_keys: keys }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['user-permissions', user.id] })
       qc.invalidateQueries({ queryKey: ['school-logins'] })
     },
   })
 
-  if (catalog.isLoading || current.isLoading) {
-    return (
-      <div className="border-t pt-5">
-        <p className="eyebrow mb-2">Extra permissions</p>
-        <p className="text-[13px] text-muted-foreground">Loading the permission list…</p>
-      </div>
-    )
+  if (current.isLoading || features.isLoading) {
+    return <p className="border-t pt-5 text-[13px] text-muted-foreground">Loading their features…</p>
   }
-  if (catalog.error || current.error) {
-    return (
-      <div className="border-t pt-5">
-        <FormNotice error={catalog.error ?? current.error} />
-      </div>
-    )
+  if (current.error || features.error) {
+    return <div className="border-t pt-5"><FormNotice error={current.error ?? features.error} /></div>
   }
 
-  const toggle = (key: string) =>
-    setDirect((prev) => {
-      const set = new Set(prev ?? [])
-      if (set.has(key)) set.delete(key)
-      else set.add(key)
-      return [...set]
-    })
-
-  // Group the catalogue by module, in the order the modules first appear.
-  const items = catalog.data?.items ?? []
-  const groups: { module: string; items: PermCatalogItem[] }[] = []
-  const byModule = new Map<string, PermCatalogItem[]>()
-  for (const it of items) {
-    if (!byModule.has(it.module)) {
-      byModule.set(it.module, [])
-      groups.push({ module: it.module, items: byModule.get(it.module)! })
-    }
-    byModule.get(it.module)!.push(it)
+  const direct = new Set(current.data?.direct_keys ?? [])
+  const change = (keys: string[], on: boolean) => {
+    const next = new Set(direct)
+    for (const k of keys) if (on) next.add(k); else next.delete(k)
+    save.mutate([...next])
   }
-
-  const extraCount = (direct ?? []).filter((k) => !roleKeys.has(k)).length
-
-  /* The individual-feature exception editor. A grant here is a catalog feature
-     key held directly, seeded from the same direct set (so it saves in the one
-     PUT alongside the capability picks above and never overwrites them). The
-     list is flat and de-duplicated by name, searchable by name (ranked first)
-     or summary — it is long. */
-  const featureItems = features.data?.items ?? []
-  const q = featureSearch.trim().toLowerCase()
-  const shownFeatures = q
-    ? featureItems
-        .filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q))
-        // Name matches rank above summary-only matches; order is otherwise stable.
-        .sort((a, b) => {
-          const an = a.name.toLowerCase().includes(q) ? 0 : 1
-          const bn = b.name.toLowerCase().includes(q) ? 0 : 1
-          return an - bn
-        })
-    : featureItems
-
-  // A feature is held if the account holds ANY of its variant keys.
-  const featureHeld = (f: FeatureItem) => f.keys.some((k) => picked.has(k))
-  // Toggle ON adds the canonical key; toggle OFF removes every variant key.
-  const toggleFeature = (f: FeatureItem) =>
-    setDirect((prev) => {
-      const set = new Set(prev ?? [])
-      if (featureHeld(f)) {
-        for (const k of f.keys) set.delete(k)
-      } else {
-        set.add(f.key)
-      }
-      return [...set]
-    })
-
-  return (
-    <div className="flex flex-col border-t pt-5">
-      <div className="mb-2 flex items-baseline justify-between">
-        <p className="eyebrow">Extra permissions</p>
-        <span className="text-[13px] text-muted-foreground">
-          {extraCount} beyond this account’s roles
-        </span>
-      </div>
-      <p className="mb-3 text-[13px] text-muted-foreground">
-        A role grants a whole workspace. This adds one capability to this account only, on top of
-        its roles. Keys a role already grants are ticked and locked, change those by editing the
-        role.
-      </p>
-
-      <div className="space-y-4">
-        {groups.map((g) => (
-          <div key={g.module}>
-            <p className="mb-1.5 text-[13px] font-medium">{MODULE_LABEL[g.module] ?? g.module}</p>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {g.items.map((it) => {
-                const fromRole = roleKeys.has(it.key)
-                const on = fromRole || picked.has(it.key)
-                return (
-                  <button
-                    key={it.key}
-                    type="button"
-                    disabled={fromRole}
-                    onClick={() => !fromRole && toggle(it.key)}
-                    className={cn(
-                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                      fromRole
-                        ? 'cursor-default border-border bg-muted/50'
-                        : on
-                          ? 'border-primary/40 bg-accent'
-                          : 'hover:bg-accent/60',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
-                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                      )}
-                    >
-                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14px]">{it.description}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5">
-                        <span className="block font-mono text-[12px] text-muted-foreground">
-                          {it.key}
-                        </span>
-                        {fromRole && (
-                          <Badge tone="neutral">from a role</Badge>
-                        )}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+  const roleName = (k: string) => roles.find((r) => r.key === k)?.name ?? k
+  const header = (held: number, total: number) => (
+    <Card className="min-w-0">
+      <div className="flex min-w-0 flex-wrap items-start gap-3 p-[var(--card-pad)]">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[16px] font-semibold">{user.full_name}</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {pickedRoles.length === 0 && <span className="text-[13px] text-muted-foreground">No roles</span>}
+            {pickedRoles.map((k) => (
+              <Badge key={k} tone={k in AUTOMATIC_ROLES ? 'info' : 'neutral'}>
+                {roleName(k)}{k in AUTOMATIC_ROLES ? ' · automatic' : ''}
+              </Badge>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className="order-first mb-5 border-b pb-5">
-        {/* THE EXCEPTION SAYS IT IS ONE.
-
-            This was an eyebrow and a grey paragraph, set exactly like the body
-            text around it, immediately under the roles it is the exception to.
-            Two things followed. Somebody scrolling for the feature list could
-            not see where it began -- it was reported as missing from the page
-            it is on. And the warning it carries, that this is a one-off and
-            normal access should come from a role, read as ordinary prose and
-            was skipped, which is how a school ends up granting screens one at
-            a time to forty people and no longer knowing who may do what.
-
-            Drawn as what it is: a bordered, tinted panel with a title that
-            looks like a title. */}
-        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.07] p-4">
-          <h3 className="mb-1 flex items-center gap-2 text-[14px] font-bold">
-            <ShieldAlert className="h-4 w-4 text-warning" />
-            Individual features — an exception, prefer roles
-          </h3>
-          <p className="text-[13px] text-muted-foreground">
-            Normal access should come from a role, which carries a whole workspace. Use this only
-            for a one-off: switch on a single menu tile &middot; Take attendance, Class 360,
-            Student 360, for this one account. Enabling a tile also grants the capabilities the
-            screen needs, noted under each.
-          </p>
         </div>
-
-        {features.isLoading ? (
-          <p className="text-[13px] text-muted-foreground">Loading the feature list…</p>
-        ) : features.error ? (
-          <FormNotice error={features.error} />
-        ) : (
-          <>
-            {/* THE SEARCH STAYS WHERE IT CAN BE REACHED.
-
-                There are several hundred of these tiles, in two columns, in
-                alphabetical order. The box that narrows them scrolled away
-                with the heading after the first screenful -- so by the time
-                somebody was far enough down to want it, the only way back to
-                it was to scroll all the way up, and the obvious conclusion was
-                that there is no search. It sticks to the top of the list it
-                filters, which is the one place it is any use.
-
-                A count beside it, because "Take attendance" matching two tiles
-                and matching none look identical when the answer is below the
-                fold. */}
-            <div className="sticky top-0 z-10 -mx-1 mb-3 flex flex-wrap items-center gap-2 bg-card px-1 pb-3 pt-1">
-              <SearchBox
-                value={featureSearch}
-                onChange={setFeatureSearch}
-                placeholder="Search features by name"
-                className="min-w-[220px] flex-1"
-              />
-              <span className="shrink-0 text-[12.5px] text-muted-foreground">
-                {featureSearch.trim()
-                  ? `${shownFeatures.length} of ${features.data?.items.length ?? 0}`
-                  : `${features.data?.items.length ?? 0} features`}
-              </span>
-            </div>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {shownFeatures.map((f) => {
-                const on = featureHeld(f)
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => toggleFeature(f)}
-                    className={cn(
-                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                      on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
-                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                      )}
-                    >
-                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-medium">{f.name}</span>
-                      {f.summary && (
-                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                          {f.summary}
-                        </span>
-                      )}
-                      {f.unlocks.length > 0 && (
-                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                          Also grants: {f.unlocks.join(', ')}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-            {shownFeatures.length === 0 && (
-              <p className="text-[13px] text-muted-foreground">No features match.</p>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="mt-4 flex items-center gap-2">
-        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save extra permissions'}
-        </Button>
-        {save.isSuccess && !save.isPending && (
-          <span className="text-[13px] text-muted-foreground">
-            Saved. Takes effect the next time they sign in.
-          </span>
-        )}
-      </div>
-      {save.isError && (
-        <div className="mt-3">
-          <FormNotice error={save.error} />
+        <div className="text-right">
+          <p className="text-[16px] font-semibold tabular-nums">{held} / {total}</p>
+          <p className="eyebrow">Active</p>
         </div>
-      )}
+        <div className="w-full">
+          <Button size="sm" variant="secondary" ariaExpanded={rolesOpen} onClick={() => setRolesOpen(!rolesOpen)}>
+            <Pencil className="h-3.5 w-3.5" />
+            {rolesOpen ? 'Done with roles' : 'Edit roles'}
+          </Button>
+        </div>
+        {rolesOpen && <div className="w-full space-y-2 border-t pt-3">{roleEditor}</div>}
+      </div>
+    </Card>
+  )
+  return (
+    <div className="space-y-3">
+      <FeatureAccess items={features.data?.items ?? []} roleGrants={roleGrants} direct={direct} busy={save.isPending} onChange={change} header={header} />
+      <p className="text-[13px] text-muted-foreground">
+        {save.isPending ? 'Saving…' : save.isSuccess ? 'Saved. Takes effect the next time they sign in.' : 'Turning a feature on or off saves at once.'}
+      </p>
+      {save.isError && <FormNotice error={save.error} />}
     </div>
   )
 }

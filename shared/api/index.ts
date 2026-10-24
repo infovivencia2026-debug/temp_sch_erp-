@@ -41,6 +41,7 @@ import type { InboxApi } from './feature_inbox' // feature:communication.inbox
 import type { MailAddressesApi } from './feature_mail_addresses' // feature:communication.mail_addresses
 import type { ParentConcernsApi } from './feature_parent_concerns' // feature:communication.parent_concerns
 import type { ConcernsFromParentsApi } from './feature_concerns_from_parents' // feature:communication.concerns_from_parents
+import type { SchoolActivityApi } from './feature_school_activity' // feature:activity.school_activity
 
 export interface Api extends SessionApi, CatalogApi, StudentsApi, AttendanceApi, TimetableApi, FeesApi, ExamsApi,
-  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi, SubjectMeetingsApi, InboxApi, MailAddressesApi, ParentConcernsApi, ConcernsFromParentsApi {}
+  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi, SubjectMeetingsApi, InboxApi, MailAddressesApi, ParentConcernsApi, ConcernsFromParentsApi, SchoolActivityApi {}

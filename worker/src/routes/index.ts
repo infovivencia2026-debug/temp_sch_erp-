@@ -1,5 +1,6 @@
 import { Router } from '../router'
 import { withSellerAudit } from '../services/seller_audit'
+import { withTicketIndex } from '../services/ticket_index'
 import { withLifecycleGate } from './seller/lifecycle'
 import { registerMisc } from './misc'
 import { registerStudents } from './students'
@@ -38,6 +39,7 @@ import { registerInbox } from './comms/inbox' // feature:communication.inbox
 import { registerMailAddresses } from './comms/mail_addresses' // feature:communication.mail_addresses
 import { registerParentConcerns } from './comms/parent_concerns' // feature:communication.parent_concerns
 import { registerConcernsFromParents } from './comms/concerns_from_parents' // feature:communication.concerns_from_parents
+import { registerSchoolActivity } from './admin/school_activity' // feature:activity.school_activity
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -45,7 +47,7 @@ import { registerConcernsFromParents } from './comms/concerns_from_parents' // f
    /exams/board/* is not swallowed by an /exams/{id} pattern. */
 export function buildRouter(): Router {
   // Every seller/platform write is recorded; a read-only (off-boarding) school refuses writes.
-  const r = withSellerAudit(withLifecycleGate(new Router()))
+  const r = withTicketIndex(withSellerAudit(withLifecycleGate(new Router())))
   registerMisc(r)
   registerStudents(r)
   registerAcademics(r)
@@ -84,5 +86,6 @@ export function buildRouter(): Router {
   registerMailAddresses(r) // feature:communication.mail_addresses
   registerParentConcerns(r) // feature:communication.parent_concerns
   registerConcernsFromParents(r) // feature:communication.concerns_from_parents
+  registerSchoolActivity(r) // feature:activity.school_activity
   return r
 }

@@ -64,9 +64,13 @@ export function sessionStmt(env: Env, hash: string): D1PreparedStatement {
       WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?`).bind(hash, now())
 }
 
+/** The calendar day (YYYY-MM-DD) an instant falls on in the school's timezone. */
+export const schoolDay = (iso: string, timezone: string): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+
 /** Applies the idle limit to a session row just read; touches last_seen_at at most once a minute,
     after the response when an ExecutionContext is at hand (it is not on the request's critical path). */
-export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionContext): Promise<Session | null> {
+export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionContext, timezone = 'Asia/Kolkata'): Promise<Session | null> {
   if (!s) return null
   const idle = Number(env.SESSION_IDLE_SECONDS) || 86400
   if (Date.now() - Date.parse(s.last_seen_at) > idle * 1000) {
@@ -76,8 +80,15 @@ export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionCo
     return null
   }
   if (Date.now() - Date.parse(s.last_seen_at) > 60_000) {
-    const touch = env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ? WHERE id = ?`).bind(now(), s.id).run()
-    if (ctx) ctx.waitUntil(touch.catch(() => undefined)); else await touch
+    /* The first touch on a new school day also stamps day_first_seen_at, the
+       staff header's "First" for a session signed in on an earlier day. Once
+       per session per day, and awaited so this same request already sees it. */
+    const t = now()
+    const newDay = schoolDay(s.last_seen_at, timezone) !== schoolDay(t, timezone)
+    const touch = newDay
+      ? env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ?, day_first_seen_at = ? WHERE id = ?`).bind(t, t, s.id).run()
+      : env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ? WHERE id = ?`).bind(t, s.id).run()
+    if (ctx && !newDay) ctx.waitUntil(touch.catch(() => undefined)); else await touch
   }
   return s
 }

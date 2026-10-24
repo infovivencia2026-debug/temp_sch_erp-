@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { api } from '@/lib/api'
-import { Badge, Button, Card, CardHeader, ErrorState, Field, FormGrid, FormNotice, Input, Loading } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, ErrorState, Field, FormGrid, FormNotice, Input, Loading, Switch } from '@/components/ui'
 import { CHANNEL_NAMES, HealthWarnings, rupees, stateLabel, type Health } from './delivery-lib'
 
 /* Delivery rules: which channel each kind of message tries first, what waits
@@ -18,7 +18,7 @@ interface TypeRow {
   key: string; label: string; example: string; urgent: boolean; digestible: boolean
   default_ladder: string[]; default_mode: string; ladder: string[]; mode: 'instant' | 'digest'
 }
-interface Settings { digest_time: string; quiet_from: string | null; quiet_to: string | null; daily_cap: number; dedup_minutes: number }
+interface Settings { digest_time: string; quiet_from: string | null; quiet_to: string | null; daily_cap: number; dedup_minutes: number; auto_whatsapp: boolean }
 interface Rules extends Health { settings: Settings; types: TypeRow[] }
 
 const ALL = ['in_app', 'whatsapp', 'sms', 'email']
@@ -36,6 +36,12 @@ export default function DeliveryRules() {
     onSuccess: (d) => { qc.setQueryData(['delivery-rules'], d); qc.invalidateQueries({ queryKey: ['messaging-health'] }) },
   })
 
+  /* The automatic WhatsApp switch takes effect the moment it is pressed,
+     apart from the rest of the form and its Save. */
+  const autoWa = useMutation({
+    mutationFn: (on: boolean) => api.put<Rules>('/api/v1/admin/messaging/delivery-rules', { settings: { auto_whatsapp: on } }),
+    onSuccess: (d) => { qc.setQueryData(['delivery-rules'], d); setSettings((s) => (s ? { ...s, auto_whatsapp: d.settings.auto_whatsapp } : s)) },
+  })
   if (q.isPending) return <Loading label="Reading delivery rules…" />
   if (q.error || !q.data || !settings) return <ErrorState error={q.error} />
   const live = Object.fromEntries(q.data.channels.map((c) => [c.channel, c]))
@@ -70,6 +76,17 @@ export default function DeliveryRules() {
             ))}
           </div>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Automatic WhatsApp"
+          description={settings.auto_whatsapp
+            ? 'On. Absence alerts, fee reminders, notices and the other messages the school sends on its own go by WhatsApp where their rule puts it.'
+            : 'Off. Those messages skip WhatsApp and go by the next channel in their rule. A test message and a resend you choose still use WhatsApp.'}
+          action={<Switch on={settings.auto_whatsapp} disabled={autoWa.isPending} onChange={(v) => autoWa.mutate(v)} label="Automatic WhatsApp" />}
+        />
+        {autoWa.error && <div className="px-5 pb-4"><FormNotice error={autoWa.error} /></div>}
       </Card>
 
       <Card>

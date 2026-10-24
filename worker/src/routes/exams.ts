@@ -1,10 +1,11 @@
 import type { Router, Ctx } from '../router'
 import type { ExamSummary, GradebookRow, List, PendingReportCards, ReportCard, ReportCardReadiness, ReportCardStatus } from '@shared/api'
 import { can } from '../identity'
-import { badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
+import { HttpError, badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
   numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
 import { defaultReportCardHTML } from './exams/template'
+import { registerQuestionMaker } from './exams/qmaker'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
 import { DOC_PRINT_CSS, documentHTML, inr, schoolFacts, type SchoolFacts } from '../services/document'
 import { Messenger, scopeOf } from '../services/messaging'
@@ -30,6 +31,7 @@ const NAME = nameOf('st')
 
 export function registerExams(r: Router): void {
   registerExamGroup(r)
+  registerQuestionMaker(r)
   registerHpc(r)
   registerLifecycle(r)
 }
@@ -507,6 +509,21 @@ async function enterMarks(c: Ctx): Promise<{ written: number }> {
    class teacher, unless the caller already reaches every section. Shared by
    the one-figure and the per-part entry so the rule exists once. */
 async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): Promise<void> {
+  // A released report card is what the family has in hand; its marks do not move underneath it.
+  const sealed = await c.db.prepare(`SELECT count(*) AS n FROM report_cards rc JOIN exam_subjects es ON es.exam_id = rc.exam_id
+      WHERE es.id = ? AND rc.is_published AND rc.student_id IN ${inList(studentIds)}`).bind(esId, js(studentIds)).first<{ n: number }>()
+  if (sealed && Number(sealed.n) > 0) {
+    throw new HttpError(409, `${sealed.n} of these children already have a published report card for this exam. Return the card first, then correct the marks and release it again.`, { code: 'report_card_published' })
+  }
+  // Every child must sit in a section of the paper's class; marks for a stranger are a typo, not a record.
+  const inClass = await c.db.prepare(`SELECT en.student_id FROM enrollments en
+      WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)}
+        AND en.class_id = (SELECT cs.class_id FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id WHERE es.id = ?)`)
+    .bind(js(studentIds), esId).all<{ student_id: string }>()
+  const seated = new Set(inClass.results.map((r) => r.student_id))
+  const stray = studentIds.filter((id) => !seated.has(id))
+  if (stray.length) throw badRequest(`${stray.length} of these children are not in the class this paper is set for`)
+
   const res = await resolveScope(c)
   if (res.anySection || res.platformAdmin) return
   const may = await c.db.prepare(`
@@ -1224,7 +1241,7 @@ async function listQuestionPapers(c: Ctx) {
   if (status !== '') { where.push('qp.status = ?'); args.push(status) }
   const rows = await c.db.prepare(`
     SELECT qp.id, ex.name AS exam_name, es.exam_date, c.name AS class, sub.name AS subject,
-           CAST(es.max_marks AS TEXT) AS max_marks, es.duration_minutes, qp.file_id, qp.notes, qp.status,
+           CAST(es.max_marks AS TEXT) AS max_marks, es.duration_minutes, qp.file_id, qp.doc IS NOT NULL AS has_doc, qp.notes, qp.status,
            COALESCE(u.full_name, 'a teacher') AS set_by, ${minuteOf('qp.submitted_at')} AS submitted_at,
            rv.full_name AS reviewed_by, qp.review_note, qp.submitted_by = ?1 AS mine
       FROM question_papers qp
@@ -1240,7 +1257,7 @@ async function listQuestionPapers(c: Ctx) {
   return ok({
     items: rows.results.map((v) => ({
       id: v.id, exam_name: v.exam_name, exam_date: v.exam_date ?? null, class: v.class, subject: v.subject,
-      max_marks: str(v.max_marks), duration_minutes: v.duration_minutes ?? null, file_id: v.file_id ?? null,
+      max_marks: str(v.max_marks), duration_minutes: v.duration_minutes ?? null, file_id: v.file_id ?? null, has_doc: bool(v.has_doc),
       notes: v.notes ?? null, status: v.status, set_by: v.set_by, submitted_at: str(v.submitted_at),
       reviewed_by: v.reviewed_by ?? null, review_note: v.review_note ?? null, mine: bool(v.mine),
     })),
@@ -1271,7 +1288,7 @@ async function submitQuestionPaper(c: Ctx) {
   await c.db.prepare(`
     INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
     VALUES (?1, ?2, ?3, ?4, NULLIF(?5,''), ?6, ?7, ?8, ?7)
-    ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, notes = excluded.notes, submitted_by = excluded.submitted_by,
+    ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, doc = NULL, draft_id = NULL, notes = excluded.notes, submitted_by = excluded.submitted_by,
       submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
   return ok({ status })
@@ -1393,7 +1410,7 @@ async function setPaperDeadline(c: Ctx) {
             manually_received_at = NULL, remarked_at = NULL`)
         .bind(id, inst, esId, teacherId, deadline, c.id.userId, t),
       c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
-          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/faculty/exams/question_papers', 'question_paper_deadline', ?, ?)`)
+          VALUES (?, ?, ?, 'question_paper_deadline', 'Question paper due', ?, '/go/exams/question_papers', 'question_paper_deadline', ?, ?)`)
         .bind(uuid(), inst, teacherId, noticeBody, esId, t),
     ]
   })
@@ -1892,17 +1909,29 @@ function registerLifecycle(r: Router) {
   })
 
   r.post('/lifecycle/promote', STUDENTS_WRITE, async (c) => {
-    const req = await readJSON<{ from_section_id?: string; to_section_id?: string; academic_year_id?: string; student_ids?: string[] }>(c.req)
+    const req = await readJSON<{ from_section_id?: string; to_section_id?: string; academic_year_id?: string; student_ids?: string[]; allow_dues?: boolean }>(c.req)
     const from = req.from_section_id ?? '', to = req.to_section_id ?? '', year = req.academic_year_id ?? ''
     if (!isUUID(from)) throw badRequest('from_section_id must be a uuid')
     if (!isUUID(to)) throw badRequest('to_section_id must be a uuid')
     if (!isUUID(year)) throw badRequest('academic_year_id must be a uuid')
-    const toClass = await c.db.prepare(`SELECT class_id FROM sections WHERE id = ?`).bind(to).first<{ class_id: string }>()
-    if (!toClass) throw new Error('no rows in result set')
+    if (from === to) throw badRequest('the children are already in that section')
+    const toClass = await c.db.prepare(`SELECT class_id, academic_year_id FROM sections WHERE id = ?`).bind(to).first<{ class_id: string; academic_year_id: string }>()
+    if (!toClass) throw notFound('no section with that id')
+    if (toClass.academic_year_id !== year) throw badRequest('that section is not in the academic year given; promotion moves children into a section of the new year')
+    const fromSec = await c.db.prepare(`SELECT academic_year_id FROM sections WHERE id = ?`).bind(from).first<{ academic_year_id: string }>()
+    if (fromSec && fromSec.academic_year_id === year) throw badRequest('promotion is into the next year; to move children within a year use a section change')
     const only = uuidsOf(req.student_ids)
     const moving = await c.db.prepare(`SELECT e.id, e.student_id FROM enrollments e WHERE e.section_id = ? AND e.status = 'active'
         AND (? OR e.student_id IN ${inList(only)})`).bind(from, only.length ? 0 : 1, js(only)).all<{ id: string; student_id: string }>()
     if (moving.results.length === 0) return ok({ promoted: 0 })
+    if (!req.allow_dues) {
+      const owing = await c.db.prepare(`SELECT count(DISTINCT student_id) AS n, COALESCE(sum(COALESCE(net_paise, 0) - paid_paise), 0) AS paise FROM invoices
+          WHERE status NOT IN ('cancelled', 'paid') AND student_id IN ${inList(moving.results.map((m) => m.student_id))}`)
+        .bind(js(moving.results.map((m) => m.student_id))).first<{ n: number; paise: number }>()
+      if (owing && Number(owing.n) > 0) {
+        throw new HttpError(409, `${owing.n} of these children still owe fees. Collect first, or promote with dues carried forward.`, { code: 'students_have_dues', children: Number(owing.n), outstanding_paise: Number(owing.paise) })
+      }
+    }
     const stmts: D1PreparedStatement[] = [
       c.db.prepare(`UPDATE enrollments SET status = 'promoted' WHERE id IN ${inList(moving.results.map((m) => m.id))}`).bind(js(moving.results.map((m) => m.id))),
     ]
@@ -2001,7 +2030,7 @@ function registerLifecycle(r: Router) {
       SELECT g.user_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ?1 AND g.user_id IS NOT NULL
       UNION SELECT u.id FROM students st JOIN users u ON u.id = st.user_id WHERE st.id = ?1`).bind(row.student_id).all<{ user_id: string }>()
     const stmts = people.results.map((p) => notifyStmt(c, p.user_id, row.student_id, 'certificate', `${row.type_name} ${decisions[status]}`, body,
-      '/portal/requests', 'certificate', cid))
+      '/go/certificate_requests', 'certificate', cid))
     if (stmts.length) await c.db.batch(stmts)
     return ok({ status, serial_no: row.serial_no })
   })

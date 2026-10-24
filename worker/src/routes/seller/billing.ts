@@ -8,6 +8,7 @@ import { BUILTIN_TEMPLATES } from '../admin/msg_templates'
 import { registerJob } from '../../services/jobs'
 import { SCHEDULES } from '../../services/cron'
 import { requirePlatformAdmin } from './common'
+import { accrueCommission } from './partners'
 
 /* Seller billing: the vendor invoicing each school for its subscription.
 
@@ -168,7 +169,7 @@ interface NewInvoice {
   notify?: boolean
 }
 
-async function issueInvoice(env: Env, req: NewInvoice, actor: string | null): Promise<InvoiceRow> {
+export async function issueInvoice(env: Env, req: NewInvoice, actor: string | null): Promise<InvoiceRow> {
   const instId = String(req.institution_id ?? '')
   if (!isUUID(instId)) throw badRequest('institution_id is required')
   const inst = await institutionById(env, instId)
@@ -255,6 +256,8 @@ async function recordPayment(env: Env, inv: InvoiceRow, p: { amount_paise: numbe
     await env.CONTROL.prepare(`UPDATE subscriptions SET renews_on = ?, updated_at = ? WHERE institution_id = ? AND (renews_on IS NULL OR substr(renews_on, 1, 10) < ?)`)
       .bind(next, t, inv.institution_id, next).run()
   }
+  // A reseller's school: the partner's commission on this invoice (seller/partners.ts).
+  if (after.status === 'paid') await accrueCommission(env, inv.id)
   await reconcile(env, inv.institution_id, await billingSettings(env), todayIST(), after.status === 'paid')
   return { id, invoice: invoiceJSON(after) }
 }

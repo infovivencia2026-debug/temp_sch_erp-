@@ -513,7 +513,9 @@
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
+@media (hover: hover) {
 .lch-chip:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
+}
 .lch-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 @media (pointer: coarse) { .lch-chip { padding: 9px 14px; font-size: 14px; } }
 
@@ -534,7 +536,9 @@
   font-weight: 550;
   cursor: pointer;
 }
+@media (hover: hover) {
 .lch-ask:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
+}
 .lch-ask:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 .lch-ask svg { width: 16px; height: 16px; flex: none; }
 .lch-ask .lch-ask__key { width: 13px; height: 13px; opacity: 0.6; }

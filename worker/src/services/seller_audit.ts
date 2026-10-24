@@ -146,6 +146,19 @@ export function withSellerAudit(r: Router): Router {
           before: d.before, after: d.after !== undefined ? d.after : body, status,
           ip: c.req.headers.get('cf-connecting-ip'),
         })
+        /* THE SCHOOL'S OWN TRAIL. A platform account is not one of the
+           school's users, so the rows handlers write carry no actor, and the
+           session's activity list (admin/platform_config.ts) could not find
+           them. Every successful write made while acting as the school also
+           lands here, against the school, naming the operator. */
+        if (acting && status < 400) {
+          try {
+            await c.db.prepare(`INSERT INTO audit_log (institution_id, actor_user_id, session_id, action, entity_type, entity_id, after, ip, created_at)
+                VALUES (?, NULL, ?, ?, 'operator_session', ?, ?, ?, ?)`)
+              .bind(c.id.institution!.id, c.id.sessionId, 'acting_as.' + actionName(method, pattern), c.id.userId,
+                JSON.stringify({ operator: c.id.fullName, path: c.url.pathname, request: redact(body) }).slice(0, MAX_SUMMARY), c.req.headers.get('cf-connecting-ip'), new Date().toISOString()).run()
+          } catch (err) { console.error('school audit: operator write not recorded', err) }
+        }
       }
     }
     return on(method, pattern, perm, wrapped)

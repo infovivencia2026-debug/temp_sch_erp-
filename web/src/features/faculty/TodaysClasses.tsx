@@ -1,17 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { CalendarPlus } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
-import { useActiveRole } from '@/lib/catalog'
+import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
-  notificationDay, notificationKind, useNotificationActions, useNotificationFeed, type Note,
+  notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
+import NotificationRow, { channelOf } from '@/components/NotificationRow'
 
 /* A teacher's own day, from their own timetable.
 
@@ -62,21 +65,12 @@ function ago(iso: string): string {
   return notificationDay(iso)
 }
 
-/* The left edge of a notification says what family it is from. */
-const KIND_EDGE: Record<string, string> = {
-  Fees: 'border-l-warning',
-  Messages: 'border-l-primary',
-  Message: 'border-l-primary',
-  Attendance: 'border-l-success',
-  Homework: 'border-l-info',
-  Results: 'border-l-info',
-  Lessons: 'border-l-info',
-  Timetable: 'border-l-info',
-  Notice: 'border-l-destructive',
-}
+
 
 type Row =
-  | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string }
+  | { kind: 'lesson'; key: string; start: number; end: number; label: string; title: string; room?: string; span: string
+      /** Cover today (Yajur, 2026-10-23): a class taken for an absent teacher, or this teacher's class somebody else is taking. */
+      cover?: string }
   | { kind: 'break'; key: string; start: number; end: number; label: string; span: string }
 
 export default function TodaysClasses() {
@@ -120,12 +114,25 @@ export default function TodaysClasses() {
     queryFn: () => api.get<{ recording: boolean; items: { signed_in_at: string }[] }>('/api/v1/profile/session-activity'),
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
-  const notes = useNotificationFeed()
+  const notes = useShownNotes()
+  const cover = useQuery({
+    queryKey: ['cover-today'],
+    queryFn: () => api.get<{ items: { kind: 'covering' | 'covered'; entry_id: string; period_id: string; note: string | null; period: string; starts_at: string | null; section: string; subject: string; other: string }[] }>('/api/v1/timetable-cover/today'),
+  })
+  const [viewing, setViewing] = useState<string | null>(null)
+  // The leave screen this person holds, wherever their role files it.
+  const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
+  const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
+  const qc = useQueryClient()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
-  if (entries.error) return <ErrorState error={entries.error} />
-  if (periods.error) return <ErrorState error={periods.error} />
+  /* This home is also every staff member's at a school with the staff layout on
+     (Yajur, 2026-10-19), so someone who holds no timetable is refused here; the
+     panel then reads as no classes rather than the page turning into an error. */
+  const refused = (e: unknown) => e instanceof ApiError && e.status === 403
+  if (entries.error && !refused(entries.error)) return <ErrorState error={entries.error} />
+  if (periods.error && !refused(periods.error)) return <ErrorState error={periods.error} />
 
   const holiday = hol.data?.items?.[0]?.name
   const bell = new Map((periods.data?.items ?? []).map((p) => [p.id, p]))
@@ -135,17 +142,31 @@ export default function TodaysClasses() {
      first lesson and the last; a break from another schedule is not this
      teacher's. */
   const span = (a: string, b: string) => `${a.slice(0, 5)} – ${b.slice(0, 5)}`
-  const lessonRows: Row[] = mine.map((e) => {
+  const coverItems = holiday ? [] : cover.data?.items ?? []
+  const takenBy = new Map(coverItems.filter((x) => x.kind === 'covered').map((x) => [x.entry_id, x.other]))
+  const lessonRows: Row[] = [...mine.map((e) => {
     const p = bell.get(e.period_id)
+    const by = takenBy.get(e.id)
     return {
-      kind: 'lesson', key: e.id,
+      kind: 'lesson' as const, key: e.id,
       start: p ? minutesInto(p.starts_at) : 0, end: p ? minutesInto(p.ends_at) : 0,
       label: p?.name ?? e.period_name,
       title: `${e.subject_name} · ${e.class_name} ${e.section_name}`,
       room: e.room || undefined,
       span: p ? span(p.starts_at, p.ends_at) : '',
+      cover: by ? `${by} is taking this class` : undefined,
     }
-  })
+  }), ...coverItems.filter((x) => x.kind === 'covering').map((x) => {
+    const p = bell.get(x.period_id)
+    return {
+      kind: 'lesson' as const, key: 'cover-' + x.entry_id,
+      start: p ? minutesInto(p.starts_at) : 0, end: p ? minutesInto(p.ends_at) : 0,
+      label: p?.name ?? x.period,
+      title: `Cover: ${x.subject} · ${x.section}`,
+      span: p ? span(p.starts_at, p.ends_at) : x.starts_at ?? '',
+      cover: `For ${x.other}${x.note ? `. ${x.note}` : ''}`,
+    }
+  })]
   const schedules = new Set(mine.map((e) => bell.get(e.period_id)?.bell_schedule_id ?? null))
   const firstStart = Math.min(...lessonRows.map((r) => r.start))
   const lastEnd = Math.max(...lessonRows.map((r) => r.end))
@@ -180,8 +201,8 @@ export default function TodaysClasses() {
       ? `Signed in ${clock(signIns[0])}`
       : `First sign-in ${clock(signIns[0])} · last ${clock(signIns[signIns.length - 1])}`
 
-  const noteItems: Note[] = notes.data?.items ?? []
-  const unread = notes.data?.unread ?? 0
+  const noteItems: Note[] = notes.items
+  const unread = notes.items.filter((n) => !n.read_at).length
 
   return (
     <PageBody top width="full"><div className="flex flex-col gap-5">
@@ -201,7 +222,7 @@ export default function TodaysClasses() {
       </div>}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+        <Card className="flex min-w-0 flex-col">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
             <h2 className="text-[16px] font-bold">Today's timetable</h2>
             {!holiday && (
@@ -210,7 +231,7 @@ export default function TodaysClasses() {
               </span>
             )}
           </div>
-          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+          <div className="min-h-0 flex-1">
             {holiday ? (
               <EmptyState title="Holiday" body={`${holiday}. No classes today.`} />
             ) : rows.length === 0 ? (
@@ -244,6 +265,7 @@ export default function TodaysClasses() {
                         <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">
                           {r.span}{r.room ? ` · ${r.room}` : ''}
                         </p>
+                        {r.cover && <p className="truncate text-[12.5px] font-medium text-primary">{r.cover}</p>}
                       </div>
                       <Badge tone={st === 'now' ? 'primary' : st === 'done' ? 'neutral' : 'info'} className="shrink-0">
                         {st === 'now' ? 'Now' : st === 'done' ? 'Done' : 'Upcoming'}
@@ -256,14 +278,15 @@ export default function TodaysClasses() {
           </div>
         </Card>
 
-        <Card className="flex min-w-0 flex-col lg:max-h-[calc(100dvh-14rem)]">
+        <div className="flex min-w-0 flex-col gap-5">
+        <Card className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[16px] font-bold">Notifications</h2>
               {unread > 0 && <span className="text-[13px] text-muted-foreground">{unread} new</span>}
             </div>
           </div>
-          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+          <div className="min-h-0 flex-1">
             {notes.isLoading ? (
               <Loading label="Loading notifications" />
             ) : notes.error ? (
@@ -272,23 +295,34 @@ export default function TodaysClasses() {
               <EmptyState title="No notifications" body="New notices and messages for you appear here." />
             ) : (
               <ul className="flex flex-col gap-2 p-3">
+                {/* Work owed first, and marked: a parent concern and a paper due
+                    stay until done, so they lead the list and carry a tag. */}
                 {noteItems.map((n) => {
                   const link = linkFor(n)
-                  const family = notificationKind(n.kind).label
+                  const { icon, label } = notificationKind(n.kind)
+                  const urgent = n.pending
                   return (
-                    <li key={n.id}
-                      className={cn('flex items-start gap-3 rounded-lg border border-l-2 px-3 py-2.5',
-                        KIND_EDGE[family] ?? 'border-l-muted-foreground')}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className={cn('min-w-0 truncate text-[14px]', n.read_at ? 'font-medium' : 'font-semibold')}>{n.title}</p>
-                          <span className="shrink-0 text-[12px] text-muted-foreground">{ago(n.created_at)}</span>
-                        </div>
-                        {n.body && <p className="truncate text-[13px] text-muted-foreground">{n.body}</p>}
-                      </div>
-                      {link && (
-                        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate(link)}>Open</Button>
-                      )}
+                    <li key={n.id}>
+                      {/* View on every row: it opens the screen the notification is about, or,
+                          where there is none, shows the whole message here. Viewed is gone
+                          (owner, 2026-10-23: "after viewing don't show that message"), except
+                          pending work, which stays until it is done. */}
+                      <NotificationRow title={n.title} time={ago(n.created_at)} label={label} icon={icon}
+                        extra={channelOf(n.body)} unread={!n.read_at} pending={urgent}
+                        snippet={n.body} expanded={viewing === n.id}
+                        viewLabel={!link && viewing === n.id ? 'Close' : 'View'}
+                        onView={() => {
+                          const drop = () => {
+                            if (urgent) return
+                            void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
+                              .then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => {})
+                          }
+                          if (link) { drop(); navigate(link); return }
+                          // Read in full here, and gone once closed.
+                          if (viewing === n.id) { setViewing(null); drop(); return }
+                          setViewing(n.id)
+                          if (!n.read_at) void api.post(`/api/v1/portal/notifications/${n.id}/read`, {}).catch(() => {})
+                        }} />
                     </li>
                   )
                 })}
@@ -296,6 +330,19 @@ export default function TodaysClasses() {
             )}
           </div>
         </Card>
+        {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
+        {leavePath && (
+          <Card className="flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-bold">Apply for leave</h2>
+              <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
+            </div>
+            <Button className="shrink-0" onClick={() => navigate(leavePath)}>
+              <CalendarPlus className="h-4 w-4" /> Apply
+            </Button>
+          </Card>
+        )}
+        </div>
       </div>
     </div></PageBody>
   )

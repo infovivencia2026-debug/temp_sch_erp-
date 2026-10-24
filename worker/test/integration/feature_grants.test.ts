@@ -45,3 +45,29 @@ describe('feature grants', () => {
     await E.TENANT_TEST.prepare(`DELETE FROM user_roles WHERE user_id = ? AND role_id = ?`).bind(IDS.teacher, made.body.id).run()
   })
 })
+
+/* One item per catalogue key, each naming its workspace: the same name in two
+   workspaces is two screens, granted and held separately. */
+describe('GET /admin/features', () => {
+  it('lists every key once, with its role and section', async () => {
+    const { status, body } = await api('admin', 'GET', '/admin/features')
+    expect(status).toBe(200)
+    const items = body.items as { key: string; name: string; role_key: string; role_name: string; section: string }[]
+    expect(items.length).toBeGreaterThan(0)
+    expect(new Set(items.map((i) => i.key)).size).toBe(items.length)
+    for (const i of items) {
+      expect(i.key.startsWith(i.role_key + '.')).toBe(true)
+      expect(i.role_name).not.toBe('')
+      expect(i.section).not.toBe('')
+      expect(i).not.toHaveProperty('keys')
+    }
+    const take = items.filter((i) => i.name === 'Take attendance')
+    expect(new Set(take.map((i) => i.role_key)).size).toBe(take.length)
+    expect(take.length).toBeGreaterThan(1)
+  })
+
+  it('a teacher cannot read it', async () => {
+    const { status } = await api('teacher', 'GET', '/admin/features')
+    expect(status).toBe(403)
+  })
+})

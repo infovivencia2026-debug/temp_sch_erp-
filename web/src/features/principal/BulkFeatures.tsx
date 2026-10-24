@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button, Dialog, FormNotice } from '@/components/ui'
 import { toastBus } from '@/components/Toast'
+import type { FeatureItem } from './featureCatalog'
 
 /* FEATURES OFF IN BULK (owner, 2026-10-10: "let them choose to remove for a
    single person, whole school or class wise ... filter for feature, not to
@@ -12,9 +13,9 @@ import { toastBus } from '@/components/Toast'
    the children (or parents) ticked in the list, this whole class or section,
    or the whole school. Stored as feature_blocks; sign-in takes the keys away. */
 
-type FeatureItem = { name: string; summary: string; keys: string[] }
-type Block = { id: string; portal: 'student' | 'parent'; feature_key: string; scope: string; target_id: string; target_name: string }
 type Who = 'selected' | 'here' | 'school'
+type Block = { id: string; portal: 'student' | 'parent'; feature_key: string; scope: string; target_id: string; target_name: string }
+
 
 export function BulkFeatures({
   portal, selected, here, onClose,
@@ -35,14 +36,15 @@ export function BulkFeatures({
   const [search, setSearch] = useState('')
   const [keys, setKeys] = useState<Set<string>>(new Set())
 
-  /* Only this portal's features; the key turned off is this portal's variant. */
+  /* Only this portal's screens, by exact key: the portal is one workspace, so
+     a same-named staff screen never reaches this list. */
   const all = useMemo(() => (features.data?.items ?? [])
-    .map((f) => ({ f, key: f.keys.find((k) => k.startsWith(ns)) }))
-    .filter((x): x is { f: FeatureItem; key: string } => Boolean(x.key))
+    .filter((f) => f.key.startsWith(ns))
+    .map((f: FeatureItem) => ({ f, key: f.key }))
     .sort((a, b) => a.f.name.localeCompare(b.f.name)), [features.data, ns])
   const q = search.trim().toLowerCase()
   const shown = q ? all.filter((x) => x.f.name.toLowerCase().includes(q) || x.f.summary.toLowerCase().includes(q)) : all
-  const nameOf = (k: string) => all.find((x) => x.f.keys.includes(k))?.f.name ?? k
+  const nameOf = (k: string) => all.find((x) => x.key === k)?.f.name ?? k
   const allShownOn = shown.length > 0 && shown.every((x) => keys.has(x.key))
   const toggleAll = () => setKeys((prev) => {
     const n = new Set(prev)

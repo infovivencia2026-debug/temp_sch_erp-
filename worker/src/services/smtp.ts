@@ -1,4 +1,4 @@
-import { connect } from 'cloudflare:sockets'
+import { dial } from './dial'
 import type { Outbound } from './messaging'
 
 /* smtpProvider.Send and rfc822 of internal/api/messaging.go over
@@ -99,7 +99,7 @@ class Conn {
 
 export async function sendSMTP(cfg: SMTPSettings, m: Outbound): Promise<void> {
   const sec = cfg.security.trim().toLowerCase()
-  const sock = connect({ hostname: cfg.host, port: cfg.port },
+  const sock = dial({ hostname: cfg.host, port: cfg.port },
     { secureTransport: sec === 'tls' ? 'on' : sec === 'starttls' ? 'starttls' : 'off', allowHalfOpen: false })
   let timer: number | undefined
   const deadline = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error(`dial ${cfg.host}:${cfg.port}: i/o timeout`)), 30_000) })

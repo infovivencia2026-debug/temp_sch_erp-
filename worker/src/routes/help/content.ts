@@ -36,6 +36,12 @@ export interface SlaPolicy {
   resolve_hours: number
   /** The vendor's promise in hours by plan tier (rows) and urgency (urgent, high, normal, low). */
   vendor_hours?: number[][]
+  /** The vendor's first-reply promise, same shape as vendor_hours. */
+  vendor_response_hours?: number[][]
+  /** When the vendor's clock runs: days 0 (Sunday) .. 6, "HH:MM" local, offset from UTC in minutes. */
+  business_hours?: { days: number[]; start: string; end: string; tz_offset_minutes: number }
+  /** Local dates (YYYY-MM-DD) the clock does not run. */
+  holidays?: string[]
 }
 
 const STAFF = ['institution_admin', 'super_admin', 'admissions', 'front_office', 'finance', 'hr', 'hod', 'faculty', 'librarian', 'transport_manager']
@@ -71,7 +77,11 @@ export const DEFAULT_CATEGORIES: HelpCategory[] = [
    change it without a release. */
 export const DEFAULT_SLA: SlaPolicy[] = [
   { key: 'policy', respond_hours: 8, resolve_hours: 48,
-    vendor_hours: [[1, 4, 8, 24], [4, 8, 24, 48], [8, 24, 48, 72], [24, 48, 72, 120]] },
+    vendor_hours: [[1, 4, 8, 24], [4, 8, 24, 48], [8, 24, 48, 72], [24, 48, 72, 120]],
+    vendor_response_hours: [[0.5, 1, 2, 4], [1, 2, 4, 8], [2, 4, 8, 24], [4, 8, 24, 48]],
+    // Monday to Saturday, 9:00 to 18:00 India time.
+    business_hours: { days: [1, 2, 3, 4, 5, 6], start: '09:00', end: '18:00', tz_offset_minutes: 330 },
+    holidays: [] },
 ]
 
 const DEFAULTS: Partial<Record<ContentKind, { key: string }[]>> = {
@@ -144,19 +154,71 @@ export async function slaPolicy(env: Env): Promise<SlaPolicy> {
   return { ...DEFAULT_SLA[0], ...p }
 }
 
-/** The vendor's promised hours for a plan and an urgency, from the policy the desk keeps. */
-export function vendorHours(policy: SlaPolicy, planCode: string, priority: string): number {
-  const table = policy.vendor_hours && policy.vendor_hours.length === 4 ? policy.vendor_hours : DEFAULT_SLA[0].vendor_hours!
-  let tier = 3
+/** The policy row a plan code falls in when the plan carries no sla_tier (CONTROL plans, migration 0056). */
+export function tierOfPlan(planCode: string): number {
   switch (planCode.toLowerCase()) {
-    case 'enterprise': case 'ent': tier = 0; break
-    case 'pro': case 'campus_pro': case 'premium': tier = 1; break
-    case 'basic': case 'standard': case 'starter': tier = 2; break
+    case 'enterprise': case 'ent': return 0
+    case 'pro': case 'campus_pro': case 'premium': return 1
+    case 'basic': case 'standard': case 'starter': return 2
   }
-  let col = 2
-  switch (priority.toLowerCase()) { case 'urgent': col = 0; break; case 'high': col = 1; break; case 'low': col = 3; break }
-  const h = Number(table[tier]?.[col])
-  return h > 0 ? h : DEFAULT_SLA[0].vendor_hours![tier][col]
+  return 3
+}
+
+const colOf = (priority: string) => ({ urgent: 0, high: 1, low: 3 } as Record<string, number>)[priority.toLowerCase()] ?? 2
+const rowOf = (planCode: string, tier?: number | null) => (tier !== null && tier !== undefined && tier >= 0 && tier <= 3 ? tier : tierOfPlan(planCode))
+
+function fromTable(table: number[][] | undefined, fallback: number[][], row: number, priority: string): number {
+  const t = table && table.length === 4 ? table : fallback
+  const col = colOf(priority)
+  const h = Number(t[row]?.[col])
+  return h > 0 ? h : fallback[row][col]
+}
+
+/** The vendor's promised hours to the answer, for a plan (or the tier stored on it) and an urgency. */
+export function vendorHours(policy: SlaPolicy, planCode: string, priority: string, tier?: number | null): number {
+  return fromTable(policy.vendor_hours, DEFAULT_SLA[0].vendor_hours!, rowOf(planCode, tier), priority)
+}
+
+/** The vendor's promised hours to the first reply. */
+export function vendorResponseHours(policy: SlaPolicy, planCode: string, priority: string, tier?: number | null): number {
+  return fromTable(policy.vendor_response_hours, DEFAULT_SLA[0].vendor_response_hours!, rowOf(planCode, tier), priority)
+}
+
+const hm = (s: string | undefined, d: number) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s ?? ''); return m ? Number(m[1]) * 60 + Number(m[2]) : d }
+
+/** Seconds of business time between two instants: on the policy's working days and hours, not on its holidays. */
+export function businessSeconds(policy: SlaPolicy, fromMs: number, toMs: number): number {
+  if (!(toMs > fromMs)) return 0
+  const bh = policy.business_hours ?? DEFAULT_SLA[0].business_hours!
+  const off = Number.isFinite(Number(bh.tz_offset_minutes)) ? Number(bh.tz_offset_minutes) : 330
+  const start = hm(bh.start, 540), end = hm(bh.end, 1080)
+  const days = new Set(Array.isArray(bh.days) ? bh.days : [1, 2, 3, 4, 5, 6])
+  const holidays = new Set(policy.holidays ?? [])
+  if (end <= start || days.size === 0) return 0
+  // Shifted into local time, a local day is a UTC day.
+  const a = fromMs + off * 60_000, b = toMs + off * 60_000
+  let total = 0
+  for (let day = Math.floor(a / 86_400_000), n = 0; day * 86_400_000 < b && n < 3700; day++, n++) {
+    const d0 = day * 86_400_000
+    const date = new Date(d0)
+    if (!days.has(date.getUTCDay()) || holidays.has(date.toISOString().slice(0, 10))) continue
+    const s = Math.max(a, d0 + start * 60_000), e = Math.min(b, d0 + end * 60_000)
+    if (e > s) total += e - s
+  }
+  return Math.floor(total / 1000)
+}
+
+/** The business hours and holidays the desk saves, or why they are refused. */
+export function checkSlaShape(data: Record<string, unknown>): string | null {
+  const bh = data.business_hours as SlaPolicy['business_hours'] | undefined
+  if (bh !== undefined) {
+    if (!bh || typeof bh !== 'object' || !Array.isArray(bh.days) || bh.days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return 'business days are numbers 0 (Sunday) to 6'
+    if (hm(bh.start, -1) < 0 || hm(bh.end, -1) < 0 || hm(bh.end, 0) <= hm(bh.start, 0)) return 'business hours are HH:MM, and the end comes after the start'
+    if (!Number.isFinite(Number(bh.tz_offset_minutes))) return 'the time zone offset is in minutes'
+  }
+  const h = data.holidays
+  if (h !== undefined && (!Array.isArray(h) || h.some((x) => typeof x !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x)))) return 'holidays are dates, YYYY-MM-DD'
+  return null
 }
 
 /** `label`/`hint` in the reader's language where the content carries one. */

@@ -2703,6 +2703,7 @@ export const en = {
      tile that offers to pin it, and the keyboard hint for a grid rather than
      a list. */
   'bento.launcher.pinned': 'Pinned',
+  'bento.launcher.folders': 'All features',
   'bento.launcher.pin': 'Pin',
   'bento.launcher.unpin': 'Unpin',
   'bento.launcher.more_for': 'More for {name}',

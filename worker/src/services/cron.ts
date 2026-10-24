@@ -72,6 +72,9 @@ export const SCHEDULES: Schedule[] = [
     only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM admission_campaign_sends WHERE status = 'pending'
         AND due_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now') LIMIT 1`).first().catch(() => null)),
     payload: env0 },
+  // The vendor desk (services/ticket_index.ts): a note to the agent, or the support team, once a ticket is past its promise; the index copied again nightly.
+  { name: 'support_sla_breach', spec: '*/15 * * * *', kind: 'support:sla_breach', perInstitution: false, payload: () => ({}) },
+  { name: 'support_index_resync', spec: '50 2 * * *', kind: 'support:index_resync', perInstitution: false, payload: () => ({}) },
   { name: 'backup_nightly', spec: '30 1 * * *', kind: 'backup:fanout', perInstitution: false, payload: () => ({}) },
   // Weekly D1-export-API copies to R2, 8 kept (services/background/weekly_export.ts). Sat 21:00 UTC = Sun 02:30 IST.
   { name: 'backup_weekly', spec: '0 21 * * 6', kind: 'backup:weekly_fanout', perInstitution: false, payload: () => ({}) },

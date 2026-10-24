@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { EmbeddedBody, EmbeddedHead } from '../exams/embedded'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Library, Plus, Sparkles } from 'lucide-react'
 import { api, actingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState, Loading,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -14,6 +15,10 @@ import {
   useTeachingSubjects, label,
   type BankQuestion, type BankSummary,
 } from './teaching'
+import BankFiles from '../qmaker/BankFiles'
+
+// The page editor and its fonts load only when a question is opened.
+const BankBoxEditor = lazy(() => import('../qmaker/BankBoxEditor'))
 
 /* The question bank.
 
@@ -22,8 +27,11 @@ import {
    enough hard ones", and "is this paper all recall". The summary answers the
    last two at a glance; without it a bank is a list nobody audits. */
 
-export default function QuestionBank() {
+export default function QuestionBank({ embedded = false }: { embedded?: boolean } = {}) {
+  const Head = embedded ? EmbeddedHead : PageHead
+  const Body = embedded ? EmbeddedBody : PageBody
   const [composing, setComposing] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [subject, setSubject] = useState('')
   const [difficulty, setDifficulty] = useState('')
@@ -77,12 +85,13 @@ export default function QuestionBank() {
 
   return (
     <>
-      <PageHead
+      <Head
         eyebrow="Question papers & online tests"
         title="Question bank"
         description="Questions tagged by chapter, difficulty and Bloom's level, ready to build a paper from."
         actions={
           <>
+            <BankFiles shown={shown} subjectName={(subjects.data?.items ?? []).find((s) => s.class_subject_id === subject)?.subject ?? 'All subjects'} />
             <Button variant="secondary" onClick={() => setGenerating((g) => !g)}>
               <Sparkles className="h-3.5 w-3.5" />
               {generating ? 'Close' : 'Generate from a lesson (PDF)'}
@@ -94,7 +103,7 @@ export default function QuestionBank() {
           </>
         }
       />
-      <PageBody>
+      <Body>
         <CellGrid cols={3}>
           <Stat label="Questions banked" value={total} icon={Library} />
           <Stat
@@ -115,6 +124,7 @@ export default function QuestionBank() {
         {generating && <GenerateFromLesson onDone={() => setGenerating(false)} />}
 
         {composing && <Compose onDone={() => setComposing(false)} />}
+        {editing && <Suspense fallback={<Loading shape="inline" />}><BankBoxEditor id={editing} onClose={() => setEditing(null)} /></Suspense>}
 
         <Card>
           <CardHeader
@@ -223,9 +233,14 @@ export default function QuestionBank() {
                   <Td>{q.default_marks}</Td>
                   <Td>{q.used_on_tests}</Td>
                   <Td>
-                    <Button variant="secondary" size="sm" onClick={() => retire.mutate(q.id)}>
-                      Retire
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button variant="secondary" size="sm" title="Edit it as it prints, with formatting and pictures" onClick={() => setEditing(q.id)}>
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => retire.mutate(q.id)}>
+                        Retire
+                      </Button>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -233,7 +248,7 @@ export default function QuestionBank() {
             </>
           )}
         </Card>
-      </PageBody>
+      </Body>
     </>
   )
 }

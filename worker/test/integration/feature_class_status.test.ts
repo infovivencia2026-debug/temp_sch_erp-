@@ -109,6 +109,15 @@ describe('class status', () => {
     expect(feed.body.gallery.map((x: any) => x.id)).toContain(b)
   })
 
+  it('a post an hour past its 24 hours is out of sight but kept a week, so it can still be pinned', async () => {
+    const a = (await post('teacher', [{ kind: 'section', id: IDS.section }])).body.id
+    await E.TENANT_TEST.prepare(`UPDATE status_posts SET expires_at = ? WHERE id = ?`).bind(new Date(Date.now() - 3600_000).toISOString(), a).run()
+    await expireStatuses(E, E.TENANT_TEST)
+    expect(await E.TENANT_TEST.prepare(`SELECT 1 FROM status_posts WHERE id = ?`).bind(a).first()).toBeTruthy()
+    expect((await api('parent', 'GET', '/status/feed')).body.rings.flatMap((r: any) => r.items?.map((x: any) => x.id) ?? [])).not.toContain(a)
+    expect((await api('teacher', 'POST', `/status/posts/${a}/pin`, { pinned: true })).body.pinned).toBe(true)
+  })
+
   it('with approval on, a teacher post waits for the principal and nobody sees it until approved', async () => {
     await settings({ needs_approval: true })
     const p = await post('teacher', [{ kind: 'section', id: IDS.section }], { caption: 'Waiting' })

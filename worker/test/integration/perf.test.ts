@@ -66,12 +66,15 @@ async function measure(who: Who, path: string) {
 const cases: [string, Who, string, number, number][] = [
   // +1 tenant statement on every row (2026-10-12): sign-in now also reads feature_blocks,
   // the bulk features-off list (fe4104ab), once per request.
-  ['bootstrap, admin', 'admin', '/bootstrap', 53, 5],
+  // +1 tenant (2026-10-24): the admin's account alerts read the roll, storage,
+  // credits, bus papers and medical certificates in one statement; their
+  // CONTROL facts (plan limits, provider invoices, feature trials, backups) one more.
+  ['bootstrap, admin', 'admin', '/bootstrap', 54, 6],
   ['bootstrap, teacher', 'teacher', '/bootstrap', 30, 5],
   ['bootstrap, parent', 'parent', '/bootstrap', 24, 5],
   ['bootstrap, student', 'student', '/bootstrap', 24, 5],
-  ['portal notifications, parent', 'parent', '/portal/notifications', 17, 4],
-  ['portal notifications, student', 'student', '/portal/notifications', 17, 4],
+  ['portal notifications, parent', 'parent', '/portal/notifications', 21, 4],
+  ['portal notifications, student', 'student', '/portal/notifications', 21, 4],
   // +1 each for the hearts (one aggregate over status_likes); the teacher's
   // +1 more is the school's media total, read for whoever may post (5 GB cap).
   // The three reads of status_post_targets were folded into one to pay for it.

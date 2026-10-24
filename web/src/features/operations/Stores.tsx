@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, SkeletonTable, ErrorState, FormNotice,
+  Badge, Button, Input, Select, Switch, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,10 @@ interface StockItem {
   on_hand: number
   reorder_level: number
   below_reorder: boolean
+  /** Selling price in the parent store, in paise. */
+  sale_price_paise: number | null
+  /** Shown to parents in the store catalogue. */
+  in_store: boolean
 }
 
 const KINDS = [
@@ -57,11 +61,17 @@ export default function Stores() {
      no line of the ledger accounts for. It starts at zero; the first receipt
      says where the forty came from. */
   const [adding, setAdding] = useState(false)
+  // The item being edited; the same form as adding, without the code.
+  const [editing, setEditing] = useState<StockItem | null>(null)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [unit, setUnit] = useState('nos')
   const [reorder, setReorder] = useState('0')
+  /* One list for the store (Yajur, 2026-10-22): an item can be sold to
+     parents at its own price. */
+  const [price, setPrice] = useState('')
+  const [inStore, setInStore] = useState(false)
   const [kind, setKind] = useState('issue')
   const [qty, setQty] = useState('')
   const [ref, setRef] = useState('')
@@ -88,19 +98,35 @@ export default function Stores() {
     },
   })
 
+  const priceValue = price.trim() === '' ? null : Number(price)
+  const priceOk = priceValue === null || (Number.isFinite(priceValue) && priceValue >= 0)
+  const fields = () => ({
+    name: name.trim(),
+    category: category.trim(),
+    unit: unit.trim() || 'nos',
+    reorder_level: Number(reorder) || 0,
+    sale_price_paise: priceValue === null ? null : Math.round(priceValue * 100),
+    in_store: inStore,
+  })
+  const closeForm = () => {
+    setAdding(false); setEditing(null)
+    setCode(''); setName(''); setCategory(''); setUnit('nos'); setReorder('0'); setPrice(''); setInStore(false)
+  }
+  const openEdit = (i: StockItem) => {
+    setAdding(false); setMoving(null); setNote('')
+    setEditing(i)
+    setName(i.name); setCategory(i.category ?? ''); setUnit(i.unit); setReorder(String(i.reorder_level))
+    setPrice(i.sale_price_paise == null ? '' : String(i.sale_price_paise / 100)); setInStore(i.in_store)
+  }
+
   const add = useMutation({
     mutationFn: () =>
-      api.post('/api/v1/ops/inventory/items', {
-        code: code.trim(),
-        name: name.trim(),
-        category: category.trim(),
-        unit: unit.trim() || 'nos',
-        reorder_level: Number(reorder) || 0,
-      }),
+      editing
+        ? api.patch(`/api/v1/ops/inventory/items/${editing.id}`, fields())
+        : api.post('/api/v1/ops/inventory/items', { code: code.trim(), ...fields() }),
     onSuccess: () => {
-      setNote(`${name.trim()} is on the register. Record a receipt to give it a balance.`)
-      setAdding(false)
-      setCode(''); setName(''); setCategory(''); setUnit('nos'); setReorder('0')
+      setNote(editing ? `${name.trim()} saved.` : `${name.trim()} is on the register. Record a receipt to give it a balance.`)
+      closeForm()
       qc.invalidateQueries({ queryKey: ['stock'] })
     },
   })
@@ -162,18 +188,22 @@ export default function Stores() {
           </Card>
         )}
 
-        {adding && (
+        {(adding || editing) && (
           <Card>
             <CardHeader
-              title="Add an item to the register"
-              description="What the school keeps, not how much of it. The balance comes from the first receipt."
-              action={<Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>}
+              title={editing ? `Edit · ${editing.name}` : 'Add an item to the register'}
+              description={editing
+                ? 'The balance is not edited here; it comes from the movements.'
+                : 'What the school keeps, not how much of it. The balance comes from the first receipt.'}
+              action={<Button variant="ghost" onClick={closeForm}>Cancel</Button>}
             />
             <div className="grid gap-4 p-5 sm:grid-cols-3">
-              <label className="flex flex-col gap-1.5 text-[13px]">
-                <span className="text-muted-foreground">Code</span>
-                <Input value={code} onChange={setCode} placeholder="CHK-001" />
-              </label>
+              {!editing && (
+                <label className="flex flex-col gap-1.5 text-[13px]">
+                  <span className="text-muted-foreground">Code</span>
+                  <Input value={code} onChange={setCode} placeholder="CHK-001" />
+                </label>
+              )}
               <label className="flex flex-col gap-1.5 text-[13px]">
                 <span className="text-muted-foreground">Name</span>
                 <Input value={name} onChange={setName} placeholder="Chalk, white" />
@@ -190,14 +220,28 @@ export default function Stores() {
                 <span className="text-muted-foreground">Reorder level</span>
                 <Input value={reorder} onChange={setReorder} placeholder="0" />
               </label>
+              <label className="flex flex-col gap-1.5 text-[13px]">
+                <span className="text-muted-foreground">Selling price (₹, optional)</span>
+                <Input value={price} onChange={setPrice} placeholder="Not sold" />
+              </label>
+              <div className="flex items-center justify-between gap-3 text-[13px] sm:col-span-3">
+                <div className="min-w-0">
+                  <p className="font-medium">Show in parent store</p>
+                  <p className="text-muted-foreground">Parents see the price and whether it is in stock, not the count.</p>
+                </div>
+                <Switch on={inStore} onChange={setInStore} label="Show in parent store" />
+              </div>
             </div>
             <div className="border-t px-5 py-4">
               <Button
-                disabled={!code.trim() || !name.trim() || add.isPending}
+                disabled={(!editing && !code.trim()) || !name.trim() || !priceOk || (inStore && priceValue === null) || add.isPending}
                 onClick={() => add.mutate()}
               >
-                {add.isPending ? 'Adding…' : 'Add the item'}
+                {add.isPending ? 'Saving…' : editing ? 'Save' : 'Add the item'}
               </Button>
+              {inStore && priceValue === null && (
+                <p className="mt-2 text-[12.5px] text-muted-foreground">Give a selling price to show it in the parent store.</p>
+              )}
             </div>
           </Card>
         )}
@@ -207,7 +251,7 @@ export default function Stores() {
             title="Stock"
             description="Below reorder level first"
             action={
-              mayMove && !adding ? (
+              mayMove && !adding && !editing ? (
                 <Button variant="secondary" onClick={() => setAdding(true)}>Add an item</Button>
               ) : undefined
             }
@@ -228,7 +272,10 @@ export default function Stores() {
                   <tr key={i.id}>
                     <Td className="font-medium">{i.name}</Td>
                     <Td className="font-mono text-[12px] text-muted-foreground">{i.code}</Td>
-                    <Td className="text-muted-foreground">{i.category ?? '-'}</Td>
+                    <Td className="text-muted-foreground">
+                      {i.category ?? '-'}
+                      {i.in_store && <Badge tone="info" className="ml-2">In parent store</Badge>}
+                    </Td>
                     <Td>
                       <span className={cn('tabular-nums', i.below_reorder && 'font-medium text-destructive')}>
                         {i.on_hand} {i.unit}
@@ -240,9 +287,12 @@ export default function Stores() {
                     <Td className="tabular-nums text-muted-foreground">{i.reorder_level}</Td>
                     <Td>
                       {mayMove && (
-                        <Button size="sm" variant="secondary" onClick={() => { setMoving(i); setNote('') }}>
-                          Movement
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(i)}>Edit</Button>
+                          <Button size="sm" variant="secondary" onClick={() => { setMoving(i); setNote('') }}>
+                            Movement
+                          </Button>
+                        </div>
                       )}
                     </Td>
                   </tr>

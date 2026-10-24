@@ -2,11 +2,14 @@ import { useRef, useState, type ReactNode } from 'react'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
+import NotificationRow, { channelOf } from '@/components/NotificationRow'
+import { LineIcon, StaffNavGroup, StaffProfileCard, staffItemClass } from '@/components/StaffShell'
+import { LayoutSwitch } from '@/components/LayoutSwitch'
+import { UserPlus, Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Checkbox, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
-  EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, tabClass,
+  ConfirmButton, Checkbox, Switch, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
+  EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, TAB_BAR_FILL, tabClass,
   SEG_BAR, segClass, Dialog, ExportTable, type ActiveRange,
 } from '@/components/ui'
 import { SkeletonCards, SkeletonRows, SkeletonText } from '@/components/Skeleton'
@@ -81,6 +84,7 @@ export default function ElementsGallery() {
 
 function Gallery() {
   const toast = useToast()
+  const session = useSession()
   const [text, setText] = useState('')
   const [sel, setSel] = useState('a')
   const [area, setArea] = useState('')
@@ -172,6 +176,8 @@ function Gallery() {
               <Field label="Checkbox" wide>
                 <Checkbox checked={chk} onChange={setChk} label="Send an SMS as well" hint="Costs one credit per parent" />
                 <Checkbox checked={chk2} onChange={setChk2} label={TE} />
+                <Switch on={chk} onChange={setChk} label="Send an SMS as well" />
+                <Switch on disabled onChange={setChk} label="Held through a role" />
               </Field>
             </FormGrid>
           </Card>
@@ -204,6 +210,26 @@ function Gallery() {
           </Card>
         </Section>
 
+        <Section id="notification-row" title="Notification row">
+          <Card className="space-y-2 p-[var(--card-pad)]">
+            <NotificationRow title="New enquiry for Class 3" time="10 min ago" label="Admissions" icon={UserPlus}
+              extra={channelOf('Sent by WhatsApp')} unread pending snippet="Asked about seats and the fee for next year." onView={() => {}} />
+            <NotificationRow title="Fee due: term 2" time="Yesterday" label="Fees" icon={Wallet}
+              snippet="Pay before the 30th to avoid a late fee." onView={() => {}} />
+          </Card>
+        </Section>
+
+        <Section id="staff-panel" title="Staff side panel">
+          <Card className="max-w-[440px] space-y-4 p-[var(--card-pad)]">
+            <StaffNavGroup slug="gallery.teaching" name="Teaching">
+              <span className={staffItemClass(true)}><LineIcon name="timetable" size={20} /><span className="truncate">My timetable</span></span>
+              <span className={staffItemClass(false)}><LineIcon name="attendance" size={20} /><span className="truncate">Attendance</span></span>
+            </StaffNavGroup>
+            <LayoutSwitch pill />
+            <StaffProfileCard name={session.user?.full_name ?? ''} sub="EMP-0142" photoId={session.user?.avatar_key} />
+          </Card>
+        </Section>
+
         <Section id="badges" title="Badges and status pills">
           <Card className="space-y-4 p-[var(--card-pad)]">
             <Specimen label="Badge tones">
@@ -228,6 +254,13 @@ function Gallery() {
                   className={tabClass(tab === i)} onClick={() => setTab(i)}>{t}</button>
               ))}
             </div>
+            <Specimen label="TAB_BAR_FILL + tabClass(active, 'lg'): a screen's main switch">
+              <div className={TAB_BAR_FILL} role="tablist">
+                {['Inbox', 'Starred', 'Sent', 'Trash'].map((t, i) => (
+                  <button key={t} role="tab" aria-selected={tab === i} className={tabClass(tab === i, 'lg')} onClick={() => setTab(i)}>{t}</button>
+                ))}
+              </div>
+            </Specimen>
             <Specimen label="SEG_BAR + segClass, with the SlidingIndicator">
               <div ref={segList} className={`${SEG_BAR} relative`} role="tablist">
                 <SlidingIndicator listRef={segList} active={seg} />
@@ -320,6 +353,16 @@ function Gallery() {
               <SegmentRow label="Segment" value={seg2} options={['on', 'off'] as const} name={(v) => v === 'on' ? 'On' : 'Off'} onPick={setSeg2} />
               <DropdownRow label="Glow" value={dd} options={['off', 'subtle', 'strong'] as const} name={(v) => v[0].toUpperCase() + v.slice(1)} onPick={setDd} />
               <SliderRow label="Text size" value={slide} min={0.85} max={1.3} step={0.05} onChange={setSlide} />
+            </Rows>
+          </Card>
+          <Card className="overflow-hidden">
+            {/* Press the first and last rows: the wash runs edge to edge and
+                follows the card's corners; the row never shrinks; on touch it
+                is gone when the finger lifts (hover only on hover devices). */}
+            <Rows>
+              <NavRow label="Press state, first row" icon={<Bell className="h-4 w-4" />} onClick={() => {}} />
+              <NavRow label="Press state, middle row" icon={<Palette className="h-4 w-4" />} onClick={() => {}} />
+              <NavRow label="Press state, last row" icon={<Settings className="h-4 w-4" />} onClick={() => {}} />
             </Rows>
           </Card>
         </Section>

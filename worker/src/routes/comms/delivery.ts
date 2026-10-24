@@ -200,10 +200,15 @@ export function registerDelivery(r: Router): void {
         if (!Number.isInteger(n) || n < 0 || n > 10080) throw badRequest('the repeat window must be 0 to 10080 minutes')
         next.dedup_minutes = n
       }
-      stmts.push(c.db.prepare(`INSERT INTO message_settings (institution_id, digest_time, quiet_from, quiet_to, daily_cap, dedup_minutes, updated_at, updated_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (institution_id) DO UPDATE SET digest_time = excluded.digest_time, quiet_from = excluded.quiet_from,
-          quiet_to = excluded.quiet_to, daily_cap = excluded.daily_cap, dedup_minutes = excluded.dedup_minutes, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
-        .bind(inst, next.digest_time, next.quiet_from, next.quiet_to, next.daily_cap, next.dedup_minutes, at, c.id.platformAdmin ? null : c.id.userId))
+      if (s.auto_whatsapp !== undefined) {
+        if (typeof s.auto_whatsapp !== 'boolean') throw badRequest('automatic WhatsApp is on or off')
+        next.auto_whatsapp = s.auto_whatsapp
+      }
+      stmts.push(c.db.prepare(`INSERT INTO message_settings (institution_id, digest_time, quiet_from, quiet_to, daily_cap, dedup_minutes, auto_whatsapp, updated_at, updated_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (institution_id) DO UPDATE SET digest_time = excluded.digest_time, quiet_from = excluded.quiet_from,
+          quiet_to = excluded.quiet_to, daily_cap = excluded.daily_cap, dedup_minutes = excluded.dedup_minutes, auto_whatsapp = excluded.auto_whatsapp,
+          updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
+        .bind(inst, next.digest_time, next.quiet_from, next.quiet_to, next.daily_cap, next.dedup_minutes, next.auto_whatsapp ? 1 : 0, at, c.id.platformAdmin ? null : c.id.userId))
     }
     for (const t of req.types ?? []) {
       const def = MESSAGE_TYPES.find((x) => x.key === t.key)

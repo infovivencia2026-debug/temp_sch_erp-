@@ -154,10 +154,47 @@ describe('staff tasks and reporting managers', () => {
     expect((await api('teacher', 'POST', `/hr/tasks/${taskId}/status`, { status: 'elsewhere' })).status).toBe(400)
     const done = await api('teacher', 'POST', `/hr/tasks/${taskId}/status`, { status: 'done', note: '42 chairs' })
     expect(done.status).toBe(200)
+    // Handed over by HR, so finishing it hands it back for review; HR accepts it.
+    expect(done.body.status).toBe('review')
+    expect((await api('admin', 'POST', `/hr/tasks/${taskId}/status`, { action: 'accept' })).body.status).toBe('done')
     const report = await api('admin', 'GET', '/hr/tasks/report')
     expect(report.status).toBe(200)
     const me = report.body.items.find((v: { employee_id: string }) => v.employee_id === EMP.teacher)
     expect(Number(me.done)).toBeGreaterThanOrEqual(1)
+  })
+
+  it('the pipeline: start, hand in for review, sent back with a note, accepted; each step kept and told', async () => {
+    const t = (await api('admin', 'POST', '/hr/tasks', { title: 'Collect the library books', assigned_to: EMP.teacher, priority: 'normal' })).body.id
+    expect((await api('admin', 'POST', `/hr/tasks/${t}/status`, { action: 'accept' })).status).toBe(409)
+    expect((await api('teacher', 'POST', `/hr/tasks/${t}/status`, { action: 'start' })).body.status).toBe('in_progress')
+    expect((await api('teacher', 'POST', `/hr/tasks/${t}/comments`, { note: 'Half are in the staff room' })).status).toBe(201)
+    expect((await api('teacher', 'POST', `/hr/tasks/${t}/status`, { action: 'finish', note: 'All 120 back' })).body.status).toBe('review')
+    // Only whoever steers it may accept or send it back, and sending back needs a reason.
+    expect((await api('teacher', 'POST', `/hr/tasks/${t}/status`, { action: 'accept' })).status).toBe(403)
+    expect((await api('admin', 'POST', `/hr/tasks/${t}/status`, { action: 'return' })).status).toBe(400)
+    expect((await api('admin', 'POST', `/hr/tasks/${t}/status`, { action: 'return', note: 'Class 5 shelf still empty' })).body.status).toBe('in_progress')
+    expect((await api('teacher', 'POST', `/hr/tasks/${t}/status`, { action: 'finish' })).body.status).toBe('review')
+    expect((await api('admin', 'POST', `/hr/tasks/${t}/status`, { action: 'accept' })).body.status).toBe('done')
+    const one = await api('teacher', 'GET', `/hr/tasks/${t}`)
+    expect(one.body.updates.map((u: { kind: string }) => u.kind)).toEqual(['created', 'started', 'comment', 'submitted', 'returned', 'submitted', 'accepted'])
+    expect(one.body.updates.find((u: { kind: string }) => u.kind === 'returned').note).toBe('Class 5 shelf still empty')
+    const told = await E.TENANT_TEST.prepare(`SELECT kind FROM notifications WHERE source_kind = 'staff_task' AND source_id = ? ORDER BY kind`).bind(t).all<{ kind: string }>()
+    expect(told.results.map((r) => r.kind)).toEqual(['staff_task_comment', 'staff_task_done', 'staff_task_given', 'staff_task_returned', 'staff_task_review'])
+  })
+
+  it('a task someone sets themselves is done when they say so; the giver edits and reassigns; filters narrow', async () => {
+    const own = (await api('teacher', 'POST', '/hr/tasks', { title: 'Plan the science fair', assigned_to: EMP.teacher })).body.id
+    expect((await api('teacher', 'POST', `/hr/tasks/${own}/status`, { action: 'finish' })).body.status).toBe('done')
+    const t = (await api('admin', 'POST', '/hr/tasks', { title: 'Order chalk', assigned_to: EMP.teacher, due_on: isoDay(3) })).body.id
+    expect((await api('teacher', 'PATCH', `/hr/tasks/${t}`, { title: 'Order nothing' })).status).toBe(403)
+    expect((await api('admin', 'PATCH', `/hr/tasks/${t}`, { title: 'Order chalk and dusters', priority: 'high', assigned_to: EMP.junior })).status).toBe(200)
+    const after = await api('admin', 'GET', `/hr/tasks/${t}`)
+    expect(after.body).toMatchObject({ title: 'Order chalk and dusters', priority: 'high', employee_id: EMP.junior })
+    const week = await api('admin', 'GET', '/hr/tasks?for=all&due=week&priority=high&q=dusters')
+    expect(week.body.items.map((v: { id: string }) => v.id)).toEqual([t])
+    expect((await api('admin', 'GET', '/hr/tasks?for=all&due=someday')).status).toBe(400)
+    expect((await api('admin', 'POST', `/hr/tasks/${t}/status`, { action: 'cancel' })).body.status).toBe('cancelled')
+    expect((await api('admin', 'PATCH', `/hr/tasks/${t}`, { title: 'x' })).status).toBe(409)
   })
 
   it('refuses somebody not on the roll, and everybody from the full list', async () => {

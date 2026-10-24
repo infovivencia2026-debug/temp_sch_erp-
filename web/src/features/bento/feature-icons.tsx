@@ -49,6 +49,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   year_end_payout: 'savings', // Year-end payout
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
+  school_gallery: 'photo_library', // School Gallery
   scheduled_digests: 'schedule', // Scheduled digests
   interaction_log: 'timeline', // Interaction log
   store_catalogue: 'inventory_2', // Store catalogue
@@ -196,6 +197,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   global_university_guidance_counselor: 'public', // Global University Guidance Counselor
   gps_hardware_integration: 'gps_fixed', // GPS Hardware Integration
   grievances: 'feedback', // Grievances
+  concerns_from_parents: 'feedback', // Concerns from parents
+  parent_concerns: 'support_agent', // Parent concerns
   groups_lists: 'groups', // Groups & lists
   hall_ticket_issue: 'confirmation_number', // Hall Ticket Issue
   hall_tickets_seating: 'event_seat', // Hall tickets & seating
@@ -241,6 +244,9 @@ export const FEATURE_ICONS: Record<string, string> = {
   meritto_leadsquared_sync: 'sync_alt', // Meritto / LeadSquared Sync
   message_channels: 'cell_tower', // Message Channels
   message_credits: 'toll', // Message Credits
+  leads: 'contacts', // Leads
+  renewals: 'event_available', // Renewals
+  partners: 'handshake', // Partners
   messages: 'mail', // Messages
   module_configuration: 'tune', // Module configuration
   module_entitlement_matrix: 'grid_view', // Module Entitlement Matrix
@@ -425,6 +431,7 @@ export const SECTION_ICONS: Record<string, string> = {
   channel_setup: 'cell_tower', // Channel Setup
   clinic: 'medical_services', // Clinic
   communication: 'forum', // Communication
+  school_gallery: 'photo_library', // School Gallery
   consent_permissions: 'approval', // Consent & Permissions
   counselling: 'psychology', // Counselling
   dashboard: 'dashboard', // Dashboard
@@ -474,6 +481,7 @@ export const SECTION_ICONS: Record<string, string> = {
   stores: 'inventory_2', // Stores
   students: 'person', // Students
   subscriptions_billing: 'receipt_long', // Subscriptions & Billing
+  sales: 'trending_up', // Sales
   support: 'help', // Support
   systems: 'dns', // Systems
   teaching: 'cast_for_education', // Teaching

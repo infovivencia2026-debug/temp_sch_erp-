@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 440 features. */
+/** 24 roles, 464 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -59,6 +59,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'sales',
+        name: 'Sales',
+        workspace: 'Sales',
+        features: [
+          { key: 'seller_admin.sales.leads', slug: 'leads', name: 'Leads', scope: 'platform', tier: 'core', summary: 'Every enquiry from a school that may buy, by stage from new to won or lost, with its owner, next follow-up and value. Add one by hand, search and filter, write a quote from its value, book a demo school, and set up the school when it is won.' },
+        ],
+      },
+      {
         slug: 'delivery',
         name: 'Delivery',
         workspace: 'Settings',
@@ -76,6 +84,8 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
           { key: 'seller_admin.subscriptions_billing.license_capacity', slug: 'license_capacity', name: 'License & Capacity', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
           { key: 'seller_admin.subscriptions_billing.message_credits', slug: 'message_credits', name: 'Message Credits', scope: 'platform', tier: 'core', summary: 'Every school\'s request for more SMS or WhatsApp messages, oldest first, with what was asked and by whom. Grant it in full or in part and the credits land the same moment; decline it with a reason the school reads. Nothing here moves money, the unit is messages, and what a bundle cost lives in whatever you invoice with.' },
+          { key: 'seller_admin.subscriptions_billing.renewals', slug: 'renewals', name: 'Renewals', scope: 'platform', tier: 'core', summary: 'Schools whose plan renews in the next 30, 60 or 90 days, each with a churn-risk flag read from real signals: payment overdue, nobody signed in for 14 days, or low use.' },
+          { key: 'seller_admin.subscriptions_billing.partners', slug: 'partners', name: 'Partners', scope: 'platform', tier: 'core', summary: 'Resellers who bring schools: each partner\'s schools, its commission rate, the commission earned when those schools pay an invoice, and the payouts made.' },
         ],
       },
       {
@@ -453,6 +463,22 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.help.helpdesk', slug: 'helpdesk', name: 'Helpdesk', scope: 'institution', tier: 'core', summary: 'Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.' },
         ],
       },
+      {
+        slug: 'activity',
+        name: 'Activity',
+        workspace: 'Activity',
+        features: [
+          { key: 'institution_admin.activity.school_activity', slug: 'school_activity', name: 'School activity', scope: 'institution', tier: 'core', summary: 'Everything students, parents and staff do on the platform, newest first, on one timeline: sign-ins, concerns, leave, attendance, fees, homework, messages, notices and changes to records. Filter by who, what, when and by person.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'institution_admin.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -490,6 +516,22 @@ export const ROLES: Role[] = [
         workspace: 'Audit',
         features: [
           { key: 'board_member.audit.audit_trail', slug: 'audit_trail', name: 'Audit trail', scope: 'institution', tier: 'core', summary: 'Who changed what, when. A board reads this to trust the numbers above it, not to chase anybody.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'board_member.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'board_member.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -593,6 +635,14 @@ export const ROLES: Role[] = [
           { key: 'hod.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'department', tier: 'core', summary: 'Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark, so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'hod.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -635,6 +685,14 @@ export const ROLES: Role[] = [
           { key: 'exam_controller.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'exam_controller.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'exam_controller.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'exam_controller.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -766,12 +824,11 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'academics',
-        name: 'Academics',
-        workspace: 'Academics',
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
         features: [
-          { key: 'faculty.academics.subject_meetings', slug: 'subject_meetings', name: 'Subject meetings', scope: 'institution', tier: 'core', summary: 'Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can\'t come with a note.' },
-          { key: 'faculty.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
+          { key: 'faculty.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -811,6 +868,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'librarian.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'librarian.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'librarian.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -874,6 +939,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'transport_manager.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'transport_manager.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'transport_manager.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -942,6 +1015,14 @@ export const ROLES: Role[] = [
           { key: 'operations.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'operations.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -980,6 +1061,14 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'driver.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'driver.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -1024,6 +1113,14 @@ export const ROLES: Role[] = [
           { key: 'nurse.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'nurse.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1066,6 +1163,14 @@ export const ROLES: Role[] = [
           { key: 'counsellor.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'counsellor.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1105,6 +1210,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'discipline_officer.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'discipline_officer.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'discipline_officer.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -1151,6 +1264,14 @@ export const ROLES: Role[] = [
           { key: 'hostel_warden.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'hostel_warden.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1191,6 +1312,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'activity_coord.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'activity_coord.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'activity_coord.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -1274,6 +1403,14 @@ export const ROLES: Role[] = [
         workspace: 'Fees',
         features: [
           { key: 'finance.student_dues.automated_fee_reminders', slug: 'automated_fee_reminders', name: 'Automated Fee Reminders', scope: 'institution', tier: 'advanced', summary: 'Plans that remind parents of unpaid fees by WhatsApp, SMS or email on a schedule, with a dry run showing who would be sent what and the reason a plan is not sending.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'finance.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -1361,6 +1498,14 @@ export const ROLES: Role[] = [
           { key: 'admissions.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'admissions.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1392,6 +1537,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'front_office.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
           { key: 'front_office.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'front_office.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],
@@ -1518,6 +1671,14 @@ export const ROLES: Role[] = [
           { key: 'hr.welfare.staff_welfare', slug: 'staff_welfare', name: 'Staff welfare', scope: 'institution', tier: 'core', summary: 'Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'hr.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1571,6 +1732,14 @@ export const ROLES: Role[] = [
           { key: 'it_admin.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave and see where each request has got to: pending, approved or turned down.' },
         ],
       },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'it_admin.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
     ],
   },
   {
@@ -1583,6 +1752,22 @@ export const ROLES: Role[] = [
         workspace: 'LMS',
         features: [
           { key: 'lms_admin.lms.courses', slug: 'courses', name: 'Courses & material', scope: 'institution', tier: 'core', summary: 'Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'lms_admin.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
+        ],
+      },
+      {
+        slug: 'school_gallery',
+        name: 'School Gallery',
+        workspace: 'School Gallery',
+        features: [
+          { key: 'lms_admin.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
         ],
       },
     ],

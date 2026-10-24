@@ -362,7 +362,7 @@ async function bookPTMSlot(c: Ctx): Promise<Response> {
       .bind(apptID, inst, slot.employee_id, studentId, c.id.userId, user.full_name, user.phone, onDate, startText,
         slot.minutes, purpose, ts, slot.employee_id, onDate, startText),
     c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
-                  SELECT ?, ?, ?, ?, 'ptm', ?, ?, '/portal/school-life/ptm', 'appointment', ?, ?
+                  SELECT ?, ?, ?, ?, 'ptm', ?, ?, '/go/calendar_ptm', 'appointment', ?, ?
                    WHERE EXISTS (SELECT 1 FROM appointments WHERE id = ?)
                      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'ptm' AND n.source_kind IS NOT NULL
                                       AND COALESCE(n.source_id, '') = ? AND COALESCE(n.student_id, '') = ?)`)
@@ -549,7 +549,7 @@ async function claimEventPass(c: Ctx): Promise<Response> {
     c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
                   SELECT ?, ?, ?, ?, 'event', ?,
                          'Row ' || p.row_label || ', seats ' || p.seat_from || '–' || (p.seat_from + p.seats - 1) || ' on ' || ?,
-                         '/portal/school-life/events', 'event_pass', p.id, ?
+                         '/go/calendar_ptm', 'event_pass', p.id, ?
                     FROM event_seat_passes p
                    WHERE p.id = ?
                      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'event' AND n.source_kind IS NOT NULL
@@ -860,7 +860,7 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
         (SELECT max(n.created_at) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ?) AS notes,
         (SELECT max(h.updated_at) FROM homework h WHERE h.institution_id = ?) AS homework,
         (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${where('rc.student_id')}) AS results,
-        (SELECT max(fc.decided_at) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
+        (SELECT max(COALESCE(fc.decided_at, fc.created_at)) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
     .bind(arg, arg, arg, arg, inst, c.id.userId, inst, arg, arg)
     .first<Record<string, string | null>>()
   const v = r ?? {}
@@ -971,26 +971,69 @@ export function deliverFamilyAlerts(c: Ctx, user: string, kids: string[]): D1Pre
   ]
 }
 
+/* A status poster (source_id) with a post still viewable: live and inside its
+   24 hours, or pinned to the gallery. */
+const STATUS_LIVE_SQL = `SELECT 1 FROM status_posts p WHERE p.status = 'live' AND (p.pinned = 1 OR p.expires_at > ?2)
+  AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = notifications.source_id`
+
+/** Kinds that stay in the bell until the work behind them is done, even once opened. */
+export const PENDING_KINDS = ['concern.support_ticket', 'question_paper_deadline', 'leave_request', 'parent_message', 'staff_exit_approval'] as const
+
+/* Opening one of these only reads it. A parent message is pending only for the
+   teacher it was sent to (a parent's copy of a teacher's reply is just news). */
+const PENDING_KEPT_SQL = `(kind IN ('concern.support_ticket', 'question_paper_deadline', 'leave_request', 'staff_exit_approval')
+  OR (kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m WHERE m.id = notifications.source_id
+       AND m.teacher_user_id = notifications.user_id AND m.sender_user_id <> notifications.user_id)))`
+
+const PENDING_KEPT_N = PENDING_KEPT_SQL.split('notifications.').join('n.').replace('(kind IN', '(n.kind IN').replace('OR (kind =', 'OR (n.kind =')
+
+/* When each pending kind is done (?1 = the user). */
+const PENDING_DONE_SQL = [
+  `kind = 'concern.support_ticket' AND EXISTS (SELECT 1 FROM support_tickets t WHERE t.id = notifications.source_id AND (t.status IN ('resolved', 'closed')
+     OR EXISTS (SELECT 1 FROM grievance_updates gu WHERE gu.ticket_id = t.id AND gu.kind = 'teacher_resolved')))`,
+  `kind = 'question_paper_deadline' AND (
+     EXISTS (SELECT 1 FROM question_papers qp WHERE qp.exam_subject_id = notifications.source_id AND qp.status IN ('submitted', 'approved'))
+     OR EXISTS (SELECT 1 FROM question_paper_deadlines d WHERE d.exam_subject_id = notifications.source_id AND d.teacher_user_id = ?1 AND d.manually_received_at IS NOT NULL))`,
+  `kind = 'leave_request' AND source_kind = 'leave_request' AND EXISTS (SELECT 1 FROM leave_requests l WHERE l.id = notifications.source_id AND l.status <> 'pending')`,
+  `kind = 'staff_exit_approval' AND EXISTS (SELECT 1 FROM staff_exits x WHERE x.id = notifications.source_id AND x.status <> 'pending_approval')`,
+  `kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m JOIN parent_teacher_messages r
+       ON r.student_id = m.student_id AND r.parent_user_id = m.parent_user_id AND r.teacher_user_id = m.teacher_user_id
+     WHERE m.id = notifications.source_id AND m.teacher_user_id = ?1 AND r.sender_user_id = ?1 AND r.sent_at > m.sent_at)`,
+]
+
 async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[]; unread: number }> {
   const { scope, studentIds: kids } = await familyChildren(c, c.url.searchParams.get('student_id'))
   const user = c.id.userId
   const hidden = can(c.id, LEAVE_APPROVE) ? [] : ['leave_request']
   const hiddenSql = `AND n.kind NOT IN (${marks(hidden)})`
-  /* A STATUS THAT HAS GONE IS NOT NEW (Yajur, 2026-10-19: "if any message
-     or status is view dont show 1"). Opening a status already marks its bell
-     entry read; one that expired before anybody opened it stayed "1 new" for
-     ever, on a card that said "No longer showing". Read once nothing from
-     that poster is still showing. */
+  /* A STATUS THAT HAS GONE IS GONE (Yajur, 2026-10-21: "Yajur School added a
+     status · Photo · 6 days ago" still in the bell). An entry whose poster has
+     nothing live left (expired after 24h and not pinned to the gallery, or
+     deleted) is dismissed, and the list below never returns one either. A new
+     post from the same poster brings the row back (class_status.ts). */
   try {
-    await c.db.prepare(`UPDATE notifications SET read_at = ?2
-        WHERE user_id = ?1 AND kind = 'status' AND source_kind = 'status' AND read_at IS NULL
-          AND NOT EXISTS (SELECT 1 FROM status_posts p WHERE p.status = 'live' AND (p.pinned = 1 OR p.expires_at > ?2)
-                           AND (CASE WHEN p.as_school = 1 THEN 'school' ELSE p.posted_by END) = notifications.source_id)`)
+    await c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
+        WHERE user_id = ?1 AND kind = 'status' AND source_kind = 'status' AND dismissed_at IS NULL
+          AND NOT EXISTS (${STATUS_LIVE_SQL})`)
       .bind(user, now()).run()
   } catch { /* no statuses here */ }
+  /* WORK STAYS UNTIL IT IS DONE (Yajur, 2026-10-21): a parent concern, a
+     question paper owed, a leave awaiting approval and a parent's message
+     awaiting this teacher's reply leave the bell when the work is done, not
+     when opened. One statement for every kind; only if a school is missing
+     one of the tables does each check run alone, so the list still loads. */
+  const clear = (where: string) => c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
+      WHERE user_id = ?1 AND dismissed_at IS NULL AND (${where})`).bind(user, now()).run()
+  try {
+    await clear(PENDING_DONE_SQL.map((d) => `(${d})`).join(' OR '))
+  } catch {
+    for (const done of PENDING_DONE_SQL) {
+      try { await clear(done) } catch { /* a school without this table yet */ }
+    }
+  }
   const list = c.db.prepare(`
       SELECT n.id, n.kind, n.title, n.body, n.link, n.student_id, ${shortName('st')} AS student_name,
-             n.created_at, n.read_at
+             n.created_at, n.read_at, CASE WHEN ${PENDING_KEPT_N} THEN 1 ELSE 0 END AS pending
         FROM notifications n
         LEFT JOIN students st ON st.id = n.student_id
        WHERE n.user_id = ?
@@ -1004,7 +1047,7 @@ async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[];
   const results = await c.db.batch(stmts)
   const rows = results[results.length - 1].results as {
     id: string; kind: string; title: string; body: string | null; link: string | null; student_id: string | null
-    student_name: string | null; created_at: string; read_at: string | null
+    student_name: string | null; created_at: string; read_at: string | null; pending: number
   }[]
   let unread = 0
   const items = rows.map((v): Notification => {
@@ -1013,7 +1056,7 @@ async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[];
     return {
       id: v.id, kind: v.kind, title: v.title, body: o(v.body), link: o(v.link), student_id: o(v.student_id),
       student_name: v.student_id !== null ? o(v.student_name) : undefined,
-      created_at: istStamp(v.created_at) ?? '', read_at: o(readAt),
+      created_at: istStamp(v.created_at) ?? '', read_at: o(readAt), pending: v.pending ? true : undefined,
     }
   })
   return { items, unread }
@@ -1040,6 +1083,11 @@ async function dismissNotification(c: Ctx): Promise<Response> {
   const noteID = c.params.id
   if (!isUUID(noteID)) throw badRequest('invalid notification id')
   const ts = now()
+  // A concern or a paper owed is only read here; it leaves when the work is done (see the list).
+  const kept = await c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?)
+      WHERE id = ? AND user_id = ? AND dismissed_at IS NULL AND ${PENDING_KEPT_SQL}`)
+    .bind(ts, noteID, c.id.userId).run()
+  if (kept.meta.changes === 1) return ok({ status: 'read' })
   const res = await c.db.prepare(`UPDATE notifications SET dismissed_at = ?, read_at = COALESCE(read_at, ?)
                                    WHERE id = ? AND user_id = ? AND dismissed_at IS NULL`)
     .bind(ts, ts, noteID, c.id.userId).run()

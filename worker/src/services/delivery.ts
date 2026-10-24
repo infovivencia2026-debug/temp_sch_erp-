@@ -93,15 +93,18 @@ export interface DeliverySettings {
   quiet_to: string | null
   daily_cap: number
   dedup_minutes: number
+  /** Off: automatic messages skip WhatsApp and go by the next channel on their ladder. */
+  auto_whatsapp: boolean
 }
-export const DEFAULT_SETTINGS: DeliverySettings = { digest_time: '18:00', quiet_from: '21:00', quiet_to: '07:00', daily_cap: 6, dedup_minutes: 360 }
+export const DEFAULT_SETTINGS: DeliverySettings = { digest_time: '18:00', quiet_from: '21:00', quiet_to: '07:00', daily_cap: 6, dedup_minutes: 360, auto_whatsapp: true }
 
 export async function loadSettings(db: D1Database): Promise<DeliverySettings> {
-  const r = await db.prepare(`SELECT digest_time, quiet_from, quiet_to, daily_cap, dedup_minutes FROM message_settings LIMIT 1`)
-    .first<DeliverySettings>().catch(() => null)
+  const r = await db.prepare(`SELECT digest_time, quiet_from, quiet_to, daily_cap, dedup_minutes, auto_whatsapp FROM message_settings LIMIT 1`)
+    .first<Omit<DeliverySettings, 'auto_whatsapp'> & { auto_whatsapp: number | null }>().catch(() => null)
   if (!r) return { ...DEFAULT_SETTINGS }
   return { digest_time: r.digest_time || DEFAULT_SETTINGS.digest_time, quiet_from: r.quiet_from ?? null, quiet_to: r.quiet_to ?? null,
-    daily_cap: Number(r.daily_cap ?? DEFAULT_SETTINGS.daily_cap), dedup_minutes: Number(r.dedup_minutes ?? DEFAULT_SETTINGS.dedup_minutes) }
+    daily_cap: Number(r.daily_cap ?? DEFAULT_SETTINGS.daily_cap), dedup_minutes: Number(r.dedup_minutes ?? DEFAULT_SETTINGS.dedup_minutes),
+    auto_whatsapp: r.auto_whatsapp === null || r.auto_whatsapp === undefined ? true : Number(r.auto_whatsapp) === 1 }
 }
 
 export interface Policy { ladder: string[]; mode: 'instant' | 'digest' }

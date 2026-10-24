@@ -90,7 +90,6 @@ const KNOWN = new Set([
   'features/students/Alumni',
   'features/students/DepartmentStudents',
   'features/students/StudentCouncil',
-  'features/super_admin/Leads',
 ])
 
 describe('every feature screen is reachable', () => {

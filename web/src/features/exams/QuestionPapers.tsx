@@ -1,15 +1,21 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, TAB_BAR, tabClass,
   Select, Textarea, Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { useRouteFeature } from '@/lib/catalog'
 import PaperDeadlines from './PaperDeadlines'
+import QuestionBank from '../faculty/QuestionBank'
+import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
+
+// Question maker (the editor, Word export and the paper fonts) loads only when it is opened.
+const QuestionMaker = lazy(() => import('../qmaker/QuestionMaker'))
+const SentPaper = lazy(() => import('../qmaker/SentPaper'))
 
 /* The paper, read before it is printed.
  *
@@ -36,6 +42,8 @@ interface Paper {
   max_marks: string
   duration_minutes: number | null
   file_id: string | null
+  /** Written in Question maker: read on screen, not as a file. */
+  has_doc: boolean
   notes: string | null
   status: 'draft' | 'submitted' | 'approved' | 'changes_needed'
   set_by: string
@@ -68,12 +76,17 @@ export default function QuestionPapers() {
   const [done, setDone] = useState('')
   const [returning, setReturning] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  // Question maker (owner, 2026-10-19): papers made, banked and sent from this one screen.
+  const can = useCan()
+  const maker = can('faculty.question_papers_online_tests.ai_examcell_paper_generator') || can('faculty.question_papers_online_tests.question_bank_management')
+  const [tab, setTab] = useState<'papers' | 'maker' | 'bank'>('papers')
 
   // Composing a new one.
   const [slot, setSlot] = useState('')
   const [file, setFile] = useState<UploadedFile | null>(null)
   const [notes, setNotes] = useState('')
   const [viewFile, setViewFile] = useState<ViewableFile | null>(null)
+  const [viewDoc, setViewDoc] = useState<Paper | null>(null)
   /* Papers accumulate every term and nothing ever leaves, so the table grows
      past the screen and buries the form above it. */
   const [showAll, setShowAll] = useState(false)
@@ -144,6 +157,7 @@ export default function QuestionPapers() {
   return (
     <>
       {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
+      {viewDoc && <Suspense fallback={null}><SentPaper id={viewDoc.id} title={`${viewDoc.exam_name} · ${viewDoc.subject}`} onClose={() => setViewDoc(null)} /></Suspense>}
       {/* The breadcrumb the rest of the product has. Every other screen opens
           with "section / page" above its title; this one opened with the
           title alone, so the one screen a head of department reaches from
@@ -161,6 +175,14 @@ export default function QuestionPapers() {
         }
       />
       <PageBody>
+        {maker && (
+          <div className={TAB_BAR} role="tablist">
+            {([['papers', 'Papers'], ['maker', 'Question maker'], ['bank', 'Question bank']] as const).map(([k, t]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tabClass(tab === k)} onClick={() => setTab(k)}>{t}</button>
+            ))}
+          </div>
+        )}
+        {tab === 'maker' ? <Suspense fallback={<Loading />}><QuestionMaker embedded slots={slots.data?.items ?? []} /></Suspense> : tab === 'bank' ? <QuestionBank embedded /> : (<>
         {done && <FormNotice ok={done} />}
         {(submit.error || decide.error) && (
           <FormNotice error={submit.error ?? decide.error} />
@@ -336,6 +358,11 @@ export default function QuestionPapers() {
                             Open paper
                           </Button>
                         )}
+                        {p.has_doc && (
+                          <Button size="sm" variant="secondary" onClick={() => setViewDoc(p)}>
+                            Open paper
+                          </Button>
+                        )}
                         {/* Deciding is offered only on somebody else's paper
                             that is actually waiting. */}
                         {d.decides && p.status === 'submitted' && !p.mine && (
@@ -397,6 +424,7 @@ export default function QuestionPapers() {
             </>
           )}
         </Card>
+        </>)}
       </PageBody>
     </>
   )

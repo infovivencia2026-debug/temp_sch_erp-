@@ -1,3 +1,4 @@
+import { inClassic } from '../bento/classic-board'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
@@ -83,3 +84,6 @@ export default function DisciplineDay() {
     />
   )
 }
+
+/* The sidebar (Work) layout draws no bento: the same day, as a classic screen. */
+export const Classic = inClassic(DisciplineDay)

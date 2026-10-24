@@ -79,6 +79,14 @@ describe('platform staff', () => {
     expect(keys).not.toContain('seller_admin.support.support_team')
   })
 
+  it('a seller admin in the console is shown the seller workspace and no school workspace', async () => {
+    const cat = await json(owner, 'GET', '/catalog')
+    expect(cat.status).toBe(200)
+    expect(cat.body.roles.map((r: any) => r.key)).toEqual(['seller_admin'])
+    const keys: string[] = cat.body.roles.flatMap((r: any) => r.sections.flatMap((s: any) => s.features.map((f: any) => f.key)))
+    expect(keys).toContain('seller_admin.schools.schools')
+  })
+
   it('a support login reaches the ticket queue, with what was promised, and takes a ticket by name', async () => {
     const raised = await api('admin', 'POST', '/admin/platform/support/tickets', { category: 'other', subject: 'Fee receipt will not print', body: 'Since this morning.', priority: 'high' })
     expect(raised.status).toBe(201)
@@ -89,7 +97,7 @@ describe('platform staff', () => {
     expect(typeof t.promised_hours).toBe('number')
     expect(t.promised_hours).toBeGreaterThan(0)
     expect(t.breached).toBe(false)
-    expect((await json(support, 'POST', `/admin/platform/seller/tickets/${raised.body.id}`, { status: 'in_progress' })).status).toBe(200)
+    expect((await json(support, 'POST', `/admin/platform/seller/tickets/${raised.body.id}`, { institution_id: IDS.school, status: 'in_progress' })).status).toBe(200)
     const after = (await json(support, 'GET', '/admin/platform/seller/tickets')).body.items.find((x: any) => x.id === raised.body.id)
     expect(after).toMatchObject({ status: 'in_progress', assigned_to: 'Sam Support' })
   })

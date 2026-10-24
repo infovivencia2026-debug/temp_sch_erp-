@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Bus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
 import { Facts, PersonaCard, PersonaPage, Say, useShape } from './persona-kit'
@@ -62,7 +63,7 @@ function BusCell({ span, d, to }: { span: CellSpan; d: MyBus; to?: string }) {
       span={span}
       ground="operations"
       title="My bus"
-      glyph="⛟"
+      glyph={<Bus className="h-5 w-5" aria-hidden />}
       value={d.registration_no || '-'}
       change={
         d.note ??

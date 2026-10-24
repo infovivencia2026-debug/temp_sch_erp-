@@ -154,15 +154,19 @@ export async function resolveStoredPunches(db: D1Database, inst: string): Promis
   const [ins] = await db.batch([
     db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, check_in, check_out, source, device_ref, created_at)
         SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-a' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))),
-               ?1, g.user_id, g.d, 'present', g.fi, CASE WHEN julianday(g.la) - julianday(g.fi) >= 5.0 / 1440 THEN g.la END, 'device', g.serial, ?3
+               ?1, g.user_id, g.d, 'present',
+               CASE WHEN julianday(g.la) - julianday(g.fi) < 60.0 / 1440 AND time(g.fi, '+330 minutes') >= '12:00' THEN NULL ELSE g.fi END,
+               CASE WHEN julianday(g.la) - julianday(g.fi) >= 60.0 / 1440 OR time(g.fi, '+330 minutes') >= '12:00' THEN g.la END, 'device', g.serial, ?3
           FROM (SELECT e.user_id, ${day} AS d, MIN(p.punched_at) AS fi, MAX(p.punched_at) AS la, MAX(bd.serial) AS serial
                   FROM biometric_punches p JOIN employees e ON e.id = p.employee_id JOIN biometric_devices bd ON bd.id = p.device_id
                  WHERE p.institution_id = ?1 AND p.punched_at >= ?2 AND e.user_id IS NOT NULL
                  GROUP BY e.user_id, d) g`).bind(inst, since, now()),
     db.prepare(`UPDATE staff_attendance SET
-          check_in = MIN(COALESCE(check_in, '9999'), (SELECT MIN(p.punched_at) FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
-              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date)),
-          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 5.0 / 1440 THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+          /* Read fresh from the day's punches; one tap after noon is leaving (see rollUpImportedDay). */
+          check_in = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) < 60.0 / 1440 AND time(MIN(p.punched_at), '+330 minutes') >= '12:00' THEN NULL ELSE MIN(p.punched_at) END
+              FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
+              WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
+          check_out = (SELECT CASE WHEN julianday(MAX(p.punched_at)) - julianday(MIN(p.punched_at)) >= 60.0 / 1440 OR time(MIN(p.punched_at), '+330 minutes') >= '12:00' THEN MAX(p.punched_at) END FROM biometric_punches p JOIN employees e ON e.id = p.employee_id
               WHERE e.user_id = staff_attendance.user_id AND ${day} = staff_attendance.on_date),
           status = 'present'
         WHERE institution_id = ?1 AND source = 'device' AND on_date >= date(?2, '+330 minutes')
@@ -200,6 +204,16 @@ async function findDevice(env: Env, serial: string) {
   return null
 }
 
+const CLOCK_KEY = (deviceId: string) => `iclock_clock:${deviceId}`
+const CLOCK_EVERY_MS = 3600_000
+
+/** India time in the readers' packed form: seconds counted on a calendar of 31-day months from 2000. */
+export function zkTime(d: Date): number {
+  const t = new Date(d.getTime() + 330 * 60_000)
+  const y = t.getUTCFullYear(), mo = t.getUTCMonth() + 1, day = t.getUTCDate()
+  return ((y - 2000) * 12 * 31 + (mo - 1) * 31 + day - 1) * 86400 + (t.getUTCHours() * 60 + t.getUTCMinutes()) * 60 + t.getUTCSeconds()
+}
+
 export async function handleIclock(env: Env, req: Request, url: URL): Promise<Response | null> {
   if (!url.pathname.startsWith('/iclock/')) return null
   const serial = (url.searchParams.get('SN') ?? '').trim()
@@ -218,10 +232,16 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
 
   if (path === '/iclock/cdata' && req.method === 'GET') {
     /* The reader's settings: send every punch at once (Realtime), from the
-       start of its log, and check in every 30 seconds. */
+       start of its log, and check in every 30 seconds.
+       No TimeZone. A reader given one sets its own clock from it and the
+       server's time, and eSSL firmware reads the zone in whole hours: India's
+       5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
+       2026-10-22). The clock is set to India time directly instead, by
+       SET OPTION DateTime below (the command name the X2008 and other ZMM220
+       readers read), which carries no zone to misread. */
     return text([
       `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
-      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'TimeZone=5.5', 'Realtime=1', 'Encrypt=None',
+      'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
     ].join('\n') + '\n')
   }
 
@@ -255,11 +275,70 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     let n = 0
     let orphans = 0
     const days = new Map<string, string>() // employee -> a punch time on that day, to roll up once each
-    for (const line of body.split('\n')) {
+    /* A READER WHOSE CLOCK IS WRONG (Yajur, 2026-10-22: 30 minutes ahead for a
+       week, then 30 behind). module_settings 'biometric_clock' config
+       {"ranges": [{"from": "2026-10-15", "to": "2026-10-22", "minutes": -30},
+       {"from": "2026-10-23", "minutes": 30}]} moves each punch, by the date the
+       reader wrote on it, by that range's minutes. An open range lasts until it
+       is closed once the reader's clock is set right. The older single
+       {"minutes", "from"} form still reads as one open range. */
+    /* REAL TIME, WITHOUT ANYBODY SAYING BY HOW MUCH (Yajur, 2026-10-23: "no
+       need of me telling always"). With {"auto": true} in the same config, a
+       reader's error is measured: a punch sent the moment it is made carries
+       the reader's clock, and the server's clock is the real time (India,
+       UTC+5:30). Each punch that arrives live (within three hours of its own
+       time) is moved by its own gap, to the nearest five minutes; a gap under
+       three minutes is the push's delay, not a wrong clock. The last gap seen
+       is kept per reader in config.drift and moves punches sent later from the
+       reader's memory, on a date no range covers. */
+    let ranges: { from: string; to: string; minutes: number }[] = []
+    let cfgAll: { auto?: boolean; drift?: Record<string, { day: string; minutes: number }> } & Record<string, unknown> = {}
+    try {
+      const cfg = await db.prepare(`SELECT config FROM module_settings WHERE module = 'biometric_clock' AND enabled = 1`).first<{ config: string | null }>()
+      const v = cfg?.config ? JSON.parse(cfg.config) as typeof cfgAll & { minutes?: number; from?: string; ranges?: { from?: string; to?: string; minutes?: number }[] } : {}
+      cfgAll = v
+      const list = Array.isArray(v.ranges) ? v.ranges : v.minutes ? [v] : []
+      ranges = list.map((r) => ({ from: String(r.from ?? ''), to: String((r as { to?: string }).to ?? '9999-12-31'), minutes: Number(r.minutes) || 0 })).filter((r) => r.minutes)
+    } catch { /* no correction */ }
+    const lines = body.split('\n').map((l) => punchFields(l) ? l : null).filter((l): l is string => !!l)
+    /* The batch's gap: its newest punch is the one sent live, so the smallest
+       gap in the batch is the reader's error; punches it held while offline
+       keep their spacing. A batch with nothing live (history) uses the last
+       gap kept for this reader. */
+    const kept = cfgAll.drift?.[serial]
+    let drift = kept ? kept.minutes : 0
+    if (cfgAll.auto) {
+      const gaps = lines.map((l) => { try { return (Date.now() - Date.parse(parsePunchTime(punchFields(l)![1]))) / 60_000 } catch { return NaN } })
+        .filter((g) => Math.abs(g) < 180)
+      if (gaps.length) {
+        const g = Math.min(...gaps)
+        drift = Math.abs(g) < 3 ? 0 : Math.round(g)
+        if (!kept || kept.minutes !== drift) {
+          cfgAll.drift = { ...(cfgAll.drift ?? {}), [serial]: { day: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10), minutes: drift } }
+          await db.prepare(`UPDATE module_settings SET config = ? WHERE module = 'biometric_clock'`).bind(JSON.stringify(cfgAll)).run()
+        }
+      }
+    }
+    /* config.auto_from (the reader's own "YYYY-MM-DD HH:MM", when its clock
+       went wrong): a punch it wrote before then is right as it stands, so
+       history sent again does not move it. */
+    const autoFrom = typeof cfgAll.auto_from === 'string' ? cfgAll.auto_from : ''
+    const shiftFor = (stamp: string) => {
+      const day = stamp.slice(0, 10)
+      const ranged = ranges.find((r) => day >= r.from && day <= r.to)
+      if (ranged) return ranged.minutes
+      return cfgAll.auto && stamp >= autoFrom ? drift : 0
+    }
+    for (const line of lines) {
       const f = punchFields(line)
       if (!f) continue
       let at: string
       try { at = parsePunchTime(f[1]) } catch { continue }
+      // The same line sent again (Fetch history) is already stored, whatever time it was moved to.
+      const uidRaw = f[0].toUpperCase()
+      if (await db.prepare(`SELECT 1 FROM biometric_punches WHERE device_id = ? AND device_user_id = ? AND raw = ?`).bind(dev.deviceId, uidRaw, line.slice(0, 300)).first()) { n++; continue }
+      const shift = shiftFor(f[1].trim().slice(0, 16))
+      if (shift) at = new Date(Date.parse(at) + shift * 60_000).toISOString()
       if (Date.parse(at) > Date.now() + 24 * 3600_000) continue
       const uid = f[0].toUpperCase()
       const emp = await db.prepare(`SELECT id FROM employees WHERE upper(CAST(device_user_id AS TEXT)) = ?`).bind(uid).first<{ id: string }>()
@@ -310,6 +389,17 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     if (want) {
       await db.prepare(`UPDATE module_settings SET enabled = 0, config = ? WHERE module = ?`).bind(JSON.stringify({ sent_at: now() }), key).run()
       return text(`C:${id}:DATA QUERY ATTLOG StartTime=2000-01-01 00:00:00\tEndTime=2099-12-31 23:59:59\nC:${id + 1}:CHECK\n`)
+    }
+    /* The reader's clock. Nothing else sets it, and a reader left to its own
+       clock drifts by minutes a month, so late marks stop meaning anything.
+       Set on first contact and every hour after, to India time. */
+    const ckey = CLOCK_KEY(dev.deviceId)
+    const last = await db.prepare(`SELECT config FROM module_settings WHERE module = ?`).bind(ckey).first<{ config: string | null }>()
+    const at = Date.parse((JSON.parse(last?.config ?? '{}') as { sent_at?: string }).sent_at ?? '')
+    if (!(at > Date.now() - CLOCK_EVERY_MS)) {
+      await db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 0, ?)
+          ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(dev.inst.id, ckey, JSON.stringify({ sent_at: now() })).run()
+      return text(`C:${id + 4}:SET OPTION DateTime=${zkTime(new Date())}\n`)
     }
   }
 

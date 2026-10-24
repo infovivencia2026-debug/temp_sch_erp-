@@ -187,6 +187,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Billing')),
   'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
+  // Schools renewing in 30/60/90 days with a churn-risk flag; resellers and their commission.
+  'seller_admin.subscriptions_billing.renewals': screen(() => import('./seller/Renewals')),
+  'seller_admin.subscriptions_billing.partners': screen(() => import('./seller/Partners')),
+  // The sales pipeline: leads, quotes, demo schools, "Set up school" when won.
+  'seller_admin.sales.leads': screen(() => import('./super_admin/Leads')),
 
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
@@ -219,12 +224,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'faculty.communication.concerns_from_parents': screen(() => import('./comms/ConcernsFromParents')), // feature:communication.concerns_from_parents
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
-  'faculty.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
   'hod.academics.subject_meetings': screen(() => import('./academics/SubjectMeetings')), // feature:academics.subject_meetings
-  'faculty.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
-  /* Attendance — three separate menu tiles, one screen each: Take attendance,
-     Present & absent and Absentee follow-up. Each is scoped server-side, so a
-     class teacher gets their sections and a read.all holder gets the school.
   'institution_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'hod.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'exam_controller.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
@@ -244,8 +244,34 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'it_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
   'institution_admin.communication.mail_addresses': screen(() => import('./comms/MailAddresses')), // feature:communication.mail_addresses
+  'board_member.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'lms_admin.communication.inbox': screen(() => import('./comms/Inbox')), // feature:communication.inbox
+  'activity_coord.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'admissions.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'board_member.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'counsellor.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'discipline_officer.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'driver.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'exam_controller.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'faculty.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'finance.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'front_office.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hod.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hostel_warden.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'hr.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'institution_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'it_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'librarian.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'lms_admin.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'nurse.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'operations.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  'transport_manager.school_gallery.school_gallery': screen(() => import('./comms/status/GalleryScreen')), // feature:school_gallery.school_gallery
+  /* Attendance — three separate menu tiles, one screen each: Take attendance,
+     Present & absent and Absentee follow-up. Each is scoped server-side, so a
+     class teacher gets their sections and a read.all holder gets the school.
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
+  'institution_admin.activity.school_activity': screen(() => import('./admin/SchoolActivity')), // feature:activity.school_activity
   /* Same register, wider reach. Which sections it offers is decided by the
      permission the feature carries, not by the screen: with
      academics.attendance.write.any it lists every section in the school,

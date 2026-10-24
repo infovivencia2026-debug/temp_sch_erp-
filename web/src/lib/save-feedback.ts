@@ -24,6 +24,7 @@ const QUIET: RegExp[] = [
   /\/session(\/|$)/,          // activity beacon, reauth
   /\/sessions\//,
   /\/files(\/|\?|$)/,         // an upload is confirmed by the thing it is attached to
+  /\/paper-images(\/|\?|$)/,  // a picture put into a paper: the picture on the sheet is the confirmation
   /\/login|\/logout|\/mfa/,
   /\/search|\/lookup|\/suggest|\/preview|\/export|\/print|\/pdf/,
   /\/assistant|\/ai\//,
