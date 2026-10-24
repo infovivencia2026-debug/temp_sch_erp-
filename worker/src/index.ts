@@ -6,7 +6,7 @@ import { tick } from './services/cron'
 import { handleEmail } from './services/mail'
 import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
-import { homeOf, login, schoolAppConfig, schoolLogin, schoolLogo, showLogin } from './routes/login'
+import { homeOf, loginAt, schoolAppConfig, schoolLogin, schoolLogo, schoolSlide } from './routes/login'
 import { getSession } from './routes/session'
 import { getBootstrap } from './routes/bootstrap'
 import { buildRouter } from './routes/index'
@@ -28,7 +28,7 @@ import { PLATFORM_SCOPE, bumpVersion, watchAuthWrites } from './idcache'
 export { LiveHub } from './services/live'
 
 const router = buildRouter()
-const SCHOOL_ROUTE = /^\/([a-z]{2})\/([a-z0-9][a-z0-9-]{0,62})(\/logo|\/app\.json)?\/?$/
+const SCHOOL_ROUTE = /^\/([a-z]{2})\/([a-z0-9][a-z0-9-]{0,62})(\/logo|\/app\.json|\/slide\/[0-9a-f-]{36})?\/?$/
 
 /* The Worker that replaces the Go server on Cloud Run. Every path the Pages
    proxy (web/functions/[[path]].ts) forwards lands here. Routes are added as
@@ -49,8 +49,7 @@ export default {
       // Biometric readers push here; a reader is known by its registered serial, not a session (routes/iclock.ts).
       { const r = await handleIclock(env, req, url); if (r) return r }
       if (originRefused(env, pathname, verified)) return new Response('Not Found', { status: 404 })
-      if (pathname === '/login' && m === 'GET') return showLogin(env, req)
-      if (pathname === '/login' && m === 'POST') return login(env, req)
+      if (pathname === '/login' && (m === 'GET' || m === 'POST')) return loginAt(env, req)
       /* Public server-rendered pages: password reset, pricing, signup, apps,
          and the second sign-in step. See pages/index.ts. */
       const pageRes = await handlePages(env, req, url)
@@ -61,13 +60,14 @@ export default {
         return new Response(null, { status: 303, headers: { location: homeOf(req) ?? '/login', 'set-cookie': clearCookie(env) } })
       }
       /* A school's own address: /<country>/<slug> is its sign-in page and
-         /<country>/<slug>/logo its logo and
+         /<country>/<slug>/logo its logo, /<country>/<slug>/slide/<id> one of its sign-in pictures and
          /<country>/<slug>/app.json what its own apps are built from. See routes/login.ts. */
       const school = SCHOOL_ROUTE.exec(pathname)
       if (school) {
         const res = !school[3] ? await schoolLogin(env, req, school[1], school[2])
           : m !== 'GET' ? null
           : school[3] === '/logo' ? await schoolLogo(env, school[1], school[2])
+          : school[3].startsWith('/slide/') ? await schoolSlide(env, school[1], school[2], school[3].slice(7))
           : await schoolAppConfig(env, req, school[1], school[2])
         if (res) return res
       }
