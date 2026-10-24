@@ -219,6 +219,13 @@ function key(dashboard: string) {
   return `erp.widgets.${dashboard}`
 }
 
+/** One entry per id, the first kept. A saved layout that holds a card twice
+    would otherwise draw it twice. */
+export function dedupePlaced(placed: Placed[]): Placed[] {
+  const seen = new Set<string>()
+  return placed.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+}
+
 function read(dashboard: string): Layout {
   try {
     const raw = localStorage.getItem(key(dashboard))
@@ -232,7 +239,7 @@ function read(dashboard: string): Layout {
          discarded, so nobody who arranged a board before this change opens it
          to find their arrangement gone. */
       placed: Array.isArray(v.placed)
-        ? (v.placed as unknown[]).flatMap((raw) => {
+        ? dedupePlaced((v.placed as unknown[]).flatMap((raw) => {
             const p = raw as { id?: unknown; w?: unknown; h?: unknown; size?: unknown; tint?: unknown }
             if (!p || typeof p.id !== 'string') return []
             const w = clamp(p.w, WIDTHS.length)
@@ -254,7 +261,7 @@ function read(dashboard: string): Layout {
               return [{ id: p.id, w: d.w, h: d.h, ...tint }]
             }
             return []
-          })
+          }))
         : [],
       removed: Array.isArray(v.removed) ? v.removed.filter((x): x is string => typeof x === 'string') : [],
     }

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, KeyRound, Network, Palette, Plus, X } from 'lucide-react'
 import { SchoolGroups } from './SchoolGroups'
 import { NewSchool } from './NewSchool'
+import { SignInPictures } from './SignInPictures'
 import { Features } from './Features'
 import { School360 } from './School360'
 import { BulkActions } from './BulkActions'
@@ -1210,6 +1211,7 @@ function BrandingForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void
               </div>
             </Field>
           </FormGrid>
+          <SignInPictures tenantId={tenant.id} onChange={() => setPreviewKey((n) => n + 1)} />
           <FormNotice error={save.error ?? logo.error} />
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button type="submit" disabled={!dirty || save.isPending}>

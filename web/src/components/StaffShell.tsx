@@ -116,7 +116,7 @@ export function StaffNavGroup({ slug, name, count = 0, children }: {
   return (
     /* shrink-0: in the menu's fixed-height scroll column a card must keep its
        height and let the column scroll; shrinking sliced titles and items. */
-    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-surface-subtle">
+    <div className="shrink-0 overflow-hidden rounded-[14px] border bg-card">
       <button type="button" data-row onClick={toggle} aria-expanded={open}
         className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
                    text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
@@ -165,6 +165,9 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
     if (!bySection.has(to)) bySection.set(to, [])
     bySection.get(to)!.push({ section: g.section.slug, f })
   }
+  /* Only the first Home is called Home; a role with several workspaces names
+     the others after their workspace (owner, 2026-10-24: three Homes). */
+  let homes = 0
   return (
     <>
       {listed.map(({ ws, section }) => {
@@ -179,13 +182,14 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
         const home = isHomeSection(section)
         if (home || list.length === 1) {
           const first = list[0]
-          const name = home ? 'Home' : first.f.name
+          const name = !home ? first.f.name : homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
               title={home ? undefined : first.f.summary}
               className={({ isActive }) => cn(
-                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
-                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
+                /* A one-screen group is a white card like the others, not a bare row (owner, 2026-10-24). */
+                'flex min-h-[calc(48px*var(--font-scale,1))] shrink-0 items-center gap-2.5 rounded-[14px] border px-4 text-[calc(15px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] font-semibold transition-colors',
+                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-surface-hover',
               )}>
               <LineIcon name={home ? 'home' : `${section.slug} ${first.f.slug} ${name}`} size={18} />
               <span className="truncate">{label(name)}</span>
@@ -224,7 +228,9 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 }
 
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
-export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof useTodaySignIns> }) {
+/* `dashboard`: the greeting, name and sign-in times show on the dashboard
+   only; other screens keep just the bar's controls (owner, 2026-10-24). */
+export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -248,7 +254,7 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
           <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
           <Notifications />
         </div>
-        <div className="min-w-0">
+        {dashboard && <div className="min-w-0">
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>
           <p className="truncate text-[20px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
           {(d?.employee_code || times) && (
@@ -257,17 +263,16 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
               {d?.employee_code && times && ' • '}{times}
             </p>
           )}
-        </div>
-        <CommandSearch wide fill />
+        </div>}
       </div>
     )
   }
   return (
     <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
       <div className="min-w-0">
-        {/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
+        {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
-        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p>
+        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p></>}
       </div>
       <div className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
         <CommandSearch wide fill />
@@ -277,7 +282,7 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
         <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={36} />
         <div className="min-w-0 max-w-[9.5rem] sm:max-w-none">
           {d?.employee_code && <p className="truncate text-[calc(13px*var(--font-scale,1))] font-semibold tabular-nums">{d.employee_code}</p>}
-          {times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+          {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         </div>
       </div>
     </div>
