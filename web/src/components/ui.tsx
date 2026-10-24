@@ -3621,7 +3621,7 @@ export function Dialog({
           <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
         )}
         {(title || description || actions) && (
-          <div className="flex shrink-0 flex-wrap items-start gap-x-3 border-b px-5 pb-3 pt-3 sm:flex-nowrap sm:px-6 sm:pt-4">
+          <div className="flex shrink-0 flex-wrap items-start gap-x-3 border-b px-4 pb-3 pt-3 sm:flex-nowrap sm:px-6 sm:pt-4">
             <div className="min-w-0 flex-1 pt-1.5">
               {title && <h2 className="text-[16px] font-semibold leading-snug">{title}</h2>}
               {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
@@ -3639,11 +3639,11 @@ export function Dialog({
             </button>
           </div>
         )}
-        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-5 py-4 sm:px-6')}>{children}</div>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-4 py-4 sm:px-6')}>{children}</div>
         {footer && (
           <div
-            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-5 py-3 sm:px-6"
-            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-4 py-3 sm:px-6"
+            style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
           >
             {footer}
           </div>

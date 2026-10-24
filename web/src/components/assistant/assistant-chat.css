@@ -27,11 +27,11 @@ html[data-assistant-open] body {
 }
 
 /* The height of a one-line question box, and so of the button groups beside
-   and inside it (AssistantTab.tsx). 52px where buttons are 44px tap targets,
+   and inside it (AssistantTab.tsx). 56px where buttons are 48px tap targets (40 on a desk),
    so Send keeps the same 4-5px of air inside the pill that it has on a desk. */
-[data-assistant-chat] .assistant-composer { --row: 44px; }
+[data-assistant-chat] .assistant-composer { --row: 48px; }
 @media (pointer: coarse) {
-  [data-assistant-chat] .assistant-composer { --row: 52px; }
+  [data-assistant-chat] .assistant-composer { --row: 56px; }
 }
 
 /* Pinned to the VISIBLE viewport on a phone: iOS draws the keyboard over a
