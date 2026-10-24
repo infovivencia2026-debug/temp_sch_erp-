@@ -13,7 +13,7 @@ export interface Brand {
   name: string
   action: string
   logoUrl?: string | null
-  /** Sign-in pictures, public URLs in order. */
+  /** Sign-in pictures, public URLs in order: the square gallery that replaces the brand panel. */
   slides?: string[]
   primary?: string | null
   accent?: string | null
@@ -22,8 +22,6 @@ export interface Brand {
   message?: string | null
   supportEmail?: string | null
   supportPhone?: string | null
-  /** Square pictures for the gallery that replaces the brand panel. */
-  slides?: string[]
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/
@@ -104,7 +102,7 @@ const TAB_CSS = `
 .who button:hover{background:color-mix(in srgb, var(--fg) 6%, transparent)}
 .who button[aria-selected="true"]{background:var(--brand, var(--accent));color:#fff}
 .id-hint{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
-@media (max-width:640px){.who button{height:44px}}
+@media (max-width:640px){.who button{height:48px}}
 @media (max-width:560px){
   .auth-split:not(.has-gallery) .who{background:rgba(0,0,0,0.25)}
   .auth-split:not(.has-gallery) .who button{color:rgba(255,255,255,0.85)}

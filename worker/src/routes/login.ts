@@ -2,11 +2,11 @@ import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
 import { issueSession } from '../auth/session'
-import { loginHTML, type Brand, type LoginLang } from '../auth/login-page'
+import { chooserHTML, loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
 import { askForCode } from '../pages/mfa'
 import { studentLoginRefusal, studentOnlyAccount } from '../services/student_logins'
-import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, slideUrl, tenantDb, type Institution } from '../tenant'
+import { defaultAppId, institutionById, institutionByHost, institutionByPath, institutionBySlug, schoolPath, siteOf, slideUrl, SLUG, tenantDb, type Institution } from '../tenant'
 
 const CSRF = 'erp_csrf'
 const MAX_FAILS = 8
@@ -142,6 +142,43 @@ export async function showLogin(env: Env, req: Request): Promise<Response> {
   return pageFor(env, { next, req })
 }
 
+/** /login on any host: which page it shows and whose accounts it takes depend on the host (tenant.ts siteOf). */
+export async function loginAt(env: Env, req: Request): Promise<Response> {
+  const site = await siteOf(env, hostOf(req))
+  const get = req.method === 'GET'
+  if (site.kind === 'school') {
+    if (get) return pageFor(env, { next: safeNext(new URL(req.url).searchParams.get('next')), school: site.school, req })
+    return login(env, req, site.school)
+  }
+  if (site.kind === 'chooser') return chooseSchool(env, req)
+  if (site.kind === 'unknown') return chooserPage(env, req, { next: '/', code: site.code, error: noSchool(site.code), status: 404 })
+  if (site.kind === 'vendor') return get ? pageFor(env, { next: safeNext(new URL(req.url).searchParams.get('next')), req }) : login(env, req, null, '/login', true)
+  return get ? showLogin(env, req) : login(env, req)
+}
+
+const noSchool = (code: string) => `No school uses the code ${code}. Check it with the school office.`
+
+/* school.<SCHOOL_DOMAIN>/login: ask for the school code (the school's slug), then send the
+   browser to that school's own address, keeping where it was going. */
+async function chooseSchool(env: Env, req: Request): Promise<Response> {
+  // The page posts its form; a link with ?code= works too. Only a lookup, so no CSRF check.
+  const q = req.method === 'POST' ? await req.formData().catch(() => new FormData()) : new URL(req.url).searchParams
+  if (req.method !== 'GET' && req.method !== 'POST') return chooserPage(env, req, { next: '/', status: 405 })
+  const next = safeNext(String(q.get('next') ?? ''))
+  const code = String(q.get('code') ?? '').trim().toLowerCase()
+  if (!code) return chooserPage(env, req, { next })
+  const school = SLUG.test(code) ? await institutionBySlug(env, code) : null
+  if (!school) return chooserPage(env, req, { next, code, error: noSchool(code), status: 404 })
+  const to = `https://${school.slug.toLowerCase()}.${env.SCHOOL_DOMAIN}/login` + (next === '/' ? '' : `?next=${encodeURIComponent(next)}`)
+  return new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } })
+}
+
+function chooserPage(env: Env, req: Request, o: { next: string; code?: string; error?: string; status?: number }): Response {
+  const { lang } = loginLang(req, null)
+  const html = chooserHTML({ csrf: csrfToken(), next: o.next, code: o.code, error: o.error, lang })
+  return new Response(html, { status: o.status ?? 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-language': lang } })
+}
+
 /* A school's own sign-in page: /<country>/<slug>. GET shows it, POST signs in,
    and only that school's accounts can sign in there. */
 export async function schoolLogin(env: Env, req: Request, country: string, slug: string): Promise<Response | null> {
@@ -221,10 +258,10 @@ interface Candidate { institution_id: string | null; user_id: string; hash: stri
    internal/auth/handler.go: the password chooses between candidates, a
    paused school is reported only after the password matches, and a genuine
    tie is an error. */
-async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string):
+async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
   const idx = await env.CONTROL.prepare(
-    `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : ''} LIMIT ?`)
+    `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()
   const candidates: Candidate[] = []
   for (const r of idx.results) {
@@ -255,7 +292,7 @@ async function authenticate(env: Env, identifier: string, password: string, only
   return { ok: true, c: live[0] }
 }
 
-export async function login(env: Env, req: Request, school?: Institution | null, action = '/login'): Promise<Response> {
+export async function login(env: Env, req: Request, school?: Institution | null, action = '/login', vendorOnly = false): Promise<Response> {
   /* On a school's own domain /login is that school's page too. */
   if (school === undefined) school = await institutionByHost(env, hostOf(req))
   const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action, req })
@@ -279,7 +316,13 @@ export async function login(env: Env, req: Request, school?: Institution | null,
     return page(env, { error: `Too many attempts. Wait ${Math.ceil(wait / 60000)} minute(s), then try again.`, next, identifier, status: 429 })
   }
 
-  const r = await authenticate(env, identifier, password, school?.id)
+  const r = await authenticate(env, identifier, password, vendorOnly ? null : school?.id)
+  /* The vendor's address takes only platform accounts; a school account whose password
+     is right is told where its own page is, not that the password is wrong. */
+  if (!r.ok && vendorOnly && r.outcome !== 'wrong_password' && (await authenticate(env, identifier, password)).ok) {
+    await record(env, req, identifier, 'wrong_site', null, null)
+    return page(env, { error: `This page is for XULO staff. Sign in at your school's own address, such as yourschool.${env.SCHOOL_DOMAIN}, or find it at school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
+  }
   if (!r.ok) {
     await failed(env, idKey)
     await failed(env, 'ip:' + ip, 1 / 5)
