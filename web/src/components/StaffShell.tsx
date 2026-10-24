@@ -59,7 +59,8 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
 ]
 function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
-  return <Icon aria-hidden className="shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
+  // On a phone .nav-line-icon goes to 24px (index.css, owner 2026-10-24).
+  return <Icon aria-hidden className="nav-line-icon shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
 }
 
 /* v2: a group someone opened under the old open-by-default rule starts closed again. */
@@ -103,7 +104,7 @@ function Group({ slug, section, name, count = 0, go, onNavigate, children }: {
   return (
     <div className="pt-1">
       <button type="button" onClick={toggle} aria-expanded={open}
-        className="flex min-h-[calc(38px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
+        className="flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] w-full items-center justify-between gap-2 rounded-sm px-2.5 text-left
                    text-[calc(14px*var(--font-scale,1))] font-semibold text-foreground
                    transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="flex min-w-0 items-center gap-2.5">
@@ -170,7 +171,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
                   // A grouped item stays lit while one of its tabs is open.
                   const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)
                   return cn(
-                    'flex min-h-[calc(34px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
+                    'flex min-h-[calc(34px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:gap-3 max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2 rounded-sm px-2.5 py-1 text-[calc(13.5px*var(--font-scale,1))] transition-colors',
                     on ? 'bg-primary/10 font-semibold text-primary' : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     !f.live && !on && 'text-muted-foreground/70',
                   )

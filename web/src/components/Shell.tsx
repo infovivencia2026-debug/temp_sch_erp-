@@ -572,6 +572,7 @@ export function Shell({
   /* The school's staff layout (module_settings 'staff_layout'): the same menu
      and search, drawn as a text sidebar and one top bar. See StaffShell.tsx. */
   const staffLayout = !chromeless && staffLayoutOn(session, role?.key)
+  const schoolLayout = !chromeless && !!session.modules?.some((m) => m.module === 'staff_layout' && m.enabled)
   const signIns = useTodaySignIns(staffLayout)
   useRootReduceMotion()
 
@@ -754,7 +755,8 @@ export function Shell({
           // The staff layout has no icon rail, so a resting tablet uses the drawer.
           staffLayout && !tabletDrawer && 'md:max-lg:!hidden',
           // On a phone the staff menu opens across the whole screen (owner, 2026-10-19).
-          staffLayout && 'max-md:!w-full max-md:border-r-0',
+          // Every role at a school with the staff layout gets the full-screen phone menu (Yajur, 2026-10-24).
+          schoolLayout && 'max-md:!w-full max-md:border-r-0',
           chromeless ? '!hidden' : ''
         )}
         /* Only while it is a drawer (phone, or the tablet once opened): a fixed
@@ -1219,7 +1221,8 @@ export function Shell({
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
         {staffLayout ? (
           /* The rail's foot, as one compact row: the staff layout has no rail. */
-          <div className="flex shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-t px-3 py-2 text-[calc(13px*var(--font-scale,1))]">
+          /* Centred, the links and the Focus | Work switch alike (Yajur, 2026-10-24). */
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-1 gap-y-1 border-t px-3 py-2 text-center text-[calc(13px*var(--font-scale,1))]">
             <HelpButton
               className="grid size-10 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
               iconClassName="h-4 w-4"
@@ -1233,7 +1236,7 @@ export function Shell({
               Sign out
             </a>
             <div className="min-w-0"><BentoSettings placement="sidebar" /></div>
-            <div className="basis-full"><LayoutSwitch /></div>
+            <div className="flex basis-full justify-center"><LayoutSwitch /></div>
           </div>
         ) : (
           <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
@@ -1283,7 +1286,8 @@ export function Shell({
                 <PanelLeftOpen className="h-5 w-5" />
               </button>
             )}
-            <StaffHeaderContent signIns={signIns} />
+            {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} />}
           </header>
         )}
         {!chromeless && !staffLayout && (

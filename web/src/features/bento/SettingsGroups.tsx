@@ -132,7 +132,7 @@ function Row({ item, value, swatch, onClick }: {
         'min-h-[50px]',
         // The pressed state was missing entirely: a row that does not answer a
         // tap reads as a dead row for the moment before the screen changes.
-        'transition-colors active:bg-muted',
+        'transition-colors', // no pressed grey (owner, 2026-10-24)
       )}
     >
       {/* A line icon in the row's own ink, no tile under it: the tinted boxes read
@@ -282,7 +282,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
         type="button"
         onClick={() => onOpen('account')}
         className="-mx-4 -mb-4 mt-3 flex min-h-[48px] w-[calc(100%+32px)] items-center gap-2 border-t px-4
-                   text-left text-[14px] font-medium transition-colors active:bg-muted"
+                   text-left text-[14px] font-medium transition-colors"
       >
         <span className="flex-1">Account and profile</span>
         <ChevronRight className="size-4 text-muted-foreground" aria-hidden />

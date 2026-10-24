@@ -186,7 +186,7 @@ export default function StudentHome() {
             <ul className="mt-1 divide-y border-t">
               {pending.slice(0, 4).map((h) => (
                 <li key={h.id}>
-                  <Link to={`${toHomework}?open=${h.id}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2 active:bg-muted/50">
+                  <Link to={`${toHomework}?open=${h.id}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 block text-[15px] font-medium leading-snug">{h.title}</span>
                       <span className="block truncate text-[13px] text-muted-foreground">{h.subject ?? 'Homework'}</span>

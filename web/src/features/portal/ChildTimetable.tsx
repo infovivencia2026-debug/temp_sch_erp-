@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Select, ErrorState, EmptyState } from '@/components/ui'
+import { PageHead, PageBody, Select, ErrorState, EmptyState, Card } from '@/components/ui'
 import DayTimeline from '@/components/DayTimeline'
+import WeekGrid from '@/components/WeekGrid'
+import { usePhone } from '@/lib/viewport'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
 import { ChooseChild } from '@/features/portal/ChooseChild'
@@ -46,6 +48,13 @@ export default function ChildTimetable() {
   })
 
   const ready = readyFor(kids, studentId)
+  const phone = usePhone()
+  const week = (entries.data?.items ?? []).map((e) => ({
+    weekday: e.weekday,
+    period_id: e.period_id,
+    title: e.subject_name || e.subject_code,
+    detail: [e.teacher_name, e.room].filter(Boolean).join(' • '),
+  }))
 
   return (
     <>
@@ -86,19 +95,20 @@ export default function ChildTimetable() {
         ) : entries.error ? (
           <ErrorState error={entries.error} />
         ) : (
-          <>
+          /* The week as a grid on a computer, the day as a timeline on a phone
+             (Yajur, 2026-10-24: one timetable look everywhere). */
+          phone ? (
             <DayTimeline
               who={`${child?.full_name ?? ''}`}
               where={`${child?.class_name ?? ''} ${child?.section_name ?? ''}`.trim()}
               periods={periods.data?.items ?? []}
-              entries={(entries.data?.items ?? []).map((e) => ({
-                weekday: e.weekday,
-                period_id: e.period_id,
-                title: e.subject_name || e.subject_code,
-                detail: [e.teacher_name, e.room].filter(Boolean).join(' • '),
-              }))}
+              entries={week}
             />
-          </>
+          ) : (
+            <Card className="p-4">
+              <WeekGrid periods={periods.data?.items ?? []} entries={week} />
+            </Card>
+          )
         )}
       </PageBody>
     </>

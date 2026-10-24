@@ -2,7 +2,8 @@ import { useRef, useState, type ReactNode } from 'react'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
+import NotificationRow, { channelOf } from '@/components/NotificationRow'
+import { UserPlus, Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
   ConfirmButton, Checkbox, Switch, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
@@ -203,6 +204,15 @@ function Gallery() {
               <Button variant="secondary" size="sm" onClick={() => toast.ok('Saved the attendance for 6-A')}>Show ok toast</Button>
               <Button variant="secondary" size="sm" onClick={() => toast.error('Could not reach the server')}>Show error toast</Button>
             </div>
+          </Card>
+        </Section>
+
+        <Section id="notification-row" title="Notification row">
+          <Card className="space-y-2 p-[var(--card-pad)]">
+            <NotificationRow title="New enquiry for Class 3" time="10 min ago" label="Admissions" icon={UserPlus}
+              extra={channelOf('Sent by WhatsApp')} unread pending snippet="Asked about seats and the fee for next year." onView={() => {}} />
+            <NotificationRow title="Fee due: term 2" time="Yesterday" label="Fees" icon={Wallet}
+              snippet="Pay before the 30th to avoid a late fee." onView={() => {}} />
           </Card>
         </Section>
 

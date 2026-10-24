@@ -2722,12 +2722,12 @@ export function Field({
 }) {
   return (
     <label className={cn('block', wide && 'sm:col-span-2')}>
-      <span className="mb-1.5 block text-[13px] font-medium text-secondary-foreground">
+      <span className="mb-1.5 block text-[13px] font-medium text-secondary-foreground max-sm:text-[14px]">
         {label}
         {required && <span className="ml-1 text-destructive">*</span>}
       </span>
       {children}
-      {hint && <span className="mt-1.5 block text-[13px] text-muted-foreground">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-[13px] text-muted-foreground max-sm:text-[14px]">{hint}</span>}
     </label>
   )
 }
