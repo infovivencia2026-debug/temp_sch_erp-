@@ -1,5 +1,6 @@
 import { Router } from '../router'
 import { withSellerAudit } from '../services/seller_audit'
+import { withTicketIndex } from '../services/ticket_index'
 import { withLifecycleGate } from './seller/lifecycle'
 import { registerMisc } from './misc'
 import { registerStudents } from './students'
@@ -46,7 +47,7 @@ import { registerSchoolActivity } from './admin/school_activity' // feature:acti
    /exams/board/* is not swallowed by an /exams/{id} pattern. */
 export function buildRouter(): Router {
   // Every seller/platform write is recorded; a read-only (off-boarding) school refuses writes.
-  const r = withSellerAudit(withLifecycleGate(new Router()))
+  const r = withTicketIndex(withSellerAudit(withLifecycleGate(new Router())))
   registerMisc(r)
   registerStudents(r)
   registerAcademics(r)

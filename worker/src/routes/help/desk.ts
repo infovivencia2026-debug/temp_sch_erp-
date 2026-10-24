@@ -17,7 +17,8 @@ import { auditDetail } from '../../services/seller_audit'
 import { errorRef } from '../../services/error_refs'
 import { openIncidents } from './incidents_match'
 import { subscriptionsByInstitution } from '../seller/tenants'
-import { contentEntries, forgetContent, type ContentKind } from './content'
+import { checkSlaShape, contentEntries, forgetContent, type ContentKind } from './content'
+import { syncSchoolTickets } from '../../services/ticket_index'
 import { TICKET_COLS, bell, deskLink, messageBody, parseDiagnostics, requestLink, thread, ticketSummary, updateStmt, type TicketRow } from './shared'
 
 export interface DeskSchool { inst: Institution; db: D1Database }
@@ -153,43 +154,102 @@ export function registerSupportDeskMore(r: Router): void {
     })
   })
 
-  /* Bulk: take (yourself), close, or merge into one ticket of the same school. */
+  /* Bulk: take (yourself), close, or merge into one open ticket of the same
+     school. Every item is checked before anything changes, so one unknown
+     school or ticket cannot leave the batch half done; each item is answered
+     on its own (results), and the register names every school and ticket. */
   r.post('/admin/platform/desk/bulk', SUPPORT_DESK, async (c) => {
     platformOnly(c)
     const req = await readJSON<{ action?: string; items?: { school: string; id: string }[]; into?: { school: string; id: string }; note?: string }>(c.req)
     const items = Array.isArray(req.items) ? req.items.slice(0, 100) : []
     if (!items.length) throw badRequest('choose at least one ticket')
-    if (!['take', 'close', 'merge'].includes(String(req.action))) throw badRequest('unknown action')
-    if (req.action === 'merge' && (!req.into || items.some((i) => i.school !== req.into!.school))) throw badRequest('tickets can be merged only within one school')
-    let done = 0
-    const n = now()
+    const action = String(req.action)
+    if (!['take', 'close', 'merge'].includes(action)) throw badRequest('unknown action')
+    if (action === 'merge' && (!req.into || items.some((i) => i.school !== req.into!.school))) throw badRequest('tickets can be merged only within one school')
+    const schools = new Map<string, DeskSchool | null>()
+    const open = async (school: string): Promise<DeskSchool | null> => {
+      if (!schools.has(school)) {
+        c.params.school = school
+        schools.set(school, await deskSchool(c).catch(() => null))
+      }
+      return schools.get(school)!
+    }
+    let into: VendorRow | null = null
+    if (action === 'merge') {
+      const s = await open(req.into!.school)
+      into = s ? await vendorTicket(s, req.into!.id).catch(() => null) : null
+      if (!into) throw notFound('the ticket to merge into was not found')
+      if (into.status === 'resolved' || into.status === 'closed') throw badRequest('merge into a ticket that is still open')
+    }
+    type Item = { school: string; id: string; ok: boolean; error?: string }
+    const results: Item[] = []
+    const todo: { s: DeskSchool; t: VendorRow; r: Item }[] = []
     for (const it of items) {
-      c.params.school = it.school
-      const s = await deskSchool(c)
-      const t = await vendorTicket(s, it.id)
-      if (req.action === 'take') {
+      const r: Item = { school: String(it?.school ?? ''), id: String(it?.id ?? ''), ok: false }
+      results.push(r)
+      const s = await open(r.school)
+      if (!s) { r.error = 'no such school'; continue }
+      const t = await vendorTicket(s, r.id).catch(() => null)
+      if (!t) { r.error = 'no such ticket'; continue }
+      if (action === 'take' && (t.status === 'closed' || t.status === 'resolved')) { r.error = 'this ticket is already solved or closed'; continue }
+      if (action === 'close' && t.status === 'closed') { r.error = 'already closed'; continue }
+      if (action === 'merge' && t.id === into!.id) { r.error = 'a ticket cannot be merged into itself'; continue }
+      if (action === 'merge' && t.status === 'closed') { r.error = 'this ticket is already closed'; continue }
+      todo.push({ s, t, r })
+    }
+    const n = now()
+    for (const { s, t, r } of todo) {
+      if (action === 'take') {
         await s.db.prepare(`UPDATE support_tickets SET vendor_agent_id = ?, vendor_agent_name = ?, status = CASE WHEN status = 'open' THEN 'in_progress' ELSE status END, updated_at = ? WHERE id = ?`)
           .bind(c.id.userId, c.id.fullName, n, t.id).run()
-      } else if (req.action === 'close') {
-        if (t.status === 'closed') continue
+      } else if (action === 'close') {
         await s.db.batch([
           s.db.prepare(`UPDATE support_tickets SET status = 'closed', resolved_at = COALESCE(resolved_at, ?), solved_by = COALESCE(solved_by, 'vendor'), updated_at = ? WHERE id = ?`).bind(n, n, t.id),
           updateStmt(s.db, s.inst.id, t.id, { kind: 'closed', body: String(req.note ?? '').trim() || 'Closed by XULO support.', side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: 'closed' }),
         ])
       } else {
-        if (it.id === req.into!.id) continue
-        const into = await vendorTicket(s, req.into!.id)
         await s.db.batch([
-          s.db.prepare(`UPDATE support_tickets SET status = 'closed', merged_into = ?, updated_at = ? WHERE id = ?`).bind(into.id, n, t.id),
-          s.db.prepare(`UPDATE support_tickets SET me_too = me_too + 1, updated_at = ? WHERE id = ?`).bind(n, into.id),
-          updateStmt(s.db, s.inst.id, t.id, { kind: 'merged', body: `The same fault as "${into.subject}". Follow that one for the answer.`, side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: 'closed' }),
-          bell(s.db, s.inst.id, t.raised_by, 'Your ticket was joined to another', into.subject, schoolLink(into), into.id),
+          s.db.prepare(`UPDATE support_tickets SET status = 'closed', merged_into = ?, updated_at = ? WHERE id = ?`).bind(into!.id, n, t.id),
+          s.db.prepare(`UPDATE support_tickets SET me_too = me_too + 1, updated_at = ? WHERE id = ?`).bind(n, into!.id),
+          updateStmt(s.db, s.inst.id, t.id, { kind: 'merged', body: `The same fault as "${into!.subject}". Follow that one for the answer.`, side: 'vendor', authorId: null, authorName: c.id.fullName, visible: true, newStatus: 'closed' }),
+          bell(s.db, s.inst.id, t.raised_by, 'Your ticket was joined to another', into!.subject, schoolLink(into!), into!.id),
         ])
       }
-      done++
+      r.ok = true
     }
-    auditDetail(c, { action: `desk.bulk.${req.action}`, after: { count: done } })
-    return ok({ done })
+    const touched = [...new Set(todo.map((x) => x.s.inst.id))]
+    for (const s of [...schools.values()]) if (s && touched.includes(s.inst.id)) await syncSchoolTickets(c.env, s.inst)
+    const done = todo.length
+    auditDetail(c, { action: `desk.bulk.${action}`, institution_id: touched.length === 1 ? touched[0] : null,
+      target: todo.map((x) => `${x.s.inst.id}/${x.t.id}`).join(',').slice(0, 2000) || null,
+      after: { count: done, into: into ? `${req.into!.school}/${into.id}` : undefined, items: results } })
+    return ok({ done, results })
+  })
+
+  /* The SLA row a plan is held to (CONTROL plans.sla_tier, 0 fastest .. 3); null goes back to the mapping by plan code. */
+  r.put('/admin/platform/plans/{code}/sla-tier', 'platform.plans.write', async (c) => {
+    platformOnly(c)
+    const raw = (await readJSON<{ tier?: number | null }>(c.req)).tier
+    const tier = raw === null || raw === undefined ? null : Number(raw)
+    if (tier !== null && !(Number.isInteger(tier) && tier >= 0 && tier <= 3)) throw badRequest('tier is 0, 1, 2 or 3, or empty for the plan code mapping')
+    const res = await c.env.CONTROL.prepare('UPDATE plans SET sla_tier = ? WHERE code = ?').bind(tier, c.params.code).run()
+    if (!(res.meta.changes ?? 0)) throw notFound()
+    auditDetail(c, { action: 'plans.sla_tier', target: c.params.code, after: { tier } })
+    return ok({ code: c.params.code, tier })
+  })
+
+  /* Notes for the signed-in desk account: a ticket past its promise (services/ticket_index.ts alertBreaches). */
+  r.get('/admin/platform/desk/alerts', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const rows = await c.env.CONTROL.prepare(`SELECT id, kind, title, body, link, created_at, read_at FROM platform_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`)
+      .bind(c.id.userId).all<{ id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null }>()
+    return ok({ items: rows.results.map((x) => ({ ...x, body: x.body ?? undefined, link: x.link ?? undefined, read_at: x.read_at ?? undefined })), unread: rows.results.filter((x) => !x.read_at).length })
+  })
+  r.post('/admin/platform/desk/alerts/{id}/read', SUPPORT_DESK, async (c) => {
+    platformOnly(c)
+    const res = await c.env.CONTROL.prepare(`UPDATE platform_notifications SET read_at = COALESCE(read_at, ?) WHERE id = ? AND user_id = ?`).bind(now(), c.params.id, c.id.userId).run()
+    if (!(res.meta.changes ?? 0)) throw notFound()
+    return ok({ read: true })
   })
 
   // --- help content: articles, tips, canned replies, categories, the SLA policy ---
@@ -216,6 +276,8 @@ export function registerSupportDeskMore(r: Router): void {
     if (kind === 'sla') {
       const ok1 = Number(data.respond_hours) > 0 && Number(data.resolve_hours) >= Number(data.respond_hours)
       if (!ok1) throw badRequest('the hours must be positive, and the answer no sooner than the first reply')
+      const shape = checkSlaShape(data)
+      if (shape) throw badRequest(shape)
     }
     const body = JSON.stringify({ ...data, key: undefined })
     await c.env.CONTROL.prepare(`INSERT INTO help_content (kind, key, data, status, updated_at, updated_by, updated_by_name) VALUES (?, ?, ?, ?, ?, ?, ?)

@@ -97,7 +97,7 @@ describe('platform staff', () => {
     expect(typeof t.promised_hours).toBe('number')
     expect(t.promised_hours).toBeGreaterThan(0)
     expect(t.breached).toBe(false)
-    expect((await json(support, 'POST', `/admin/platform/seller/tickets/${raised.body.id}`, { status: 'in_progress' })).status).toBe(200)
+    expect((await json(support, 'POST', `/admin/platform/seller/tickets/${raised.body.id}`, { institution_id: IDS.school, status: 'in_progress' })).status).toBe(200)
     const after = (await json(support, 'GET', '/admin/platform/seller/tickets')).body.items.find((x: any) => x.id === raised.body.id)
     expect(after).toMatchObject({ status: 'in_progress', assigned_to: 'Sam Support' })
   })
