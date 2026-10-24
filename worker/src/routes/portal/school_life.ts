@@ -1011,29 +1011,24 @@ async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[];
      nothing live left (expired after 24h and not pinned to the gallery, or
      deleted) is dismissed, and the list below never returns one either. A new
      post from the same poster brings the row back (class_status.ts). */
-  /* One statement in the usual case (perf.test.ts budget); only if it fails, a
-     school missing one of these tables, does each check run alone. */
-  const statusGone = `(kind = 'status' AND source_kind = 'status' AND NOT EXISTS (${STATUS_LIVE_SQL}))`
   try {
     await c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
-        WHERE user_id = ?1 AND dismissed_at IS NULL AND (${[statusGone, ...PENDING_DONE_SQL.map((d) => `(${d})`)].join(' OR ')})`)
+        WHERE user_id = ?1 AND kind = 'status' AND source_kind = 'status' AND dismissed_at IS NULL
+          AND NOT EXISTS (${STATUS_LIVE_SQL})`)
       .bind(user, now()).run()
+  } catch { /* no statuses here */ }
+  /* WORK STAYS UNTIL IT IS DONE (Yajur, 2026-10-21): a parent concern, a
+     question paper owed, a leave awaiting approval and a parent's message
+     awaiting this teacher's reply leave the bell when the work is done, not
+     when opened. One statement for every kind; only if a school is missing
+     one of the tables does each check run alone, so the list still loads. */
+  const clear = (where: string) => c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
+      WHERE user_id = ?1 AND dismissed_at IS NULL AND (${where})`).bind(user, now()).run()
+  try {
+    await clear(PENDING_DONE_SQL.map((d) => `(${d})`).join(' OR '))
   } catch {
-    try {
-      await c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
-          WHERE user_id = ?1 AND kind = 'status' AND source_kind = 'status' AND dismissed_at IS NULL
-            AND NOT EXISTS (${STATUS_LIVE_SQL})`)
-        .bind(user, now()).run()
-    } catch { /* no statuses here */ }
-    /* WORK STAYS UNTIL IT IS DONE (Yajur, 2026-10-21): a parent concern, a
-       question paper owed, a leave awaiting approval and a parent's message
-       awaiting this teacher's reply leave the bell when the work is done, not
-       when opened. Each check runs alone so a school missing a table still lists. */
     for (const done of PENDING_DONE_SQL) {
-      try {
-        await c.db.prepare(`UPDATE notifications SET dismissed_at = ?2, read_at = COALESCE(read_at, ?2)
-            WHERE user_id = ?1 AND dismissed_at IS NULL AND ${done}`).bind(user, now()).run()
-      } catch { /* a school without this table yet */ }
+      try { await clear(done) } catch { /* a school without this table yet */ }
     }
   }
   const list = c.db.prepare(`

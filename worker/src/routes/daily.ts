@@ -1406,17 +1406,21 @@ async function getApprovals(c: Ctx): Promise<Response> {
     }
   }
   if (can(c.id, 'admissions.approve')) {
+    /* The fee structure is picked per application first, the class's own
+       ahead of the school-wide one. SQLite refuses an ORDER BY that compares
+       with the outer row, which is how this was written. */
     const rows = await c.db.prepare(`
+      WITH pick AS (
+        SELECT a.id AS app_id,
+               (SELECT fs.id FROM fee_structures fs WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
+                 ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1) AS fs_id
+          FROM applications a WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL)
       SELECT a.id, ${fullName2('a')} AS who, COALESCE(c.name, '') AS class, COALESCE(a.parent_name, '') AS parent,
-             COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i
-                        WHERE i.fee_structure_id = (SELECT fs.id FROM fee_structures fs
-                                                     WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
-                                                     ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1)), 0) AS fee,
+             COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i WHERE i.fee_structure_id = p.fs_id), 0) AS fee,
              COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
                         ORDER BY fc.created_at DESC LIMIT 1), '') AS waiver,
              COALESCE(a.decided_at, a.created_at) AS raised
-        FROM applications a LEFT JOIN classes c ON c.id = a.class_sought
-       WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL
+        FROM applications a JOIN pick p ON p.app_id = a.id LEFT JOIN classes c ON c.id = a.class_sought
        ORDER BY a.decided_at IS NULL, a.decided_at`).all()
     for (const v of rows.results) {
       let detail = v.class as string
