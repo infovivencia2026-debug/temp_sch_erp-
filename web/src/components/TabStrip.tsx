@@ -328,7 +328,7 @@ export default function TabStrip() {
               className={cn(
                 `grid size-6 shrink-0 place-items-center rounded transition-opacity
                  hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100`,
-                active ? 'opacity-70' : 'opacity-0',
+                active ? 'opacity-70' : 'opacity-0 [@media(hover:none)]:opacity-70',
               )}
             >
               <X className="size-3" aria-hidden="true" />

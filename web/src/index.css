@@ -5356,3 +5356,36 @@ button.glass-btn:active:not(:disabled) {
     background: hsl(var(--card)); pointer-events: auto;
   }
 }
+
+/* CLASSROOM BOARDS AND OTHER BIG TOUCH SCREENS (owner, 2026-10-26: "Sensus
+   board, Dahua boards"). 65-86 inch interactive panels: Android Chrome or a
+   WebView, 1920x1080 or 3840x2160, touch only, read from across a room.
+   Generic media queries, nothing tied to a make.
+
+   1. Touch without hover, wider than a phone: every target 48px (the phone
+      block above does this below 640px), settings rows and bands grown to
+      match, and no text under 14px. Measured at 1920x1080 coarse: dock
+      buttons, settings rows and dropdowns were 44px, captions 12-13px. */
+@media (pointer: coarse) and (hover: none) and (min-width: 640px) {
+  :root { --control-h: 48px; }
+  [style*='--srow-h'] { --srow-h: 52px !important; --srow-py: 8px !important; }
+  [style*='--sband-h'] { --sband-h: 48px !important; }
+  /* The slider's box is its target: 48 tall, the 6px track still centred. */
+  html:root [data-slider-row] > input[type='range'] { height: 48px !important; padding-top: 21px !important; padding-bottom: 21px !important; }
+  :where(
+    button, select, summary,
+    [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option'],
+    input:not([type='hidden']):not([type='range']):not([type='checkbox']):not([type='radio'])
+  ):not(.tap-inline):not(.bento-dot) { min-height: 48px; }
+  :where(
+    button, select, summary,
+    [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option']
+  ):not(.tap-inline):not(.bento-dot) { min-width: 48px; }
+  /* A link drawn as a row (Sign out, My profile) is a target too. */
+  :is(main, .settings-screen) a[href]:is([class*='min-h-'], [class*='flex']) { min-height: 48px !important; }
+  html:root :is(.text-xs, .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[11\.5px\],
+    .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\]) {
+    font-size: calc(14px * var(--font-scale, 1)) !important;
+  }
+  html:root .text-\[15px\] { font-size: max(14px, calc(15px * var(--font-scale, 1))) !important; }
+}
