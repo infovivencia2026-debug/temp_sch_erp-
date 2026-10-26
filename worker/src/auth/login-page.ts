@@ -87,7 +87,7 @@ const MORE: Record<LoginLang, {
     tabs: [
       { id: 'parent', name: 'Parent', label: 'Phone number', hint: 'The phone number you gave the school.', mode: 'tel', ac: 'tel' },
       { id: 'student', name: 'Student', label: 'Admission number', hint: 'Printed on your ID card and fee receipt.', mode: 'text', ac: 'username' },
-      { id: 'staff', name: 'Staff', label: 'Username or email', hint: 'Given to you by the school office.', mode: 'email', ac: 'username' },
+      { id: 'staff', name: 'Staff', label: 'School email or phone number', hint: 'Your school email, or the phone number the school has for you.', mode: 'text', ac: 'username' },
     ],
     tablist: 'Who is signing in', vendorH1: 'Vendor sign-in', vendorLede: 'For XULO staff. Schools sign in at their own address.',
     picture: 'Picture', gallery: 'School pictures', back: 'Back',
@@ -97,7 +97,7 @@ const MORE: Record<LoginLang, {
     tabs: [
       { id: 'parent', name: 'తల్లిదండ్రులు', label: 'ఫోన్ నంబర్', hint: 'మీరు స్కూల్‌కు ఇచ్చిన ఫోన్ నంబర్.', mode: 'tel', ac: 'tel' },
       { id: 'student', name: 'విద్యార్థి', label: 'అడ్మిషన్ నంబర్', hint: 'మీ ఐడీ కార్డు, ఫీజు రసీదుపై ఉంటుంది.', mode: 'text', ac: 'username' },
-      { id: 'staff', name: 'సిబ్బంది', label: 'యూజర్‌నేమ్ లేదా ఈమెయిల్', hint: 'స్కూల్ ఆఫీసు మీకు ఇచ్చినది.', mode: 'email', ac: 'username' },
+      { id: 'staff', name: 'సిబ్బంది', label: 'స్కూల్ ఈమెయిల్ లేదా ఫోన్ నంబర్', hint: 'మీ స్కూల్ ఈమెయిల్, లేదా స్కూల్ వద్ద ఉన్న మీ ఫోన్ నంబర్.', mode: 'text', ac: 'username' },
     ],
     tablist: 'ఎవరు సైన్ ఇన్ అవుతున్నారు', vendorH1: 'వెండర్ సైన్ ఇన్', vendorLede: 'XULO సిబ్బంది కోసం. స్కూల్స్ తమ సొంత చిరునామాలో సైన్ ఇన్ అవుతాయి.',
     picture: 'చిత్రం', gallery: 'స్కూల్ చిత్రాలు', back: 'వెనుకకు',

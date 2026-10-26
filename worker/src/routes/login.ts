@@ -258,13 +258,55 @@ interface Candidate { institution_id: string | null; user_id: string; hash: stri
    internal/auth/handler.go: the password chooses between candidates, a
    paused school is reported only after the password matches, and a genuine
    tie is an error. */
+/* Staff usernames are "<phone>.<SCHOOLCODE>", four capitals (setup/staff.ts). The bare
+   number, or a username typed without its ".CODE", also finds that account:
+   on a school's page only within that school; on the shared page across
+   schools, where the password then chooses and a tie stays ambiguous.
+   A school email (an active Staff Inbox address, mail_addresses) finds its
+   holder too: the domain's school comes from CONTROL mail_domains. */
+async function extraRows(env: Env, identifier: string, onlySchool?: string): Promise<{ institution_id: string | null; user_id: string }[]> {
+  const out: { institution_id: string | null; user_id: string }[] = []
+  if (identifier.includes('@')) {
+    const domain = identifier.slice(identifier.lastIndexOf('@') + 1)
+    if (!domain) return out
+    const md = await env.CONTROL.prepare('SELECT institution_id FROM mail_domains WHERE domain = ?').bind(domain)
+      .first<{ institution_id: string }>().catch(() => null)
+    if (!md || (onlySchool && md.institution_id !== onlySchool)) return out
+    const inst = await institutionById(env, md.institution_id)
+    if (!inst) return out
+    const a = await tenantDb(env, inst).prepare(`SELECT user_id FROM mail_addresses WHERE address = ? AND status = 'active'`)
+      .bind(identifier).first<{ user_id: string }>().catch(() => null)
+    if (a) out.push({ institution_id: inst.id, user_id: a.user_id })
+    return out
+  }
+  if (identifier === '' || identifier.includes('.')) return out
+  const lo = identifier + '.', hi = identifier + '/'
+  const res = await env.CONTROL.prepare(
+    `SELECT DISTINCT institution_id, user_id, value FROM login_index WHERE kind = 'username' AND value >= ? AND value < ? AND institution_id IS NOT NULL ${onlySchool ? 'AND institution_id = ?' : ''} LIMIT ?`)
+    .bind(...(onlySchool ? [lo, hi, onlySchool, MAX_CANDIDATES] : [lo, hi, MAX_CANDIDATES]))
+    .all<{ institution_id: string; user_id: string; value: string }>()
+  for (const r of res.results) {
+    const suffix = r.value.slice(lo.length)
+    if (r.value.slice(0, lo.length).toLowerCase() === lo.toLowerCase() && /^[A-Z]{4}$/.test(suffix)) {
+      out.push({ institution_id: r.institution_id, user_id: r.user_id })
+    }
+  }
+  return out
+}
+
 async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
   const idx = await env.CONTROL.prepare(
     `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()
+  const rows = [...idx.results]
+  if (onlySchool !== null) rows.push(...await extraRows(env, identifier, onlySchool))
+  const seen = new Set<string>()
   const candidates: Candidate[] = []
-  for (const r of idx.results) {
+  for (const r of rows) {
+    const k = `${r.institution_id ?? ''}|${r.user_id}`
+    if (seen.has(k)) continue
+    seen.add(k)
     if (r.institution_id === null) {
       const u = await env.CONTROL.prepare(`SELECT password_hash FROM platform_users WHERE id = ? AND status = 'active'`)
         .bind(r.user_id).first<{ password_hash: string | null }>()

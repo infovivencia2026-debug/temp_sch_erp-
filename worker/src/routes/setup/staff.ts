@@ -652,7 +652,7 @@ export function registerStaff(r: Router): void {
       return ok(out)
     }
     out.password = password
-    out.note = 'Shown once and not stored. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
+    out.note = 'Shown once and not stored. On the school sign-in page (Staff tab) they can type just their phone number, or their school email, instead of the username. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
     return ok(out)
   })
 
