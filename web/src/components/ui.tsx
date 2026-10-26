@@ -2128,6 +2128,7 @@ export function Select({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const box = useRef<HTMLDivElement>(null)
+  const wasOpen = useRef(false)
   /* GET /setup/options needs institution.read (as in Go). A parent or
      student holds no such grant, so asking only filled the console with a
      403 on every form carrying a school-extensible list. */
@@ -2357,7 +2358,15 @@ export function Select({
          *
          * The query is cleared on choose, so reopening shows the whole list
          * rather than the list narrowed by what was picked last time. */
-        onClick={() => { setOpen(true); setActive(0) }}
+        /* SAME BOX, SAME PRESS CLOSES (owner, 2026-10-26: "when I click once
+           unable to close it using same button"). Whether it was open is read
+           at mousedown, before focus reopens it, so a press on an open box
+           shuts it and a press on a closed one opens it. */
+        onMouseDown={() => { wasOpen.current = open }}
+        onClick={() => {
+          if (wasOpen.current) { wasOpen.current = false; setOpen(false); setQuery(''); setTyped(false); return }
+          setOpen(true); setActive(0)
+        }}
         onChange={(e) => {
           /* The first keystroke lands on top of the shown label (selected on
              focus, so it is normally replaced outright); whatever of the label
@@ -2395,8 +2404,14 @@ export function Select({
            not working, the down button"). It toggled: a click in the box opened the
            list and the arrow pressed next shut it again, so the arrow read as dead.
            Picking an option, clicking away or Esc closes it. */
-        onClick={() => { setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }) }}
-        className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
+        /* Now a toggle again (owner, 2026-10-26: "unable to close it using
+           same button"): the arrow opens a closed list and shuts an open one. */
+        aria-expanded={open}
+        onClick={() => {
+          if (open) { setOpen(false); setQuery(''); setTyped(false); return }
+          setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true })
+        }}
+        className="field-chevron field-chevron-btn tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent">
         <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
       </button>
 

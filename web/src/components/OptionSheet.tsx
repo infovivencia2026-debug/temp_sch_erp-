@@ -202,7 +202,7 @@ export function OptionSheet({
       <div
         aria-hidden="true"
         className={cn(
-          'absolute inset-0 bg-[rgba(15,23,42,0.5)] backdrop-blur-[4px] transition-opacity duration-300 ease-out motion-reduce:transition-none',
+          'option-sheet-backdrop absolute inset-0 bg-[rgba(15,23,42,0.5)] backdrop-blur-[4px] transition-opacity duration-300 ease-out motion-reduce:transition-none',
           visible ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
@@ -214,7 +214,7 @@ export function OptionSheet({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative flex [animation:none] max-h-[min(75vh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
+          'option-sheet-panel relative flex [animation:none] max-h-[min(75vh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
           'shadow-[0_-10px_30px_rgba(0,0,0,0.15)] transition-transform duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
@@ -309,7 +309,7 @@ export function SheetTrigger({
       className="field flex min-h-[52px] w-full items-center justify-between gap-2 rounded-[12px] px-4 text-left text-[16px] text-foreground"
     >
       <span className={cn('min-w-0 truncate', !label && 'text-muted-foreground')} style={style}>{label || placeholder}</span>
-      <ChevronDown className={cn('size-6 shrink-0 opacity-60 transition-transform', open && 'rotate-180')} aria-hidden="true" />
+      <ChevronDown className={cn('field-chevron size-6 shrink-0 opacity-60 transition-transform', open && 'rotate-180')} aria-hidden="true" />
     </button>
   )
 }
