@@ -5258,3 +5258,30 @@ button.glass-btn:active:not(:disabled) {
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
 }
+/* THE PHONE'S FULL-SCREEN LAYERS FOLLOW THE VISIBLE SCREEN (2026-10-26).
+
+   inset-0 and 100dvh are the LAYOUT viewport, which iOS never shrinks for the
+   keyboard: the conversation kept the whole screen's height, its composer
+   floated mid-screen and the contact list showed between it and the keys.
+   --vvh / --vv-top are the visual viewport (lib/keyboard.ts), so the layer is
+   exactly the visible part of the screen, its last row (composer, Save bar)
+   sits on the keyboard, and nothing underneath can show. Below md only, so a
+   desk's side panel or centred card is unchanged. The layers keep their own
+   opaque backgrounds. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: var(--vv-top, 0px) !important;
+    bottom: auto !important;
+    height: var(--vvh, 100dvh) !important;
+    max-height: none !important;
+  }
+}
+/* The page under an open layer does not scroll (lockPageScroll). */
+html[data-page-locked],
+html[data-page-locked] body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}

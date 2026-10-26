@@ -1,3 +1,4 @@
+import { lockPageScroll } from '@/lib/keyboard'
 import { printAllStore } from '@/lib/print'
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
@@ -1557,7 +1558,7 @@ export function Table({
       role="dialog"
       aria-modal="true"
       aria-label="Table, full screen"
-      className="fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
+      className="vv-screen-phone fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
@@ -3541,8 +3542,7 @@ export function Dialog({
         ? want.current
         : el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
     ;(first ?? el)?.focus({ preventScroll: true })
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockPageScroll()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Vetoed: the key stays live for whoever asked to keep the dialog.
@@ -3563,7 +3563,7 @@ export function Dialog({
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prev
+      unlock()
       restoreFocus(opener)
     }
   }, [open])
@@ -3577,7 +3577,7 @@ export function Dialog({
     <div
       data-closing={closing || undefined}
       className={cn(
-        'scrim fixed inset-0 flex justify-center',
+        'scrim vv-screen-phone fixed inset-0 flex justify-center',
         overlay === 'none' ? 'pointer-events-none bg-transparent' : 'bg-black/40',
         raised ? 'z-[110]' : 'z-[70]',
         full
@@ -3604,11 +3604,11 @@ export function Dialog({
         className={cn(
           'ui-dialog pointer-events-auto flex w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
           full
-            ? 'h-[100dvh] max-h-none rounded-none'
+            ? 'h-[100dvh] max-h-none rounded-none max-md:h-full'
             : placement === 'top'
               ? cn('max-h-[80dvh] rounded-[var(--radius-dialog)] border border-[color:var(--hairline-lifted)] shadow-[var(--elev-3)] sm:max-h-[min(76dvh,860px)]', width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size])
               : cn(
-                  'max-h-[92dvh] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+                  'max-h-[92dvh] max-md:max-h-[92%] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
                   'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
                   width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size],
                 ),
