@@ -50,6 +50,18 @@ describe('dropdowns on a phone', () => {
     expect(document.querySelector('[data-option-sheet]:not([data-closing])')).toBeNull()
     expect(host.textContent).toContain('Sick')
   })
+  it('Select: a real tap (pointerdown, mousedown, then click) on a sheet option sets the value', () => {
+    // Yajur, 2026-10-26: Take attendance on a phone showed no students. The
+    // mousedown inside the portaled sheet read as "away" and closed it first.
+    act(() => root.render(<Kind />))
+    act(() => host.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!.click())
+    const sick = () => [...document.querySelectorAll<HTMLButtonElement>('[data-option-sheet] [role="option"] button')].find((b) => b.textContent === 'Sick')!
+    act(() => { sick().dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })) })
+    act(() => { sick().dispatchEvent(new MouseEvent('mousedown', { bubbles: true })) })
+    expect(document.querySelector('[data-option-sheet]')).not.toBeNull()
+    act(() => sick().click())
+    expect(last).toBe('sick')
+  })
   it('Select: a long list searches inside the sheet, focused only after the sheet has risen (150ms)', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }))
     act(() => root.render(<Kind options={many} />))

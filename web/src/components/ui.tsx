@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
-import { OptionSheet, SEARCH_AT, SheetTrigger, useIsPhone, type SheetOption } from './OptionSheet'
+import { OptionSheet, SEARCH_AT, SheetTrigger, inOptionSheet, useIsPhone, type SheetOption } from './OptionSheet'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -2158,11 +2158,7 @@ export function Select({
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      /* The phone sheet is portalled to <body>, outside box: a tap in its
-         search field used to count as "outside" and close the list before
-         anything could be typed (owner, 2026-10-26: "search does not work"). */
-      if ((e.target as Element | null)?.closest?.('[data-option-sheet]')) return
-      if (box.current && !box.current.contains(e.target as Node)) {
+      if (box.current && !box.current.contains(e.target as Node) && !inOptionSheet(e.target)) {
         const m = exactRef.current
         if (m) pickRef.current(m.value)
         setOpen(false); setQuery(''); setTyped(false)
