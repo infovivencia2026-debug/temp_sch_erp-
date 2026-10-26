@@ -5,12 +5,12 @@ import { Navigate, useLocation } from 'react-router-dom'
 import NotificationRow, { channelOf } from '@/components/NotificationRow'
 import { LineIcon, StaffNavGroup, StaffProfileCard, staffItemClass } from '@/components/StaffShell'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
-import { UserPlus, Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
+import { ArrowLeft, X, UserPlus, Users, Wallet, Plus, Trash2, Download, Settings, Bell, Palette, BookOpen } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, Panel, CellGrid, Stat, Table, Td, Badge, Button,
   ConfirmButton, Checkbox, Switch, Select, Input, Textarea, Field, FormGrid, FormNotice, ErrorState,
   EmptyState, UnavailableState, Loading, PrintButton, RangePicker, Reload, TAB_BAR, TAB_BAR_FILL, tabClass,
-  SEG_BAR, segClass, Dialog, ExportTable, type ActiveRange,
+  SEG_BAR, segClass, Dialog, ExportTable, GlassIconButton, type ActiveRange,
 } from '@/components/ui'
 import { SkeletonCards, SkeletonRows, SkeletonText } from '@/components/Skeleton'
 import { SlidingIndicator } from '@/components/SlidingIndicator'
@@ -244,6 +244,15 @@ function Gallery() {
             </StaffNavGroup>
             <LayoutSwitch pill />
             <StaffProfileCard name={session.user?.full_name ?? ''} sub="EMP-0142" photoId={session.user?.avatar_key} />
+          </Card>
+        </Section>
+
+        <Section id="glass-buttons" title="Glass icon buttons">
+          <Card className="flex items-center gap-3 p-[var(--card-pad)]">
+            <GlassIconButton label="Back"><ArrowLeft className="h-5 w-5" /></GlassIconButton>
+            <GlassIconButton label="Close"><X className="h-[18px] w-[18px]" /></GlassIconButton>
+            <GlassIconButton label="Close" size="sm"><X className="h-[18px] w-[18px]" /></GlassIconButton>
+            <span className="rounded-full bg-[#111] p-2"><GlassIconButton label="Close" size="sm" className="glass-btn--dark"><X className="h-[18px] w-[18px]" /></GlassIconButton></span>
           </Card>
         </Section>
 
