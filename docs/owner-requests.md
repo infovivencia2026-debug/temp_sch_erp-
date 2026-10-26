@@ -208,3 +208,4 @@ Last checked: 2026-10-02.
 ## Restored (2026-10-26)
 
 - Focus page dots on phones: the phone-scale rule from 6e468558 (`main button` min 48x48) still drew them as 48px blobs after 84c991d6 fixed the tab rule; `.bento-dot` now excluded from it too. Shell/navigation audit since 2026-10-22 found no other unrequested removals.
+- 2026-10-26 "when I click Settings, settings opening stuck stuck": Settings open no longer restyles the whole page several times on the opening frame -- launch-morph reads before it writes and skips unchanged <html> vars; the dialog's <html> writes moved to layout effects so the focus pays one restyle; the assistant orb stops calling getAnimations() every frame once its speed has settled. Look and motion unchanged. Status: branch settings-open-smooth, tsc clean, measured in Edge via Playwright, not pushed.
