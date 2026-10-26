@@ -106,10 +106,10 @@ const TAB_CSS = `
 .who button span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:640px){.who button{height:48px}.who svg{width:20px;height:20px}}
 @media (max-width:560px){
-  .auth-split .who{background:rgba(0,0,0,0.25)}
-  .auth-split .who button{color:rgba(255,255,255,0.85)}
-  .auth-split .who button[aria-selected="true"]{background:#fff;color:#111827}
-  .auth-split .id-hint{color:rgba(255,255,255,0.8)}
+  .auth-split:not(.has-slides) .who{background:rgba(0,0,0,0.25)}
+  .auth-split:not(.has-slides) .who button{color:rgba(255,255,255,0.85)}
+  .auth-split:not(.has-slides) .who button[aria-selected="true"]{background:#fff;color:#111827}
+  .auth-split:not(.has-slides) .id-hint{color:rgba(255,255,255,0.8)}
 }
 </style>`
 
@@ -205,6 +205,37 @@ const SLIDES_CSS = `
 .auth-brand.held .auth-bars button[aria-current="true"]::before{animation-play-state:paused}
 .auth-bars button:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:3px}
 @keyframes authBar{from{background-size:0 100%}to{background-size:100% 100%}}
+/* Phone (owner, 2026-10-26, docs/owner-designs/2026-10-26-signin-phone.html):
+   a stacked page. The pictures are a rounded card at the top whose foot fades
+   out, the logo on it and the bars at its top right; the form sits below on
+   the plain page, not on glass. */
+@media (max-width:639px){
+  body.auth:has(.has-slides){padding:0;overflow-y:auto;background:var(--surface)}
+  .auth-split.has-slides{position:relative;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;min-height:100vh;min-height:100dvh;
+    padding:calc(env(safe-area-inset-top, 0px) + 80px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);border:0;border-radius:0;box-shadow:none;background:var(--surface)}
+  .auth-split.has-slides .auth-brand{position:relative;inset:auto;flex:none;width:100%;height:280px;padding:14px;border-radius:20px;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom, #000 70%, transparent 100%);mask-image:linear-gradient(to bottom, #000 70%, transparent 100%)}
+  .auth-split.has-slides .auth-slides::after{background:linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 35%)}
+  .auth-split.has-slides .auth-brand-content{display:block;height:auto}
+  .auth-split.has-slides .auth-brand-mark{margin:0;font-size:32px}
+  .auth-split.has-slides .auth-logo{max-width:48px;max-height:48px;padding:5px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.25)}
+  .auth-split.has-slides .auth-brand-eyebrow,.auth-split.has-slides .auth-brand-title,.auth-split.has-slides .auth-brand-sub{display:none}
+  .auth-split.has-slides .auth-bars{position:absolute;top:14px;right:14px;margin:0;gap:4px}
+  .auth-split.has-slides .auth-bars button{width:18px;height:44px}
+  .auth-split.has-slides .card{position:static;flex:none;width:100%;margin:0;max-width:none;padding:12px 0 0;border:0;border-radius:0;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;color:var(--fg)}
+  .auth-split.has-slides .card > *{max-width:none}
+  .auth-split.has-slides .card h1{color:var(--fg)}
+  .auth-split.has-slides .card label{color:var(--secondary)}
+  .auth-split.has-slides .card .lede,.auth-split.has-slides .card .fineprint{color:var(--muted)}
+  .auth-split.has-slides .card .fineprint a{color:var(--accent)}
+  .auth-split.has-slides .card input{background:var(--surface);border-color:var(--border);color:inherit}
+  .auth-split.has-slides .card input:focus{border-color:var(--accent)}
+  .auth-split.has-slides .card .pw > button.pw-eye{color:var(--muted)}
+  .auth-split.has-slides .card button[type="submit"]{background:var(--brand, var(--accent));border-color:var(--brand, var(--accent));color:#fff}
+  .auth-split.has-slides .card .error{background:color-mix(in srgb, var(--danger) 6%, transparent);border-color:color-mix(in srgb, var(--danger) 30%, transparent);color:var(--danger)}
+  .auth-split.has-slides .card .field-hint{color:var(--warning, #b45309)}
+  body.auth:has(.has-slides) .auth-top .theme-toggle{background:var(--surface);border-color:var(--border);color:var(--fg);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
 @media (prefers-reduced-motion: reduce){
   .auth-slides img{transition:none}
   .auth-slides img.on,.auth-slides img.was{animation:none}

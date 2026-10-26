@@ -52,8 +52,8 @@ describe('sign-in page', () => {
     const h = loginHTML({ csrf: 'c', next: '/', brand })
     expect(h).toContain('class="mesh"')
     expect(h).toContain('<aside class="auth-brand">')
-    expect(h).not.toContain('has-slides')
-    expect(h).not.toContain('auth-slides')
+    expect(h).toContain('<div class="auth-split">')
+    expect(h).not.toContain('class="auth-slides"')
   })
 })
 
