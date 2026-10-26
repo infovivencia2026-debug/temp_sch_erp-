@@ -278,6 +278,8 @@ export function DropdownRow<T extends string>({
     if (!open) return
     const onDoc = (e: PointerEvent) => {
       const t = e.target as Node
+      // The phone sheet is portalled outside ref; it closes itself.
+      if ((t as Element | null)?.closest?.('[data-option-sheet]')) return
       if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }

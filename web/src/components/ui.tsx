@@ -2158,6 +2158,10 @@ export function Select({
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
+      /* The phone sheet is portalled to <body>, outside box: a tap in its
+         search field used to count as "outside" and close the list before
+         anything could be typed (owner, 2026-10-26: "search does not work"). */
+      if ((e.target as Element | null)?.closest?.('[data-option-sheet]')) return
       if (box.current && !box.current.contains(e.target as Node)) {
         const m = exactRef.current
         if (m) pickRef.current(m.value)
@@ -2310,7 +2314,7 @@ export function Select({
         ? [{ value: '', label: placeholder, muted: true }] : []),
       ...shown,
     ]
-    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-3 py-2 text-left text-[16px] active:bg-accent'
+    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-[14px] py-3 text-left text-[16px] [-webkit-tap-highlight-color:transparent] [@media(hover:hover)]:hover:bg-muted/50'
     return (
       <div ref={box} className="relative">
         <SheetTrigger label={shownLabel} placeholder={placeholder || 'Choose'} open={open}
