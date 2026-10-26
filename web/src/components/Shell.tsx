@@ -1367,6 +1367,12 @@ export function Shell({
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {/* No search on a phone, for every role (owner, 2026-10-24). */}
             <div className="max-sm:hidden"><CommandSearch wide /></div>
+            {/* The institution admin on the staff sidebar has no rail (and so no
+                rail bell) from md up: the bell sits beside the search instead
+                (owner, 2026-10-26). Phones keep the one below. */}
+            {staffNav && role?.key === 'institution_admin' && (
+              <div className="hidden md:block"><Notifications /></div>
+            )}
             <div className="flex items-center gap-1 md:hidden">
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
