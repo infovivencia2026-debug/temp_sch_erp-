@@ -1,5 +1,5 @@
 import { markLaunch, playClose, shouldLaunch, endLaunch, endLaunchIfGone } from '@/lib/launch-morph'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/ui'
 import {
   Building2, ChevronLeft, LayoutGrid, MessageSquare,
@@ -1268,8 +1268,15 @@ export function AppearanceDialog({
      Dock Settings changes the dock, and the dialog was drawn over the top of
      it — so the one control you were adjusting was the one thing you could not
      see change. Marking the root rather than passing a prop keeps the dock
-     ignorant of this dialog's existence. */
-  useEffect(() => {
+     ignorant of this dialog's existence.
+
+     A LAYOUT effect, like the launch measurement below (owner, 2026-10-26:
+     "settings opening stuck stuck"). Both write to <html>, which restyles
+     the whole page. As passive effects they ran after the Dialog had already
+     focused the panel -- a focus forces a full restyle -- so the page was
+     restyled twice on the opening frame. Written before any passive effect,
+     the focus pays for both at once. */
+  useLayoutEffect(() => {
     if (!open) {
       delete document.documentElement.dataset.appearanceOpen
       return
@@ -1289,7 +1296,7 @@ export function AppearanceDialog({
   const launchRef = useRef<boolean | null>(null)
   if (open && launchRef.current === null) { launchRef.current = shouldLaunch(); if (launchRef.current) markLaunch() }
   if (!open) launchRef.current = null
-  useEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
+  useLayoutEffect(() => { if (open && launchRef.current) markLaunch(); if (!open) endLaunchIfGone() }, [open])
   /* A press on the page behind (owner, 2026-10-09: in Work, picking a
      feature with Settings open only closed it, then the page snapped in on
      the second press). The press that lands on the dim goes through: Settings
