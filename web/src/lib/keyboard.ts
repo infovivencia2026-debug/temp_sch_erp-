@@ -121,6 +121,22 @@ export function trackKeyboardInset() {
   }
 
   vv.addEventListener('resize', measure)
+  /* iOS Safari (26, floating address bar) settles the visible area after the
+     keyboard finishes moving and does not always fire a last resize, so a
+     layer kept the shorter height with a grey band above the keys (owner,
+     2026-10-26). Measure again every frame for a second after a field gains
+     or loses focus, and on a window resize; measure() writes only changes. */
+  let settleUntil = 0
+  const settle = () => {
+    const wasIdle = settleUntil < performance.now()
+    settleUntil = performance.now() + 1200
+    if (!wasIdle) return
+    const tick = () => { measure(); if (performance.now() < settleUntil) requestAnimationFrame(tick) }
+    requestAnimationFrame(tick)
+  }
+  document.addEventListener('focusin', settle)
+  document.addEventListener('focusout', settle)
+  window.addEventListener('resize', settle)
   /* `scroll` because iOS reports the keyboard by scrolling the visual viewport
      rather than resizing it when the focused field is already near the top. */
   vv.addEventListener('scroll', measure)
