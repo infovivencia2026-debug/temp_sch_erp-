@@ -153,6 +153,10 @@ export function BentoDock() {
      search, bell, gear, the separators): the room for marks is the dock's cap
      (the viewport less its 3rem margins) minus those. */
   const [room, setRoom] = useState<number | null>(null)
+  /* What still spilled after the sum below, per window width. It only grows
+     at one width (so folding a mark cannot bounce it back) and resets on a
+     resize. */
+  const shave = useRef({ w: 0, px: 0 })
   useEffect(() => {
     const el = stripRef.current
     const dock = el?.parentElement
@@ -175,7 +179,10 @@ export function BentoDock() {
         const s = getComputedStyle(k)
         fixed += Math.max(k.getBoundingClientRect().width, k.scrollWidth) + px(s.marginLeft) + px(s.marginRight)
       }
-      setRoom(window.innerWidth - 96 - fixed)
+      if (shave.current.w !== window.innerWidth) shave.current = { w: window.innerWidth, px: 0 }
+      const over = Math.max(el.scrollWidth - el.clientWidth, dock.scrollWidth - dock.clientWidth)
+      if (over > 1) shave.current.px += Math.ceil(over)
+      setRoom(window.innerWidth - 96 - fixed - shave.current.px)
     }
     measure()
     const ro = new ResizeObserver(measure)
