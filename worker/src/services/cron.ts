@@ -27,6 +27,10 @@ const env0 = (inst: Institution | null, job_id: string) => ({ institution_id: in
 
 export const SCHEDULES: Schedule[] = [
   { name: 'attendance_rollup', spec: '30 0 * * *', kind: 'attendance:rollup', perInstitution: true, payload: env0 },
+  // Staff auto-absent (services/background/staff_auto_absent.ts): every 5 minutes where the school switched it on; marks once a day after its set time.
+  { name: 'staff_auto_absent', spec: '*/5 * * * *', kind: 'staff:auto_absent', perInstitution: true,
+    only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM module_settings WHERE module = 'staff_auto_absent' AND enabled = 1 LIMIT 1`).first().catch(() => null)),
+    payload: env0 },
   { name: 'fee_reminders', spec: '0 9 * * *', kind: 'fee:reminder_fanout', perInstitution: true,
     payload: (i, j) => ({ ...env0(i, j), template_key: 'fee.overdue', overdue_since: new Date().toISOString() }) },
   { name: 'session_prune', spec: '0 3 * * *', kind: 'session:prune', perInstitution: false, payload: () => ({}) },

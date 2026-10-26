@@ -363,7 +363,9 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               value={'' as 'day'}
               ariaLabel="Export attendance"
               placeholder="Export"
-              className="ml-auto"
+              /* Shown but not highlighted (owner, 2026-10-26): the ghost
+                 look, no card fill or lift, so it sits quietly beside search. */
+              className="ml-auto bg-transparent text-muted-foreground shadow-none hover:text-foreground"
               options={[
                 { value: 'day', label: `Day (${onDate}, all sections)` },
                 { value: '90', label: 'Last 90 days' },
