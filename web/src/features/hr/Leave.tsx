@@ -41,13 +41,23 @@ interface LeaveRow {
   status: string
   kind?: string
   hours?: number
+  place?: string
+  from_time?: string
+  to_time?: string
 }
 
 /** What the Type column says: the leave type, or the kind when it is not a leave. */
 function typeLabel(l: LeaveRow): string | undefined {
   if (l.kind === 'comp_off') return 'Compensatory off'
   if (l.kind === 'permission') return `Permission, ${l.hours ?? ''} h`.replace(',  h', '')
+  if (l.kind === 'on_duty') return onDutyLabel(l)
   return l.leave_type
+}
+
+/** "On duty at Board office, 10:00 to 14:00". */
+function onDutyLabel(l: { place?: string; from_time?: string; to_time?: string }): string {
+  const hrs = l.from_time && l.to_time ? `${l.from_time} to ${l.to_time}` : l.from_time ? `from ${l.from_time}` : l.to_time ? `until ${l.to_time}` : ''
+  return ['On duty' + (l.place ? ` at ${l.place}` : ''), hrs].filter(Boolean).join(', ')
 }
 
 export default function Leave() {
@@ -168,7 +178,7 @@ export default function Leave() {
   }, [apply])
   const [form, setForm] = useState({
     from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
-    employee_id: '', kind: 'leave', hours: '',
+    employee_id: '', kind: 'leave', hours: '', place: '', from_time: '', to_time: '',
   })
 
   /* Approving on the self-service screen would be the same confusion the other
@@ -260,7 +270,7 @@ export default function Leave() {
   type Sent = typeof form & { id: string }
   const [sent, setSent] = useState<Sent | null>(null)
   const [editing, setEditing] = useState(false)
-  const blank = { from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '', employee_id: '', kind: 'leave', hours: '' }
+  const blank = { from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '', employee_id: '', kind: 'leave', hours: '', place: '', from_time: '', to_time: '' }
   const save = useMutation({
     mutationFn: () =>
       api.patch(`/api/v1/workflow/leave/${sent!.id}`, {
@@ -270,6 +280,7 @@ export default function Leave() {
         is_half_day: form.is_half_day,
         leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
+        ...(form.kind === 'on_duty' ? { place: form.place, from_time: form.from_time, to_time: form.to_time } : {}),
       }),
     onSuccess: () => {
       setSent({ ...form, id: sent!.id })
@@ -288,6 +299,9 @@ export default function Leave() {
         leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
         to_date: form.kind === 'permission' ? form.from_date : form.to_date,
+        place: form.kind === 'on_duty' ? form.place : undefined,
+        from_time: form.kind === 'on_duty' ? form.from_time || undefined : undefined,
+        to_time: form.kind === 'on_duty' ? form.to_time || undefined : undefined,
         // Omitted entirely when blank, so the server keeps its "the applicant
         // is the signed-in employee" path rather than being handed an empty id.
         employee_id: form.employee_id || undefined,
@@ -298,7 +312,7 @@ export default function Leave() {
       setApplied('Sent. Whoever approves leave here will see it, the head of department or the principal, whichever gets there first.')
       setForm({
         from_date: '', to_date: '', reason: '', is_half_day: false,
-        leave_type_id: '', employee_id: '', kind: 'leave', hours: '',
+        leave_type_id: '', employee_id: '', kind: 'leave', hours: '', place: '', from_time: '', to_time: '',
       })
       setApply(false)
       qc.invalidateQueries({ queryKey: ['leave-types', 'mine'] })
@@ -462,6 +476,7 @@ export default function Leave() {
                       { value: 'leave', label: 'Leave' },
                       { value: 'comp_off', label: 'Compensatory off' },
                       { value: 'permission', label: 'Permission (a few hours)' },
+                      { value: 'on_duty', label: 'On duty / outside work' },
                     ]}
                   />
                 </Field>
@@ -491,6 +506,20 @@ export default function Leave() {
                   </Field>
                 )}
               </FormGrid>
+              {/* On duty: working, away from school. Where, and optionally the hours away. */}
+              {form.kind === 'on_duty' && (
+                <FormGrid>
+                  <Field label="Where" required>
+                    <Input value={form.place} onChange={(v) => setForm({ ...form, place: v })} placeholder="Board office, exam centre, sports meet…" />
+                  </Field>
+                  <Field label="From time" hint="Optional.">
+                    <Input type="time" value={form.from_time} onChange={(v) => setForm({ ...form, from_time: v })} />
+                  </Field>
+                  <Field label="To time" hint="Optional.">
+                    <Input type="time" value={form.to_time} onChange={(v) => setForm({ ...form, to_time: v })} />
+                  </Field>
+                </FormGrid>
+              )}
               {/* Required, because the kind of leave is the whole point of
                   recording it.
 
@@ -523,7 +552,7 @@ export default function Leave() {
                   placeholder="Medical, parent function, examination duty…"
                 />
               </Field>
-              {form.kind !== 'permission' && (
+              {form.kind !== 'permission' && form.kind !== 'on_duty' && (
               <label className="m-0 flex items-center gap-2 text-[13.5px]">
                 <input
                   type="checkbox"
@@ -538,7 +567,7 @@ export default function Leave() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     className="m-0"
-                    disabled={!form.from_date || (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) || !form.reason.trim() || save.isPending}
+                    disabled={!form.from_date || (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) || !form.reason.trim() || (form.kind === 'on_duty' && !form.place.trim()) || save.isPending}
                     onClick={() => save.mutate()}
                   >
                     {save.isPending ? 'Saving…' : 'Save'}
@@ -552,6 +581,7 @@ export default function Leave() {
                   !form.from_date ||
                   (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) ||
                   !form.reason.trim() ||
+                  (form.kind === 'on_duty' && !form.place.trim()) ||
                   // Only when there is something to choose. A school that has
                   // not set its leave types up must still be able to apply.
                   (form.kind === 'leave' && (noneGiven || (leaveTypes.length > 0 && !form.leave_type_id))) ||
@@ -569,7 +599,7 @@ export default function Leave() {
           )}
           {!apply && sent && (() => {
             const status = all.find((r) => r.id === sent.id)?.status ?? 'pending'
-            const kindName = sent.kind === 'comp_off' ? 'Compensatory off' : sent.kind === 'permission' ? `Permission, ${sent.hours} h`
+            const kindName = sent.kind === 'comp_off' ? 'Compensatory off' : sent.kind === 'on_duty' ? onDutyLabel(sent) : sent.kind === 'permission' ? `Permission, ${sent.hours} h`
               : leaveTypes.find((t) => t.id === sent.leave_type_id)?.name ?? 'Leave'
             const when = sent.kind === 'permission' || sent.from_date === sent.to_date
               ? formatDate(sent.from_date) : `${formatDate(sent.from_date)} to ${formatDate(sent.to_date)}`

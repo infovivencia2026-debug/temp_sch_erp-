@@ -14,7 +14,8 @@ import { staffGroupMemberIds } from '../../routes/growth/people'
    entry cancelling it), their weekly off (their work pattern, else the
    school's default pattern, else Monday to Saturday), approved leave covering
    the day (half-day included: no punch on a half day is not an absence),
-   a pending or approved attendance request for the day, and anyone who
+   a pending or approved attendance request for the day, a pending or
+   approved on-duty request (leave_requests kind 'on_duty') covering the day, and anyone who
    already has a mark of any kind (manual, device, on duty...). Nothing is
    ever overwritten: INSERT OR IGNORE on (user_id, on_date). A manual mark
    later simply replaces the auto one like any other mark.
@@ -61,8 +62,9 @@ export async function runStaffAutoAbsent(db: D1Database, institutionId: string, 
        WHERE e.status = 'active' AND e.user_id IS NOT NULL
          AND NOT EXISTS (SELECT 1 FROM staff_attendance sa WHERE sa.user_id = e.user_id AND sa.on_date = ?1)
          AND NOT EXISTS (SELECT 1 FROM biometric_punches p WHERE p.employee_id = e.id AND date(datetime(p.punched_at, ?2)) = ?1)
-         AND NOT EXISTS (SELECT 1 FROM leave_requests l WHERE l.employee_id = e.id AND l.status = 'approved'
-               AND COALESCE(l.kind, 'leave') IN ('leave', 'comp_off') AND ?1 BETWEEN substr(l.from_date, 1, 10) AND substr(l.to_date, 1, 10))
+         AND NOT EXISTS (SELECT 1 FROM leave_requests l WHERE l.employee_id = e.id
+               AND ((l.status = 'approved' AND COALESCE(l.kind, 'leave') IN ('leave', 'comp_off', 'on_duty'))
+                    OR (l.status = 'pending' AND l.kind = 'on_duty')) AND ?1 BETWEEN substr(l.from_date, 1, 10) AND substr(l.to_date, 1, 10))
          AND NOT EXISTS (SELECT 1 FROM staff_attendance_requests r WHERE r.employee_id = e.id AND r.on_date = ?1 AND r.status IN ('pending', 'approved'))`)
     .bind(day, shift).all<{ id: string; user_id: string; working_days: string }>()
 
