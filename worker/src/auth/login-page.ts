@@ -98,11 +98,13 @@ const TAB_CSS = `
 <style>
 .who{display:flex;margin:0 0 4px;padding:4px;border-radius:10px;background:color-mix(in srgb, var(--fg) 6%, transparent)}
 .who[hidden]{display:none}
-.who button{flex:1 1 0;min-width:0;height:40px;margin:0;padding:0 8px;border-radius:7px;background:transparent;color:var(--secondary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who button{flex:1 1 0;min-width:0;height:40px;margin:0;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;background:transparent;color:var(--secondary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .who button:hover{background:color-mix(in srgb, var(--fg) 6%, transparent)}
 .who button[aria-selected="true"]{background:var(--brand, var(--accent));color:#fff}
 .id-hint{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
-@media (max-width:640px){.who button{height:48px}}
+.who svg{flex:none;width:18px;height:18px}
+.who button span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:640px){.who button{height:48px}.who svg{width:20px;height:20px}}
 @media (max-width:560px){
   .auth-split:not(.has-gallery) .who{background:rgba(0,0,0,0.25)}
   .auth-split:not(.has-gallery) .who button{color:rgba(255,255,255,0.85)}
@@ -110,6 +112,14 @@ const TAB_CSS = `
   .auth-split:not(.has-gallery) .id-hint{color:rgba(255,255,255,0.8)}
 }
 </style>`
+
+/* Minimal line icons for the tabs (lucide-style, currentColor). */
+const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${d}</svg>`
+const TAB_ICONS: Record<string, string> = {
+  parent: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  student: svg('<path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/>'),
+  staff: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16a3 3 0 0 1 6 0"/><path d="M15 10h3"/><path d="M15 14h3"/>'),
+}
 
 const tabsScript = (lang: LoginLang) => {
   const t = MORE[lang].tabs.map(({ id, label, hint, mode, ac }) => ({ id, label, hint, mode, ac }))
@@ -280,7 +290,7 @@ export function loginHTML(o: {
   const described = o.error ? ' aria-describedby="login-error"' : ''
   const idDescribed = vendor ? described : ` aria-describedby="${o.error ? 'login-error ' : ''}identifier-hint"`
   const tabs = vendor ? '' : `<div class="who" role="tablist" aria-label="${esc(m.tablist)}" hidden>${m.tabs.map((t, i) =>
-    `<button type="button" role="tab" id="tab-${t.id}" aria-controls="login-form" aria-selected="${i ? 'false' : 'true'}"${i ? ' tabindex="-1"' : ''}>${esc(t.name)}</button>`).join('')}</div>`
+    `<button type="button" role="tab" id="tab-${t.id}" aria-controls="login-form" aria-selected="${i ? 'false' : 'true'}"${i ? ' tabindex="-1"' : ''}>${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>`
   /* A small English / తెలుగు switch; the other language's name, in itself. */
   const sw = o.switchHref ? ` · <a href="${esc(o.switchHref)}" lang="${lang === 'te' ? 'en' : 'te'}">${lang === 'te' ? 'English' : 'తెలుగు'}</a>` : ''
   let page = PAGE.split('@@LANG@@').join(lang).replace('@@SWITCH@@', () => sw)
