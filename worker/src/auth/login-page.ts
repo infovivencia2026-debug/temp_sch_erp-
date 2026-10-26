@@ -4,7 +4,7 @@
    served by Pages from web/public/static. Per-school branding by custom
    domain or /<country>/<slug> fills the slots below from the school's row
    (Brand); with no school it is the XULO page. */
-const PAGE = "<!doctype html>\n<html lang=\"@@LANG@@\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>@@T_SIGNIN@@ · @@NAME@@</title>\n<link rel=\"stylesheet\" href=\"/static/app.css?v=7a164c6107\">@@STYLE@@\n<script>\n  try {\n    var t = localStorage.getItem('theme');\n    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);\n  } catch (e) {}\n</script>\n</head>\n<body class=\"auth\">\n  <div class=\"auth-top\"><button type=\"button\" id=\"theme-toggle\" class=\"theme-toggle\"\n        aria-label=\"Switch between light and dark\" title=\"Switch appearance\">\n  <svg class=\"icon-moon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"\n       stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n    <path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"/>\n  </svg>\n  <svg class=\"icon-sun\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"\n       stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n    <circle cx=\"12\" cy=\"12\" r=\"4\"/>\n    <path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41\"/>\n  </svg>\n</button></div>\n  <div class=\"auth-split@@SPLITCLASS@@\">\n    \n    <aside class=\"auth-brand\">\n      <div class=\"mesh\" aria-hidden=\"true\">\n        <span class=\"blob blob-1\"></span>\n        <span class=\"blob blob-2\"></span>\n        <span class=\"blob blob-3\"></span>\n        <span class=\"blob blob-4\"></span>\n        <span class=\"blob blob-5\"></span>\n      </div>\n      <div class=\"auth-brand-content\">\n        @@MARK@@\n        <div class=\"auth-brand-text\">\n          \n          @@COPY@@\n        </div>\n      </div>\n    </aside>\n    <main class=\"card\">\n      \n      <h1>@@H1@@</h1>\n      <p class=\"lede\">@@LEDE@@</p>@@ERROR@@\n      \n      \n      \n      @@TABS@@\n      <form method=\"post\" action=\"@@ACTION@@\" autocomplete=\"on\" id=\"login-form\">\n        <input type=\"hidden\" name=\"csrf_token\" value=\"@@CSRF@@\">\n        <input type=\"hidden\" name=\"next\" value=\"@@NEXT@@\">\n        <label for=\"identifier\" id=\"identifier-label\">@@T_IDENT@@</label>\n        \n        <input id=\"identifier\" type=\"text\" name=\"identifier\" required autocomplete=\"username\"\n               autocapitalize=\"none\" autocorrect=\"off\" spellcheck=\"false\" enterkeyhint=\"next\"\n               value=\"@@IDENT@@\"@@IDATTR@@>@@IDHINT@@\n        <label for=\"password\">@@T_PASSWORD@@</label>\n        <input id=\"password\" type=\"password\" name=\"password\" required autocomplete=\"current-password\"\n               enterkeyhint=\"go\"@@PWATTR@@>\n        <p class=\"field-hint\" id=\"caps-hint\" hidden aria-live=\"polite\">@@T_CAPS@@</p>\n        <button type=\"submit\" id=\"login-submit\" data-pending-label=\"@@T_PENDING@@\">@@T_SIGNIN@@</button>\n      </form>\n      <p class=\"fineprint\"><a href=\"/forgot\">@@T_FORGOT@@</a> · <a href=\"/privacy\">@@T_PRIVACY@@</a>@@SWITCH@@</p>@@SUPPORT@@\n      \n    </main>\n  </div>\n<script>\n(function () {\n  var btn = document.getElementById('theme-toggle');\n  if (!btn) return;\n  var root = document.documentElement;\n  btn.addEventListener('click', function () {\n    var now = root.getAttribute('data-theme') ||\n      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');\n    var next = now === 'dark' ? 'light' : 'dark';\n    root.setAttribute('data-theme', next);\n    try { localStorage.setItem('theme', next); } catch (e) {}\n  });\n})();\n</script>\n<script>\n\n\n(function () {\n  var fields = document.querySelectorAll('input[type=\"password\"]')\n  Array.prototype.forEach.call(fields, function (input) {\n    var wrap = document.createElement('span')\n    wrap.className = 'pw'\n    input.parentNode.insertBefore(wrap, input)\n    wrap.appendChild(input)\n\n    var btn = document.createElement('button')\n    btn.type = 'button'\n    btn.className = 'pw-eye'\n    btn.setAttribute('aria-label', '@@T_SHOW@@')\n    btn.setAttribute('aria-pressed', 'false')\n    btn.title = '@@T_SHOW@@'\n    btn.innerHTML =\n      '<svg class=\"icon-on\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"' +\n      ' stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">' +\n      '<path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>' +\n      '<svg class=\"icon-off\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"' +\n      ' stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">' +\n      '<path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94\"/>' +\n      '<path d=\"M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19\"/>' +\n      '<path d=\"M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M1 1l22 22\"/></svg>'\n    wrap.appendChild(btn)\n\n    btn.addEventListener('click', function () {\n      var shown = input.type === 'text'\n      input.type = shown ? 'password' : 'text'\n      wrap.setAttribute('data-shown', shown ? 'no' : 'yes')\n      btn.setAttribute('aria-pressed', shown ? 'false' : 'true')\n      var label = shown ? '@@T_SHOW@@' : '@@T_HIDE@@'\n      btn.setAttribute('aria-label', label)\n      btn.title = label\n      \n      input.focus()\n      var n = input.value.length\n      try { input.setSelectionRange(n, n) } catch (e) {   }\n    })\n\n    \n    \n    if (input.form) {\n      input.form.addEventListener('submit', function () {\n        input.type = 'password'\n        wrap.setAttribute('data-shown', 'no')\n      })\n    }\n  })\n})()\n</script>\n<script>\n(function () {\n  var pw = document.getElementById('password')\n  var hint = document.getElementById('caps-hint')\n  if (pw && hint) {\n    var show = function (e) {\n      var on = e.getModifierState && e.getModifierState('CapsLock')\n      hint.hidden = !on\n    }\n    pw.addEventListener('keydown', show)\n    pw.addEventListener('keyup', show)\n    pw.addEventListener('blur', function () { hint.hidden = true })\n  }\n  var form = document.getElementById('login-form')\n  var btn = document.getElementById('login-submit')\n  if (form && btn) {\n    form.addEventListener('submit', function () {\n      if (btn.disabled) return\n      btn.disabled = true\n      btn.setAttribute('aria-busy', 'true')\n      btn.textContent = btn.getAttribute('data-pending-label') || btn.textContent\n    })\n    \n    window.addEventListener('pageshow', function () {\n      btn.disabled = false\n      btn.removeAttribute('aria-busy')\n      btn.textContent = '@@T_SIGNIN@@'\n    })\n  }\n})()\n</script>@@SCRIPTS@@\n</body>\n</html>"
+const PAGE = "<!doctype html>\n<html lang=\"@@LANG@@\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">\n<title>@@T_SIGNIN@@ · @@NAME@@</title>\n<link rel=\"stylesheet\" href=\"/static/app.css?v=7a164c6107\">@@STYLE@@\n<script>\n  try {\n    var t = localStorage.getItem('theme');\n    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);\n  } catch (e) {}\n</script>\n</head>\n<body class=\"auth\">\n  <div class=\"auth-top\"><button type=\"button\" id=\"theme-toggle\" class=\"theme-toggle\"\n        aria-label=\"Switch between light and dark\" title=\"Switch appearance\">\n  <svg class=\"icon-moon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"\n       stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n    <path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"/>\n  </svg>\n  <svg class=\"icon-sun\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"\n       stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n    <circle cx=\"12\" cy=\"12\" r=\"4\"/>\n    <path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41\"/>\n  </svg>\n</button></div>\n  <div class=\"auth-split@@SPLITCLASS@@\">\n    \n    <aside class=\"auth-brand\">\n      <div class=\"mesh\" aria-hidden=\"true\">\n        <span class=\"blob blob-1\"></span>\n        <span class=\"blob blob-2\"></span>\n        <span class=\"blob blob-3\"></span>\n        <span class=\"blob blob-4\"></span>\n        <span class=\"blob blob-5\"></span>\n      </div>\n      <div class=\"auth-brand-content\">\n        @@MARK@@\n        <div class=\"auth-brand-text\">\n          \n          @@COPY@@\n        </div>\n      </div>\n    </aside>\n    <main class=\"card\">\n      \n      <h1>@@H1@@</h1>\n      <p class=\"lede\">@@LEDE@@</p>@@ERROR@@\n      \n      \n      \n      @@TABS@@\n      <form method=\"post\" action=\"@@ACTION@@\" autocomplete=\"on\" id=\"login-form\">\n        <input type=\"hidden\" name=\"csrf_token\" value=\"@@CSRF@@\">\n        <input type=\"hidden\" name=\"next\" value=\"@@NEXT@@\">\n        <label for=\"identifier\" id=\"identifier-label\">@@T_IDENT@@</label>\n        \n        <input id=\"identifier\" type=\"text\" name=\"identifier\" required autocomplete=\"username\"\n               autocapitalize=\"none\" autocorrect=\"off\" spellcheck=\"false\" enterkeyhint=\"next\"\n               value=\"@@IDENT@@\"@@IDATTR@@>@@IDHINT@@\n        <label for=\"password\">@@T_PASSWORD@@</label>\n        <input id=\"password\" type=\"password\" name=\"password\" required autocomplete=\"current-password\"\n               enterkeyhint=\"go\"@@PWATTR@@>\n        <p class=\"field-hint\" id=\"caps-hint\" hidden aria-live=\"polite\">@@T_CAPS@@</p>\n        <button type=\"submit\" id=\"login-submit\" data-pending-label=\"@@T_PENDING@@\">@@T_SIGNIN@@</button>\n      </form>\n      <p class=\"fineprint\"><a href=\"/forgot\">@@T_FORGOT@@</a> · <a href=\"/privacy\">@@T_PRIVACY@@</a>@@SWITCH@@</p>@@SUPPORT@@\n      \n    </main>\n  </div>\n<script>\n(function () {\n  var btn = document.getElementById('theme-toggle');\n  if (!btn) return;\n  var root = document.documentElement;\n  btn.addEventListener('click', function () {\n    var now = root.getAttribute('data-theme') ||\n      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');\n    var next = now === 'dark' ? 'light' : 'dark';\n    root.setAttribute('data-theme', next);\n    try { localStorage.setItem('theme', next); } catch (e) {}\n  });\n})();\n</script>\n<script>\n\n\n(function () {\n  var fields = document.querySelectorAll('input[type=\"password\"]')\n  Array.prototype.forEach.call(fields, function (input) {\n    var wrap = document.createElement('span')\n    wrap.className = 'pw'\n    input.parentNode.insertBefore(wrap, input)\n    wrap.appendChild(input)\n\n    var btn = document.createElement('button')\n    btn.type = 'button'\n    btn.className = 'pw-eye'\n    btn.setAttribute('aria-label', '@@T_SHOW@@')\n    btn.setAttribute('aria-pressed', 'false')\n    btn.title = '@@T_SHOW@@'\n    btn.innerHTML =\n      '<svg class=\"icon-on\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"' +\n      ' stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">' +\n      '<path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>' +\n      '<svg class=\"icon-off\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"' +\n      ' stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">' +\n      '<path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94\"/>' +\n      '<path d=\"M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19\"/>' +\n      '<path d=\"M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M1 1l22 22\"/></svg>'\n    wrap.appendChild(btn)\n\n    btn.addEventListener('click', function () {\n      var shown = input.type === 'text'\n      input.type = shown ? 'password' : 'text'\n      wrap.setAttribute('data-shown', shown ? 'no' : 'yes')\n      btn.setAttribute('aria-pressed', shown ? 'false' : 'true')\n      var label = shown ? '@@T_SHOW@@' : '@@T_HIDE@@'\n      btn.setAttribute('aria-label', label)\n      btn.title = label\n      \n      input.focus()\n      var n = input.value.length\n      try { input.setSelectionRange(n, n) } catch (e) {   }\n    })\n\n    \n    \n    if (input.form) {\n      input.form.addEventListener('submit', function () {\n        input.type = 'password'\n        wrap.setAttribute('data-shown', 'no')\n      })\n    }\n  })\n})()\n</script>\n<script>\n(function () {\n  var pw = document.getElementById('password')\n  var hint = document.getElementById('caps-hint')\n  if (pw && hint) {\n    var show = function (e) {\n      var on = e.getModifierState && e.getModifierState('CapsLock')\n      hint.hidden = !on\n    }\n    pw.addEventListener('keydown', show)\n    pw.addEventListener('keyup', show)\n    pw.addEventListener('blur', function () { hint.hidden = true })\n  }\n  var form = document.getElementById('login-form')\n  var btn = document.getElementById('login-submit')\n  if (form && btn) {\n    form.addEventListener('submit', function () {\n      if (btn.disabled) return\n      btn.disabled = true\n      btn.setAttribute('aria-busy', 'true')\n      btn.textContent = btn.getAttribute('data-pending-label') || btn.textContent\n    })\n    \n    window.addEventListener('pageshow', function () {\n      btn.disabled = false\n      btn.removeAttribute('aria-busy')\n      btn.textContent = '@@T_SIGNIN@@'\n    })\n  }\n})()\n</script>@@SCRIPTS@@\n</body>\n</html>"
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&#34;', "'": '&#39;' }[c]!))
 
@@ -233,7 +233,7 @@ const SLIDES_CSS = `
    one Sign in button; that button opens page two, the top of the picture
    fading into the page with the form below on the plain background. Page two
    is .p2 on the split; #signin in the address keeps Back working. */
-.auth-go,.auth-back{display:none}
+.auth-go,.auth-back,.auth-as{display:none}
 @media (max-width:639px){
   body.auth:has(.has-slides){padding:0;overflow-y:auto;background:var(--surface)}
   .auth-split.has-slides{position:relative;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;min-height:100vh;min-height:100dvh;
@@ -247,7 +247,7 @@ const SLIDES_CSS = `
   .auth-split.has-slides:not(.p2) .auth-brand{position:fixed;inset:0;z-index:1;animation:authPage .28s ease-out}
   .auth-split.has-slides:not(.p2) .card{display:none}
   .auth-split.has-slides .auth-brand-content{position:relative;display:flex;flex-direction:column;justify-content:flex-start;height:100%;
-    padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 96px)}
+    padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 220px)}
   .auth-split.has-slides .auth-brand-mark{align-self:flex-start;margin:0 0 14px;font-size:32px}
   .auth-split.has-slides .auth-logo{align-self:flex-start;margin-bottom:14px}
   .auth-split.has-slides .auth-logo{max-width:48px;max-height:48px;padding:5px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.25)}
@@ -256,14 +256,26 @@ const SLIDES_CSS = `
   .auth-split.has-slides .auth-brand-sub{display:none}
   .auth-split.has-slides .auth-bars{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 6px);left:20px;right:64px;margin:0;gap:4px}
   .auth-split.has-slides .auth-bars button{flex:1 1 0;width:auto;height:28px}
-  .auth-split.has-slides:not(.p2) .auth-go{display:block;position:absolute;z-index:2;left:20px;right:20px;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px);
-    width:auto;height:52px;margin:0;border:0;border-radius:24px;background:var(--brand, var(--accent));color:#fff;font-size:16px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+  .auth-split.has-slides:not(.p2) .auth-go{display:flex;flex-direction:column;gap:10px;position:absolute;z-index:2;left:20px;right:20px;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px)}
+  .auth-go button{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-width:0;height:52px;margin:0;padding:0 16px;border:0;border-radius:24px;
+    background:var(--who-thumb, var(--brand, var(--accent)));color:#fff;font-size:16px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+  .auth-go button:hover{background:var(--who-thumb, var(--brand, var(--accent)))}
+  .auth-go button:active{transform:scale(0.98)}
+  .auth-go button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  .auth-go svg{flex:none;width:22px;height:22px}
+  .auth-go span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   body.auth:has(.has-slides:not(.p2)) .auth-top .theme-toggle{z-index:3;background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.3);color:#fff}
 
   /* Page two. */
   .auth-split.has-slides.p2 .auth-brand{position:relative;height:38vh;height:38dvh}
   .auth-split.has-slides.p2 .auth-slides{-webkit-mask-image:linear-gradient(to bottom, #000 35%, transparent 100%);mask-image:linear-gradient(to bottom, #000 35%, transparent 100%)}
   .auth-split.has-slides.p2 .auth-brand-content{display:none}
+  /* The role was chosen on page one, so page two shows it instead of asking again. */
+  .auth-split.has-slides.p2 .who{display:none}
+  .auth-split.has-slides.p2 .auth-as{display:inline-flex}
+  .auth-as{display:none;align-self:flex-start;align-items:center;gap:6px;width:auto!important;margin:0 0 6px;padding:4px 12px 4px 8px;border-radius:999px;
+    background:color-mix(in srgb, var(--brand, var(--accent)) 12%, transparent);color:var(--fg);font-size:14px;font-weight:600}
+  .auth-as svg{flex:none;width:18px;height:18px}
   .auth-split.has-slides.p2 .auth-back{display:flex;align-items:center;justify-content:center;position:absolute;z-index:2;top:calc(env(safe-area-inset-top, 0px) + 16px);left:16px;
     width:44px;height:44px;margin:0;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:50%;background:rgba(0,0,0,0.3);color:#fff}
   .auth-split.has-slides.p2 .auth-back svg{width:20px;height:20px}
@@ -302,11 +314,13 @@ function barsHTML(slides: string[], lang: LoginLang): string {
     `<button type="button" aria-label="${esc(`${m.picture} ${i + 1} / ${slides.length}`)}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>`
 }
 
-/* The phone's page-one Sign in button and page-two back control; hidden
-   on wider screens by CSS. */
-function phoneButtonsHTML(signIn: string, back: string): string {
-  return `<button type="button" class="auth-go">${esc(signIn)}</button>
-      <button type="button" class="auth-back" aria-label="${esc(back)}" title="${esc(back)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>`
+/* The phone's page-one role buttons (Parent / Student / Staff, the tabs'
+   icons) and page-two back control; hidden on wider screens by CSS. */
+function phoneButtonsHTML(lang: LoginLang): string {
+  const m = MORE[lang]
+  return `<div class="auth-go" role="group" aria-label="${esc(m.tablist)}">${m.tabs.map((t) =>
+    `<button type="button" data-role="${t.id}">${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>
+      <button type="button" class="auth-back" aria-label="${esc(m.back)}" title="${esc(m.back)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>`
 }
 
 /* Page one / page two on a phone. #signin opens page two, so a reload or a
@@ -318,24 +332,58 @@ const PHONE_JS = `
   var go = split && split.querySelector('.auth-go')
   var back = split && split.querySelector('.auth-back')
   if (!go || !back) return
+  var roles = Array.prototype.slice.call(go.querySelectorAll('button[data-role]'))
+  var card = split.querySelector('.card')
+  var h1 = card && card.querySelector('h1')
+  var as = document.createElement('p')
+  as.className = 'auth-as'
+  if (h1) card.insertBefore(as, h1)
   var pushed = false
-  function show(two) {
-    split.classList.toggle('p2', two)
+  /* The same as pressing that tab: the tabs script sets the field's label,
+     hint and keyboard, and remembers the choice for next time. */
+  function choose(role) {
+    var tab = document.getElementById('tab-' + role)
+    if (!tab) return
+    if (tab.getAttribute('aria-selected') !== 'true') tab.click()
+    as.innerHTML = tab.innerHTML
+  }
+  function current() {
+    var t = split.querySelector('.who [aria-selected="true"]')
+    return t ? t.id.replace(/^tab-/, '') : ''
+  }
+  function fromHash() {
+    var m = /^#signin(?:-(parent|student|staff))?$/.exec(location.hash)
+    return m ? (m[1] || current() || 'parent') : null
+  }
+  function show(role) {
+    if (role) choose(role)
+    split.classList.toggle('p2', !!role)
     window.scrollTo(0, 0)
   }
-  if (location.hash === '#signin') split.classList.add('p2')
-  go.addEventListener('click', function () {
-    try { history.pushState({ signin: 1 }, '', '#signin'); pushed = true } catch (e) {}
-    show(true)
+  var start = fromHash()
+  if (start) show(start)
+  else if (split.classList.contains('p2')) {
+    /* A failed sign-in: the tab the person used is remembered, so the
+       address names it and Back still leads to page one. */
+    var r = current() || 'parent'
+    try { history.replaceState(null, '', '#signin-' + r) } catch (e) {}
+    show(r)
+  }
+  roles.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var role = b.getAttribute('data-role')
+      try { history.pushState({ signin: role }, '', '#signin-' + role); pushed = true } catch (e) {}
+      show(role)
+    })
   })
   back.addEventListener('click', function () {
     if (pushed) { history.back(); return }
     try { history.replaceState(null, '', location.pathname + location.search) } catch (e) {}
-    show(false)
+    show(null)
   })
   window.addEventListener('popstate', function () {
     pushed = false
-    show(location.hash === '#signin')
+    show(fromHash())
   })
 })()
 </script>`
@@ -411,6 +459,53 @@ const PHONE_FIT_CSS = `
 }
 </style>`
 
+/* No scrolling, no zoom (owner, 2026-10-26): every sign-in page fits the
+   visible screen exactly, phone or desktop, with or without pictures. The
+   form keeps its 48px controls and 16px text; spacing and the page-two
+   picture give way on short screens. If the content still cannot fit (a
+   phone keyboard over it, an error and a help line on the smallest phone),
+   the form scrolls inside itself, never the page. Last in the cascade. */
+const FIT_CSS = `
+<style>
+html:has(body.auth){height:100%;overflow:hidden;overscroll-behavior:none}
+body.auth{height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;touch-action:pan-x pan-y}
+body.auth .auth-split .card{overflow-y:auto;overscroll-behavior:contain}
+@media (min-width:640px){
+  body.auth .auth-split{min-height:min(95vh, calc(100dvh - 3rem));max-height:calc(100dvh - 3rem)}
+}
+@media (max-width:639px){
+  body.auth .auth-split{height:100vh;height:100dvh;min-height:0;max-height:100dvh}
+  body.auth .auth-split .card{max-height:100%}
+  body.auth .auth-split.has-slides.p2 .card{flex:1 1 auto;min-height:0;padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
+  body.auth .auth-split.has-slides.p2{padding-bottom:0}
+}
+/* Short phones (an iPhone SE is 568 tall). */
+@media (max-width:639px) and (max-height:700px){
+  body.auth .auth-split.has-slides.p2 .auth-brand{height:20vh;height:20dvh}
+  body.auth .auth-split.has-slides.p2 .card{margin-top:-12px}
+  body.auth .auth-split:not(.has-slides){padding-top:calc(env(safe-area-inset-top, 0px) + 48px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
+  body.auth .auth-split:not(.has-slides) .card{padding-top:12px;padding-bottom:12px}
+  body.auth .auth-split .card h1{margin-bottom:2px}
+  body.auth .auth-split .card .lede{margin-bottom:6px}
+  body.auth .auth-split .card .error{margin-bottom:8px}
+  body.auth .auth-split .who button{height:52px;gap:2px}
+  body.auth .auth-split .card label{margin-top:6px}
+  body.auth .auth-split .card .id-hint{margin-top:2px}
+  body.auth .auth-split .card button[type="submit"]{margin-top:12px}
+  body.auth .auth-split .card .fineprint{margin-top:10px;margin-bottom:0}
+}
+</style>`
+
+/* iOS Safari ignores user-scalable=no for pinch; its gesture events can be refused. */
+const NO_ZOOM_JS = `
+<script>
+(function () {
+  var stop = function (e) { e.preventDefault() }
+  document.addEventListener("gesturestart", stop)
+  document.addEventListener("gesturechange", stop)
+})()
+</script>`
+
 export function loginHTML(o: {
   csrf: string; next: string; identifier?: string; error?: string; brand?: Brand; lang?: LoginLang; switchHref?: string
   /** 'vendor' is the XULO maintenance sign-in: no tabs, its own heading. */
@@ -443,11 +538,11 @@ export function loginHTML(o: {
   if (slides.length) {
     page = page.replace('<aside class="auth-brand">', '<aside class="auth-brand has-slides">')
       .replace(/<div class="mesh" aria-hidden="true">[\s\S]*?<\/div>/, () => slidesHTML(slides))
-      .replace('</aside>', () => phoneButtonsHTML(w.SIGNIN, m.back) + '\n    </aside>')
+      .replace('</aside>', () => phoneButtonsHTML(lang) + '\n    </aside>')
   }
   for (const k of Object.keys(w)) page = page.split(`@@T_${k}@@`).join(w[k])
-  const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '')
-  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '')
+  const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '') + FIT_CSS
+  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '') + NO_ZOOM_JS
   return page
     .replace('@@H1@@', vendor ? esc(m.vendorH1) : w.SIGNIN)
     .replace('@@LEDE@@', vendor ? esc(m.vendorLede) : '@@NAME@@')
