@@ -243,7 +243,19 @@ try {
     /* Straight out (owner, 2026-10-10: "when I click Sign Out again it should
        sign out immediately"). The alert stays where it is and the browser goes
        to /logout at once: no second screen, no glimpse of the page behind. */
-    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', () => { document.removeEventListener('keydown', onKey, true); go() })
+    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', (ev) => {
+      document.removeEventListener('keydown', onKey, true)
+      /* Visible at once, and nothing else in the way (owner, 2026-10-26: "sign
+         out is not logging out, taking some time"): the button says so and
+         locks, and the screens still downloading in the background are
+         stopped, so the sign-out request is not queued behind them. */
+      const yes = ev.currentTarget as HTMLButtonElement
+      yes.textContent = 'Signing out…'
+      yes.disabled = true
+      box.querySelector<HTMLButtonElement>('[data-no]')?.setAttribute('disabled', '')
+      try { window.stop() } catch { /* old engines */ }
+      go()
+    })
     document.addEventListener('keydown', onKey, true)
     document.body.appendChild(back)
     // Focus the safe answer, so Enter on a stray keypress keeps the session.
