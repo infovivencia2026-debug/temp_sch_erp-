@@ -5104,10 +5104,11 @@ input[type="number"]::-webkit-inner-spin-button {
     font-size: calc(16px * var(--font-scale)) !important;
   }
   /* Every button and button-like link is a 48 target; its icon draws at 24. */
-  main button:not([role='switch']), main a[role='button'], nav button, nav a[aria-label] {
+  /* Not the Focus page dots: 7px dots with their own hit area (restored 2026-10-26; this rule drew them as 48px blobs). */
+  main button:not([role='switch']):not(.bento-dot), main a[role='button'], nav button, nav a[aria-label] {
     min-height: 48px;
   }
-  main button[aria-label], nav button[aria-label], nav a[aria-label] { min-width: 48px; }
+  main button[aria-label]:not(.bento-dot), nav button[aria-label], nav a[aria-label] { min-width: 48px; }
   main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
 }
 

@@ -4,7 +4,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
-import { OptionSheet, useIsPhone } from '@/components/OptionSheet'
+import { OptionSheet, inOptionSheet, useIsPhone } from '@/components/OptionSheet'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
@@ -278,7 +278,7 @@ export function DropdownRow<T extends string>({
     if (!open) return
     const onDoc = (e: PointerEvent) => {
       const t = e.target as Node
-      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
+      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t) && !inOptionSheet(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', onDoc)
