@@ -13,7 +13,7 @@ export interface Brand {
   name: string
   action: string
   logoUrl?: string | null
-  /** Sign-in pictures, public URLs in order: the square gallery that replaces the brand panel. */
+  /** Sign-in pictures, public URLs in order: they fill the brand panel and cross-fade. */
   slides?: string[]
   primary?: string | null
   accent?: string | null
@@ -106,10 +106,10 @@ const TAB_CSS = `
 .who button span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:640px){.who button{height:48px}.who svg{width:20px;height:20px}}
 @media (max-width:560px){
-  .auth-split:not(.has-gallery) .who{background:rgba(0,0,0,0.25)}
-  .auth-split:not(.has-gallery) .who button{color:rgba(255,255,255,0.85)}
-  .auth-split:not(.has-gallery) .who button[aria-selected="true"]{background:#fff;color:#111827}
-  .auth-split:not(.has-gallery) .id-hint{color:rgba(255,255,255,0.8)}
+  .auth-split .who{background:rgba(0,0,0,0.25)}
+  .auth-split .who button{color:rgba(255,255,255,0.85)}
+  .auth-split .who button[aria-selected="true"]{background:#fff;color:#111827}
+  .auth-split .id-hint{color:rgba(255,255,255,0.8)}
 }
 </style>`
 
@@ -171,99 +171,107 @@ const tabsScript = (lang: LoginLang) => {
 </script>`
 }
 
-/* The gallery: square pictures on a scroll-snap track. Swipe is the browser's
-   own scrolling; the script adds dots, a 5 second advance (none under reduced
-   motion) and pauses while the pointer, a finger or focus is on it. */
-const GALLERY_CSS = `
+/* Sign-in pictures (owner, 2026-10-26): the pictures fill the brand panel,
+   same size as without them, and cross-fade one into the next with a slow
+   zoom. A gradient in the school's colour keeps the logo and words readable.
+   Bars at the bottom show which picture is on and how long it stays; a click
+   jumps to one; the pointer or focus on the panel holds it. Under reduced
+   motion: no zoom, no fade, no advance. On a phone the panel is the page's
+   background, so the pictures are too, behind the form. */
+const SLIDE_MS = 5000
+const SLIDES_CSS = `
 <style>
-.auth-gallery{flex:0 0 52%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px;background:var(--ground);min-width:0}
-.gallery{width:100%;max-width:min(640px, 80vh)}
-.gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;border-radius:16px;aspect-ratio:1/1;background:color-mix(in srgb, var(--fg) 6%, transparent)}
-.gallery-track::-webkit-scrollbar{display:none}
-.gallery-track figure{flex:0 0 100%;margin:0;scroll-snap-align:start;scroll-snap-stop:always}
-.gallery-track img{display:block;width:100%;height:100%;object-fit:cover}
-.gallery-dots{display:flex;justify-content:center;margin-top:4px}
-.gallery-dots[hidden]{display:none}
-.gallery-dots button{width:24px;height:40px;margin:0;padding:0;background:transparent;display:flex;align-items:center;justify-content:center}
-.gallery-dots button:hover{background:transparent}
-.gallery-dots button::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--fg);opacity:0.3;transition:opacity 0.2s ease, transform 0.2s ease}
-.gallery-dots button[aria-current="true"]::before{opacity:1;transform:scale(1.25)}
-@media (prefers-reduced-motion: reduce){.gallery-dots button::before{transition:none}}
-@media (max-width:900px){
-  .auth-gallery{flex:none;padding:0}
-  .gallery{max-width:none}
-  .gallery-track{border-radius:0}
-}
-@media (max-width:560px){
-  .auth-split.has-gallery{background:var(--surface);padding:calc(env(safe-area-inset-top, 0px) + 64px) 0 calc(env(safe-area-inset-bottom, 0px) + 24px);justify-content:flex-start}
-  .auth-split.has-gallery .auth-gallery{width:100%}
-  .auth-split.has-gallery .card{margin:0;max-width:none;padding:16px 16px 0;border:0;border-radius:0;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;color:var(--fg)}
-  .auth-split.has-gallery .card h1{color:var(--fg)}
-  .auth-split.has-gallery .card label{color:var(--secondary)}
-  .auth-split.has-gallery .card .lede,.auth-split.has-gallery .card .fineprint{color:var(--muted)}
-  .auth-split.has-gallery .card .fineprint a{color:var(--accent)}
-  .auth-split.has-gallery .card input{background:var(--surface);border-color:var(--border);color:inherit}
-  .auth-split.has-gallery .card input:focus{border-color:var(--accent)}
-  .auth-split.has-gallery .card .pw > button.pw-eye{color:var(--muted)}
-  .auth-split.has-gallery .card button[type="submit"]{background:var(--brand, var(--accent));color:#fff}
-  .auth-split.has-gallery .card .error{background:color-mix(in srgb, var(--danger) 6%, transparent);border-color:color-mix(in srgb, var(--danger) 30%, transparent);color:var(--danger)}
-  .auth-split.has-gallery .card .field-hint{color:var(--warning, #b45309)}
-  body.auth:has(.has-gallery) .auth-top .theme-toggle{background:var(--surface);border-color:var(--border);color:var(--fg)}
+.auth-brand.has-slides{background:color-mix(in srgb, var(--brand, #1c0e33) 40%, #05070d)}
+.auth-slides{position:absolute;inset:0;z-index:0;overflow:hidden}
+.auth-slides img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 32%;opacity:0;transition:opacity 1.2s ease-in-out}
+.auth-slides img.on{opacity:1}
+.auth-slides img.on,.auth-slides img.was{animation:authKenBurns ${SLIDE_MS + 1200}ms linear forwards}
+.auth-brand.held .auth-slides img{animation-play-state:paused}
+@keyframes authKenBurns{from{transform:scale(1)}to{transform:scale(1.06)}}
+.auth-slides::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,
+  color-mix(in srgb, var(--brand, #0b132b) 22%, rgba(5,8,18,0.92)) 0%,
+  color-mix(in srgb, var(--brand, #0b132b) 18%, rgba(5,8,18,0.35)) 55%,
+  rgba(0,0,0,0.12) 100%)}
+.auth-brand.has-slides .auth-brand-eyebrow{font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;opacity:1;color:color-mix(in srgb, var(--brand, #93c5fd) 30%, #fff)}
+.auth-brand.has-slides .auth-brand-title{text-shadow:0 2px 18px rgba(0,0,0,0.35)}
+.auth-bars{display:flex;gap:6px;margin-top:22px}
+.auth-bars[hidden]{display:none}
+.auth-bars button{flex:0 0 auto;width:28px;height:24px;margin:0;padding:0;border:0;background:transparent;display:flex;align-items:center;cursor:pointer;box-shadow:none}
+.auth-bars button:hover{background:transparent}
+.auth-bars button::before{content:"";width:100%;height:3px;border-radius:2px;background-color:rgba(255,255,255,0.35);
+  background-image:linear-gradient(#fff,#fff);background-repeat:no-repeat;background-size:0 100%;transition:background-color 0.2s ease}
+.auth-bars button:hover::before{background-color:rgba(255,255,255,0.55)}
+.auth-bars button[aria-current="true"]::before{background-color:rgba(255,255,255,0.6);animation:authBar ${SLIDE_MS}ms linear forwards}
+.auth-brand.held .auth-bars button[aria-current="true"]::before{animation-play-state:paused}
+.auth-bars button:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:3px}
+@keyframes authBar{from{background-size:0 100%}to{background-size:100% 100%}}
+@media (prefers-reduced-motion: reduce){
+  .auth-slides img{transition:none}
+  .auth-slides img.on,.auth-slides img.was{animation:none}
+  .auth-bars button[aria-current="true"]::before{animation:none;background-size:100% 100%}
 }
 </style>`
 
-function galleryHTML(slides: string[], lang: LoginLang): string {
-  const m = MORE[lang]
-  const figs = slides.map((u, i) =>
-    `<figure><img src="${esc(u)}" alt=""${i ? ' loading="lazy"' : ''} decoding="async"></figure>`).join('')
-  const dots = slides.length > 1
-    ? `<div class="gallery-dots" hidden>${slides.map((_, i) =>
-      `<button type="button" aria-label="${esc(`${m.picture} ${i + 1} / ${slides.length}`)}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>`
-    : ''
-  return `<aside class="auth-gallery" aria-label="${esc(m.gallery)}">
-      <div class="gallery"><div class="gallery-track">${figs}</div>${dots}</div>
-    </aside>`
+function slidesHTML(slides: string[]): string {
+  return `<div class="auth-slides" aria-hidden="true">${slides.map((u, i) =>
+    `<img src="${esc(u)}" alt=""${i ? ' loading="lazy"' : ' class="on" fetchpriority="high"'} decoding="async">`).join('')}</div>`
 }
 
-const GALLERY_JS = `
+function barsHTML(slides: string[], lang: LoginLang): string {
+  const m = MORE[lang]
+  return `<div class="auth-bars" role="group" aria-label="${esc(m.gallery)}" hidden>${slides.map((_, i) =>
+    `<button type="button" aria-label="${esc(`${m.picture} ${i + 1} / ${slides.length}`)}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>`
+}
+
+const SLIDES_JS = `
 <script>
 (function () {
-  var g = document.querySelector('.gallery')
-  var track = g && g.querySelector('.gallery-track')
-  var bar = g && g.querySelector('.gallery-dots')
-  if (!track || !bar) return
+  var panel = document.querySelector('.auth-brand.has-slides')
+  var bar = panel && panel.querySelector('.auth-bars')
+  if (!bar) return
+  var pics = Array.prototype.slice.call(panel.querySelectorAll('.auth-slides img'))
   var dots = Array.prototype.slice.call(bar.querySelectorAll('button'))
-  var n = dots.length, now = 0, held = 0
+  var n = pics.length, now = 0, held = 0, spent = 0, last = Date.now(), fade = 0
   var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  /* The next picture loads while this one shows, so a fade never reaches a blank frame. */
+  function warm(i) { var p = pics[i]; if (p && p.loading === 'lazy') p.loading = 'eager' }
   function go(i) {
-    track.scrollTo({ left: i * track.clientWidth, behavior: still ? 'auto' : 'smooth' })
-  }
-  function mark() {
-    var i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth))
-    if (i < 0) i = 0
-    if (i > n - 1) i = n - 1
-    now = i
+    if (i === now) return
+    var old = pics[now]
+    old.classList.remove('on')
+    old.classList.add('was')
+    window.clearTimeout(fade)
+    fade = window.setTimeout(function () {
+      pics.forEach(function (p) { if (!p.classList.contains('on')) p.classList.remove('was') })
+    }, 1300)
+    warm(i)
+    pics[i].classList.remove('was')
+    pics[i].classList.add('on')
     dots.forEach(function (d, j) {
       if (j === i) d.setAttribute('aria-current', 'true')
       else d.removeAttribute('aria-current')
     })
+    now = i
+    spent = 0
+    warm((i + 1) % n)
   }
   dots.forEach(function (d, i) { d.addEventListener('click', function () { go(i) }) })
-  track.addEventListener('scroll', function () { window.requestAnimationFrame(mark) }, { passive: true })
   bar.hidden = false
   if (still) return
-  function hold() { held++ }
-  function release() { if (held > 0) held-- }
-  g.addEventListener('mouseenter', hold)
-  g.addEventListener('mouseleave', release)
-  g.addEventListener('focusin', hold)
-  g.addEventListener('focusout', release)
-  g.addEventListener('touchstart', hold, { passive: true })
-  g.addEventListener('touchend', function () { window.setTimeout(release, 5000) }, { passive: true })
+  warm(1)
+  function hold() { held++; panel.classList.add('held') }
+  function release() { if (held > 0) held--; if (!held) panel.classList.remove('held') }
+  panel.addEventListener('mouseenter', hold)
+  panel.addEventListener('mouseleave', release)
+  panel.addEventListener('focusin', hold)
+  panel.addEventListener('focusout', release)
   window.setInterval(function () {
+    var t = Date.now(), dt = t - last
+    last = t
     if (held || document.hidden) return
-    go((now + 1) % n)
-  }, 5000)
+    spent += dt
+    if (spent >= ${SLIDE_MS}) go((now + 1) % n)
+  }, 100)
 })()
 </script>`
 
@@ -294,18 +302,23 @@ export function loginHTML(o: {
   /* A small English / తెలుగు switch; the other language's name, in itself. */
   const sw = o.switchHref ? ` · <a href="${esc(o.switchHref)}" lang="${lang === 'te' ? 'en' : 'te'}">${lang === 'te' ? 'English' : 'తెలుగు'}</a>` : ''
   let page = PAGE.split('@@LANG@@').join(lang).replace('@@SWITCH@@', () => sw)
-  if (slides.length) page = page.replace(/<aside class="auth-brand">[\s\S]*?<\/aside>/, () => galleryHTML(slides, lang))
+  /* With pictures the panel keeps its place, size, logo and words; the
+     pictures take the moving mesh's place behind them. */
+  if (slides.length) {
+    page = page.replace('<aside class="auth-brand">', '<aside class="auth-brand has-slides">')
+      .replace(/<div class="mesh" aria-hidden="true">[\s\S]*?<\/div>/, () => slidesHTML(slides))
+  }
   for (const k of Object.keys(w)) page = page.split(`@@T_${k}@@`).join(w[k])
-  const style = (b ? brandStyle(b) : '') + (vendor ? '' : TAB_CSS) + (slides.length ? GALLERY_CSS : '')
-  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? GALLERY_JS : '')
+  const style = (b ? brandStyle(b) : '') + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '')
+  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '')
   return page
     .replace('@@H1@@', vendor ? esc(m.vendorH1) : w.SIGNIN)
     .replace('@@LEDE@@', vendor ? esc(m.vendorLede) : '@@NAME@@')
     .split('@@NAME@@').join(esc(b?.name ?? 'XULO'))
-    .replace('@@SPLITCLASS@@', slides.length ? ' has-gallery' : '')
+    .replace('@@SPLITCLASS@@', slides.length ? ' has-slides' : '')
     .replace('@@STYLE@@', () => style)
     .replace('@@MARK@@', () => mark)
-    .replace('@@COPY@@', () => copy)
+    .replace('@@COPY@@', () => copy + (slides.length > 1 ? `\n          ${barsHTML(slides, lang)}` : ''))
     .replace('@@TABS@@', () => tabs)
     .replace('@@IDHINT@@', vendor ? '' : '\n        <p class="id-hint" id="identifier-hint" hidden></p>')
     .replace('@@SCRIPTS@@', () => scripts)

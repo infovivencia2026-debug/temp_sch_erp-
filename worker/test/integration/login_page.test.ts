@@ -27,20 +27,33 @@ describe('sign-in page', () => {
     expect(h).toContain('For XULO staff. Schools sign in at their own address.')
   })
 
-  it('replaces the brand panel with a gallery when slides are set, escaping URLs', () => {
+  it('fills the brand panel with cross-fading pictures when slides are set, escaping URLs', () => {
     const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides: ['/a.png', '/b.png?x="><script>'] } })
-    expect(h).toContain('auth-split has-gallery')
+    expect(h).toContain('auth-split has-slides')
+    expect(h).toContain('<aside class="auth-brand has-slides">')
     expect(h).not.toContain('class="mesh"')
-    expect(h).toContain('<img src="/a.png" alt="" decoding="async">')
-    expect(h).toContain('loading="lazy"')
+    expect(h).toContain('<img src="/a.png" alt="" class="on" fetchpriority="high" decoding="async">')
+    expect(h.match(/loading="lazy"/g)).toHaveLength(1)
+    expect(h).toContain('class="auth-brand-title"')
     expect(h).not.toContain('"><script>')
     expect(h.match(/aria-label="Picture \d \/ 2"/g)).toHaveLength(2)
+    expect(h).toContain('prefers-reduced-motion')
+    expect(h).not.toContain('@@')
+  })
+
+  it('one picture: no bars and no slide script', () => {
+    const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides: ['/a.png'] } })
+    expect(h).toContain('auth-slides')
+    expect(h).not.toContain('class="auth-bars"')
+    expect(h).not.toContain("querySelector('.auth-brand.has-slides')")
   })
 
   it('keeps the brand panel without slides', () => {
     const h = loginHTML({ csrf: 'c', next: '/', brand })
     expect(h).toContain('class="mesh"')
-    expect(h).not.toContain('auth-split has-gallery')
+    expect(h).toContain('<aside class="auth-brand">')
+    expect(h).not.toContain('has-slides')
+    expect(h).not.toContain('auth-slides')
   })
 })
 
