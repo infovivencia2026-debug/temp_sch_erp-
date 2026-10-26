@@ -5214,3 +5214,48 @@ nav:has(> .nav-pill) { gap: 12px !important; }
   transition: padding-bottom .35s cubic-bezier(.4, 0, .2, 1), opacity .2s ease, transform .35s cubic-bezier(.4, 0, .2, 1); }
 .nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { opacity: 1; transform: none; transition-delay: 0s, .08s, 0s; }
 @media (prefers-reduced-motion: reduce) { .nav-pill__body > .nav-pill__sub { transition: none; transform: none; } }
+
+/* GLASS ICON BUTTON (owner, 2026-10-26). iOS liquid glass: a translucent,
+   blurred, saturated disc with a hairline highlight and a soft shadow. On
+   press it grows and lifts on the spring (transform + filter only); under
+   reduced motion it does not move. Own class, after the global :active
+   rules and more specific, so the 0.98 shrink never wins. */
+.glass-btn {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.6);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.45), 0 2px 8px hsl(0 0% 0% / 0.10), 0 0 0 0.5px hsl(0 0% 0% / 0.06);
+  transform: translateZ(0);
+}
+.glass-btn--sm { width: 40px; height: 40px; }
+@media (max-width: 639px) { .glass-btn, .glass-btn--sm { width: 48px; height: 48px; } }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-btn {
+    background: hsl(var(--card) / 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+}
+.glass-btn:hover { background: hsl(var(--card) / 0.75); }
+.glass-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }
+button.glass-btn:active:not(:disabled) {
+  transform: scale(1.1) translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 6px 16px hsl(0 0% 0% / 0.16);
+  transition-duration: var(--motion-press);
+  transition-timing-function: var(--motion-spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  button.glass-btn, button.glass-btn:active:not(:disabled) { transform: none; transition-duration: 0ms; }
+}
+/* Over a photo or video (status viewer): dark glass, white glyph. */
+.glass-btn.glass-btn--dark { color: #fff; border-color: hsl(0 0% 100% / 0.18); background: hsl(0 0% 0% / 0.45); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
+}

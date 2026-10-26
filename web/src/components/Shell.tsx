@@ -1,4 +1,5 @@
 import { Anchored } from './AnchoredPanel'
+import { GlassIconButton } from '@/components/ui'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -1093,16 +1094,13 @@ export function Shell({
 
               A 44px touch target with a focus ring, matching the app's other
               icon buttons — the bare 16px X had neither. */}
-          <button
-            className={cn('absolute grid place-items-center text-muted-foreground transition-colors duration-100',
-              'hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden',
-              /* Round on the staff panel, per the owner's design. */
-              staffNav ? 'right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted max-sm:h-12 max-sm:w-12' : 'right-4 top-5 h-10 w-10 rounded-sm')}
-            onClick={() => setNavOpen(false)}
-            aria-label="Close menu"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {/* Glass, like iOS (owner, 2026-10-26). The wrapper holds the
+              position so the button's own transform is free for the press. */}
+          <div className={cn('absolute lg:hidden', staffNav ? 'right-4 top-1/2 -translate-y-1/2' : 'right-4 top-4')}>
+            <GlassIconButton label="Close menu" size="sm" onClick={() => setNavOpen(false)}>
+              <X className="h-[18px] w-[18px]" />
+            </GlassIconButton>
+          </div>
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
