@@ -93,7 +93,7 @@ export function ChatThread({
      over empty white. It now fills the card it is given (flex-1 on the root)
      and only the viewport bounds it, so the thread scrolls inside itself
      rather than scrolling the page. */
-  height = 'min-h-[14rem] max-h-[70vh]',
+  height = 'min-h-[14rem] max-h-[70dvh]',
   live,
   onLoadOlder,
   hasMore = false,

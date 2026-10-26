@@ -325,7 +325,7 @@ export function DropdownRow<T extends string>({
             aria-label={label}
             style={pos}
             className={cn(
-              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60vh] overflow-y-auto',
+              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60dvh] overflow-y-auto',
               'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
               SEAM, SURFACE,
             )}

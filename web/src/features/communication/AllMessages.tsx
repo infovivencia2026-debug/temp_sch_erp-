@@ -269,7 +269,7 @@ export default function AllMessages() {
                feed keeps the page's own scroll, and a phone opens the thread
                as a screen of its own. */
             open && `lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-stretch lg:gap-4 lg:space-y-0
-                     lg:h-[82vh] lg:overflow-hidden`,
+                     lg:h-[82dvh] lg:overflow-hidden`,
           )}
         >
         {inbox.isLoading ? (
@@ -847,9 +847,9 @@ function ThreadPane({
   return (
     /* On a desk the row sets the height and both columns take all of it, so
        the feed and the thread end level. The phone branch above never gets
-       here. min-h-[60vh] is what used to hold this open below a short feed;
+       here. min-h-[60dvh] is what used to hold this open below a short feed;
        it stays for the in-between widths that are neither phone nor grid. */
-    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:h-full lg:max-h-none lg:min-h-0">
+    <Card className="flex max-h-[82dvh] min-h-[60dvh] flex-col overflow-hidden lg:h-full lg:max-h-none lg:min-h-0">
       <CardHeader
         title={title}
         description={subtitle}

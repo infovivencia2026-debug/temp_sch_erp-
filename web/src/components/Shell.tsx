@@ -1055,7 +1055,7 @@ export function Shell({
                     which is the same reason the student Actions menu uses it.
                     The footer stays outside: the one row somebody opens this
                     menu to reach must not be the row that scrolled away. */}
-                <ScrollBox className="max-h-[min(60vh,24rem)] overflow-y-auto overscroll-contain">
+                <ScrollBox className="max-h-[min(60dvh,24rem)] overflow-y-auto overscroll-contain">
                 {catalog.roles.map((r) => (
                   <button
                     key={r.key}

@@ -32,8 +32,8 @@
 }
 @media (min-width: 768px) {
   .story__stage {
-    width: min(100vw, calc(100vh * 9 / 16));
-    height: 100vh;
+    width: min(100vw, calc(100dvh * 9 / 16));
+    height: 100dvh;
     border-radius: 0;
   }
 }

@@ -50,7 +50,7 @@ export default function Outbox() {
           </span>
         </button>
         {open && (
-          <ul className="max-h-[40vh] overflow-y-auto border-t">
+          <ul className="max-h-[40dvh] overflow-y-auto border-t">
             {rows.map((r, i) => {
               const s = states[i]
               const Icon = ICON[s]

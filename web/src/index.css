@@ -4746,7 +4746,7 @@ html[data-reduce-motion] :active { transform: none !important; }
    it slides into the screen edge leaving a sliver (AssistantTab). */
 @media (max-width: 767px) {
   [data-assistant-orb] { transition: transform 220ms var(--motion-ease, ease), opacity 220ms ease; }
-  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 0.75rem - 12px)); opacity: 0.75; }
+  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 1rem + env(safe-area-inset-right, 0px) - 12px)); opacity: 0.75; }
   [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }

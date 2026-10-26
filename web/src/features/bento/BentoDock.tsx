@@ -158,7 +158,23 @@ export function BentoDock() {
     const dock = el?.parentElement
     if (!el || !dock) return
     const measure = () => {
-      const fixed = dock.getBoundingClientRect().width - el.getBoundingClientRect().width
+      /* Each other item at its OWN width, not the width flex squeezed it to.
+         `dock width - strip width` undercounted once the bar hit its cap:
+         the search pill gave way first, the sum came out short, one mark too
+         many was drawn, and at 768 the last mark sat on top of All features
+         (responsive sweep, 2026-10-26). */
+      const cs = getComputedStyle(dock)
+      const px = (v: string) => parseFloat(v) || 0
+      const kids = Array.from(dock.children).filter((k) => {
+        const s = getComputedStyle(k)
+        return k !== el && s.display !== 'none' && s.position !== 'absolute' && s.position !== 'fixed'
+      })
+      let fixed = px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth)
+        + px(cs.columnGap) * kids.length
+      for (const k of kids) {
+        const s = getComputedStyle(k)
+        fixed += Math.max(k.getBoundingClientRect().width, k.scrollWidth) + px(s.marginLeft) + px(s.marginRight)
+      }
       setRoom(window.innerWidth - 96 - fixed)
     }
     measure()

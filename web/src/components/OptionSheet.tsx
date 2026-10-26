@@ -98,7 +98,7 @@ export function OptionSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative flex max-h-[70vh] w-full flex-col rounded-t-[20px] bg-popover text-popover-foreground shadow-[0_-10px_30px_rgba(0,0,0,0.2)]"
+        className="relative flex max-h-[70dvh] w-full flex-col rounded-t-[20px] bg-popover text-popover-foreground shadow-[0_-10px_30px_rgba(0,0,0,0.2)]"
         style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
       >
         <button type="button" aria-label="Close" onClick={onClose}

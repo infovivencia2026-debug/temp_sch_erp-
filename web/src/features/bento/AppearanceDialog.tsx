@@ -1400,7 +1400,7 @@ export function AppearanceDialog({
       scrimClassName="appearance-overlay"
       panelProps={{ 'data-appearance-dialog': '', ...(launchRef.current ? { 'data-launching': '' } : {}) }}
       className={cn(
-        'appearance-panel pop-down sm:h-[min(88vh,760px)]',
+        'appearance-panel pop-down sm:h-[min(88dvh,760px)]',
         SURFACE, EDGE,
         picking && 'invisible',
       )}

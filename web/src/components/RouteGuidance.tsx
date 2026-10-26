@@ -78,7 +78,7 @@ export function RouteGuidance({ row, className }: { row: GuidanceRow; className?
       <div className="guide__map">
         <FleetMap
           tone="guidance"
-          className="h-[min(48vh,520px)] sm:h-[520px]"
+          className="h-[min(48dvh,520px)] sm:h-[520px]"
           vehicles={row.vehicle ? [row.vehicle] : []}
           stops={mapStops}
           routes={routes}
