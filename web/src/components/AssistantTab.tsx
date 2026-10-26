@@ -498,8 +498,8 @@ export function AssistantTab() {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-        el.style.setProperty('--vv-top', `${Math.max(0, vv.offsetTop)}px`)
-        el.style.setProperty('--vv-h', `${vv.height}px`)
+        /* Position and height come from lib/keyboard.ts (--vv-top / --vvh on
+           <html>), the one measurement every phone layer shares. */
         if (inset > 80 || window.innerHeight < (window.screen?.height ?? 0) * 0.7) el.setAttribute('data-kb', '')
         else el.removeAttribute('data-kb')
         const log = logRef.current

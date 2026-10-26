@@ -159,13 +159,38 @@ export function trackKeyboardInset() {
      2026-10-26). Measure again every frame for a second after a field gains
      or loses focus, and on a window resize; measure() writes only changes. */
   let settleUntil = 0
+  /* Every frame while a field has focus (the keyboard is up), and for 1.2s
+     after any focus change: iOS moves the visible area while its keyboard and
+     address bar settle, and the owner's iPhone showed the layer left where an
+     early reading put it (2026-10-26). measure() writes only changes. */
+  const busy = () => performance.now() < settleUntil || 'typing' in root.dataset
+  let looping = false
   const settle = () => {
-    const wasIdle = settleUntil < performance.now()
     settleUntil = performance.now() + 1200
-    if (!wasIdle) return
-    const tick = () => { measure(); if (performance.now() < settleUntil) requestAnimationFrame(tick) }
+    if (looping) return
+    looping = true
+    const tick = () => {
+      pinPage()
+      measure()
+      if (busy()) requestAnimationFrame(tick)
+      else looping = false
+    }
     requestAnimationFrame(tick)
   }
+  /* THE PAGE UNDER A LAYER STAYS AT THE TOP. iOS scrolls the document to
+     reveal a focused field even when html is overflow:hidden, and a fixed
+     layer then rides up with it (Messages: header off the top, grey under the
+     composer). While a full-screen layer is open the document is put back at
+     0 at once, so the layer's position depends only on the visual viewport. */
+  const pinPage = () => {
+    if (!('pageLocked' in root.dataset)) return
+    if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0 || document.body.scrollTop !== 0) {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+  }
+  window.addEventListener('scroll', () => { pinPage(); measure() }, { passive: true })
   document.addEventListener('focusin', settle)
   document.addEventListener('focusout', settle)
   window.addEventListener('resize', settle)
