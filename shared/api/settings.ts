@@ -10,6 +10,7 @@ export const SETTING_GROUPS = [
   { key: 'features', label: 'Features' },
   { key: 'logins', label: 'Logins & access' },
   { key: 'communication', label: 'Communication' },
+  { key: 'staff', label: 'Staff attendance' },
   { key: 'class_status', label: 'Class Status' },
   { key: 'ai', label: 'AI' },
   { key: 'admissions', label: 'Admissions' },

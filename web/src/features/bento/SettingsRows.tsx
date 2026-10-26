@@ -4,7 +4,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
-import { OptionSheet, useIsPhone } from '@/components/OptionSheet'
+import { OptionSheet, inOptionSheet, useIsPhone } from '@/components/OptionSheet'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
@@ -278,7 +278,7 @@ export function DropdownRow<T extends string>({
     if (!open) return
     const onDoc = (e: PointerEvent) => {
       const t = e.target as Node
-      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
+      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t) && !inOptionSheet(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', onDoc)
@@ -306,7 +306,7 @@ export function DropdownRow<T extends string>({
         >
           <span style={valueStyle}>{name(value)}</span>
           <ChevronDown
-            className={cn('size-4 opacity-60 transition-transform', open && 'rotate-180')}
+            className={cn('field-chevron size-4 opacity-60 transition-transform', open && 'rotate-180')}
             aria-hidden="true"
           />
         </button>
@@ -325,7 +325,7 @@ export function DropdownRow<T extends string>({
             aria-label={label}
             style={pos}
             className={cn(
-              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60vh] overflow-y-auto',
+              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60dvh] overflow-y-auto',
               'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
               SEAM, SURFACE,
             )}

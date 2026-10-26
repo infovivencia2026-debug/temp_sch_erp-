@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Period } from '@/lib/api'
 import { Card, Badge } from '@/components/ui'
 import { cn, WEEKDAYS } from '@/lib/utils'
+import { mergePeriods } from '@/lib/mergePeriods'
 
 /** "09:15:00" → "09:15"; anything odd is shown as it came. */
 function hhmm(t: string): string {
@@ -46,8 +47,8 @@ export default function DayTimeline({
   bare,
   who,
   where,
-  periods,
-  entries,
+  periods: rawPeriods,
+  entries: rawEntries,
   breaks = true,
   todayOnly,
 }: {
@@ -63,6 +64,8 @@ export default function DayTimeline({
   /** Today only, no day strip: a home page shows today, not the week (Yajur, 2026-10-24). */
   todayOnly?: boolean
 }) {
+  // Several bell schedules: one row per period shape, entries moved onto it.
+  const { periods, entries } = useMemo(() => mergePeriods(rawPeriods, rawEntries), [rawPeriods, rawEntries])
   // The days the timetable actually has something on, Monday first. A school
   // that runs Saturday shows it; one that does not never shows an empty chip.
   const days = useMemo(() => {
@@ -86,12 +89,7 @@ export default function DayTimeline({
     return days.includes(t) ? t : (days.find((d) => d > t) ?? days[0])
   })
 
-  const ordered = useMemo(() => {
-    const seen = new Set<string>()
-    return [...periods]
-      .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
-      .sort((a, b) => a.sequence - b.sequence || a.starts_at.localeCompare(b.starts_at))
-  }, [periods])
+  const ordered = periods
   const byPeriod = useMemo(() => {
     const m = new Map<string, DayEntry>()
     for (const e of entries) if (e.weekday === day) m.set(e.period_id, e)

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 464 features. */
+/** 24 roles, 465 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1873,6 +1873,14 @@ export const ROLES: Role[] = [
         workspace: 'Home',
         features: [
           { key: 'parent.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'children', tier: 'core', summary: 'Your child\'s day on one page: attendance, fees, homework and what the school has said, with anything waiting on you at the top. Switch children from the same page if you have more than one.' },
+        ],
+      },
+      {
+        slug: 'attendance',
+        name: 'Attendance',
+        workspace: 'My Child',
+        features: [
+          { key: 'parent.attendance.attendance', slug: 'attendance', name: 'Attendance', scope: 'children', tier: 'core', summary: 'Daily/monthly attendance and absence history for the selected child.' },
         ],
       },
       {

@@ -9,6 +9,7 @@ import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { lockPageScroll } from '@/lib/keyboard'
 import { Button } from '@/components/ui'
 import { helpHref } from '@/features/help/help-lib'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -446,6 +447,12 @@ export function AssistantTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  // On a phone the panel is the whole screen: the page under it stays put.
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 767.98px)').matches) return
+    return lockPageScroll()
+  }, [open])
+
   useEffect(() => {
     // Pinned to the newest message. A log that does not follow its own output
     // makes somebody scroll to read the answer they just asked for. `state` is a
@@ -491,8 +498,8 @@ export function AssistantTab() {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-        el.style.setProperty('--vv-top', `${Math.max(0, vv.offsetTop)}px`)
-        el.style.setProperty('--vv-h', `${vv.height}px`)
+        /* Position and height come from lib/keyboard.ts (--vv-top / --vvh on
+           <html>), the one measurement every phone layer shares. */
         if (inset > 80 || window.innerHeight < (window.screen?.height ?? 0) * 0.7) el.setAttribute('data-kb', '')
         else el.removeAttribute('data-kb')
         const log = logRef.current
@@ -1073,7 +1080,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-3 z-40 grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
+          `fixed right-4 z-40 grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
@@ -1110,7 +1117,9 @@ export function AssistantTab() {
             paddingTop: 'env(safe-area-inset-top, 0px)',
           }}
           className={cn(
-            'fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
+            /* vv-screen-phone: on a phone the panel is the visible screen,
+               so the iOS keyboard cannot leave the page showing under it. */
+            'vv-screen-phone fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
             full
               /* FULL SCREEN: the whole window, the conversation held to a
                  readable column in the middle rather than stretched edge to
@@ -1589,9 +1598,9 @@ export function AssistantTab() {
                 disabled={state !== 'idle'}
                 aria-label="Attach a spreadsheet to import"
                 title="Attach a spreadsheet to import"
-                className="grid size-9 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+                className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
               >
-                <Plus className="size-4" />
+                <Plus className="size-6 sm:size-5" />
               </button>
               <AssistantImportWithAI disabled={state !== 'idle'} />
             </div>
@@ -1628,11 +1637,11 @@ export function AssistantTab() {
                     aria-pressed={dictation.listening}
                     title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
                     className={cn(
-                      'grid size-[34px] shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
+                      'grid size-12 sm:size-10 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
                       dictation.listening ? 'bg-destructive text-white' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                   >
-                    {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-4" />}
+                    {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-6 sm:size-5" />}
                   </button>
                 )}
                 {state !== 'idle' || printingIdx >= 0 ? (
@@ -1641,7 +1650,7 @@ export function AssistantTab() {
                     onClick={stopGenerating}
                     aria-label="Stop generating"
                     title="Stop generating"
-                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85"
+                    className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85"
                   >
                     <Square className="size-3 fill-current" />
                   </button>
@@ -1651,10 +1660,10 @@ export function AssistantTab() {
                     disabled={!draft.trim()}
                     aria-label="Send"
                     title="Send"
-                    className="grid size-[34px] shrink-0 place-items-center rounded-full bg-foreground text-background transition-[opacity,background-color]
+                    className="grid size-12 sm:size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[opacity,background-color]
                                hover:opacity-85 disabled:bg-muted disabled:text-muted-foreground disabled:hover:opacity-100"
                   >
-                    <ArrowUp className="size-[18px]" strokeWidth={2.5} />
+                    <ArrowUp className="size-6 sm:size-5" strokeWidth={2.5} />
                   </button>
                 )}
               </div>

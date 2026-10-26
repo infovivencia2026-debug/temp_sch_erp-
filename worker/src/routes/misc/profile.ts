@@ -48,6 +48,29 @@ async function readProfile(c: Ctx): Promise<Response> {
     out.enrolment = { admission_no: e.admission_no, class_name: e.class_name || undefined, section_name: e.section_name || undefined,
       roll_no: e.roll_no ?? undefined, status: e.status || undefined }
   }
+  /* The school address from Staff Inbox, if one is assigned (owner, 2026-10-24). */
+  const mail = await c.db.prepare(`SELECT address FROM mail_addresses WHERE user_id = ? AND status = 'active'`).bind(c.id.userId).first<{ address: string }>()
+  if (mail?.address) out.school_email = mail.address
+  /* WHAT THIS PERSON TEACHES, for staff only: the signed-in user's own
+     assignments, from the tables Staff 360 reads. Students and parents get no key. */
+  const staff = await c.db.prepare(`SELECT 1 AS x FROM employees WHERE user_id = ? LIMIT 1`).bind(c.id.userId).first()
+  const load = (await c.db.prepare(`
+    SELECT c.name AS class, sec.name AS section, sub.name AS subject
+      FROM section_subject_teachers sst JOIN sections sec ON sec.id = sst.section_id JOIN classes c ON c.id = sec.class_id
+      JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE sst.teacher_user_id = ? ORDER BY c.level, sec.name, sub.name`).bind(c.id.userId).all<{ class: string; section: string | null; subject: string }>()).results
+  const ct = (await c.db.prepare(`SELECT c.name AS class, sec.name AS section FROM sections sec JOIN classes c ON c.id = sec.class_id
+     WHERE sec.class_teacher_id = ? ORDER BY c.level, sec.name`).bind(c.id.userId).all<{ class: string; section: string | null }>()).results
+  if (staff || load.length || ct.length) {
+    const label = (r: { class: string; section: string | null }) => `${r.class} ${r.section ?? ''}`.trim()
+    const classes = new Map<string, boolean>()
+    for (const r of ct) classes.set(label(r), true)
+    for (const r of load) if (!classes.has(label(r))) classes.set(label(r), false)
+    out.teaching = {
+      classes: [...classes].map(([name, class_teacher]) => ({ name, class_teacher })),
+      subjects: [...new Set(load.map((r) => r.subject))],
+    }
+  }
   return ok(out)
 }
 

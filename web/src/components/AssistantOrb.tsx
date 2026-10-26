@@ -73,17 +73,30 @@ export function AssistantOrb({
     let rate = target.current
     let raf = 0
     let last = 0
+    /* Touched only while the rate is moving. getAnimations() brings the
+       whole page's style up to date before it answers, so calling it every
+       frame turned each page change -- the Settings window opening, above
+       all -- into a forced restyle inside this loop (owner, 2026-10-26:
+       "settings opening stuck stuck"). Once settled there is nothing to set. */
+    let applied = NaN
+    /* A blob whose animation (re)starts begins at rate 1: set it again. */
+    const restart = () => { applied = NaN }
+    el.addEventListener('animationstart', restart)
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - (last || now)) / 1000)
       last = now
       // Critically damped, not springy: an overshoot reads as a bounce, and
       // a bouncing status light looks like an error.
       rate += (target.current - rate) * Math.min(1, dt * 4)
-      for (const a of el.getAnimations({ subtree: true })) a.playbackRate = rate
+      if (Math.abs(target.current - rate) < 0.002) rate = target.current
+      if (rate !== applied) {
+        applied = rate
+        for (const a of el.getAnimations({ subtree: true })) a.playbackRate = rate
+      }
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('animationstart', restart) }
   }, [])
 
   return (

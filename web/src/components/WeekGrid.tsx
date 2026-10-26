@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import DayTimeline from '@/components/DayTimeline'
 import type { Period } from '@/lib/api'
+import { mergePeriods } from '@/lib/mergePeriods'
 
 /* The week, as it is pinned to the staff-room wall.
  *
@@ -31,6 +32,8 @@ export interface WeekPeriod {
   starts_at: string
   ends_at?: string
   is_break?: boolean
+  bell_schedule_id?: string | null
+  sequence?: number
 }
 
 export interface WeekEntry {
@@ -82,9 +85,11 @@ function Free({ live, className }: { live: boolean; className?: string }) {
 }
 
 export default function WeekGrid({
-  entries,
-  periods,
+  entries: rawEntries,
+  periods: rawPeriods,
   weekdays,
+  who = '',
+  where = '',
   empty = 'Nothing timetabled yet.',
   id,
 }: {
@@ -95,8 +100,13 @@ export default function WeekGrid({
   empty?: string
   /** For printing: the element printDocument() copies. */
   id?: string
+  /** Phone timeline heading: whose week, and where. */
+  who?: string
+  where?: string
 }) {
   const phone = usePhone()
+  // One row per period shape, entries moved onto it (several bell schedules).
+  const { periods, entries } = mergePeriods(rawPeriods, rawEntries)
   const days = weekdays?.length ? weekdays : [1, 2, 3, 4, 5, 6]
   const { today, hhmm } = nowParts()
 
@@ -118,8 +128,8 @@ export default function WeekGrid({
   if (phone) {
     return (
       <div id={id}>
-        <DayTimeline bare who="" where=""
-          periods={periods.map((p) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: null }) as unknown as Period)}
+        <DayTimeline bare who={who} where={where}
+          periods={periods.map((p, i) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: p.bell_schedule_id ?? null, sequence: p.sequence ?? i }) as unknown as Period)}
           entries={entries.map((e) => ({ weekday: e.weekday, period_id: e.period_id, title: e.title, detail: [e.detail, e.room].filter(Boolean).join(' · ') || undefined }))} />
       </div>
     )

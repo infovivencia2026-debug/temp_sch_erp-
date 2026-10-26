@@ -368,7 +368,7 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
 
           {/* Same treatment as the record menu: a list that runs past its box
               says so with a control, not by slicing a row in half. */}
-          <ScrollBox className="max-h-[52vh]">
+          <ScrollBox className="max-h-[52dvh]">
           <ul className="py-1">
             {offerAsk && <AskAssistantRow q={q} active={asksQuestion || hits.length === 0} onAsked={close} />}
             {peopleHits.length > 0 && (

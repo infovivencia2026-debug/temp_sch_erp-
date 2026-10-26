@@ -12,6 +12,7 @@ import {
   type CellSpan,
   Cue,
   useFeatureHref,
+  useFeatureHrefAny,
 } from './bento-kit'
 import { CardShell, Facts, Gauge, Rows } from './bento-cards'
 import { Widget, WidgetLayer } from './WidgetLayer'
@@ -352,7 +353,7 @@ export default function HRMorning() {
   const registerHref = useFeatureHref('hr.attendance.staff_register')
   const leaveHref = useFeatureHref('hr.leave.leave')
   const recordsHref = useFeatureHref('hr.records.staff_records')
-  const substitutionHref = useFeatureHref('hr.attendance.substitution_cover')
+  const substitutionHref = useFeatureHrefAny(['institution_admin.academics.substitutions'])
 
   if (kpis.isLoading) return <BentoLoading message={t('bento.hr.loading')} />
   // Never a zero that is really a failed fetch. "Nobody is away" and "we could

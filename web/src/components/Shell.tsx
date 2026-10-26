@@ -1,4 +1,5 @@
 import { Anchored } from './AnchoredPanel'
+import { GlassIconButton } from '@/components/ui'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -553,6 +554,9 @@ export function Shell({
      with it, which is why BentoEscape exists and why it renders before this is
      allowed to hide anything. */
   const { layout } = useLayout()
+  /* Switching Focus | Work from the phone menu closes the menu; its backdrop
+     stayed over the tile view and greyed the whole screen (owner, 2026-10-24). */
+  useEffect(() => { setNavOpen(false) }, [layout])
   /* Work pages arrive softly (owner, 2026-10-09: "opening hard"): a short
      fade, no movement, so nothing appears to jump. */
   useEffect(() => {
@@ -1051,7 +1055,7 @@ export function Shell({
                     which is the same reason the student Actions menu uses it.
                     The footer stays outside: the one row somebody opens this
                     menu to reach must not be the row that scrolled away. */}
-                <ScrollBox className="max-h-[min(60vh,24rem)] overflow-y-auto overscroll-contain">
+                <ScrollBox className="max-h-[min(60dvh,24rem)] overflow-y-auto overscroll-contain">
                 {catalog.roles.map((r) => (
                   <button
                     key={r.key}
@@ -1090,20 +1094,17 @@ export function Shell({
 
               A 44px touch target with a focus ring, matching the app's other
               icon buttons — the bare 16px X had neither. */}
-          <button
-            className={cn('absolute grid place-items-center text-muted-foreground transition-colors duration-100',
-              'hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden',
-              /* Round on the staff panel, per the owner's design. */
-              staffNav ? 'right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted max-sm:h-12 max-sm:w-12' : 'right-4 top-5 h-10 w-10 rounded-sm')}
-            onClick={() => setNavOpen(false)}
-            aria-label="Close menu"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {/* Glass, like iOS (owner, 2026-10-26). The wrapper holds the
+              position so the button's own transform is free for the press. */}
+          <div className={cn('absolute lg:hidden', staffNav ? 'right-4 top-1/2 -translate-y-1/2' : 'right-4 top-4')}>
+            <GlassIconButton label="Close menu" size="sm" onClick={() => setNavOpen(false)}>
+              <X className="h-[18px] w-[18px]" />
+            </GlassIconButton>
+          </div>
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
-        <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', staffNav ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
+        <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', staffNav ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
           {/* Recent was here, above the workspace.
 
               It read as part of the menu without being part of it: five
@@ -1254,7 +1255,7 @@ export function Shell({
       {/* The scrim belongs to the drawer, so it stops where the drawer does.
           Phone and the opened tablet drawer both dim the page; a desktop
           sidebar sits in the page and has nothing to dim. */}
-      {navOpen && (
+      {navOpen && !chromeless && (
         <div
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setNavOpen(false)}

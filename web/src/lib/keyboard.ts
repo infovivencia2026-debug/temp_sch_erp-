@@ -93,6 +93,8 @@ export function trackKeyboardInset() {
   if (!vv) return
 
   let applied = -1
+  let appliedH = -1
+  let appliedT = -1
 
   const measure = () => {
     const hidden = window.innerHeight - vv.height - vv.offsetTop
@@ -100,14 +102,111 @@ export function trackKeyboardInset() {
     /* Only on change. These events fire per frame while the keyboard animates
        in, and writing an identical value still invalidates style for the
        whole document. */
-    if (kb === applied) return
-    applied = kb
-    root.style.setProperty('--kb', kb + 'px')
+    if (kb !== applied) {
+      applied = kb
+      root.style.setProperty('--kb', kb + 'px')
+    }
+    /* --vvh / --vv-top: the visible rectangle itself, for the phone's
+       full-screen layers (.vv-screen-phone in index.css). On iOS the keyboard
+       shrinks only the visual viewport and may scroll it by offsetTop; a
+       layer sized by inset-0 or 100dvh keeps the whole screen's height and
+       whatever is underneath shows between its composer and the keys. Under a
+       pinch zoom the numbers describe the zoomed window, so the layer keeps
+       the full screen then. */
+    const zoomed = vv.scale > 1.01
+    const h = zoomed ? window.innerHeight : Math.round(vv.height)
+    const t = zoomed ? 0 : Math.max(0, Math.round(vv.offsetTop))
+    if (h !== appliedH) { appliedH = h; root.style.setProperty('--vvh', h + 'px') }
+    if (t !== appliedT) { appliedT = t; root.style.setProperty('--vv-top', t + 'px') }
   }
 
   vv.addEventListener('resize', measure)
+  /* iOS Safari (26, floating address bar) settles the visible area after the
+     keyboard finishes moving and does not always fire a last resize, so a
+     layer kept the shorter height with a grey band above the keys (owner,
+     2026-10-26). Measure again every frame for a second after a field gains
+     or loses focus, and on a window resize; measure() writes only changes. */
+  let settleUntil = 0
+  /* Every frame while a field has focus (the keyboard is up), and for 1.2s
+     after any focus change: iOS moves the visible area while its keyboard and
+     address bar settle, and the owner's iPhone showed the layer left where an
+     early reading put it (2026-10-26). measure() writes only changes. */
+  const busy = () => performance.now() < settleUntil || 'typing' in root.dataset
+  let looping = false
+  const settle = () => {
+    settleUntil = performance.now() + 1200
+    if (looping) return
+    looping = true
+    const tick = () => {
+      pinPage()
+      measure()
+      if (busy()) requestAnimationFrame(tick)
+      else looping = false
+    }
+    requestAnimationFrame(tick)
+  }
+  /* THE PAGE UNDER A LAYER STAYS AT THE TOP. iOS scrolls the document to
+     reveal a focused field even when html is overflow:hidden, and a fixed
+     layer then rides up with it (Messages: header off the top, grey under the
+     composer). While a full-screen layer is open the document is put back at
+     0 at once, so the layer's position depends only on the visual viewport. */
+  const pinPage = () => {
+    if (!('pageLocked' in root.dataset)) return
+    if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0 || document.body.scrollTop !== 0) {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+  }
+  window.addEventListener('scroll', () => { pinPage(); measure() }, { passive: true })
+  /* NO PAN UNDER A FINGER. With the keyboard up, iOS lets a drag that runs out
+     of list slide the whole screen (owner's iPhone, 2026-10-26: dragging the
+     chat up took its header off the top and left grey under the composer).
+     While a phone layer is open, a drag moves only something inside it that
+     can still scroll that way; anything else is cancelled, so the screen
+     itself never moves. */
+  let lastY = 0
+  document.addEventListener('touchstart', (e) => { lastY = e.touches[0]?.clientY ?? 0 }, { passive: true })
+  document.addEventListener('touchmove', (e) => {
+    if (!('pageLocked' in root.dataset) || e.touches.length !== 1) return
+    const y = e.touches[0].clientY
+    const down = y > lastY // finger moving down = content wants to scroll up
+    lastY = y
+    let el = e.target instanceof Element ? e.target : null
+    while (el && el !== document.body) {
+      const st = getComputedStyle(el)
+      if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+        const atTop = el.scrollTop <= 0
+        const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+        if ((down && !atTop) || (!down && !atEnd)) return
+      }
+      el = el.parentElement
+    }
+    if (e.cancelable) e.preventDefault()
+  }, { passive: false })
+  document.addEventListener('focusin', settle)
+  document.addEventListener('focusout', settle)
+  window.addEventListener('resize', settle)
   /* `scroll` because iOS reports the keyboard by scrolling the visual viewport
      rather than resizing it when the focused field is already near the top. */
   vv.addEventListener('scroll', measure)
   measure()
+}
+
+/* ONE LOCK FOR THE PAGE UNDER A FULL-SCREEN LAYER.
+
+   Counted, so a sheet closed over a conversation does not unlock the page
+   while the conversation is still up. html as well as body: iOS scrolls the
+   root, and with only body locked it could still slide the page (and the
+   list on it) into view under a layer. */
+let locks = 0
+export function lockPageScroll(): () => void {
+  const html = document.documentElement
+  if (locks++ === 0) html.dataset.pageLocked = ''
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    if (--locks === 0) delete html.dataset.pageLocked
+  }
 }

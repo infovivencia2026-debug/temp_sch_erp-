@@ -104,7 +104,7 @@ function ViewsSheet({ postId, onClose, raised = false }: { postId: string; onClo
               <input value={seenFind} onChange={(e) => setSeenFind(e.target.value)} placeholder="Find a name"
                 className="mt-4 w-full rounded-lg border bg-card px-3 py-2 text-[13px]" />
             )}
-            <ul className="mt-3 max-h-[45vh] divide-y overflow-y-auto rounded-lg border text-sm">
+            <ul className="mt-3 max-h-[45dvh] divide-y overflow-y-auto rounded-lg border text-sm">
               {list.filter((v) => !seenFind.trim() || `${v.full_name} ${v.student_name ?? ''}`.toLowerCase().includes(seenFind.trim().toLowerCase())).map((v) => (
                 <li key={v.user_id} className="flex items-baseline justify-between gap-3 px-3 py-2">
                   <span>{v.full_name}{v.kind === 'parent' && v.student_name ? <span className="text-muted-foreground"> · parent of {v.student_name}</span> : null}</span>

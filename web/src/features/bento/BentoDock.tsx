@@ -153,20 +153,50 @@ export function BentoDock() {
      search, bell, gear, the separators): the room for marks is the dock's cap
      (the viewport less its 3rem margins) minus those. */
   const [room, setRoom] = useState<number | null>(null)
+  /* What still spilled after the sum below, per window width. It only grows
+     at one width (so folding a mark cannot bounce it back) and resets on a
+     resize. */
+  const shave = useRef({ w: 0, px: 0 })
+  const measureRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     const el = stripRef.current
     const dock = el?.parentElement
     if (!el || !dock) return
     const measure = () => {
-      const fixed = dock.getBoundingClientRect().width - el.getBoundingClientRect().width
-      setRoom(window.innerWidth - 96 - fixed)
+      /* Each other item at its OWN width, not the width flex squeezed it to.
+         `dock width - strip width` undercounted once the bar hit its cap:
+         the search pill gave way first, the sum came out short, one mark too
+         many was drawn, and at 768 the last mark sat on top of All features
+         (responsive sweep, 2026-10-26). */
+      const cs = getComputedStyle(dock)
+      const px = (v: string) => parseFloat(v) || 0
+      const kids = Array.from(dock.children).filter((k) => {
+        const s = getComputedStyle(k)
+        return k !== el && s.display !== 'none' && s.position !== 'absolute' && s.position !== 'fixed'
+      })
+      let fixed = px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth)
+        + px(cs.columnGap) * kids.length
+      for (const k of kids) {
+        const s = getComputedStyle(k)
+        fixed += Math.max(k.getBoundingClientRect().width, k.scrollWidth) + px(s.marginLeft) + px(s.marginRight)
+      }
+      if (shave.current.w !== window.innerWidth) shave.current = { w: window.innerWidth, px: 0 }
+      const over = Math.max(el.scrollWidth - el.clientWidth, dock.scrollWidth - dock.clientWidth)
+      if (over > 1) shave.current.px += Math.ceil(over)
+      setRoom(Math.floor(window.innerWidth - 96 - fixed - shave.current.px))
     }
     measure()
+    measureRef.current = measure
+    /* Spill does not resize the dock, so the observer alone can miss it
+       (WebKit did): re-check once the fonts land and after each render. */
+    document.fonts?.ready.then(measure).catch(() => {})
     const ro = new ResizeObserver(measure)
     ro.observe(dock)
     window.addEventListener('resize', measure)
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+    return () => { measureRef.current = null; ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [phone])
+  /* Settles: room only changes while marks still spill, and shave only grows. */
+  useEffect(() => { measureRef.current?.() })
 
   const categories = useMemo(() => {
     if (!role) return []

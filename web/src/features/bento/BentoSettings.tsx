@@ -87,6 +87,9 @@ export function BentoSettings({
   const wasOpen = () => typeof window !== 'undefined'
     && !!(window as { __settingsOpen?: boolean }).__settingsOpen
     && window.matchMedia('(min-width: 768px)').matches
+    /* The /settings page raises the same flag; the window must not open a
+       second Settings over it (seen at 1920x1080: page and dialog stacked). */
+    && !/^\/settings(\/|$)/.test(window.location.pathname)
   const [showAppearance, setShowAppearance] = useState(wasOpen)
   const [everOpened, setEverOpened] = useState(wasOpen)
   useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])

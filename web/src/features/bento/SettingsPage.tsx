@@ -259,6 +259,10 @@ export default function SettingsPage() {
          the foot of the work area without asking for a viewport height. */
       'flex flex-1 flex-col py-0 [[data-layout=bento]_&]:-mx-[16px] [[data-layout=bento]_&]:-mt-6 [[data-layout=bento]_&]:w-[calc(100%+32px)]',
       'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
+      /* Centred in Focus too: the bento bleed above out-ranked sm:mx-auto, so
+         on wide screens the page sat against the left edge (seen at 1920 and
+         on 4K classroom boards). */
+      'sm:[[data-layout=bento]_&]:mx-auto sm:[[data-layout=bento]_&]:mt-0 sm:[[data-layout=bento]_&]:w-full',
     )}>
       <div
         className={cn(

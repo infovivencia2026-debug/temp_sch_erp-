@@ -433,7 +433,7 @@ export default function StaffRecord({ employeeID, onClose }: {
   const shell = (body: React.ReactNode) => createPortal(
     /* z-[90], above the maximised-table view (z-80) as well as the ordinary
        page, and below the printable card viewer (z-100) that prints from here. */
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-background">
+    <div className="vv-screen-phone fixed inset-0 z-[90] overflow-y-auto bg-background">
       {body}
       {report && <CardViewer card={report} onClose={() => setReport(null)} />}
       {viewingPhoto && d?.photo_file_id && (

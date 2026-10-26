@@ -172,6 +172,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
   'student.home.my_day': screen(() => import('./portal/StudentHome')),
   'parent.home.dashboard': screen(() => import('./portal/Portal')),
+  'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   // The seller's own mail server and SMS channel, which carry every school's
   // password-reset links. The school's Email Server screen, told who it is for.

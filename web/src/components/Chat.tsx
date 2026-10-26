@@ -64,6 +64,14 @@ export interface ChatMessage {
   failed?: boolean
 }
 
+/** One size for every composer-like bar (chat, comments, assistant, replies):
+ *  48px targets and 24px icons on phones, 40/20 on a desk, 16px text. */
+export const COMPOSER_PLACEHOLDER = 'Message'
+export const COMPOSER_BTN = 'grid h-12 w-12 shrink-0 place-items-center rounded-full sm:h-10 sm:w-10'
+export const COMPOSER_ICON = 'h-6 w-6 sm:h-5 sm:w-5'
+export const COMPOSER_INPUT =
+  'min-h-12 max-h-[7.5rem] min-w-0 flex-1 resize-none rounded-[24px] px-4 py-3 text-[16px] leading-6 sm:min-h-10 sm:rounded-[20px] sm:py-2.5 sm:text-[15px] sm:leading-5'
+
 export function ChatThread({
   messages,
   loading,
@@ -72,7 +80,7 @@ export function ChatThread({
   sending,
   canSend = true,
   cannotSendNote,
-  placeholder = 'Type a message',
+  placeholder = COMPOSER_PLACEHOLDER,
   error,
   showSender = false,
   /** False where the channel cannot carry a file (the desk's reply into a
@@ -85,7 +93,7 @@ export function ChatThread({
      over empty white. It now fills the card it is given (flex-1 on the root)
      and only the viewport bounds it, so the thread scrolls inside itself
      rather than scrolling the page. */
-  height = 'min-h-[14rem] max-h-[70vh]',
+  height = 'min-h-[14rem] max-h-[70dvh]',
   live,
   onLoadOlder,
   hasMore = false,
@@ -543,13 +551,26 @@ export function ChatThread({
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Find, and how many are showing. The bar only appears when asked for,
           so an ordinary thread is not fronted by a search box nobody wanted. */}
+      {/* Find sits at the top of the thread, not in the composer row, so the
+          row is only attach, words, mic and send. */}
+      {!finding && (
+        <button
+          type="button"
+          className={`chat-jump absolute right-4 top-2 z-10 ${COMPOSER_BTN}`}
+          title="Find in this conversation"
+          aria-label="Find in this conversation"
+          onClick={() => setFinding(true)}
+        >
+          <Search className={COMPOSER_ICON} />
+        </button>
+      )}
       {finding && (
         /* Sticky and solid, not a faint strip at the top of a thread somebody
            is reading the bottom of: pressing the search button while looking
            at the composer moved something 600px away, which reads as the
            button doing nothing. */
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-card px-3 py-2 shadow-sm">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Search className={`${COMPOSER_ICON} shrink-0 text-muted-foreground`} />
           <input
             ref={findBox}
             autoFocus
@@ -799,7 +820,7 @@ export function ChatThread({
              desktop — where that inset is zero — read as a band of empty white
              under the box. The gap above the box stays; below it is only the
              phone's home-indicator allowance, and nothing when there is none. */
-          className="chat-bar px-2 pt-1.5 sm:px-3"
+          className="chat-bar px-4 pt-1.5 sm:px-3"
           style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
         >
           {(replyTo || editing) && (
@@ -874,7 +895,7 @@ export function ChatThread({
           )}
           {composerTools && <div className="mb-1.5">{composerTools(draft, setDraft)}</div>}
           <form
-            className="flex items-end gap-1.5"
+            className="flex items-center gap-1.5"
             onSubmit={(e) => {
               e.preventDefault()
               submit()
@@ -890,33 +911,16 @@ export function ChatThread({
                 accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*"
               />
             )}
-            <button
-              type="button"
-              className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5"
-              title="Find in this conversation"
-              aria-label="Find in this conversation"
-              onClick={() => setFinding((v) => !v)}
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            {/* A voice note is an attachment, so it lives behind the same
-                permission as one. */}
-            {allowAttachments && !draft.trim() && (
-              <VoiceButton
-                disabled={files.length >= 10}
-                onRecorded={(file) => void upload(file)}
-              />
-            )}
             {allowAttachments && (
               <button
                 type="button"
-                className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5"
+                className={`chat-icon ${COMPOSER_BTN} hover:bg-black/5`}
                 title="Attach a photo or file"
                 aria-label="Attach a photo or file"
                 onClick={() => fileInput.current?.click()}
                 disabled={files.length >= 10}
               >
-                <Paperclip className="h-5 w-5" />
+                <Paperclip className={COMPOSER_ICON} />
               </button>
             )}
             <textarea
@@ -924,7 +928,7 @@ export function ChatThread({
               value={draft}
               rows={1}
               placeholder={placeholder}
-              className="chat-composer min-h-[42px] max-h-[7.5rem] flex-1 resize-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[21px] border-0 px-4 py-[11px] text-[15px] leading-5 shadow-sm outline-none focus:shadow-[0_0_0_2px_rgba(77,122,254,0.35)]"
+              className={`chat-composer ${COMPOSER_INPUT} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-0 shadow-sm outline-none focus:shadow-[0_0_0_2px_rgba(77,122,254,0.35)]`}
               onChange={(e) => {
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
@@ -941,14 +945,22 @@ export function ChatThread({
                 }
               }}
             />
+            {/* A voice note is an attachment, so it lives behind the same
+                permission as one. */}
+            {allowAttachments && !draft.trim() && (
+              <VoiceButton
+                disabled={files.length >= 10}
+                onRecorded={(file) => void upload(file)}
+              />
+            )}
             <button
               type="submit"
-              className="chat-send grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full text-white transition-transform active:scale-95 disabled:opacity-40"
+              className={`chat-send ${COMPOSER_BTN} text-white transition-transform active:scale-95 disabled:opacity-40`}
               disabled={sending || uploading > 0 || (!draft.trim() && files.length === 0)}
               aria-label="Send"
               title="Send (Enter)"
             >
-              <Send className="ml-[2px] h-5 w-5" />
+              <Send className={`${COMPOSER_ICON} -translate-x-[1px] translate-y-[1px]`} />
             </button>
           </form>
         </div>
@@ -1766,9 +1778,9 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
       disabled={disabled}
       title="Record a voice note"
       aria-label="Record a voice note"
-      className="chat-icon grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full hover:bg-black/5 disabled:opacity-40"
+      className={`chat-icon ${COMPOSER_BTN} hover:bg-black/5 disabled:opacity-40`}
     >
-      <Mic className="h-5 w-5" />
+      <Mic className={COMPOSER_ICON} />
     </button>
   )
 }

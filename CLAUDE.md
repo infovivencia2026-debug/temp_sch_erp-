@@ -132,7 +132,7 @@ gallery (`?elements=1`) is the living checklist: add every new variant to it.
 - **Sizes.** Controls 40px on desktop, 48px on phones (phone = below 640px; block at the end of web/src/index.css). Phone type scale (owner, 2026-10-24): body 16, secondary 14, caption 12, button/input text 16, title 24, section 20; fields 52, radius 12, icons 24, targets >= 48. Phone gutters 16px. No
   horizontal page scroll. Long text truncates with an ellipsis or wraps on purpose.
 - **Dropdowns** (owner, 2026-10-24: "next time I should not see this type of bug"). One shared component: Select or PickerMenu (DropdownRow in settings). On phones (< 640px) the field is a 52px button with a chevron and opens the shared bottom sheet (components/OptionSheet.tsx); a short fixed list never shows a caret or the keyboard; only a list longer than 12, an empty one, or one that adds its own (kind / allowCustom) gets a search box, inside the sheet. Desktop keeps the anchored popover, clamped on screen. No hand-rolled selects, datalists, comboboxes or listbox popovers: components/dropdown-guard.test.ts fails on them.
-- **Fields.** No borders on inputs or search boxes: the soft `--field-shadow`.
+- **Fields.** Every field (dropdown, input, textarea) is a visible frosted box (owner 2026-10-26, "why all dropdowns box disappeared???"): `.field` in index.css, translucent card + 10px blur + token border that shows on white; hover lift + primary border + glow, also on press/focus/open on phones.
   Text areas grow with their content.
 - **Colour.** Tokens only. Solid system colours (`--sys-*`) where they mean
   something: one primary action per screen, destructive, status, switches,

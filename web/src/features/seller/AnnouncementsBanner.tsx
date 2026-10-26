@@ -34,7 +34,7 @@ export function AnnouncementsBanner() {
   })
   if (items.length === 0) return null
   return (
-    <div className="pointer-events-none fixed bottom-4 left-4 z-40 flex max-w-[min(420px,calc(100vw-32px))] flex-col gap-2">
+    <div className="float-safe pointer-events-none fixed bottom-4 left-4 z-40 flex max-w-[min(420px,calc(100vw-32px))] flex-col gap-2">
       {items.map((n) => (
         <div
           key={n.id}

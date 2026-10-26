@@ -435,7 +435,7 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
         : <DownloadCard l={l} />)}
       {(l.kind === 'pdf' || (l.kind === 'doc' && isPdf(l))) && (l.file_id || l.url) && (
         <>
-          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="mx-auto block h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
+          <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="mx-auto block h-[70dvh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
           <div className="flex flex-wrap gap-x-5">
             <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
               <ExternalLink className="h-4 w-4" /> Open the PDF full screen
@@ -446,7 +446,7 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
       )}
       {l.kind === 'image' && (l.file_id || l.url) && (
         <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="block w-fit max-w-full">
-          <img src={l.file_id ? fileUrl(l.file_id, true) : l.url!} alt={l.title} className="max-h-[75vh] max-w-full rounded-lg border bg-white object-contain" loading="lazy" />
+          <img src={l.file_id ? fileUrl(l.file_id, true) : l.url!} alt={l.title} className="max-h-[75dvh] max-w-full rounded-lg border bg-white object-contain" loading="lazy" />
         </a>
       )}
       {l.kind === 'audio' && (l.file_id || l.url) && (
