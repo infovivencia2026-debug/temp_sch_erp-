@@ -1178,6 +1178,35 @@
     box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
   }
   .field:not(:disabled):active { transform: translateY(-2px) scale(0.99); }
+  /* THE CHEVRON MOVES WITH ITS FIELD (owner, 2026-10-26: "when buttons
+     hover those should also hover with that"). Every dropdown's arrow --
+     Select, PickerMenu, the phone SheetTrigger, settings DropdownRow --
+     carries .field-chevron. Hover/press/focus on its trigger, or the list
+     being open, turns it primary with a small nudge. `translate` is its own
+     property, so Tailwind's rotate-180 (open = ^) still applies. */
+  .field-chevron { transition: color 0.2s ease, opacity 0.2s ease, translate 0.2s ease, background-color 0.2s ease, transform 0.2s ease; }
+  :is(button, .field):not(:disabled):is(:hover, :active, :focus-visible) .field-chevron,
+  [aria-expanded='true'] .field-chevron {
+    color: hsl(var(--primary));
+    opacity: 1;
+  }
+  :is(button, .field):not(:disabled):is(:hover, :active) .field-chevron { translate: 0 1px; }
+  /* Select draws its arrow as a sibling button over the input, so it
+     follows the input's lift (-2px) and lifts the input when it is the one
+     hovered -- the two move as one control. */
+  .field:not(:disabled):is(:hover, :focus, :active, [aria-expanded='true']) + .field-chevron-btn,
+  .field-chevron-btn:hover,
+  .field-chevron-btn[aria-expanded='true'] {
+    color: hsl(var(--primary));
+    translate: 0 -2px;
+  }
+  .field-chevron-btn:active { translate: 0 -1px; }
+  .field:not(:disabled):has(+ .field-chevron-btn:hover) {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
   .field:focus {
     outline: none;
     border-color: hsl(var(--primary));
@@ -4754,7 +4783,7 @@ html[data-reduce-motion] :active { transform: none !important; }
    it slides into the screen edge leaving a sliver (AssistantTab). */
 @media (max-width: 767px) {
   [data-assistant-orb] { transition: transform 220ms var(--motion-ease, ease), opacity 220ms ease; }
-  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 0.75rem - 12px)); opacity: 0.75; }
+  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 1rem + env(safe-area-inset-right, 0px) - 12px)); opacity: 0.75; }
   [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }
@@ -5293,4 +5322,37 @@ button.glass-btn:active:not(:disabled) {
 .glass-btn.glass-btn--dark { color: #fff; border-color: hsl(0 0% 100% / 0.18); background: hsl(0 0% 0% / 0.45); }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
+}
+
+/* THE PHONE DROPDOWN'S SEARCH FIELD (owner design, 2026-10-26,
+   docs/owner-designs/2026-10-26-phone-dropdown-search.html): muted fill at
+   rest; on focus the card colour with a primary edge and a soft primary ring,
+   drawn as box-shadow, not a border. Specific enough to beat the generic
+   search-field rule above. */
+[data-option-sheet] input.option-sheet-search.option-sheet-search {
+  background-color: hsl(var(--muted));
+  box-shadow: 0 0 0 1px transparent !important;
+}
+[data-option-sheet] input.option-sheet-search.option-sheet-search:focus {
+  background-color: hsl(var(--card));
+  box-shadow: 0 0 0 1px hsl(var(--primary)), 0 0 0 4px hsl(var(--primary) / 0.1) !important;
+}
+
+/* BELOW THE VISIBLE EDGE (owner's iPhone, 2026-10-26: the page showed in a
+   strip between the dropdown sheet and the keyboard). iOS Safari's visual
+   viewport ends above its floating address bar, so a layer sized to it leaves
+   that strip uncovered. The sheet's surface and the dimmed backdrop continue
+   past the edge, and every full-screen phone layer paints its own background
+   there too, so nothing underneath can show. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone { overflow: visible !important; }
+  .vv-screen-phone::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--background)); pointer-events: none;
+  }
+  .option-sheet-backdrop { bottom: -60vh !important; }
+  .option-sheet-panel::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--card)); pointer-events: none;
+  }
 }

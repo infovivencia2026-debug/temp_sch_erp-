@@ -151,3 +151,30 @@
 @media (max-width: 767px) {
   main[data-app-scroll] [data-page-enter].pb-10 { padding-bottom: 0; }
 }
+
+/* FLOATING CONTROLS CLEAR THE NOTCH AND THE HOME BAR (owner, 2026-10-26:
+   "no overlapping and overlaying ... generic to all screen types").
+   The dock, its corner (cog + Focus/Work) and the assistant orb are placed
+   with fixed px offsets from the edge. On a phone held sideways the notch
+   takes the left or right edge, and on an iPad or a landscape phone the
+   home bar takes the bottom from 768 up, where those offsets carried no
+   inset. Margins add the inset without touching any of the bottom rules
+   that already step these controls up; under 768 the phone rules already
+   count the bottom inset (--dock-lift, --dock-h), so only the sides apply.
+   The dock is centred and capped 48px short of each side, so it takes no
+   side margin (one would push it off centre).
+   `.float-safe` is the same for toasts and banners. */
+.bento-corner,
+[data-assistant-orb],
+.float-safe {
+  margin-left: env(safe-area-inset-left, 0px);
+  margin-right: env(safe-area-inset-right, 0px);
+}
+@media (min-width: 768px) {
+  [data-layout='bento'] .bento-dock,
+  .bento-corner,
+  [data-assistant-orb] {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+@media (min-width: 640px) { .float-safe { margin-bottom: env(safe-area-inset-bottom, 0px); } }

@@ -204,7 +204,7 @@ export function ConversationPane({
     )
   }
   return (
-    <div className="card flex min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4 lg:h-[calc(100dvh-8.5rem)] lg:max-h-none">
+    <div className="card flex min-h-[60dvh] flex-col overflow-hidden lg:sticky lg:top-4 lg:h-[calc(100dvh-8.5rem)] lg:max-h-none">
       <div className="flex shrink-0 items-center gap-3 border-b px-4 py-3">
         {typeof title === 'string' && <PersonAvatar name={title} photoId={photoId} size={40} />}
         <div className="min-w-0 flex-1">

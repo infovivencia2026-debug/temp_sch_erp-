@@ -277,7 +277,7 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
       </div>
       {view === 'formatted' && m.html ? (
         <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
-          className="block h-[60vh] w-full border-0 bg-card" />
+          className="block h-[60dvh] w-full border-0 bg-card" />
       ) : (
         <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
       )}

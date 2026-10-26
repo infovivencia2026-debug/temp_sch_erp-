@@ -53,7 +53,7 @@ function Thread({ subjectId, readOnly, name }: { subjectId: string; readOnly: bo
         <span className="text-[15px] font-semibold">{name} group</span>
         {readOnly && <Badge>Reading only</Badge>}
       </div>
-      <div className="max-h-[55vh] min-h-[12rem] space-y-2 overflow-y-auto p-[var(--card-pad)]">
+      <div className="max-h-[55dvh] min-h-[12rem] space-y-2 overflow-y-auto p-[var(--card-pad)]">
         {q.isLoading ? <SkeletonTiles /> : !count ? (
           <div className="py-8 text-center text-[14px] text-muted-foreground">No messages yet.</div>
         ) : q.data!.items.map((m) => {

@@ -433,7 +433,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="flex max-h-[92%] w-full flex-col overflow-hidden rounded-t-3xl bg-card text-foreground
-                      shadow-[0_-10px_40px_-10px_rgba(15,23,42,0.4)] sm:max-h-[88vh] sm:max-w-[980px] sm:rounded-2xl">
+                      shadow-[0_-10px_40px_-10px_rgba(15,23,42,0.4)] sm:max-h-[88dvh] sm:max-w-[980px] sm:rounded-2xl">
         <span aria-hidden className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30 sm:hidden" />
 
         <header className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
