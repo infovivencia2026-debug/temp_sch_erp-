@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { GlassIconButton } from '@/components/ui'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, X } from 'lucide-react'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -144,15 +145,9 @@ export function ChatScreen({
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-[#f0f2f5] px-1.5 py-1.5 text-[#111b21] sm:px-3">
-        <button
-          type="button"
-          onClick={back}
-          aria-label="Back"
-          title="Back"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted"
-        >
+        <GlassIconButton label="Back" size="sm" onClick={back}>
           <ArrowLeft className="h-5 w-5" />
-        </button>
+        </GlassIconButton>
         {typeof title === 'string' && <PersonAvatar name={title} photoId={photoId} size={40} />}
         <div className="min-w-0 flex-1">
           <div className="truncate text-[16px] font-semibold leading-tight">{title}</div>

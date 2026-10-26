@@ -3629,14 +3629,9 @@ export function Dialog({
             {/* On a phone the actions take a row of their own under the title:
                 three buttons beside it left the title one letter wide. */}
             {actions && <div className="order-last -ml-2 flex w-full flex-wrap items-center gap-1 pt-1 sm:order-none sm:ml-0 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-0.5">{actions}</div>}
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <GlassIconButton label="Close" onClick={close} className="-mr-1">
               <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            </button>
+            </GlassIconButton>
           </div>
         )}
         <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-4 py-4 sm:px-6')}>{children}</div>
@@ -3652,5 +3647,35 @@ export function Dialog({
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* GLASS ICON BUTTON (owner, 2026-10-26: "the cross should be GLASS like iOS,
+   and when I touch it, it moves and increases the size"). The one round
+   close / back key: drawer ✕, every phone ← and the dialog close. Look and
+   press live in index.css under .glass-btn, its own class so the global
+   "buttons shrink 0.98 / rows don't scale" rules never cancel the grow. */
+export function GlassIconButton({
+  label, onClick, children, className, size = 'md', title,
+}: {
+  label: string
+  onClick?: () => void
+  children: ReactNode
+  className?: string
+  /** md = 44px (48 on a phone), sm = 40px (48 on a phone). */
+  size?: 'sm' | 'md'
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={title ?? label}
+      data-glass=""
+      className={cn('glass-btn', size === 'sm' ? 'glass-btn--sm' : null, className)}
+    >
+      {children}
+    </button>
   )
 }

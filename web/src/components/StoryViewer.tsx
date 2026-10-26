@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import { GlassIconButton } from '@/components/ui'
 import { createPortal } from 'react-dom'
 import { X, FileText, Link2, Download, ExternalLink, Volume2, VolumeX } from 'lucide-react'
 import './story-viewer.css'
@@ -266,9 +267,9 @@ export default function StoryViewer({
                 {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
               </button>
             )}
-            <button type="button" className="story__close" onClick={onClose} aria-label="Close">
-              <X className="size-4" />
-            </button>
+            <GlassIconButton label="Close" size="sm" className="glass-btn--dark" onClick={onClose}>
+              <X className="size-[18px]" />
+            </GlassIconButton>
           </div>
         </div>
 

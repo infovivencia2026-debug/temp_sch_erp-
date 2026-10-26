@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Camera, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
-import { Dialog, Select } from '@/components/ui'
+import { Dialog, GlassIconButton, Select } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { MAX_BYTES, makeThumb, postStatus, preparePhoto, videoSeconds, type AddMode, type Audiences, type TargetPick } from './status-api'
 
@@ -445,11 +445,9 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
               Seen for 24 hours, unless kept in the gallery
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground
-                       transition-colors hover:bg-muted/80 hover:text-foreground [@media(pointer:coarse)]:size-10">
-            <X className="size-4" />
-          </button>
+          <GlassIconButton label="Close" size="sm" onClick={onClose}>
+            <X className="size-[18px]" />
+          </GlassIconButton>
         </header>
 
         {/* PHONE: one column that scrolls. */}

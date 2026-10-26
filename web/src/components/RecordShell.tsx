@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, GlassIconButton } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { cn } from '@/lib/utils'
 import ScrollBox from './ScrollBox'
@@ -125,13 +125,18 @@ export function RecordShell({
       {/* --- identity ---------------------------------------------------- */}
       <header className="chrome border-b px-[var(--page-gutter)] pt-4">
         {onBack && (
-          <button
-            onClick={onBack}
-            className="mb-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {backLabel}
-          </button>
+          <>
+            <GlassIconButton label={String(backLabel ?? 'Back')} onClick={onBack} className="mb-2 sm:hidden">
+              <ArrowLeft className="h-5 w-5" />
+            </GlassIconButton>
+            <button
+              onClick={onBack}
+              className="mb-2 hidden items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground sm:inline-flex"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {backLabel}
+            </button>
+          </>
         )}
 
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
