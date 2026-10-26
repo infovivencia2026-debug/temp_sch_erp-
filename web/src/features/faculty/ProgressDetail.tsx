@@ -120,7 +120,7 @@ export default function ProgressDetail({ row, onClose, fullClass, mySubjects }: 
   const subjectMarks = fullClass ? (detail.data?.subject_marks ?? []) : (detail.data?.subject_marks ?? []).filter((m) => mine.has(m.subject))
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-background">
+    <div className="vv-screen-phone fixed inset-0 z-[90] overflow-y-auto bg-background">
       <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 py-5 sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" size="sm" onClick={onClose}>

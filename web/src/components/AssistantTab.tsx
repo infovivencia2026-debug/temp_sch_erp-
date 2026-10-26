@@ -9,6 +9,7 @@ import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { lockPageScroll } from '@/lib/keyboard'
 import { Button } from '@/components/ui'
 import { helpHref } from '@/features/help/help-lib'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -444,6 +445,12 @@ export function AssistantTab() {
     if (!open && dictation.listening) dictation.stop()
     // dictation read at call time; adding it re-runs on its own state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // On a phone the panel is the whole screen: the page under it stays put.
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 767.98px)').matches) return
+    return lockPageScroll()
   }, [open])
 
   useEffect(() => {
@@ -1110,7 +1117,9 @@ export function AssistantTab() {
             paddingTop: 'env(safe-area-inset-top, 0px)',
           }}
           className={cn(
-            'fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
+            /* vv-screen-phone: on a phone the panel is the visible screen,
+               so the iOS keyboard cannot leave the page showing under it. */
+            'vv-screen-phone fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
             full
               /* FULL SCREEN: the whole window, the conversation held to a
                  readable column in the middle rather than stretched edge to

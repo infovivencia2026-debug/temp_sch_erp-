@@ -547,7 +547,7 @@ export default function Notifications() {
       {(open || closing) && createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[100] flex justify-end',
+            'vv-screen-phone fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -571,7 +571,7 @@ export default function Notifications() {
                unread card is picked out by its border and bolder title.
                Full screen on a phone -- 100dvh, above the app header -- so it
                no longer starts under the top bar. */
-            className="flex h-[100dvh] w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
+            className="flex h-[100dvh] max-md:h-full w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',

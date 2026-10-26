@@ -427,7 +427,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
        with the keyboard up, which is the whole difference between a form you
        can finish and one you cannot. */
     <div
-      className={cn('fixed inset-0 flex flex-col justify-end bg-[#0f172a]/65 backdrop-blur-[3px] sm:items-center sm:justify-center sm:p-6',
+      className={cn('vv-screen-phone fixed inset-0 flex flex-col justify-end bg-[#0f172a]/65 backdrop-blur-[3px] sm:items-center sm:justify-center sm:p-6',
         raised ? 'z-[140]' : 'z-[100]')}
       role="dialog" aria-label={asSchool ? 'Post as the school' : 'New status'}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}

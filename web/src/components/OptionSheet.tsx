@@ -92,7 +92,7 @@ export function OptionSheet({
     : options
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex flex-col justify-end" data-option-sheet="">
+    <div className="vv-screen-phone fixed inset-0 z-[300] flex flex-col justify-end" data-option-sheet="">
       <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         role="dialog"
