@@ -1178,6 +1178,35 @@
     box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
   }
   .field:not(:disabled):active { transform: translateY(-2px) scale(0.99); }
+  /* THE CHEVRON MOVES WITH ITS FIELD (owner, 2026-10-26: "when buttons
+     hover those should also hover with that"). Every dropdown's arrow --
+     Select, PickerMenu, the phone SheetTrigger, settings DropdownRow --
+     carries .field-chevron. Hover/press/focus on its trigger, or the list
+     being open, turns it primary with a small nudge. `translate` is its own
+     property, so Tailwind's rotate-180 (open = ^) still applies. */
+  .field-chevron { transition: color 0.2s ease, opacity 0.2s ease, translate 0.2s ease, background-color 0.2s ease, transform 0.2s ease; }
+  :is(button, .field):not(:disabled):is(:hover, :active, :focus-visible) .field-chevron,
+  [aria-expanded='true'] .field-chevron {
+    color: hsl(var(--primary));
+    opacity: 1;
+  }
+  :is(button, .field):not(:disabled):is(:hover, :active) .field-chevron { translate: 0 1px; }
+  /* Select draws its arrow as a sibling button over the input, so it
+     follows the input's lift (-2px) and lifts the input when it is the one
+     hovered -- the two move as one control. */
+  .field:not(:disabled):is(:hover, :focus, :active, [aria-expanded='true']) + .field-chevron-btn,
+  .field-chevron-btn:hover,
+  .field-chevron-btn[aria-expanded='true'] {
+    color: hsl(var(--primary));
+    translate: 0 -2px;
+  }
+  .field-chevron-btn:active { translate: 0 -1px; }
+  .field:not(:disabled):has(+ .field-chevron-btn:hover) {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
   .field:focus {
     outline: none;
     border-color: hsl(var(--primary));

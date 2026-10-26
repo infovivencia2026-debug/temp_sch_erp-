@@ -306,7 +306,7 @@ export function DropdownRow<T extends string>({
         >
           <span style={valueStyle}>{name(value)}</span>
           <ChevronDown
-            className={cn('size-4 opacity-60 transition-transform', open && 'rotate-180')}
+            className={cn('field-chevron size-4 opacity-60 transition-transform', open && 'rotate-180')}
             aria-hidden="true"
           />
         </button>
