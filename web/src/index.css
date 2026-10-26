@@ -5348,11 +5348,11 @@ button.glass-btn:active:not(:disabled) {
   .vv-screen-phone { overflow: visible !important; }
   .vv-screen-phone::after {
     content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
-    background: hsl(var(--background)); pointer-events: none;
+    background: hsl(var(--background)); pointer-events: auto;
   }
   .option-sheet-backdrop { bottom: -60vh !important; }
   .option-sheet-panel::after {
     content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
-    background: hsl(var(--card)); pointer-events: none;
+    background: hsl(var(--card)); pointer-events: auto;
   }
 }
