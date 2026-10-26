@@ -41,6 +41,18 @@ describe('sign-in page', () => {
     expect(h).not.toContain('@@')
   })
 
+  it('phone pages: a Sign in button and a back control; a failed sign-in opens on the form', () => {
+    const slides = ['/a.png', '/b.png']
+    const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides } })
+    expect(h).toContain('<button type="button" class="auth-go">Sign in</button>')
+    expect(h).toContain('class="auth-back" aria-label="Back"')
+    expect(h).toContain("history.pushState({ signin: 1 }, '', '#signin')")
+    expect(h).toContain('<div class="auth-split has-slides">')
+    const failed = loginHTML({ csrf: 'c', next: '/', identifier: 'x', error: 'Wrong password', brand: { ...brand, slides } })
+    expect(failed).toContain('<div class="auth-split has-slides p2">')
+    expect(loginHTML({ csrf: 'c', next: '/', brand })).not.toContain('class="auth-go"')
+  })
+
   it('one picture: no bars and no slide script', () => {
     const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides: ['/a.png'] } })
     expect(h).toContain('auth-slides')

@@ -67,7 +67,7 @@ const WORDS: Record<LoginLang, Record<string, string>> = {
 /* Words for the tabs, the vendor page, the gallery and the school chooser. */
 const MORE: Record<LoginLang, {
   tabs: { id: string; name: string; label: string; hint: string; mode: string; ac: string }[]
-  tablist: string; vendorH1: string; vendorLede: string; picture: string; gallery: string
+  tablist: string; vendorH1: string; vendorLede: string; picture: string; gallery: string; back: string
   findH1: string; findLede: string; code: string; cont: string
 }> = {
   en: {
@@ -77,7 +77,7 @@ const MORE: Record<LoginLang, {
       { id: 'staff', name: 'Staff', label: 'Username or email', hint: 'Given to you by the school office.', mode: 'email', ac: 'username' },
     ],
     tablist: 'Who is signing in', vendorH1: 'Vendor sign-in', vendorLede: 'For XULO staff. Schools sign in at their own address.',
-    picture: 'Picture', gallery: 'School pictures',
+    picture: 'Picture', gallery: 'School pictures', back: 'Back',
     findH1: 'Find your school', findLede: 'Type the school code the office gave you.', code: 'School code', cont: 'Continue',
   },
   te: {
@@ -87,7 +87,7 @@ const MORE: Record<LoginLang, {
       { id: 'staff', name: 'సిబ్బంది', label: 'యూజర్‌నేమ్ లేదా ఈమెయిల్', hint: 'స్కూల్ ఆఫీసు మీకు ఇచ్చినది.', mode: 'email', ac: 'username' },
     ],
     tablist: 'ఎవరు సైన్ ఇన్ అవుతున్నారు', vendorH1: 'వెండర్ సైన్ ఇన్', vendorLede: 'XULO సిబ్బంది కోసం. స్కూల్స్ తమ సొంత చిరునామాలో సైన్ ఇన్ అవుతాయి.',
-    picture: 'చిత్రం', gallery: 'స్కూల్ చిత్రాలు',
+    picture: 'చిత్రం', gallery: 'స్కూల్ చిత్రాలు', back: 'వెనుకకు',
     findH1: 'మీ స్కూల్‌ను కనుగొనండి', findLede: 'ఆఫీసు ఇచ్చిన స్కూల్ కోడ్‌ను టైప్ చేయండి.', code: 'స్కూల్ కోడ్', cont: 'కొనసాగించు',
   },
 }
@@ -205,24 +205,46 @@ const SLIDES_CSS = `
 .auth-brand.held .auth-bars button[aria-current="true"]::before{animation-play-state:paused}
 .auth-bars button:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:3px}
 @keyframes authBar{from{background-size:0 100%}to{background-size:100% 100%}}
-/* Phone (owner, 2026-10-26, docs/owner-designs/2026-10-26-signin-phone.html):
-   a stacked page. The pictures are a rounded card at the top whose foot fades
-   out, the logo on it and the bars at its top right; the form sits below on
-   the plain page, not on glass. */
+/* Phone (owner, 2026-10-26, two pages like images/33 in the request): page one
+   is the slider over the whole screen with the logo, school name, headline and
+   one Sign in button; that button opens page two, the top of the picture
+   fading into the page with the form below on the plain background. Page two
+   is .p2 on the split; #signin in the address keeps Back working. */
+.auth-go,.auth-back{display:none}
 @media (max-width:639px){
   body.auth:has(.has-slides){padding:0;overflow-y:auto;background:var(--surface)}
   .auth-split.has-slides{position:relative;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;min-height:100vh;min-height:100dvh;
-    padding:calc(env(safe-area-inset-top, 0px) + 80px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);border:0;border-radius:0;box-shadow:none;background:var(--surface)}
-  .auth-split.has-slides .auth-brand{position:relative;inset:auto;flex:none;width:100%;height:280px;padding:14px;border-radius:20px;overflow:hidden;
-    -webkit-mask-image:linear-gradient(to bottom, #000 70%, transparent 100%);mask-image:linear-gradient(to bottom, #000 70%, transparent 100%)}
-  .auth-split.has-slides .auth-slides::after{background:linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 35%)}
-  .auth-split.has-slides .auth-brand-content{display:block;height:auto}
-  .auth-split.has-slides .auth-brand-mark{margin:0;font-size:32px}
+    padding:0 0 calc(env(safe-area-inset-bottom, 0px) + 24px);border:0;border-radius:0;box-shadow:none;background:var(--surface)}
+  .auth-split.has-slides .auth-brand{flex:none;padding:0;border-radius:0;overflow:hidden;background:transparent}
+  .auth-split.has-slides .auth-slides{-webkit-mask-image:linear-gradient(to bottom, #000 58%, transparent 100%);mask-image:linear-gradient(to bottom, #000 58%, transparent 100%);
+    background:color-mix(in srgb, var(--brand, #1c0e33) 40%, #05070d)}
+  .auth-split.has-slides .auth-slides::after{background:linear-gradient(to bottom, rgba(5,8,18,0.55) 0%, rgba(5,8,18,0.15) 45%, rgba(5,8,18,0) 70%)}
+
+  /* Page one. */
+  .auth-split.has-slides:not(.p2) .auth-brand{position:fixed;inset:0;z-index:1;animation:authPage .28s ease-out}
+  .auth-split.has-slides:not(.p2) .card{display:none}
+  .auth-split.has-slides .auth-brand-content{position:relative;display:flex;flex-direction:column;justify-content:flex-start;height:100%;
+    padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 96px)}
+  .auth-split.has-slides .auth-brand-mark{margin:0 0 14px;font-size:32px}
   .auth-split.has-slides .auth-logo{max-width:48px;max-height:48px;padding:5px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.25)}
-  .auth-split.has-slides .auth-brand-eyebrow,.auth-split.has-slides .auth-brand-title,.auth-split.has-slides .auth-brand-sub{display:none}
-  .auth-split.has-slides .auth-bars{position:absolute;top:14px;right:14px;margin:0;gap:4px}
-  .auth-split.has-slides .auth-bars button{width:18px;height:44px}
-  .auth-split.has-slides .card{position:static;flex:none;width:100%;margin:0;max-width:none;padding:12px 0 0;border:0;border-radius:0;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;color:var(--fg)}
+  .auth-split.has-slides .auth-brand-eyebrow{margin:0 0 10px}
+  .auth-split.has-slides .auth-brand-title{font-size:40px;line-height:1.08;letter-spacing:-0.02em;margin:0;max-width:12ch}
+  .auth-split.has-slides .auth-brand-sub{display:none}
+  .auth-split.has-slides .auth-bars{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 6px);left:20px;right:64px;margin:0;gap:4px}
+  .auth-split.has-slides .auth-bars button{flex:1 1 0;width:auto;height:28px}
+  .auth-split.has-slides:not(.p2) .auth-go{display:block;position:absolute;z-index:2;left:20px;right:20px;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px);
+    width:auto;height:52px;margin:0;border:0;border-radius:24px;background:var(--brand, var(--accent));color:#fff;font-size:16px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+  body.auth:has(.has-slides:not(.p2)) .auth-top .theme-toggle{z-index:3;background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.3);color:#fff}
+
+  /* Page two. */
+  .auth-split.has-slides.p2 .auth-brand{position:relative;height:38vh;height:38dvh}
+  .auth-split.has-slides.p2 .auth-slides{-webkit-mask-image:linear-gradient(to bottom, #000 35%, transparent 100%);mask-image:linear-gradient(to bottom, #000 35%, transparent 100%)}
+  .auth-split.has-slides.p2 .auth-brand-content{display:none}
+  .auth-split.has-slides.p2 .auth-back{display:flex;align-items:center;justify-content:center;position:absolute;z-index:2;top:calc(env(safe-area-inset-top, 0px) + 16px);left:16px;
+    width:44px;height:44px;margin:0;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:50%;background:rgba(0,0,0,0.3);color:#fff}
+  .auth-split.has-slides.p2 .auth-back svg{width:20px;height:20px}
+  .auth-split.has-slides.p2 .card{position:relative;z-index:1;flex:none;width:100%;margin:-24px 0 0;max-width:none;padding:0 16px;border:0;border-radius:0;background:transparent;
+    -webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;color:var(--fg);animation:authPage .28s ease-out}
   .auth-split.has-slides .card > *{max-width:none}
   .auth-split.has-slides .card h1{color:var(--fg)}
   .auth-split.has-slides .card label{color:var(--secondary)}
@@ -234,12 +256,14 @@ const SLIDES_CSS = `
   .auth-split.has-slides .card button[type="submit"]{background:var(--brand, var(--accent));border-color:var(--brand, var(--accent));color:#fff}
   .auth-split.has-slides .card .error{background:color-mix(in srgb, var(--danger) 6%, transparent);border-color:color-mix(in srgb, var(--danger) 30%, transparent);color:var(--danger)}
   .auth-split.has-slides .card .field-hint{color:var(--warning, #b45309)}
-  body.auth:has(.has-slides) .auth-top .theme-toggle{background:var(--surface);border-color:var(--border);color:var(--fg);-webkit-backdrop-filter:none;backdrop-filter:none}
+  body.auth:has(.has-slides.p2) .auth-top .theme-toggle{background:rgba(0,0,0,0.3);border-color:rgba(255,255,255,0.3);color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}
 }
+@keyframes authPage{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){
   .auth-slides img{transition:none}
   .auth-slides img.on,.auth-slides img.was{animation:none}
   .auth-bars button[aria-current="true"]::before{animation:none;background-size:100% 100%}
+  .auth-split.has-slides .auth-brand,.auth-split.has-slides .card{animation:none}
 }
 </style>`
 
@@ -253,6 +277,44 @@ function barsHTML(slides: string[], lang: LoginLang): string {
   return `<div class="auth-bars" role="group" aria-label="${esc(m.gallery)}" hidden>${slides.map((_, i) =>
     `<button type="button" aria-label="${esc(`${m.picture} ${i + 1} / ${slides.length}`)}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>`
 }
+
+/* The phone's page-one Sign in button and page-two back control; hidden
+   on wider screens by CSS. */
+function phoneButtonsHTML(signIn: string, back: string): string {
+  return `<button type="button" class="auth-go">${esc(signIn)}</button>
+      <button type="button" class="auth-back" aria-label="${esc(back)}" title="${esc(back)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>`
+}
+
+/* Page one / page two on a phone. #signin opens page two, so a reload or a
+   link lands there and the phone's Back returns to page one. */
+const PHONE_JS = `
+<script>
+(function () {
+  var split = document.querySelector('.auth-split.has-slides')
+  var go = split && split.querySelector('.auth-go')
+  var back = split && split.querySelector('.auth-back')
+  if (!go || !back) return
+  var pushed = false
+  function show(two) {
+    split.classList.toggle('p2', two)
+    window.scrollTo(0, 0)
+  }
+  if (location.hash === '#signin') split.classList.add('p2')
+  go.addEventListener('click', function () {
+    try { history.pushState({ signin: 1 }, '', '#signin'); pushed = true } catch (e) {}
+    show(true)
+  })
+  back.addEventListener('click', function () {
+    if (pushed) { history.back(); return }
+    try { history.replaceState(null, '', location.pathname + location.search) } catch (e) {}
+    show(false)
+  })
+  window.addEventListener('popstate', function () {
+    pushed = false
+    show(location.hash === '#signin')
+  })
+})()
+</script>`
 
 const SLIDES_JS = `
 <script>
@@ -338,15 +400,16 @@ export function loginHTML(o: {
   if (slides.length) {
     page = page.replace('<aside class="auth-brand">', '<aside class="auth-brand has-slides">')
       .replace(/<div class="mesh" aria-hidden="true">[\s\S]*?<\/div>/, () => slidesHTML(slides))
+      .replace('</aside>', () => phoneButtonsHTML(w.SIGNIN, m.back) + '\n    </aside>')
   }
   for (const k of Object.keys(w)) page = page.split(`@@T_${k}@@`).join(w[k])
   const style = (b ? brandStyle(b) : '') + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '')
-  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '')
+  const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '')
   return page
     .replace('@@H1@@', vendor ? esc(m.vendorH1) : w.SIGNIN)
     .replace('@@LEDE@@', vendor ? esc(m.vendorLede) : '@@NAME@@')
     .split('@@NAME@@').join(esc(b?.name ?? 'XULO'))
-    .replace('@@SPLITCLASS@@', slides.length ? ' has-slides' : '')
+    .replace('@@SPLITCLASS@@', slides.length ? (o.error || id ? ' has-slides p2' : ' has-slides') : '')
     .replace('@@STYLE@@', () => style)
     .replace('@@MARK@@', () => mark)
     .replace('@@COPY@@', () => copy + (slides.length > 1 ? `\n          ${barsHTML(slides, lang)}` : ''))
