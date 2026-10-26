@@ -1504,7 +1504,7 @@ export function Table({
         {/* Beside the expand control, which is the other thing you can do to
             a table as a whole. Same weight, same corner, so the pair reads as
             one set of table controls rather than a new button appearing. */}
-        <div className="absolute right-11 top-1 z-20">
+        <div className="absolute right-11 top-1 z-20 max-sm:right-16">
           <ColumnChooser
             labels={colLabels}
             hidden={hiddenCols}

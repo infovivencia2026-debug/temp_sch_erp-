@@ -157,6 +157,7 @@ export function BentoDock() {
      at one width (so folding a mark cannot bounce it back) and resets on a
      resize. */
   const shave = useRef({ w: 0, px: 0 })
+  const measureRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     const el = stripRef.current
     const dock = el?.parentElement
@@ -182,14 +183,20 @@ export function BentoDock() {
       if (shave.current.w !== window.innerWidth) shave.current = { w: window.innerWidth, px: 0 }
       const over = Math.max(el.scrollWidth - el.clientWidth, dock.scrollWidth - dock.clientWidth)
       if (over > 1) shave.current.px += Math.ceil(over)
-      setRoom(window.innerWidth - 96 - fixed - shave.current.px)
+      setRoom(Math.floor(window.innerWidth - 96 - fixed - shave.current.px))
     }
     measure()
+    measureRef.current = measure
+    /* Spill does not resize the dock, so the observer alone can miss it
+       (WebKit did): re-check once the fonts land and after each render. */
+    document.fonts?.ready.then(measure).catch(() => {})
     const ro = new ResizeObserver(measure)
     ro.observe(dock)
     window.addEventListener('resize', measure)
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+    return () => { measureRef.current = null; ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [phone])
+  /* Settles: room only changes while marks still spill, and shave only grows. */
+  useEffect(() => { measureRef.current?.() })
 
   const categories = useMemo(() => {
     if (!role) return []
