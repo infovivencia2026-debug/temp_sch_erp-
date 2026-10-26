@@ -5249,6 +5249,7 @@ html[data-page-locked],
 html[data-page-locked] body {
   overflow: hidden !important;
   overscroll-behavior: none;
+}
 /* GLASS ICON BUTTON (owner, 2026-10-26). iOS liquid glass: a translucent,
    blurred, saturated disc with a hairline highlight and a soft shadow. On
    press it grows and lifts on the spring (transform + filter only); under
