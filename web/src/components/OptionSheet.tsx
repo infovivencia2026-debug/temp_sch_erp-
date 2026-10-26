@@ -214,7 +214,7 @@ export function OptionSheet({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative flex max-h-[min(75vh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
+          'relative flex [animation:none] max-h-[min(75vh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
           'shadow-[0_-10px_30px_rgba(0,0,0,0.15)] transition-transform duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
@@ -244,14 +244,14 @@ export function OptionSheet({
               value={q}
               onChange={(e) => setQ(e.target.value)}
               className={cn(
-                'block h-12 w-full rounded-[12px] bg-muted py-[10px] pl-[38px] pr-[14px] text-[16px] text-foreground outline-none',
-                'shadow-[0_0_0_1px_transparent] transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none',
-                'placeholder:text-muted-foreground focus:bg-card focus:shadow-[0_0_0_1px_hsl(var(--primary)),0_0_0_4px_hsl(var(--primary)/0.1)]',
+                // Fill and focus ring: .option-sheet-search in index.css.
+                'option-sheet-search block h-12 w-full rounded-[12px] py-[10px] pl-[38px] pr-[14px] text-[16px] text-foreground outline-none',
+                'transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none placeholder:text-muted-foreground',
               )}
             />
           </label>
         )}
-        <ul role="listbox" aria-label={title} className="menu-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-1 [scrollbar-gutter:auto] [scrollbar-width:none]">
+        <ul role="listbox" aria-label={title} className="menu-scroll flex min-h-0 shadow-none [animation:none] flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-1 [scrollbar-gutter:auto] [scrollbar-width:none]">
           {shown.map((o) => {
             const on = o.value === value
             return (
