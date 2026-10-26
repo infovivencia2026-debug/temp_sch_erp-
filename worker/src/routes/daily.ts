@@ -1161,6 +1161,7 @@ function registerWorkflow(r: Router) {
   r.get('/workflow/approvals', 'auth', getApprovals)
   r.post('/workflow/leave', 'auth', applyForLeave)
   r.post('/workflow/leave/{id}/decide', 'auth', decideLeave)
+  r.patch('/workflow/leave/{id}', 'auth', editLeave)
   r.post('/workflow/concessions/{id}/decide', 'finance.fees.write', decideConcession)
   r.get('/workflow/staff-register', 'hr.attendance.write', async (c) => {
     const on = c.url.searchParams.get('on_date') || today()
@@ -1521,6 +1522,33 @@ async function getApprovals(c: Ctx): Promise<Response> {
   return ok({ items: out, total: out.length, by_kind: byKind })
 }
 
+/* The school's rules for a leave type (trigger leave_requests_obey_policy,
+   migrations/00031_hr_lifecycle.sql). Run on applying and on editing. */
+async function checkLeavePolicy(c: Ctx, leaveType: string, employeeId: string | null, from: string, days: number, isHalf: boolean): Promise<void> {
+  const rule = await c.db.prepare('SELECT allow_half_day, max_consecutive_days, notice_days, applies_to_gender, window_from, window_to FROM leave_policy_rules WHERE leave_type_id = ?')
+    .bind(leaveType).first<{ allow_half_day: number; max_consecutive_days: string | null; notice_days: number; applies_to_gender: string | null; window_from: string | null; window_to: string | null }>()
+  if (rule) {
+    const policy = (m: string) => new HttpError(400, m, { code: 'check_violation' })
+    if (rule.window_from && rule.window_to) {
+      /* The window is a span of the year, MM-DD to MM-DD; it may wrap the
+         year end (12-15 to 01-15). Judged on the day the application is made. */
+      const md = today().slice(5), a = rule.window_from, b = rule.window_to
+      const inside = a <= b ? md >= a && md <= b : md >= a || md <= b
+      if (!inside) throw policy(`applications for this leave type are taken from ${a.slice(3)}/${a.slice(0, 2)} to ${b.slice(3)}/${b.slice(0, 2)}`)
+    }
+    if (isHalf && !bool(rule.allow_half_day)) throw policy('this leave type cannot be taken as a half day')
+    if (rule.max_consecutive_days !== null && days > Number(rule.max_consecutive_days)) throw policy(`at most ${Number(rule.max_consecutive_days)} consecutive day(s) of this leave may be taken`)
+    if (rule.notice_days > 0) {
+      const t = new Date(today() + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + rule.notice_days)
+      if (from < t.toISOString().slice(0, 10)) throw policy(`this leave needs ${rule.notice_days} day(s) notice`)
+    }
+    if (rule.applies_to_gender !== null) {
+      const g = await c.db.prepare('SELECT gender FROM employees WHERE id = ?').bind(employeeId).first<{ gender: string | null }>()
+      if ((g?.gender ?? null) !== rule.applies_to_gender) throw policy(`this leave type is available to ${rule.applies_to_gender} staff only`)
+    }
+  }
+}
+
 async function applyForLeave(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
   const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; student_id?: string; employee_id?: string; kind?: string; hours?: number }>(c.req)
@@ -1580,30 +1608,7 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   if (clash) throw new HttpError(409, `leave covering these days is already ${clash.status}. Change that request instead of filing another.`, { code: 'leave_overlap', id: clash.id })
 
   // Trigger leave_requests_obey_policy (migrations/00031_hr_lifecycle.sql).
-  if (kind === 'staff' && leaveType) {
-    const rule = await c.db.prepare('SELECT allow_half_day, max_consecutive_days, notice_days, applies_to_gender, window_from, window_to FROM leave_policy_rules WHERE leave_type_id = ?')
-      .bind(leaveType).first<{ allow_half_day: number; max_consecutive_days: string | null; notice_days: number; applies_to_gender: string | null; window_from: string | null; window_to: string | null }>()
-    if (rule) {
-      const policy = (m: string) => new HttpError(400, m, { code: 'check_violation' })
-      if (rule.window_from && rule.window_to) {
-        /* The window is a span of the year, MM-DD to MM-DD; it may wrap the
-           year end (12-15 to 01-15). Judged on the day the application is made. */
-        const md = today().slice(5), a = rule.window_from, b = rule.window_to
-        const inside = a <= b ? md >= a && md <= b : md >= a || md <= b
-        if (!inside) throw policy(`applications for this leave type are taken from ${a.slice(3)}/${a.slice(0, 2)} to ${b.slice(3)}/${b.slice(0, 2)}`)
-      }
-      if (req.is_half_day && !bool(rule.allow_half_day)) throw policy('this leave type cannot be taken as a half day')
-      if (rule.max_consecutive_days !== null && days > Number(rule.max_consecutive_days)) throw policy(`at most ${Number(rule.max_consecutive_days)} consecutive day(s) of this leave may be taken`)
-      if (rule.notice_days > 0) {
-        const t = new Date(today() + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + rule.notice_days)
-        if (from < t.toISOString().slice(0, 10)) throw policy(`this leave needs ${rule.notice_days} day(s) notice`)
-      }
-      if (rule.applies_to_gender !== null) {
-        const g = await c.db.prepare('SELECT gender FROM employees WHERE id = ?').bind(employeeId).first<{ gender: string | null }>()
-        if ((g?.gender ?? null) !== rule.applies_to_gender) throw policy(`this leave type is available to ${rule.applies_to_gender} staff only`)
-      }
-    }
-  }
+  if (kind === 'staff' && leaveType) await checkLeavePolicy(c, leaveType, employeeId, from, days, !!req.is_half_day)
 
   const newId = uuid()
   const stmts: D1PreparedStatement[] = [
@@ -1664,6 +1669,50 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   }
   await c.db.batch(stmts)
   return created({ id: newId, days, status: 'pending' })
+}
+
+/* EDITING A REQUEST ALREADY SENT (owner, 2026-10-26: "let them choose an Edit
+   button and edit"). Only the person who filed it, and only while nobody has
+   answered it: an approved or rejected request is a decision, and changing
+   the days under it would change what was decided. */
+async function editLeave(c: Ctx): Promise<Response> {
+  const lid = c.params.id
+  if (!isUUID(lid)) throw badRequest('invalid leave request id')
+  const cur = await c.db.prepare(`SELECT id, status, applied_by, employee_id, student_id, subject_kind, kind, leave_type_id, from_date, to_date, is_half_day, reason, hours
+                                    FROM leave_requests WHERE id = ?`).bind(lid)
+    .first<{ id: string; status: string; applied_by: string | null; employee_id: string | null; student_id: string | null; subject_kind: string; kind: string | null; leave_type_id: string | null; from_date: string; to_date: string; is_half_day: number; reason: string; hours: number | null }>()
+  if (!cur || cur.applied_by !== c.id.userId) throw new HttpError(404, 'no leave request of yours with that id', { code: 'not_found' })
+  if (cur.status !== 'pending') throw new HttpError(409, `this request was already ${cur.status}, so it can no longer be changed.`, { code: 'already_decided' })
+  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; hours?: number }>(c.req)
+  const from = req.from_date ?? cur.from_date, to = req.to_date ?? cur.to_date
+  if (!isDate(from)) throw badRequest('from_date must be YYYY-MM-DD')
+  if (!isDate(to)) throw badRequest('to_date must be YYYY-MM-DD')
+  if (to < from) throw badRequest('the leave ends before it starts')
+  const reason = req.reason ?? cur.reason
+  if (!reason.trim()) throw badRequest('a reason is required')
+  const requestKind = cur.kind ?? 'leave'
+  const isHalf = req.is_half_day ?? bool(cur.is_half_day)
+  let hours: number | null = cur.hours
+  if (requestKind === 'permission') {
+    if (from !== to) throw badRequest('a permission is for one day; give the same from and to date')
+    hours = Number(req.hours ?? cur.hours)
+    if (!(hours > 0 && hours <= 8)) throw badRequest('hours must be between 0 and 8 for a permission')
+  }
+  let days = (Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10)) - Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10))) / 86_400_000 + 1
+  if (isHalf) days = 0.5
+  if (requestKind === 'permission' && hours !== null) days = Math.round((hours / 8) * 100) / 100
+  const leaveType = requestKind === 'leave' && req.leave_type_id !== undefined ? nul(trim(req.leave_type_id)) : cur.leave_type_id
+  if (requestKind === 'leave' && !cur.student_id && cur.leave_type_id && !leaveType) throw badRequest('choose the kind of leave')
+  const clash = await c.db.prepare(`SELECT id, status FROM leave_requests
+      WHERE id <> ? AND status IN ('pending', 'approved') AND ${cur.student_id ? 'student_id = ?' : 'employee_id = ?'} AND from_date <= ? AND to_date >= ? LIMIT 1`)
+    .bind(lid, cur.student_id ?? cur.employee_id, to, from).first<{ id: string; status: string }>()
+  if (clash) throw new HttpError(409, `leave covering these days is already ${clash.status}.`, { code: 'leave_overlap', id: clash.id })
+  if (cur.subject_kind === 'staff' && leaveType && requestKind === 'leave') await checkLeavePolicy(c, leaveType, cur.employee_id, from, days, isHalf)
+  const r = await c.db.prepare(`UPDATE leave_requests SET from_date = ?, to_date = ?, is_half_day = ?, days = ?, reason = ?, leave_type_id = ?, hours = ?
+                                 WHERE id = ? AND status = 'pending'`)
+    .bind(from, to, isHalf ? 1 : 0, String(days), reason, leaveType, hours, lid).run()
+  if (!r.meta.changes) throw new HttpError(409, 'this request was answered a moment ago, so it can no longer be changed.', { code: 'already_decided' })
+  return json({ id: lid, days, status: 'pending' })
 }
 
 async function decideLeave(c: Ctx): Promise<Response> {
