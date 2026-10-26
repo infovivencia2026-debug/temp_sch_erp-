@@ -5294,3 +5294,17 @@ button.glass-btn:active:not(:disabled) {
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
 }
+
+/* THE PHONE DROPDOWN'S SEARCH FIELD (owner design, 2026-10-26,
+   docs/owner-designs/2026-10-26-phone-dropdown-search.html): muted fill at
+   rest; on focus the card colour with a primary edge and a soft primary ring,
+   drawn as box-shadow, not a border. Specific enough to beat the generic
+   search-field rule above. */
+[data-option-sheet] input.option-sheet-search.option-sheet-search {
+  background-color: hsl(var(--muted));
+  box-shadow: 0 0 0 1px transparent !important;
+}
+[data-option-sheet] input.option-sheet-search.option-sheet-search:focus {
+  background-color: hsl(var(--card));
+  box-shadow: 0 0 0 1px hsl(var(--primary)), 0 0 0 4px hsl(var(--primary) / 0.1) !important;
+}

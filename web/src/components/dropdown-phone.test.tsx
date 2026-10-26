@@ -47,7 +47,7 @@ describe('dropdowns on a phone', () => {
     const sick = [...document.querySelectorAll<HTMLButtonElement>('[data-option-sheet] [role="option"] button')].find((b) => b.textContent === 'Sick')!
     act(() => sick.click())
     expect(last).toBe('sick')
-    expect(document.querySelector('[data-option-sheet]')).toBeNull()
+    expect(document.querySelector('[data-option-sheet]:not([data-closing])')).toBeNull()
     expect(host.textContent).toContain('Sick')
   })
   it('Select: a real tap (pointerdown, mousedown, then click) on a sheet option sets the value', () => {
@@ -62,7 +62,7 @@ describe('dropdowns on a phone', () => {
     act(() => sick().click())
     expect(last).toBe('sick')
   })
-  it('Select: a long list searches inside the sheet, without focusing it', () => {
+  it('Select: a long list searches inside the sheet, focused only after the sheet has risen (150ms)', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }))
     act(() => root.render(<Kind options={many} />))
     expect(host.querySelector('input')).toBeNull()
@@ -79,7 +79,7 @@ describe('dropdowns on a phone', () => {
     const b = [...document.querySelectorAll<HTMLButtonElement>('[data-option-sheet] [role="option"] button')].find((x) => x.textContent === 'Term 2')!
     act(() => b.click())
     expect(got).toBe('b')
-    expect(document.querySelector('[data-option-sheet]')).toBeNull()
+    expect(document.querySelector('[data-option-sheet]:not([data-closing])')).toBeNull()
   })
   it('desktop keeps the typeable combobox', () => {
     phone(false)

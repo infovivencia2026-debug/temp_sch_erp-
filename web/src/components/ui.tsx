@@ -2310,7 +2310,7 @@ export function Select({
         ? [{ value: '', label: placeholder, muted: true }] : []),
       ...shown,
     ]
-    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-3 py-2 text-left text-[16px] active:bg-accent'
+    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-[14px] py-3 text-left text-[16px] [-webkit-tap-highlight-color:transparent] [@media(hover:hover)]:hover:bg-muted/50'
     return (
       <div ref={box} className="relative">
         <SheetTrigger label={shownLabel} placeholder={placeholder || 'Choose'} open={open}
