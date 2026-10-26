@@ -120,6 +120,38 @@ export function trackKeyboardInset() {
     if (t !== appliedT) { appliedT = t; root.style.setProperty('--vv-top', t + 'px') }
   }
 
+  /* A readout of the numbers iOS gives, for diagnosing the keyboard on a
+     real phone (owner, 2026-10-26). Shown only after opening any page with
+     ?vvdebug=1 (kept for the tab); ?vvdebug=0 hides it. */
+  try {
+    const q = new URLSearchParams(location.search).get('vvdebug')
+    if (q === '1') sessionStorage.setItem('vvdebug', '1')
+    if (q === '0') sessionStorage.removeItem('vvdebug')
+  } catch { /* private mode */ }
+  let dbg: HTMLDivElement | null = null
+  const debugOn = () => { try { return sessionStorage.getItem('vvdebug') === '1' } catch { return false } }
+  const show = () => {
+    if (!debugOn()) return
+    if (!dbg) {
+      dbg = document.createElement('div')
+      dbg.style.cssText = 'position:fixed;left:4px;top:4px;z-index:2147483647;background:rgba(0,0,0,.8);color:#fff;font:11px/1.3 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre'
+      document.body.appendChild(dbg)
+    }
+    const layer = document.querySelector('.vv-screen-phone')?.getBoundingClientRect()
+    const field = document.activeElement?.getBoundingClientRect()
+    dbg.textContent = [
+      'innerH ' + window.innerHeight + '  screenH ' + screen.height,
+      'vv.h ' + Math.round(vv.height) + '  vv.top ' + Math.round(vv.offsetTop) + '  scale ' + vv.scale.toFixed(2),
+      'scrollY ' + Math.round(window.scrollY) + '  docH ' + document.documentElement.clientHeight,
+      '--vvh ' + root.style.getPropertyValue('--vvh') + '  --vv-top ' + root.style.getPropertyValue('--vv-top') + '  --kb ' + root.style.getPropertyValue('--kb'),
+      'layer ' + (layer ? Math.round(layer.top) + '..' + Math.round(layer.bottom) : 'none'),
+      'focused ' + (field && document.activeElement !== document.body ? Math.round(field.top) + '..' + Math.round(field.bottom) : 'none'),
+    ].join(String.fromCharCode(10))
+  }
+  const measureAndShow = () => { measure(); show() }
+  vv.addEventListener('resize', show)
+  vv.addEventListener('scroll', show)
+  window.setInterval(() => { if (debugOn()) measureAndShow() }, 250)
   vv.addEventListener('resize', measure)
   /* iOS Safari (26, floating address bar) settles the visible area after the
      keyboard finishes moving and does not always fire a last resize, so a

@@ -39,9 +39,11 @@ html[data-assistant-open] body {
    Without the variables (no visualViewport) it is the plain full screen. */
 @media (max-width: 767px) {
   [data-assistant-chat] {
+    /* One measurement for every phone layer (lib/keyboard.ts --vvh / --vv-top
+       on <html>); this panel's own --vv-h stays only as the fallback. */
     top: var(--vv-top, 0px) !important;
     bottom: auto !important;
-    height: var(--vv-h, 100%) !important;
+    height: var(--vvh, var(--vv-h, 100%)) !important;
   }
   [data-assistant-chat][data-kb] .assistant-bigorb { display: none; }
 }
