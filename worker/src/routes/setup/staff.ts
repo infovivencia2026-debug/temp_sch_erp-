@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
@@ -31,7 +32,7 @@ async function queueFamilyLogin(c: Ctx, cr: FamilyCredential, ms?: Messenger): P
     .first<{ name: string; credentials_by_email_only: number | null }>().catch(() => null)
   const emailOnly = inst ? !!Number(inst.credentials_by_email_only) : true
   const code = cr.password === '' ? 'admissions.portal_existing' : 'admissions.portal_login'
-  const vars = { school_name: inst?.name ?? '', parent_name: cr.fullName !== '' ? cr.fullName : 'Sir/Madam', sign_in_as: cr.signInAs,
+  const vars = { school_name: inst?.name ?? '', parent_name: cr.fullName !== '' ? cr.fullName : 'Sir/Madam', sign_in_as: shownSignIn(cr.signInAs),
     password: cr.password, portal_url: new URL(c.req.url).origin + '/login' }
   const tag = cr.hash.length > 12 ? cr.hash.slice(-12) : cr.hash
   const sent: string[] = []
@@ -652,7 +653,7 @@ export function registerStaff(r: Router): void {
       return ok(out)
     }
     out.password = password
-    out.note = 'Shown once and not stored. On the school sign-in page (Staff tab) they can type just their phone number, or their school email, instead of the username. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
+    out.note = 'Shown once and not stored. On the school sign-in page (Staff tab) they sign in with their phone number, or their school email. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
     return ok(out)
   })
 
@@ -1025,7 +1026,7 @@ export function registerStaff(r: Router): void {
       throw forbidden('missing permission: sending logins for ' + kind)
     }
     if (!isUUID(trim(req.id))) throw badRequest('id must be a uuid')
-    const signIn = trim(req.sign_in_as)
+    const signIn = shownSignIn(trim(req.sign_in_as))
     const password = trim(req.password)
     if (signIn === '' || password === '') throw badRequest('nothing to send: the sign-in name and password are both needed')
 
@@ -1110,7 +1111,7 @@ export function registerStaff(r: Router): void {
       return ok({ items: staff.results.map((r) => ({
         id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
         class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
-        has_login: bool(r.usable), sign_in_as: String(r.sign_in ?? ''),
+        has_login: bool(r.usable), sign_in_as: shownSignIn(String(r.sign_in ?? '')),
         login_code: String(r.login_code ?? ''),
         email: String(r.email ?? ''), phone: String(r.phone ?? ''), guardians: [],
       })) })
@@ -1181,14 +1182,14 @@ export function registerStaff(r: Router): void {
     return ok({ items: rows.results.map((r) => ({
       id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
       roll_no: r.roll_no ?? undefined, class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
-      has_login: bool(r.student_usable), sign_in_as: String(r.student_sign_in ?? ''),
+      has_login: bool(r.student_usable), sign_in_as: shownSignIn(String(r.student_sign_in ?? '')),
       /* The account's own ten characters. Every other identifier is
          borrowed from something that can change; this one cannot, and
          unlike the password it can always be read back. */
       login_code: String(r.student_code ?? ''),
       guardians: (byStudent.get(String(r.id)) ?? []).map((g) => ({
         id: String(g.id), full_name: String(g.full_name), relation: String(g.relation ?? ''),
-        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: String(g.sign_in ?? ''),
+        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: shownSignIn(String(g.sign_in ?? '')),
         login_code: String(g.login_code ?? ''),
       })),
     })) })

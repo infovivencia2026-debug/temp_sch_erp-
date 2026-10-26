@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../router'
+import { shownSignIn } from '../services/sign_in_name'
 import { clearDoneWork } from '../services/notification_done'
 import type { AttendanceRow, MarkAttendanceResult, Period, Teacher, TimetableEntry } from '@shared/api'
 import { Messenger, enqueueMessageSends, scopeOf, type SendRequest } from '../services/messaging'
@@ -346,7 +347,7 @@ function registerTimetable(r: Router) {
     return { items: rows.results.map((v): Teacher => ({
       user_id: v.user_id, full_name: v.full_name, employee_code: v.employee_code, status: v.status,
       weekly_periods: mayPlan ? num(v.periods) : undefined,
-      employee_id: v.employee_id, sign_in_as: v.sign_in_as, can_sign_in: bool(v.can_sign_in),
+      employee_id: v.employee_id, sign_in_as: shownSignIn(v.sign_in_as), can_sign_in: bool(v.can_sign_in),
       roles: v.roles, subjects: v.subjects, class_teacher_of: v.class_teacher_of || undefined,
     })) }
   })

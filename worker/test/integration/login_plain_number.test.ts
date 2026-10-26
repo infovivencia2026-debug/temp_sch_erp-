@@ -56,8 +56,11 @@ describe('staff sign in with a plain phone number or school email', () => {
   it('bare number on the school page signs in', async () => {
     expect((await signInAt('test.xulo.in', PHONE)).session).toBe(true)
   })
-  it('number.CODE still signs in', async () => {
-    expect((await signInAt('test.xulo.in', `${PHONE}.TEST`)).session).toBe(true)
+  it('number.CODE no longer signs in, even with the right password', async () => {
+    const r = await signInAt('test.xulo.in', `${PHONE}.TEST`, PASSWORD, 'staff')
+    expect(r.session).toBe(false)
+    expect(r.text).toContain('That school email or phone number and password do not match')
+    expect((await signInAt('school-erp-d1.pages.dev', `${PHONE}.TEST`)).session).toBe(false)
     expect((await signInAt('xulo.in', `${PHONE}.TEST`)).session).toBe(false) // vendor page takes no school accounts
   })
   it('wrong password fails', async () => {

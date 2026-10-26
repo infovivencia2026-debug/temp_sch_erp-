@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, clampInt, created, forbidden, isUUID, like, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
@@ -393,7 +394,7 @@ export function registerAdminUsers(r: Router): void {
         last_login_at: u.last_login_at ?? undefined, roles: [...(roles.get(u.id)?.names ?? [])].sort(), role_keys: [...(roles.get(u.id)?.keys ?? [])].sort(),
         institution: instName, active_sessions: sessions.get(u.id) ?? 0, record: u.record,
         about: aboutBy.get(u.id) ?? '',
-        sign_in_as: u.sign_in_as ?? '', login_code: u.login_code ?? '',
+        sign_in_as: shownSignIn(u.sign_in_as), login_code: u.login_code ?? '',
       })),
       total: total?.n ?? offset + rows.results.length,
     })

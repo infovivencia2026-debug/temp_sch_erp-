@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } from '../../http'
 import { now } from '../../http'
 import { activitySettings, recordSignOutMany, recordViews, type ViewIn } from '../../services/session_activity'
@@ -257,7 +258,7 @@ export function registerProfile(r: Router): void {
     const secret = base32Encode(raw)
     const u = await c.db.prepare(`SELECT COALESCE(email, phone, username, full_name) AS account FROM users WHERE id = ?`).bind(c.id.userId)
       .first<{ account: string }>()
-    const account = u?.account ?? c.id.fullName
+    const account = shownSignIn(u?.account) || c.id.fullName
     const issuer = c.id.institution?.short_name || c.id.institution?.name || 'XULO'
     const q = new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' })
     const uri = 'otpauth://totp/' + encodeURIComponent(issuer + ':' + account) + '?' + q.toString()

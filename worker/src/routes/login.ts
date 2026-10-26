@@ -1,6 +1,7 @@
 import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
+import { isCodedUsername } from '../services/sign_in_name'
 import { issueSession } from '../auth/session'
 import { chooserHTML, loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
@@ -306,6 +307,12 @@ async function extraRows(env: Env, identifier: string, onlySchool?: string): Pro
 
 async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
+  /* "<number>.<CODE>" no longer signs anyone in (owner, 2026-10-26: "Block it
+     fully"); the bare number does. Same answer and cost as an unknown name. */
+  if (isCodedUsername(identifier)) {
+    await verifyPassword(env.PASSWORD_PEPPER, DUMMY_HASH, password)
+    return { ok: false, outcome: 'no_account' }
+  }
   const idx = await env.CONTROL.prepare(
     `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()

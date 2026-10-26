@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { workingYearFor, yearExists } from '../../services/refcache'
 import { HttpError, badRequest, uuid, now } from '../../http'
 import { hashPassword } from '../../auth/password'
@@ -209,7 +210,7 @@ export const hash = (c: Ctx, password: string): Promise<string> => hashPassword(
 export async function signInAs(c: Ctx, userId: string, order: 'email' | 'username' = 'email'): Promise<string> {
   const expr = order === 'email' ? `COALESCE(email, phone, username, '')` : `COALESCE(username, email, phone, '')`
   const row = await c.db.prepare(`SELECT ${expr} AS v FROM users WHERE id = ?`).bind(userId).first<{ v: string }>()
-  return row?.v ?? ''
+  return shownSignIn(row?.v)
 }
 
 /** Puts an account in a role, failing loudly if the school lacks the role. */
