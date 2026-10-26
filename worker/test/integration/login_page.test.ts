@@ -15,6 +15,17 @@ describe('sign-in page', () => {
     expect(h).not.toContain('@@')
   })
 
+  it('tabs are a sliding toggle: icon above label, thumb moves by transform, instant on reduced motion', () => {
+    const h = loginHTML({ csrf: 'c', next: '/', brand })
+    expect(h).toContain('hidden><span class="who-thumb" aria-hidden="true"></span><button')
+    expect(h).toMatch(/.who button{[^}]*height:64px[^}]*flex-direction:column/)
+    expect(h).toContain('transform:translateX(calc(var(--i, 0) * 100%)) scaleX(var(--s, 1))')
+    expect(h).toContain('.who.pressing{--s:1.12}')
+    expect(h).toContain(".who.ready .who-thumb{transition:transform 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55)}")
+    expect(h).toContain("@media (prefers-reduced-motion:reduce){.who.ready .who-thumb,.who button{transition:none}}")
+    expect(h).toContain("list.style.setProperty('--i', String(i))")
+  })
+
   it('has Telugu tab names', () => {
     const h = loginHTML({ csrf: 'c', next: '/', brand, lang: 'te' })
     for (const t of ['తల్లిదండ్రులు', 'విద్యార్థి', 'సిబ్బంది']) expect(h).toContain(t)
