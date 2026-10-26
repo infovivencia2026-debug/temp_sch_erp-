@@ -206,7 +206,7 @@ export default function SchoolGallery({ onClose, initialPost = null }: { onClose
                           {/* The play mark arrives on hover, as in the mockup: a
                               still frame with a button already on it reads as a
                               video that failed to start. */}
-                          <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                          <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
                             <span className="grid size-[38px] place-items-center rounded-full bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.3)] transition-transform duration-200 group-hover:scale-100 scale-90">
                               <Play className="size-4 fill-primary text-primary" />
                             </span>

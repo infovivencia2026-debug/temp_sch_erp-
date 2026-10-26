@@ -41,4 +41,32 @@ describe('responsive guard', () => {
     expect(css).toContain('env(safe-area-inset-right')
     expect(readFileSync(join(SRC, 'components/LiveToasts.tsx'), 'utf8')).toContain('float-safe')
   })
+
+  /* CLASSROOM BOARDS (owner, 2026-10-26: "Sensus board, Dahua boards"): big
+     touch-only panels. Targets 48 and no text under 14px wherever the pointer
+     is coarse and there is no hover, not only below 640px. */
+  it('touch screens without hover get 48px targets at every width', () => {
+    const css = readFileSync(join(SRC, 'index.css'), 'utf8')
+    const at = css.indexOf('@media (pointer: coarse) and (hover: none) and (min-width: 640px)')
+    expect(at).toBeGreaterThan(-1)
+    const block = css.slice(at, at + 2500)
+    expect(block).toContain('min-height: 48px')
+    expect(block).toContain('min-width: 48px')
+    expect(block).toContain('font-size: calc(14px')
+  })
+
+  it('a hover-only reveal has a tap path', () => {
+    const bad: string[] = []
+    for (const f of walk(SRC)) {
+      const src = readFileSync(f, 'utf8')
+      if (/group-hover:(?:opacity-100|block|flex|visible)/.test(src) && !/hover:none|pointer:coarse/.test(src)) bad.push(relative(SRC, f).split(sep).join('/'))
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('the Settings window does not open over the Settings page', () => {
+    const src = readFileSync(join(SRC, 'features/bento/BentoSettings.tsx'), 'utf8')
+    expect(src).toMatch(/wasOpen = \(\) =>[\s\S]{0,400}\\\/settings/)
+  })
 })
+
