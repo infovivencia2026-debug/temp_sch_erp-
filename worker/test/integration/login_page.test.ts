@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chooserHTML, loginHTML } from '../../src/auth/login-page'
+import { chooserHTML, loginHTML, onWhite } from '../../src/auth/login-page'
 
 const brand = { name: 'Test School', action: '/login' }
 
@@ -24,6 +24,15 @@ describe('sign-in page', () => {
     expect(h).toContain(".who.ready .who-thumb{transition:transform 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55)}")
     expect(h).toContain("@media (prefers-reduced-motion:reduce){.who.ready .who-thumb,.who button{transition:none}}")
     expect(h).toContain("list.style.setProperty('--i', String(i))")
+    expect(h).toContain('background:var(--who-thumb, #1d4ed8)')
+    expect(h).toContain('.who button[aria-selected="true"]{background:transparent;color:#fff}')
+  })
+
+  it('selected-tab fill keeps white text at 4.5:1 or more', () => {
+    const L = (x: string) => { const c = [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] }
+    for (const p of ['#ffff00', '#3b82f6', '#f59e0b', '#1d4ed8', '#ffffff']) expect(1.05 / (L(onWhite(p)) + 0.05)).toBeGreaterThanOrEqual(4.5)
+    expect(1.05 / (L('#1d4ed8') + 0.05)).toBeGreaterThanOrEqual(4.5)
+    expect(loginHTML({ csrf: 'c', next: '/', brand: { ...brand, primary: '#ffff00' } })).toContain('--who-thumb:#')
   })
 
   it('has Telugu tab names', () => {
