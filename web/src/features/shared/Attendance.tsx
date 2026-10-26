@@ -356,8 +356,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 screen). Day: this date, every section this person can see,
                 every child marked or "not marked", from the register's own
                 endpoint and scope. Last 90 days: the whole register the
-                school's scope allows. */}
-            {!teacherView && <PickerMenu<'day' | '90'>
+                school's scope allows. A class teacher's register has none;
+                whoever keeps the whole school's register does (owner,
+                2026-10-26). */}
+            {(!teacherView || marksAnySection) && <PickerMenu<'day' | '90'>
               value={'' as 'day'}
               ariaLabel="Export attendance"
               placeholder="Export"
