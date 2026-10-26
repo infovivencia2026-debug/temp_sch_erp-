@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { GlassIconButton } from '@/components/ui'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, X } from 'lucide-react'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { cn } from '@/lib/utils'
 import { usePhone } from '@/lib/viewport'
+import { lockPageScroll } from '@/lib/keyboard'
 
 /* A conversation that takes the whole screen.
 
@@ -109,14 +111,13 @@ export function ChatScreen({
     // The page behind a side panel still scrolls; only the phone's full
     // screen locks it.
     if (!open || !phone) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockPageScroll()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') back()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      unlock()
       window.removeEventListener('keydown', onKey)
     }
   }, [open, back, phone])
@@ -127,7 +128,7 @@ export function ChatScreen({
       className={cn(
         'fixed z-[120] flex flex-col bg-background',
         phone
-          ? 'inset-0'
+          ? 'inset-0 vv-screen-phone'
           : 'inset-y-0 right-0 w-[min(600px,100vw)] border-l shadow-[-12px_0_32px_-16px_rgba(11,20,26,0.35)]',
       )}
       role="dialog"
@@ -135,27 +136,18 @@ export function ChatScreen({
       // The bottom inset belongs to the composer, which is the thing actually
       // sitting on the edge; applying it here too left a white band under it.
       //
-      // `bottom` is the keyboard, not zero. This surface is `inset-0`, and on
-      // iOS -- Safari and the parent app's WKWebView alike -- the layout
-      // viewport does not shrink for the keyboard, so inset-0 kept the
-      // composer a keyboard's height below the bottom of the screen: the
-      // parent could see the conversation and not the box they were typing
-      // into. Lifting the whole surface rather than padding it means the
-      // message list shortens too, so the last message stays the thing above
-      // the composer instead of being covered by it. --kb is 0px wherever the
-      // engine already resized for the keyboard (lib/keyboard.ts).
-      style={{ paddingTop: 'env(safe-area-inset-top)', bottom: 'var(--kb, 0px)' }}
+      //
+      // On a phone the surface is the VISIBLE screen (.vv-screen-phone: top
+      // and height from visualViewport), not inset-0. iOS never shrinks the
+      // layout viewport for the keyboard and may scroll the page, so an
+      // inset-0 or bottom:--kb surface left the composer mid-screen with the
+      // contact list showing between it and the keys (owner, 2026-10-26).
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-[#f0f2f5] px-1.5 py-1.5 text-[#111b21] sm:px-3">
-        <button
-          type="button"
-          onClick={back}
-          aria-label="Back"
-          title="Back"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted"
-        >
+        <GlassIconButton label="Back" size="sm" onClick={back}>
           <ArrowLeft className="h-5 w-5" />
-        </button>
+        </GlassIconButton>
         {typeof title === 'string' && <PersonAvatar name={title} photoId={photoId} size={40} />}
         <div className="min-w-0 flex-1">
           <div className="truncate text-[16px] font-semibold leading-tight">{title}</div>

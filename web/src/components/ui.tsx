@@ -1,3 +1,4 @@
+import { lockPageScroll } from '@/lib/keyboard'
 import { printAllStore } from '@/lib/print'
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
@@ -22,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
-import { OptionSheet, SEARCH_AT, SheetTrigger, useIsPhone, type SheetOption } from './OptionSheet'
+import { OptionSheet, SEARCH_AT, SheetTrigger, inOptionSheet, useIsPhone, type SheetOption } from './OptionSheet'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -1557,7 +1558,7 @@ export function Table({
       role="dialog"
       aria-modal="true"
       aria-label="Table, full screen"
-      className="fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
+      className="vv-screen-phone fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
@@ -2157,7 +2158,7 @@ export function Select({
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) {
+      if (box.current && !box.current.contains(e.target as Node) && !inOptionSheet(e.target)) {
         const m = exactRef.current
         if (m) pickRef.current(m.value)
         setOpen(false); setQuery(''); setTyped(false)
@@ -3541,8 +3542,7 @@ export function Dialog({
         ? want.current
         : el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
     ;(first ?? el)?.focus({ preventScroll: true })
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockPageScroll()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Vetoed: the key stays live for whoever asked to keep the dialog.
@@ -3563,7 +3563,7 @@ export function Dialog({
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prev
+      unlock()
       restoreFocus(opener)
     }
   }, [open])
@@ -3577,7 +3577,7 @@ export function Dialog({
     <div
       data-closing={closing || undefined}
       className={cn(
-        'scrim fixed inset-0 flex justify-center',
+        'scrim vv-screen-phone fixed inset-0 flex justify-center',
         overlay === 'none' ? 'pointer-events-none bg-transparent' : 'bg-black/40',
         raised ? 'z-[110]' : 'z-[70]',
         full
@@ -3604,11 +3604,11 @@ export function Dialog({
         className={cn(
           'ui-dialog pointer-events-auto flex w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
           full
-            ? 'h-[100dvh] max-h-none rounded-none'
+            ? 'h-[100dvh] max-h-none rounded-none max-md:h-full'
             : placement === 'top'
               ? cn('max-h-[80dvh] rounded-[var(--radius-dialog)] border border-[color:var(--hairline-lifted)] shadow-[var(--elev-3)] sm:max-h-[min(76dvh,860px)]', width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size])
               : cn(
-                  'max-h-[92dvh] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+                  'max-h-[92dvh] max-md:max-h-[92%] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
                   'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
                   width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size],
                 ),
@@ -3629,14 +3629,9 @@ export function Dialog({
             {/* On a phone the actions take a row of their own under the title:
                 three buttons beside it left the title one letter wide. */}
             {actions && <div className="order-last -ml-2 flex w-full flex-wrap items-center gap-1 pt-1 sm:order-none sm:ml-0 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-0.5">{actions}</div>}
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <GlassIconButton label="Close" onClick={close} className="-mr-1">
               <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            </button>
+            </GlassIconButton>
           </div>
         )}
         <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-4 py-4 sm:px-6')}>{children}</div>
@@ -3652,5 +3647,35 @@ export function Dialog({
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* GLASS ICON BUTTON (owner, 2026-10-26: "the cross should be GLASS like iOS,
+   and when I touch it, it moves and increases the size"). The one round
+   close / back key: drawer ✕, every phone ← and the dialog close. Look and
+   press live in index.css under .glass-btn, its own class so the global
+   "buttons shrink 0.98 / rows don't scale" rules never cancel the grow. */
+export function GlassIconButton({
+  label, onClick, children, className, size = 'md', title,
+}: {
+  label: string
+  onClick?: () => void
+  children: ReactNode
+  className?: string
+  /** md = 44px (48 on a phone), sm = 40px (48 on a phone). */
+  size?: 'sm' | 'md'
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={title ?? label}
+      data-glass=""
+      className={cn('glass-btn', size === 'sm' ? 'glass-btn--sm' : null, className)}
+    >
+      {children}
+    </button>
   )
 }

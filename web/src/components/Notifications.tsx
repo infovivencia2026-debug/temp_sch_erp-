@@ -17,7 +17,7 @@ import NotificationRow, { channelOf } from '@/components/NotificationRow'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, GlassIconButton } from '@/components/ui'
 import { dropFromFeed, noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
 import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
@@ -547,7 +547,7 @@ export default function Notifications() {
       {(open || closing) && createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[100] flex justify-end',
+            'vv-screen-phone fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -571,7 +571,7 @@ export default function Notifications() {
                unread card is picked out by its border and bolder title.
                Full screen on a phone -- 100dvh, above the app header -- so it
                no longer starts under the top bar. */
-            className="flex h-[100dvh] w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
+            className="flex h-[100dvh] max-md:h-full w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -583,10 +583,9 @@ export default function Notifications() {
             <header className="shrink-0 border-b bg-card px-5 pb-3 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="whitespace-nowrap text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
-                <button onClick={dismiss} aria-label="Close notifications"
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <X className="size-4" />
-                </button>
+                <GlassIconButton label="Close notifications" size="sm" onClick={dismiss}>
+                  <X className="size-[18px]" />
+                </GlassIconButton>
               </div>
               {items.length > 0 && (
                 <div className="mt-2 flex items-center justify-between gap-2">

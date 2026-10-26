@@ -237,7 +237,7 @@ export function RecordBlock({
      "full page" view would be bounded by a column a third of the screen wide —
      which is the shape the reader pressed the button to escape. */
   const sheet = open ? createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="vv-screen-phone fixed inset-0 z-50 flex flex-col bg-background">
       <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
         <div className="min-w-0">
           <p className="text-[17px] font-semibold">{title}</p>
@@ -348,7 +348,7 @@ export function FieldSheet({ title, studentID, fields, onClose, onSaved }: {
   })
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="vv-screen-phone fixed inset-0 z-50 flex flex-col bg-background">
       <div className="flex items-center justify-between border-b px-6 py-4">
         <p className="text-[17px] font-semibold">{title}</p>
         <Button variant="secondary" onClick={onClose}>Close</Button>

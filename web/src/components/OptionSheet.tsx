@@ -92,7 +92,7 @@ export function OptionSheet({
     : options
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex flex-col justify-end" data-option-sheet="">
+    <div className="vv-screen-phone fixed inset-0 z-[300] flex flex-col justify-end" data-option-sheet="">
       <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         role="dialog"
@@ -177,4 +177,14 @@ export function SheetTrigger({
       <ChevronDown className={cn('size-6 shrink-0 opacity-60 transition-transform', open && 'rotate-180')} aria-hidden="true" />
     </button>
   )
+}
+
+/* A tap inside the sheet is not a tap "away" (Yajur, 2026-10-26: "I can't see
+   students when I choose a class", phone only). The sheet is portaled to
+   <body>, so a dropdown's outside-press listener saw the mousedown on an
+   option as outside, closed the dropdown, and the sheet unmounted before the
+   click landed: nothing was ever chosen. Every outside-press listener of a
+   dropdown that opens this sheet must ask this first. */
+export function inOptionSheet(t: EventTarget | null): boolean {
+  return t instanceof Element && !!t.closest('[data-option-sheet]')
 }
