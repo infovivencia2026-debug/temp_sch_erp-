@@ -25,11 +25,22 @@
    out there always is -- and against what the panel is about to be when
    there is not: 920px or 92vw across, and the min(88vh, 760px) its own class
    sets. */
-function setVectors(panel?: { width: number; height: number } | null): void {
+function setVectors(panel?: { width: number; height: number } | null, on?: HTMLElement): void {
   const root = document.documentElement
-  const cs = getComputedStyle(root)
-  root.style.setProperty('--launch-x', cs.getPropertyValue('--tap-x').trim() || '50vw')
-  root.style.setProperty('--launch-y', cs.getPropertyValue('--tap-y').trim() || '50vh')
+  /* Where the result is written. Before the panel exists it can only be
+     <html>, which the panel inherits from. Once it is mounted, the measured
+     numbers go on the panel itself: written to <html> they restyled the
+     whole page a second time on the opening frame, written here they
+     restyle only the window. */
+  const target = on ?? root
+  /* ALL READS FIRST, THEN THE WRITES, AND ONLY THE ONES THAT CHANGED
+     (owner, 2026-10-26: "settings opening stuck stuck"). Every custom
+     property set on <html> restyles the whole page, and the next read (the
+     gear's rect) forced that restyle at once, on the frame the window first
+     drew. The press point is read from the inline style Shell writes it to,
+     so no getComputedStyle either. */
+  const tapX = root.style.getPropertyValue('--tap-x').trim() || '50vw'
+  const tapY = root.style.getPropertyValue('--tap-y').trim() || '50vh'
   /* offsetWidth/offsetHeight, never getBoundingClientRect: the rect is the
      element's VISUAL box and includes the transform, so measuring the panel
      a frame into its own launch returned the 35px it was scaled down to and
@@ -44,26 +55,30 @@ function setVectors(panel?: { width: number; height: number } | null): void {
   const pw = measured?.width || Math.min(920, window.innerWidth * 0.92)
   const ph = measured?.height || Math.min(window.innerHeight * 0.88, 760)
   /* The gear itself, when it can be found: its centre and its size. */
-  const gear = [...document.querySelectorAll<HTMLElement>('button[aria-label="Settings"]')].find((b) => b.getBoundingClientRect().width > 0)
-  const g = gear?.getBoundingClientRect()
-  if (g) {
-    root.style.setProperty('--launch-x', `${g.left + g.width / 2}px`)
-    root.style.setProperty('--launch-y', `${g.top + g.height / 2}px`)
+  let g: DOMRect | undefined
+  for (const b of document.querySelectorAll<HTMLElement>('button[aria-label="Settings"]')) {
+    const r = b.getBoundingClientRect()
+    if (r.width > 0) { g = r; break }
   }
   const gw = g?.width || 40
   const gh = g?.height || 40
-  const sx = Math.max(0.02, gw / pw)
-  const sy = Math.max(0.02, gh / ph)
-  root.style.setProperty('--launch-sx', sx.toFixed(4))
-  root.style.setProperty('--launch-sy', sy.toFixed(4))
-  /* Kept for anything still reading the single-axis name. */
-  root.style.setProperty('--launch-scale', sx.toFixed(4))
+  const sx = Math.max(0.02, gw / pw).toFixed(4)
+  const sy = Math.max(0.02, gh / ph).toFixed(4)
+  const next: Record<string, string> = {
+    '--launch-x': g ? `${g.left + g.width / 2}px` : tapX,
+    '--launch-y': g ? `${g.top + g.height / 2}px` : tapY,
+    '--launch-sx': sx,
+    '--launch-sy': sy,
+    /* Kept for anything still reading the single-axis name. */
+    '--launch-scale': sx,
+  }
+  for (const k in next) if (target.style.getPropertyValue(k) !== next[k]) target.style.setProperty(k, next[k])
 }
 
 export function markLaunch(): void {
   if (typeof document === 'undefined') return
   const open = document.querySelector<HTMLElement>('[data-appearance-dialog]')
-  setVectors(open ? { width: open.offsetWidth, height: open.offsetHeight } : null)
+  setVectors(open ? { width: open.offsetWidth, height: open.offsetHeight } : null, open ?? undefined)
 }
 
 export function playClose(el: Element | null | undefined, then: () => void, extra?: Element | null): void {
@@ -76,7 +91,9 @@ export function playClose(el: Element | null | undefined, then: () => void, extr
      The sample reads the same geometry afresh on both halves of the trip. */
   if (typeof document !== 'undefined') {
     const h = el as HTMLElement
-    setVectors(h.offsetWidth ? { width: h.offsetWidth, height: h.offsetHeight } : null)
+    /* On the closing element too: it may carry the numbers from its open,
+       which would otherwise win over fresh ones on <html>. */
+    setVectors(h.offsetWidth ? { width: h.offsetWidth, height: h.offsetHeight } : null, h.style ? h : undefined)
   }
   el.setAttribute('data-closing', '')
   extra?.setAttribute('data-closing', '')

@@ -93,6 +93,8 @@ export function trackKeyboardInset() {
   if (!vv) return
 
   let applied = -1
+  let appliedH = -1
+  let appliedT = -1
 
   const measure = () => {
     const hidden = window.innerHeight - vv.height - vv.offsetTop
@@ -100,9 +102,22 @@ export function trackKeyboardInset() {
     /* Only on change. These events fire per frame while the keyboard animates
        in, and writing an identical value still invalidates style for the
        whole document. */
-    if (kb === applied) return
-    applied = kb
-    root.style.setProperty('--kb', kb + 'px')
+    if (kb !== applied) {
+      applied = kb
+      root.style.setProperty('--kb', kb + 'px')
+    }
+    /* --vvh / --vv-top: the visible rectangle itself, for the phone's
+       full-screen layers (.vv-screen-phone in index.css). On iOS the keyboard
+       shrinks only the visual viewport and may scroll it by offsetTop; a
+       layer sized by inset-0 or 100dvh keeps the whole screen's height and
+       whatever is underneath shows between its composer and the keys. Under a
+       pinch zoom the numbers describe the zoomed window, so the layer keeps
+       the full screen then. */
+    const zoomed = vv.scale > 1.01
+    const h = zoomed ? window.innerHeight : Math.round(vv.height)
+    const t = zoomed ? 0 : Math.max(0, Math.round(vv.offsetTop))
+    if (h !== appliedH) { appliedH = h; root.style.setProperty('--vvh', h + 'px') }
+    if (t !== appliedT) { appliedT = t; root.style.setProperty('--vv-top', t + 'px') }
   }
 
   vv.addEventListener('resize', measure)
@@ -110,4 +125,22 @@ export function trackKeyboardInset() {
      rather than resizing it when the focused field is already near the top. */
   vv.addEventListener('scroll', measure)
   measure()
+}
+
+/* ONE LOCK FOR THE PAGE UNDER A FULL-SCREEN LAYER.
+
+   Counted, so a sheet closed over a conversation does not unlock the page
+   while the conversation is still up. html as well as body: iOS scrolls the
+   root, and with only body locked it could still slide the page (and the
+   list on it) into view under a layer. */
+let locks = 0
+export function lockPageScroll(): () => void {
+  const html = document.documentElement
+  if (locks++ === 0) html.dataset.pageLocked = ''
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    if (--locks === 0) delete html.dataset.pageLocked
+  }
 }

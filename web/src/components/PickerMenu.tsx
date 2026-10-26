@@ -177,7 +177,7 @@ export function PickerMenu<T extends string>({
               {current?.label ?? placeholder}
             </span>
             <ChevronDown
-              className={cn('size-4 shrink-0 opacity-60 transition-transform', open && 'rotate-180')}
+              className={cn('field-chevron size-4 shrink-0 opacity-60 transition-transform', open && 'rotate-180')}
               aria-hidden="true"
             />
           </>

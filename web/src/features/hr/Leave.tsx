@@ -254,6 +254,33 @@ export default function Leave() {
   // The school has leave types but none is given to this person: say so rather than show an empty picker.
   const noneGiven = own && (types.data?.items.length ?? 0) > 0 && mineTypes.isSuccess && leaveTypes.length === 0
   const [applied, setApplied] = useState('')
+  /* What was sent stays on screen as it was given, read only, with an Edit
+     button (owner, 2026-10-26: "let them choose an Edit button and edit;
+     until then show what they gave"). Edit only while it is still pending. */
+  type Sent = typeof form & { id: string }
+  const [sent, setSent] = useState<Sent | null>(null)
+  const [editing, setEditing] = useState(false)
+  const blank = { from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '', employee_id: '', kind: 'leave', hours: '' }
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch(`/api/v1/workflow/leave/${sent!.id}`, {
+        from_date: form.from_date,
+        to_date: form.kind === 'permission' ? form.from_date : form.to_date,
+        reason: form.reason,
+        is_half_day: form.is_half_day,
+        leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
+        hours: form.kind === 'permission' ? Number(form.hours) : undefined,
+      }),
+    onSuccess: () => {
+      setSent({ ...form, id: sent!.id })
+      setForm(blank)
+      setEditing(false)
+      setApply(false)
+      qc.invalidateQueries({ queryKey: ['leave-types', 'mine'] })
+      qc.invalidateQueries({ queryKey: ['leave'] })
+    },
+  })
+  const cancelEdit = () => { setEditing(false); setApply(false); setForm(blank); save.reset() }
   const send = useMutation({
     mutationFn: () =>
       api.post('/api/v1/workflow/leave', {
@@ -265,7 +292,9 @@ export default function Leave() {
         // is the signed-in employee" path rather than being handed an empty id.
         employee_id: form.employee_id || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (r) => {
+      const id = (r as { id?: string } | undefined)?.id
+      setSent(id ? { ...form, id } : null)
       setApplied('Sent. Whoever approves leave here will see it, the head of department or the principal, whichever gets there first.')
       setForm({
         from_date: '', to_date: '', reason: '', is_half_day: false,
@@ -398,7 +427,7 @@ export default function Leave() {
                  card's header shallower at the top than at the bottom, which
                  is trading one crooked thing for another. */
               <div className="-mt-[5.25px] mb-[5.25px]">
-                <Button variant={apply ? 'ghost' : 'primary'} onClick={() => setApply((v) => !v)}>
+                <Button variant={apply ? 'ghost' : 'primary'} onClick={() => (editing ? cancelEdit() : setApply((v) => !v))}>
                   {apply ? 'Cancel' : 'Apply for leave'}
                 </Button>
               </div>
@@ -504,7 +533,19 @@ export default function Leave() {
                 Half day
               </label>
               )}
-              <FormNotice error={send.error} />
+              <FormNotice error={editing ? save.error : send.error} />
+              {editing ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="m-0"
+                    disabled={!form.from_date || (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) || !form.reason.trim() || save.isPending}
+                    onClick={() => save.mutate()}
+                  >
+                    {save.isPending ? 'Saving…' : 'Save'}
+                  </Button>
+                  <Button className="m-0" variant="secondary" onClick={cancelEdit}>Cancel</Button>
+                </div>
+              ) : (
               <Button
                 className="m-0 self-start"
                 disabled={
@@ -520,11 +561,35 @@ export default function Leave() {
               >
                 {send.isPending ? 'Sending…' : 'Send the request'}
               </Button>
+              )}
             </div>
           )}
           {!apply && applied && (
             <p className="m-0 text-[13.5px] text-muted-foreground" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>{applied}</p>
           )}
+          {!apply && sent && (() => {
+            const status = all.find((r) => r.id === sent.id)?.status ?? 'pending'
+            const kindName = sent.kind === 'comp_off' ? 'Compensatory off' : sent.kind === 'permission' ? `Permission, ${sent.hours} h`
+              : leaveTypes.find((t) => t.id === sent.leave_type_id)?.name ?? 'Leave'
+            const when = sent.kind === 'permission' || sent.from_date === sent.to_date
+              ? formatDate(sent.from_date) : `${formatDate(sent.from_date)} to ${formatDate(sent.to_date)}`
+            return (
+              <div className="flex flex-col gap-3" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>
+                <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
+                  <dt className="text-muted-foreground">Dates</dt><dd className="m-0">{when}{sent.is_half_day && sent.kind !== 'permission' ? ' (half day)' : ''}</dd>
+                  <dt className="text-muted-foreground">Type</dt><dd className="m-0">{kindName}</dd>
+                  <dt className="text-muted-foreground">Reason</dt><dd className="m-0 break-words">{sent.reason}</dd>
+                  <dt className="text-muted-foreground">Status</dt><dd className="m-0"><StatusPill status={status} /></dd>
+                </dl>
+                {status === 'pending' && (
+                  <Button className="m-0 self-start" variant="secondary"
+                    onClick={() => { const { id: _id, ...v } = sent; setForm(v); setEditing(true); setApplied(''); setApply(true) }}>
+                    Edit
+                  </Button>
+                )}
+              </div>
+            )
+          })()}
         </Card>
         )}
         {/* Below the leave form, not above it: applying is what most people come here for (Yajur, 2026-10-24). */}

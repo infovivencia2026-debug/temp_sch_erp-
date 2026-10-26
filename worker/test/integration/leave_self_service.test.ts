@@ -43,4 +43,23 @@ describe('leave self service', () => {
     const pending = await api('teacher', 'GET', '/hr/leave?for=mine&status=pending')
     expect(pending.body.items.some((l: { id: string }) => l.id === row!.id)).toBe(false)
   })
+
+  it('edits a pending request, and refuses once it is decided', async () => {
+    const sent = await api('teacher', 'POST', '/workflow/leave', { leave_type_id: given, from_date: isoDay(20), to_date: isoDay(20), reason: 'Before edit' })
+    expect(sent.status).toBe(201)
+    const id = sent.body.id as string
+    const ed = await api('teacher', 'PATCH', '/workflow/leave/' + id, { from_date: isoDay(20), to_date: isoDay(21), reason: 'After edit' })
+    expect(ed.status).toBe(200)
+    const row = await T().prepare('SELECT reason, to_date, days FROM leave_requests WHERE id = ?').bind(id).first<{ reason: string; to_date: string; days: string }>()
+    expect(row!.reason).toBe('After edit')
+    expect(row!.to_date).toBe(isoDay(21))
+    expect(row!.days).toBe('2')
+    // Somebody else cannot edit it.
+    expect((await api('admin', 'PATCH', '/workflow/leave/' + id, { reason: 'Not mine' })).status).toBe(404)
+    expect((await api('admin', 'POST', '/workflow/leave/' + id + '/decide', { decision: 'rejected' })).status).toBe(200)
+    const late = await api('teacher', 'PATCH', '/workflow/leave/' + id, { reason: 'Too late' })
+    expect(late.status).toBe(409)
+    const kept = await T().prepare('SELECT reason FROM leave_requests WHERE id = ?').bind(id).first<{ reason: string }>()
+    expect(kept!.reason).toBe('After edit')
+  })
 })

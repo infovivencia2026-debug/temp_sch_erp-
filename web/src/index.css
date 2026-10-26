@@ -1151,30 +1151,67 @@
     height: var(--control-h);
     width: 100%;
     border-radius: var(--radius-input);
-    padding-inline: 12px;
+    padding-inline: 16px;
     font-size: 14px;
-    border: 1px solid transparent;
-    background: hsl(var(--card));
+    /* FROSTED BOX (owner, 2026-10-26: "why all dropdowns box disappeared???",
+       design gemini-code-1792989420521.html). Every field -- dropdown,
+       input, textarea -- is a visible frosted box: translucent card, 10px
+       blur, a token border that still shows on a white card. */
+    border: 1px solid hsl(var(--border-strong) / 0.75);
+    background: hsl(var(--card) / 0.55);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     color: hsl(var(--foreground));
-    /* Inset, not raised. A field and a card were the same white rectangle
-       with the same hairline; the shade inside the top edge is what makes
-       one read as a place to type and the other as a thing to read. */
-    box-shadow: var(--field-shadow);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
   }
-  /* A BOX DOES NOT ANSWER THE POINTER.
-
-     Every input and search box darkened its border as the cursor crossed it.
-     A button does that because it can be pressed and the wash says so; a text
-     box cannot be pressed, it is typed into, and the only state worth drawing
-     is the one that says where the typing will go. On a screen of a dozen
-     fields the effect was a border lighting up under the pointer on the way
-     to somewhere else, which reads as the page reacting to nothing. Focus
-     still marks the box, as it always did. */
+  /* Hover look on phone AND web (owner: "HOVER SHOULD BE THERE IN BOTH
+     PHONE AND WEB"): phones have no hover, so press, focus and an open
+     dropdown draw the same lift, primary border and glow. */
+  .field:not(:disabled):hover,
+  .field:not(:disabled):focus-visible,
+  .field:not(:disabled):active,
+  .field[aria-expanded='true'] {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
+  .field:not(:disabled):active { transform: translateY(-2px) scale(0.99); }
+  /* THE CHEVRON MOVES WITH ITS FIELD (owner, 2026-10-26: "when buttons
+     hover those should also hover with that"). Every dropdown's arrow --
+     Select, PickerMenu, the phone SheetTrigger, settings DropdownRow --
+     carries .field-chevron. Hover/press/focus on its trigger, or the list
+     being open, turns it primary with a small nudge. `translate` is its own
+     property, so Tailwind's rotate-180 (open = ^) still applies. */
+  .field-chevron { transition: color 0.2s ease, opacity 0.2s ease, translate 0.2s ease, background-color 0.2s ease, transform 0.2s ease; }
+  :is(button, .field):not(:disabled):is(:hover, :active, :focus-visible) .field-chevron,
+  [aria-expanded='true'] .field-chevron {
+    color: hsl(var(--primary));
+    opacity: 1;
+  }
+  :is(button, .field):not(:disabled):is(:hover, :active) .field-chevron { translate: 0 1px; }
+  /* Select draws its arrow as a sibling button over the input, so it
+     follows the input's lift (-2px) and lifts the input when it is the one
+     hovered -- the two move as one control. */
+  .field:not(:disabled):is(:hover, :focus, :active, [aria-expanded='true']) + .field-chevron-btn,
+  .field-chevron-btn:hover,
+  .field-chevron-btn[aria-expanded='true'] {
+    color: hsl(var(--primary));
+    translate: 0 -2px;
+  }
+  .field-chevron-btn:active { translate: 0 -1px; }
+  .field:not(:disabled):has(+ .field-chevron-btn:hover) {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
   .field:focus {
     outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: var(--field-shadow), var(--ring-halo);
+    border-color: hsl(var(--primary));
+    background: hsl(var(--card) / 0.9);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15), 0 6px 16px hsl(var(--primary) / 0.1);
   }
   /* The same recess for an input that is not a .field -- the launcher's
      filter box, a search bar drawn in utilities. */
@@ -5104,10 +5141,11 @@ input[type="number"]::-webkit-inner-spin-button {
     font-size: calc(16px * var(--font-scale)) !important;
   }
   /* Every button and button-like link is a 48 target; its icon draws at 24. */
-  main button:not([role='switch']), main a[role='button'], nav button, nav a[aria-label] {
+  /* Not the Focus page dots: 7px dots with their own hit area (restored 2026-10-26; this rule drew them as 48px blobs). */
+  main button:not([role='switch']):not(.bento-dot), main a[role='button'], nav button, nav a[aria-label] {
     min-height: 48px;
   }
-  main button[aria-label], nav button[aria-label], nav a[aria-label] { min-width: 48px; }
+  main button[aria-label]:not(.bento-dot), nav button[aria-label], nav a[aria-label] { min-width: 48px; }
   main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
 }
 
@@ -5214,6 +5252,33 @@ nav:has(> .nav-pill) { gap: 12px !important; }
 .nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { opacity: 1; transform: none; transition-delay: 0s, .08s, 0s; }
 @media (prefers-reduced-motion: reduce) { .nav-pill__body > .nav-pill__sub { transition: none; transform: none; } }
 
+/* THE PHONE'S FULL-SCREEN LAYERS FOLLOW THE VISIBLE SCREEN (2026-10-26).
+
+   inset-0 and 100dvh are the LAYOUT viewport, which iOS never shrinks for the
+   keyboard: the conversation kept the whole screen's height, its composer
+   floated mid-screen and the contact list showed between it and the keys.
+   --vvh / --vv-top are the visual viewport (lib/keyboard.ts), so the layer is
+   exactly the visible part of the screen, its last row (composer, Save bar)
+   sits on the keyboard, and nothing underneath can show. Below md only, so a
+   desk's side panel or centred card is unchanged. The layers keep their own
+   opaque backgrounds. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: var(--vv-top, 0px) !important;
+    bottom: auto !important;
+    height: var(--vvh, 100dvh) !important;
+    max-height: none !important;
+  }
+}
+/* The page under an open layer does not scroll (lockPageScroll). */
+html[data-page-locked],
+html[data-page-locked] body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
 /* GLASS ICON BUTTON (owner, 2026-10-26). iOS liquid glass: a translucent,
    blurred, saturated disc with a hairline highlight and a soft shadow. On
    press it grows and lifts on the spring (transform + filter only); under
@@ -5257,4 +5322,18 @@ button.glass-btn:active:not(:disabled) {
 .glass-btn.glass-btn--dark { color: #fff; border-color: hsl(0 0% 100% / 0.18); background: hsl(0 0% 0% / 0.45); }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
+}
+
+/* THE PHONE DROPDOWN'S SEARCH FIELD (owner design, 2026-10-26,
+   docs/owner-designs/2026-10-26-phone-dropdown-search.html): muted fill at
+   rest; on focus the card colour with a primary edge and a soft primary ring,
+   drawn as box-shadow, not a border. Specific enough to beat the generic
+   search-field rule above. */
+[data-option-sheet] input.option-sheet-search.option-sheet-search {
+  background-color: hsl(var(--muted));
+  box-shadow: 0 0 0 1px transparent !important;
+}
+[data-option-sheet] input.option-sheet-search.option-sheet-search:focus {
+  background-color: hsl(var(--card));
+  box-shadow: 0 0 0 1px hsl(var(--primary)), 0 0 0 4px hsl(var(--primary) / 0.1) !important;
 }
