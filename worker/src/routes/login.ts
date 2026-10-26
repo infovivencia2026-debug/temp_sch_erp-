@@ -47,8 +47,18 @@ export function loginLang(req: Request | undefined, school?: Institution | null)
   return { lang: 'en', asked: false }
 }
 
+/* The wrong-details message in the words of the tab the person used. */
+const TAB_NOMATCH: Record<string, string> = {
+  parent: 'That phone number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
+  student: 'That admission number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
+  staff: 'That school email or phone number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
+}
+
 /* The errors this file shows, in Telugu. Anything not here stays English. */
 const ERRORS_TE: Record<string, string> = {
+  [TAB_NOMATCH.parent]: 'ఫోన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
+  [TAB_NOMATCH.student]: 'అడ్మిషన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
+  [TAB_NOMATCH.staff]: 'స్కూల్ ఈమెయిల్ లేదా ఫోన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
   'Malformed form submission.': 'ఫారం సరిగా రాలేదు. మళ్ళీ ప్రయత్నించండి.',
   'Your sign-in form expired. Please try again.': 'సైన్ ఇన్ ఫారం గడువు ముగిసింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
   'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.':
@@ -370,6 +380,8 @@ export async function login(env: Env, req: Request, school?: Institution | null,
     await failed(env, 'ip:' + ip, 1 / 5)
     await record(env, req, identifier, r.outcome, null, null)
     let msg = 'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.'
+    const tab = String(form.get('tab') ?? '')
+    if (TAB_NOMATCH[tab]) msg = TAB_NOMATCH[tab]
     if (r.outcome === 'school_paused') msg = "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on."
     if (r.outcome === 'ambiguous') msg = 'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.'
     return page(env, { error: msg, next, identifier, status: 401 })

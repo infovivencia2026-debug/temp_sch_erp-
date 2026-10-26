@@ -3,6 +3,7 @@ import { now } from '../env'
 import { hashPassword } from '../auth/password'
 import { institutionById, tenantDb } from '../tenant'
 import { forgotPage, resetPage } from './render'
+import { tabWords } from '../auth/login-page'
 import { kickDispatch, platformProviders } from '../services/messaging'
 import { NO_STORE, badForm, field, formOf, html, sha256hex } from './http'
 
@@ -16,8 +17,14 @@ const RESET_WINDOW_MS = 15 * 60_000
 const SAME_ANSWER = 'If that account exists, a reset link has been issued. It is good for fifteen minutes.'
 const EXPIRED = 'That link has expired or has already been used. Ask for another.'
 
-export function showForgot(): Response {
-  return html(forgotPage({}), 200, NO_STORE)
+export function showForgot(url?: URL): Response {
+  return html(forgotPage({ tab: forgotTab(url?.searchParams.get('tab') ?? '') }), 200, NO_STORE)
+}
+
+/** The sign-in tab the person came from, so the field uses its words. */
+function forgotTab(id: string): { id: string; label: string; mode: string } | null {
+  const w = tabWords('en', id)
+  return w ? { id, ...w } : null
 }
 
 interface Owner { institution_id: string | null; user_id: string; email: string | null; phone: string | null }
@@ -49,7 +56,8 @@ export async function forgot(env: Env, req: Request): Promise<Response> {
   if (!form) return badForm()
   const who = field(form, 'identifier').trim()
   if (!who) {
-    return html(forgotPage({ error: 'Enter the email address, username or phone number you sign in with.' }), 400, NO_STORE)
+    const tab = forgotTab(field(form, 'tab').trim())
+    return html(forgotPage({ error: tab ? `Enter your ${tab.label.toLowerCase()}.` : 'Enter the email address, username or phone number you sign in with.', tab }), 400, NO_STORE)
   }
   const channel = ['phone', 'sms', 'whatsapp'].includes(field(form, 'channel').trim()) ? 'phone' : 'email'
 

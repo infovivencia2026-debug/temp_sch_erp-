@@ -20,8 +20,17 @@ function fill(page: string, vals: Record<string, string>, raw: Record<string, st
     k === 'V' ? ASSET_VERSION : k in raw ? raw[k] : k in vals ? esc(vals[k]) : m)
 }
 
-export function forgotPage(v: { error?: string; notice?: string; sent?: string }): string {
-  if (!v.notice) return fill(C.FORGOT_FORM, { ERROR: v.error ?? '' })
+export function forgotPage(v: { error?: string; notice?: string; sent?: string; tab?: { id: string; label: string; mode: string } | null }): string {
+  if (!v.notice) {
+    let page = C.FORGOT_FORM
+    /* Opened from a sign-in tab: the field uses that tab's words. */
+    if (v.tab) {
+      page = page.replace('<label for="identifier">Email, username or phone</label>', `<label for="identifier">${esc(v.tab.label)}</label>`)
+        .replace('<input id="identifier" name="identifier" autocomplete="username"', `<input type="hidden" name="tab" value="${esc(v.tab.id)}">
+          <input id="identifier" name="identifier" inputmode="${esc(v.tab.mode)}" autocomplete="username"`)
+    }
+    return fill(page, { ERROR: v.error ?? '' })
+  }
   let page = C.FORGOT_NOTICE
   if (!v.sent) page = page.replace('\n        <p class="fineprint">Sent to @@SENT@@.</p>\n      ', '')
   return fill(page, { ERROR: v.error ?? '', NOTICE: v.notice, SENT: v.sent ?? '' })

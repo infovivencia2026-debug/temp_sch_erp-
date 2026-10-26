@@ -40,14 +40,14 @@ beforeAll(async () => {
 const at = (host: string, path: string, init: RequestInit & { cookie?: string } = {}) =>
   call(path, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), 'x-forwarded-host': host } })
 
-async function signInAt(host: string, identifier: string, password = PASSWORD) {
+async function signInAt(host: string, identifier: string, password = PASSWORD, tab = '') {
   const page = await at(host, '/login')
   const csrf = (page.headers.get('set-cookie') ?? '').match(/erp_csrf=([^;]+)/)![1]
   const token = (await page.text()).match(/name="csrf_token"\s+value="([^"]+)"/)![1]
   const res = await at(host, '/login', {
     method: 'POST', cookie: `erp_csrf=${csrf}`,
     headers: { 'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '198.51.100.' + Math.floor(Math.random() * 250) },
-    body: new URLSearchParams({ identifier, password, csrf_token: token, next: '/' }),
+    body: new URLSearchParams({ identifier, password, csrf_token: token, next: '/', ...(tab ? { tab } : {}) }),
   })
   return { res, session: /erp_session=[^;]+/.test(res.headers.get('set-cookie') ?? ''), text: res.status === 303 ? '' : await res.text() }
 }
@@ -82,5 +82,17 @@ describe('staff sign in with a plain phone number or school email', () => {
     expect(h).toMatch(/"label":"Phone number"[^}]*"mode":"tel"/)
     expect(h).toMatch(/"label":"School email or phone number"[^}]*"mode":"text"/)
     expect(h).toContain('Admission number')
+  })
+  it('wrong details are told in the words of the tab used', async () => {
+    expect((await signInAt('test.xulo.in', PHONE, 'nope', 'staff')).text).toContain('That school email or phone number and password do not match')
+    expect((await signInAt('test.xulo.in', '9000000999', 'nope', 'parent')).text).toContain('That phone number and password do not match')
+    expect((await signInAt('test.xulo.in', 'A-1', 'nope')).text).toContain('That username, email or phone and password do not match')
+  })
+  it('the forgotten-password page uses the tab words', async () => {
+    const p = await (await call('/forgot?tab=parent')).text()
+    expect(p).toContain('<label for="identifier">Phone number</label>')
+    expect(p).toContain('inputmode="tel"')
+    expect(await (await call('/forgot?tab=staff')).text()).toContain('<label for="identifier">School email or phone number</label>')
+    expect(await (await call('/forgot')).text()).toContain('<label for="identifier">Email, username or phone</label>')
   })
 })

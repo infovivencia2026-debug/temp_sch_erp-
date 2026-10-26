@@ -77,6 +77,12 @@ const WORDS: Record<LoginLang, Record<string, string>> = {
   },
 }
 
+/** One tab's field words, for the error and the forgotten-password page (same words as the tab). */
+export function tabWords(lang: LoginLang, id: string): { label: string; mode: string } | null {
+  const t = MORE[lang === 'te' ? 'te' : 'en'].tabs.find((x) => x.id === id)
+  return t ? { label: t.label, mode: t.mode } : null
+}
+
 /* Words for the tabs, the vendor page, the gallery and the school chooser. */
 const MORE: Record<LoginLang, {
   tabs: { id: string; name: string; label: string; hint: string; mode: string; ac: string }[]
@@ -164,6 +170,13 @@ const tabsScript = (lang: LoginLang) => {
     input.setAttribute('autocomplete', c.ac)
     if (focus) tabs[i].focus()
     try { localStorage.setItem('login-tab', c.id) } catch (e) {}
+    if (input.form) {
+      var tf = input.form.querySelector('input[name="tab"]')
+      if (!tf) { tf = document.createElement('input'); tf.type = 'hidden'; tf.name = 'tab'; input.form.appendChild(tf) }
+      tf.value = c.id
+    }
+    var fl = document.querySelector('a[href^="/forgot"]')
+    if (fl) fl.setAttribute('href', '/forgot?tab=' + c.id)
   }
   var start = 0
   try {
