@@ -224,3 +224,4 @@ Last checked: 2026-10-02.
 - 2026-10-26 Login screen: minimal line icons in the Parent (two people), Student (graduation cap) and Staff (ID badge) tabs; inline SVG, stroke 1.75, currentColor, 18px (20px on phone); tab behaviour, sizes and active styling unchanged. Status: on main, test/integration/login_page.test.ts; not browser-checked.
 - 2026-10-26 Institution admin web bell: on desktop (md+) the shared Notifications bell (unread count, View on every row) now sits beside the search in the header for the institution admin on the staff sidebar (which has no rail bell); phones unchanged. Status: branch admin-web-bell, not pushed.
 - 2026-10-26 Web notification bell bigger for every role: 40px button, 22px bell (was 36/16); phones unchanged. Type-checked.
+- 2026-10-26 Sign out: pressing Sign Out shows "Signing out…" at once, locks both buttons and stops background downloads so the sign-out request goes straight out (was ~1.8s with no feedback). Type-checked.
