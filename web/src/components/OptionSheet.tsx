@@ -306,7 +306,7 @@ export function SheetTrigger({
       aria-expanded={open}
       aria-label={ariaLabel}
       onClick={onOpen}
-      className="flex min-h-[52px] w-full items-center justify-between gap-2 rounded-[12px] bg-card px-4 text-left text-[16px] text-foreground shadow-[var(--field-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="field flex min-h-[52px] w-full items-center justify-between gap-2 rounded-[12px] px-4 text-left text-[16px] text-foreground"
     >
       <span className={cn('min-w-0 truncate', !label && 'text-muted-foreground')} style={style}>{label || placeholder}</span>
       <ChevronDown className={cn('size-6 shrink-0 opacity-60 transition-transform', open && 'rotate-180')} aria-hidden="true" />
