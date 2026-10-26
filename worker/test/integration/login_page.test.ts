@@ -61,12 +61,13 @@ describe('sign-in page', () => {
     expect(h).not.toContain('@@')
   })
 
-  it('phone pages: Parent / Student / Staff buttons and a back control; a failed sign-in opens on the form', () => {
+  it('phone pages: Parent / Student / Staff toggle and a back control; a failed sign-in opens on the form', () => {
     const slides = ['/a.png', '/b.png']
     const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides } })
-    expect(h).toContain('<div class="auth-go" role="group"')
-    for (const r of ['parent', 'student', 'staff']) expect(h).toContain(`<button type="button" data-role="${r}"><svg`)
-    expect(h).toContain('<span>Parent</span></button><button type="button" data-role="student">')
+    expect(h).toContain('<div class="who auth-go" role="group"')
+    expect(h).toContain("var list = document.querySelector('.card .who')")
+    for (const r of ['parent', 'student', 'staff']) expect(h).toMatch(new RegExp(`<button type="button" data-role="${r}" aria-pressed="(true|false)"><svg`))
+    expect(h).toContain('<span>Parent</span></button><button type="button" data-role="student" aria-pressed="false">')
     expect(h).toContain('class="auth-back" aria-label="Back"')
     expect(h).toContain("history.pushState({ signin: role }, '', '#signin-' + role)")
     expect(h).toContain('.auth-split.has-slides.p2 .who{display:none}')

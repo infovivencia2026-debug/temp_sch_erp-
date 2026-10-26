@@ -144,7 +144,7 @@ const tabsScript = (lang: LoginLang) => {
 <script>
 (function () {
   var T = ${JSON.stringify(t).replace(/</g, '\\u003c')}
-  var list = document.querySelector('.who')
+  var list = document.querySelector('.card .who')
   var input = document.getElementById('identifier')
   var label = document.getElementById('identifier-label')
   var hint = document.getElementById('identifier-hint')
@@ -256,14 +256,18 @@ const SLIDES_CSS = `
   .auth-split.has-slides .auth-brand-sub{display:none}
   .auth-split.has-slides .auth-bars{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 6px);left:20px;right:64px;margin:0;gap:4px}
   .auth-split.has-slides .auth-bars button{flex:1 1 0;width:auto;height:28px}
-  .auth-split.has-slides:not(.p2) .auth-go{display:flex;flex-direction:column;gap:10px;position:absolute;z-index:2;left:20px;right:20px;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px)}
-  .auth-go button{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-width:0;height:52px;margin:0;padding:0 16px;border:0;border-radius:24px;
-    background:var(--who-thumb, var(--brand, var(--accent)));color:#fff;font-size:16px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
-  .auth-go button:hover{background:var(--who-thumb, var(--brand, var(--accent)))}
-  .auth-go button:active{transform:scale(0.98)}
-  .auth-go button:focus-visible{outline:2px solid #fff;outline-offset:2px}
-  .auth-go svg{flex:none;width:22px;height:22px}
-  .auth-go span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Page one's Parent / Student / Staff: the form's own toggle (.who), on a
+     glass track so it reads over the photo, segments taller for a thumb. */
+  body.auth .auth-split.has-slides:not(.p2) .auth-go{display:flex;position:absolute;z-index:2;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom, 0px) + 16px);margin:0;
+    background:color-mix(in srgb, var(--surface) 82%, transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
+    box-shadow:0 8px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.25)}
+  body.auth .auth-split.has-slides .auth-go button{height:60px;font-size:14px;color:var(--fg)}
+  body.auth .auth-split.has-slides .auth-go button[aria-pressed="true"]{color:#fff}
+  .auth-go button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  @media (max-width:379px){
+    body.auth .auth-split.has-slides:not(.p2) .auth-go{left:12px;right:12px;padding:3px}
+    body.auth .auth-split.has-slides .auth-go button{padding:0 2px;font-size:13px}
+  }
   body.auth:has(.has-slides:not(.p2)) .auth-top .theme-toggle{z-index:3;background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.3);color:#fff}
 
   /* Page two. */
@@ -314,12 +318,12 @@ function barsHTML(slides: string[], lang: LoginLang): string {
     `<button type="button" aria-label="${esc(`${m.picture} ${i + 1} / ${slides.length}`)}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>`
 }
 
-/* The phone's page-one role buttons (Parent / Student / Staff, the tabs'
-   icons) and page-two back control; hidden on wider screens by CSS. */
+/* The phone's page-one role toggle (Parent / Student / Staff, the form's
+   own toggle) and page-two back control; hidden on wider screens by CSS. */
 function phoneButtonsHTML(lang: LoginLang): string {
   const m = MORE[lang]
-  return `<div class="auth-go" role="group" aria-label="${esc(m.tablist)}">${m.tabs.map((t) =>
-    `<button type="button" data-role="${t.id}">${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>
+  return `<div class="who auth-go" role="group" aria-label="${esc(m.tablist)}"><span class="who-thumb" aria-hidden="true"></span>${m.tabs.map((t, i) =>
+    `<button type="button" data-role="${t.id}" aria-pressed="${i ? 'false' : 'true'}">${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>
       <button type="button" class="auth-back" aria-label="${esc(m.back)}" title="${esc(m.back)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>`
 }
 
@@ -348,7 +352,7 @@ const PHONE_JS = `
     as.innerHTML = tab.innerHTML
   }
   function current() {
-    var t = split.querySelector('.who [aria-selected="true"]')
+    var t = split.querySelector('.card .who [aria-selected="true"]')
     return t ? t.id.replace(/^tab-/, '') : ''
   }
   function fromHash() {
@@ -356,7 +360,7 @@ const PHONE_JS = `
     return m ? (m[1] || current() || 'parent') : null
   }
   function show(role) {
-    if (role) choose(role)
+    if (role) { choose(role); mark(role) }
     split.classList.toggle('p2', !!role)
     window.scrollTo(0, 0)
   }
@@ -369,9 +373,19 @@ const PHONE_JS = `
     try { history.replaceState(null, '', '#signin-' + r) } catch (e) {}
     show(r)
   }
+  function mark(role) {
+    roles.forEach(function (b, i) {
+      var on = b.getAttribute('data-role') === role
+      b.setAttribute('aria-pressed', on ? 'true' : 'false')
+      if (on) go.style.setProperty('--i', String(i))
+    })
+  }
+  mark(current() || 'parent')
+  window.requestAnimationFrame(function () { go.classList.add('ready') })
   roles.forEach(function (b) {
     b.addEventListener('click', function () {
       var role = b.getAttribute('data-role')
+      mark(role)
       try { history.pushState({ signin: role }, '', '#signin-' + role); pushed = true } catch (e) {}
       show(role)
     })
