@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState, PageBody, Input } from '@/components/ui'
-import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
-import { ImportButton, ExportButton } from '@/components/DataPortActions'
-import { useCan } from '@/lib/session'
+import { SearchBox, Showing, useSearch } from '@/components/rows'
+import { ImportButton } from '@/components/DataPortActions'
+import { PickerMenu } from '@/components/PickerMenu'
+import { useIsPhone } from '@/components/OptionSheet'
+import { useCan, useSessionIfAny } from '@/lib/session'
 import { useActiveRole } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -20,14 +22,17 @@ type Status = (typeof STATUSES)[number]
    until you open it. One tap per child, and the whole row's state readable
    without touching anything.
 
-   Four marks, not six. Holiday is a property of the day rather than of a
-   child, and half-day is rare enough to belong behind "more" rather than
-   taking a quarter of the width on every row. */
+   Five marks, not six: holiday is a property of the day rather than of a
+   child. */
+/* Each mark is a bordered segment that reads as a button before it is
+   pressed (owner, 2026-10-26: they looked like plain text), and fills with
+   its status colour once chosen. Half-day is the fifth, after leave. */
 const QUICK: { value: Status; short: string; label: string; tone: string }[] = [
-  { value: 'present', short: 'P', label: 'Present', tone: 'text-success border-success/40 bg-success/10' },
-  { value: 'absent', short: 'A', label: 'Absent', tone: 'text-destructive border-destructive/40 bg-destructive/10' },
-  { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning/40 bg-warning/10' },
-  { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-secondary-foreground border-border-strong bg-surface-hover' },
+  { value: 'present', short: 'P', label: 'Present', tone: 'text-success border-success bg-success/15 ring-1 ring-success' },
+  { value: 'absent', short: 'A', label: 'Absent', tone: 'text-destructive border-destructive bg-destructive/15 ring-1 ring-destructive' },
+  { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning bg-warning/15 ring-1 ring-warning' },
+  { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-foreground border-foreground/60 bg-surface-hover ring-1 ring-foreground/60' },
+  { value: 'half_day', short: '½', label: 'Half day', tone: 'text-foreground border-foreground/60 bg-surface-hover ring-1 ring-foreground/60' },
 ]
 
 const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
@@ -50,6 +55,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
      live in Reports), clear Mark all buttons and rows tinted by their mark.
      Other roles with this screen keep it as it was. */
   const teacherView = useActiveRole()?.key === 'faculty'
+  const phone = useIsPhone()
+  /* The WhatsApp / SMS / Email ticks are a school setting
+     (attendance.absent_channels, module 'attendance_absent_channels'): on
+     unless the school switched it off. Off, parents are told in the app only. */
+  const offerChannels = useSessionIfAny()?.modules
+    ?.find((m) => m.module === 'attendance_absent_channels')?.enabled !== false
   const [sectionId, setSectionId] = useState('')
   // Today on this device's calendar (toISOString is UTC, which is yesterday before 05:30 in India).
   const [onDate, setOnDate] = useState(() => new Date().toLocaleDateString('en-CA'))
@@ -159,7 +170,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     mutationFn: (entries) =>
       api.call('POST /attendance', { body: {
         section_id: sectionId, on_date: onDate, entries,
-        notify_channels: channels, silent,
+        notify_channels: offerChannels ? channels : [], silent: offerChannels && silent,
       } }),
     queryKeys: [['attendance', sectionId, onDate]],
     apply: (old, entries) => {
@@ -200,6 +211,11 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
 
   const markAll = (status: Status) =>
     setDraft(Object.fromEntries(students.map((s) => [s.id, status])))
+  const saveDraft = () => {
+    const entries = Object.entries(draft).map(([student_id, status]) => ({ student_id, status }))
+    setDraft({})
+    save.mutate(entries)
+  }
 
   /* The running tally, over the WHOLE section rather than the filtered view: a
      search that hides half the class must not make the count of who is in look
@@ -241,13 +257,13 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               }))}
             /></div>
             {/* A teacher marks today; the date picker is the office's (Yajur, 2026-10-21). */}
-            {!teacherView && <Input
+            {!teacherView && <div className={can('academics.attendance.write') ? undefined : 'col-span-2'}><Input
               type="date"
               value={onDate}
               onChange={(v) => { setOnDate(v); setDraft({}) }}
               srLabel="Date"
               className="w-full sm:w-auto"
-            />}
+            /></div>}
             {!teacherView && can('academics.attendance.write') && (
               <ImportButton
                 entity="attendance"
@@ -255,21 +271,6 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 hint="One row per student per day, with the mark. Back-filling a term's registers from a sheet rather than a screen."
               />
             )}
-            {/* THE DAY, EVERY SECTION. The one file a school actually asks
-                for: this date, every section this person can see, every
-                child on the rolls, marked or "not marked". Served by the
-                register's own endpoint under the register's own scope, so a
-                class teacher gets their sections and the office the school. */}
-            {!teacherView && <Button
-              variant="outline"
-              onClick={() => window.location.assign(`/api/v1/attendance/day.csv?on_date=${onDate}`)}
-              title={`Every section for ${onDate}, as a spreadsheet`}
-            >
-              <span className="sm:hidden">Export day</span><span className="hidden sm:inline">Export day (all sections)</span>
-            </Button>}
-            {/* The whole register the school's scope allows, not just the
-                section on screen — what an inspector asks for by date. */}
-            {!teacherView && <ExportButton name="attendance" label="Export 90 days" />}
           </div>
         }
       />
@@ -285,6 +286,21 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       ) : (
         <>
           {can('academics.attendance.write') && (
+            /* On a phone: Mark all present, Mark all absent and Save as one
+               row of three equal buttons (owner, 2026-10-26). */
+            phone ? (
+            <div className="grid grid-cols-3 gap-2 border-b px-4 py-3 [&>*]:min-w-0 [&_button]:w-full">
+              <Button variant="outline" onClick={() => markAll('present')}>All present</Button>
+              <Button variant="outline" onClick={() => markAll('absent')}>All absent</Button>
+              <Button
+                disabled={!dirty}
+                pending={save.isPending}
+                onClick={saveDraft}
+              >
+                {`Save ${Object.keys(draft).length || ''}`.trim()}
+              </Button>
+            </div>
+            ) :
             <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
               {teacherView ? (
                 <>
@@ -303,18 +319,14 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 <Button
                   disabled={!dirty}
                   pending={save.isPending}
-                  onClick={() => {
-                    const entries = Object.entries(draft).map(([student_id, status]) => ({ student_id, status }))
-                    setDraft({})
-                    save.mutate(entries)
-                  }}
+                  onClick={saveDraft}
                 >
                   {`Save ${Object.keys(draft).length || ''}`.trim()}
                 </Button>
               </div>
             </div>
           )}
-          {can('academics.attendance.write') && (
+          {can('academics.attendance.write') && offerChannels && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/20 px-4 py-2.5 text-[13px]">
               <span className="text-muted-foreground">
                 Absent parents are told in the app. Also send by:
@@ -340,16 +352,23 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
           <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-3">
             <SearchBox value={term} onChange={setTerm} placeholder="Name or admission no." />
             <Showing shown={shown.length} total={students.length} noun="students" />
-            {/* The register as it stands, which is what a school hands to an
-                inspector asking who was in on a given day. */}
-            {!teacherView && <ExportRows
-              rows={students}
-              name="attendance"
-              columns={[
-                { header: 'Admission no', value: (s) => s.admission_no },
-                { header: 'Student', value: (s) => s.full_name },
-                { header: 'Mark', value: (s) => existing.get(s.id) ?? draft[s.id] ?? 'not marked' },
+            {/* ONE Export (owner, 2026-10-26: three export buttons on one
+                screen). Day: this date, every section this person can see,
+                every child marked or "not marked", from the register's own
+                endpoint and scope. Last 90 days: the whole register the
+                school's scope allows. */}
+            {!teacherView && <PickerMenu<'day' | '90'>
+              value={'' as 'day'}
+              ariaLabel="Export attendance"
+              placeholder="Export"
+              className="ml-auto"
+              options={[
+                { value: 'day', label: `Day (${onDate}, all sections)` },
+                { value: '90', label: 'Last 90 days' },
               ]}
+              onChange={(v) => window.location.assign(v === 'day'
+                ? `/api/v1/attendance/day.csv?on_date=${onDate}`
+                : '/api/v1/export/attendance')}
             />}
           </div>
           {/* The running count, so a teacher sees the class add up as they mark
@@ -384,104 +403,95 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               · {students.length} total
             </span>
           </div>
-          <Table head={['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length}>
+          {/* On a phone the row is one cell (owner, 2026-10-26: the rows showed
+              only admission numbers, the rest cut off): the name first, the
+              admission number and what is recorded under it, the marks below
+              across the full width. Desktop keeps its four columns. */}
+          <Table head={phone ? ['Student'] : ['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length} noExport>
             {shown.map((s) => {
               const saved = existing.get(s.id)
               const value = draft[s.id] ?? (saved as Status | undefined) ?? ''
-              return (
-                <tr key={s.id} className={teacherView && value ? ROW_TINT[value] : undefined}>
-                  <Td className="font-mono text-xs">{s.admission_no}</Td>
-                  <Td className="font-medium">
-                    {s.full_name}
-                    {/* The parent already told the school: say so here, so the
-                        child is marked On leave instead of absent and chased. */}
-                    {informed.get(s.id) && (
-                      <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] font-normal">
-                        <span className="rounded-md bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#b45309]">
-                          Leave from parent{informed.get(s.id)!.status === 'approved' ? ' (approved)' : ''}
-                        </span>
-                        <span className="text-muted-foreground">{informed.get(s.id)!.reason}</span>
-                        {value !== 'leave' && (
-                          <button type="button" onClick={() => setDraft((d) => ({ ...d, [s.id]: 'leave' }))}
-                            className="tap-inline rounded-md border px-2 py-0.5 font-semibold text-primary hover:bg-primary/10">
-                            Mark On leave
-                          </button>
-                        )}
-                      </span>
-                    )}
-                  </Td>
-                  <Td>{saved ? <Badge tone={TONE[saved]}>{saved}</Badge> : <span className="text-xs text-muted-foreground">Not marked</span>}</Td>
-                  <Td>
-                    {/* Six 44px touch targets can't sit in one row on a phone;
-                        let them wrap instead of pushing the card off-screen. */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      {QUICK.map((q) => {
-                        const on = value === q.value
-                        return (
-                          <button
-                            key={q.value}
-                            type="button"
-                            aria-pressed={on}
-                            aria-label={`${q.label} · ${s.full_name}`}
-                            title={q.label}
-                            disabled={!can('academics.attendance.write')}
-                            /* Tapping the mark a child already has clears it,
-                               so a misclick is one tap to undo rather than a
-                               hunt for a blank option. */
-                            onClick={() =>
-                              setDraft((d) => {
-                                const next = { ...d }
-                                if (next[s.id] === q.value) delete next[s.id]
-                                else next[s.id] = q.value
-                                return next
-                              })
-                            }
-                            className={cn(
-                              'h-8 w-8 rounded-[7px] border text-[12px] font-semibold',
-                              // The register is the most-tapped screen in the
-                              // product; on a touch device each mark grows to the
-                              // 44px floor (min- so the 32px desk size is kept).
-                              '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px]',
-                              'transition-colors duration-100',
-                              'disabled:pointer-events-none disabled:opacity-40',
-                              on
-                                ? q.tone
-                                : 'border-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground',
-                            )}
-                          >
-                            {q.short}
-                          </button>
-                        )
-                      })}
-                      {/* Half-day is real but rare; it does not earn a column
-                          of its own on every row. */}
+              const recorded = saved
+                ? <Badge tone={TONE[saved]}>{saved}</Badge>
+                : <span className="text-xs text-muted-foreground">Not marked</span>
+              /* The parent already told the school: say so here, so the
+                 child is marked On leave instead of absent and chased. */
+              const told = informed.get(s.id) && (
+                <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] font-normal">
+                  <span className="rounded-md bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#b45309]">
+                    Leave from parent{informed.get(s.id)!.status === 'approved' ? ' (approved)' : ''}
+                  </span>
+                  <span className="text-muted-foreground">{informed.get(s.id)!.reason}</span>
+                  {value !== 'leave' && (
+                    <button type="button" onClick={() => setDraft((d) => ({ ...d, [s.id]: 'leave' }))}
+                      className="tap-inline rounded-md border px-2 py-0.5 font-semibold text-primary hover:bg-primary/10">
+                      Mark On leave
+                    </button>
+                  )}
+                </span>
+              )
+              const markButtons = (
+                <div className={cn('flex items-center gap-1.5', phone ? 'mt-2.5 w-full' : 'flex-wrap')}>
+                  {QUICK.map((q) => {
+                    const on = value === q.value
+                    return (
                       <button
+                        key={q.value}
                         type="button"
-                        aria-label={`Half day · ${s.full_name}`}
-                        title="Half day"
+                        aria-pressed={on}
+                        aria-label={`${q.label} · ${s.full_name}`}
+                        title={q.label}
                         disabled={!can('academics.attendance.write')}
+                        /* Tapping the mark a child already has clears it,
+                           so a misclick is one tap to undo rather than a
+                           hunt for a blank option. */
                         onClick={() =>
                           setDraft((d) => {
                             const next = { ...d }
-                            if (next[s.id] === 'half_day') delete next[s.id]
-                            else next[s.id] = 'half_day'
+                            if (next[s.id] === q.value) delete next[s.id]
+                            else next[s.id] = q.value
                             return next
                           })
                         }
                         className={cn(
-                          'h-8 rounded-[7px] border px-2 text-[12px]',
-                          '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px]',
+                          'rounded-full border text-[13px] font-semibold',
+                          phone ? 'h-12 min-w-0 flex-1 text-[16px]' : 'h-9 min-w-[40px] px-2.5',
                           'transition-colors duration-100',
                           'disabled:pointer-events-none disabled:opacity-40',
-                          value === 'half_day'
-                            ? 'border-warning/40 bg-warning/10 text-warning'
-                            : 'border-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+                          on
+                            ? q.tone
+                            : 'border-border-strong bg-card text-foreground hover:bg-surface-hover',
                         )}
                       >
-                        ½
+                        {q.short}
                       </button>
-                    </div>
-                  </Td>
+                    )
+                  })}
+                </div>
+              )
+              return (
+                <tr key={s.id} className={teacherView && value ? ROW_TINT[value] : undefined}>
+                  {phone ? (
+                    <Td className="min-w-0 whitespace-normal">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="min-w-0 break-words text-[16px] font-medium">{s.full_name}</span>
+                        <span className="shrink-0">{recorded}</span>
+                      </div>
+                      <div className="font-mono text-[12px] text-muted-foreground">{s.admission_no}</div>
+                      {told}
+                      {markButtons}
+                    </Td>
+                  ) : (
+                    <>
+                      <Td className="font-mono text-xs">{s.admission_no}</Td>
+                      <Td className="font-medium">
+                        {s.full_name}
+                        {told}
+                      </Td>
+                      <Td>{recorded}</Td>
+                      <Td>{markButtons}</Td>
+                    </>
+                  )}
                 </tr>
               )
             })}

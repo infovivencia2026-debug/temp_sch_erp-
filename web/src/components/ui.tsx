@@ -67,7 +67,7 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
+      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full [&:has(>.w-full)]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:[&:has(>.w-full)]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
@@ -1072,6 +1072,7 @@ export function Table({
   onLoadMore,
   total,
   onExport,
+  noExport,
 }: {
   head: Column[]
   children: ReactNode
@@ -1094,6 +1095,9 @@ export function Table({
      reader wanted the children in them. Pass a handler and Export calls it
      instead; the table still draws what it drew. */
   onExport?: () => void
+  /** The screen offers its own Export beside its tools (Take attendance:
+      one Export menu, owner 2026-10-26), so the foot does not add a second. */
+  noExport?: boolean
   /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
 
      A table pages ten at a time through whatever array it was given, which
@@ -1463,11 +1467,13 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
+              {!noExport && (
               <Button variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export
               </Button>
+              )}
               {paging && (
               <Button size="sm" variant="secondary" disabled={at === 0}
                       onClick={() => setPage(at - 1)}>
