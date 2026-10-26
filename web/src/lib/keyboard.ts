@@ -120,7 +120,80 @@ export function trackKeyboardInset() {
     if (t !== appliedT) { appliedT = t; root.style.setProperty('--vv-top', t + 'px') }
   }
 
+  /* A readout of the numbers iOS gives, for diagnosing the keyboard on a
+     real phone (owner, 2026-10-26). Shown only after opening any page with
+     ?vvdebug=1 (kept for the tab); ?vvdebug=0 hides it. */
+  try {
+    const q = new URLSearchParams(location.search).get('vvdebug')
+    if (q === '1') sessionStorage.setItem('vvdebug', '1')
+    if (q === '0') sessionStorage.removeItem('vvdebug')
+  } catch { /* private mode */ }
+  let dbg: HTMLDivElement | null = null
+  const debugOn = () => { try { return sessionStorage.getItem('vvdebug') === '1' } catch { return false } }
+  const show = () => {
+    if (!debugOn()) return
+    if (!dbg) {
+      dbg = document.createElement('div')
+      dbg.style.cssText = 'position:fixed;left:4px;top:4px;z-index:2147483647;background:rgba(0,0,0,.8);color:#fff;font:11px/1.3 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre'
+      document.body.appendChild(dbg)
+    }
+    const layer = document.querySelector('.vv-screen-phone')?.getBoundingClientRect()
+    const field = document.activeElement?.getBoundingClientRect()
+    dbg.textContent = [
+      'innerH ' + window.innerHeight + '  screenH ' + screen.height,
+      'vv.h ' + Math.round(vv.height) + '  vv.top ' + Math.round(vv.offsetTop) + '  scale ' + vv.scale.toFixed(2),
+      'scrollY ' + Math.round(window.scrollY) + '  docH ' + document.documentElement.clientHeight,
+      '--vvh ' + root.style.getPropertyValue('--vvh') + '  --vv-top ' + root.style.getPropertyValue('--vv-top') + '  --kb ' + root.style.getPropertyValue('--kb'),
+      'layer ' + (layer ? Math.round(layer.top) + '..' + Math.round(layer.bottom) : 'none'),
+      'focused ' + (field && document.activeElement !== document.body ? Math.round(field.top) + '..' + Math.round(field.bottom) : 'none'),
+    ].join(String.fromCharCode(10))
+  }
+  const measureAndShow = () => { measure(); show() }
+  vv.addEventListener('resize', show)
+  vv.addEventListener('scroll', show)
+  window.setInterval(() => { if (debugOn()) measureAndShow() }, 250)
   vv.addEventListener('resize', measure)
+  /* iOS Safari (26, floating address bar) settles the visible area after the
+     keyboard finishes moving and does not always fire a last resize, so a
+     layer kept the shorter height with a grey band above the keys (owner,
+     2026-10-26). Measure again every frame for a second after a field gains
+     or loses focus, and on a window resize; measure() writes only changes. */
+  let settleUntil = 0
+  /* Every frame while a field has focus (the keyboard is up), and for 1.2s
+     after any focus change: iOS moves the visible area while its keyboard and
+     address bar settle, and the owner's iPhone showed the layer left where an
+     early reading put it (2026-10-26). measure() writes only changes. */
+  const busy = () => performance.now() < settleUntil || 'typing' in root.dataset
+  let looping = false
+  const settle = () => {
+    settleUntil = performance.now() + 1200
+    if (looping) return
+    looping = true
+    const tick = () => {
+      pinPage()
+      measure()
+      if (busy()) requestAnimationFrame(tick)
+      else looping = false
+    }
+    requestAnimationFrame(tick)
+  }
+  /* THE PAGE UNDER A LAYER STAYS AT THE TOP. iOS scrolls the document to
+     reveal a focused field even when html is overflow:hidden, and a fixed
+     layer then rides up with it (Messages: header off the top, grey under the
+     composer). While a full-screen layer is open the document is put back at
+     0 at once, so the layer's position depends only on the visual viewport. */
+  const pinPage = () => {
+    if (!('pageLocked' in root.dataset)) return
+    if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0 || document.body.scrollTop !== 0) {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+  }
+  window.addEventListener('scroll', () => { pinPage(); measure() }, { passive: true })
+  document.addEventListener('focusin', settle)
+  document.addEventListener('focusout', settle)
+  window.addEventListener('resize', settle)
   /* `scroll` because iOS reports the keyboard by scrolling the visual viewport
      rather than resizing it when the focused field is already near the top. */
   vv.addEventListener('scroll', measure)

@@ -356,12 +356,16 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 screen). Day: this date, every section this person can see,
                 every child marked or "not marked", from the register's own
                 endpoint and scope. Last 90 days: the whole register the
-                school's scope allows. */}
-            {!teacherView && <PickerMenu<'day' | '90'>
+                school's scope allows. A class teacher's register has none;
+                whoever keeps the whole school's register does (owner,
+                2026-10-26). */}
+            {(!teacherView || marksAnySection) && <PickerMenu<'day' | '90'>
               value={'' as 'day'}
               ariaLabel="Export attendance"
               placeholder="Export"
-              className="ml-auto"
+              /* Shown but not highlighted (owner, 2026-10-26): the ghost
+                 look, no card fill or lift, so it sits quietly beside search. */
+              className="ml-auto bg-transparent text-muted-foreground shadow-none hover:text-foreground"
               options={[
                 { value: 'day', label: `Day (${onDate}, all sections)` },
                 { value: '90', label: 'Last 90 days' },
