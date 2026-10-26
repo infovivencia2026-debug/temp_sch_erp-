@@ -61,16 +61,29 @@ describe('sign-in page', () => {
     expect(h).not.toContain('@@')
   })
 
-  it('phone pages: a Sign in button and a back control; a failed sign-in opens on the form', () => {
+  it('phone pages: Parent / Student / Staff toggle and a back control; a failed sign-in opens on the form', () => {
     const slides = ['/a.png', '/b.png']
     const h = loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides } })
-    expect(h).toContain('<button type="button" class="auth-go">Sign in</button>')
+    expect(h).toContain('<div class="who auth-go" role="group"')
+    expect(h).toContain("var list = document.querySelector('.card .who')")
+    for (const r of ['parent', 'student', 'staff']) expect(h).toMatch(new RegExp(`<button type="button" data-role="${r}" aria-pressed="(true|false)"><svg`))
+    expect(h).toContain('<span>Parent</span></button><button type="button" data-role="student" aria-pressed="false">')
     expect(h).toContain('class="auth-back" aria-label="Back"')
-    expect(h).toContain("history.pushState({ signin: 1 }, '', '#signin')")
+    expect(h).toContain("history.pushState({ signin: role }, '', '#signin-' + role)")
+    expect(h).toContain('.auth-split.has-slides.p2 .who{display:none}')
     expect(h).toContain('<div class="auth-split has-slides">')
     const failed = loginHTML({ csrf: 'c', next: '/', identifier: 'x', error: 'Wrong password', brand: { ...brand, slides } })
     expect(failed).toContain('<div class="auth-split has-slides p2">')
     expect(loginHTML({ csrf: 'c', next: '/', brand })).not.toContain('class="auth-go"')
+  })
+
+  it('no zoom and no page scroll on every sign-in page', () => {
+    for (const h of [loginHTML({ csrf: 'c', next: '/', brand }), loginHTML({ csrf: 'c', next: '/', brand: { ...brand, slides: ['/a.png'] } }), chooserHTML({ csrf: 'c', next: '/' })]) {
+      expect(h).toContain('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"')
+      expect(h).toContain('touch-action:pan-x pan-y')
+      expect(h).toContain('"gesturestart"')
+      expect(h).toContain('body.auth{height:100vh;height:100dvh;min-height:0;overflow:hidden')
+    }
   })
 
   it('one picture: no bars and no slide script', () => {
