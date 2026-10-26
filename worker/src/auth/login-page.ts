@@ -27,13 +27,26 @@ export interface Brand {
 const HEX = /^#[0-9a-fA-F]{6}$/
 const hex = (v: string | null | undefined) => (v && HEX.test(v) ? v : null)
 
+/* White text needs 4.5:1 on the selected-tab fill. Darken the school's colour
+   toward black until it gets there, so a pale brand still reads. */
+const lum = (h: string) => {
+  const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+}
+export function onWhite(h: string): string {
+  let [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
+  const out = () => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')
+  for (let k = 0; k < 60 && 1.05 / (lum(out()) + 0.05) < 4.5; k++) { r *= 0.92; g *= 0.92; b *= 0.92 }
+  return out()
+}
+
 function brandStyle(b: Brand): string {
   const p = hex(b.primary), a = hex(b.accent) ?? p
   if (!p) return ''
   /* The moving mesh keeps its shape and takes the school's two colours, so
      every school's page is recognisably its own without a second template. */
   return `\n<style>
-:root{--brand:${p}}
+:root{--brand:${p};--who-thumb:${onWhite(p)}}
 .auth-brand{background:color-mix(in srgb, ${p} 55%, #000)}
 .auth-brand .blob-1,.auth-brand .blob-5{background:${p}}
 .auth-brand .blob-2,.auth-brand .blob-4{background:${a}}
@@ -96,19 +109,23 @@ const MORE: Record<LoginLang, {
    without JS the page is the plain form with the generic label. */
 const TAB_CSS = `
 <style>
-.who{display:flex;margin:0 0 4px;padding:4px;border-radius:10px;background:color-mix(in srgb, var(--fg) 6%, transparent)}
+.who{position:relative;display:flex;margin:0 0 4px;padding:4px;border-radius:999px;background:color-mix(in srgb, var(--fg) 8%, transparent);box-shadow:inset 0 1px 3px color-mix(in srgb, var(--fg) 18%, transparent);transition:background-color 400ms ease}
 .who[hidden]{display:none}
-.who button{flex:1 1 0;min-width:0;height:40px;margin:0;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;background:transparent;color:var(--secondary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.who button:hover{background:color-mix(in srgb, var(--fg) 6%, transparent)}
-.who button[aria-selected="true"]{background:var(--brand, var(--accent));color:#fff}
+.who button{position:relative;z-index:1;flex:1 1 0;min-width:0;height:64px;margin:0;padding:0 6px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:999px;background:transparent;color:var(--secondary);font-size:13px;font-weight:500;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 200ms ease-out}
+.who button:hover:not([aria-selected="true"]){background:color-mix(in srgb, var(--fg) 6%, transparent)}
+.who button[aria-selected="true"]{background:transparent;color:#fff}
+.who-thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 3);border-radius:999px;background:var(--who-thumb, #1d4ed8);box-shadow:0 2px 6px color-mix(in srgb, var(--fg) 22%, transparent);transform:translateX(calc(var(--i, 0) * 100%)) scaleX(var(--s, 1));pointer-events:none}
+.who.pressing{--s:1.12}
+.who.ready .who-thumb{transition:transform 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55)}
+@media (prefers-reduced-motion:reduce){.who.ready .who-thumb,.who button{transition:none}}
+html[data-reduce-motion] .who.ready .who-thumb,html[data-reduce-motion] .who button{transition:none}
 .id-hint{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
-.who svg{flex:none;width:18px;height:18px}
-.who button span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:640px){.who button{height:48px}.who svg{width:20px;height:20px}}
+.who svg{flex:none;width:22px;height:22px}
+.who button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:560px){
   .auth-split:not(.has-slides) .who{background:rgba(0,0,0,0.25)}
   .auth-split:not(.has-slides) .who button{color:rgba(255,255,255,0.85)}
-  .auth-split:not(.has-slides) .who button[aria-selected="true"]{background:#fff;color:#111827}
+  .auth-split:not(.has-slides) .who button[aria-selected="true"]{background:transparent;color:#fff}
   .auth-split:not(.has-slides) .id-hint{color:rgba(255,255,255,0.8)}
 }
 </style>`
@@ -139,6 +156,7 @@ const tabsScript = (lang: LoginLang) => {
       b.setAttribute('aria-selected', j === i ? 'true' : 'false')
       b.tabIndex = j === i ? 0 : -1
     })
+    list.style.setProperty('--i', String(i))
     label.textContent = c.label
     hint.textContent = c.hint
     hint.hidden = false
@@ -154,6 +172,7 @@ const tabsScript = (lang: LoginLang) => {
   } catch (e) {}
   tabs.forEach(function (b, i) {
     b.addEventListener('click', function () { pick(i, false); input.focus() })
+    b.addEventListener('pointerdown', function () { list.classList.add('pressing') })
     b.addEventListener('keydown', function (e) {
       var n = tabs.length, j = -1
       if (e.key === 'ArrowRight') j = (i + 1) % n
@@ -165,8 +184,12 @@ const tabsScript = (lang: LoginLang) => {
       pick(j, true)
     })
   })
+  var up = function () { list.classList.remove('pressing') }
+  document.addEventListener('pointerup', up)
+  document.addEventListener('pointercancel', up)
   list.hidden = false
   pick(start, false)
+  requestAnimationFrame(function () { list.classList.add('ready') })
 })()
 </script>`
 }
@@ -390,7 +413,7 @@ export function loginHTML(o: {
   const support = contact.length ? `\n      <p class="fineprint">${w.HELP}: ${contact.map(esc).join(' · ')}</p>` : ''
   const described = o.error ? ' aria-describedby="login-error"' : ''
   const idDescribed = vendor ? described : ` aria-describedby="${o.error ? 'login-error ' : ''}identifier-hint"`
-  const tabs = vendor ? '' : `<div class="who" role="tablist" aria-label="${esc(m.tablist)}" hidden>${m.tabs.map((t, i) =>
+  const tabs = vendor ? '' : `<div class="who" role="tablist" aria-label="${esc(m.tablist)}" hidden><span class="who-thumb" aria-hidden="true"></span>${m.tabs.map((t, i) =>
     `<button type="button" role="tab" id="tab-${t.id}" aria-controls="login-form" aria-selected="${i ? 'false' : 'true'}"${i ? ' tabindex="-1"' : ''}>${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>`
   /* A small English / తెలుగు switch; the other language's name, in itself. */
   const sw = o.switchHref ? ` · <a href="${esc(o.switchHref)}" lang="${lang === 'te' ? 'en' : 'te'}">${lang === 'te' ? 'English' : 'తెలుగు'}</a>` : ''
