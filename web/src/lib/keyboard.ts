@@ -159,6 +159,31 @@ export function trackKeyboardInset() {
     }
   }
   window.addEventListener('scroll', () => { pinPage(); measure() }, { passive: true })
+  /* NO PAN UNDER A FINGER. With the keyboard up, iOS lets a drag that runs out
+     of list slide the whole screen (owner's iPhone, 2026-10-26: dragging the
+     chat up took its header off the top and left grey under the composer).
+     While a phone layer is open, a drag moves only something inside it that
+     can still scroll that way; anything else is cancelled, so the screen
+     itself never moves. */
+  let lastY = 0
+  document.addEventListener('touchstart', (e) => { lastY = e.touches[0]?.clientY ?? 0 }, { passive: true })
+  document.addEventListener('touchmove', (e) => {
+    if (!('pageLocked' in root.dataset) || e.touches.length !== 1) return
+    const y = e.touches[0].clientY
+    const down = y > lastY // finger moving down = content wants to scroll up
+    lastY = y
+    let el = e.target instanceof Element ? e.target : null
+    while (el && el !== document.body) {
+      const st = getComputedStyle(el)
+      if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+        const atTop = el.scrollTop <= 0
+        const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+        if ((down && !atTop) || (!down && !atEnd)) return
+      }
+      el = el.parentElement
+    }
+    if (e.cancelable) e.preventDefault()
+  }, { passive: false })
   document.addEventListener('focusin', settle)
   document.addEventListener('focusout', settle)
   window.addEventListener('resize', settle)
