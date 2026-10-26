@@ -248,7 +248,8 @@ const SLIDES_CSS = `
   .auth-split.has-slides:not(.p2) .card{display:none}
   .auth-split.has-slides .auth-brand-content{position:relative;display:flex;flex-direction:column;justify-content:flex-start;height:100%;
     padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 96px)}
-  .auth-split.has-slides .auth-brand-mark{margin:0 0 14px;font-size:32px}
+  .auth-split.has-slides .auth-brand-mark{align-self:flex-start;margin:0 0 14px;font-size:32px}
+  .auth-split.has-slides .auth-logo{align-self:flex-start;margin-bottom:14px}
   .auth-split.has-slides .auth-logo{max-width:48px;max-height:48px;padding:5px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.25)}
   .auth-split.has-slides .auth-brand-eyebrow{margin:0 0 10px}
   .auth-split.has-slides .auth-brand-title{font-size:40px;line-height:1.08;letter-spacing:-0.02em;margin:0;max-width:12ch}
@@ -391,6 +392,25 @@ const SLIDES_JS = `
 })()
 </script>`
 
+/* Phone sizes (owner, 2026-10-26: "for all screen types it should fit"):
+   fields and buttons 48px with 16px text (16px also stops iOS zooming into a
+   field), title 24px; below 380px the card and tabs give up some padding so
+   Parent / Student / Staff fit whole at 320 wide. */
+const PHONE_FIT_CSS = `
+<style>
+@media (max-width:639px){
+  .auth-split .card input:not([type="hidden"]){height:48px;font-size:16px}
+  .auth-split .card button[type="submit"]{height:48px;font-size:16px}
+  .auth-split .card h1{font-size:24px}
+}
+@media (max-width:379px){
+  .auth-split:not(.has-slides){padding-left:12px;padding-right:12px}
+  .auth-split:not(.has-slides) .card{padding:24px 10px}
+  .auth-split .who{padding:3px}
+  .auth-split .who button{padding:0 3px;gap:3px}
+}
+</style>`
+
 export function loginHTML(o: {
   csrf: string; next: string; identifier?: string; error?: string; brand?: Brand; lang?: LoginLang; switchHref?: string
   /** 'vendor' is the XULO maintenance sign-in: no tabs, its own heading. */
@@ -426,7 +446,7 @@ export function loginHTML(o: {
       .replace('</aside>', () => phoneButtonsHTML(w.SIGNIN, m.back) + '\n    </aside>')
   }
   for (const k of Object.keys(w)) page = page.split(`@@T_${k}@@`).join(w[k])
-  const style = (b ? brandStyle(b) : '') + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '')
+  const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '')
   const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '')
   return page
     .replace('@@H1@@', vendor ? esc(m.vendorH1) : w.SIGNIN)
