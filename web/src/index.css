@@ -5337,3 +5337,22 @@ button.glass-btn:active:not(:disabled) {
   background-color: hsl(var(--card));
   box-shadow: 0 0 0 1px hsl(var(--primary)), 0 0 0 4px hsl(var(--primary) / 0.1) !important;
 }
+
+/* BELOW THE VISIBLE EDGE (owner's iPhone, 2026-10-26: the page showed in a
+   strip between the dropdown sheet and the keyboard). iOS Safari's visual
+   viewport ends above its floating address bar, so a layer sized to it leaves
+   that strip uncovered. The sheet's surface and the dimmed backdrop continue
+   past the edge, and every full-screen phone layer paints its own background
+   there too, so nothing underneath can show. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone { overflow: visible !important; }
+  .vv-screen-phone::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--background)); pointer-events: none;
+  }
+  .option-sheet-backdrop { bottom: -60vh !important; }
+  .option-sheet-panel::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--card)); pointer-events: none;
+  }
+}

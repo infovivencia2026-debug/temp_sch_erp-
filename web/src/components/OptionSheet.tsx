@@ -202,7 +202,7 @@ export function OptionSheet({
       <div
         aria-hidden="true"
         className={cn(
-          'absolute inset-0 bg-[rgba(15,23,42,0.5)] backdrop-blur-[4px] transition-opacity duration-300 ease-out motion-reduce:transition-none',
+          'option-sheet-backdrop absolute inset-0 bg-[rgba(15,23,42,0.5)] backdrop-blur-[4px] transition-opacity duration-300 ease-out motion-reduce:transition-none',
           visible ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
@@ -214,7 +214,7 @@ export function OptionSheet({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative flex [animation:none] max-h-[min(75dvh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
+          'option-sheet-panel relative flex [animation:none] max-h-[min(75dvh,calc(var(--vvh,100dvh)-16px))] w-full flex-col rounded-t-[28px] bg-card px-5 pt-1 text-card-foreground outline-none',
           'shadow-[0_-10px_30px_rgba(0,0,0,0.15)] transition-transform duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
