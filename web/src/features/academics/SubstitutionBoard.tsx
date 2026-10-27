@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
@@ -109,7 +109,11 @@ export default function SubstitutionBoard() {
   const qc = useQueryClient()
   // A notification opens the board on its date (?date=YYYY-MM-DD, scheduling/cover.ts).
   const [params] = useSearchParams()
-  const [onDate, setOnDate] = useState(() => /^d{4}-d{2}-d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : today())
+  const asked = params.get('date') ?? ''
+  const askedDate = /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : ''
+  const [onDate, setOnDate] = useState(() => askedDate || today())
+  /* Another notice clicked while the board is open changes only the address. */
+  useEffect(() => { if (askedDate) setOnDate(askedDate) }, [askedDate])
   const [who, setWho] = useState('')
 
   const board = useQuery({

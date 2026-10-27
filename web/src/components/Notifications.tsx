@@ -310,8 +310,9 @@ export default function Notifications() {
   const statuses = useQuery({
     queryKey: ['notif-statuses'],
     queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
-    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
-    enabled: open,
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count.
+       Only roles with the hub (student, parent) may call it; others got a 404. */
+    enabled: open && !!toHub,
     retry: false,
   })
   
