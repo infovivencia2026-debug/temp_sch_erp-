@@ -1338,11 +1338,8 @@ export function Shell({
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
           <p className="scope-glass min-w-0 truncate rounded-full border px-3.5 py-1.5 text-[calc(14px*var(--font-scale,1))]">
-            {/* Who is signed in, first: on a shared office machine the
-                name is what stops one clerk working as another. */}
-            {session.user?.full_name && (
-              <span className="font-semibold">{session.user.full_name}<span className="font-normal text-muted-foreground"> · </span></span>
-            )}
+            {/* No name here (owner, 2026-10-27): the dashboard greets by name,
+                and the account button beside Sign out carries who is signed in. */}
             <span className="font-medium">{session.institution?.display_name || session.institution?.name || ''}</span>
             {/* Which desk you are sitting at, said up here as well: the role
                 is what decides what every screen below shows. */}
@@ -1409,7 +1406,7 @@ export function Shell({
               to="/account"
               aria-label="Your account"
               data-help-anchor="account"
-              title="Your account and password"
+              title={session.user?.full_name ? `Signed in as ${session.user.full_name}: account and password` : "Your account and password"}
               className="grid h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
               <UserRound className="h-[22px] w-[22px] md:h-4 md:w-4" />

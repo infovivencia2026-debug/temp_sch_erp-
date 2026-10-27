@@ -25,6 +25,33 @@ const ISODOW = (col: string) => `(CASE CAST(strftime('%w', ${col}) AS INTEGER) W
 const NOT_HOLIDAY = `NOT EXISTS (SELECT 1 FROM holidays h WHERE h.kind IN ('holiday','vacation') AND h.applies_to IN ('all','staff','teaching')
                        AND d.day BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date))`
 
+/* Notification links (owner: every notification's View opens its page). */
+const BOARD_LINK = (onDate: string) => `/go/academics/substitutions?date=${onDate}`
+const MY_REQUESTS_LINK = '/go/timetable/substitution_request_submission'
+/** A teacher's own day: Today's classes for today, otherwise their timetable. */
+const MY_DAY_LINK = (onDate: string) => onDate === todayIST() ? '/go/home/todays_classes' : '/go/timetable/my_timetable'
+
+/** notifyApprovers: tells everyone who can approve a substitution (the principal, institution_admin) that one waits. */
+async function notifyApprovers(c: Ctx, onDate: string, title: string, body: string, sourceID: string): Promise<void> {
+  try {
+    const inst = instId(c), ts = nowISO()
+    const rows = await all<{ user_id: string }>(c.db.prepare(`SELECT DISTINCT ur.user_id FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+        JOIN users u ON u.id = ur.user_id WHERE r.key = 'institution_admin' AND u.status = 'active' AND (ur.institution_id = ?1 OR ur.institution_id IS NULL)`).bind(inst))
+    const stmts = rows.filter((r) => r.user_id !== c.id.userId).map((r) => c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+        VALUES (?, ?, ?, 'substitution_approval', ?, ?, ?, 'substitution', ?, ?)`).bind(uuid(), inst, r.user_id, title, body, BOARD_LINK(onDate), sourceID, ts))
+    if (stmts.length) await c.db.batch(stmts)
+  } catch (e) { console.warn('substitution approver notice', e) }
+}
+
+/** notifyUser: one plain in-app notice, never failing the request that caused it. */
+async function notifyUser(c: Ctx, userID: string | null, title: string, body: string, link: string, sourceID: string): Promise<void> {
+  if (!userID) return
+  try {
+    await c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+        VALUES (?, ?, ?, 'substitution', ?, ?, ?, 'substitution', ?, ?)`).bind(uuid(), instId(c), userID, title, body, link, sourceID, nowISO()).run()
+  } catch (e) { console.warn('substitution notice', e) }
+}
+
 /** coverRange: the next fortnight by default, never backwards, never more than 92 days. */
 function coverRange(rawFrom: unknown, rawTo: unknown): { from: string; to: string } {
   const today = todayIST()
@@ -141,6 +168,9 @@ async function createCoverRequest(c: Ctx): Promise<Response> {
   if (lines === 0) {
     return created({ id: requestID, periods: 0, note: 'no timetabled periods fall in that range, so there is nothing to cover' })
   }
+  const who = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(subject).first<{ full_name: string }>()
+  await notifyApprovers(c, from, `Substitution request: ${who?.full_name ?? 'a teacher'}`,
+    `${lines} period${lines === 1 ? '' : 's'}, ${from === to ? from : from + ' to ' + to}. ${trimStr(body.reason)}`, requestID)
   return created({ id: requestID, periods: lines })
 }
 
@@ -293,6 +323,7 @@ async function decideCoverRequest(c: Ctx): Promise<Response> {
       c.db.prepare(`UPDATE substitution_requests SET status = 'rejected', decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ? WHERE id = ?`)
         .bind(actor, ts, note, ts, reqID),
     ])
+    await notifyUser(c, cur.requested_by, 'Your substitution request was rejected', note ?? cur.reason, MY_REQUESTS_LINK, reqID)
     return ok({ status: 'rejected', covered: 0, still_uncovered: 0 })
   }
 
@@ -361,6 +392,8 @@ async function decideCoverRequest(c: Ctx): Promise<Response> {
       if (subjects.length) await emitMessageEvent(scopeOf(c), 'substitution.assigned', subjects)
     } catch (e) { console.warn('substitution.assigned messages', e) }
   }
+  await notifyUser(c, cur.requested_by, status === 'approved' ? 'Your substitution request was approved' : 'Your substitution request was partly approved',
+    `${covered} period${covered === 1 ? '' : 's'} covered${pending > 0 ? `, ${pending} still open` : ''}.${note ? ' ' + note : ''}`, MY_REQUESTS_LINK, reqID)
   return ok({ status, covered, still_uncovered: pending })
 }
 
@@ -425,10 +458,10 @@ function approveStmts(c: Ctx, entryID: string, onDate: string, subID: string, s:
         WHERE id IN (SELECT request_id FROM substitution_request_periods WHERE timetable_entry_id = ?1 AND on_date = ?4)
           AND status = 'pending' AND NOT EXISTS (SELECT 1 FROM substitution_request_periods x WHERE x.request_id = substitution_requests.id AND x.status = 'pending')`)
       .bind(entryID, c.id.platformAdmin ? null : c.id.userId, ts, onDate),
-    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, '/', 'substitution', ?, ?)`)
-      .bind(uuid(), inst, subID, `Take ${s.section}, ${s.period} ${when}`, `${s.subject}, covering for an absent teacher.${note ? ' ' + note : ''}`, entryID + '|' + onDate, ts),
-    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, '/', 'substitution', ?, ?)`)
-      .bind(uuid(), inst, s.teacher, `${subName} is taking your ${s.period} ${when}`, `${s.section}, ${s.subject}.`, entryID + '|' + onDate + '|away', ts),
+    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, ?, 'substitution', ?, ?)`)
+      .bind(uuid(), inst, subID, `Take ${s.section}, ${s.period} ${when}`, `${s.subject}, covering for an absent teacher.${note ? ' ' + note : ''}`, MY_DAY_LINK(onDate), entryID + '|' + onDate, ts),
+    c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?, ?, ?, 'substitution', ?, ?, ?, 'substitution', ?, ?)`)
+      .bind(uuid(), inst, s.teacher, `${subName} is taking your ${s.period} ${when}`, `${s.section}, ${s.subject}.`, MY_DAY_LINK(onDate), entryID + '|' + onDate + '|away', ts),
   ]
 }
 
@@ -450,11 +483,15 @@ async function proposeCover(c: Ctx): Promise<Response> {
     .bind(entryID, onDate).first<{ id: string }>()
   // An instruction for the substitute, kept on the request and shown to them with the class.
   const note = trimStr(body.note).slice(0, 300) || 'Absent'
+  const absent = await c.db.prepare(`SELECT full_name FROM users WHERE id = ?`).bind(s.teacher).first<{ full_name: string }>()
+  const tellApprovers = () => notifyApprovers(c, onDate, `Substitution to approve: ${s.section}, ${s.period} ${onDate}`,
+    `${sub.full_name} to cover for ${absent?.full_name ?? 'an absent teacher'} (${s.subject}).`, entryID + '|' + onDate)
   if (line) {
     await c.db.batch([
-      c.db.prepare(`UPDATE substitution_request_periods SET assigned_user_id = ? WHERE id = ?`).bind(subID, line.id),
+      c.db.prepare(`UPDATE substitution_request_periods SET assigned_user_id = ?, proposed_by = ? WHERE id = ?`).bind(subID, c.id.userId, line.id),
       c.db.prepare(`UPDATE substitution_requests SET reason = ? WHERE id = (SELECT request_id FROM substitution_request_periods WHERE id = ?)`).bind(note, line.id),
     ])
+    await tellApprovers()
     return ok({ status: 'waiting' })
   }
   const inst = instId(c), ts = nowISO(), reqID = uuid()
@@ -462,9 +499,10 @@ async function proposeCover(c: Ctx): Promise<Response> {
   await c.db.batch([
     c.db.prepare(`INSERT INTO substitution_requests (id, institution_id, requested_by, employee_id, from_date, to_date, reason, suggested_user_id, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`).bind(reqID, inst, s.teacher, emp?.id ?? null, onDate, onDate, note, subID, ts, ts),
-    c.db.prepare(`INSERT INTO substitution_request_periods (id, institution_id, request_id, timetable_entry_id, on_date, status, assigned_user_id)
-        VALUES (?, ?, ?, ?, ?, 'pending', ?)`).bind(uuid(), inst, reqID, entryID, onDate, subID),
+    c.db.prepare(`INSERT INTO substitution_request_periods (id, institution_id, request_id, timetable_entry_id, on_date, status, assigned_user_id, proposed_by)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`).bind(uuid(), inst, reqID, entryID, onDate, subID, c.id.userId),
   ])
+  await tellApprovers()
   return ok({ status: 'waiting' })
 }
 
@@ -482,6 +520,36 @@ async function approveCover(c: Ctx): Promise<Response> {
   await assertFree(c, line.sub, onDate, s, entryID)
   await c.db.batch(approveStmts(c, entryID, onDate, line.sub, s, line.full_name, line.note && line.note !== 'Absent' ? line.note : ''))
   return ok({ status: 'approved' })
+}
+
+/** POST /timetable-cover/reject {timetable_entry_id, on_date, note?}: the principal turns down the waiting pick.
+    The line is kept as 'rejected' (who and why on the request), the proposer is told, and the period is free
+    again: a fresh pick opens a new pending line. */
+async function rejectCover(c: Ctx): Promise<Response> {
+  if (!isPrincipal(c)) throw denied('only the principal rejects a substitution')
+  const body = await readJSON<Record<string, unknown>>(c.req)
+  const entryID = uuidOr400(trimStr(body.timetable_entry_id))
+  const onDate = trimStr(body.on_date)
+  if (!isDate(onDate)) throw badRequest('on_date must be YYYY-MM-DD')
+  const note = trimStr(body.note).slice(0, 300) || null
+  const line = await c.db.prepare(`SELECT srp.id, srp.request_id, srp.proposed_by, u.full_name AS sub_name
+      FROM substitution_request_periods srp LEFT JOIN users u ON u.id = srp.assigned_user_id
+     WHERE srp.timetable_entry_id = ? AND srp.on_date = ? AND srp.status = 'pending' AND srp.assigned_user_id IS NOT NULL`)
+    .bind(entryID, onDate).first<{ id: string; request_id: string; proposed_by: string | null; sub_name: string | null }>()
+  if (!line) throw coded(409, 'nothing_waiting', 'there is no substitution waiting for approval in this period')
+  const s = await slotFacts(c, entryID)
+  const ts = nowISO(), actor = c.id.platformAdmin ? null : c.id.userId
+  const res = await c.db.batch([
+    c.db.prepare(`UPDATE substitution_request_periods SET status = 'rejected' WHERE id = ? AND status = 'pending'`).bind(line.id),
+    c.db.prepare(`UPDATE substitution_requests SET status = 'rejected', decided_by = ?2, decided_at = ?3, decision_note = ?4, updated_at = ?3
+        WHERE id = ?1 AND status = 'pending' AND NOT EXISTS (SELECT 1 FROM substitution_request_periods x WHERE x.request_id = ?1 AND x.status = 'pending')`)
+      .bind(line.request_id, actor, ts, note),
+  ])
+  if (!res[0].meta.changes) throw coded(409, 'nothing_waiting', 'there is no substitution waiting for approval in this period')
+  const when = onDate === todayIST() ? 'today' : onDate
+  await notifyUser(c, line.proposed_by, `Substitution not approved: ${s.section}, ${s.period} ${when}`,
+    `${line.sub_name ?? 'The teacher you picked'} will not cover it. Pick another teacher.${note ? ' ' + note : ''}`, BOARD_LINK(onDate), entryID + '|' + onDate + '|rejected')
+  return ok({ status: 'rejected' })
 }
 
 /** GET /timetable-cover/today: my cover duties today, and my periods somebody else is taking. */
@@ -503,6 +571,7 @@ async function coverToday(c: Ctx): Promise<Response> {
 export function registerCover(r: Router): void {
   r.post('/timetable-cover/propose', WRITE, proposeCover)
   r.post('/timetable-cover/approve', WRITE, approveCover)
+  r.post('/timetable-cover/reject', WRITE, rejectCover)
   r.get('/timetable-cover/today', READ, coverToday)
   r.get('/timetable-cover/my-periods', READ, listCoverablePeriods)
   r.get('/timetable-cover/requests', READ, listCoverRequests)

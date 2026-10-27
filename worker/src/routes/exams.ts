@@ -4,7 +4,7 @@ import type { ExamSummary, GradebookRow, List, PendingReportCards, ReportCard, R
 import { can } from '../identity'
 import { HttpError, badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
-  numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
+  numberInWords, paperSubmittedStmts, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
 import { defaultReportCardHTML } from './exams/template'
 import { registerQuestionMaker } from './exams/qmaker'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
@@ -1286,13 +1286,22 @@ async function submitQuestionPaper(c: Ctx) {
     .bind(esId, js(sc.sectionIds)).first<{ ok: number }>()
   if (!okRow?.ok && !c.id.platformAdmin) throw forbidden('missing permission: ' + EXAMS_READ)
   const notes = (body.notes ?? '').trim()
-  await c.db.prepare(`
+  // Same rule as the question maker's send: an approved paper is not replaced from here.
+  const existing = await c.db.prepare(`SELECT status FROM question_papers WHERE exam_subject_id = ?`).bind(esId).first<{ status: string }>()
+  if (existing?.status === 'approved') throw new HttpError(409, 'The paper for this exam is already approved. Ask your head of department to send it back before sending a new one.')
+  const res = await c.db.prepare(`
     INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
     VALUES (?1, ?2, ?3, ?4, NULLIF(?5,''), ?6, ?7, ?8, ?7)
     ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, doc = NULL, draft_id = NULL, notes = excluded.notes, submitted_by = excluded.submitted_by,
-      submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
+      submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL
+      WHERE question_papers.status <> 'approved'`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
-  if (status === 'submitted') await clearDoneWork(c, 'question_paper_deadline', esId)
+  if (res.meta.changes === 0) throw new HttpError(409, 'The paper for this exam is already approved. Ask your head of department to send it back before sending a new one.')
+  if (status === 'submitted') {
+    await clearDoneWork(c, 'question_paper_deadline', esId)
+    const tell = await paperSubmittedStmts(c, esId)
+    if (tell.length) await c.db.batch(tell)
+  }
   return ok({ status })
 }
 

@@ -1,7 +1,7 @@
 import type { Router, Ctx } from '../../router'
 import { can } from '../../identity'
 import { badRequest, conflict, forbidden, isUUID, notFound, now, ok, created, readJSON, uuid } from '../../http'
-import { inList, items, js, resolveScope, str } from './common'
+import { inList, items, js, paperSubmittedStmts, resolveScope, str } from './common'
 
 /* Question maker: papers written on an A4 page in the browser.
 
@@ -151,6 +151,8 @@ async function sendDraft(c: Ctx) {
       .bind(uuid(), c.id.institution!.id, slot, String(cur.doc), cur.id, notes, c.id.userId, t),
     c.db.prepare(`UPDATE question_paper_drafts SET exam_subject_id = ? WHERE id = ?`).bind(slot, cur.id),
   ])
+  const tell = await paperSubmittedStmts(c, slot)
+  if (tell.length) await c.db.batch(tell)
   return ok({ status: 'submitted' })
 }
 
