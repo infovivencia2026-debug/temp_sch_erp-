@@ -109,11 +109,11 @@ function Receipts() {
                         <Input className="w-56" value={reason} onChange={setReason} placeholder="Why, for the record" />
                         <span className="flex gap-2">
                           {acting.what === 'void' ? (
-                            <ConfirmButton size="sm" tone="danger" disabled={reason.trim().length < 5 || run.isPending} confirmLabel="Void it"
+                            <ConfirmButton size="sm" tone="danger" disabled={reason.trim().length < 10 || run.isPending} confirmLabel="Void it"
                               question="Void this receipt? The money counts as never received and the dues come back. The receipt number stays on the record with your reason."
                               onConfirm={() => run.mutate({ id: p.id, what: 'void' })}>Void</ConfirmButton>
                           ) : (
-                            <Button size="sm" disabled={!to || reason.trim().length < 5 || run.isPending} onClick={() => run.mutate({ id: p.id, what: 'move' })}>Move it</Button>
+                            <Button size="sm" disabled={!to || reason.trim().length < 10 || run.isPending} onClick={() => run.mutate({ id: p.id, what: 'move' })}>Move it</Button>
                           )}
                           <Button size="sm" variant="ghost" onClick={() => setActing(null)}>Cancel</Button>
                         </span>
@@ -157,7 +157,7 @@ function PendingOnline() {
               <span className="flex flex-wrap items-center gap-2">
                 <Input className="w-40" value={txn[p.id] ?? ''} onChange={(v) => setTxn({ ...txn, [p.id]: v })} placeholder="Gateway reference" />
                 <Input className="w-48" value={reason[p.id] ?? ''} onChange={(v) => setReason({ ...reason, [p.id]: v })} placeholder="How it was confirmed" />
-                <ConfirmButton size="sm" disabled={(reason[p.id] ?? '').trim().length < 5 || force.isPending} confirmLabel="Mark received"
+                <ConfirmButton size="sm" disabled={(reason[p.id] ?? '').trim().length < 10 || force.isPending} confirmLabel="Mark received"
                   question="Mark this payment received? Only do this when the gateway or the bank has confirmed the money."
                   onConfirm={() => force.mutate(p.id)}>Mark received</ConfirmButton>
               </span>

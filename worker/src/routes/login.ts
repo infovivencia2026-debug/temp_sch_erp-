@@ -241,7 +241,7 @@ export async function schoolLogo(env: Env, country: string, slug: string): Promi
   } })
 }
 
-async function throttled(env: Env, key: string): Promise<number> {
+export async function throttled(env: Env, key: string): Promise<number> {
   const row = await env.CONTROL.prepare('SELECT failures, window_started_at, locked_until FROM login_throttle WHERE key = ?')
     .bind(key).first<{ failures: number; window_started_at: string; locked_until: string | null }>()
   if (!row?.locked_until) return 0
@@ -249,7 +249,7 @@ async function throttled(env: Env, key: string): Promise<number> {
   return left > 0 ? left : 0
 }
 
-async function failed(env: Env, key: string, weight = 1): Promise<void> {
+export async function failed(env: Env, key: string, weight = 1): Promise<void> {
   const t = now()
   const row = await env.CONTROL.prepare('SELECT failures, window_started_at FROM login_throttle WHERE key = ?')
     .bind(key).first<{ failures: number; window_started_at: string }>()

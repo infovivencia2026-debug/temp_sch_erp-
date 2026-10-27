@@ -1,5 +1,5 @@
 import type { Router, Ctx } from '../../router'
-import { created, isUUID, now, ok, readJSON, uuid } from '../../http'
+import { HttpError, created, isUUID, now, ok, readJSON, uuid } from '../../http'
 import { institutionId, parseJSON } from './common'
 import { arr, fmtPaise, mustFirst, nextNumber, nz, om, optDate, optUUID, pathUUID, qStr, refuse, runOps, todayIST, tr } from './ops_common'
 
@@ -177,6 +177,7 @@ export function registerOpsFeeFilings(r: Router): void {
     const decided = optDate(req.decided_on, 'decided_on must be a date, as YYYY-MM-DD') ?? todayIST()
     const cur = await mustFirst<{ status: string }>(c.db.prepare(`SELECT status FROM fee_regulatory_filings WHERE id = ?`).bind(id))
     if (cur.status === 'draft') throw refuse('this filing has not been submitted yet')
+    if (cur.status !== 'submitted') throw new HttpError(409, `this filing is already ${cur.status.replace(/_/g, ' ')}; a recorded decision cannot be changed`, { code: 'already_decided' })
     const onFiling = new Set((await c.db.prepare(`SELECT id FROM fee_regulatory_filing_lines WHERE filing_id = ?`).bind(id).all<{ id: string }>()).results.map((x) => x.id))
     const stmts: D1PreparedStatement[] = []
     for (const a of approved) {
@@ -184,16 +185,20 @@ export function registerOpsFeeFilings(r: Router): void {
       if (!isUUID(lineID)) throw refuse('line_id must be a uuid')
       if ((a.approved_paise ?? 0) < 0) throw refuse('an approved amount cannot be negative')
       if (!onFiling.has(lineID)) throw refuse('one of those lines is not on this filing')
-      stmts.push(c.db.prepare(`UPDATE fee_regulatory_filing_lines SET approved_paise = ?, modification_note = ? WHERE id = ? AND filing_id = ?`)
+      stmts.push(c.db.prepare(`UPDATE fee_regulatory_filing_lines SET approved_paise = ?, modification_note = ? WHERE id = ? AND filing_id = ?
+          AND EXISTS (SELECT 1 FROM fee_regulatory_filings f WHERE f.id = ?4 AND f.status = 'submitted')`)
         .bind(a.approved_paise ?? 0, nz(a.note), lineID, id))
     }
     if (d === 'approved' || d === 'approved_with_modification') {
-      stmts.push(c.db.prepare(`UPDATE fee_regulatory_filing_lines SET approved_paise = proposed_paise WHERE filing_id = ? AND approved_paise IS NULL`).bind(id))
+      stmts.push(c.db.prepare(`UPDATE fee_regulatory_filing_lines SET approved_paise = proposed_paise WHERE filing_id = ?1 AND approved_paise IS NULL
+          AND EXISTS (SELECT 1 FROM fee_regulatory_filings f WHERE f.id = ?1 AND f.status = 'submitted')`).bind(id))
     }
     stmts.push(c.db.prepare(`UPDATE fee_regulatory_filings SET status = ?, decided_on = ?, decision_note = ?, decided_recorded_by = ?,
-        acknowledgement_no = COALESCE(?, acknowledgement_no), updated_at = ? WHERE id = ?`)
+        acknowledgement_no = COALESCE(?, acknowledgement_no), updated_at = ? WHERE id = ? AND status = 'submitted'`)
       .bind(d, d === 'withdrawn' ? null : decided, nz(req.note), c.id.userId, nz(req.acknowledgement_no), now(), id))
-    await runOps(c, stmts)
+    const res = await runOps(c, stmts)
+    // Two people recording a decision at once: only the first lands.
+    if (!res[res.length - 1]?.meta.changes) throw new HttpError(409, 'this filing was decided a moment ago', { code: 'already_decided' })
     return ok({ status: d })
   })
 

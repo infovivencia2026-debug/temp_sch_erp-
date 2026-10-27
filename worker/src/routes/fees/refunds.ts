@@ -3,6 +3,10 @@ import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, r
 import { can } from '../../identity'
 import { indianGroup, isDate, items, notifyStmt, omitNulls, p, paise, today, workingYear } from './common'
 import { school } from '../school'
+import { notifyHoldersStmts } from '../../notify_holders'
+
+/* Every refund notice opens the screen where refunds are asked, decided and paid. */
+const REFUNDS_LINK = '/go/fees/class_transport_fee_setup?view=concessions'
 
 /* Port of refunds.go, concessions_grant.go, and the listConcessions /
    listRefunds readers in fees.go. No triggers touch these tables. */
@@ -158,6 +162,11 @@ export function registerRefunds(r: Router): void {
       const refundable = Math.max(0, p(rr?.refundable))
       throw new HttpError(409, `that is more than this family has paid and not already been refunded. At most ₹${indianGroup(Math.trunc(refundable / 100))} can go back`, { code: 'refund_exceeds_paid' })
     }
+    /* Whoever may approve it is told, except the person who asked: they cannot approve their own. */
+    const who = await c.db.prepare(`SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS n FROM students WHERE id = ?`).bind(req.student_id).first<{ n: string }>()
+    const told = await notifyHoldersStmts(c.db, school(c).id, 'finance.refunds.write', c.id.userId, 'refund_request',
+      `Refund to approve: ${who?.n || 'a child'}`, `₹${indianGroup(Math.trunc(amount / 100))}. ${reason}`, REFUNDS_LINK, 'refund', id)
+    if (told.length) await c.db.batch(told).catch(() => undefined)
     return created({ id, status: 'pending' })
   })
 
@@ -167,9 +176,20 @@ export function registerRefunds(r: Router): void {
     const note = (req.note ?? '').trim()
     if (req.decision !== 'approved' && req.decision !== 'rejected') throw badRequest('decision must be approved or rejected')
     if (req.decision === 'rejected' && note === '') throw badRequest('a refusal needs a reason the family can be given')
-    const res = await c.db.prepare(`UPDATE refunds SET status = ?2, approved_by = ?3, approved_at = ?5, decision_note = NULLIF(?4, '') WHERE id = ?1 AND status = 'pending'`)
+    const cur = await c.db.prepare(`SELECT status, requested_by, student_id, amount_paise FROM refunds WHERE id = ?`).bind(id)
+      .first<{ status: string; requested_by: string | null; student_id: string; amount_paise: number }>()
+    if (!cur) throw notFound('no refund with that id')
+    // Maker-checker: the person who asked for the money to go back cannot also approve it.
+    if (cur.requested_by && cur.requested_by === c.id.userId) throw forbidden('you asked for this refund, so someone else must decide it')
+    const res = await c.db.prepare(`UPDATE refunds SET status = ?2, approved_by = ?3, approved_at = ?5, decision_note = NULLIF(?4, '') WHERE id = ?1 AND status = 'pending' AND requested_by IS NOT ?3`)
       .bind(id, req.decision, c.id.userId, note, now()).run()
     if (!res.meta.changes) throw badRequest('only a pending refund can be decided')
+    if (cur.requested_by) {
+      const amt = `₹${indianGroup(Math.trunc(p(cur.amount_paise) / 100))}`
+      const body = req.decision === 'approved' ? `${amt} approved${note ? ': ' + note : ''}. It can now be paid out.` : `${amt} refused: ${note}`
+      await c.db.batch([notifyStmt(c, cur.requested_by, cur.student_id, 'refund_decided', req.decision === 'approved' ? 'Refund approved' : 'Refund refused',
+        body, REFUNDS_LINK, 'refund', id)]).catch(() => undefined)
+    }
     return ok({ id, status: req.decision })
   })
 
@@ -180,7 +200,11 @@ export function registerRefunds(r: Router): void {
     if (mode === '') throw badRequest('say how it was paid, cash, cheque, neft or upi')
     let on = today()
     if (req.processed_on) { if (!isDate(req.processed_on)) throw badRequest('processed_on must be YYYY-MM-DD'); on = req.processed_on }
-    const res = await c.db.prepare(`UPDATE refunds SET status = 'processed', processed_on = ?2, mode = ?3, reference_no = NULLIF(?4, ''), processed_by = ?5 WHERE id = ?1 AND status = 'approved'`)
+    const cur = await c.db.prepare(`SELECT approved_by FROM refunds WHERE id = ?`).bind(id).first<{ approved_by: string | null }>()
+    if (!cur) throw notFound('no refund with that id')
+    // The person who approved a refund cannot also hand the money out.
+    if (cur.approved_by && cur.approved_by === c.id.userId) throw forbidden('you approved this refund, so someone else must pay it out')
+    const res = await c.db.prepare(`UPDATE refunds SET status = 'processed', processed_on = ?2, mode = ?3, reference_no = NULLIF(?4, ''), processed_by = ?5 WHERE id = ?1 AND status = 'approved' AND approved_by IS NOT ?5`)
       .bind(id, on, mode, (req.reference_no ?? '').trim(), c.id.userId).run()
     if (!res.meta.changes) throw badRequest('only an approved refund can be paid out')
     return ok({ id, status: 'processed' })

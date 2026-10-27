@@ -4,8 +4,9 @@ import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, FormNotice, SkeletonTable, ErrorState, ExportButton,
-  UnavailableState,
+  UnavailableState, Input,
 } from '@/components/ui'
+import { useSearchParams } from 'react-router-dom'
 import { MonthField } from '@/components/DatePopover'
 import { useCan, useSession } from '@/lib/session'
 import { Printer } from 'lucide-react'
@@ -59,8 +60,10 @@ const MONTHS = ['January','February','March','April','May','June',
 export default function Payroll() {
   const qc = useQueryClient()
   const now = new Date()
-  const [month, setMonth] = useState(String(now.getMonth() + 1))
-  const [year, setYear] = useState(String(now.getFullYear()))
+  /* A notification's View link opens the month it is about (?month=&year=). */
+  const [params] = useSearchParams()
+  const [month, setMonth] = useState(params.get('month') || String(now.getMonth() + 1))
+  const [year, setYear] = useState(params.get('year') || String(now.getFullYear()))
   /* Finance opens this screen under "Approve & pay salaries", but the payroll
      routes sit behind hr.payroll.read (Go and the Worker alike). Without it the
      page asked three times, got 403 three times, and showed a zero month with
@@ -95,6 +98,34 @@ export default function Payroll() {
    * over a Publish button. payroll_runs.published_at now records it, and this
    * only covers the moment between the click and the list coming back. */
   const [publishedNow, setPublishedNow] = useState('')
+  /* The principal's approval (owner, 2026-10-27): the maker submits a locked
+     month, an institution admin who did not prepare it approves or sends it
+     back with a note, and only then can the payslips be published. */
+  const approvalQ = useQuery({
+    queryKey: ['payroll-approval', month, year],
+    queryFn: () => api.get<{ run_id: string | null; approval: 'pending' | 'approved' | null; sent_back_note: string | null; can_approve: boolean }>(
+      `/api/v1/payroll/approval?month=${month}&year=${year}`),
+    enabled: canRead,
+  })
+  const approval = approvalQ.data?.approval ?? null
+  const [sendBackNote, setSendBackNote] = useState('')
+  const submit = useMutation({
+    mutationFn: () => api.post<{ notified: number }>('/api/v1/payroll/submit', { month: Number(month), year: Number(year) }),
+    onSuccess: (r) => {
+      setNote(`Sent to the principal for approval. ${r.notified} notified.`)
+      qc.invalidateQueries({ queryKey: ['payroll-approval'] })
+    },
+  })
+  const decideRun = useMutation({
+    mutationFn: (approve: boolean) => api.post(`/api/v1/payroll/runs/${approvalQ.data?.run_id}/decide`,
+      { decision: approve ? 'approved' : 'rejected', note: approve ? undefined : sendBackNote }),
+    onSuccess: (_r, approve) => {
+      setNote(approve ? 'Approved. The payslips can now be published.' : 'Sent back. It is a draft again and the maker has your note.')
+      setSendBackNote('')
+      qc.invalidateQueries({ queryKey: ['payroll-approval'] })
+      qc.invalidateQueries({ queryKey: ['payslips'] })
+    },
+  })
   const state = useMutation({
     mutationFn: (to: 'locked' | 'paid' | 'published' | 'draft') =>
       api.post<{ notified: number; emailed: number; email_failed: number }>(
@@ -375,6 +406,11 @@ export default function Payroll() {
         )}
         {note && <FormNotice ok={note} />}
         {state.isError && <FormNotice error={state.error} />}
+        {submit.isError && <FormNotice error={submit.error} />}
+        {decideRun.isError && <FormNotice error={decideRun.error} />}
+        {status === 'draft' && approvalQ.data?.sent_back_note && (
+          <FormNotice error={`Sent back by the principal: ${approvalQ.data.sent_back_note}`} />
+        )}
 
         {rows.length > 0 && (
           <Card>
@@ -382,6 +418,8 @@ export default function Payroll() {
               title={
                 published
                   ? 'Published'
+                  : approval === 'pending' && locked
+                    ? "Waiting for principal's approval"
                   : status === 'paid'
                     ? 'Paid'
                   : status === 'locked'
@@ -389,6 +427,15 @@ export default function Payroll() {
                     : 'Draft, nobody has approved these figures yet'
               }
               action={
+                approvalQ.data?.can_approve && locked ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input value={sendBackNote} onChange={setSendBackNote} placeholder="Note (needed to send back)" className="w-full sm:w-56" />
+                    <Button disabled={decideRun.isPending} onClick={() => decideRun.mutate(true)}>Approve</Button>
+                    <Button variant="secondary" disabled={decideRun.isPending || !sendBackNote.trim()} onClick={() => decideRun.mutate(false)}>
+                      Send back
+                    </Button>
+                  </div>
+                ) :
                 /* Only what this login may do. Finance reads payroll to approve it and
                    was shown HR's Lock button, which answered "Forbidden." (owner, 2026-10-08). */
                 !canRun ? (
@@ -450,7 +497,12 @@ export default function Payroll() {
                       </Button>
                     </>
                   )}
-                  {status === 'paid' && !published && (
+                  {locked && !published && approval === null && (
+                    <Button disabled={submit.isPending || stale.length > 0} onClick={() => submit.mutate()}>
+                      Send to principal for approval
+                    </Button>
+                  )}
+                  {status === 'paid' && !published && approval === 'approved' && (
                     <Button disabled={state.isPending} onClick={() => state.mutate('published')}>
                       Publish payslips
                     </Button>
@@ -486,7 +538,11 @@ export default function Payroll() {
                 In the body, where it is drawn, and the redundant green echo
                 of the title is gone with it. */}
             <p className="px-[var(--card-pad)] py-3 text-[13px] text-muted-foreground">
-              {published
+              {!published && locked && approval === 'pending'
+                ? "Waiting for the principal's approval. Payslips can be published once it is approved."
+                : !published && locked && approval === null
+                  ? `${status === 'paid' ? 'The money has gone. ' : ''}Send the month to the principal for approval; payslips can be published only after that.`
+                : published
                 ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
                 : status === 'paid'
                   ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'

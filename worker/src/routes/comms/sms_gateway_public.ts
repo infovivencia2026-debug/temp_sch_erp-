@@ -4,6 +4,7 @@ import { now, uuid } from '../../http'
 import { verifyPassword } from '../../auth/password'
 import { institutionById, tenantDb } from '../../tenant'
 import { truncate } from './common'
+import { failed as loginFailed, throttled as loginThrottled } from '../login'
 import { allTenants, callerAddress, decodeStrict, goError, goInternal, randomSecret, rateLimited, sealSecretEnv, type Tenant } from './public_common'
 
 /* Port of claimSMSGatewayPairCode (sms_gateway.go) and enrolSMSGateway
@@ -199,8 +200,16 @@ async function enrol(env: Env, req: Request): Promise<Response> {
     android_version: 'string', sim_operator: 'string', app_version: 'string' })
   if (body instanceof Response) return body
   const secretIn = body.password ? body.password : (body.pin ?? '')
+  /* The same per-identifier lockout /login keeps (login_throttle "id:" keys), so a
+     password cannot be guessed here once sign-in has locked it, nor guessed here instead. */
+  const idKey = 'id:' + (body.phone ?? '').trim().toLowerCase()
+  if (await loginThrottled(env, idKey) > 0) return goError(429, 'rate_limited', 'too many attempts for this account. Wait a few minutes and try again')
   const who = await authenticateStaffLogin(env, body.phone ?? '', secretIn)
-  if (typeof who === 'string') return deviceLoginRejected(who)
+  if (typeof who === 'string') {
+    if (who !== 'no_login_yet') await loginFailed(env, idKey)
+    return deviceLoginRejected(who)
+  }
+  await env.CONTROL.prepare('DELETE FROM login_throttle WHERE key = ?').bind(idKey).run()
 
   let name = (body.device_name ?? '').trim()
   if (name === '') name = 'Office phone'
