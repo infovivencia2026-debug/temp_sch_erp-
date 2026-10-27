@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardHeader } from '@/components/ui'
 import { aiApi, AiLabel } from './aiApi'
@@ -5,7 +6,7 @@ import { aiApi, AiLabel } from './aiApi'
 /* The weekly note about a child, written on Saturday mornings from the
    week's attendance, homework, marks and teachers' notes. Shows nothing
    until the first one exists. */
-export default function WeeklyNoteCard({ studentId }: { studentId?: string }) {
+function WeeklyNoteCardInner({ studentId }: { studentId?: string }) {
   const q = useQuery({ queryKey: ['ai-weekly', studentId ?? ''], queryFn: () => aiApi.weekly(studentId), retry: false })
   const b = q.data?.brief
   if (!b) return null
@@ -18,4 +19,9 @@ export default function WeeklyNoteCard({ studentId }: { studentId?: string }) {
       </div>
     </Card>
   )
+}
+
+/** Hidden entirely when the school switched this AI feature off. */
+export default function WeeklyNoteCard(props: Parameters<typeof WeeklyNoteCardInner>[0]) {
+  return useAiFeature('parent_weekly') ? <WeeklyNoteCardInner {...props} /> : null
 }

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessionIfAny } from '@/lib/session'
-import { aiApi, type AiState } from './aiApi'
+import { aiApi, type AiFeature, type AiState } from './aiApi'
 
 /* Whether the AI features can answer right now (GET /api/v1/ai/status,
    worker/src/services/ai/key.ts). Read once and shared by every AI entry
@@ -49,6 +49,13 @@ export function useAiStatus(): AiStatusView {
   // A failed status read is not a verdict: leave the buttons on and let the call say why.
   const ok = state === null || state === 'ok'
   return { loading: q.isPending, ok, state, reason: ok ? null : offReason(state, operator), operator }
+}
+
+/** Whether the school has this AI feature switched on. Off: hide its button entirely.
+    Treated as on while loading or when the server does not say (older worker). */
+export function useAiFeature(f: AiFeature): boolean {
+  const q = useQuery({ queryKey: AI_STATUS_KEY, queryFn: aiApi.status, staleTime: 5 * 60_000, retry: false })
+  return q.data?.features?.[f] !== false
 }
 
 /** After a generation call is refused (code assistant_not_configured or ai_not_configured). */

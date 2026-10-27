@@ -5,6 +5,7 @@ import { importSpecs } from '../setup/imports'
 import { parseCSV } from '../setup/imports'
 import { assistantFailure, assistantRateLimit } from '../teaching/gemini'
 import { dispatch } from '../misc/assistant/actions'
+import { requireAiFeature } from '../../services/ai/llm'
 import { geminiKeySet, llmFromEnv } from '../../services/ai/gemini_seam'
 import { isZip, readXLSX } from '../../services/ai/xlsx_read'
 import {
@@ -70,6 +71,7 @@ async function schoolClasses(c: Ctx): Promise<SchoolClass[]> {
 
 async function analyze(c: Ctx): Promise<Response> {
   needSchool(c)
+  await requireAiFeature(c.db, 'smart_import')
   const form = await c.req.formData().catch(() => null)
   if (!form) throw badRequest('send the file as multipart form data in `file`')
   const file = form.get('file')
@@ -122,6 +124,7 @@ async function analyze(c: Ctx): Promise<Response> {
 
 async function propose(c: Ctx): Promise<Response> {
   needSchool(c)
+  await requireAiFeature(c.db, 'smart_import')
   const body = await readJSON<{ table?: unknown; kind?: string }>(c.req)
   const table = cleanTable(body.table)
   const kinds = kindsFor(c)
@@ -135,6 +138,7 @@ interface RunBody { kind?: string; table?: unknown; mapping?: { index?: number; 
 
 async function run(c: Ctx, commit: boolean): Promise<Response> {
   needSchool(c)
+  await requireAiFeature(c.db, 'smart_import')
   const body = await readJSON<RunBody>(c.req)
   const kind = kindsFor(c).find((k) => k.key === body.kind)
   if (!kind) throw new HttpError(403, 'you cannot import ' + (body.kind || 'that'), { code: 'forbidden' })
