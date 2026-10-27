@@ -55,6 +55,9 @@ const KINDS: Record<string, { label: string; icon: typeof CalendarDays }> = {
      Approving relieves them and switches off their login; rejecting needs a
      note, which goes back to HR. */
   staff_exit: { label: 'Staff exit', icon: DoorOpen },
+  /* A month's payroll sent up for the principal's approval; rejecting
+     (send back) needs a note, which goes back to the maker. */
+  payroll: { label: 'Payroll', icon: IndianRupee },
 }
 
 export default function Approvals() {
@@ -239,7 +242,7 @@ export default function Approvals() {
                         <Input
                           value={note[it.id] ?? ''}
                           onChange={(x) => setNote({ ...note, [it.id]: x })}
-                          placeholder={it.kind === 'staff_exit' || it.kind === 'attendance_fix' ? 'Note (needed to reject)' : 'Note (optional)'}
+                          placeholder={it.kind === 'staff_exit' || it.kind === 'attendance_fix' || it.kind === 'payroll' ? 'Note (needed to reject)' : 'Note (optional)'}
                           className="col-span-2 w-full sm:w-40"
                         />
                         <Button
