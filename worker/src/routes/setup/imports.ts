@@ -33,6 +33,11 @@ export class ImportCtx {
      lookups on every one of its rows, which made a 600-row sheet slow
      enough for the browser to give up while the server was still saving. */
   teacherMisses = new Set<string>()
+  /* Timetable cells already on file, read once (section/period/weekday ->
+     id), and the writes held back to go in batches at the end: one round
+     trip per row made a full-school sheet outlast the browser's wait. */
+  timetableCells: Map<string, string> | null = null
+  deferred: D1PreparedStatement[] = []
   periods: Map<string, string> | null = null
   devices = new Map<string, string>()
   punchSeen = new Set<string>()
@@ -736,14 +741,21 @@ export const importSpecs: Record<string, ImportSpec> = {
       if (who !== '' && !ctx.teacherMisses.has(who.toLowerCase())) {
         try { teacher = await ctx.teacherByEmail(who) } catch { ctx.teacherMisses.add(who.toLowerCase()) }
       }
-      const existing = await exists(ctx, `SELECT id FROM timetable_entries WHERE section_id = ? AND period_id = ? AND weekday = ?`, sectionId, periodId, weekday)
+      if (!ctx.timetableCells) {
+        const all = await ctx.db.prepare(`SELECT id, section_id, period_id, weekday FROM timetable_entries WHERE institution_id = ?`).bind(ctx.inst)
+          .all<{ id: string; section_id: string; period_id: string; weekday: number }>()
+        ctx.timetableCells = new Map(all.results.map((e) => [`${e.section_id}/${e.period_id}/${e.weekday}`, e.id]))
+      }
+      const cell = `${sectionId}/${periodId}/${weekday}`
+      const existing = ctx.timetableCells.get(cell)
       if (existing) {
-        await ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing).run()
+        ctx.deferred.push(ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing))
         return
       }
       const id = uuid()
-      await ctx.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?)`)
-        .bind(id, ctx.inst, yearId, sectionId, periodId, weekday, csId, teacher, str(row.room).trim(), now()).run()
+      ctx.timetableCells.set(cell, id)
+      ctx.deferred.push(ctx.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?)`)
+        .bind(id, ctx.inst, yearId, sectionId, periodId, weekday, csId, teacher, str(row.room).trim(), now()))
       ctx.noteCreated('timetable', id, true)
     },
   },
@@ -1512,6 +1524,7 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       out.problems.push({ row: p.row, data: p.data, problem: (e as Error).message })
     }
   }
+  for (let i = 0; i < ctx.deferred.length; i += 100) await c.db.batch(ctx.deferred.slice(i, i + 100))
   const runId = uuid()
   const omitted = raw.length > MAX_KEPT_IMPORT_BYTES
   const stmts = [c.db.prepare(`INSERT INTO import_runs (id, institution_id, entity, filename, rows_read, rows_imported, rows_rejected, imported_by, created_at, content, content_omitted)

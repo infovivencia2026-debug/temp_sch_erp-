@@ -1127,7 +1127,8 @@ function History({
                   </button>
                 </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
-                  {formatDateTime(r.created_at)}
+                  {/* The server sends UTC without its Z; read it as UTC, show it local. */}
+                  {formatDateTime(/(Z|[+-]\d\d:?\d\d)$/i.test(r.created_at) ? r.created_at : r.created_at + 'Z')}
                 </td>
                 <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '-'}</td>
                 <td className="py-1 pr-3 tabular-nums">
