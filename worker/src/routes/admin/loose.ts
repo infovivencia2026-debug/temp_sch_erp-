@@ -238,10 +238,20 @@ const PROBES: Probe[] = [
     run: async (c, sc, today) => {
       const pred = sc.allStudents ? '1' : `EXISTS (SELECT 1 FROM sections sn WHERE sn.class_id = cs.class_id AND ${inJSON('sn.id')})`
       const args: unknown[] = sc.allStudents ? [] : [JSON.stringify(sc.sectionIds)]
-      return { count: await count(c, `
-        SELECT count(*) FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
-         WHERE es.exam_date IS NOT NULL AND es.exam_date < ? AND ${pred}
-           AND NOT EXISTS (SELECT 1 FROM marks m WHERE m.exam_subject_id = es.id)`, today, ...args) }
+      /* Only a subject with an exam on the date sheet, its date passed and
+         no mark in it. A subject with no exam scheduled never counts; the
+         detail names each paper (owner, 2026-10-27). */
+      const r = await c.db.prepare(`
+        SELECT e.name || ' · ' || cl.name || ' · ' || sub.name AS label
+          FROM exam_subjects es JOIN exams e ON e.id = es.exam_id
+          JOIN class_subjects cs ON cs.id = es.class_subject_id
+          JOIN classes cl ON cl.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id
+         WHERE es.exam_date IS NOT NULL AND substr(es.exam_date, 1, 10) < ? AND ${pred}
+           AND NOT EXISTS (SELECT 1 FROM marks m WHERE m.exam_subject_id = es.id)
+         ORDER BY es.exam_date, cl.level, sub.name`).bind(today, ...args).all<{ label: string }>()
+      const labels = r.results.map((x) => x.label)
+      const more = labels.length > 3 ? ` and ${labels.length - 3} more` : ''
+      return { count: labels.length, detail: labels.slice(0, 3).join(', ') + more }
     } },
   { key: 'certificates.requested', needs: 'institution_admin.students.certificates_transfers admissions.applications.certificates_transfers',
     severity: 'info', action: 'Issue', href: 'certificates_transfers certificates students',
