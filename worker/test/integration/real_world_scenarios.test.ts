@@ -85,7 +85,8 @@ describe('money: the fee counter', () => {
     const pend = await T().prepare(`SELECT id FROM refunds WHERE student_id = ? AND status = 'pending' LIMIT 1`).bind(IDS.child).first<{ id: string }>()
     if (!pend) return
     expect((await api('finance', 'POST', `/fees/refunds/${pend.id}/decide`, { decision: 'rejected' })).status).toBe(400)
-    const r = await api('finance', 'POST', `/fees/refunds/${pend.id}/decide`, { decision: 'rejected', note: 'the family withdrew the request' })
+    // Finance raised it, so another person decides it (maker-checker, finance_security.test.ts).
+    const r = await api('admin', 'POST', `/fees/refunds/${pend.id}/decide`, { decision: 'rejected', note: 'the family withdrew the request' })
     expect(r.status).toBe(200)
   })
 
