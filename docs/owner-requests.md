@@ -258,3 +258,4 @@ Last checked: 2026-10-02.
 - 2026-10-27 Class Setup: add a Class subjects tab (pick class, tick subjects, add a subject) so schools can change it after setup. Done: type-checked, deployed.
 - 2026-10-27 Timetable upload: check sections before upload, faster save (unmatched teacher remembered), no false 'nothing imported' message, import history in local time. Done: type-checked, import tests pass, deployed.
 - 2026-10-27 Timetable upload put rows on the wrong day's period (first 'period 1' of any bell schedule) and left short teacher names blank. Fixed: day's own schedule; a teacher word matching exactly one staff name is taken. Done: tests pass, deployed.
+- 2026-10-27 Combined classes: one teacher may take two sections in the same period when it is the same subject (P.E.T). Migration 0121. Done: tests pass; needs remote migration.
