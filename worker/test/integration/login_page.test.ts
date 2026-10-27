@@ -44,7 +44,7 @@ describe('sign-in page', () => {
     const h = loginHTML({ csrf: 'c', next: '/', audience: 'vendor' })
     expect(h).not.toContain('role="tablist"')
     expect(h).toContain('<h1>Vendor sign-in</h1>')
-    expect(h).toContain('For XULO staff. Schools sign in at their own address.')
+    expect(h).toContain('XULO staff only.')
   })
 
   it('fills the brand panel with cross-fading pictures when slides are set, escaping URLs', () => {

@@ -101,8 +101,8 @@ describe('forgot password', () => {
   it('says the same thing whether or not the account exists', async () => {
     const a = await (await ask(USERS.teacher, ip())).text()
     const b = await (await ask('nobody-' + crypto.randomUUID() + '@nowhere.test', ip())).text()
-    expect(a).toContain('If that account exists')
-    expect(b).toContain('If that account exists')
+    expect(a).toContain('If the account exists')
+    expect(b).toContain('If the account exists')
   })
   it('is rate-limited per identifier', async () => {
     const who = 'limit-' + crypto.randomUUID() + '@nowhere.test'

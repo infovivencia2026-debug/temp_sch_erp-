@@ -82,8 +82,8 @@ describe('staff sign in with a plain phone number or school email', () => {
   })
   it('tabs ask parents for a phone (tel keypad) and staff for school email or phone', async () => {
     const h = await (await at('test.xulo.in', '/login')).text()
-    expect(h).toMatch(/"label":"Phone (registered)"[^}]*"mode":"tel"/)
-    expect(h).toMatch(/"label":"School email or phone (registered)"[^}]*"mode":"text"/)
+    expect(h).toMatch(/"label":"Phone \(registered\)"[^}]*"mode":"tel"/)
+    expect(h).toMatch(/"label":"School email or phone \(registered\)"[^}]*"mode":"text"/)
     expect(h).toContain('Admission no.')
   })
   it('wrong details are told in the words of the tab used', async () => {
