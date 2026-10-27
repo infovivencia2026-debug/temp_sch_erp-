@@ -39,5 +39,20 @@ describe('phone header search', () => {
     expect(input).toBeTruthy()
     expect(document.activeElement).toBe(input)
     expect(document.querySelector('.scrim.search-sheet')).toBeTruthy()
+    // The card grows out of the icon, and its results are the fading list.
+    expect(document.documentElement.style.getPropertyValue('--search-ox')).toMatch(/px$/)
+    expect(document.querySelector('.scrim.search-sheet .search-results')).toBeTruthy()
+  })
+
+  it('uses the short placeholder on a phone', async () => {
+    const mm = window.matchMedia
+    window.matchMedia = ((q: string) => ({ matches: q.includes('max-width: 639px'), addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia
+    try {
+      const { CommandSearch } = await import('./CommandSearch')
+      const qc = new QueryClient()
+      await act(async () => { root.render(<QueryClientProvider client={qc}><CommandSearch wide /></QueryClientProvider>) })
+      await act(async () => { host.querySelector<HTMLButtonElement>('button[aria-label="Search features"]')!.click() })
+      expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.placeholder).toBe('Search')
+    } finally { window.matchMedia = mm }
   })
 })

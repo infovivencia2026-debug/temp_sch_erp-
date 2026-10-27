@@ -274,7 +274,14 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
     return (
       <button
         ref={trigger}
-        onClick={() => setOpen(true)}
+        onClick={(e) => {
+          /* The phone card grows out of this icon (search-sheet in index.css). */
+          const r = e.currentTarget.getBoundingClientRect()
+          const st = document.documentElement.style
+          st.setProperty('--search-ox', `${Math.round(r.left + r.width / 2)}px`)
+          st.setProperty('--search-oy', `${Math.round(r.top + r.height / 2)}px`)
+          setOpen(true)
+        }}
         /* Fully round, to sit inside the Bento dock without arguing with it.
 
            The dock is a pill and every other control in it is a pill; this was
@@ -363,14 +370,14 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
                 if (e.key === 'Enter' && (asksQuestion || (offerAsk && !hits[cursor]))) { e.preventDefault(); askAssistant(q.trim()); close(); return }
                 if (e.key === 'Enter' && hits[cursor]) { e.preventDefault(); go(hits[cursor]) }
               }}
-              placeholder="Search screens, children and parents, a name, an admission number or a mobile"
+              placeholder={isPhone() ? 'Search' : 'Search screens, children and parents, a name, an admission number or a mobile'}
               className="h-12 w-full bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Same treatment as the record menu: a list that runs past its box
               says so with a control, not by slicing a row in half. */}
-          <ScrollBox className="max-h-[52dvh]">
+          <ScrollBox className="search-results max-h-[52dvh]">
           <ul className="py-1">
             {offerAsk && <AskAssistantRow q={q} active={asksQuestion || hits.length === 0} onAsked={close} />}
             {peopleHits.length > 0 && (
@@ -455,6 +462,11 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
   )
 }
 
+
+/* Below sm (the phone layout), where the long placeholder is cut off. */
+function isPhone(): boolean {
+  try { return window.matchMedia('(max-width: 639px)').matches } catch { return false }
+}
 
 /* The last eight screens opened from the palette, newest first. Read and
    written inside try/catch: storage can be absent or throwing in a private
