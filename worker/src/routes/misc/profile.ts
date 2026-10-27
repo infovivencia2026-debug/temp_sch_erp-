@@ -215,6 +215,16 @@ export function registerProfile(r: Router): void {
     }
     // Two databases: the school row first, then the index. Not atomic across the two; the index is a cache of this row.
     await stmts[0].run()
+    /* One number for one person (Yajur, 2026-10-27): a member of staff editing
+       their own phone or email changes the staff record too, so the staff
+       register, every other admin and every role read the new one, and the
+       staff part of /portal/live moves so open screens refetch. */
+    if (req.phone !== undefined || newEmail) {
+      await c.db.prepare(`UPDATE employees SET
+          phone = CASE WHEN ?1 THEN NULLIF(?2, '') ELSE phone END,
+          email = COALESCE(?3, email), updated_at = ?4 WHERE user_id = ?5`)
+        .bind(req.phone !== undefined ? 1 : 0, req.phone ?? null, newEmail, now(), c.id.userId).run()
+    }
     for (const s of stmts.slice(1)) await s.run()
     return readProfile(c)
   })

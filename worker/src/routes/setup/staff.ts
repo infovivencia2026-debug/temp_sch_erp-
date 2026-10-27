@@ -358,6 +358,16 @@ export function registerStaff(r: Router): void {
                             WHEN NULLIF(?1, '') IS NOT NULL AND username = (SELECT email FROM employees WHERE id = ?3) THEN NULLIF(?1, '')
                             ELSE username END,
             updated_at = ?4 WHERE id = (SELECT user_id FROM employees WHERE id = ?3)`).bind(email, phone, empId, t).run()
+        /* The sign-in index follows (Yajur, 2026-10-27): the new number signs in,
+           the old one no longer does. */
+        const u = await c.db.prepare(`SELECT email, phone FROM users WHERE id = ?`).bind(row.user_id).first<{ email: string | null; phone: string | null }>()
+        if (u) {
+          await c.env.CONTROL.batch([
+            c.env.CONTROL.prepare(`DELETE FROM login_index WHERE user_id = ? AND ((kind = 'phone' AND value IS NOT ?) OR (kind = 'email' AND value IS NOT ?))`)
+              .bind(row.user_id, u.phone, u.email),
+          ])
+          await indexLogin(c, row.user_id)
+        }
       } catch (e) {
         if (!isUniqueViolation(e)) throw e
       }

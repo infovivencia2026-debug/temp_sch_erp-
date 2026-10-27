@@ -95,10 +95,21 @@ const LIVE_WORDS: string[][] = [
   [...COMMON, 'report', 'exam', 'result', 'academics'],
   [...COMMON, 'concession', 'ledger', 'fee', 'finance', 'approval', 'student-detail', 'pending-admission'],
   // Staff and salaries (Yajur, 2026-10-14): a new member of staff shows on every login.
-  ['employee', 'staff', 'salary', 'payroll', 'roster', 'people', 'hr', 'teacher'],
+  // A staff phone or email edited on one login shows on every other login and role (Yajur, 2026-10-27):
+  // the user lists, sign-in rosters, profiles and people search carry the same number.
+  ['employee', 'staff', 'salary', 'payroll', 'roster', 'people', 'hr', 'teacher',
+    'admin-users', 'school-logins', 'login-roster', 'profile', 'subject-overview', 'directory', 'contact'],
   // The school calendar (Yajur, 2026-10-14): a holiday added or removed shows on every screen that draws one.
   [...COMMON, 'calendar', 'holiday', 'term', 'school-life', 'events', 'day'],
 ]
+
+const REV_KEY = 'erp-live-rev'
+function readSavedRev(): string | null {
+  try { return window.localStorage.getItem(REV_KEY) } catch { return null }
+}
+function saveRev(rev: string) {
+  try { window.localStorage.setItem(REV_KEY, rev) } catch { /* private mode: the poll still works */ }
+}
 
 export function useLiveUpdates() {
   const qc = useQueryClient()
@@ -122,10 +133,13 @@ export function useLiveUpdates() {
         if (stopped) return
         if (seen.current === null) {
           // The first answer is the baseline, not a change. Without this every
-          // page load would throw away a cache it had just filled.
-          seen.current = r.rev
-          return
+          // page load would throw away a cache it had just filled. But the
+          // cache may have been restored from disk: compare with the revision
+          // that cache was taken at, so a change made elsewhere while this
+          // device was away still refreshes what moved (Yajur, 2026-10-27).
+          seen.current = readSavedRev() ?? r.rev
         }
+        saveRev(r.rev)
         if (r.rev !== seen.current) {
           const before = seen.current
           seen.current = r.rev
