@@ -5118,7 +5118,7 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 40px; height: 40px; }
 }
 @media (hover: hover) {
-  .staff-foot-settings button:hover { background: hsl(var(--surface-hover)); color: hsl(var(--foreground)); }
+
 }
 
 /* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
@@ -5389,3 +5389,21 @@ button.glass-btn:active:not(:disabled) {
   }
   html:root .text-\[15px\] { font-size: max(14px, calc(15px * var(--font-scale, 1))) !important; }
 }
+
+/* Profile card Help, Settings and Sign out hover like the side-menu pills
+   (owner, 2026-10-27: "like how other things hover"): a 2px lift, the
+   primary's wash, a hairline border and a soft shadow; the icon grows a
+   touch. Pointer devices only, so a finger never leaves it stuck. */
+.foot-icon, .staff-foot-settings button { border: 1px solid transparent; }
+@media (hover: hover) {
+  .foot-icon, .staff-foot-settings button {
+    transition: transform .25s ease, background-color .25s ease, border-color .25s ease, box-shadow .25s ease, color .25s ease;
+  }
+  .foot-icon:hover, .staff-foot-settings button:hover {
+    transform: translateY(-2px);
+    background: hsl(var(--primary) / .08); border-color: hsl(var(--primary) / .45); color: hsl(var(--primary));
+    box-shadow: 0 10px 15px -3px hsl(var(--primary) / .12), 0 4px 6px -4px hsl(var(--primary) / .12);
+  }
+  .foot-icon:hover svg, .staff-foot-settings button:hover svg { transform: scale(1.1); transition: transform .25s ease; }
+}
+@media (prefers-reduced-motion: reduce) { .foot-icon:hover, .staff-foot-settings button:hover { transform: none; } }
