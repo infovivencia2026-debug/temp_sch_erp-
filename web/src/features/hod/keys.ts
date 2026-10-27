@@ -42,5 +42,6 @@ export const hodKeys = {
   'hod.academics.language_subject_allocation': screen(() => import('../faculty/LanguageAllocation')),
   'hod.staff.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
   'hod.staff.leaves_subs': screen(() => import('../hr/Leave')),
+  'hod.academics.course_outcomes': screen(() => import('../academics/Outcomes')),
   'hod.my_profile.profile': screen(() => import('../shared/Profile')),
 }
