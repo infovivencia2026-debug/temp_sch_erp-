@@ -128,6 +128,12 @@ function BillRow({ bill }: { bill: VendorBill }) {
     mutationFn: () => api.post(`${ledgerBase}/bills/${bill.id}/approve`),
     onSuccess: invalidate,
   })
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectWhy, setRejectWhy] = useState('')
+  const reject = useMutation({
+    mutationFn: () => api.post(`${ledgerBase}/bills/${bill.id}/reject`, { reason: rejectWhy.trim() }),
+    onSuccess: () => { setRejecting(false); setRejectWhy(''); invalidate() },
+  })
   const pay = useMutation({
     mutationFn: () =>
       api.post(`${ledgerBase}/bills/${bill.id}/pay`, {
@@ -175,6 +181,11 @@ function BillRow({ bill }: { bill: VendorBill }) {
                 Approve
               </ConfirmButton>
             )}
+            {bill.status === 'draft' && (
+              <Button size="sm" variant="secondary" onClick={() => setRejecting(!rejecting)}>
+                {rejecting ? 'Cancel' : 'Reject'}
+              </Button>
+            )}
             {bill.status === 'approved' && bill.outstanding_paise > 0 && (
               <Button size="sm" variant="secondary" onClick={() => setPaying(!paying)}>
                 {paying ? 'Cancel' : 'Pay'}
@@ -183,8 +194,23 @@ function BillRow({ bill }: { bill: VendorBill }) {
           </div>
         </Td>
       </tr>
-      {(approve.error || pay.error) && (
-        <tr><Td colSpan={10}><FormNotice error={approve.error ?? pay.error} /></Td></tr>
+      {(approve.error || pay.error || reject.error) && (
+        <tr><Td colSpan={10}><FormNotice error={approve.error ?? pay.error ?? reject.error} /></Td></tr>
+      )}
+      {rejecting && (
+        <tr>
+          <Td colSpan={10}>
+            <div className="space-y-4 py-2">
+              <Field label="Why is this bill rejected?" required hint="Kept on the bill. A rejected bill cannot be approved or paid.">
+                <Textarea value={rejectWhy} onChange={setRejectWhy} />
+              </Field>
+              <Button tone="danger" onClick={() => reject.mutate()}
+                disabled={rejectWhy.trim().length < 5 || reject.isPending}>
+                Reject the bill
+              </Button>
+            </div>
+          </Td>
+        </tr>
       )}
       {paying && (
         <tr>

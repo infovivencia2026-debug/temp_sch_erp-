@@ -419,7 +419,7 @@ export function registerOpsPurchasing(r: Router): void {
         FROM purchase_orders o JOIN vendors v ON v.id = o.vendor_id WHERE o.id = ?`).bind(id))
     const bills = (await c.db.prepare(`SELECT b.id, b.bill_no, substr(b.bill_date,1,10) AS bill_date, COALESCE(b.total_paise, b.taxable_paise + b.tax_paise) AS total_paise, b.status,
           EXISTS (SELECT 1 FROM purchase_invoice_matches m WHERE m.vendor_bill_id = b.id) AS taken
-        FROM vendor_bills b WHERE b.vendor_id = ?1 AND b.status <> 'cancelled' AND (?2 IS NULL OR b.id = ?2)
+        FROM vendor_bills b WHERE b.vendor_id = ?1 AND b.status NOT IN ('cancelled', 'rejected') AND (?2 IS NULL OR b.id = ?2)
        ORDER BY b.bill_date DESC LIMIT 100`).bind(po.vendor_id, bill).all<Row>()).results.map((v) => ({
       id: v.id, bill_no: v.bill_no, bill_date: v.bill_date, total_paise: Number(v.total_paise), status: v.status, already_matched: !!Number(v.taken) }))
     return ok({ po_no: po.po_no, vendor: po.vendor, ordered_paise: Number(po.total_paise), received_paise: Number(po.received_paise), bills,
