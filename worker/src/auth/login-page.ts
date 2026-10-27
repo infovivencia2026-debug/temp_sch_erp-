@@ -497,6 +497,8 @@ const FIT_CSS = `
 html:has(body.auth){height:100%;overflow:hidden;overscroll-behavior:none}
 body.auth{height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;touch-action:pan-x pan-y}
 body.auth .auth-split .card{overflow-y:auto;overscroll-behavior:contain}
+body.auth,body.auth .auth-split .card{scrollbar-width:none;-ms-overflow-style:none}
+body.auth::-webkit-scrollbar,body.auth .auth-split .card::-webkit-scrollbar{display:none;width:0;height:0}
 @media (min-width:640px){
   body.auth .auth-split{min-height:min(95vh, calc(100dvh - 3rem));max-height:calc(100dvh - 3rem)}
 }
