@@ -62,18 +62,18 @@ export type LoginLang = 'en' | 'te'
    prefers it (routes/login.ts chooses); English otherwise. */
 const WORDS: Record<LoginLang, Record<string, string>> = {
   en: {
-    SIGNIN: 'Sign in', IDENT: 'Username, email or phone', PASSWORD: 'Password', CAPS: 'Caps Lock is on',
-    PENDING: 'Signing in…', FORGOT: 'Forgotten your password?', PRIVACY: 'Privacy',
-    SHOW: 'Show password', HIDE: 'Hide password', HELP: 'Help signing in',
+    SIGNIN: 'Sign in', IDENT: 'Username, email or phone', PASSWORD: 'Password', CAPS: 'Caps Lock on',
+    PENDING: 'Signing in…', FORGOT: 'Forgot password?', PRIVACY: 'Privacy',
+    SHOW: 'Show password', HIDE: 'Hide password', HELP: 'Help',
     EYEBROW: 'One login', HEADLINE: 'One stop for the whole school.',
-    MESSAGE: 'Admissions, fees, attendance, exams: office, staff room and parents.',
+    MESSAGE: 'Admissions, fees, attendance, exams.',
   },
   te: {
-    SIGNIN: 'సైన్ ఇన్', IDENT: 'యూజర్‌నేమ్, ఈమెయిల్ లేదా ఫోన్', PASSWORD: 'పాస్‌వర్డ్', CAPS: 'Caps Lock ఆన్‌లో ఉంది',
+    SIGNIN: 'సైన్ ఇన్', IDENT: 'యూజర్‌నేమ్, ఈమెయిల్ లేదా ఫోన్', PASSWORD: 'పాస్‌వర్డ్', CAPS: 'Caps Lock ఆన్',
     PENDING: 'సైన్ ఇన్ అవుతోంది…', FORGOT: 'పాస్‌వర్డ్ మర్చిపోయారా?', PRIVACY: 'గోప్యత',
-    SHOW: 'పాస్‌వర్డ్ చూపించు', HIDE: 'పాస్‌వర్డ్ దాచు', HELP: 'సైన్ ఇన్‌కు సహాయం',
+    SHOW: 'పాస్‌వర్డ్ చూపించు', HIDE: 'పాస్‌వర్డ్ దాచు', HELP: 'సహాయం',
     EYEBROW: 'ఒకే లాగిన్', HEADLINE: 'మొత్తం స్కూల్ ఒకే చోట.',
-    MESSAGE: 'అడ్మిషన్లు, ఫీజులు, హాజరు, పరీక్షలు: ఆఫీసు, టీచర్లు, తల్లిదండ్రులు అందరికీ.',
+    MESSAGE: 'అడ్మిషన్లు, ఫీజులు, హాజరు, పరీక్షలు.',
   },
 }
 
@@ -85,29 +85,29 @@ export function tabWords(lang: LoginLang, id: string): { label: string; mode: st
 
 /* Words for the tabs, the vendor page, the gallery and the school chooser. */
 const MORE: Record<LoginLang, {
-  tabs: { id: string; name: string; label: string; hint: string; mode: string; ac: string }[]
+  tabs: { id: string; name: string; label: string; mode: string; ac: string }[]
   tablist: string; vendorH1: string; vendorLede: string; picture: string; gallery: string; back: string
   findH1: string; findLede: string; code: string; cont: string
 }> = {
   en: {
     tabs: [
-      { id: 'parent', name: 'Parent', label: 'Phone number', hint: 'The phone number you gave the school.', mode: 'tel', ac: 'tel' },
-      { id: 'student', name: 'Student', label: 'Admission number', hint: 'Printed on your ID card and fee receipt.', mode: 'text', ac: 'username' },
-      { id: 'staff', name: 'Staff', label: 'School email or phone number', hint: 'Your school email, or the phone number the school has for you.', mode: 'text', ac: 'username' },
+      { id: 'parent', name: 'Parent', label: 'Phone (registered)', mode: 'tel', ac: 'tel' },
+      { id: 'student', name: 'Student', label: 'Admission no.', mode: 'text', ac: 'username' },
+      { id: 'staff', name: 'Staff', label: 'School email or phone (registered)', mode: 'text', ac: 'username' },
     ],
-    tablist: 'Who is signing in', vendorH1: 'Vendor sign-in', vendorLede: 'For XULO staff. Schools sign in at their own address.',
+    tablist: 'Who is signing in', vendorH1: 'Vendor sign-in', vendorLede: 'XULO staff only.',
     picture: 'Picture', gallery: 'School pictures', back: 'Back',
-    findH1: 'Find your school', findLede: 'Type the school code the office gave you.', code: 'School code', cont: 'Continue',
+    findH1: 'Find your school', findLede: 'From the school office.', code: 'School code', cont: 'Continue',
   },
   te: {
     tabs: [
-      { id: 'parent', name: 'తల్లిదండ్రులు', label: 'ఫోన్ నంబర్', hint: 'మీరు స్కూల్‌కు ఇచ్చిన ఫోన్ నంబర్.', mode: 'tel', ac: 'tel' },
-      { id: 'student', name: 'విద్యార్థి', label: 'అడ్మిషన్ నంబర్', hint: 'మీ ఐడీ కార్డు, ఫీజు రసీదుపై ఉంటుంది.', mode: 'text', ac: 'username' },
-      { id: 'staff', name: 'సిబ్బంది', label: 'స్కూల్ ఈమెయిల్ లేదా ఫోన్ నంబర్', hint: 'మీ స్కూల్ ఈమెయిల్, లేదా స్కూల్ వద్ద ఉన్న మీ ఫోన్ నంబర్.', mode: 'text', ac: 'username' },
+      { id: 'parent', name: 'తల్లిదండ్రులు', label: 'ఫోన్ (నమోదైనది)', mode: 'tel', ac: 'tel' },
+      { id: 'student', name: 'విద్యార్థి', label: 'అడ్మిషన్ నం.', mode: 'text', ac: 'username' },
+      { id: 'staff', name: 'సిబ్బంది', label: 'స్కూల్ ఈమెయిల్ లేదా ఫోన్ (నమోదైనది)', mode: 'text', ac: 'username' },
     ],
-    tablist: 'ఎవరు సైన్ ఇన్ అవుతున్నారు', vendorH1: 'వెండర్ సైన్ ఇన్', vendorLede: 'XULO సిబ్బంది కోసం. స్కూల్స్ తమ సొంత చిరునామాలో సైన్ ఇన్ అవుతాయి.',
+    tablist: 'ఎవరు సైన్ ఇన్ అవుతున్నారు', vendorH1: 'వెండర్ సైన్ ఇన్', vendorLede: 'XULO సిబ్బందికి మాత్రమే.',
     picture: 'చిత్రం', gallery: 'స్కూల్ చిత్రాలు', back: 'వెనుకకు',
-    findH1: 'మీ స్కూల్‌ను కనుగొనండి', findLede: 'ఆఫీసు ఇచ్చిన స్కూల్ కోడ్‌ను టైప్ చేయండి.', code: 'స్కూల్ కోడ్', cont: 'కొనసాగించు',
+    findH1: 'మీ స్కూల్‌ను కనుగొనండి', findLede: 'స్కూల్ ఆఫీసు నుండి.', code: 'స్కూల్ కోడ్', cont: 'కొనసాగించు',
   },
 }
 
@@ -145,7 +145,7 @@ const TAB_ICONS: Record<string, string> = {
 }
 
 const tabsScript = (lang: LoginLang) => {
-  const t = MORE[lang].tabs.map(({ id, label, hint, mode, ac }) => ({ id, label, hint, mode, ac }))
+  const t = MORE[lang].tabs.map(({ id, label, mode, ac }) => ({ id, label, mode, ac }))
   return `
 <script>
 (function () {
@@ -153,8 +153,7 @@ const tabsScript = (lang: LoginLang) => {
   var list = document.querySelector('.card .who')
   var input = document.getElementById('identifier')
   var label = document.getElementById('identifier-label')
-  var hint = document.getElementById('identifier-hint')
-  if (!list || !input || !label || !hint) return
+  if (!list || !input || !label) return
   var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'))
   function pick(i, focus) {
     var c = T[i]
@@ -164,8 +163,6 @@ const tabsScript = (lang: LoginLang) => {
     })
     list.style.setProperty('--i', String(i))
     label.textContent = c.label
-    hint.textContent = c.hint
-    hint.hidden = false
     input.setAttribute('inputmode', c.mode)
     input.setAttribute('autocomplete', c.ac)
     if (focus) tabs[i].focus()
@@ -556,7 +553,7 @@ export function loginHTML(o: {
   const contact = [b?.supportPhone, b?.supportEmail].filter(Boolean) as string[]
   const support = contact.length ? `\n      <p class="fineprint">${w.HELP}: ${contact.map(esc).join(' · ')}</p>` : ''
   const described = o.error ? ' aria-describedby="login-error"' : ''
-  const idDescribed = vendor ? described : ` aria-describedby="${o.error ? 'login-error ' : ''}identifier-hint"`
+  const idDescribed = described
   const tabs = vendor ? '' : `<div class="who" role="tablist" aria-label="${esc(m.tablist)}" hidden><span class="who-thumb" aria-hidden="true"></span>${m.tabs.map((t, i) =>
     `<button type="button" role="tab" id="tab-${t.id}" aria-controls="login-form" aria-selected="${i ? 'false' : 'true'}"${i ? ' tabindex="-1"' : ''}>${TAB_ICONS[t.id] ?? ''}<span>${esc(t.name)}</span></button>`).join('')}</div>`
   /* A small English / తెలుగు switch; the other language's name, in itself. */
@@ -581,7 +578,7 @@ export function loginHTML(o: {
     .replace('@@MARK@@', () => mark)
     .replace('@@COPY@@', () => copy + (slides.length > 1 ? `\n          ${barsHTML(slides, lang)}` : ''))
     .replace('@@TABS@@', () => tabs)
-    .replace('@@IDHINT@@', vendor ? '' : '\n        <p class="id-hint" id="identifier-hint" hidden></p>')
+    .replace('@@IDHINT@@', '')
     .replace('@@SCRIPTS@@', () => scripts)
     .replace('@@ACTION@@', () => esc(b?.action ?? '/login'))
     .replace('@@SUPPORT@@', () => support)

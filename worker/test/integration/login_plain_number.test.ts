@@ -59,7 +59,7 @@ describe('staff sign in with a plain phone number or school email', () => {
   it('number.CODE no longer signs in, even with the right password', async () => {
     const r = await signInAt('test.xulo.in', `${PHONE}.TEST`, PASSWORD, 'staff')
     expect(r.session).toBe(false)
-    expect(r.text).toContain('That school email or phone number and password do not match')
+    expect(r.text).toContain('Wrong email/phone or password')
     expect((await signInAt('school-erp-d1.pages.dev', `${PHONE}.TEST`)).session).toBe(false)
     expect((await signInAt('xulo.in', `${PHONE}.TEST`)).session).toBe(false) // vendor page takes no school accounts
   })
@@ -82,20 +82,20 @@ describe('staff sign in with a plain phone number or school email', () => {
   })
   it('tabs ask parents for a phone (tel keypad) and staff for school email or phone', async () => {
     const h = await (await at('test.xulo.in', '/login')).text()
-    expect(h).toMatch(/"label":"Phone number"[^}]*"mode":"tel"/)
-    expect(h).toMatch(/"label":"School email or phone number"[^}]*"mode":"text"/)
-    expect(h).toContain('Admission number')
+    expect(h).toMatch(/"label":"Phone (registered)"[^}]*"mode":"tel"/)
+    expect(h).toMatch(/"label":"School email or phone (registered)"[^}]*"mode":"text"/)
+    expect(h).toContain('Admission no.')
   })
   it('wrong details are told in the words of the tab used', async () => {
-    expect((await signInAt('test.xulo.in', PHONE, 'nope', 'staff')).text).toContain('That school email or phone number and password do not match')
-    expect((await signInAt('test.xulo.in', '9000000999', 'nope', 'parent')).text).toContain('That phone number and password do not match')
-    expect((await signInAt('test.xulo.in', 'A-1', 'nope')).text).toContain('That username, email or phone and password do not match')
+    expect((await signInAt('test.xulo.in', PHONE, 'nope', 'staff')).text).toContain('Wrong email/phone or password')
+    expect((await signInAt('test.xulo.in', '9000000999', 'nope', 'parent')).text).toContain('Wrong phone or password')
+    expect((await signInAt('test.xulo.in', 'A-1', 'nope')).text).toContain('Wrong username or password')
   })
   it('the forgotten-password page uses the tab words', async () => {
     const p = await (await call('/forgot?tab=parent')).text()
-    expect(p).toContain('<label for="identifier">Phone number</label>')
+    expect(p).toContain('<label for="identifier">Phone (registered)</label>')
     expect(p).toContain('inputmode="tel"')
-    expect(await (await call('/forgot?tab=staff')).text()).toContain('<label for="identifier">School email or phone number</label>')
-    expect(await (await call('/forgot')).text()).toContain('<label for="identifier">Email, username or phone</label>')
+    expect(await (await call('/forgot?tab=staff')).text()).toContain('<label for="identifier">School email or phone (registered)</label>')
+    expect(await (await call('/forgot')).text()).toContain('<label for="identifier">Username, email or phone</label>')
   })
 })

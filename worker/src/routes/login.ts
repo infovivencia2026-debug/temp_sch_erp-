@@ -50,30 +50,30 @@ export function loginLang(req: Request | undefined, school?: Institution | null)
 
 /* The wrong-details message in the words of the tab the person used. */
 const TAB_NOMATCH: Record<string, string> = {
-  parent: 'That phone number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
-  student: 'That admission number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
-  staff: 'That school email or phone number and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.',
+  parent: 'Wrong phone or password.',
+  student: 'Wrong admission no. or password.',
+  staff: 'Wrong email/phone or password.',
 }
 
 /* The errors this file shows, in Telugu. Anything not here stays English. */
 const ERRORS_TE: Record<string, string> = {
-  [TAB_NOMATCH.parent]: 'ఫోన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
-  [TAB_NOMATCH.student]: 'అడ్మిషన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
-  [TAB_NOMATCH.staff]: 'స్కూల్ ఈమెయిల్ లేదా ఫోన్ నంబర్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
-  'Malformed form submission.': 'ఫారం సరిగా రాలేదు. మళ్ళీ ప్రయత్నించండి.',
-  'Your sign-in form expired. Please try again.': 'సైన్ ఇన్ ఫారం గడువు ముగిసింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
-  'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.':
-    'యూజర్‌నేమ్/ఈమెయిల్/ఫోన్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
-  "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on.":
-    'మీ పాస్‌వర్డ్ సరైనదే, కానీ ఈ స్కూల్ యాక్సెస్ ప్రస్తుతం ఆపివేయబడింది. ఏ సమాచారం పోలేదు. మళ్ళీ ఆన్ చేయమని స్కూల్ ఆఫీసును అడగండి.',
-  'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.':
-    'ఈ నంబర్/ఈమెయిల్, పాస్‌వర్డ్‌తో ఒకటి కంటే ఎక్కువ స్కూళ్ల అకౌంట్లు ఉన్నాయి. మీ ఈమెయిల్ లేదా యూజర్‌నేమ్‌తో సైన్ ఇన్ చేయండి.',
+  [TAB_NOMATCH.parent]: 'ఫోన్ లేదా పాస్‌వర్డ్ తప్పు.',
+  [TAB_NOMATCH.student]: 'అడ్మిషన్ నం. లేదా పాస్‌వర్డ్ తప్పు.',
+  [TAB_NOMATCH.staff]: 'ఈమెయిల్/ఫోన్ లేదా పాస్‌వర్డ్ తప్పు.',
+  'Form error. Try again.': 'ఫారం లోపం. మళ్ళీ ప్రయత్నించండి.',
+  'Page expired. Try again.': 'పేజీ గడువు ముగిసింది. మళ్ళీ ప్రయత్నించండి.',
+  'Wrong username or password.':
+    'యూజర్‌నేమ్ లేదా పాస్‌వర్డ్ తప్పు.',
+  'School access paused. Ask the office.':
+    'స్కూల్ యాక్సెస్ ఆపబడింది. ఆఫీసును అడగండి.',
+  'Used at more than one school. Use email or username.':
+    'ఒకటి కంటే ఎక్కువ స్కూళ్లలో ఉంది. ఈమెయిల్ లేదా యూజర్‌నేమ్ వాడండి.',
 }
-const TOO_MANY = /^Too many attempts\. Wait (\d+) minute\(s\), then try again\.$/
+const TOO_MANY = /^Too many tries\. Wait (\d+) min\.$/
 function errorIn(lang: LoginLang, msg: string | undefined): string | undefined {
   if (!msg || lang !== 'te') return msg
   const m = msg.match(TOO_MANY)
-  if (m) return `చాలా సార్లు ప్రయత్నించారు. ${m[1]} నిమిషాలు ఆగి మళ్ళీ ప్రయత్నించండి.`
+  if (m) return `చాలా ప్రయత్నాలు. ${m[1]} నిమి. ఆగండి.`
   return ERRORS_TE[msg] ?? msg
 }
 
@@ -356,10 +356,10 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   if (school === undefined) school = await institutionByHost(env, hostOf(req))
   const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action, req })
   const form = await req.formData().catch(() => null)
-  if (!form) return page(env, { error: 'Malformed form submission.', status: 400 })
+  if (!form) return page(env, { error: 'Form error. Try again.', status: 400 })
   const cookieTok = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|;\\s*)${CSRF}=([^;]+)`))?.[1]
   if (!cookieTok || cookieTok !== form.get('csrf_token')) {
-    return page(env, { error: 'Your sign-in form expired. Please try again.', status: 403 })
+    return page(env, { error: 'Page expired. Try again.', status: 403 })
   }
   const identifier = String(form.get('identifier') ?? '').trim()
   const password = String(form.get('password') ?? '')
@@ -372,7 +372,7 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   const wait = Math.max(await throttled(env, idKey), await throttled(env, 'ip:' + ip))
   if (wait > 0) {
     await record(env, req, identifier, 'locked', null, null)
-    return page(env, { error: `Too many attempts. Wait ${Math.ceil(wait / 60000)} minute(s), then try again.`, next, identifier, status: 429 })
+    return page(env, { error: `Too many tries. Wait ${Math.ceil(wait / 60000)} min.`, next, identifier, status: 429 })
   }
 
   const r = await authenticate(env, identifier, password, vendorOnly ? null : school?.id)
@@ -380,17 +380,17 @@ export async function login(env: Env, req: Request, school?: Institution | null,
      is right is told where its own page is, not that the password is wrong. */
   if (!r.ok && vendorOnly && r.outcome !== 'wrong_password' && (await authenticate(env, identifier, password)).ok) {
     await record(env, req, identifier, 'wrong_site', null, null)
-    return page(env, { error: `This page is for XULO staff. Sign in at your school's own address, such as yourschool.${env.SCHOOL_DOMAIN}, or find it at school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
+    return page(env, { error: `XULO staff only. Schools: school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
   }
   if (!r.ok) {
     await failed(env, idKey)
     await failed(env, 'ip:' + ip, 1 / 5)
     await record(env, req, identifier, r.outcome, null, null)
-    let msg = 'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.'
+    let msg = 'Wrong username or password.'
     const tab = String(form.get('tab') ?? '')
     if (TAB_NOMATCH[tab]) msg = TAB_NOMATCH[tab]
-    if (r.outcome === 'school_paused') msg = "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on."
-    if (r.outcome === 'ambiguous') msg = 'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.'
+    if (r.outcome === 'school_paused') msg = 'School access paused. Ask the office.'
+    if (r.outcome === 'ambiguous') msg = 'Used at more than one school. Use email or username.'
     return page(env, { error: msg, next, identifier, status: 401 })
   }
 
