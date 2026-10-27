@@ -32,6 +32,7 @@ export const financeKeys = {
 
   // Fee collection & setup.
   'finance.fees.take_fee_payment': screen(() => import('./FeeCounter')),
+  'finance.fees.fee_regulatory_filing': screen(() => import('../operations/FeeFiling')),
   'finance.fees.student_wallets': screen(() => import('./StudentWallets')),
   'finance.fees.fee_corrections': screen(() => import('./FeeCorrections')),
   'finance.fees.online_fee_portal': screen(() => import('./Payments')),
