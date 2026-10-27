@@ -462,16 +462,23 @@ async function getExamMonitor(c: Ctx) {
       JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN marks m ON m.exam_subject_id = es.id
      WHERE (? IS NULL OR e.id = ?) AND (? IS NULL OR cs.class_id = ?) AND (? IS NULL OR e.academic_year_id = ?)
      GROUP BY es.id ORDER BY e.name, c.level, sub.name LIMIT 500`).bind(exam, exam, cls, cls, year, year).all<Record<string, unknown>>()
-  let papers = 0, complete = 0, signed = 0, pending = 0, backlogs = 0
+  let papers = 0, complete = 0, signed = 0, pending = 0, backlogs = 0, unmarked = 0
+  /* Only a paper on the date sheet whose date has passed is owed marks; a
+     subject with no exam scheduled never counts (owner, 2026-10-27). The
+     list still shows every paper, flagged with due. */
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10)
   const items = rows.results.map((v) => {
     const eligible = Number(v.eligible), entered = Number(v.entered), approved = Number(v.approved)
     const pend = Math.max(eligible - entered, 0)
     const o = omitNull({ ...v, published: bool(v.published), pending: pend, complete: entered > 0 && pend === 0, signed_off: entered > 0 && approved >= entered,
       entry_percent: eligible > 0 ? Math.floor((entered * 100) / eligible) : 0 }, ['exam_date', 'teachers'])
-    papers++; if (o.complete) complete++; if (o.signed_off) signed++; pending += pend; backlogs += Number(v.failed)
-    return o
+    const date = typeof v.exam_date === 'string' ? v.exam_date.slice(0, 10) : ''
+    const due = date !== '' && date < today
+    if (due) { papers++; if (o.complete) complete++; if (o.signed_off) signed++; pending += pend; if (entered === 0) unmarked++ }
+    backlogs += Number(v.failed)
+    return { ...o, due }
   })
-  return ok({ items, summary: { papers, complete, signed_off: signed, marks_pending: pending, backlogs, complete_percent: papers === 0 ? 0 : Math.floor((complete * 100) / papers) } })
+  return ok({ items, summary: { papers, complete, signed_off: signed, marks_pending: pending, unmarked_papers: unmarked, backlogs, complete_percent: papers === 0 ? 0 : Math.floor((complete * 100) / papers) } })
 }
 
 const TARGETS_SQL = `
