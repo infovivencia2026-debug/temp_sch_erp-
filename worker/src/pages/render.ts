@@ -25,7 +25,7 @@ export function forgotPage(v: { error?: string; notice?: string; sent?: string; 
     let page = C.FORGOT_FORM
     /* Opened from a sign-in tab: the field uses that tab's words. */
     if (v.tab) {
-      page = page.replace('<label for="identifier">Email, username or phone</label>', `<label for="identifier">${esc(v.tab.label)}</label>`)
+      page = page.replace('<label for="identifier">Username, email or phone</label>', `<label for="identifier">${esc(v.tab.label)}</label>`)
         .replace('<input id="identifier" name="identifier" autocomplete="username"', `<input type="hidden" name="tab" value="${esc(v.tab.id)}">
           <input id="identifier" name="identifier" inputmode="${esc(v.tab.mode)}" autocomplete="username"`)
     }

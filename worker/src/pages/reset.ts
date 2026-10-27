@@ -15,11 +15,11 @@ import { NO_STORE, badForm, field, formOf, html, sha256hex } from './http'
    row has to say which school's users table to update. */
 
 const RESET_WINDOW_MS = 15 * 60_000
-const SAME_ANSWER = 'If that account exists, a reset link has been issued. It is good for fifteen minutes.'
+const SAME_ANSWER = 'If the account exists, a link was sent. Valid 15 min.'
 const FORGOT_WINDOW_S = 15 * 60
 const FORGOT_IP_BURST = 10
 const FORGOT_ID_BURST = 3
-const EXPIRED = 'That link has expired or has already been used. Ask for another.'
+const EXPIRED = 'Link expired or used.'
 
 export function showForgot(url?: URL): Response {
   return html(forgotPage({ tab: forgotTab(url?.searchParams.get('tab') ?? '') }), 200, NO_STORE)
@@ -61,14 +61,14 @@ export async function forgot(env: Env, req: Request): Promise<Response> {
   const who = field(form, 'identifier').trim()
   if (!who) {
     const tab = forgotTab(field(form, 'tab').trim())
-    return html(forgotPage({ error: tab ? `Enter your ${tab.label.toLowerCase()}.` : 'Enter the email address, username or phone number you sign in with.', tab }), 400, NO_STORE)
+    return html(forgotPage({ error: tab ? `Enter ${tab.label.replace(/\s*\(.*\)$/, '').toLowerCase()}.` : 'Enter username, email or phone.', tab }), 400, NO_STORE)
   }
   /* Throttled per address and per identifier, as /login is, so the form cannot be used
      to flood an inbox or to probe accounts. */
   const ip = req.headers.get('cf-connecting-ip') ?? 'unknown'
   const limited = (await rateLimited(env, 'forgot_ip', FORGOT_WINDOW_S, FORGOT_IP_BURST, ip, 'x'))
     ?? (await rateLimited(env, 'forgot_id', FORGOT_WINDOW_S, FORGOT_ID_BURST, who.toLowerCase(), 'x'))
-  if (limited) return html(forgotPage({ error: 'Too many reset requests. Wait fifteen minutes, then try again.' }), 429, NO_STORE)
+  if (limited) return html(forgotPage({ error: 'Too many requests. Wait 15 min.' }), 429, NO_STORE)
   const channel = ['phone', 'sms', 'whatsapp'].includes(field(form, 'channel').trim()) ? 'phone' : 'email'
 
   let queued = false, ready = false
@@ -120,7 +120,7 @@ export async function forgot(env: Env, req: Request): Promise<Response> {
     }
   } catch (err) {
     console.error('password reset: forgot failed', err)
-    return html(forgotPage({ error: 'Something went wrong at our end. Please try again.' }), 500, NO_STORE)
+    return html(forgotPage({ error: 'Error on our side. Try again.' }), 500, NO_STORE)
   }
   /* Said the same way whether or not the account exists, and whether or not a
      link could be sent: a different notice told a stranger which accounts exist. */
@@ -150,8 +150,8 @@ export async function reset(env: Env, req: Request): Promise<Response> {
   const pw = field(form, 'password')
   const bad = (error: string) => html(resetPage({ token, error }), 400, NO_STORE)
   // Go's len() counts bytes, not characters.
-  if (new TextEncoder().encode(pw).length < 10) return bad("Use at least ten characters. A short password on a school system is everybody's problem, not just yours.")
-  if (pw !== field(form, 'password2')) return bad('Those two do not match.')
+  if (new TextEncoder().encode(pw).length < 10) return bad('Use 10+ characters.')
+  if (pw !== field(form, 'password2')) return bad('Passwords differ.')
 
   const row = await userForToken(env, token)
   if (!row) return bad(EXPIRED)
@@ -185,7 +185,7 @@ export async function reset(env: Env, req: Request): Promise<Response> {
     ])
   } catch (err) {
     console.error('password reset: reset failed', err)
-    return bad('Something went wrong at our end. Please try again.')
+    return bad('Error on our side. Try again.')
   }
   return html(resetPage({ done: true }), 200, NO_STORE)
 }
