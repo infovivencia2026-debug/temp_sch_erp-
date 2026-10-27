@@ -116,4 +116,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 116, name: 'substitution_proposed_by', checksum: 'a3ab9a5f1d762b63405a2a47f76121a99dc65686d6fa30389125ffa77c24078e' },
   { version: 117, name: 'payroll_approval', checksum: '05d2421a48288d3df7a6fa6b1390fbcc418029babf8641121c32cea9ad0829dd' },
   { version: 118, name: 'orphan_screens_menu', checksum: 'b069e7faf187e724637ad44fa6e3cd2e8ac61664d604806a5259f78577ccc371' },
+  { version: 119, name: 'employee_school_email', checksum: '036a8c5bdb04a193d80bc6221f715829b66260c0fe9535d0592d9e7368716202' },
 ]

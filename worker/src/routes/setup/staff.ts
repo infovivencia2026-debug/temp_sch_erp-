@@ -8,7 +8,7 @@ import { auditStmt } from '../admin/common'
 import { isSchoolAdmin } from '../admin/users'
 import { requireFresh } from '../fees/common'
 import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
-import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
+import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, checkStaffEmail, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
@@ -206,13 +206,15 @@ export function registerStaff(r: Router): void {
   r.post('/setup/employees', 'hr.employees.write', async (c) => {
     const req = await readJSON<Record<string, unknown>>(c.req)
     const body = {
-      employee_code: str(req.employee_code), first_name: str(req.first_name), last_name: str(req.last_name), email: str(req.email),
+      employee_code: str(req.employee_code), first_name: str(req.first_name), last_name: str(req.last_name), email: str(req.email), school_email: str(req.school_email),
       phone: str(req.phone), department_id: str(req.department_id), designation_id: str(req.designation_id), joined_on: str(req.joined_on),
       employment_type: str(req.employment_type), qualification: str(req.qualification),
       create_login: req.create_login === true, role_key: str(req.role_key),
       role_keys: Array.isArray(req.role_keys) ? (req.role_keys as unknown[]).map(str) : [],
     }
     if (body.first_name === '') throw badRequest('first_name is required')
+    checkStaffEmail(body.email, 'the personal email')
+    checkStaffEmail(body.school_email, 'the school email')
     if (body.create_login && body.email === '' && body.phone === '') throw badRequest('an email or a phone number is required to create a login')
     for (const k of employeeRoles(body)) {
       if (PLATFORM_ONLY_ROLES.has(k) && !c.id.platformAdmin) {
@@ -283,6 +285,8 @@ export function registerStaff(r: Router): void {
     // Staff code is editable (owner, 2026-10-14). Upper-cased like the codes an import writes.
     const code = has(req, 'employee_code') ? str(req.employee_code).trim().toUpperCase() : null
     if (code === '') throw badRequest('a staff record needs a staff code')
+    if (has(req, 'email')) checkStaffEmail(str(req.email), 'the personal email')
+    if (has(req, 'school_email')) checkStaffEmail(str(req.school_email), 'the school email')
     const t = now()
     /* Codes are not typed over without being asked (owner, 2026-10-14): see
        services/overwrite.ts. A value someone else holds is refused outright. */
@@ -329,11 +333,13 @@ export function registerStaff(r: Router): void {
           esi_number = CASE WHEN ?19 IS NULL THEN esi_number ELSE NULLIF(?19, '') END,
           emergency_contact_name = CASE WHEN ?20 IS NULL THEN emergency_contact_name ELSE NULLIF(?20, '') END,
           emergency_contact_phone = CASE WHEN ?21 IS NULL THEN emergency_contact_phone ELSE NULLIF(?21, '') END,
+          school_email = CASE WHEN ?26 IS NULL THEN school_email ELSE NULLIF(?26, '') END,
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code)
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code,
+          has(req, 'school_email') ? str(req.school_email).trim() : null)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')

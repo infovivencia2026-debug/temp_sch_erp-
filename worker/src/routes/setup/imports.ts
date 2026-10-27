@@ -529,7 +529,7 @@ export function staffRoleKey(role: string, designation: string): string {
   return ''
 }
 
-const staffKnownColumns = new Set(['employee_code', 'first_name', 'last_name', 'email', 'phone', 'designation', 'role', 'joined_on', 'subjects', 'qualification'])
+const staffKnownColumns = new Set(['employee_code', 'first_name', 'last_name', 'email', 'school_email', 'phone', 'designation', 'role', 'joined_on', 'subjects', 'qualification'])
 function leftoverColumns(row: Row, known: Set<string>): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(row)) if (!known.has(k) && v.trim() !== '') out[k] = v.trim()
@@ -826,10 +826,14 @@ export const importSpecs: Record<string, ImportSpec> = {
     /* Qualification is a real column on the employee, not a custom field. A
        school that put one in its file had it filed away as an unrecognised
        extra and it never reached the record the staff list prints from. */
-    columns: ['employee_code', 'first_name', 'last_name', 'email', 'phone', 'designation', 'department', 'employment_type', 'status', 'role', 'joined_on', 'relieved_on', 'qualification', 'subjects'],
+    columns: ['employee_code', 'first_name', 'last_name', 'email', 'school_email', 'phone', 'designation', 'department', 'employment_type', 'status', 'role', 'joined_on', 'relieved_on', 'qualification', 'subjects'],
     required: ['employee_code', 'first_name'],
-    sample: ['YPS001', 'Priya Rao', '', 'priya@school.in', '9876543210', 'Teacher', 'Teaching staff', 'Permanent', 'Active', 'faculty', '01 Jan 2024', '', 'M.A. English, B.Ed', 'MATH; SCI'],
+    sample: ['YPS001', 'Priya Rao', '', 'priya.rao@gmail.com', 'priya@school.in', '9876543210', 'Teacher', 'Teaching staff', 'Permanent', 'Active', 'faculty', '01 Jan 2024', '', 'M.A. English, B.Ed', 'MATH; SCI'],
     check: (row) => {
+      for (const [k, label] of [['email', 'email'], ['school_email', 'school_email']]) {
+        const e = str(row[k]).trim()
+        if (e !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error(`${label} "${e}" does not look like an email address`)
+      }
       const v = str(row.joined_on).trim()
       if (v !== '' && normaliseDate(v) === v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('joined_on is not a date this can read. Write it as 2026-06-01, 01/06/2026 or 01 Jun 2026')
     },
@@ -860,7 +864,7 @@ export const importSpecs: Record<string, ImportSpec> = {
         out = await appointEmployee(ctx.c, ctx.campus, {
           employee_code: code, first_name: first, last_name: last, email, phone, designation_id: designationId, department_id: departmentId,
           employment_type: normaliseEmployment(str(row.employment_type)), joined_on: normaliseDate(str(row.joined_on)), role_key: roleKey,
-          qualification: str(row.qualification).trim(),
+          qualification: str(row.qualification).trim(), school_email: str(row.school_email).trim(),
           create_login: (email !== '' || phone !== '') && roleKey !== '',
         })
       } catch (e) {

@@ -370,6 +370,8 @@ export interface EmployeeRequest {
   first_name: string
   last_name?: string
   email?: string
+  /** The school (official) address, beside the personal one in email (owner, 2026-10-27). */
+  school_email?: string
   phone?: string
   department_id?: string
   designation_id?: string
@@ -419,6 +421,11 @@ async function nextStaffNumber(c: Ctx): Promise<number | null> {
  * inserted. Not one transaction on D1; the reads come first and the writes
  * are as close together as the reads allow.
  */
+/** Refuses a staff email that is not an address; blank is fine. */
+export function checkStaffEmail(v: string, label: string): void {
+  if (v.trim() !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())) throw badRequest(`${label} does not look like an email address, such as name@school.in`)
+}
+
 export async function appointEmployee(c: Ctx, campus: string, req: EmployeeRequest):
   Promise<{ empId: string; userId: string; created: boolean }> {
   const inst = instId(c)
@@ -426,6 +433,7 @@ export async function appointEmployee(c: Ctx, campus: string, req: EmployeeReque
   let userId = ''
   const email = nullStr(req.email)
   const phone = nullStr(req.phone)
+  const schoolEmail = nullStr(req.school_email?.trim())
   const fullName = `${req.first_name} ${req.last_name ?? ''}`.trim()
 
   if (req.create_login) {
@@ -463,9 +471,10 @@ export async function appointEmployee(c: Ctx, campus: string, req: EmployeeReque
   const existing = await c.db.prepare(`SELECT id FROM employees WHERE institution_id = ? AND employee_code = ?`).bind(inst, code).first<{ id: string }>()
   if (existing) {
     await c.db.prepare(`UPDATE employees SET first_name = ?, last_name = ?, email = ?, phone = ?, department_id = ?, designation_id = ?,
-        employment_type = COALESCE(?, employment_type), user_id = COALESCE(?, user_id), updated_at = ? WHERE id = ?`)
+        employment_type = COALESCE(?, employment_type), user_id = COALESCE(?, user_id),
+        school_email = COALESCE(?, school_email), updated_at = ? WHERE id = ?`)
       .bind(req.first_name, nullStr(req.last_name), email, phone, nullStr(req.department_id), nullStr(req.designation_id),
-        nullStr(req.employment_type), nullStr(userId), t, existing.id).run()
+        nullStr(req.employment_type), nullStr(userId), schoolEmail, t, existing.id).run()
     return { empId: existing.id, userId, created: false }
   }
   const empId = uuid()
@@ -475,11 +484,11 @@ export async function appointEmployee(c: Ctx, campus: string, req: EmployeeReque
      form offered the box and the insert dropped it, so it was empty on every
      record in every school -- and printed empty on the staff sheet. */
   await c.db.prepare(`INSERT INTO employees (id, institution_id, campus_id, user_id, employee_code, first_name, last_name, email, phone,
-      department_id, designation_id, joined_on, employment_type, status, staff_number, person_code, qualification, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, ?), ?, 'active', ?, ?, ?, ?, ?)`)
+      department_id, designation_id, joined_on, employment_type, status, staff_number, person_code, qualification, school_email, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, ?), ?, 'active', ?, ?, ?, ?, ?, ?)`)
     .bind(empId, inst, campus, nullStr(userId), code, req.first_name, nullStr(req.last_name), email, phone,
       nullStr(req.department_id), nullStr(req.designation_id), nullStr(req.joined_on), todayIndia(), nullStr(req.employment_type),
-      staffNo, await freshPersonCode(c, 'employees'), nullStr(req.qualification), t, t).run()
+      staffNo, await freshPersonCode(c, 'employees'), nullStr(req.qualification), schoolEmail, t, t).run()
   return { empId, userId, created: true }
 }
 

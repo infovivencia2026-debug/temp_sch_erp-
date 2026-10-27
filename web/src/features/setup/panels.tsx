@@ -1620,6 +1620,7 @@ function StaffPanel({ onDone }: PanelProps) {
     first_name: '',
     last_name: '',
     email: '',
+    school_email: '',
     phone: '',
     role_key: 'faculty',
     role_keys: [] as string[],
@@ -1640,7 +1641,7 @@ function StaffPanel({ onDone }: PanelProps) {
     async (body: typeof f) =>
       api.post<{ created: boolean; employee_code: string }>('/api/v1/setup/employees', body),
     () => {
-      setF({ ...f, employee_code: '', first_name: '', last_name: '', email: '', phone: '' })
+      setF({ ...f, employee_code: '', first_name: '', last_name: '', email: '', school_email: '', phone: '' })
       onDone()
     },
   )
@@ -1684,8 +1685,11 @@ function StaffPanel({ onDone }: PanelProps) {
         <Field label="Last name">
           <Input value={f.last_name} onChange={(x) => setF({ ...f, last_name: x })} />
         </Field>
-        <Field label="Email" hint="Used to sign in. Leave blank for staff who will not.">
+        <Field label="Personal email" hint="Used to sign in. Leave blank for staff who will not.">
           <Input type="email" value={f.email} onChange={(x) => setF({ ...f, email: x })} />
+        </Field>
+        <Field label="School email" hint="Their official address at the school, if they have one.">
+          <Input type="email" value={f.school_email} onChange={(x) => setF({ ...f, school_email: x })} />
         </Field>
         <Field label="Phone">
           <Input value={f.phone} onChange={(x) => setF({ ...f, phone: x })} />

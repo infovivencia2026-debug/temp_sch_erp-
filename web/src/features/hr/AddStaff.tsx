@@ -83,7 +83,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
 
   const blank = {
     employee_code: '', first_name: '', last_name: '',
-    email: '', phone: '', qualification: '',
+    email: '', school_email: '', phone: '', qualification: '',
     role_key: 'faculty', role_keys: [] as string[], create_login: true,
   }
   const [f, setF] = useState(blank)
@@ -192,8 +192,11 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           <Field label="Last name">
             <Input value={f.last_name} onChange={set('last_name')} />
           </Field>
-          <Field label="Email" hint="Used to sign in. Leave blank for staff who will not.">
+          <Field label="Personal email" hint="Used to sign in. Leave blank for staff who will not.">
             <Input type="email" value={f.email} onChange={set('email')} />
+          </Field>
+          <Field label="School email" hint="Their official address at the school, if they have one.">
+            <Input type="email" value={f.school_email} onChange={set('school_email')} />
           </Field>
           <Field label="Phone">
             <Input value={f.phone} onChange={set('phone')} />
