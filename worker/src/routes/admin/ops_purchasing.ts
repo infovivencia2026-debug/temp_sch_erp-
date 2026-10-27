@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { created, isUUID, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { institutionId } from './common'
+import { notifyHoldersStmts, notifyStmt } from '../../notify_holders'
 import { arr, denied, fmtPaise, mustFirst, nextNumber, nz, om, optDate, optUUID, pathUUID, qStr, qUUID, refuse, runOps, todayIST, tr } from './ops_common'
 
 /* Purchasing under /admin-ops, from internal/api/admin_ops.go:
@@ -22,6 +23,7 @@ const STORES_READ = 'operations.inventory.read'
 const STORES_WRITE = 'operations.inventory.write'
 const SPEND_CONFIG = 'institution.settings.write'
 const PAY_AUTH = 'finance.invoices.write'
+const PO_LINK = '/go/stores/purchase_order_workflow'
 
 interface Band { label: string; up_to_paise?: number; approver_permission: string; sort_order: number; id?: string }
 const FALLBACK: Band[] = [
@@ -114,7 +116,7 @@ export function registerOpsPurchasing(r: Router): void {
     const id = pathUUID(c)
     const head = await mustFirst<Row>(c.db.prepare(`SELECT rq.id, rq.requisition_no, d.name AS department, u.full_name AS requested_by,
           substr(rq.raised_on,1,10) AS raised_on, substr(rq.needed_by,1,10) AS needed_by, rq.status, rq.estimated_total_paise,
-          rq.approval_band, rq.approval_permission, du.full_name AS decided_by, rq.decision_note, rq.justification
+          rq.approval_band, rq.approval_permission, du.full_name AS decided_by, rq.decision_note, rq.justification, rq.requested_by AS requested_by_id
         FROM purchase_requisitions rq
         LEFT JOIN departments d ON d.id = rq.department_id
         LEFT JOIN users u ON u.id = rq.requested_by
@@ -125,7 +127,14 @@ export function registerOpsPurchasing(r: Router): void {
        WHERE l.requisition_id = ? ORDER BY l.line_no`).bind(id).all<Row>()).results.map((v) => ({
       id: v.id, line_no: Number(v.line_no), item_id: om(v.item_id), item_code: om(v.item_code), description: v.description,
       quantity: Number(v.quantity), unit: v.unit, rate_paise: Number(v.estimated_unit_paise) }))
-    const requisition = { ...reqRow(head), line_count: lines.length }
+    /* can_decide: the decide handler's own rule, so the screen shows Approve/Reject only to
+       those who may press them. The server still checks on the press. */
+    let canDecide = false
+    if (head.status === 'submitted' && head.requested_by_id !== c.id.userId) {
+      const perm = tr(head.approval_permission as string | null) || (await resolveBand(c, Number(head.estimated_total_paise))).approver_permission
+      canDecide = can(c.id, perm)
+    }
+    const requisition = { ...reqRow(head), line_count: lines.length, can_decide: canDecide }
     return ok({ requisition, justification: head.justification ?? null, lines })
   })
 
@@ -174,8 +183,8 @@ export function registerOpsPurchasing(r: Router): void {
 
   r.post('/admin-ops/purchasing/requisitions/{id}/submit', STORES_WRITE, async (c) => {
     const id = pathUUID(c)
-    const cur = await mustFirst<{ status: string; estimated_total_paise: number; justification: string | null; lines: number }>(
-      c.db.prepare(`SELECT rq.status, rq.estimated_total_paise, rq.justification,
+    const cur = await mustFirst<{ status: string; estimated_total_paise: number; justification: string | null; lines: number; requisition_no: string; requested_by: string | null }>(
+      c.db.prepare(`SELECT rq.status, rq.estimated_total_paise, rq.justification, rq.requisition_no, rq.requested_by,
           (SELECT count(*) FROM purchase_requisition_lines l WHERE l.requisition_id = rq.id) AS lines
         FROM purchase_requisitions rq WHERE rq.id = ?`).bind(id))
     if (cur.status !== 'draft') throw refuse('only a draft requisition can be submitted')
@@ -185,6 +194,11 @@ export function registerOpsPurchasing(r: Router): void {
     const t = now()
     await runOps(c, [c.db.prepare(`UPDATE purchase_requisitions SET status = 'submitted', submitted_at = ?, approval_band = ?, approval_permission = ?, updated_at = ?
         WHERE id = ? AND status = 'draft'`).bind(t, band.label, band.approver_permission, t, id)])
+    // Whoever may approve this value band hears about it; the raiser cannot approve their own.
+    const tell = await notifyHoldersStmts(c.db, institutionId(c), band.approver_permission, cur.requested_by ?? c.id.userId,
+      'purchase_requisition', `Requisition ${cur.requisition_no} needs your approval`,
+      `${fmtPaise(Number(cur.estimated_total_paise))}, ${band.label}. ${tr(cur.justification)}`, PO_LINK, 'purchase_requisition', id)
+    if (tell.length) await c.db.batch(tell)
     return ok({ status: 'submitted', approval_band: band.label, approval_permission: band.approver_permission })
   })
 
@@ -194,8 +208,8 @@ export function registerOpsPurchasing(r: Router): void {
     const req = await readJSON<{ decision?: string; note?: string }>(c.req)
     if (req.decision !== 'approve' && req.decision !== 'reject') throw refuse('decision must be approve or reject')
     if (req.decision === 'reject' && tr(req.note) === '') throw refuse('say why it is being rejected')
-    const cur = await mustFirst<{ status: string; approval_permission: string | null; approval_band: string | null; requested_by: string | null; estimated_total_paise: number }>(
-      c.db.prepare(`SELECT status, approval_permission, approval_band, requested_by, estimated_total_paise FROM purchase_requisitions WHERE id = ?`).bind(id))
+    const cur = await mustFirst<{ status: string; approval_permission: string | null; approval_band: string | null; requested_by: string | null; estimated_total_paise: number; requisition_no: string }>(
+      c.db.prepare(`SELECT status, approval_permission, approval_band, requested_by, estimated_total_paise, requisition_no FROM purchase_requisitions WHERE id = ?`).bind(id))
     if (cur.status !== 'submitted') throw refuse('only a submitted requisition can be decided')
     let needPerm: string, bandLabel = ''
     if (tr(cur.approval_permission) === '') {
@@ -205,8 +219,12 @@ export function registerOpsPurchasing(r: Router): void {
     if (cur.requested_by && cur.requested_by === c.id.userId) throw denied('you raised this requisition, so you cannot approve it')
     if (!can(c.id, needPerm)) throw denied(`a requisition of this value sits in the ${JSON.stringify(bandLabel)} band, which needs ${needPerm}`)
     const t = now()
-    await runOps(c, [c.db.prepare(`UPDATE purchase_requisitions SET status = ?, decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ?
-        WHERE id = ? AND status = 'submitted'`).bind(req.decision === 'reject' ? 'rejected' : 'approved', c.id.userId, t, nz(req.note), t, id)])
+    const stmts = [c.db.prepare(`UPDATE purchase_requisitions SET status = ?, decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ?
+        WHERE id = ? AND status = 'submitted'`).bind(req.decision === 'reject' ? 'rejected' : 'approved', c.id.userId, t, nz(req.note), t, id)]
+    if (cur.requested_by) stmts.push(notifyStmt(c.db, institutionId(c), cur.requested_by, 'purchase_requisition',
+      `Requisition ${cur.requisition_no} was ${req.decision === 'reject' ? 'rejected' : 'approved'}`,
+      tr(req.note) || 'It can now be turned into a purchase order.', PO_LINK, 'purchase_requisition_decision', id))
+    await runOps(c, stmts)
     return ok({ decision: req.decision })
   })
 

@@ -5,6 +5,7 @@ import { HttpError, badRequest, bool, clampInt, created, notFound, now, ok, read
 import { fullName, isUUIDish, isYMD, mergeModuleConfig, moduleConfig, nextNumber, nz, oneOfStr, optionsForKind, placeholders, js, str, todayIST, workingYear, workingYearSQL } from './util'
 import { stopEnrolmentsForLead } from './campaigns'
 import { can } from '../../identity'
+import { notifyHoldersStmts, notifyStmt } from '../../notify_holders'
 import { syncTransportFeeComponent } from '../ops/transport_office'
 import { activityStmt, duplicatesOf } from './crm'
 
@@ -403,6 +404,15 @@ export function registerAdmissionsWorkflow(r: Router) {
       .bind(decision, c.id.userId, t, nz(remarks), t, decision, remarks, decision, t, decision, c.id.userId, appID).run()
     if (res.meta.changes === 0) throw notFound()
     const { note } = await notifyApplicationStage(c, appID, decision)
+    if (decision === 'offered' && await admissionApprovalRequired(c.db)) {
+      // The joining now waits on whoever holds admissions.approve: tell them, with a link to Approvals.
+      const who = await c.db.prepare(`SELECT ${fullName('first_name', 'last_name')} AS name, application_no FROM applications WHERE id = ?`)
+        .bind(appID).first<{ name: string; application_no: string }>()
+      const tell = await notifyHoldersStmts(c.db, c.id.institution!.id, 'admissions.approve', c.id.userId, 'admission_approval',
+        `${who?.name ?? 'An applicant'} needs your approval to join`, `Application ${who?.application_no ?? ''} was offered a seat. Approve or send it back from Approvals.`,
+        '/go/approvals/approvals', 'admission_approval', appID)
+      if (tell.length) await c.db.batch(tell)
+    }
     return ok(note ? { id: appID, status: decision, note } : { id: appID, status: decision })
   })
 
@@ -432,9 +442,19 @@ export function registerAdmissionsWorkflow(r: Router) {
     const note = str(req.note).trim()
     if (!approved && note === '') throw badRequest('say what has to happen first, the desk has to tell the family something')
     const t = now()
-    const res = await c.db.prepare(`UPDATE applications SET enrolment_approved_by = ?, enrolment_approved_at = ?, enrolment_note = NULLIF(?,''), updated_at = ? WHERE id = ? AND status = 'offered'`)
+    const res = await c.db.prepare(`UPDATE applications SET enrolment_approved_by = ?, enrolment_approved_at = ?, enrolment_note = NULLIF(?,''), updated_at = ?
+      WHERE id = ? AND status = 'offered' AND enrolment_approved_at IS NULL AND enrolment_note IS NULL`)
       .bind(approved ? c.id.userId : null, approved ? t : null, note, t, c.params.id).run()
     if (res.meta.changes === 0) throw new HttpError(409, 'that application is not waiting on an admission decision', { code: 'not_pending' })
+    // Tell the desk user who offered the seat what was decided.
+    const app = await c.db.prepare(`SELECT decided_by, application_no, ${fullName('first_name', 'last_name')} AS name FROM applications WHERE id = ?`)
+      .bind(c.params.id).first<{ decided_by: string | null; application_no: string; name: string }>()
+    if (app?.decided_by && app.decided_by !== c.id.userId) {
+      await notifyStmt(c.db, c.id.institution!.id, app.decided_by, 'admission_approval',
+        approved ? `${app.name}'s joining was approved` : `${app.name}'s joining was sent back`,
+        approved ? `Application ${app.application_no} can now be enrolled.` : `Application ${app.application_no}: ${note}`,
+        '/go/admissions/fee_enrollment', 'admission_decision', c.params.id).run()
+    }
     return ok({ approved })
   })
 

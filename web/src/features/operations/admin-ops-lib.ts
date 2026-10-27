@@ -45,6 +45,8 @@ export interface Requisition {
   decision_note?: string
   line_count: number
   order_no?: string
+  /** Detail only: may this user approve or reject it. */
+  can_decide?: boolean
 }
 
 export interface RequisitionLine {
