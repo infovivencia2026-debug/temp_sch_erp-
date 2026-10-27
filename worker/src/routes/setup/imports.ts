@@ -39,6 +39,10 @@ export class ImportCtx {
      trip per row made a full-school sheet outlast the browser's wait. */
   timetableCells: Map<string, string> | null = null
   deferred: D1PreparedStatement[] = []
+  /* Cells this sheet rewrites. Their teachers are cleared before anything
+     is written, so a teacher moving from one class to another in the new
+     timetable does not meet their own old period on the way. */
+  clearFirst: string[] = []
   periods: Map<string, string> | null = null
   devices = new Map<string, string>()
   punchSeen = new Set<string>()
@@ -793,6 +797,7 @@ export const importSpecs: Record<string, ImportSpec> = {
       const cell = `${sectionId}/${periodId}/${weekday}`
       const existing = ctx.timetableCells.get(cell)
       if (existing) {
+        ctx.clearFirst.push(existing)
         ctx.deferred.push(ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing))
         return
       }
@@ -1568,7 +1573,15 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       out.problems.push({ row: p.row, data: p.data, problem: (e as Error).message })
     }
   }
-  for (let i = 0; i < ctx.deferred.length; i += 100) await c.db.batch(ctx.deferred.slice(i, i + 100))
+  const writes = [
+    ...Array.from({ length: Math.ceil(ctx.clearFirst.length / 90) }, (_, k) => {
+      const ids = ctx.clearFirst.slice(k * 90, k * 90 + 90)
+      return c.db.prepare(`UPDATE timetable_entries SET teacher_user_id = NULL WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids)
+    }),
+    ...ctx.deferred,
+  ]
+  // One batch is one transaction in D1, so a refusal part-way leaves nothing half-written.
+  if (writes.length > 0) await c.db.batch(writes)
   const runId = uuid()
   const omitted = raw.length > MAX_KEPT_IMPORT_BYTES
   const stmts = [c.db.prepare(`INSERT INTO import_runs (id, institution_id, entity, filename, rows_read, rows_imported, rows_rejected, imported_by, created_at, content, content_omitted)
