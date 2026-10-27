@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
@@ -7,7 +8,7 @@ import { aiApi, AiLabel } from './aiApi'
 /* The principal's morning brief: 5-8 bullets written at 07:00 school time
    (or now, on first open), each linking to the screen that deals with it.
    Without a Google key it shows the same facts as plain bullets and says so. */
-export default function PrincipalBriefCard() {
+function PrincipalBriefCardInner() {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['ai-principal-brief'], queryFn: aiApi.principalBrief, staleTime: 5 * 60_000, retry: false })
   const refresh = useMutation({ mutationFn: aiApi.refreshPrincipalBrief, onSuccess: (d) => qc.setQueryData(['ai-principal-brief'], d) })
@@ -42,4 +43,9 @@ export default function PrincipalBriefCard() {
       </div>
     </Card>
   )
+}
+
+/** Hidden entirely when the school switched this AI feature off. */
+export default function PrincipalBriefCard() {
+  return useAiFeature('principal_brief') ? <PrincipalBriefCardInner /> : null
 }

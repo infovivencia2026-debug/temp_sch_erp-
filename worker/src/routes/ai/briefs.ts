@@ -2,7 +2,7 @@ import type { Ctx, Router } from '../../router'
 import { badRequest, forbidden, isUUID, notFound, ok, readJSON } from '../../http'
 import { can, resolveScope, studentPredicate } from '../students/common'
 import { assistantRateLimit } from '../teaching/gemini'
-import { aiConfigured, aiSettings, DEFAULT_DAILY_CAP, NOT_CONFIGURED_MSG, schoolToday, usageToday } from '../../services/ai/llm'
+import { aiConfigured, aiSettings, DEFAULT_DAILY_CAP, NOT_CONFIGURED_MSG, schoolToday, usageToday, requireAiFeature, AI_FEATURES } from '../../services/ai/llm'
 import { generatePrincipalBrief, generateStudent360, latestBrief, storedBrief, student360Inputs } from '../../services/ai/briefs'
 
 /* The AI briefs on screen.
@@ -32,6 +32,7 @@ async function staffSeesStudent(c: Ctx, sid: string): Promise<void> {
 export function registerBriefs(r: Router): void {
   r.get('/ai/briefs/principal', 'auth', async (c) => {
     if (!principalOk(c)) throw forbidden('the morning brief is for the principal and school admins')
+    await requireAiFeature(c.db, 'principal_brief')
     const inst = c.id.institution!
     const today = schoolToday(inst.timezone)
     const b = (await storedBrief(c.db, 'principal_morning', '', today)) ?? await generatePrincipalBrief(c.env, c.db, inst, { by: c.id.userId })
@@ -39,6 +40,7 @@ export function registerBriefs(r: Router): void {
   })
   r.post('/ai/briefs/principal', 'auth', async (c) => {
     if (!principalOk(c)) throw forbidden('the morning brief is for the principal and school admins')
+    await requireAiFeature(c.db, 'principal_brief')
     await assistantRateLimit(c)
     const b = await generatePrincipalBrief(c.env, c.db, c.id.institution!, { by: c.id.userId, force: true })
     return ok({ brief: b, configured: (await aiConfigured(c.env)), message: (await aiConfigured(c.env)) ? undefined : NOT_CONFIGURED_MSG })
@@ -46,12 +48,14 @@ export function registerBriefs(r: Router): void {
 
   r.get('/ai/briefs/student/{id}', 'auth', async (c) => {
     await staffSeesStudent(c, c.params.id)
+    await requireAiFeature(c.db, 'student_summary')
     const b = await storedBrief(c.db, 'student_360', c.params.id, '')
     const inp = b ? await student360Inputs(c.db, c.params.id) : null
     return ok({ brief: b, fresh: !!b && !!inp && inp.hash === b.inputs_hash, configured: (await aiConfigured(c.env)) })
   })
   r.post('/ai/briefs/student/{id}', 'auth', async (c) => {
     await staffSeesStudent(c, c.params.id)
+    await requireAiFeature(c.db, 'student_summary')
     if (!(await aiConfigured(c.env))) return ok({ brief: null, fresh: false, configured: false, message: NOT_CONFIGURED_MSG })
     await assistantRateLimit(c)
     const out = await generateStudent360(c.env, c.db, c.id.institution!.id, c.params.id, c.id.userId)
@@ -63,6 +67,7 @@ export function registerBriefs(r: Router): void {
     const want = c.url.searchParams.get('student_id') ?? ''
     const sid = want ? (scope.studentIds.includes(want) ? want : '') : (scope.studentIds[0] ?? '')
     if (!sid) throw notFound()
+    await requireAiFeature(c.db, 'parent_weekly')
     return ok({ student_id: sid, brief: await latestBrief(c.db, 'parent_weekly', sid) })
   })
 
@@ -76,7 +81,12 @@ export function registerBriefs(r: Router): void {
     const cap = b.daily_cap === undefined ? cur.daily_cap : Number(b.daily_cap)
     if (!Number.isFinite(cap) || cap < 0 || cap > 100_000) throw badRequest('daily_cap must be between 0 and 100000')
     const flag = (k: keyof typeof cur) => (typeof b[k] === 'boolean' ? b[k] : cur[k]) as boolean
-    const cfg = { daily_cap: Math.floor(cap), email_principal_brief: flag('email_principal_brief'), parent_weekly_sms: flag('parent_weekly_sms'), parent_weekly_email: flag('parent_weekly_email') }
+    const bf = (b.features ?? {}) as Record<string, unknown>
+    const feats = Object.fromEntries(AI_FEATURES.map((f) => [f, typeof bf[f] === 'boolean' ? bf[f] : cur.features[f]]))
+    const raw = await c.db.prepare(`SELECT config FROM module_settings WHERE module = 'ai' LIMIT 1`).first<{ config: string }>()
+    let prev: Record<string, unknown> = {}
+    try { prev = JSON.parse(raw?.config || '{}') as Record<string, unknown> } catch { prev = {} }
+    const cfg = { ...prev, ...feats, daily_cap: Math.floor(cap), email_principal_brief: flag('email_principal_brief'), parent_weekly_sms: flag('parent_weekly_sms'), parent_weekly_email: flag('parent_weekly_email') }
     await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, 'ai', ?, ?)
         ON CONFLICT (institution_id, module) DO UPDATE SET enabled = excluded.enabled, config = excluded.config`)
       .bind(c.id.institution!.id, flag('enabled') ? 1 : 0, JSON.stringify(cfg)).run()

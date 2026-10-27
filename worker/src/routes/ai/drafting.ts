@@ -2,7 +2,7 @@ import type { Ctx, Router } from '../../router'
 import { badRequest, forbidden, isUUID, notFound, ok, readJSON } from '../../http'
 import { can, resolveScope, studentPredicate, addDays, indiaToday } from '../students/common'
 import { assistantRateLimit } from '../teaching/gemini'
-import { AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject } from '../../services/ai/llm'
+import { type AiFeature, AI_FEATURES, aiSettings, requireAiFeature, AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject } from '../../services/ai/llm'
 import { aiStatus } from '../../services/ai/key'
 import { safe, snapshotText, studentSnapshot, teacherStyle } from '../../services/ai/context'
 
@@ -188,6 +188,12 @@ export function parseDrafts(raw: string, n: number): string[] {
   return t ? [t] : []
 }
 
+/** Which per-school AI switch each draft kind sits behind. */
+const DRAFT_FEATURE: Record<DraftKind, AiFeature> = {
+  parent_message: 'write_messages', circular: 'notice_draft', report_remark: 'remarks_draft', teacher_remark: 'remarks_draft',
+  admission_decision: 'admissions_draft', enquiry_follow_up: 'admissions_draft', leave_reply: 'leave_reply_draft', fee_reminder: 'fee_reminder_draft',
+}
+
 async function draft(c: Ctx) {
   if (!c.id.institution) throw forbidden('drafting works inside a school')
   const b = await readJSON<DraftRequest>(c.req)
@@ -197,6 +203,7 @@ async function draft(c: Ctx) {
   const length = LENGTHS[b.length ?? ''] ? b.length! : 'medium'
   const language = LANGUAGES[b.language ?? ''] ? b.language! : 'en'
   const n = Math.max(1, Math.min(3, Math.floor(Number(b.variants ?? 2)) || 2))
+  await requireAiFeature(c.db, DRAFT_FEATURE[kind])
   const ctx = await draftContext(c, kind, b)
   if (!(await aiConfigured(c.env))) return ok({ drafts: [], label: 'AI draft', configured: false, message: NOT_CONFIGURED_MSG })
   await assistantRateLimit(c)
@@ -215,6 +222,7 @@ async function translate(c: Ctx) {
   const language = b.language === 'te' || b.language === 'hi' || b.language === 'en' ? b.language : ''
   if (!text) throw badRequest('text is required')
   if (!language) throw badRequest('language must be te, hi or en')
+  await requireAiFeature(c.db, 'notice_translate')
   if (!(await aiConfigured(c.env))) return ok({ configured: false, message: NOT_CONFIGURED_MSG, original: { title, text } })
   await assistantRateLimit(c)
   const system = `Translate a school notice into ${LANGUAGES[language]}. Keep names, dates, times, amounts, class names and [placeholders] exactly. ` +
@@ -232,7 +240,9 @@ export function registerDrafting(r: Router): void {
   // configured stays for older screens: true only when Google accepts the key.
   r.get('/ai/status', 'auth', async (c) => {
     const s = (await aiConfigured(c.env)) ? await aiStatus(c.env) : { state: 'missing' as const, checked_at: null }
-    return ok({ configured: s.state === 'ok', state: s.state, checked_at: s.checked_at, kinds: DRAFT_KINDS, languages: Object.keys(LANGUAGES) })
+    const st = c.id.institution ? await aiSettings(c.db).catch(() => null) : null
+    const features = st ? Object.fromEntries(AI_FEATURES.map((f) => [f, st.enabled && st.features[f]])) : undefined
+    return ok({ features, configured: s.state === 'ok', state: s.state, checked_at: s.checked_at, kinds: DRAFT_KINDS, languages: Object.keys(LANGUAGES) })
   })
   r.post('/ai/draft', 'auth', draft)
   r.post('/ai/translate', 'auth', translate)

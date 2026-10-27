@@ -2,7 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { fullName, institutionId, marks, js, requirePerm, resolveScope, todayIST, type Scope } from './common'
 import { reachesSection } from './classwork'
-import { AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject } from '../../services/ai/llm'
+import { AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject, requireAiFeature } from '../../services/ai/llm'
 import { assistantRateLimit } from './gemini'
 import { checkLessonVideo } from './videos'
 import { asSection, computeSteps, dayName, loadProgress, loadStructure, stepKey } from './lms_progress'
@@ -1243,6 +1243,7 @@ export function registerLMS(r: Router) {
 
   /* Optional, and labelled as such: draft MCQs from a lesson's text for the teacher to check. Nothing is saved. */
   r.post('/lms/ai/quiz-draft', P, async (c) => {
+    await requireAiFeature(c.db, 'lms_quiz_draft')
     requirePerm(c, HW)
     const b = await readJSON<Body>(c.req)
     const s = await resolveScope(c)

@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useId, useState } from 'react'
 import { Languages } from 'lucide-react'
 import { Button } from '@/components/ui'
@@ -7,7 +8,7 @@ import { AiOffNote, isAiKeyError, useAiStatus, useMarkAiOff } from './useAiStatu
 /* "Translate" for a notice: Telugu or Hindi, shown beside the original, which
    is kept. onUse receives the translation to append or place in the editor;
    the screen decides, and nothing is published by this. */
-export default function TranslateNotice({ title, text, onUse }: {
+function TranslateNoticeInner({ title, text, onUse }: {
   title?: string
   text: string
   /** Gets the translated title and text, plus a combined bilingual body (original first). */
@@ -59,4 +60,9 @@ export default function TranslateNotice({ title, text, onUse }: {
       )}
     </div>
   )
+}
+
+/** Hidden entirely when the school switched this AI feature off. */
+export default function TranslateNotice(props: Parameters<typeof TranslateNoticeInner>[0]) {
+  return useAiFeature('notice_translate') ? <TranslateNoticeInner {...props} /> : null
 }
