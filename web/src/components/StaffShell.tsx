@@ -302,7 +302,8 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
       <div className="flex min-w-0 flex-1 flex-col gap-3.5">
         <div className="flex items-center justify-between gap-2">
           <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
-          <Notifications />
+          {/* Search as an icon beside the bell (owner, 2026-10-27): it opens the palette across the top. */}
+          <div className="flex shrink-0 items-center gap-1"><CommandSearch /><Notifications /></div>
         </div>
         {dashboard && <div className="min-w-0">
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>

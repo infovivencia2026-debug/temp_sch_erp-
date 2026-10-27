@@ -5407,3 +5407,33 @@ button.glass-btn:active:not(:disabled) {
   .foot-icon:hover svg, .staff-foot-settings button:hover svg { transform: scale(1.1); transition: transform .25s ease; }
 }
 @media (prefers-reduced-motion: reduce) { .foot-icon:hover, .staff-foot-settings button:hover { transform: none; } }
+
+/* PHONE SEARCH (owner, 2026-10-27): the palette opens from the top bar's icon
+   as a sheet that slides down across the top; the page behind is blurred and
+   lightly dimmed, and a tap on it closes. Transform and opacity only; instant
+   under reduced motion. Desktop is unchanged. */
+@media (max-width: 639px) {
+  .scrim.search-sheet {
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 8px 0;
+    background: hsl(var(--background) / 0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    animation: scrim-in 220ms var(--motion-ease) both;
+  }
+  .scrim.search-sheet > [role='dialog'] {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px));
+    animation: search-sheet-in 220ms var(--motion-ease) both;
+  }
+  .scrim.search-sheet[data-closing],
+  .scrim.search-sheet[data-ghost] { animation: scrim-out 200ms var(--motion-ease) both !important; }
+  .scrim.search-sheet[data-closing] > [role='dialog'],
+  .scrim.search-sheet[data-ghost] > [role='dialog'] { animation: search-sheet-out 200ms var(--motion-ease) both !important; }
+  .scrim.search-sheet input { font-size: 16px; }
+}
+@keyframes search-sheet-in { from { opacity: 0; transform: translate3d(0, -16px, 0); } }
+@keyframes search-sheet-out { to { opacity: 0; transform: translate3d(0, -16px, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .scrim.search-sheet, .scrim.search-sheet > [role='dialog'] { animation-duration: 1ms !important; }
+}
+html[data-reduce-motion] .scrim.search-sheet,
+html[data-reduce-motion] .scrim.search-sheet > [role='dialog'] { animation-duration: 1ms !important; }

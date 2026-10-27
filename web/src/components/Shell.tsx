@@ -1365,8 +1365,9 @@ export function Shell({
               search alone and every other control sits at the foot of the
               rail (see there). A phone has no rail, so it keeps them here. */}
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {/* No search on a phone, for every role (owner, 2026-10-24). */}
-            <div className="max-sm:hidden"><CommandSearch wide /></div>
+            {/* On a phone, an icon beside the bell that opens the palette across
+                the top (owner, 2026-10-27); the wide box from sm up. */}
+            <CommandSearch wide />
             {/* The institution admin on the staff sidebar has no rail (and so no
                 rail bell) from md up: the bell sits beside the search instead
                 (owner, 2026-10-26). Phones keep the one below. */}

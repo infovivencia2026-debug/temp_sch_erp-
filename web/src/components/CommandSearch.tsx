@@ -288,7 +288,7 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
            was, the palette had no way in at all there — Ctrl+K was the only
            other door and a phone has no Ctrl. */
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap search-pill rounded-full text-[13px] text-foreground sm:text-foreground/70 transition-[box-shadow,transform] focus-visible:outline-none sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
+          'flex h-10 w-10 max-sm:h-12 max-sm:w-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap search-pill rounded-full text-[13px] text-foreground sm:text-foreground/70 transition-[box-shadow,transform] focus-visible:outline-none sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
           /* The Work header's one control: a field-sized target, the words
              left and the shortcut right, the way a search box reads. */
           wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
@@ -347,6 +347,8 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
       initialFocus={inputRef}
       bodyClassName="flex flex-col"
       className="bg-popover"
+      /* On a phone: pinned to the top edge, the page behind blurred (search-sheet in index.css). */
+      scrimClassName="search-sheet"
     >
           <div className="flex items-center gap-2.5 border-b px-4">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
