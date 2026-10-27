@@ -1151,9 +1151,12 @@ async function setPayrollState(c: Ctx) {
     default: throw badRequest('A month can be locked, marked paid, published, or unlocked.')
   }
   const status = to === 'published' ? 'paid' : to
-  const run = await c.db.prepare(`SELECT id FROM payroll_runs WHERE period_month = ? AND period_year = ? AND status IN ${inList(from)}`)
-    .bind(month, year, js(from)).first<{ id: string }>()
+  const run = await c.db.prepare(`SELECT id, approval_state FROM payroll_runs WHERE period_month = ? AND period_year = ? AND status IN ${inList(from)}`)
+    .bind(month, year, js(from)).first<{ id: string; approval_state: string | null }>()
   if (!run) throw badRequest('That month is not at a stage where this can be done. Lock it before drawing the bank file, and pay it before publishing.')
+  /* Owner, 2026-10-27: the principal approves payroll before it goes out. */
+  if (to === 'published' && run.approval_state !== 'approved')
+    throw new HttpError(409, run.approval_state === 'pending' ? "This month is waiting for the principal's approval." : 'Send this month to the principal for approval before publishing.', { code: 'not_approved' })
   const ts = now()
   /* REOPENING CLEARS THE EXPORT MARK TOO, OR THE MONTH IS NOT REALLY OPEN.
    *
@@ -1174,6 +1177,8 @@ async function setPayrollState(c: Ctx) {
         published_at = CASE WHEN ?4 THEN ?3 WHEN ?2 = 'draft' THEN NULL ELSE published_at END,
         bank_file_drawn_at = CASE WHEN ?2 = 'draft' THEN NULL ELSE bank_file_drawn_at END
       WHERE id = ?1`).bind(run.id, status, ts, to === 'published' ? 1 : 0).run()
+  // Reopening means the figures will change, so any approval goes with it.
+  if (to === 'draft') await clearApproval(c, run.id)
   let told = 0
   if (to === 'published') {
     const people = await c.db.prepare(`SELECT e.user_id, ${EMP_NAME} AS name, ps.net_paise FROM payslips ps JOIN employees e ON e.id = ps.employee_id
@@ -1204,6 +1209,90 @@ async function setPayrollState(c: Ctx) {
     await ms.kick()
   }
   return ok({ state: to, notified: told, emailed, email_failed: emailFailed })
+}
+
+// ------------------------------------------------------------ approval (maker-checker)
+/* Owner, 2026-10-27: payroll is approved by the institution admin (the
+ * principal) before it is published. The maker locks the month and submits
+ * it; an institution admin who neither ran nor submitted it approves, or sends
+ * it back with a note (back to draft). Approval does not publish: the maker
+ * publishes afterwards exactly as before, and that still sends the payslips. */
+const PAYROLL_LINK = (month: number, year: number) => `/go/monthly_payroll?month=${month}&year=${year}`
+const isInstitutionAdmin = (c: Ctx) => c.id.platformAdmin || c.id.roles.includes('institution_admin')
+
+async function clearApproval(c: Ctx, runId: string) {
+  await c.db.prepare(`UPDATE payroll_runs SET approval_state = NULL, submitted_by = NULL, submitted_at = NULL, approved_by = NULL, approved_at = NULL WHERE id = ?`)
+    .bind(runId).run()
+}
+
+const tell = (c: Ctx, user: string, kind: string, title: string, body: string, link: string) =>
+  c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(uuid(), c.id.institution!.id, user, kind, title, body, link, now())
+
+interface ApprovalRun { id: string; period_month: number; period_year: number; status: string; approval_state: string | null
+  run_by: string | null; submitted_by: string | null; approved_by: string | null; sent_back_note: string | null; net_paise: number; employees: number }
+const APPROVAL_COLS = `id, period_month, period_year, status, approval_state, run_by, submitted_by, approved_by, sent_back_note, net_paise, employees`
+
+async function submitPayroll(c: Ctx) {
+  const req = await readJSON(c.req)
+  const month = Number(req.month ?? 0), year = Number(req.year ?? 0)
+  if (month < 1 || month > 12 || year < 2000) throw badRequest('Choose a month.')
+  const run = await c.db.prepare(`SELECT ${APPROVAL_COLS} FROM payroll_runs WHERE period_month = ? AND period_year = ?`).bind(month, year).first<ApprovalRun>()
+  if (!run) throw notFound()
+  if (run.status !== 'locked' && run.status !== 'paid') throw new HttpError(409, 'Lock the month before sending it for approval.', { code: 'not_locked' })
+  if (run.approval_state === 'pending') throw new HttpError(409, 'This month is already waiting for the principal.', { code: 'already_submitted' })
+  if (run.approval_state === 'approved') throw new HttpError(409, 'This month is already approved.', { code: 'already_approved' })
+  const ts = now()
+  const admins = await c.db.prepare(`SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+      WHERE r.key = 'institution_admin' AND u.status = 'active' AND u.id <> ?`).bind(c.id.userId).all<{ id: string }>()
+  const mon = MONTHS[month - 1]
+  await c.db.batch([
+    c.db.prepare(`UPDATE payroll_runs SET approval_state = 'pending', submitted_by = ?, submitted_at = ?, approved_by = NULL, approved_at = NULL, sent_back_note = NULL, sent_back_at = NULL WHERE id = ?`)
+      .bind(c.id.userId, ts, run.id),
+    ...admins.results.map((a) => tell(c, a.id, 'payroll_approval', `Payroll for ${mon} ${year} needs your approval`,
+      `${numOr0(run.employees)} staff, take-home ${rupees(numOr0(run.net_paise))} in all. Check the figures, then approve or send it back.`, PAYROLL_LINK(month, year))),
+  ])
+  return ok({ approval: 'pending', notified: admins.results.length })
+}
+
+async function decidePayroll(c: Ctx) {
+  const runId = uuidParam(c.params.id)
+  const req = await readJSON(c.req)
+  const decision = String(req.decision ?? ''), note = String(req.note ?? '').trim()
+  if (decision !== 'approved' && decision !== 'rejected') throw badRequest('decision must be approved or rejected')
+  if (!isInstitutionAdmin(c)) throw new HttpError(403, 'Only the principal (institution admin) can approve payroll.', { code: 'not_institution_admin' })
+  const run = await c.db.prepare(`SELECT ${APPROVAL_COLS} FROM payroll_runs WHERE id = ?`).bind(runId).first<ApprovalRun>()
+  if (!run) throw notFound()
+  if (run.run_by === c.id.userId || run.submitted_by === c.id.userId)
+    throw new HttpError(403, 'You prepared this payroll, so someone else must approve it.', { code: 'maker_cannot_approve' })
+  if (run.approval_state !== 'pending') throw new HttpError(409, run.approval_state === 'approved' ? 'This month is already approved.' : 'This month is not waiting for approval.', { code: 'not_pending' })
+  const ts = now(), month = run.period_month, year = run.period_year, mon = MONTHS[month - 1]
+  const maker = run.submitted_by ?? run.run_by
+  if (decision === 'rejected') {
+    if (!note) throw badRequest('Say why it is sent back, so the maker knows what to fix.')
+    await c.db.batch([
+      c.db.prepare(`UPDATE payroll_runs SET status = 'draft', locked_at = NULL, published_at = NULL, bank_file_drawn_at = NULL,
+          approval_state = NULL, approved_by = NULL, approved_at = NULL, sent_back_note = ?, sent_back_at = ? WHERE id = ?`).bind(note, ts, runId),
+      ...(maker ? [tell(c, maker, 'payroll_sent_back', `Payroll for ${mon} ${year} was sent back`, note, PAYROLL_LINK(month, year))] : []),
+    ])
+    return ok({ approval: 'sent_back', state: 'draft' })
+  }
+  await c.db.batch([
+    c.db.prepare(`UPDATE payroll_runs SET approval_state = 'approved', approved_by = ?, approved_at = ? WHERE id = ?`).bind(c.id.userId, ts, runId),
+    ...(maker ? [tell(c, maker, 'payroll_approved', `Payroll for ${mon} ${year} was approved`,
+      note || 'The principal approved it. You can publish the payslips now.', PAYROLL_LINK(month, year))] : []),
+  ])
+  return ok({ approval: 'approved' })
+}
+
+/** Where the month's approval stands, and what this login may do about it. */
+async function payrollApproval(c: Ctx) {
+  const month = Number(c.url.searchParams.get('month') ?? 0), year = Number(c.url.searchParams.get('year') ?? 0)
+  const run = await c.db.prepare(`SELECT ${APPROVAL_COLS} FROM payroll_runs WHERE period_month = ? AND period_year = ?`).bind(month, year).first<ApprovalRun>()
+  if (!run) return ok({ run_id: null, approval: null, sent_back_note: null, can_approve: false })
+  const maker = run.run_by === c.id.userId || run.submitted_by === c.id.userId
+  return ok({ run_id: run.id, approval: run.approval_state ?? null, sent_back_note: run.sent_back_note ?? null,
+    can_approve: run.approval_state === 'pending' && isInstitutionAdmin(c) && !maker })
 }
 
 // ------------------------------------------------------------ routes
@@ -1333,6 +1422,9 @@ function registerPayrollGroup(r: Router) {
   // Go mounts this behind RequireFresh: a payroll run moves money.
   r.post('/payroll/run', PAYROLL_WRITE, async (c) => { await requireFresh(c); return runPayroll(c) })
   r.post('/payroll/state', PAYROLL_WRITE, setPayrollState)
+  r.post('/payroll/submit', PAYROLL_WRITE, submitPayroll)
+  r.get('/payroll/approval', PAYROLL_READ, payrollApproval)
+  r.post('/payroll/runs/{id}/decide', PAYROLL_READ, decidePayroll)
 
   r.get('/payroll/components', PAYROLL_READ, async (c) => {
     // default_value arrived with migration 0086; a database without it still answers.

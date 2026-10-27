@@ -1552,6 +1552,23 @@ async function getApprovals(c: Ctx): Promise<Response> {
       }
     return out
   })())
+  /* A month's payroll sent up for the principal's approval (payroll.ts). Not the maker's own. */
+  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT pr.id, pr.period_month, pr.period_year, pr.employees, pr.net_paise, u.full_name AS by, pr.submitted_at
+          FROM payroll_runs pr LEFT JOIN users u ON u.id = pr.submitted_by
+         WHERE pr.approval_state = 'pending' AND COALESCE(pr.submitted_by, '') <> ?1 AND COALESCE(pr.run_by, '') <> ?1
+         ORDER BY pr.submitted_at LIMIT ${APPROVALS_PER_KIND}`).bind(c.id.userId).all()
+      const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'payroll', title: `Payroll for ${MON[num(v.period_month) - 1]} ${v.period_year}`,
+          detail: `${num(v.employees)} staff. Approving lets the payslips be published; sending back returns it to draft with your note.`,
+          requested_by: v.by ?? undefined, raised_at: isoSec((v.submitted_at ?? '') as string), amount_paise: v.net_paise ?? undefined,
+          decide_url: `/api/v1/payroll/runs/${v.id}/decide` })
+      }
+    return out
+  })())
   const out = (await Promise.all(tasks)).flat()
   const byKind: Record<string, number> = {}
   for (const a of out) byKind[a.kind as string] = (byKind[a.kind as string] ?? 0) + 1
