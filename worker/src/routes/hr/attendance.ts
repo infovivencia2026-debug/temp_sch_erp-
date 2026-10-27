@@ -39,12 +39,27 @@ export function registerAttendanceWorkflow(r: Router) {
     const attID = str(req.attendance_id)
     if (!isUUIDish(attID)) throw badRequest('attendance_id must be a uuid')
     if (str(req.reason).trim() === '') throw badRequest('reason is required')
-    const att = await c.db.prepare(`SELECT status, section_id FROM student_attendance WHERE id = ?`).bind(attID).first<{ status: string; section_id: string }>()
+    const att = await c.db.prepare(`SELECT status, section_id, on_date FROM student_attendance WHERE id = ?`).bind(attID).first<{ status: string; section_id: string; on_date: string }>()
     if (!att) throw notFound()
     if (!(await canMarkSection(c, att.section_id))) throw forbidden('attendance correction for this section')
     const id = uuid()
-    await c.db.prepare(`INSERT INTO attendance_corrections (id, institution_id, attendance_id, requested_by, from_status, to_status, reason, status, created_at) VALUES (?,?,?,?,?,?,?,'pending',?)`)
-      .bind(id, c.id.institution!.id, attID, c.id.userId, att.status, str(req.to_status), str(req.reason), now()).run()
+    const t = now()
+    const stmts = [c.db.prepare(`INSERT INTO attendance_corrections (id, institution_id, attendance_id, requested_by, from_status, to_status, reason, status, created_at) VALUES (?,?,?,?,?,?,?,'pending',?)`)
+      .bind(id, c.id.institution!.id, attID, c.id.userId, att.status, str(req.to_status), str(req.reason), t)]
+    // Tell whoever can decide it (academics.attendance.write.any), not the asker.
+    const deciders = await c.db.prepare(`
+      SELECT DISTINCT u.id FROM users u
+        JOIN user_roles ur ON ur.user_id = u.id
+        JOIN role_permissions rp ON rp.role_id = ur.role_id
+       WHERE u.institution_id = ? AND u.status = 'active' AND u.id <> ? AND rp.permission_key = 'academics.attendance.write.any'`)
+      .bind(c.id.institution!.id, c.id.userId).all<{ id: string }>()
+    for (const d of deciders.results) {
+      stmts.push(c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+          VALUES (?,?,?,NULL,'correction_request',?,?,'/go/approvals/approvals','attendance_correction',?,?)`)
+        .bind(uuid(), c.id.institution!.id, d.id, `${c.id.fullName} asks to correct attendance on ${att.on_date}`,
+          `${att.status} to ${str(req.to_status)}. ${str(req.reason)}. Approve or reject it from Approvals.`, id, t))
+    }
+    await c.db.batch(stmts)
     return created({ id, status: 'pending' })
   })
 

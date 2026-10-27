@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CalendarDays, Check, CheckCheck, DoorOpen, Inbox, IndianRupee, PencilLine, UserPlus,
+  CalendarDays, Check, CheckCheck, Clock, DoorOpen, Inbox, IndianRupee, PencilLine, UserPlus,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { refreshConcessions } from '@/lib/concession-refresh'
@@ -44,6 +44,8 @@ interface Inboxed {
 const KINDS: Record<string, { label: string; icon: typeof CalendarDays }> = {
   leave: { label: 'Leave', icon: CalendarDays },
   attendance_correction: { label: 'Attendance', icon: PencilLine },
+  /* A member of staff asking to fix a day's punch; refusing needs a note they will read. */
+  attendance_fix: { label: 'Punch fix', icon: Clock },
   fee_concession: { label: 'Concession', icon: IndianRupee },
   /* A new joining. The button that approved one lived on a screen only the
      admissions desk has, so a school requiring the head's signature had a
@@ -114,7 +116,7 @@ export default function Approvals() {
     confirm: (v) => (v.approve ? 'Approved' : 'Rejected, the requester is told'),
     failure: "Couldn't record that decision",
   })
-  const fast = (kind: string) => kind === 'leave' || kind === 'attendance_correction'
+  const fast = (kind: string) => kind === 'leave' || kind === 'attendance_correction' || kind === 'attendance_fix'
   const vote = (it: Approval, approve: boolean) => {
     if (fast(it.kind)) quick.mutate({ id: it.id, kind: it.kind, url: it.decide_url, approve, reason: note[it.id] })
     else decide.mutate({ id: it.id, kind: it.kind, url: it.decide_url, approve, reason: note[it.id] })
@@ -237,7 +239,7 @@ export default function Approvals() {
                         <Input
                           value={note[it.id] ?? ''}
                           onChange={(x) => setNote({ ...note, [it.id]: x })}
-                          placeholder={it.kind === 'staff_exit' ? 'Note (needed to reject)' : 'Note (optional)'}
+                          placeholder={it.kind === 'staff_exit' || it.kind === 'attendance_fix' ? 'Note (needed to reject)' : 'Note (optional)'}
                           className="col-span-2 w-full sm:w-40"
                         />
                         <Button
