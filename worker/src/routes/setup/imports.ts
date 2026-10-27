@@ -29,6 +29,10 @@ export class ImportCtx {
   classes = new Map<string, string>()
   sections = new Map<string, string>()
   teachers = new Map<string, string>()
+  /* Teacher names a timetable sheet uses that match nobody: each was three
+     lookups on every one of its rows, which made a 600-row sheet slow
+     enough for the browser to give up while the server was still saving. */
+  teacherMisses = new Set<string>()
   periods: Map<string, string> | null = null
   devices = new Map<string, string>()
   punchSeen = new Set<string>()
@@ -714,6 +718,7 @@ export const importSpecs: Record<string, ImportSpec> = {
     check: (row) => { weekdayOf(str(row.day)); if (str(row.period).trim() === '') throw new Error('period is required: its number or its name') },
     verify: async (ctx, row) => {
       const classId = await ctx.classID(str(row.class).trim())
+      if (str(row.section).trim() !== '') await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
       await ctx.periodID(str(row.period).trim())
       const n = await ctx.db.prepare(`SELECT COUNT(*) AS n FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?))`)
         .bind(classId, str(row.subject).trim(), str(row.subject).trim()).first<{ n: number }>()
@@ -727,7 +732,10 @@ export const importSpecs: Record<string, ImportSpec> = {
       const weekday = weekdayOf(str(row.day))
       const csId = await classSubjectIdFor(ctx, classId, str(row.subject).trim())
       let teacher: string | null = null
-      if (str(row.teacher).trim() !== '') { try { teacher = await ctx.teacherByEmail(str(row.teacher).trim()) } catch { teacher = null } }
+      const who = str(row.teacher).trim()
+      if (who !== '' && !ctx.teacherMisses.has(who.toLowerCase())) {
+        try { teacher = await ctx.teacherByEmail(who) } catch { ctx.teacherMisses.add(who.toLowerCase()) }
+      }
       const existing = await exists(ctx, `SELECT id FROM timetable_entries WHERE section_id = ? AND period_id = ? AND weekday = ?`, sectionId, periodId, weekday)
       if (existing) {
         await ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing).run()

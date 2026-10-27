@@ -9,6 +9,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { ImportWithAIButton } from '@/components/ai/SmartImport'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
 import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
+import { formatDateTime } from '@/lib/utils'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -298,7 +299,13 @@ export default function BulkImport({
         onDone?.()
       }
     } catch {
-      setError('Could not reach the server. Nothing has been imported.')
+      // On a commit the server may have saved some or all rows before the
+      // answer was lost, so this must not say that nothing was imported.
+      setError(
+        commit
+          ? 'The answer from the server was lost. Some rows may have been saved: check the import history below before uploading again.'
+          : 'Could not reach the server. Nothing has been imported.',
+      )
     } finally {
       setBusy(false)
     }
@@ -1120,7 +1127,7 @@ function History({
                   </button>
                 </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
-                  {r.created_at.replace('T', ' ').slice(0, 16)}
+                  {formatDateTime(r.created_at)}
                 </td>
                 <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '-'}</td>
                 <td className="py-1 pr-3 tabular-nums">
