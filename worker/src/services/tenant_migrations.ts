@@ -113,4 +113,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 113, name: 'inventory_in_store', checksum: '25a2d4f31e7749858fd075641ad8d1c347103d699025498b722854a687a0da82' },
   { version: 114, name: 'digest_keep_latest', checksum: 'af16d338d9839c73531435ba6959b316f5dd51da4d95d72c86a48d4660e11e56' },
   { version: 115, name: 'on_duty_requests', checksum: 'fd4fa5a98c5964e2429294e578789c1c9e9dceaae101fd64d8a03fde354beb05' },
+  { version: 117, name: 'payroll_approval', checksum: '05d2421a48288d3df7a6fa6b1390fbcc418029babf8641121c32cea9ad0829dd' },
 ]
