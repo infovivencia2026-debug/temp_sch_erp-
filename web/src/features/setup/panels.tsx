@@ -1068,7 +1068,7 @@ function SubjectsAndMapping({ onDone }: PanelProps) {
   )
 }
 
-function ClassSubjectsPanel({ onDone }: PanelProps) {
+export function ClassSubjectsPanel({ onDone }: PanelProps) {
   const { data: classes } = useQuery({
     queryKey: ['classes'],
     queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),

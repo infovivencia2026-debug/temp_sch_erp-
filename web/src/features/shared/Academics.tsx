@@ -8,6 +8,7 @@ import {
 import { useRouteFeature } from '@/lib/catalog'
 import { ImportButton } from '@/components/DataPortActions'
 import { formatDate, cn } from '@/lib/utils'
+import { ClassSubjectsPanel } from '@/features/setup/panels'
 
 /* The academics reference tables are reached from several roles, so the tab is
    local state seeded from the feature slug rather than a route segment. */
@@ -31,6 +32,7 @@ export default function Academics() {
     { id: 'sections', label: 'Sections' },
     { id: 'classes', label: 'Classes' },
     { id: 'subjects', label: 'Subjects' },
+    { id: 'class_subjects', label: 'Class subjects' },
     { id: 'years', label: 'Academic years' },
   ]
 
@@ -80,6 +82,13 @@ export default function Academics() {
           {tabId === 'sections' && <Sections />}
           {tabId === 'classes' && <Classes />}
           {tabId === 'subjects' && <Subjects />}
+          {/* Which class studies what, and adding a missing subject: the same
+             panel as the setup step, so a school can change it after setup. */}
+          {tabId === 'class_subjects' && (
+            <div className="p-4">
+              <ClassSubjectsPanel onDone={() => {}} />
+            </div>
+          )}
           {tabId === 'years' && <Years />}
         </Card>
       </PageBody>
