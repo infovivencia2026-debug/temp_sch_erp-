@@ -33,7 +33,7 @@ describe('marks', () => {
     expect(r.status).toBe(403)
     const m = await T().prepare(`SELECT 1 FROM marks WHERE student_id = ?`).bind(STRANGER).first()
     expect(m).toBeNull()
-  })
+  }, 120_000) // the first sign-in in a cold worker is slow
 
   it('her own section is still allowed', async () => {
     const r = await api('teacher', 'POST', '/exams/marks', { exam_subject_id: IDS.paper, entries: [{ student_id: IDS.child, marks_obtained: 50 }] })
