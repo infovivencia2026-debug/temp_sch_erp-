@@ -140,7 +140,7 @@ export class ImportCtx {
     const key = `${sectionId}/${day}/${want.toLowerCase()}`
     const hit = this.dayPeriods.get(key)
     if (hit) return hit
-    const seq = /^(?:p|periods*)?(d+)$/i.exec(want)?.[1] ?? null
+    const seq = /^(?:p|period\s*)?(\d+)$/i.exec(want)?.[1] ?? null
     const row = await this.db.prepare(`
       SELECT p.id FROM periods p JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
        WHERE p.institution_id = ? AND (lower(p.name) = lower(?) OR (? IS NOT NULL AND p.sequence = CAST(? AS INTEGER)))
@@ -771,7 +771,7 @@ export const importSpecs: Record<string, ImportSpec> = {
           /* Timetables name teachers the way the staff room does, "NAVYA" for
              Navya Eeda. Taken only when exactly one member of staff has every
              word of it in their name; anything less certain stays blank. */
-          const words = who.toLowerCase().replace(/[.]/g, ' ').split(/s+/).filter((w) => w.length > 1)
+          const words = who.toLowerCase().replace(/[.]/g, ' ').split(/\s+/).filter((w) => w.length > 1)
           const found = words.length === 0 ? null : await ctx.db.prepare(`SELECT e.user_id AS id FROM employees e WHERE e.institution_id = ? AND e.user_id IS NOT NULL
               AND ${words.map(() => `(' ' || lower(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, ''))) || ' ') LIKE ?`).join(' AND ')} LIMIT 2`)
             .bind(ctx.inst, ...words.map((w) => `% ${w} %`)).all<{ id: string }>()
