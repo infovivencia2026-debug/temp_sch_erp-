@@ -1,4 +1,5 @@
 import { addSubjectsToOpenExams } from './academics'
+import { sectionScheduleSQL } from '../scheduling/bell'
 import type { Router } from '../../router'
 import { collect } from '../fees/counter'
 import { isBatchGuardFailure } from '../fees/common'
@@ -126,6 +127,31 @@ export class ImportCtx {
     const id = this.periods.get(want.toLowerCase())
     if (!id) throw new Error(`no period called "${want}" -- set the school day up first, or use the period number`)
     return id
+  }
+
+  /* A period on one day. A school with a bell schedule per weekday has a
+     "1" in each, and periodID took whichever came first, so Monday's row
+     landed on Thursday's timings. The day's own schedule wins, then the
+     section's, then the default: the order the timetable cell editor uses. */
+  dayPeriods = new Map<string, string>()
+  async periodOnDay(want: string, day: string, sectionId: string): Promise<string> {
+    want = want.trim()
+    if (want === '') throw new Error('period is required')
+    const key = `${sectionId}/${day}/${want.toLowerCase()}`
+    const hit = this.dayPeriods.get(key)
+    if (hit) return hit
+    const seq = /^(?:p|periods*)?(d+)$/i.exec(want)?.[1] ?? null
+    const row = await this.db.prepare(`
+      SELECT p.id FROM periods p JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
+       WHERE p.institution_id = ? AND (lower(p.name) = lower(?) OR (? IS NOT NULL AND p.sequence = CAST(? AS INTEGER)))
+         AND (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
+       ORDER BY (bs.name = ?) DESC,
+                (bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?)) DESC,
+                bs.is_default DESC, (lower(p.name) = lower(?)) DESC
+       LIMIT 1`).bind(this.inst, want, seq, seq, day, sectionId, day, sectionId, want).first<{ id: string }>()
+    if (!row) throw new Error(`no period "${want}" on ${day} -- set the school day up first, or use the period number`)
+    this.dayPeriods.set(key, row.id)
+    return row.id
   }
 
   workingYearID(): string {
@@ -338,6 +364,8 @@ export function parsePunchTime(v: string): string {
   if (!m || Number.isNaN(Date.parse(m[1] + 'T00:00:00Z'))) throw new Error(`unrecognised punch time "${v}"`)
   return istToUTC(m[1], m[2] + ':' + (m[3] ?? '00'))
 }
+
+const weekdayName = (n: number): string => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][n - 1]
 
 export function weekdayOf(s: string): number {
   const v = s.trim().toLowerCase()
@@ -733,13 +761,23 @@ export const importSpecs: Record<string, ImportSpec> = {
       const yearId = ctx.workingYearID()
       const classId = await ctx.classID(str(row.class).trim())
       const sectionId = await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
-      const periodId = await ctx.periodID(str(row.period).trim())
       const weekday = weekdayOf(str(row.day))
+      const periodId = await ctx.periodOnDay(str(row.period).trim(), weekdayName(weekday), sectionId)
       const csId = await classSubjectIdFor(ctx, classId, str(row.subject).trim())
       let teacher: string | null = null
       const who = str(row.teacher).trim()
       if (who !== '' && !ctx.teacherMisses.has(who.toLowerCase())) {
-        try { teacher = await ctx.teacherByEmail(who) } catch { ctx.teacherMisses.add(who.toLowerCase()) }
+        try { teacher = await ctx.teacherByEmail(who) } catch {
+          /* Timetables name teachers the way the staff room does, "NAVYA" for
+             Navya Eeda. Taken only when exactly one member of staff has every
+             word of it in their name; anything less certain stays blank. */
+          const words = who.toLowerCase().replace(/[.]/g, ' ').split(/s+/).filter((w) => w.length > 1)
+          const found = words.length === 0 ? null : await ctx.db.prepare(`SELECT e.user_id AS id FROM employees e WHERE e.institution_id = ? AND e.user_id IS NOT NULL
+              AND ${words.map(() => `(' ' || lower(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, ''))) || ' ') LIKE ?`).join(' AND ')} LIMIT 2`)
+            .bind(ctx.inst, ...words.map((w) => `% ${w} %`)).all<{ id: string }>()
+          if (found && found.results.length === 1) { teacher = found.results[0].id; ctx.teachers.set(who.toLowerCase(), teacher) }
+          else ctx.teacherMisses.add(who.toLowerCase())
+        }
       }
       if (!ctx.timetableCells) {
         const all = await ctx.db.prepare(`SELECT id, section_id, period_id, weekday FROM timetable_entries WHERE institution_id = ?`).bind(ctx.inst)
