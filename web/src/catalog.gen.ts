@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 464 features. */
+/** 24 roles, 473 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -569,6 +569,7 @@ export const ROLES: Role[] = [
           { key: 'hod.academics.faculty_allocation', slug: 'faculty_allocation', name: 'Faculty allocation', scope: 'department', tier: 'core', summary: 'Which teacher teaches which subject to which section, across the department, with each teacher\'s total periods shown so the load can be seen while it is being set.' },
           { key: 'hod.academics.subject_overview', slug: 'subject_overview', name: 'Subject overview', scope: 'institution', tier: 'core', summary: 'For each subject\'s head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject\'s timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers.' },
           { key: 'hod.academics.subject_meetings', slug: 'subject_meetings', name: 'Subject meetings', scope: 'institution', tier: 'core', summary: 'Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can\'t come with a note.' },
+          { key: 'hod.academics.course_outcomes', slug: 'course_outcomes', name: 'Course outcomes', scope: 'department', tier: 'core', summary: 'Programme and course outcomes for the department\'s subjects, which papers measure each outcome, and whether the class attained it, computed from marks.' },
         ],
       },
       {
@@ -666,6 +667,7 @@ export const ROLES: Role[] = [
           { key: 'exam_controller.examinations.hall_tickets_seating', slug: 'hall_tickets_seating', name: 'Hall tickets & seating', scope: 'institution', tier: 'core', summary: 'Halls, seat allocation and the hall ticket each candidate carries in.' },
           { key: 'exam_controller.examinations.report_cards', slug: 'report_cards', name: 'Report cards', scope: 'institution', tier: 'core', summary: 'Generate a section\'s report cards once every paper is in, preview the school\'s design, and send the set up for release.' },
           { key: 'exam_controller.examinations.performance_overview', slug: 'performance_overview', name: 'Performance overview', scope: 'institution', tier: 'core', summary: 'Results by class and subject across the exams held this year.' },
+          { key: 'exam_controller.examinations.exams_monitoring', slug: 'exams_monitoring', name: 'Exams monitoring', scope: 'institution', tier: 'core', summary: 'Every paper that has been sat, with how many of the class roll have marks entered. See who has not entered marks yet, approve a paper once it is complete, and publish the results.' },
         ],
       },
       {
@@ -693,6 +695,18 @@ export const ROLES: Role[] = [
         workspace: 'School Gallery',
         features: [
           { key: 'exam_controller.school_gallery.school_gallery', slug: 'school_gallery', name: 'School Gallery', scope: 'institution', tier: 'core', summary: 'Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen.' },
+        ],
+      },
+      {
+        slug: 'board_exams',
+        name: 'Board Exams',
+        workspace: 'Examinations',
+        features: [
+          { key: 'exam_controller.board_exams.ssc_registration', slug: 'ssc_registration', name: 'SSC registration', scope: 'institution', tier: 'core', summary: 'The Class 10 nominal roll for the state board: who is entered, what they are entered for, amendments, and what the board has said about each candidate.' },
+          { key: 'exam_controller.board_exams.intermediate_registration', slug: 'intermediate_registration', name: 'Intermediate registration', scope: 'institution', tier: 'core', summary: 'The Class 11 and 12 nominal roll for the intermediate board, first year and second year: who is entered, amendments, and the board\'s response for each candidate.' },
+          { key: 'exam_controller.board_exams.board_loc_filing', slug: 'board_loc_filing', name: 'Board LOC filing', scope: 'institution', tier: 'core', summary: 'The List of Candidates for the board: validate it, see which candidates the board would refuse and why, export it and record the filing.' },
+          { key: 'exam_controller.board_exams.board_results', slug: 'board_results', name: 'Board results', scope: 'institution', tier: 'core', summary: 'Import the board\'s result file and reconcile it against the school\'s own candidates: who the board has that the school does not, and who is missing from the file. Publish once matched.' },
+          { key: 'exam_controller.board_exams.baseline_analysis', slug: 'baseline_analysis', name: 'Baseline analysis', scope: 'institution', tier: 'core', summary: 'Each class\'s latest results against its own earlier baseline exam, in percentage points, with the basis printed on the page.' },
         ],
       },
     ],
@@ -1347,6 +1361,7 @@ export const ROLES: Role[] = [
           { key: 'finance.fees.fee_corrections', slug: 'fee_corrections', name: 'Fee corrections', scope: 'institution', tier: 'core', summary: 'Void a receipt issued by mistake, move a receipt taken against the wrong child, mark received an online payment the gateway confirmed but never called back about, and stop a fee head for a whole class from a date. Each one keeps its reason on the record.' },
           { key: 'finance.fees.unpaid_fees_reminders', slug: 'unpaid_fees_reminders', name: 'Unpaid fees & reminders', scope: 'institution', tier: 'core', summary: 'Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too.' },
           { key: 'finance.fees.class_transport_fee_setup', slug: 'class_transport_fee_setup', name: 'Class & transport fee setup', scope: 'institution', tier: 'core', summary: 'What each class is charged for the year, tuition, lab, transport by distance, with concessions and refunds, the receipt series, and the one action that turns the structure into every parent\'s invoice.' },
+          { key: 'finance.fees.fee_regulatory_filing', slug: 'fee_regulatory_filing', name: 'Fee regulatory filing', scope: 'institution', tier: 'core', summary: 'Compile the fee structure filed with the fee regulatory committee, attach the supporting documents, submit it and record the committee\'s decision, so the school charges only what was approved.' },
         ],
       },
       {
@@ -1495,6 +1510,7 @@ export const ROLES: Role[] = [
         workspace: 'Front Desk',
         features: [
           { key: 'admissions.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen.' },
+          { key: 'admissions.front_desk.alumni', slug: 'alumni', name: 'Alumni', scope: 'institution', tier: 'core', summary: 'Former students: their profiles, events and attendance, and contributions, with the leavers who have no alumni profile yet. Contactable is consent: an alumnus who asked to be left alone drops out of every mailing.' },
         ],
       },
       {
