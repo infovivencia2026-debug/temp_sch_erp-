@@ -5,6 +5,7 @@ import { isBatchGuardFailure } from '../fees/common'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, notFound, ok, uuid, uuidParam, now } from '../../http'
 import { can } from '../../identity'
+import { auditStmt } from '../admin/common'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, CLASS_LEVEL_FLOOR, CLASS_LEVEL_CEILING,
   appointEmployee, PhoneInUse, endFamilyAccess, todayIndia, istToUTC, isClock, str } from './common'
 import { registerImportSpecsExtra } from './imports_extra'
@@ -1608,7 +1609,10 @@ export function registerImports(r: Router): void {
       }
     }
     try { await tidyPayrollRuns(c) } catch { /* as Go: best effort */ }
-    if (out.removed > 0) await c.db.prepare(`UPDATE import_runs SET undone_at = ?, undone_by = ? WHERE id = ?`).bind(now(), c.id.userId, runId).run()
+    await c.db.batch([
+      ...(out.removed > 0 ? [c.db.prepare(`UPDATE import_runs SET undone_at = ?, undone_by = ? WHERE id = ?`).bind(now(), c.id.userId, runId)] : []),
+      auditStmt(c, 'import.undo', 'import_run', runId, null, { entity: run.entity, removed: out.removed, kept: out.kept }),
+    ])
     return ok(out)
   })
 

@@ -4,6 +4,9 @@ import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
 import { can } from '../../identity'
+import { auditStmt } from '../admin/common'
+import { isSchoolAdmin } from '../admin/users'
+import { requireFresh } from '../fees/common'
 import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
 import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
@@ -1201,6 +1204,9 @@ export function registerStaff(r: Router): void {
     const kind = str(req.kind)
     const need = kind === 'staff' ? 'hr.employees.write' : 'students.write'
     if (!can(c.id, need)) throw forbidden('missing permission: issuing logins for ' + kind)
+    /* Resetting a whole list of passwords is a takeover if it goes wrong: a password typed in the last fifteen minutes. */
+    if (req.reset === true) await requireFresh(c)
+    const callerIsAdmin = isSchoolAdmin(c)
     let section: string | null = null
     if (trim(req.section_id) !== '') {
       if (!isUUID(trim(req.section_id))) throw badRequest('section_id must be a uuid')
@@ -1286,10 +1292,23 @@ export function registerStaff(r: Router): void {
     }
     for (const p of people.results) {
       if (p.user_id && (!bool(p.usable) || req.reset === true)) {
+        /* A school administrator's login is reset only by a school administrator; and the
+           caller's own account is never reset from a list. */
+        if (p.user_id === c.id.userId || (!callerIsAdmin && (await c.db.prepare(`SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+            WHERE ur.user_id = ? AND r.key = 'institution_admin' LIMIT 1`).bind(p.user_id).first()))) {
+          out.skipped++
+          out.rows.push({ ...studentCols(p), name: p.name, existing: true, detail: p.user_id === c.id.userId ? 'your own login: change it from your profile' : 'a school administrator: only a school administrator can reset this login' })
+          continue
+        }
         const { password, known } = kind === 'students' ? studentFirstPassword(p.admission_no) : issuedPassword(p.phone, p.email)
         const h = await hash(c, password)
-        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id).run()
-        if (kind === 'students') await revokeSessions(c, p.user_id)
+        /* An invited account becomes active; a suspended or archived one keeps its status. */
+        await c.db.batch([
+          c.db.prepare(`UPDATE users SET password_hash = ?, status = CASE WHEN status = 'invited' THEN 'active' ELSE status END, must_change_password = ?, updated_at = ? WHERE id = ?`)
+            .bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id),
+          auditStmt(c, 'user.password.reset', 'user', p.user_id, null, { bulk: true, kind, reset: req.reset === true }),
+        ])
+        await revokeSessions(c, p.user_id)
         out.created++
         const signIn = await signInAs(c, p.user_id, 'username')
         out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: signIn, password, existing: false })
