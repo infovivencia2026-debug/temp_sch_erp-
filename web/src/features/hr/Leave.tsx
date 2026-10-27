@@ -54,6 +54,14 @@ function typeLabel(l: LeaveRow): string | undefined {
   return l.leave_type
 }
 
+/** Hours between two HH:MM times, for a permission; '' until both are set and in order. */
+function hoursBetween(from: string, to: string): string {
+  if (!from || !to) return ''
+  const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+  const h = (m(to) - m(from)) / 60
+  return h > 0 ? String(Math.round(h * 100) / 100) : ''
+}
+
 /** "On duty at Board office, 10:00 to 14:00". */
 function onDutyLabel(l: { place?: string; from_time?: string; to_time?: string }): string {
   const hrs = l.from_time && l.to_time ? `${l.from_time} to ${l.to_time}` : l.from_time ? `from ${l.from_time}` : l.to_time ? `until ${l.to_time}` : ''
@@ -259,8 +267,8 @@ export default function Leave() {
   })
   const own = !form.employee_id
   const leaveTypes: { id: string; name: string; label: string }[] = own
-    ? (mineTypes.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.remaining != null ? `${t.name} · ${t.remaining} left` : t.name }))
-    : (types.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.annual_quota ? `${t.name} (${t.annual_quota} a year)` : t.name }))
+    ? (mineTypes.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.name }))
+    : (types.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.name }))
   // The school has leave types but none is given to this person: say so rather than show an empty picker.
   const noneGiven = own && (types.data?.items.length ?? 0) > 0 && mineTypes.isSuccess && leaveTypes.length === 0
   const [applied, setApplied] = useState('')
@@ -280,7 +288,7 @@ export default function Leave() {
         is_half_day: form.is_half_day,
         leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
-        ...(form.kind === 'on_duty' ? { place: form.place, from_time: form.from_time, to_time: form.to_time } : {}),
+        ...(form.kind === 'on_duty' ? { place: form.place, from_time: form.from_time, to_time: form.to_time } : form.kind === 'permission' ? { from_time: form.from_time, to_time: form.to_time } : {}),
       }),
     onSuccess: () => {
       setSent({ ...form, id: sent!.id })
@@ -300,8 +308,8 @@ export default function Leave() {
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
         to_date: form.kind === 'permission' ? form.from_date : form.to_date,
         place: form.kind === 'on_duty' ? form.place : undefined,
-        from_time: form.kind === 'on_duty' ? form.from_time || undefined : undefined,
-        to_time: form.kind === 'on_duty' ? form.to_time || undefined : undefined,
+        from_time: form.kind === 'on_duty' || form.kind === 'permission' ? form.from_time || undefined : undefined,
+        to_time: form.kind === 'on_duty' || form.kind === 'permission' ? form.to_time || undefined : undefined,
         // Omitted entirely when blank, so the server keeps its "the applicant
         // is the signed-in employee" path rather than being handed an empty id.
         employee_id: form.employee_id || undefined,
@@ -474,13 +482,21 @@ export default function Leave() {
                     onChange={(v) => setForm({ ...form, kind: v })}
                     options={[
                       { value: 'leave', label: 'Leave' },
-                      { value: 'comp_off', label: 'Compensatory off' },
                       { value: 'permission', label: 'Permission (a few hours)' },
-                      { value: 'on_duty', label: 'On duty / outside work' },
                     ]}
                   />
                 </Field>
-                <Field label={form.kind === 'permission' ? 'On' : 'From'} required>
+                {form.kind === 'leave' && (
+                  <label className="m-0 flex items-center gap-2 self-end pb-3 text-[13.5px]">
+                    <input
+                      type="checkbox"
+                      checked={form.is_half_day}
+                      onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })}
+                    />
+                    Half day
+                  </label>
+                )}
+                <Field label={form.kind === 'permission' ? 'Date' : 'From'} required>
                   <Input
                     type="date"
                     value={form.from_date}
@@ -488,14 +504,14 @@ export default function Leave() {
                   />
                 </Field>
                 {form.kind === 'permission' ? (
-                  <Field label="Hours" required hint="Up to 8.">
-                    <Input
-                      type="number"
-                      value={form.hours}
-                      onChange={(v) => setForm({ ...form, hours: v })}
-                      placeholder="2"
-                    />
-                  </Field>
+                  <>
+                    <Field label="From time" required>
+                      <Input type="time" value={form.from_time} onChange={(v) => setForm({ ...form, from_time: v, hours: hoursBetween(v, form.to_time) })} />
+                    </Field>
+                    <Field label="To time" required>
+                      <Input type="time" value={form.to_time} onChange={(v) => setForm({ ...form, to_time: v, hours: hoursBetween(form.from_time, v) })} />
+                    </Field>
+                  </>
                 ) : (
                   <Field label="To" required>
                     <Input
@@ -531,7 +547,7 @@ export default function Leave() {
                   cannot be counted against a balance at all — which is what
                   the balance tiles beside it are for. */}
               {leaveTypes.length > 0 && form.kind === 'leave' && (
-                <Field label="Kind of leave" required hint="What it is counted against.">
+                <Field label="Kind of leave" required>
                   <Select
                     value={form.leave_type_id}
                     onChange={(v) => setForm({ ...form, leave_type_id: v })}
@@ -552,16 +568,6 @@ export default function Leave() {
                   placeholder="Medical, parent function, examination duty…"
                 />
               </Field>
-              {form.kind !== 'permission' && form.kind !== 'on_duty' && (
-              <label className="m-0 flex items-center gap-2 text-[13.5px]">
-                <input
-                  type="checkbox"
-                  checked={form.is_half_day}
-                  onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })}
-                />
-                Half day
-              </label>
-              )}
               <FormNotice error={editing ? save.error : send.error} />
               {editing ? (
                 <div className="flex flex-wrap gap-2">
@@ -589,7 +595,7 @@ export default function Leave() {
                 }
                 onClick={() => send.mutate()}
               >
-                {send.isPending ? 'Sending…' : 'Send the request'}
+                {send.isPending ? 'Applying…' : 'Apply for leave'}
               </Button>
               )}
             </div>

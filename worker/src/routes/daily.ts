@@ -1630,7 +1630,10 @@ async function applyForLeave(c: Ctx): Promise<Response> {
      the board office). Not a leave: no type, no balance. Pending or approved,
      the 6 PM auto-absent skips the day; approved, the day reads on_duty. */
   if (requestKind === 'on_duty' && req.student_id) throw badRequest('on duty is for staff')
-  const duty = requestKind === 'on_duty' ? onDutyFields(req) : { place: null, from_time: null, to_time: null }
+  // A permission keeps its from and to time too (owner, 2026-10-27), with no place.
+  const duty = requestKind === 'on_duty' ? onDutyFields(req)
+    : requestKind === 'permission' && (trim(req.from_time) || trim(req.to_time)) ? { ...onDutyFields({ ...req, place: '-' }), place: null }
+    : { place: null, from_time: null, to_time: null }
   let hours: number | null = null
   if (requestKind === 'permission') {
     if (from !== to) throw badRequest('a permission is for one day; give the same from and to date')

@@ -994,9 +994,7 @@ export function Shell({
                       <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', switcherOpen && 'rotate-180')} />
                     )}
                   </span>
-                  {signIns.data?.campus && (
-                    <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
-                  )}
+                  {/* The campus line is gone (owner, 2026-10-27): it repeated the school name above it. */}
                 </span>
               </>
             ) : session.institution?.logo_key ? (
