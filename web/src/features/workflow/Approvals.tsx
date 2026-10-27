@@ -243,7 +243,7 @@ export default function Approvals() {
                           value={note[it.id] ?? ''}
                           onChange={(x) => setNote({ ...note, [it.id]: x })}
                           placeholder={it.kind === 'staff_exit' || it.kind === 'attendance_fix' || it.kind === 'payroll' ? 'Note (needed to reject)' : 'Note (optional)'}
-                          className="col-span-2 w-full sm:w-40"
+                          className="col-span-2 w-full sm:w-56"
                         />
                         <Button
                           size="sm"
