@@ -29,7 +29,9 @@ beforeAll(async () => {
     T().prepare(`INSERT INTO files (id, institution_id, object_key, original_name, content_type, size_bytes, checksum_sha256, purpose, uploaded_by, created_at)
         VALUES (?, ?, 'k/qp', 'paper.pdf', 'application/pdf', 10, 'x', 'question_paper', ?, ?)`).bind(FILE, IDS.school, IDS.teacher, t),
   ])
-})
+  // Sign everyone in once here, so a slow first sign-in does not eat a test's 30s.
+  for (const who of ['admin', 'finance', 'teacher'] as const) await api(who, 'GET', '/workflow/approvals')
+}, 180_000)
 
 describe('purchase requisitions', () => {
   let rq = ''
