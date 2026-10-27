@@ -23,6 +23,14 @@ export const examControllerKeys = {
   'exam_controller.examinations.hall_tickets_seating': screen(() => import('./HallTicket')),
   'exam_controller.examinations.report_cards': screen(() => import('./ReportCards')),
   'exam_controller.examinations.performance_overview': screen(() => import('./PerformanceOverview')),
+  /* Built screens that no menu reached (owner, 2026-10-27): on the desk
+     that does the work. */
+  'exam_controller.examinations.exams_monitoring': screen(() => import('../academics/ExamMonitoring')),
+  'exam_controller.board_exams.ssc_registration': screen(() => import('./SSCRegistration')),
+  'exam_controller.board_exams.intermediate_registration': screen(() => import('./IntermediateRegistration')),
+  'exam_controller.board_exams.board_loc_filing': screen(() => import('../compliance/BoardLOC')),
+  'exam_controller.board_exams.board_results': screen(() => import('./BoardResultImport')),
+  'exam_controller.board_exams.baseline_analysis': screen(() => import('./BaselineAnalysis')),
   'exam_controller.my_profile.profile': screen(() => import('../shared/Profile')),
   'exam_controller.my_profile.my_pay': screen(() => import('../me/MyPay')),
 }
