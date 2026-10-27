@@ -593,6 +593,10 @@ async function getSubstitutionBoard(c: Ctx) {
            /* A pick waiting for the principal (scheduling/cover.ts proposeCover). */
            (SELECT wu.full_name FROM substitution_request_periods srp JOIN users wu ON wu.id = srp.assigned_user_id
              WHERE srp.timetable_entry_id = te.id AND srp.on_date = sb_on.d AND srp.status = 'pending') AS waiting_for,
+           /* The last pick the principal rejected (cover.ts rejectCover); the period is free to pick again. */
+           (SELECT ru.full_name FROM substitution_request_periods srp JOIN users ru ON ru.id = srp.assigned_user_id
+             WHERE srp.timetable_entry_id = te.id AND srp.on_date = sb_on.d AND srp.status = 'rejected'
+             ORDER BY srp.rowid DESC LIMIT 1) AS rejected_for,
            (SELECT json_group_array(json_object('user_id', x.user_id, 'full_name', x.full_name, 'teaches_subject', x.teaches_subject, 'periods_today', x.periods_today))
               FROM (SELECT u2.id AS user_id, u2.full_name,
                            EXISTS (SELECT 1 FROM section_subject_teachers t2 JOIN class_subjects cs2 ON cs2.id = t2.class_subject_id WHERE t2.teacher_user_id = u2.id AND cs2.subject_id = cs.subject_id) AS teaches_subject,
@@ -618,7 +622,7 @@ async function getSubstitutionBoard(c: Ctx) {
     const coverAbsent = bool(v.cover_absent)
     if (v.covered_by_user_id !== null && !coverAbsent) covered++
     else if (candidates.length === 0) uncoverable++
-    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id', 'waiting_for'])
+    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id', 'waiting_for', 'rejected_for'])
   })
   const awayRows = await c.db.prepare(`
     SELECT u.id, u.full_name, CASE WHEN sa.id IS NOT NULL THEN sa.status ELSE 'on approved leave' END AS why
