@@ -527,17 +527,19 @@ async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): P
 
   const res = await resolveScope(c)
   if (res.anySection || res.platformAdmin) return
-  const may = await c.db.prepare(`
-    SELECT EXISTS (
-      SELECT 1 FROM exam_subjects es
-        JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
-        JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
-       WHERE es.id = ?1
-    ) OR EXISTS (
-      SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
-       WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
-    ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
-  if (!may?.ok) {
+  /* Every child on its own (security audit, 2026-10-27): one child the caller
+     teaches used to open the whole batch. A child counts only if the caller
+     teaches this paper's subject in that child's section, or is that
+     section's class teacher. */
+  const allowed = await c.db.prepare(`
+    SELECT DISTINCT en.student_id FROM enrollments en JOIN sections sec ON sec.id = en.section_id
+     WHERE en.status = 'active' AND en.student_id IN (SELECT value FROM json_each(?3))
+       AND (sec.class_teacher_id = ?2 OR EXISTS (
+         SELECT 1 FROM exam_subjects es
+           JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.section_id = en.section_id AND t.teacher_user_id = ?2
+          WHERE es.id = ?1))`).bind(esId, c.id.userId, js(studentIds)).all<{ student_id: string }>()
+  const mine = new Set(allowed.results.map((r) => r.student_id))
+  if (studentIds.some((id) => !mine.has(id))) {
     throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
   }
 }
