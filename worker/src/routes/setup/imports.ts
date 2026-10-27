@@ -140,15 +140,21 @@ export class ImportCtx {
     const key = `${sectionId}/${day}/${want.toLowerCase()}`
     const hit = this.dayPeriods.get(key)
     if (hit) return hit
-    const seq = /^(?:p|period\s*)?(\d+)$/i.exec(want)?.[1] ?? null
-    const row = await this.db.prepare(`
-      SELECT p.id FROM periods p JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
-       WHERE p.institution_id = ? AND (lower(p.name) = lower(?) OR (? IS NOT NULL AND p.sequence = CAST(? AS INTEGER)))
-         AND (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
-       ORDER BY (bs.name = ?) DESC,
-                (bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?)) DESC,
-                bs.is_default DESC, (lower(p.name) = lower(?)) DESC
-       LIMIT 1`).bind(this.inst, want, seq, seq, day, sectionId, day, sectionId, want).first<{ id: string }>()
+    /* The schedule for that day, then the period in it: by its name, else a
+       number counts class periods only, so "1" is the first lesson and not
+       the assembly or a break that the schedule numbers among its slots. */
+    const sched = await this.db.prepare(`
+      SELECT bs.id FROM bell_schedules bs
+       WHERE (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
+         AND EXISTS (SELECT 1 FROM periods p WHERE p.bell_schedule_id = bs.id AND p.institution_id = ?)
+       ORDER BY (bs.name = ?) DESC, (bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?)) DESC, bs.is_default DESC
+       LIMIT 1`).bind(day, sectionId, this.inst, day, sectionId).first<{ id: string }>()
+    const all = sched ? (await this.db.prepare(`SELECT id, name, is_break FROM periods WHERE bell_schedule_id = ? ORDER BY sequence`).bind(sched.id)
+      .all<{ id: string; name: string; is_break: number }>()).results : []
+    const norm = (v: string) => v.toLowerCase().replace(/[\s_-]+/g, '')
+    const n = /^(?:p|period)?\s*(\d+)$/i.exec(want)?.[1]
+    const row = all.find((p) => norm(p.name) === norm(want))
+      ?? (n ? all.filter((p) => !p.is_break)[Number(n) - 1] : undefined)
     if (!row) throw new Error(`no period "${want}" on ${day} -- set the school day up first, or use the period number`)
     this.dayPeriods.set(key, row.id)
     return row.id
