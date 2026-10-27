@@ -117,4 +117,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 117, name: 'payroll_approval', checksum: '05d2421a48288d3df7a6fa6b1390fbcc418029babf8641121c32cea9ad0829dd' },
   { version: 118, name: 'orphan_screens_menu', checksum: 'b069e7faf187e724637ad44fa6e3cd2e8ac61664d604806a5259f78577ccc371' },
   { version: 119, name: 'employee_school_email', checksum: '036a8c5bdb04a193d80bc6221f715829b66260c0fe9535d0592d9e7368716202' },
+  { version: 120, name: 'live_changes', checksum: '7ec19c2238939c20ea37c4b7628456c00b9be6d9cac19ec03a98b5f9b808c9b1' },
 ]

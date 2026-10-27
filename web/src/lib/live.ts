@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useIsRestoring, useQueryClient } from '@tanstack/react-query'
+import { wordsFor } from '@shared/live-areas'
 import { api } from '@/lib/api'
 import { useLiveStream } from '@/lib/live-stream'
 
@@ -103,6 +104,9 @@ const LIVE_WORDS: string[][] = [
   [...COMMON, 'calendar', 'holiday', 'term', 'school-life', 'events', 'day'],
 ]
 
+/** Position of the school's write number in the revision (live_changes.ts). */
+const CHANGES = 9
+
 const REV_KEY = 'erp-live-rev'
 function readSavedRev(): string | null {
   try { return window.localStorage.getItem(REV_KEY) } catch { return null }
@@ -113,6 +117,9 @@ function saveRev(rev: string) {
 
 export function useLiveUpdates() {
   const qc = useQueryClient()
+  /* Not before the cache restored from disk is in: an invalidation that lands
+     first is overwritten by the older copy the restore writes back. */
+  const restoring = useIsRestoring()
   /* The push half. The poll below is the fallback that also keeps the
      session's idle clock moving; the stream is what makes a message arrive
      in a second rather than half a minute. See lib/live-stream.ts. */
@@ -124,12 +131,17 @@ export function useLiveUpdates() {
   const timer = useRef<number | null>(null)
 
   useEffect(() => {
+    if (restoring) return
     let stopped = false
 
     async function check() {
       if (stopped || document.hidden) return
       try {
-        const r = await api.get<{ rev: string }>('/api/v1/portal/live')
+        /* The tenth part is the school's write number (live_changes.ts): sent
+           back, the server answers with the tables written since. */
+        const since = (seen.current ?? readSavedRev() ?? '').split('|')[CHANGES] ?? ''
+        const r = await api.get<{ rev: string; tables?: string[] | null }>(
+          '/api/v1/portal/live' + (/^d+$/.test(since) ? `?since=${since}` : ''))
         if (stopped) return
         if (seen.current === null) {
           // The first answer is the baseline, not a change. Without this every
@@ -158,14 +170,28 @@ export function useLiveUpdates() {
           const words = new Set<string>()
           now.forEach((v, i) => {
             if (v === was[i]) return
+            if (i === CHANGES) {
+              /* Any table written by anybody since we last asked: its area's
+                 words (shared/live-areas.ts). No list, or a table no area
+                 knows, refetches every open query rather than miss one. */
+              const ws = Array.isArray(r.tables) ? wordsFor(r.tables) : null
+              if (ws === null) words.add('')
+              else for (const w of ws) words.add(w)
+              return
+            }
             for (const w of LIVE_WORDS[i] ?? ['']) words.add(w)
           })
-          if (words.has('')) qc.invalidateQueries()
-          else {
-            qc.invalidateQueries({
+          /* One batch per answer, and only the queries on screen refetch now;
+             the rest are marked stale and refetch when next shown. A query
+             already loading is left to finish rather than restarted. */
+          if (words.has('')) void qc.invalidateQueries({ refetchType: 'active' }, { cancelRefetch: false })
+          else if (words.size > 0) {
+            const list = [...words]
+            void qc.invalidateQueries({
+              refetchType: 'active',
               predicate: (q) =>
-                q.queryKey.some((k) => typeof k === 'string' && [...words].some((w) => k.includes(w))),
-            })
+                q.queryKey.some((k) => typeof k === 'string' && list.some((w) => k.includes(w))),
+            }, { cancelRefetch: false })
           }
         }
       } catch {
@@ -198,6 +224,9 @@ export function useLiveUpdates() {
       if (stopped || document.hidden || timer.current !== null) return
       timer.current = window.setTimeout(tick, EVERY)
     }
+    /* At once on load, not thirty seconds in: a change made elsewhere while
+       this device was away shows on the first screen drawn (Yajur, 2026-10-27). */
+    void check()
     start()
 
     // Back to the tab: answer now, not on the next tick — and take the
@@ -220,5 +249,5 @@ export function useLiveUpdates() {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [qc])
+  }, [qc, restoring])
 }

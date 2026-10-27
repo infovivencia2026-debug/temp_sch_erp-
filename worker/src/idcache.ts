@@ -134,10 +134,27 @@ const AUTH_WRITE = /\b(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|REPLACE\s+INTO|UPDATE(?:\
 
 export const touchesAuth = (sql: string) => AUTH_WRITE.test(sql)
 
-/** The school database with its writes watched: dirty() is true once a statement changed users, roles or permissions. */
-export function watchAuthWrites(db: D1Database): { db: D1Database; dirty: () => boolean } {
+const ANY_WRITE = /\b(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`]?([a-z_][a-z0-9_]*)["`]?/gi
+
+/** Every table a statement writes (INSERT, REPLACE, UPDATE, DELETE), lower-cased. */
+export function writtenTables(sql: string): string[] {
+  const out: string[] = []
+  for (const m of sql.matchAll(ANY_WRITE)) {
+    const t = m[1].toLowerCase()
+    if (t !== 'set') out.push(t) // "ON CONFLICT ... DO UPDATE SET" names no table
+  }
+  return out
+}
+
+/** The school database with its writes watched: dirty() is true once a statement changed users, roles or permissions;
+    tables() names every table a statement was prepared to write (the live poll, live_changes.ts). */
+export function watchAuthWrites(db: D1Database): { db: D1Database; dirty: () => boolean; tables: () => string[] } {
   let dirty = false
-  const note = (sql: string) => { if (!dirty && touchesAuth(sql)) dirty = true }
+  const written = new Set<string>()
+  const note = (sql: string) => {
+    if (!dirty && touchesAuth(sql)) dirty = true
+    for (const t of writtenTables(sql)) written.add(t)
+  }
   // A plain object, not a Proxy: the D1 binding is a native object whose methods need their own receiver.
   const wrapped = Object.create(db) as D1Database & Record<string | symbol, unknown>
   for (const k of Object.getOwnPropertySymbols(db)) wrapped[k] = (db as unknown as Record<symbol, unknown>)[k]
@@ -146,5 +163,5 @@ export function watchAuthWrites(db: D1Database): { db: D1Database; dirty: () => 
   wrapped.exec = (sql: string) => { note(sql); return db.exec(sql) }
   wrapped.dump = () => db.dump()
   if (typeof (db as { withSession?: unknown }).withSession === 'function') wrapped.withSession = ((c?: string) => db.withSession(c)) as D1Database['withSession']
-  return { db: wrapped, dirty: () => dirty }
+  return { db: wrapped, dirty: () => dirty, tables: () => [...written] }
 }

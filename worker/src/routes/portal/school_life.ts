@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { liveChangesSince } from '../../live_changes'
 import type { Notification } from '@shared/api'
 import { json } from '../../env'
 import { readJSON, ok, created, notFound, badRequest, forbidden, isUUID, now } from '../../http'
@@ -901,8 +902,15 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
       (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM holidays) AS h,
       (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM school_events) AS ev`).first<{ h: string; ev: string }>()
   parts.push(cal ? `${cal.h};${cal.ev}` : '')
+  /* A TENTH, AND THE ONE THAT COVERS EVERYTHING ELSE (Yajur, 2026-10-27):
+     the school-wide number of the last write request, and the tables written
+     since the number the client last saw (live_changes.ts). The parts above
+     stay for what moves without a request (marks entered by a job, a
+     notification fanned out later). */
+  const changes = await liveChangesSince(c.db, c.url.searchParams.get('since'))
+  parts.push(changes.seq)
   const n = nowInIndia()
-  return json({ rev: parts.join('|'), at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
+  return json({ rev: parts.join('|'), tables: changes.tables, at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
     200, { 'Cache-Control': 'no-store, max-age=0' })
 }
 
