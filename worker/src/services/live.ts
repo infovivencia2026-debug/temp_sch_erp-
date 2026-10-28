@@ -46,7 +46,7 @@ interface Sub { user: string; w: WritableStreamDefaultWriter<Uint8Array> }
 /** A hint to everyone watching a topic (e.g. 'transport' for bus positions). */
 export interface TopicEvent { topic: string; type: string; keys?: Record<string, string>; at?: string }
 
-export const LIVE_TOPICS = ['transport'] as const
+export const LIVE_TOPICS = ['transport', 'timetable'] as const
 
 export class LiveHub extends DurableObject<Env> {
   private subs = new Set<Sub>()

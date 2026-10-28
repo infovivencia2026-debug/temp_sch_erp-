@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
-  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice,
+  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice, SEG_BAR, segClass,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
@@ -12,6 +12,7 @@ import PeriodsNeeded from './PeriodsNeeded'
 import BulkImport from '@/components/BulkImport'
 import SectionGrid from './SectionGrid'
 import ClassTimings from './ClassTimings'
+import LiveTimetable from './LiveTimetable'
 import { WEEKDAYS, cn } from '@/lib/utils'
 import { useEmployeeRoster } from '@/lib/rosters'
 
@@ -265,6 +266,7 @@ export default function MasterTimetable() {
      the screen refused to draw at all. */
   const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
   const [showClasses, setShowClasses] = useState(false)
+  const [mode, setMode] = useState<'current' | 'new'>('current')
 
   const overview = useQuery({
     queryKey: ['master-timetable', 'overview'],
@@ -375,6 +377,13 @@ export default function MasterTimetable() {
         description="The whole school's week. Making one only suggests it, nothing changes for teachers until you put it in use."
       />
       <PageBody>
+        {/* What is in use now, edited in place; or the three steps that make a new one (owner, 2026-10-28). */}
+        <div className={SEG_BAR} role="group" aria-label="Timetable">
+          <button type="button" className={segClass(mode === 'current')} aria-pressed={mode === 'current'} onClick={() => setMode('current')}>Current timetable</button>
+          <button type="button" className={segClass(mode === 'new')} aria-pressed={mode === 'new'} onClick={() => setMode('new')}>Make a new one</button>
+        </div>
+        {mode === 'current' && d ? <LiveTimetable shape={d} mayWrite={mayWrite} /> : (
+        <>
         <Steps at={at} go={goStep} done={stepDone} />
         {/* The school's shape, on every step: it is the thing being timetabled. */}
         <SectionGrid />
@@ -658,6 +667,8 @@ export default function MasterTimetable() {
           </Table>
           )}
         </Card>
+        )}
+        </>
         )}
       </PageBody>
     </>

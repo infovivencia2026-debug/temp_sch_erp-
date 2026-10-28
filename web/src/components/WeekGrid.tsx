@@ -92,7 +92,10 @@ export default function WeekGrid({
   where = '',
   empty = 'Nothing timetabled yet.',
   id,
+  onCell,
 }: {
+  /** Makes every teaching cell a button (the live timetable's editor). */
+  onCell?: (weekday: number, periodID: string) => void
   entries: WeekEntry[]
   periods: WeekPeriod[]
   /** ISO weekdays the school runs, 1 = Monday. Defaults to Monday–Saturday. */
@@ -117,7 +120,7 @@ export default function WeekGrid({
   if (!periods.some((p) => !p.is_break)) {
     return <p className="py-6 text-center text-[13.5px] text-muted-foreground">The school day has no periods yet, so there is nothing to lay a timetable on.</p>
   }
-  if (entries.length === 0) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
+  if (entries.length === 0 && !onCell) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
 
   const isLive = (d: number, p: WeekPeriod) =>
     d === today && !!p.ends_at && p.starts_at.slice(0, 5) <= hhmm && hhmm < p.ends_at.slice(0, 5)
@@ -167,7 +170,13 @@ export default function WeekGrid({
                 const live = isLive(d, p)
                 return (
                   <td key={d} className={cn('border-b border-l p-1.5', d === today && 'bg-primary/[0.03]')}>
-                    {e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
+                    {onCell ? (
+                      <button type="button" onClick={() => onCell(d, p.id)}
+                        aria-label={`${WEEKDAYS[d - 1] ?? `Day ${d}`} ${p.name}: ${e ? e.title : 'free'}. Edit`}
+                        className="block w-full rounded-md text-left hover:ring-1 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
+                      </button>
+                    ) : e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
                   </td>
                 )
               })}

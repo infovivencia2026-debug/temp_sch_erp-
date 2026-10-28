@@ -402,7 +402,7 @@ export function useLiveStream() {
       let opened = false
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       try {
-        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/live/socket?topics=transport`)
+        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/live/socket?topics=transport,timetable`)
       } catch { ws = null; wsFailures = 99; openSSE(); return }
       ws.onopen = () => {
         opened = true
