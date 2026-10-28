@@ -504,7 +504,7 @@ export function registerStaff(r: Router) {
     const rows = (await c.db.prepare(`
       SELECT e.id, e.user_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name,
              COALESCE(dg.name, '') AS designation, COALESCE(d.name, '') AS department,
-             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email, COALESCE(e.school_email, '') AS school_email,
+             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email, COALESCE(NULLIF(e.school_email, ''), (SELECT ma.address FROM mail_addresses ma WHERE ma.user_id = e.user_id AND ma.status = 'active' LIMIT 1), '') AS school_email,
              COALESCE(e.employment_type, '') AS employment_type, e.status,
              COALESCE(e.joined_on, '') AS joined_on, COALESCE(e.qualification, '') AS qualification,
              COALESCE(e.experience_years, '') AS experience_years
@@ -655,7 +655,7 @@ export function registerStaff(r: Router) {
     const eid = c.params.id
     if (!isUUIDish(eid)) throw badRequest('invalid employee id')
     const e = await c.db.prepare(`
-      SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.school_email, e.qualification, d.name AS department, dg.name AS designation, e.department_id, e.designation_id,
+      SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, COALESCE(NULLIF(e.school_email, ''), (SELECT ma.address FROM mail_addresses ma WHERE ma.user_id = e.user_id AND ma.status = 'active' LIMIT 1)) AS school_email, e.qualification, d.name AS department, dg.name AS designation, e.department_id, e.designation_id,
              e.employment_type, e.status, e.joined_on, e.confirmed_on, e.relieved_on, e.address, e.photo_file_id, e.experience_years, e.user_id,
              e.emergency_contact_name, e.emergency_contact_phone, e.pan, e.bank_account, e.bank_ifsc, e.uan, e.esi_number, e.custom_fields, CAST(e.device_user_id AS TEXT) AS device_user_id
         FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`).bind(eid).first<Record<string, unknown>>()
