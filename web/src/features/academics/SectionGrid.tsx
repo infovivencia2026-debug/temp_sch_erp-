@@ -54,8 +54,12 @@ export default function SectionGrid({ weekdays, mayWrite }: { weekdays: number[]
   const filter = by === 'class' ? (sectionID ? { section_id: sectionID } : null) : (teacherID ? { teacher_id: teacherID } : null)
   const entriesKey = ['tt-entries', by === 'class' ? sectionID : `t:${teacherID}`]
   const periods = useQuery({
-    queryKey: ['periods', by === 'class' ? sectionID : 'all'],
-    queryFn: () => api.call('GET /timetable/periods', { query: by === 'class' ? { section_id: sectionID } : { all: '1' } }),
+    /* Every bell schedule's periods: a school with one schedule per weekday
+       (Yajur) gives each day its own period ids, and a section's own list
+       held only one day's, so the other five days drew as Free. mergePeriods
+       folds them into one row per period. */
+    queryKey: ['periods', 'all'],
+    queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
     enabled: !!filter,
   })
   const entries = useQuery({
