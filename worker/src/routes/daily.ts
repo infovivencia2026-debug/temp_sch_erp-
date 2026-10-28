@@ -676,8 +676,8 @@ function anyAttendanceRead(c: Ctx) {
   if (!can(c.id, 'academics.attendance.read') && !can(c.id, 'academics.attendance.read.all')) throw forbidden()
 }
 
-const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name, 'phone', phone, 'relation', relation))
-    FROM (SELECT g.full_name AS name, g.phone, g.relation
+const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name, 'phone', phone, 'relation', relation, 'primary', is_primary))
+    FROM (SELECT g.full_name AS name, g.phone, g.relation, sg.is_primary
             FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
            WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND trim(g.phone) <> ''
            ORDER BY (g.relation = 'father') DESC, (g.relation = 'mother') DESC, sg.is_primary DESC, g.full_name)), '[]')`
