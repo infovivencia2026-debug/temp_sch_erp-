@@ -206,7 +206,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
   }
   const db = tenantDb(env, institution)
   const homeDb = institution === home ? db : tenantDb(env, home)
-  const [u, roles, perms, direct, blocked] = await Promise.all([
+  const [u, roles, perms, direct, blocked, staffOff] = await Promise.all([
     homeDb.prepare(`SELECT full_name, must_change_password FROM users WHERE id = ? AND status = 'active'`).bind(s.user_id)
       .first<{ full_name: string; must_change_password: number }>(),
     db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(s.user_id).all<{ key: string }>(),
@@ -230,6 +230,8 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
             WHERE sg.guardian_id = g.id
             AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))`)
       .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
+    /* Screens switched off for all staff (routes/admin/feature_blocks.ts). */
+    db.prepare(`SELECT feature_slug AS slug FROM staff_feature_blocks`).all<{ slug: string }>().catch(() => ({ results: [] as { slug: string }[] })),
   ])
   if (!u) return null
   /* platform.* keys belong to the vendor. A school role can come to hold one (a copy of a platform
@@ -237,7 +239,9 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
      the seller's handlers ran AsPlatform only for platform identities. Here CONTROL is one call
      away, so the key itself is refused to every school account. */
   const off = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('student.') || k.startsWith('parent.')))
-  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k))
+  const staffSlugs = new Set((staffOff.results ?? []).map((b) => b.slug))
+  const staffBlocked = (k: string) => staffSlugs.size > 0 && !k.startsWith('student.') && !k.startsWith('parent.') && staffSlugs.has(k.slice(k.lastIndexOf('.') + 1))
+  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k) && !staffBlocked(k))
   /* A TEACHING SCREEN GIVEN TO SOMEONE WHO DOES NOT TEACH (owner, 2026-10-13:
      CCE marks entry granted to an exam controller showed its icon, then
      "your login is not allowed to see this"). Every teacher screen reads

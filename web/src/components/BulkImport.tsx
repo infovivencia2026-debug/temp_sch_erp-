@@ -113,6 +113,7 @@ interface Result {
   problems: Problem[]
   /** Rows that would replace a code already on file; held back unless overwrite=true. */
   replacements?: { row: number; problem: string }[]
+  notes?: string[]
 }
 
 
@@ -816,6 +817,12 @@ export default function BulkImport({
                 </Button>
               )}
             </div>
+
+            {(result.notes?.length ?? 0) > 0 && (
+              <ul className="mt-4 space-y-1 text-[13px] text-[hsl(var(--sys-warning-ink))]">
+                {result.notes!.map((n) => <li key={n}>{n}</li>)}
+              </ul>
+            )}
 
             {(result.replacements?.length ?? 0) > 0 && (
               <div className="mt-4">

@@ -110,6 +110,54 @@ const LEVEL_HINT: Record<string, string> = {
   manage: 'Can create, edit and delete.',
 }
 
+/* SCREENS OFF FOR ALL STAFF (owner, 2026-10-28: "hide My Pay for all the
+   staff"). Whatever roles a person holds, a screen switched off here leaves
+   their menu at their next page load. */
+function StaffScreensOff() {
+  const qc = useQueryClient()
+  const offs = useQuery({ queryKey: ['staff-feature-blocks'], queryFn: () => api.get<{ items: { feature_slug: string }[] }>('/api/v1/admin/staff-feature-blocks') })
+  const feats = useQuery({ queryKey: ['feature-catalog'], queryFn: () => api.get<{ items: { key: string; name: string }[] }>('/api/v1/admin/features') })
+  const [pick, setPick] = useState('')
+  const names = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const f of feats.data?.items ?? []) {
+      if (f.key.startsWith('student.') || f.key.startsWith('parent.')) continue
+      const slug = f.key.slice(f.key.lastIndexOf('.') + 1)
+      if (!m.has(slug)) m.set(slug, f.name)
+    }
+    return m
+  }, [feats.data])
+  const set = useMutation({
+    mutationFn: (v: { slug: string; off: boolean }) => api.post('/api/v1/admin/staff-feature-blocks', v),
+    onSuccess: () => { setPick(''); qc.invalidateQueries({ queryKey: ['staff-feature-blocks'] }) },
+  })
+  const off = offs.data?.items ?? []
+  return (
+    <Card className="mb-4 p-4">
+      <h2 className="m-0 text-[15px] font-semibold">Screens off for all staff</h2>
+      <p className="mb-3 mt-1 text-[13px] text-muted-foreground">Hidden from every member of staff, whatever their role. Turn one back on at any time.</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-72 max-w-full">
+          <PickerMenu value={pick} onChange={setPick} placeholder="Choose a screen" ariaLabel="Screen to turn off"
+            options={[...names].filter(([slug]) => !off.some((o) => o.feature_slug === slug)).sort((a, b) => a[1].localeCompare(b[1])).map(([slug, name]) => ({ value: slug, label: name }))} />
+        </div>
+        <Button disabled={!pick || set.isPending} onClick={() => set.mutate({ slug: pick, off: true })}>Turn off</Button>
+      </div>
+      <FormNotice error={set.error} />
+      {off.length > 0 && (
+        <ul className="m-0 mt-3 list-none space-y-1 p-0">
+          {off.map((o) => (
+            <li key={o.feature_slug} className="flex items-center justify-between gap-2 text-[14px]">
+              <span>{names.get(o.feature_slug) ?? o.feature_slug}</span>
+              <Button size="sm" variant="secondary" disabled={set.isPending} onClick={() => set.mutate({ slug: o.feature_slug, off: false })}>Turn on</Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export default function RolesPermissions() {
   const qc = useQueryClient()
   const [selectedID, setSelectedID] = useState<string | null>(null)
@@ -215,6 +263,7 @@ export default function RolesPermissions() {
         description="What each role can do, and how much of the school it can see. Set a level per area of work rather than picking permissions one by one."
       />
       <PageBody>
+        <StaffScreensOff />
         <CellGrid cols={4}>
           <Stat label="Roles" value={items.length} />
           <Stat label="Built in" value={items.filter((r) => r.is_system).length} hint={`${items.filter((r) => r.is_system && r.customised).length} changed by this school`} />
