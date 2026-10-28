@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Plus, Check, Download, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button, Input,
+  PageHead, PageBody, Card, Select, CardHeader, CellGrid, Stat, Button, Input,
   Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice, ConfirmButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -135,10 +135,10 @@ function StaffScreensOff() {
   return (
     <Card className="mb-4 p-4">
       <h2 className="m-0 text-[15px] font-semibold">Screens off for all staff</h2>
-      <p className="mb-3 mt-1 text-[13px] text-muted-foreground">Hidden from every member of staff, whatever their role. Turn one back on at any time.</p>
+      <p className="m-0 mb-3 mt-1 text-[13px] text-muted-foreground">Hidden from every member of staff, whatever their role. Turn one back on at any time.</p>
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-72 max-w-full">
-          <PickerMenu value={pick} onChange={setPick} placeholder="Choose a screen" ariaLabel="Screen to turn off"
+          <Select value={pick} onChange={setPick} placeholder="Choose a screen"
             options={[...names].filter(([slug]) => !off.some((o) => o.feature_slug === slug)).sort((a, b) => a[1].localeCompare(b[1])).map(([slug, name]) => ({ value: slug, label: name }))} />
         </div>
         <Button disabled={!pick || set.isPending} onClick={() => set.mutate({ slug: pick, off: true })}>Turn off</Button>
