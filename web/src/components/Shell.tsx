@@ -1140,7 +1140,7 @@ export function Shell({
                   to={featurePath(role.key, ws.sections[0].slug, onlyItem.slug)}
                   onClick={() => setNavOpen(false)}
                   data-row
-                  className={({ isActive }) => navItem(isActive, 0, !onlyItem.live)}
+                  className={({ isActive }) => cn(navItem(isActive, 0, !onlyItem.live), 'nav-tap')}
                 >
                   <span className="truncate">{ws.name}</span>
                 </NavLink>
@@ -1160,7 +1160,7 @@ export function Shell({
                     const first = items[0]
                     return (
                       <NavLink key={section.slug} to={featurePath(role!.key, section.slug, first.slug)}
-                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, !first.live)}>
+                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => cn(navItem(isActive, 0, !first.live), 'nav-tap')}>
                         <span className="truncate">{shortLabel('Home')}</span>
                       </NavLink>
                     )

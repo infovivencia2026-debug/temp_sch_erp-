@@ -309,3 +309,42 @@ html[data-reduce-motion] .m-large-title { transform: none; opacity: 1; }
   .note-row:hover { transform: translateY(-3px) scale(1.01); }
 }
 html[data-reduce-motion] .note-row:hover { transform: none; }
+
+/* --- single menu item press (owner, 2026-10-28) ----------------------------
+   "For single things in the sidebar like Home, Timetable etc., add a click
+   animation." `.nav-tap` on a one-item menu link (StaffShell pill, Shell row):
+   it dips to 0.97 under the finger and springs back, the icon nudges, and the
+   item that becomes current lands with a small spring. Uses the separate
+   `scale` / `translate` properties so the hover lift (`transform`) and the
+   existing colour transitions are untouched. No filter, no wash, no size jump. */
+.nav-tap {
+  transition-property: color, background-color, border-color, box-shadow, border-radius, transform, scale;
+  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, var(--spring-dur-fast);
+  transition-timing-function: ease, ease, ease, ease, ease, ease, var(--spring-snappy);
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-tap:active {
+  scale: .97;
+  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, var(--motion-press);
+}
+.nav-tap .nav-pill__badge,
+.nav-tap > span:first-child {
+  transition: transform .25s ease, translate var(--spring-dur-fast) var(--spring-bouncy);
+}
+.nav-tap:active .nav-pill__badge { translate: 2px 0; }
+.nav-tap:not(.nav-pill):active > span:first-child { translate: 2px 0; }
+.nav-tap[aria-current='page'] .nav-pill__badge { animation: nav-tap-land var(--spring-dur) var(--spring-bouncy) both; }
+.nav-tap:not(.nav-pill)[aria-current='page'] > span:first-child { animation: nav-tap-slide var(--spring-dur) var(--spring-gentle) both; }
+@keyframes nav-tap-land { from { scale: .82; } to { scale: 1; } }
+@keyframes nav-tap-slide { from { translate: -4px 0; opacity: .6; } to { translate: 0 0; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .nav-tap, .nav-tap .nav-pill__badge, .nav-tap > span:first-child { transition-duration: 1ms !important; }
+  .nav-tap:active, .nav-tap:active .nav-pill__badge, .nav-tap:active > span:first-child { scale: none; translate: none; }
+  .nav-tap .nav-pill__badge, .nav-tap > span:first-child { animation: none !important; }
+}
+html[data-reduce-motion] .nav-tap,
+html[data-reduce-motion] .nav-tap .nav-pill__badge,
+html[data-reduce-motion] .nav-tap > span:first-child { transition-duration: 1ms !important; animation: none !important; }
+html[data-reduce-motion] .nav-tap:active,
+html[data-reduce-motion] .nav-tap:active .nav-pill__badge,
+html[data-reduce-motion] .nav-tap:active > span:first-child { scale: none; translate: none; }
