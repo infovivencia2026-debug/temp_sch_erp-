@@ -131,7 +131,7 @@ export default function WeekGrid({
   if (phone) {
     return (
       <div id={id}>
-        <DayTimeline bare who={who} where={where}
+        <DayTimeline bare who={who} where={where} onCell={onCell} weekdays={onCell ? days : undefined}
           periods={periods.map((p, i) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: p.bell_schedule_id ?? null, sequence: p.sequence ?? i }) as unknown as Period)}
           entries={entries.map((e) => ({ weekday: e.weekday, period_id: e.period_id, title: e.title, detail: [e.detail, e.room].filter(Boolean).join(' · ') || undefined }))} />
       </div>
@@ -171,11 +171,12 @@ export default function WeekGrid({
                 return (
                   <td key={d} className={cn('border-b border-l p-1.5', d === today && 'bg-primary/[0.03]')}>
                     {onCell ? (
-                      <button type="button" onClick={() => onCell(d, p.id)}
+                      <div role="button" tabIndex={0} onClick={() => onCell(d, p.id)}
+                        onKeyDown={(k) => { if (k.key === 'Enter' || k.key === ' ') { k.preventDefault(); onCell(d, p.id) } }}
                         aria-label={`${WEEKDAYS[d - 1] ?? `Day ${d}`} ${p.name}: ${e ? e.title : 'free'}. Edit`}
                         className="block w-full rounded-md text-left hover:ring-1 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         {e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
-                      </button>
+                      </div>
                     ) : e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
                   </td>
                 )

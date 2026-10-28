@@ -6,7 +6,6 @@ import {
   resolveYear, teachingCount, type DraftDbRow, type DraftEntryDb,
 } from './tt_shared'
 import { scheduleBundle, sectionScheduleSQL } from './bell'
-import { registerLiveEdit } from './live_edit'
 
 /* Port of master_timetable.go: /master-timetable/*, the whole-school desk
    over the draft model, and the hand edit of one draft cell.
@@ -290,5 +289,4 @@ export function registerMaster(r: Router): void {
     return editMasterDraft(c, entryID)
   }))
   r.del('/master-timetable/drafts/{id}/entries/{entryID}', WRITE, alsoNeeds(READ, clearMasterDraftPeriod))
-  registerLiveEdit(r)
 }

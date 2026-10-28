@@ -8,6 +8,8 @@ import {
   HttpError, badRequest, bool, forbidden, notFound, ok, created, readJSON, uuid, uuidParam, uuidQuery, isUUID, now,
 } from '../http'
 import { json } from '../env'
+import { publishTopic } from '../services/live'
+import { auditStmt } from './admin/common'
 import { schoolDay } from '../auth/session'
 import { school } from './school'
 import { enqueue, queueOf, QUEUES } from '../services/jobs'
@@ -385,34 +387,68 @@ function registerTimetable(r: Router) {
        WHERE sec.id = ? AND cs.institution_id = ? AND (upper(sub.code) = upper(?) OR lower(sub.name) = lower(?))`)
       .bind(sec, inst, subjectCode, subjectCode).first<{ id: string }>()
     if (!cs) throw rejected(`this class does not study "${subjectCode}"`)
-    // The teacher-slot unique index (timetable_teacher_slot) is not in the
-    // SQLite schema, so the clash it raised is checked here.
+    const p = await c.db.prepare('SELECT is_break FROM periods WHERE id = ?').bind(period.id).first<{ is_break: number }>()
+    if (p?.is_break) throw rejected(`${periodName} is a break, not a teaching period`)
+    const wd = Number(req.weekday)
+    const existing = await c.db.prepare('SELECT id, class_subject_id, teacher_user_id, room FROM timetable_entries WHERE section_id = ? AND weekday = ? AND period_id = ?')
+      .bind(sec, wd, period.id).first<{ id: string; class_subject_id: string; teacher_user_id: string | null; room: string | null }>()
+    /* A teacher in two places at once, at the same time on any bell. The
+       same subject in two sections is a combined class and allowed (0121);
+       the refusal names the class and subject in the way. */
     if (teacher) {
-      const clash = await c.db.prepare(`SELECT 1 AS x FROM timetable_entries
-        WHERE teacher_user_id = ? AND weekday = ? AND period_id = ? AND academic_year_id = ? AND section_id <> ?`)
-        .bind(teacher, Number(req.weekday), period.id, year.id, sec).first()
-      if (clash) throw rejected('that teacher is already taking another class this period')
+      const clash = await c.db.prepare(`SELECT u.full_name AS teacher, sub.name AS subject, cl.name || ' ' || s2.name AS klass
+          FROM timetable_entries te
+          JOIN class_subjects a ON a.id = te.class_subject_id JOIN subjects sub ON sub.id = a.subject_id
+          JOIN sections s2 ON s2.id = te.section_id JOIN classes cl ON cl.id = s2.class_id
+          LEFT JOIN users u ON u.id = te.teacher_user_id
+         WHERE te.teacher_user_id = ? AND te.weekday = ? AND te.academic_year_id = ? AND te.section_id <> ?
+           AND te.period_id IN (SELECT q.id FROM periods q, periods me WHERE me.id = ?
+                 AND (q.id = me.id OR (q.bell_schedule_id <> me.bell_schedule_id AND q.starts_at < me.ends_at AND me.starts_at < q.ends_at)))
+           AND a.subject_id <> (SELECT subject_id FROM class_subjects WHERE id = ?) LIMIT 1`)
+        .bind(teacher, wd, year.id, sec, period.id, cs.id).first<{ teacher: string | null; subject: string; klass: string }>()
+      if (clash) throw rejected(`${clash.teacher ?? 'That teacher'} is already teaching ${clash.subject} to ${clash.klass} in that period`)
     }
-    const existing = await c.db.prepare('SELECT id FROM timetable_entries WHERE section_id = ? AND weekday = ? AND period_id = ?')
-      .bind(sec, Number(req.weekday), period.id).first<{ id: string }>()
-    if (existing) {
-      await c.db.prepare('UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = ? WHERE id = ?')
-        .bind(cs.id, teacher, room, existing.id).run()
-    } else {
-      await c.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at)
-                          VALUES (?,?,?,?,?,?,?,?,?,?)`)
-        .bind(uuid(), inst, year.id, sec, period.id, Number(req.weekday), cs.id, teacher, room, now()).run()
+    const id = existing?.id ?? uuid()
+    const stmts: D1PreparedStatement[] = [existing
+      ? c.db.prepare('UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = ? WHERE id = ?').bind(cs.id, teacher, room, id)
+      : c.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at)
+                          VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(id, inst, year.id, sec, period.id, wd, cs.id, teacher, room, now())]
+    // Cover arranged for the teacher who no longer takes this period goes, from today on.
+    if (existing && existing.teacher_user_id !== teacher) stmts.push(...dropCover(c, id, new Date().toISOString().slice(0, 10)))
+    stmts.push(auditStmt(c, existing ? 'timetable.entry.update' : 'timetable.entry.create', 'timetable_entry', id,
+      existing, { section_id: sec, period_id: period.id, weekday: wd, class_subject_id: cs.id, teacher_user_id: teacher, room }))
+    try {
+      await c.db.batch(stmts)
+    } catch (e) {
+      if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) throw rejected('that teacher is already taking another subject this period')
+      throw e
     }
-    return ok({ ok: true })
+    await timetableHint(c, id)
+    return ok({ ok: true, id })
   })
 
   r.del('/timetable/entries/{id}', 'academics.timetable.write', async (c) => {
     if (!isUUID(c.params.id)) throw badRequest('invalid entry id')
-    const res = await c.db.prepare('DELETE FROM timetable_entries WHERE id = ?').bind(c.params.id).run()
-    if (!res.meta.changes) throw notFound('resource not found')
+    const before = await c.db.prepare('SELECT * FROM timetable_entries WHERE id = ?').bind(c.params.id).first()
+    if (!before) throw notFound('resource not found')
+    // Its cover goes with it, so the cover board never points at a removed period.
+    await c.db.batch([
+      ...dropCover(c, c.params.id, '0000-00-00'),
+      c.db.prepare('DELETE FROM timetable_entries WHERE id = ?').bind(c.params.id),
+      auditStmt(c, 'timetable.entry.delete', 'timetable_entry', c.params.id, before, null),
+    ])
+    await timetableHint(c, c.params.id)
     return ok({ ok: true })
   })
 }
+
+const dropCover = (c: Ctx, entry: string, from: string): D1PreparedStatement[] => [
+  c.db.prepare('DELETE FROM substitution_request_periods WHERE timetable_entry_id = ? AND on_date >= ?').bind(entry, from),
+  c.db.prepare('DELETE FROM substitutions WHERE timetable_entry_id = ? AND on_date >= ?').bind(entry, from),
+]
+/* Open timetables refetch (live topic 'timetable'). */
+const timetableHint = (c: Ctx, entry: string) =>
+  publishTopic(c.env, c.id.institution?.id, { topic: 'timetable', type: 'timetable', keys: { entry } })
 
 // =============================================================== attendance
 const attendanceStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday'])

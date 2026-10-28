@@ -23,68 +23,66 @@ beforeAll(async () => {
   ])
 })
 
-const cell = (over: Record<string, unknown> = {}) => ({ section_id: IDS.section, period_id: P1, weekday: 1, class_subject_id: IDS.classSubject, teacher_id: IDS.teacher, room: '12', ...over })
+const cell = (over: Record<string, unknown> = {}) => ({ section_id: IDS.section, period_name: 'Period 1', weekday: 1, subject_code: 'MATH', teacher_user_id: IDS.teacher, room: '12', ...over })
+const put = (who: 'admin' | 'teacher', body: unknown) => api(who, 'PUT', '/timetable/entries/cell', body)
 
 describe('live timetable: edit one cell', () => {
   let entry = ''
 
   it('sets a cell and reads it back by class and by teacher', async () => {
-    const r = await api('admin', 'PUT', '/master-timetable/live/cell', cell())
+    const r = await put('admin', cell())
     expect(r.status).toBe(200)
     entry = r.body.id
-    expect(r.body.subject_name).toBe('Mathematics')
-    const byClass = await api('admin', 'GET', `/master-timetable/live?section_id=${IDS.section}`)
-    expect(byClass.body.items.map((e: any) => e.id)).toContain(entry)
-    const byStaff = await api('admin', 'GET', `/master-timetable/live?teacher_id=${IDS.teacher}`)
+    const byClass = await api('admin', 'GET', `/timetable/entries?section_id=${IDS.section}`)
+    expect(byClass.body.items.find((e: any) => e.id === entry)?.subject_name).toBe('Mathematics')
+    const byStaff = await api('admin', 'GET', `/timetable/entries?teacher_id=${IDS.teacher}`)
     expect(byStaff.body.items.map((e: any) => e.id)).toContain(entry)
-    const other = await api('admin', 'GET', `/master-timetable/live?section_id=${SEC_B}`)
+    const other = await api('admin', 'GET', `/timetable/entries?section_id=${SEC_B}`)
     expect(other.body.items).toHaveLength(0)
-    const slot = await api('admin', 'GET', `/master-timetable/live/slot?weekday=1&period_id=${P1}&section_id=${SEC_B}`)
-    expect(slot.body.busy[0].teacher_id).toBe(IDS.teacher)
-    expect(slot.body.subjects.length).toBe(2)
     const audit = await T().prepare(`SELECT count(*) AS n FROM audit_log WHERE entity_id = ? AND action = 'timetable.entry.create'`).bind(entry).first<{ n: number }>()
     expect(audit!.n).toBe(1)
   })
 
-  it('refuses a second entry for the same class, period and day', async () => {
-    const r = await api('admin', 'PUT', '/master-timetable/live/cell', cell({ class_subject_id: CS2, teacher_id: null }))
-    expect(r.status).toBe(409)
-    expect(r.body.error).toContain('Class 5 A already has Mathematics')
+  it('keeps one entry per class, period and day (a second save edits it)', async () => {
+    const r = await put('admin', cell({ room: '14' }))
+    expect(r.body.id).toBe(entry)
+    const n = await T().prepare(`SELECT count(*) AS n FROM timetable_entries WHERE section_id = ? AND weekday = 1 AND period_id = ?`).bind(IDS.section, P1).first<{ n: number }>()
+    expect(n!.n).toBe(1)
   })
 
-  it('refuses the same teacher on another subject in another class at that time', async () => {
-    const r = await api('admin', 'PUT', '/master-timetable/live/cell', cell({ section_id: SEC_B, class_subject_id: CS2 }))
+  it('refuses the same teacher on another subject in another class at that time, naming it', async () => {
+    const r = await put('admin', cell({ section_id: SEC_B, subject_code: 'SCI' }))
     expect(r.status).toBe(409)
-    expect(r.body.code).toBe('teacher_busy')
     expect(r.body.error).toContain('Mathematics to Class 5 A')
   })
 
   it('refuses a break', async () => {
-    const r = await api('admin', 'PUT', '/master-timetable/live/cell', cell({ period_id: BRK }))
-    expect(r.status).toBe(400)
+    const r = await put('admin', cell({ period_name: 'Recess' }))
+    expect(r.status).toBe(409)
+    expect(r.body.error).toContain('break')
   })
 
   it('refuses someone without timetable write', async () => {
-    const r = await api('teacher', 'PUT', '/master-timetable/live/cell', cell({ entry_id: entry, room: '99' }))
-    expect(r.status).toBe(403)
-    const d = await api('teacher', 'DELETE', `/master-timetable/live/entries/${entry}`)
-    expect(d.status).toBe(403)
+    expect((await put('teacher', cell({ room: '99' }))).status).toBe(403)
+    expect((await api('teacher', 'DELETE', `/timetable/entries/${entry}`)).status).toBe(403)
   })
 
   it('changes the subject and teacher in place', async () => {
-    const r = await api('admin', 'PUT', '/master-timetable/live/cell', cell({ entry_id: entry, class_subject_id: CS2, teacher_id: null, room: '' }))
+    const r = await put('admin', cell({ subject_code: 'SCI', teacher_user_id: '' }))
     expect(r.status).toBe(200)
     expect(r.body.id).toBe(entry)
-    expect(r.body.subject_name).toBe('Science')
-    expect(r.body.teacher_id).toBeNull()
+    const row = await T().prepare(`SELECT teacher_user_id, class_subject_id FROM timetable_entries WHERE id = ?`).bind(entry).first<any>()
+    expect(row.teacher_user_id).toBeNull()
+    expect(row.class_subject_id).toBe(CS2)
   })
 
-  it('clears the cell and its cover', async () => {
-    const r = await api('admin', 'DELETE', `/master-timetable/live/entries/${entry}`)
+  it('clears the cell', async () => {
+    const r = await api('admin', 'DELETE', `/timetable/entries/${entry}`)
     expect(r.status).toBe(200)
     const left = await T().prepare(`SELECT count(*) AS n FROM timetable_entries WHERE id = ?`).bind(entry).first<{ n: number }>()
     expect(left!.n).toBe(0)
-    const again = await api('admin', 'DELETE', `/master-timetable/live/entries/${entry}`)
-    expect(again.status).toBe(404)
+    expect((await api('admin', 'DELETE', `/timetable/entries/${entry}`)).status).toBe(404)
+    const audit = await T().prepare(`SELECT count(*) AS n FROM audit_log WHERE entity_id = ? AND action = 'timetable.entry.delete'`).bind(entry).first<{ n: number }>()
+    expect(audit!.n).toBe(1)
   })
 })

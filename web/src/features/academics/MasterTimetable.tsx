@@ -12,7 +12,6 @@ import PeriodsNeeded from './PeriodsNeeded'
 import BulkImport from '@/components/BulkImport'
 import SectionGrid from './SectionGrid'
 import ClassTimings from './ClassTimings'
-import LiveTimetable from './LiveTimetable'
 import { WEEKDAYS, cn } from '@/lib/utils'
 import { useEmployeeRoster } from '@/lib/rosters'
 
@@ -382,11 +381,9 @@ export default function MasterTimetable() {
           <button type="button" className={segClass(mode === 'current')} aria-pressed={mode === 'current'} onClick={() => setMode('current')}>Current timetable</button>
           <button type="button" className={segClass(mode === 'new')} aria-pressed={mode === 'new'} onClick={() => setMode('new')}>Make a new one</button>
         </div>
-        {mode === 'current' && d ? <LiveTimetable shape={d} mayWrite={mayWrite} /> : (
+        {mode === 'current' ? <SectionGrid weekdays={d?.weekdays?.length ? d.weekdays : [1, 2, 3, 4, 5, 6]} mayWrite={mayWrite} /> : (
         <>
         <Steps at={at} go={goStep} done={stepDone} />
-        {/* The school's shape, on every step: it is the thing being timetabled. */}
-        <SectionGrid />
         {/* The single instruction, and the single button that acts on it.
             Step 2 is where a draft gets made, so the instruction lives there;
             on step 1 the periods editor is the instruction. */}
