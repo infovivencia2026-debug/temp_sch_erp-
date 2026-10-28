@@ -262,3 +262,4 @@ Last checked: 2026-10-02.
 - 2026-10-27 Staff: school name line removed under role; leave form only Leave + Permission (date, from/to time), Half day on top, 'Apply for leave', no balance numbers or 'counted against' hint; Inbox shown as Mail, its own menu item. Done: type-checked, leave tests pass, deployed.
 - 2026-10-28 Sign-in on phones: tap right side = next picture, left third = previous (like WhatsApp status). Done: login tests pass, deployed.
 - 2026-10-28 Mail: no Formatted/Plain text switch, 'Delete' button (to Trash), no Import/Disconnect (new mail fetched each time Mail opens and on connect); 4 test mails deleted. Leave: half day asks the time the person comes to school. Done: type-checked, tests pass, deployed.
+- 2026-10-28 Screens off for all staff (e.g. My Pay): Staff > Roles & permissions card; any role. Migration 0122. Done: type-checked, sign-in tests pass.
