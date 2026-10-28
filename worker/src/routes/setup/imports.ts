@@ -147,6 +147,22 @@ export class ImportCtx {
     /* The schedule for that day, then the period in it: by its name, else a
        number counts class periods only, so "1" is the first lesson and not
        the assembly or a break that the schedule numbers among its slots. */
+    const all = await this.daySchedule(day, sectionId)
+    const norm = (v: string) => v.toLowerCase().replace(/[\s_-]+/g, '')
+    const n = /^(?:p|period)?\s*(\d+)$/i.exec(want)?.[1]
+    const row = all.find((p) => norm(p.name) === norm(want))
+      ?? (n ? all.filter((p) => !p.is_break)[Number(n) - 1] : undefined)
+    if (!row) throw new Error(`no period "${want}" on ${day} -- set the school day up first, or use the period number`)
+    this.dayPeriods.set(key, row.id)
+    return row.id
+  }
+
+  /** Every slot of the bell schedule a section follows on a day, in order. */
+  daySlots = new Map<string, Array<{ id: string; name: string; is_break: number }>>()
+  async daySchedule(day: string, sectionId: string): Promise<Array<{ id: string; name: string; is_break: number }>> {
+    const key = `${sectionId}/${day}`
+    const hit = this.daySlots.get(key)
+    if (hit) return hit
     const sched = await this.db.prepare(`
       SELECT bs.id FROM bell_schedules bs
        WHERE (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
@@ -155,13 +171,8 @@ export class ImportCtx {
        LIMIT 1`).bind(day, sectionId, this.inst, day, sectionId).first<{ id: string }>()
     const all = sched ? (await this.db.prepare(`SELECT id, name, is_break FROM periods WHERE bell_schedule_id = ? ORDER BY sequence`).bind(sched.id)
       .all<{ id: string; name: string; is_break: number }>()).results : []
-    const norm = (v: string) => v.toLowerCase().replace(/[\s_-]+/g, '')
-    const n = /^(?:p|period)?\s*(\d+)$/i.exec(want)?.[1]
-    const row = all.find((p) => norm(p.name) === norm(want))
-      ?? (n ? all.filter((p) => !p.is_break)[Number(n) - 1] : undefined)
-    if (!row) throw new Error(`no period "${want}" on ${day} -- set the school day up first, or use the period number`)
-    this.dayPeriods.set(key, row.id)
-    return row.id
+    this.daySlots.set(key, all)
+    return all
   }
 
   workingYearID(): string {
@@ -302,6 +313,9 @@ export interface ImportSpec {
   check?: (row: Row) => void
   skip?: (row: Row) => boolean
   verify?: (ctx: ImportCtx, row: Row) => Promise<void>
+  /** Looks at the good rows together and returns what the person should know
+      before uploading, e.g. lessons in the school day that no row fills. */
+  review?: (ctx: ImportCtx, rows: Row[]) => Promise<string[]>
   /** The identifying codes this row would change on a record already on file
       (owner, 2026-10-14): such a row is reported and held back unless the
       upload says overwrite=true. Return every candidate; blanks-to-fill are dropped. */
@@ -766,6 +780,32 @@ export const importSpecs: Record<string, ImportSpec> = {
       const n = await ctx.db.prepare(`SELECT COUNT(*) AS n FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?))`)
         .bind(classId, str(row.subject).trim(), str(row.subject).trim()).first<{ n: number }>()
       if (!n?.n) throw new Error(`${str(row.class).trim()} does not study "${str(row.subject).trim()}". Add it under what each class studies, or check the spelling`)
+    },
+    /* Owner, 2026-10-28: a file with periods 1 to 8 loaded into a ten-period
+       day left 9 and 10 empty for every class, and nothing said so. Every
+       lesson of the day's schedule that no row fills is listed by name. */
+    review: async (ctx, rows) => {
+      const filled = new Set<string>()
+      const days = new Map<string, { label: string; sectionId: string; day: string }>()
+      for (const row of rows) {
+        let sectionId = '', day = ''
+        try {
+          sectionId = await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
+          day = weekdayName(weekdayOf(str(row.day)))
+          filled.add(`${sectionId}/${day}/${await ctx.periodOnDay(str(row.period).trim(), day, sectionId)}`)
+        } catch { continue } // the upload itself reports this row
+        days.set(`${sectionId}/${day}`, { label: `${str(row.class).trim()} ${str(row.section).trim()}`.trim(), sectionId, day })
+      }
+      const empty = new Map<string, string[]>()
+      for (const d of days.values()) {
+        for (const p of (await ctx.daySchedule(d.day, d.sectionId)).filter((x) => !x.is_break)) {
+          if (filled.has(`${d.sectionId}/${d.day}/${p.id}`)) continue
+          const list = empty.get(p.name) ?? []
+          list.push(`${d.label} ${d.day}`)
+          empty.set(p.name, list)
+        }
+      }
+      return [...empty].map(([name, where]) => `${name} is a lesson in the school day but no row fills it for ${where.length === days.size ? 'any class on any day' : where.slice(0, 6).join(', ') + (where.length > 6 ? ` and ${where.length - 6} more` : '')}. Whatever is on file there now stays; add rows for ${name} to set it.`)
     },
     write: async (ctx, row) => {
       const yearId = ctx.workingYearID()
@@ -1423,7 +1463,7 @@ export function parseCSV(text: string): { rows: string[][]; errors: Map<number, 
 
 interface ImportRow { row: number; data?: Row; problem?: string }
 interface ImportReplace { row: number; changes: Array<{ field: string; label: string; from: string; to: string | null }>; problem: string }
-interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[] }
+interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[]; notes?: string[] }
 
 
 
@@ -1531,6 +1571,10 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       }
     }
     if (bad.size > 0) rows = rows.filter((p) => !bad.has(p.row))
+  }
+  if (spec.review && rows.length > 0) {
+    const notes = await spec.review(new ImportCtx(c, inst, await ensureCampus(c), sheetFactsFrom(c), subjectColumnsFrom(c)), rows.map((p) => p.data))
+    if (notes.length > 0) out.notes = notes
   }
   /* A row that would replace a code already on file is listed in the check
      and, unless the person ticked "replace" (overwrite=true), left out of
