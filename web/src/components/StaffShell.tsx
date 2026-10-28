@@ -238,7 +238,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
               title={home ? undefined : first.f.summary} style={{ '--h': hue } as React.CSSProperties}
-              className={({ isActive }) => cn('nav-pill nav-pill__head shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
+              className={({ isActive }) => cn('nav-pill nav-pill__head nav-tap shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
               <PillBadge icon={uniqueIcon(home ? 'home' : `${section.slug} ${first.f.slug} ${name}`, usedIcons)} />
               <span className="min-w-0 flex-1 truncate">{label(name)}</span>
               {first.f.slug === 'concerns_from_parents' && <Count n={concerns} />}
