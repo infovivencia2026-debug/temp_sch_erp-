@@ -445,6 +445,15 @@ const SLIDES_JS = `
     warm((i + 1) % n)
   }
   dots.forEach(function (d, i) { d.addEventListener('click', function () { go(i) }) })
+  /* Phones, like a status (owner, 2026-10-28): a tap on the left third goes
+     back a picture, anywhere else goes on. Taps on a button or link keep
+     their own job. */
+  panel.addEventListener('click', function (e) {
+    if (!(window.matchMedia && window.matchMedia('(max-width: 639px)').matches)) return
+    if (e.target.closest && e.target.closest('button, a, input, label, select')) return
+    var r = panel.getBoundingClientRect()
+    go(e.clientX - r.left < r.width / 3 ? (now - 1 + n) % n : (now + 1) % n)
+  })
   bar.hidden = false
   if (still) return
   warm(1)
