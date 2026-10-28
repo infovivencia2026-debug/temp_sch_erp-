@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Period, type TimetableEntry } from '@/lib/api'
-import { Button, Card, Dialog, ErrorState, ExportTable, FormNotice, Input, Loading, Select, SEG_BAR, segClass } from '@/components/ui'
+import { Button, Card, Dialog, ErrorState, ExportTable, FormNotice, Input, Loading, Select, SEG_BAR_FILL, segClass } from '@/components/ui'
 import WeekGrid, { type WeekEntry } from '@/components/WeekGrid'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useLiveTopic } from '@/lib/live-stream'
@@ -51,6 +51,7 @@ export default function SectionGrid({ weekdays, mayWrite }: { weekdays: number[]
     return [...m.entries()].map(([value, label]) => ({ value, label }))
   }, [allSections])
 
+  const ownSections = allSections.filter((s) => s.class_id === classID)
   const filter = by === 'class' ? (sectionID ? { section_id: sectionID } : null) : (teacherID ? { teacher_id: teacherID } : null)
   const entriesKey = ['tt-entries', by === 'class' ? sectionID : `t:${teacherID}`]
   const periods = useQuery({
@@ -89,7 +90,7 @@ export default function SectionGrid({ weekdays, mayWrite }: { weekdays: number[]
     <div className="space-y-4">
       <Card>
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className={SEG_BAR} role="group" aria-label="View by">
+          <div className={SEG_BAR_FILL} role="group" aria-label="View by">
             <button type="button" className={segClass(by === 'class')} aria-pressed={by === 'class'} onClick={() => setBy('class')}>By class</button>
             <button type="button" className={segClass(by === 'staff')} aria-pressed={by === 'staff'} onClick={() => setBy('staff')}>By staff</button>
           </div>
@@ -102,10 +103,14 @@ export default function SectionGrid({ weekdays, mayWrite }: { weekdays: number[]
                   setSectionID(own.length === 1 ? own[0].id : '')
                 }} />
               </div>
-              <div className="sm:w-40">
-                <Select value={sectionID} placeholder="Section" onChange={setSectionID}
-                  options={allSections.filter((s) => s.class_id === classID).map((s) => ({ value: s.id, label: s.name }))} />
-              </div>
+              {/* A class with one section (Yajur's grades 6 to 9) has nothing to
+                  choose: that section is picked above and the picker hidden. */}
+              {ownSections.length > 1 && (
+                <div className="sm:w-40">
+                  <Select value={sectionID} placeholder="Section" onChange={setSectionID}
+                    options={ownSections.map((s) => ({ value: s.id, label: s.name }))} />
+                </div>
+              )}
             </>
           ) : (
             <div className="sm:w-64">
@@ -119,7 +124,7 @@ export default function SectionGrid({ weekdays, mayWrite }: { weekdays: number[]
 
       {sections.error ? <ErrorState error={sections.error} /> : !filter ? (
         <p className="py-6 text-center text-[14px] text-muted-foreground">
-          {by === 'class' ? 'Choose a class and section to see its week.' : 'Choose a teacher to see their week.'}
+          {by === 'class' ? (classID ? 'Choose a section to see its week.' : 'Choose a class to see its week.') : 'Choose a teacher to see their week.'}
         </p>
       ) : periods.isLoading || entries.isLoading ? (
         <Loading shape="table" label="Reading the timetable…" />

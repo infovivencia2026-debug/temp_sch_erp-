@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
-  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice, SEG_BAR, segClass,
+  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice, SEG_BAR_FILL, segClass,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
@@ -377,7 +377,7 @@ export default function MasterTimetable() {
       />
       <PageBody>
         {/* What is in use now, edited in place; or the three steps that make a new one (owner, 2026-10-28). */}
-        <div className={SEG_BAR} role="group" aria-label="Timetable">
+        <div className={SEG_BAR_FILL} role="group" aria-label="Timetable">
           <button type="button" className={segClass(mode === 'current')} aria-pressed={mode === 'current'} onClick={() => setMode('current')}>Current timetable</button>
           <button type="button" className={segClass(mode === 'new')} aria-pressed={mode === 'new'} onClick={() => setMode('new')}>Make a new one</button>
         </div>

@@ -2879,10 +2879,17 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
 export function ErrorState({ error }: { error: unknown }) {
   const raw = error instanceof Error ? error.message.trim() : ''
   const refused = (error instanceof ApiError && error.status === 403) || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
-  const msg = refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.' : raw || 'Something went wrong. Try again, or reload the page.'
+  /* A 401 is a sign-in that has ended (identity.ts found no live session),
+     never a missing permission. It printed the server's bare "unauthorized"
+     (owner, 2026-10-28, Master timetable on a phone); now it says what to do. */
+  const ended = (error instanceof ApiError && error.status === 401) || /^unauthorized.?$/i.test(raw)
+  const msg = ended ? 'Your sign-in has ended. Sign in again to see this.'
+    : refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.'
+    : raw || 'Something went wrong. Try again, or reload the page.'
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
+      {ended && <div className="mt-3 flex justify-center"><a href="/login" className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Sign in again</a></div>}
       <div className="mt-2 flex justify-center"><CopyRef text={msg} /></div>
     </Card>
   )
@@ -3436,6 +3443,11 @@ export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
    instead. Shrinking was the default for a flex child, so on a 390px screen
    "In progress" broke onto two lines and drew over its neighbour. */
 export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap'
+
+/* The same strip, filling its row on a phone with equal halves (or thirds),
+   so the active pill fills its share instead of hugging its words at the
+   left (owner, 2026-10-28, Master timetable). From sm up it is SEG_BAR. */
+export const SEG_BAR_FILL = 'flex w-full gap-1 rounded-md border bg-muted p-1 [&>*]:flex-1 [&>*]:whitespace-nowrap [&>*]:text-center sm:inline-flex sm:w-auto sm:[&>*]:flex-none'
 
 export function segClass(active: boolean): string {
   return active
