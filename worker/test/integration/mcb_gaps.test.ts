@@ -197,6 +197,29 @@ describe('staff tasks and reporting managers', () => {
     expect((await api('admin', 'PATCH', `/hr/tasks/${t}`, { title: 'x' })).status).toBe(409)
   })
 
+  it("a teacher keeps her own to-dos: add, list, change, complete, delete; never anyone else's task", async () => {
+    const r = await api('teacher', 'POST', '/hr/tasks', { title: 'Mark the essays', due_on: isoDay(2), priority: 'high', detail: 'Class 8' })
+    expect(r.status).toBe(201)
+    const id = r.body.id
+    const mine = await api('teacher', 'GET', '/hr/tasks?for=mine')
+    expect(mine.body.items.find((v: { id: string }) => v.id === id)).toMatchObject({ title: 'Mark the essays', employee_id: EMP.teacher, mine: true, reviewed: false })
+    expect((await api('teacher', 'PATCH', `/hr/tasks/${id}`, { title: 'Mark the Class 8 essays' })).status).toBe(200)
+    expect((await api('teacher', 'POST', `/hr/tasks/${id}/status`, { action: 'finish' })).body.status).toBe('done')
+    expect((await api('teacher', 'DELETE', `/hr/tasks/${id}`)).status).toBe(200)
+    expect((await api('teacher', 'GET', `/hr/tasks/${id}`)).status).toBe(404)
+    // Somebody else's task: not listed, not readable, not changeable, not deletable.
+    const theirs = (await api('admin', 'POST', '/hr/tasks', { title: 'Lock the store', assigned_to: EMP.other })).body.id
+    expect((await api('teacher', 'GET', '/hr/tasks?for=mine')).body.items.some((v: { id: string }) => v.id === theirs)).toBe(false)
+    expect((await api('teacher', 'GET', '/hr/tasks?for=all')).status).toBe(403)
+    expect((await api('teacher', 'GET', `/hr/tasks/${theirs}`)).status).toBe(404)
+    expect((await api('teacher', 'PATCH', `/hr/tasks/${theirs}`, { title: 'x' })).status).toBe(404)
+    expect((await api('teacher', 'POST', `/hr/tasks/${theirs}/status`, { action: 'finish' })).status).toBe(404)
+    expect((await api('teacher', 'DELETE', `/hr/tasks/${theirs}`)).status).toBe(404)
+    // A task HR gave her is hers to do, not hers to delete.
+    const given = (await api('admin', 'POST', '/hr/tasks', { title: 'Sign the register', assigned_to: EMP.teacher })).body.id
+    expect((await api('teacher', 'DELETE', `/hr/tasks/${given}`)).status).toBe(403)
+  })
+
   it('refuses somebody not on the roll, and everybody from the full list', async () => {
     expect((await api('parent', 'POST', '/hr/tasks', { title: 'x', assigned_to: EMP.teacher })).status).toBe(403)
     expect((await api('parent', 'GET', '/hr/tasks?for=all')).status).toBe(403)
