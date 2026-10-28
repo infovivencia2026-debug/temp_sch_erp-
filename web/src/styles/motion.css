@@ -318,31 +318,48 @@ html[data-reduce-motion] .note-row:hover { transform: none; }
    `scale` / `translate` properties so the hover lift (`transform`) and the
    existing colour transitions are untouched. No filter, no wash, no size jump. */
 .nav-tap {
+  /* 2026-10-28 owner: "Can be more smoother and visible." Deeper soft press
+     (0.95), a longer gentle-overshoot spring back (420ms), held >=130ms via
+     a keyframe on the item that becomes current so a quick tap still shows. */
+  --nav-tap-ease: cubic-bezier(.2, .9, .3, 1.2);
+  position: relative; isolation: isolate;
   transition-property: color, background-color, border-color, box-shadow, border-radius, transform, scale;
-  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, var(--spring-dur-fast);
-  transition-timing-function: ease, ease, ease, ease, ease, ease, var(--spring-snappy);
+  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, 420ms;
+  transition-timing-function: ease, ease, ease, ease, ease, ease, var(--nav-tap-ease);
   -webkit-tap-highlight-color: transparent;
 }
 .nav-tap:active {
-  scale: .97;
-  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, var(--motion-press);
+  scale: .95; will-change: scale;
+  transition-duration: .25s, .25s, .25s, .25s, .25s, .25s, 120ms;
+  transition-timing-function: ease, ease, ease, ease, ease, ease, ease-out;
+}
+/* soft primary-tinted glow: the current highlight fades and scales in */
+.nav-tap::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: hsl(var(--primary) / .16); box-shadow: 0 0 14px hsl(var(--primary) / .28);
+  opacity: 0; pointer-events: none;
 }
 .nav-tap .nav-pill__badge,
 .nav-tap > span:first-child {
-  transition: transform .25s ease, translate var(--spring-dur-fast) var(--spring-bouncy);
+  transition: transform .25s ease, translate 380ms var(--nav-tap-ease), scale 380ms var(--nav-tap-ease);
 }
-.nav-tap:active .nav-pill__badge { translate: 2px 0; }
-.nav-tap:not(.nav-pill):active > span:first-child { translate: 2px 0; }
-.nav-tap[aria-current='page'] .nav-pill__badge { animation: nav-tap-land var(--spring-dur) var(--spring-bouncy) both; }
-.nav-tap:not(.nav-pill)[aria-current='page'] > span:first-child { animation: nav-tap-slide var(--spring-dur) var(--spring-gentle) both; }
-@keyframes nav-tap-land { from { scale: .82; } to { scale: 1; } }
-@keyframes nav-tap-slide { from { translate: -4px 0; opacity: .6; } to { translate: 0 0; opacity: 1; } }
+.nav-tap:active .nav-pill__badge { translate: 3px 0; scale: 1.08; }
+.nav-tap:not(.nav-pill):active > span:first-child { translate: 3px 0; }
+.nav-tap[aria-current='page'] { animation: nav-tap-press 460ms var(--nav-tap-ease) both; }
+.nav-tap[aria-current='page']::after { animation: nav-tap-glow 520ms cubic-bezier(.2, .8, .2, 1) both; }
+.nav-tap[aria-current='page'] .nav-pill__badge { animation: nav-tap-icon 440ms var(--nav-tap-ease) 60ms both; }
+.nav-tap:not(.nav-pill)[aria-current='page'] > span:first-child { animation: nav-tap-slide 420ms var(--nav-tap-ease) 60ms both; }
+@keyframes nav-tap-press { 0%, 28% { scale: .95; } 100% { scale: 1; } }
+@keyframes nav-tap-glow { 0% { opacity: .9; scale: .9; } 45% { opacity: .75; scale: 1.02; } 100% { opacity: 0; scale: 1; } }
+@keyframes nav-tap-icon { 0% { scale: 1; translate: 0 0; } 40% { scale: 1.12; translate: 3px 0; } 100% { scale: 1; translate: 0 0; } }
+@keyframes nav-tap-slide { 0% { translate: 0 0; } 40% { translate: 3px 0; } 100% { translate: 0 0; } }
 @media (prefers-reduced-motion: reduce) {
   .nav-tap, .nav-tap .nav-pill__badge, .nav-tap > span:first-child { transition-duration: 1ms !important; }
   .nav-tap:active, .nav-tap:active .nav-pill__badge, .nav-tap:active > span:first-child { scale: none; translate: none; }
-  .nav-tap .nav-pill__badge, .nav-tap > span:first-child { animation: none !important; }
+  .nav-tap, .nav-tap::after, .nav-tap .nav-pill__badge, .nav-tap > span:first-child { animation: none !important; }
 }
 html[data-reduce-motion] .nav-tap,
+html[data-reduce-motion] .nav-tap::after,
 html[data-reduce-motion] .nav-tap .nav-pill__badge,
 html[data-reduce-motion] .nav-tap > span:first-child { transition-duration: 1ms !important; animation: none !important; }
 html[data-reduce-motion] .nav-tap:active,
