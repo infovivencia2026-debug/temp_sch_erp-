@@ -288,7 +288,7 @@ export default function Leave() {
         is_half_day: form.is_half_day,
         leave_type_id: form.kind === 'leave' ? form.leave_type_id || undefined : undefined,
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
-        ...(form.kind === 'on_duty' ? { place: form.place, from_time: form.from_time, to_time: form.to_time } : form.kind === 'permission' ? { from_time: form.from_time, to_time: form.to_time } : {}),
+        ...(form.kind === 'on_duty' ? { place: form.place, from_time: form.from_time, to_time: form.to_time } : form.kind === 'permission' ? { from_time: form.from_time, to_time: form.to_time } : form.kind === 'leave' && form.is_half_day ? { from_time: form.from_time } : {}),
       }),
     onSuccess: () => {
       setSent({ ...form, id: sent!.id })
@@ -308,7 +308,7 @@ export default function Leave() {
         hours: form.kind === 'permission' ? Number(form.hours) : undefined,
         to_date: form.kind === 'permission' ? form.from_date : form.to_date,
         place: form.kind === 'on_duty' ? form.place : undefined,
-        from_time: form.kind === 'on_duty' || form.kind === 'permission' ? form.from_time || undefined : undefined,
+        from_time: form.kind === 'on_duty' || form.kind === 'permission' || (form.kind === 'leave' && form.is_half_day) ? form.from_time || undefined : undefined,
         to_time: form.kind === 'on_duty' || form.kind === 'permission' ? form.to_time || undefined : undefined,
         // Omitted entirely when blank, so the server keeps its "the applicant
         // is the signed-in employee" path rather than being handed an empty id.
@@ -496,6 +496,12 @@ export default function Leave() {
                     Half day
                   </label>
                 )}
+                {/* Half day: the time they will be at school (owner, 2026-10-28). */}
+                {form.kind === 'leave' && form.is_half_day && (
+                  <Field label="Coming to school at" required>
+                    <Input type="time" value={form.from_time} onChange={(v) => setForm({ ...form, from_time: v })} />
+                  </Field>
+                )}
                 <Field label={form.kind === 'permission' ? 'Date' : 'From'} required>
                   <Input
                     type="date"
@@ -573,7 +579,8 @@ export default function Leave() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     className="m-0"
-                    disabled={!form.from_date || (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) || !form.reason.trim() || (form.kind === 'on_duty' && !form.place.trim()) || save.isPending}
+                    disabled={!form.from_date || (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) || !form.reason.trim() || (form.kind === 'on_duty' && !form.place.trim()) ||
+                  (form.kind === 'leave' && form.is_half_day && !form.from_time) || save.isPending}
                     onClick={() => save.mutate()}
                   >
                     {save.isPending ? 'Saving…' : 'Save'}
@@ -588,6 +595,7 @@ export default function Leave() {
                   (form.kind === 'permission' ? !(Number(form.hours) > 0) : !form.to_date) ||
                   !form.reason.trim() ||
                   (form.kind === 'on_duty' && !form.place.trim()) ||
+                  (form.kind === 'leave' && form.is_half_day && !form.from_time) ||
                   // Only when there is something to choose. A school that has
                   // not set its leave types up must still be able to apply.
                   (form.kind === 'leave' && (noneGiven || (leaveTypes.length > 0 && !form.leave_type_id))) ||
@@ -612,7 +620,7 @@ export default function Leave() {
             return (
               <div className="flex flex-col gap-3" style={{ padding: "0 var(--card-pad) var(--card-pad)" }}>
                 <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
-                  <dt className="text-muted-foreground">Dates</dt><dd className="m-0">{when}{sent.is_half_day && sent.kind !== 'permission' ? ' (half day)' : ''}</dd>
+                  <dt className="text-muted-foreground">Dates</dt><dd className="m-0">{when}{sent.is_half_day && sent.kind !== 'permission' ? ` (half day${sent.from_time ? `, at school from ${sent.from_time}` : ''})` : ''}</dd>
                   <dt className="text-muted-foreground">Type</dt><dd className="m-0">{kindName}</dd>
                   <dt className="text-muted-foreground">Reason</dt><dd className="m-0 break-words">{sent.reason}</dd>
                   <dt className="text-muted-foreground">Status</dt><dd className="m-0"><StatusPill status={status} /></dd>

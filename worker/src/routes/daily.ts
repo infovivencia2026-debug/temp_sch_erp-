@@ -1633,6 +1633,8 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   // A permission keeps its from and to time too (owner, 2026-10-27), with no place.
   const duty = requestKind === 'on_duty' ? onDutyFields(req)
     : requestKind === 'permission' && (trim(req.from_time) || trim(req.to_time)) ? { ...onDutyFields({ ...req, place: '-' }), place: null }
+    // A half-day leave keeps the time the person will be at school (owner, 2026-10-28).
+    : requestKind === 'leave' && req.is_half_day && trim(req.from_time) ? { ...onDutyFields({ from_time: req.from_time, place: '-' }), place: null }
     : { place: null, from_time: null, to_time: null }
   let hours: number | null = null
   if (requestKind === 'permission') {
