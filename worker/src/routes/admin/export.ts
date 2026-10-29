@@ -160,8 +160,9 @@ function baseSpecs(today: string): Record<string, Spec> {
           f.call_status, COALESCE(f.parent_response,''), COALESCE(u.full_name,'')
         FROM student_absence_followup f JOIN students st ON st.id = f.student_id ${latestEnrol}
         LEFT JOIN users u ON u.id = f.updated_by
-        WHERE f.on_date >= date(${t}, '-180 days')
-        ORDER BY f.on_date DESC, c.level NULLS LAST, sec.name, st.admission_no` },
+        WHERE f.on_date >= (CASE WHEN ?1 = '' THEN date(${t}, '-180 days') ELSE ?1 END)
+          AND (?2 = '' OR f.on_date <= ?2)
+        ORDER BY f.on_date DESC, c.level NULLS LAST, sec.name, st.admission_no`, params: ['from', 'to'] },
     attendance: { title: 'Student attendance', about: 'The register, day by day.', perm: 'academics.attendance.read.all',
       header: ['Date', 'Admission No', 'Student', 'Class', 'Section', 'Status'],
       query: `SELECT ${dmy('sa.on_date')}, st.admission_no, ${name2('st')}, COALESCE(c.name,''), COALESCE(sec.name,''), sa.status
