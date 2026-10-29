@@ -4,7 +4,7 @@ import { Check, CheckCircle2, Phone } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge } from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge, ExportButton } from '@/components/ui'
 
 /* Absentee follow-up.
  *
@@ -108,6 +108,9 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
   const [sectionId, setSectionId] = useState('')
   // Find one child across the day's absentees by name or admission number.
   const [nameQ, setNameQ] = useState('')
+  // Export: who was called, and what the parent said, over a date range the office picks.
+  const [exportFrom, setExportFrom] = useState(today)
+  const [exportTo, setExportTo] = useState(today)
 
   const params = new URLSearchParams({ on_date: onDate })
   if (sectionId) params.set('section_id', sectionId)
@@ -162,6 +165,22 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <Input value={nameQ} onChange={setNameQ} placeholder="Name or admission no." />
       </Field>
     </>
+  )
+
+  /* Export: a call log over whatever range the office picks, not just today
+     (owner, 2026-10-29: "add export for absentee follow up ... custom date
+     from and to"). absentee_followups (worker/src/routes/admin/export.ts)
+     already existed for the last 180 days; it now takes from/to instead. */
+  const exportRow = (
+    <div className="flex flex-wrap items-end gap-3">
+      <Field label="Export from">
+        <Input type="date" value={exportFrom} onChange={setExportFrom} />
+      </Field>
+      <Field label="Export to">
+        <Input type="date" value={exportTo} onChange={setExportTo} />
+      </Field>
+      <ExportButton report="absentee_followups" label="Export call log" query={{ from: exportFrom, to: exportTo }} />
+    </div>
   )
 
   const content = (
@@ -229,12 +248,16 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <>
           {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
           <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
+          <div className="mb-3">{exportRow}</div>
           {content}
         </>
       ) : (
         <>
           <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={controls} />
-          <PageBody>{content}</PageBody>
+          <PageBody>
+            <div className="mb-1">{exportRow}</div>
+            {content}
+          </PageBody>
         </>
       )}
     </>

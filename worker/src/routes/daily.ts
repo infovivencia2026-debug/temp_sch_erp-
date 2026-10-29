@@ -1327,20 +1327,44 @@ function registerWorkflow(r: Router) {
 /** Each day from..to covered by a holiday on the school calendar, every day
  *  of a ranged holiday included. Staff-facing by default (holidays for all,
  *  staff or teaching); `anyone` includes student-only ones too, for calendars. */
+/* SUNDAY IS A HOLIDAY WITHOUT ANYONE ADDING IT (owner, 2026-10-29: "sunday is
+   holiday as default ... some people may come let them have in and out
+   remaining will be holiday"). A calendar entry said so only for the days
+   somebody typed in; every other Sunday was simply unmarked, which the
+   register showed as if the whole staff had gone missing. Added here, once,
+   synthetic and not stored, so it never needs maintaining -- and only where
+   the explicit calendar does not already decide the day: a named holiday
+   that happens to fall on a Sunday keeps its name, and a 'working_day' entry
+   (the same override every other holiday here already honours) cancels it
+   for whoever it names, exactly as a Sunday the school is actually open for
+   exams or an event already works. The caller already shows the real punch
+   instead of "holiday" for anyone who came in (daily.ts, workflow/staff-month). */
 export async function staffHolidays(db: D1Database, from: string, to: string, anyone = false): Promise<Map<string, { name: string; from: string; to: string }>> {
   const out = new Map<string, { name: string; from: string; to: string }>()
   let rows: { name: string; on_date: string; to_date: string | null }[] = []
+  let working = new Set<string>()
   try {
     rows = (await db.prepare(`SELECT name, on_date, to_date FROM holidays
         WHERE kind IN ('holiday', 'vacation') AND on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1
           AND (?3 = 1 OR applies_to IN ('all', 'staff', 'teaching')) ORDER BY on_date`).bind(from, to, anyone ? 1 : 0)
       .all<{ name: string; on_date: string; to_date: string | null }>()).results
-  } catch { return out }
+    const wd = (await db.prepare(`SELECT on_date, to_date FROM holidays
+        WHERE kind = 'working_day' AND on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1
+          AND (?3 = 1 OR applies_to IN ('all', 'staff', 'teaching'))`).bind(from, to, anyone ? 1 : 0)
+      .all<{ on_date: string; to_date: string | null }>()).results
+    for (const w of wd) {
+      const end = w.to_date && w.to_date > w.on_date ? w.to_date : w.on_date
+      for (let d = w.on_date > from ? w.on_date : from; d <= end && d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) working.add(d)
+    }
+  } catch { working = new Set() }
   for (const h of rows) {
     const end = h.to_date && h.to_date > h.on_date ? h.to_date : h.on_date
     for (let d = h.on_date > from ? h.on_date : from; d <= end && d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) {
       if (!out.has(d)) out.set(d, { name: h.name, from: h.on_date, to: end })
     }
+  }
+  for (let d = from; d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) {
+    if (!out.has(d) && !working.has(d) && new Date(d + 'T00:00:00Z').getUTCDay() === 0) out.set(d, { name: 'Sunday', from: d, to: d })
   }
   return out
 }
