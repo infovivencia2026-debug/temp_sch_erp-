@@ -1,3 +1,4 @@
+import { lockPageScroll } from '@/lib/keyboard'
 import { printAllStore } from '@/lib/print'
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-extras'
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan, useSessionIfAny } from '@/lib/session'
 import { CopyRef } from './CopyRef'
+import { OptionSheet, SEARCH_AT, SheetTrigger, inOptionSheet, useIsPhone, type SheetOption } from './OptionSheet'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -65,7 +67,7 @@ export function CardHeader({
           wrap and ran past the card's edge; scrolling a control there into
           view then slid the whole page sideways. It may take the card's
           width and wrap inside it, and it wraps under the title first. */}
-      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
+      {action && <div className="flex min-w-0 flex-wrap items-center gap-2 [&:has(>:nth-child(2))]:w-full [&:has(>.w-full)]:w-full sm:[&:has(>:nth-child(2))]:w-auto sm:[&:has(>.w-full)]:w-auto sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
@@ -1070,6 +1072,7 @@ export function Table({
   onLoadMore,
   total,
   onExport,
+  noExport,
 }: {
   head: Column[]
   children: ReactNode
@@ -1092,6 +1095,9 @@ export function Table({
      reader wanted the children in them. Pass a handler and Export calls it
      instead; the table still draws what it drew. */
   onExport?: () => void
+  /** The screen offers its own Export beside its tools (Take attendance:
+      one Export menu, owner 2026-10-26), so the foot does not add a second. */
+  noExport?: boolean
   /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
 
      A table pages ten at a time through whatever array it was given, which
@@ -1461,11 +1467,13 @@ export function Table({
               </p>
             )}
             <div className="flex items-center gap-1.5">
+              {!noExport && (
               <Button variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
                 <Download className="h-3.5 w-3.5" />
                 Export
               </Button>
+              )}
               {paging && (
               <Button size="sm" variant="secondary" disabled={at === 0}
                       onClick={() => setPage(at - 1)}>
@@ -1503,7 +1511,7 @@ export function Table({
         {/* Beside the expand control, which is the other thing you can do to
             a table as a whole. Same weight, same corner, so the pair reads as
             one set of table controls rather than a new button appearing. */}
-        <div className="absolute right-11 top-1 z-20">
+        <div className="absolute right-11 top-1 z-20 max-sm:right-16">
           <ColumnChooser
             labels={colLabels}
             hidden={hiddenCols}
@@ -1556,7 +1564,7 @@ export function Table({
       role="dialog"
       aria-modal="true"
       aria-label="Table, full screen"
-      className="fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
+      className="vv-screen-phone fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
@@ -2114,6 +2122,7 @@ export function Select({
   allowCustom?: boolean
 }) {
   const [open, setOpen] = useOpenState(false)
+  const phone = useIsPhone()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   /* Whether anything has been typed since the menu opened. Until then the
@@ -2125,6 +2134,7 @@ export function Select({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const box = useRef<HTMLDivElement>(null)
+  const wasOpen = useRef(false)
   /* GET /setup/options needs institution.read (as in Go). A parent or
      student holds no such grant, so asking only filled the console with a
      403 on every form carrying a school-extensible list. */
@@ -2155,7 +2165,7 @@ export function Select({
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) {
+      if (box.current && !box.current.contains(e.target as Node) && !inOptionSheet(e.target)) {
         const m = exactRef.current
         if (m) pickRef.current(m.value)
         setOpen(false); setQuery(''); setTyped(false)
@@ -2174,7 +2184,7 @@ export function Select({
     { left: number; width: number; top?: number; bottom?: number; maxH?: number } | null>(null)
 
   useEffect(() => {
-    if (!open) {
+    if (!open || phone) {
       setBox_(null)
       return
     }
@@ -2221,7 +2231,7 @@ export function Select({
       vv?.removeEventListener('resize', place)
       vv?.removeEventListener('scroll', place)
     }
-  }, [open])
+  }, [open, phone])
 
   const all = kind ? [...options, ...custom] : options
   const selected = all.find((o) => o.value === value)
@@ -2297,6 +2307,43 @@ export function Select({
 
   const rows = shown.length + (canAdd || canUseTyped ? 1 : 0)
 
+  /* PHONE: A BUTTON AND A BOTTOM SHEET (owner, 2026-10-24). No text box in
+     the field, so no caret and no keyboard on tap; the list opens in the
+     shared OptionSheet. A search box appears inside the sheet only for a
+     list longer than SEARCH_AT, or one that takes typed answers. */
+  if (phone) {
+    const sheetOpts: SheetOption[] = [
+      ...(placeholder && !q && !options.some((o) => o.value === '')
+        ? [{ value: '', label: placeholder, muted: true }] : []),
+      ...shown,
+    ]
+    const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-[14px] py-3 text-left text-[16px] [-webkit-tap-highlight-color:transparent] [@media(hover:hover)]:hover:bg-muted/50'
+    return (
+      <div ref={box} className="relative">
+        <SheetTrigger label={shownLabel} placeholder={placeholder || 'Choose'} open={open}
+          onOpen={() => { setOpen(true); setQuery(''); setTyped(false) }} />
+        <OptionSheet
+          open={open}
+          onClose={() => { setOpen(false); setQuery(''); setTyped(false) }}
+          title={placeholder || 'Choose'}
+          options={sheetOpts}
+          value={value}
+          onPick={(v) => choose(v)}
+          searchable={all.length > SEARCH_AT || all.length === 0 || allowCustom === true || !!kind}
+          query={query}
+          onQuery={(t) => { setQuery(t); setTyped(true) }}
+          footer={(canAdd || canUseTyped || err) ? (
+            <>
+              {canAdd && <button type="button" disabled={busy} onClick={add} className={extraRow}>{busy ? 'Adding…' : `+ ${addLabel}: “${query.trim()}”`}</button>}
+              {canUseTyped && <button type="button" onClick={() => choose(query.trim())} className={extraRow}>{kind ? `Use “${query.trim()}” for this record only` : `Use “${query.trim()}”`}</button>}
+              {err && <p className="px-3 py-1.5 text-[14px] text-destructive">{err}</p>}
+            </>
+          ) : undefined}
+        />
+      </div>
+    )
+  }
+
   return (
     <div ref={box} className="relative">
       <input
@@ -2317,7 +2364,15 @@ export function Select({
          *
          * The query is cleared on choose, so reopening shows the whole list
          * rather than the list narrowed by what was picked last time. */
-        onClick={() => { setOpen(true); setActive(0) }}
+        /* SAME BOX, SAME PRESS CLOSES (owner, 2026-10-26: "when I click once
+           unable to close it using same button"). Whether it was open is read
+           at mousedown, before focus reopens it, so a press on an open box
+           shuts it and a press on a closed one opens it. */
+        onMouseDown={() => { wasOpen.current = open }}
+        onClick={() => {
+          if (wasOpen.current) { wasOpen.current = false; setOpen(false); setQuery(''); setTyped(false); return }
+          setOpen(true); setActive(0)
+        }}
         onChange={(e) => {
           /* The first keystroke lands on top of the shown label (selected on
              focus, so it is normally replaced outright); whatever of the label
@@ -2355,8 +2410,14 @@ export function Select({
            not working, the down button"). It toggled: a click in the box opened the
            list and the arrow pressed next shut it again, so the arrow read as dead.
            Picking an option, clicking away or Esc closes it. */
-        onClick={() => { setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }) }}
-        className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent hover:text-foreground">
+        /* Now a toggle again (owner, 2026-10-26: "unable to close it using
+           same button"): the arrow opens a closed list and shuts an open one. */
+        aria-expanded={open}
+        onClick={() => {
+          if (open) { setOpen(false); setQuery(''); setTyped(false); return }
+          setOpen(true); setActive(0); box.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true })
+        }}
+        className="field-chevron field-chevron-btn tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground hover:bg-accent">
         <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
       </button>
 
@@ -2818,10 +2879,17 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
 export function ErrorState({ error }: { error: unknown }) {
   const raw = error instanceof Error ? error.message.trim() : ''
   const refused = (error instanceof ApiError && error.status === 403) || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
-  const msg = refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.' : raw || 'Something went wrong. Try again, or reload the page.'
+  /* A 401 is a sign-in that has ended (identity.ts found no live session),
+     never a missing permission. It printed the server's bare "unauthorized"
+     (owner, 2026-10-28, Master timetable on a phone); now it says what to do. */
+  const ended = (error instanceof ApiError && error.status === 401) || /^unauthorized.?$/i.test(raw)
+  const msg = ended ? 'Your sign-in has ended. Sign in again to see this.'
+    : refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.'
+    : raw || 'Something went wrong. Try again, or reload the page.'
   return (
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
+      {ended && <div className="mt-3 flex justify-center"><a href="/login" className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Sign in again</a></div>}
       <div className="mt-2 flex justify-center"><CopyRef text={msg} /></div>
     </Card>
   )
@@ -3376,6 +3444,11 @@ export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
    "In progress" broke onto two lines and drew over its neighbour. */
 export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap'
 
+/* The same strip, filling its row on a phone with equal halves (or thirds),
+   so the active pill fills its share instead of hugging its words at the
+   left (owner, 2026-10-28, Master timetable). From sm up it is SEG_BAR. */
+export const SEG_BAR_FILL = 'flex w-full gap-1 rounded-md border bg-muted p-1 [&>*]:flex-1 [&>*]:whitespace-nowrap [&>*]:text-center sm:inline-flex sm:w-auto sm:[&>*]:flex-none'
+
 export function segClass(active: boolean): string {
   return active
     ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
@@ -3502,8 +3575,7 @@ export function Dialog({
         ? want.current
         : el?.querySelector<HTMLElement>('input:not([type=hidden]),select,textarea,[data-autofocus]')
     ;(first ?? el)?.focus({ preventScroll: true })
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockPageScroll()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Vetoed: the key stays live for whoever asked to keep the dialog.
@@ -3524,7 +3596,7 @@ export function Dialog({
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prev
+      unlock()
       restoreFocus(opener)
     }
   }, [open])
@@ -3538,7 +3610,7 @@ export function Dialog({
     <div
       data-closing={closing || undefined}
       className={cn(
-        'scrim fixed inset-0 flex justify-center',
+        'scrim vv-screen-phone fixed inset-0 flex justify-center',
         overlay === 'none' ? 'pointer-events-none bg-transparent' : 'bg-black/40',
         raised ? 'z-[110]' : 'z-[70]',
         full
@@ -3565,11 +3637,11 @@ export function Dialog({
         className={cn(
           'ui-dialog pointer-events-auto flex w-full flex-col overflow-hidden bg-card text-card-foreground outline-none',
           full
-            ? 'h-[100dvh] max-h-none rounded-none'
+            ? 'h-[100dvh] max-h-none rounded-none max-md:h-full'
             : placement === 'top'
               ? cn('max-h-[80dvh] rounded-[var(--radius-dialog)] border border-[color:var(--hairline-lifted)] shadow-[var(--elev-3)] sm:max-h-[min(76dvh,860px)]', width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size])
               : cn(
-                  'max-h-[92dvh] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
+                  'max-h-[92dvh] max-md:max-h-[92%] rounded-t-[var(--radius-dialog)] shadow-[var(--elev-3-up)]',
                   'sm:max-h-[min(88dvh,860px)] sm:rounded-[var(--radius-dialog)] sm:border sm:border-[color:var(--hairline-lifted)] sm:shadow-[var(--elev-3)]',
                   width ? 'sm:max-w-[var(--dialog-w)]' : DIALOG_W[size],
                 ),
@@ -3582,7 +3654,7 @@ export function Dialog({
           <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" />
         )}
         {(title || description || actions) && (
-          <div className="flex shrink-0 flex-wrap items-start gap-x-3 border-b px-5 pb-3 pt-3 sm:flex-nowrap sm:px-6 sm:pt-4">
+          <div className="flex shrink-0 flex-wrap items-start gap-x-3 border-b px-4 pb-3 pt-3 sm:flex-nowrap sm:px-6 sm:pt-4">
             <div className="min-w-0 flex-1 pt-1.5">
               {title && <h2 className="text-[16px] font-semibold leading-snug">{title}</h2>}
               {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
@@ -3590,21 +3662,16 @@ export function Dialog({
             {/* On a phone the actions take a row of their own under the title:
                 three buttons beside it left the title one letter wide. */}
             {actions && <div className="order-last -ml-2 flex w-full flex-wrap items-center gap-1 pt-1 sm:order-none sm:ml-0 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-0.5">{actions}</div>}
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <GlassIconButton label="Close" onClick={close} className="-mr-1">
               <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            </button>
+            </GlassIconButton>
           </div>
         )}
-        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-5 py-4 sm:px-6')}>{children}</div>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'px-4 py-4 sm:px-6')}>{children}</div>
         {footer && (
           <div
-            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-5 py-3 sm:px-6"
-            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-[hsl(var(--surface-subtle))] px-4 py-3 sm:px-6"
+            style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
           >
             {footer}
           </div>
@@ -3613,5 +3680,35 @@ export function Dialog({
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* GLASS ICON BUTTON (owner, 2026-10-26: "the cross should be GLASS like iOS,
+   and when I touch it, it moves and increases the size"). The one round
+   close / back key: drawer ✕, every phone ← and the dialog close. Look and
+   press live in index.css under .glass-btn, its own class so the global
+   "buttons shrink 0.98 / rows don't scale" rules never cancel the grow. */
+export function GlassIconButton({
+  label, onClick, children, className, size = 'md', title,
+}: {
+  label: string
+  onClick?: () => void
+  children: ReactNode
+  className?: string
+  /** md = 44px (48 on a phone), sm = 40px (48 on a phone). */
+  size?: 'sm' | 'md'
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={title ?? label}
+      data-glass=""
+      className={cn('glass-btn', size === 'sm' ? 'glass-btn--sm' : null, className)}
+    >
+      {children}
+    </button>
   )
 }

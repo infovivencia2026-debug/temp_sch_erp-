@@ -87,8 +87,8 @@ describe('class status: what a look costs', () => {
     const v = await count('parent', item.seen_url + '&last=1', 'POST')
     console.log('view reads', v.reads)
     expect(v.status).toBe(200)
-    // Was 18: the post, the view, the bell.
-    expect(v.reads).toBe(SIGN_IN + 3)
+    // Was 18: the post, the view, the bell, and the live-change note (live_changes.ts, 2026-10-27).
+    expect(v.reads).toBe(SIGN_IN + 4)
     const seen = await E.TENANT_TEST.prepare('SELECT student_id FROM status_views WHERE post_id = ? AND user_id = ?').bind(item.id, IDS.parent).first<{ student_id: string | null }>()
     expect(seen?.student_id).toBe(IDS.child)
     const bell = await E.TENANT_TEST.prepare(`SELECT read_at FROM notifications WHERE user_id = ? AND kind = 'status'`).bind(IDS.parent).first<{ read_at: string | null }>()

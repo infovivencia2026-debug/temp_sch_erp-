@@ -1151,30 +1151,67 @@
     height: var(--control-h);
     width: 100%;
     border-radius: var(--radius-input);
-    padding-inline: 12px;
+    padding-inline: 16px;
     font-size: 14px;
-    border: 1px solid transparent;
-    background: hsl(var(--card));
+    /* FROSTED BOX (owner, 2026-10-26: "why all dropdowns box disappeared???",
+       design gemini-code-1792989420521.html). Every field -- dropdown,
+       input, textarea -- is a visible frosted box: translucent card, 10px
+       blur, a token border that still shows on a white card. */
+    border: 1px solid hsl(var(--border-strong) / 0.75);
+    background: hsl(var(--card) / 0.55);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     color: hsl(var(--foreground));
-    /* Inset, not raised. A field and a card were the same white rectangle
-       with the same hairline; the shade inside the top edge is what makes
-       one read as a place to type and the other as a thing to read. */
-    box-shadow: var(--field-shadow);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
   }
-  /* A BOX DOES NOT ANSWER THE POINTER.
-
-     Every input and search box darkened its border as the cursor crossed it.
-     A button does that because it can be pressed and the wash says so; a text
-     box cannot be pressed, it is typed into, and the only state worth drawing
-     is the one that says where the typing will go. On a screen of a dozen
-     fields the effect was a border lighting up under the pointer on the way
-     to somewhere else, which reads as the page reacting to nothing. Focus
-     still marks the box, as it always did. */
+  /* Hover look on phone AND web (owner: "HOVER SHOULD BE THERE IN BOTH
+     PHONE AND WEB"): phones have no hover, so press, focus and an open
+     dropdown draw the same lift, primary border and glow. */
+  .field:not(:disabled):hover,
+  .field:not(:disabled):focus-visible,
+  .field:not(:disabled):active,
+  .field[aria-expanded='true'] {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
+  .field:not(:disabled):active { transform: translateY(-2px) scale(0.99); }
+  /* THE CHEVRON MOVES WITH ITS FIELD (owner, 2026-10-26: "when buttons
+     hover those should also hover with that"). Every dropdown's arrow --
+     Select, PickerMenu, the phone SheetTrigger, settings DropdownRow --
+     carries .field-chevron. Hover/press/focus on its trigger, or the list
+     being open, turns it primary with a small nudge. `translate` is its own
+     property, so Tailwind's rotate-180 (open = ^) still applies. */
+  .field-chevron { transition: color 0.2s ease, opacity 0.2s ease, translate 0.2s ease, background-color 0.2s ease, transform 0.2s ease; }
+  :is(button, .field):not(:disabled):is(:hover, :active, :focus-visible) .field-chevron,
+  [aria-expanded='true'] .field-chevron {
+    color: hsl(var(--primary));
+    opacity: 1;
+  }
+  :is(button, .field):not(:disabled):is(:hover, :active) .field-chevron { translate: 0 1px; }
+  /* Select draws its arrow as a sibling button over the input, so it
+     follows the input's lift (-2px) and lifts the input when it is the one
+     hovered -- the two move as one control. */
+  .field:not(:disabled):is(:hover, :focus, :active, [aria-expanded='true']) + .field-chevron-btn,
+  .field-chevron-btn:hover,
+  .field-chevron-btn[aria-expanded='true'] {
+    color: hsl(var(--primary));
+    translate: 0 -2px;
+  }
+  .field-chevron-btn:active { translate: 0 -1px; }
+  .field:not(:disabled):has(+ .field-chevron-btn:hover) {
+    background: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px hsl(var(--primary) / 0.14);
+  }
   .field:focus {
     outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: var(--field-shadow), var(--ring-halo);
+    border-color: hsl(var(--primary));
+    background: hsl(var(--card) / 0.9);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15), 0 6px 16px hsl(var(--primary) / 0.1);
   }
   /* The same recess for an input that is not a .field -- the launcher's
      filter box, a search bar drawn in utilities. */
@@ -4746,7 +4783,7 @@ html[data-reduce-motion] :active { transform: none !important; }
    it slides into the screen edge leaving a sliver (AssistantTab). */
 @media (max-width: 767px) {
   [data-assistant-orb] { transition: transform 220ms var(--motion-ease, ease), opacity 220ms ease; }
-  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 0.75rem - 12px)); opacity: 0.75; }
+  [data-assistant-orb][data-tucked] { transform: translateX(calc(100% + 1rem + env(safe-area-inset-right, 0px) - 12px)); opacity: 0.75; }
   [data-assistant-orb][data-tucked]:focus-visible { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { [data-assistant-orb] { transition: none; } }
@@ -5054,7 +5091,8 @@ input[type="number"]::-webkit-inner-spin-button {
   header[data-paint='topbar'] button svg,
   header[data-paint='topbar'] a[aria-label] svg { width: 24px; height: 24px; }
   .nav-line-icon { width: 24px !important; height: 24px !important; }
-  [role='tab'] { min-height: 48px; }
+  /* Not the Focus page dots: a 48px-tall 7px dot is a line (owner, 2026-10-24). */
+  [role='tab']:not(.bento-dot) { min-height: 48px; }
 }
 
 /* Side-panel rows (owner's side-panel design, 2026-10-24): a nav row or group
@@ -5069,3 +5107,358 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 48px; height: 48px; }
   .staff-foot-settings button svg { width: 24px; height: 24px; }
 }
+/* Help, Settings and Sign out on the profile card show the same hover
+   (owner, 2026-10-24): the same wash as the side-menu rows and the icon in full ink. */
+.staff-foot-settings button {
+  display: grid; place-items: center;
+  border-radius: 10px; color: hsl(var(--muted-foreground));
+  transition: background-color 150ms, color 150ms;
+}
+@media (min-width: 640px) {
+  .staff-foot-settings button { width: 40px; height: 40px; }
+}
+@media (hover: hover) {
+
+}
+
+/* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
+   screens use hard-coded Tailwind sizes (text-[13px], h-4 icons, h-9 buttons)
+   that escaped the block above. On phones they are pulled onto the scale:
+   body 16, secondary 14, caption 12, icons in controls 24, targets 48.
+   Desktop keeps the classes as written. */
+@media (max-width: 639.98px) {
+  .text-\[13px\], .text-\[15px\], .text-base {
+    font-size: calc(16px * var(--font-scale)) !important;
+    line-height: 1.45 !important;
+  }
+  .text-sm, .text-\[14px\] { font-size: calc(14px * var(--font-scale)) !important; }
+  .text-xs, .text-\[10px\], .text-\[11px\], .text-\[12px\] {
+    font-size: calc(12px * var(--font-scale)) !important;
+  }
+  .text-lg, .text-xl, .text-\[17px\], .text-\[18px\] { font-size: calc(20px * var(--font-scale)) !important; }
+  .text-2xl { font-size: calc(24px * var(--font-scale)) !important; }
+  input:not([type='checkbox']):not([type='radio']), select, textarea {
+    font-size: calc(16px * var(--font-scale)) !important;
+  }
+  /* Every button and button-like link is a 48 target; its icon draws at 24. */
+  /* Not the Focus page dots: 7px dots with their own hit area (restored 2026-10-26; this rule drew them as 48px blobs). */
+  main button:not([role='switch']):not(.bento-dot), main a[role='button'], nav button, nav a[aria-label] {
+    min-height: 48px;
+  }
+  main button[aria-label]:not(.bento-dot), nav button[aria-label], nav a[aria-label] { min-width: 48px; }
+  main :is(button, a) svg.lucide, nav :is(button, a) svg.lucide { width: 24px; height: 24px; }
+}
+
+/* NO GREY ON PRESS (owner, 2026-10-24: "I still see grey when cursor click and
+   hold, and also same on phones"). A wash-only control (a hover tint and no
+   background of its own) shows no tint while held, and on a touch screen,
+   where :hover sticks after a tap, no tint at all. Long-press selects no text
+   and opens no callout on controls. */
+:is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):active {
+  background-color: transparent !important;
+}
+@media (hover: none) {
+  :is(button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], summary, [data-row])[class*='hover:bg-']:not([class*=' bg-']):not([class^='bg-']):hover {
+    background-color: transparent !important;
+  }
+  :is(button, a, [role='button'], [role='tab'], [data-row], summary) {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+}
+
+/* THE PILL MENU (Yajur, 2026-10-24; StaffShell PILL_HUES). Each row carries its
+   own hue in --h: a pastel round badge in that hue, and when a group is open
+   its card takes a wash and a border of the same hue. */
+.nav-pill {
+  --pill-ink: hsl(var(--h) 75% 38%);
+  --pill-badge: hsl(var(--h) 85% 93%);
+  --pill-wash: hsl(var(--h) 90% 97%);
+  display: block; padding: 2px; border-radius: 9999px;
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .02), 0 2px 4px -1px rgb(0 0 0 / .02);
+  transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease;
+}
+.dark .nav-pill, [data-theme='dark'] .nav-pill {
+  --pill-ink: hsl(var(--h) 70% 72%);
+  --pill-badge: hsl(var(--h) 35% 22%);
+  --pill-wash: hsl(var(--h) 30% 13%);
+}
+.nav-pill[data-open], .nav-pill.nav-pill--on {
+  border-radius: 22px; border-color: var(--pill-ink); background: var(--pill-wash);
+  box-shadow: 0 10px 20px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+}
+.nav-pill.nav-pill--on { border-radius: 9999px; }
+.nav-pill__head {
+  display: flex; width: 100%; align-items: center; gap: 12px; min-height: 34px;
+  padding: 2px 12px 2px 3px; border-radius: 9999px; text-align: left;
+  font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; color: hsl(var(--foreground));
+}
+a.nav-pill.nav-pill__head { padding: 3px 14px 3px 4px; }
+.nav-pill__badge {
+  display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 9999px;
+  background: var(--pill-badge); color: var(--pill-ink); transition: transform .25s ease;
+}
+.nav-pill__badge svg { width: 17px; height: 17px; }
+.nav-pill__arrow { width: 18px; height: 18px; flex-shrink: 0; color: hsl(var(--muted-foreground) / .5); transition: transform .3s ease, color .25s ease; }
+.nav-pill[data-open] .nav-pill__arrow, .nav-pill--on .nav-pill__arrow { transform: rotate(90deg); color: var(--pill-ink); }
+.nav-pill--on .nav-pill__arrow { transform: none; }
+.nav-pill__sub { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 10px; }
+.nav-pill__sub a { border-radius: 14px; font-size: calc(15px * var(--font-scale, 1)); }
+.nav-pill__sub a:hover { color: var(--pill-ink); }
+.nav-pill__sub .nav-pill__item--on { color: var(--pill-ink); background: hsl(var(--card) / .7); }
+@media (max-width: 639.98px) {
+  .nav-pill__head { font-size: 16px; }
+  .nav-pill__sub a { font-size: 15px; min-height: 48px; }
+}
+/* Thin pills (owner, 2026-10-24: "make those thin" in the sidebar): the phone
+   48px floor for buttons does not apply to a pill's head row. */
+@media (max-width: 639.98px) {
+  nav .nav-pill__head, nav button.nav-pill__head, nav a.nav-pill__head { min-height: 38px !important; }
+  nav .nav-pill__badge svg { width: 17px !important; height: 17px !important; }
+}
+/* A pill group opens smoothly (owner's design: max-height .35s
+   cubic-bezier(.4,0,.2,1)); grid rows animate to the content's real height. */
+.nav-pill__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body { grid-template-rows: 1fr; }
+.nav-pill__body > .nav-pill__sub { min-height: 0; overflow: hidden; padding-bottom: 0; transition: padding-bottom .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { padding-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .nav-pill__body, .nav-pill__body > .nav-pill__sub { transition: none; } }
+/* Hover, as in the owner's design: the card lifts 2px and takes its hue's wash,
+   border and shadow; the badge grows and the arrow steps right. Pointer
+   devices only, so a finger never leaves a row stuck in its hover state. */
+@media (hover: hover) {
+  .nav-pill { transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease, border-radius .25s ease, transform .25s ease; }
+  .nav-pill:hover {
+    background: var(--pill-wash); border-color: var(--pill-ink); transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px hsl(var(--h) 75% 40% / .1), 0 4px 6px -4px hsl(var(--h) 75% 40% / .1);
+  }
+  .nav-pill[data-open]:hover { transform: none; }
+  .nav-pill:hover > .nav-pill__head .nav-pill__badge, a.nav-pill:hover .nav-pill__badge { transform: scale(1.1); }
+  .nav-pill:not([data-open]):hover .nav-pill__arrow { color: var(--pill-ink); transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { .nav-pill:hover { transform: none; } }
+
+/* Thin rows sit closer together (owner, 2026-10-24: "make them thin"). */
+nav:has(> .nav-pill) { gap: 12px !important; }
+/* Smoother open and close (owner, 2026-10-24: "open and closing the dropdowns
+   still need to be improved"). A 9999px radius cannot animate to 22px without
+   a jump, so a closed pill uses 24px (still fully round at this height); the
+   items fade and settle as the rows open, and fade out before they close. */
+.nav-pill { border-radius: 24px; }
+.nav-pill[data-open] { border-radius: 22px; }
+.nav-pill__head { border-radius: 22px; }
+.nav-pill__body > .nav-pill__sub { opacity: 0; transform: translateY(-4px);
+  transition: padding-bottom .35s cubic-bezier(.4, 0, .2, 1), opacity .2s ease, transform .35s cubic-bezier(.4, 0, .2, 1); }
+.nav-pill[data-open] > .nav-pill__body > .nav-pill__sub { opacity: 1; transform: none; transition-delay: 0s, .08s, 0s; }
+@media (prefers-reduced-motion: reduce) { .nav-pill__body > .nav-pill__sub { transition: none; transform: none; } }
+
+/* THE PHONE'S FULL-SCREEN LAYERS FOLLOW THE VISIBLE SCREEN (2026-10-26).
+
+   inset-0 and 100dvh are the LAYOUT viewport, which iOS never shrinks for the
+   keyboard: the conversation kept the whole screen's height, its composer
+   floated mid-screen and the contact list showed between it and the keys.
+   --vvh / --vv-top are the visual viewport (lib/keyboard.ts), so the layer is
+   exactly the visible part of the screen, its last row (composer, Save bar)
+   sits on the keyboard, and nothing underneath can show. Below md only, so a
+   desk's side panel or centred card is unchanged. The layers keep their own
+   opaque backgrounds. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: var(--vv-top, 0px) !important;
+    bottom: auto !important;
+    height: var(--vvh, 100dvh) !important;
+    max-height: none !important;
+  }
+}
+/* The page under an open layer does not scroll (lockPageScroll). */
+html[data-page-locked],
+html[data-page-locked] body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+/* GLASS ICON BUTTON (owner, 2026-10-26). iOS liquid glass: a translucent,
+   blurred, saturated disc with a hairline highlight and a soft shadow. On
+   press it grows and lifts on the spring (transform + filter only); under
+   reduced motion it does not move. Own class, after the global :active
+   rules and more specific, so the 0.98 shrink never wins. */
+.glass-btn {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.6);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.45), 0 2px 8px hsl(0 0% 0% / 0.10), 0 0 0 0.5px hsl(0 0% 0% / 0.06);
+  transform: translateZ(0);
+}
+.glass-btn--sm { width: 40px; height: 40px; }
+@media (max-width: 639px) { .glass-btn, .glass-btn--sm { width: 48px; height: 48px; } }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-btn {
+    background: hsl(var(--card) / 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+}
+.glass-btn:hover { background: hsl(var(--card) / 0.75); }
+.glass-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--ring)); }
+button.glass-btn:active:not(:disabled) {
+  transform: scale(1.1) translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 6px 16px hsl(0 0% 0% / 0.16);
+  transition-duration: var(--motion-press);
+  transition-timing-function: var(--motion-spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  button.glass-btn, button.glass-btn:active:not(:disabled) { transform: none; transition-duration: 0ms; }
+}
+/* Over a photo or video (status viewer): dark glass, white glyph. */
+.glass-btn.glass-btn--dark { color: #fff; border-color: hsl(0 0% 100% / 0.18); background: hsl(0 0% 0% / 0.45); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-btn.glass-btn--dark { background: hsl(0 0% 100% / 0.14); }
+}
+
+/* THE PHONE DROPDOWN'S SEARCH FIELD (owner design, 2026-10-26,
+   docs/owner-designs/2026-10-26-phone-dropdown-search.html): muted fill at
+   rest; on focus the card colour with a primary edge and a soft primary ring,
+   drawn as box-shadow, not a border. Specific enough to beat the generic
+   search-field rule above. */
+[data-option-sheet] input.option-sheet-search.option-sheet-search {
+  background-color: hsl(var(--muted));
+  box-shadow: 0 0 0 1px transparent !important;
+}
+[data-option-sheet] input.option-sheet-search.option-sheet-search:focus {
+  background-color: hsl(var(--card));
+  box-shadow: 0 0 0 1px hsl(var(--primary)), 0 0 0 4px hsl(var(--primary) / 0.1) !important;
+}
+
+/* BELOW THE VISIBLE EDGE (owner's iPhone, 2026-10-26: the page showed in a
+   strip between the dropdown sheet and the keyboard). iOS Safari's visual
+   viewport ends above its floating address bar, so a layer sized to it leaves
+   that strip uncovered. The sheet's surface and the dimmed backdrop continue
+   past the edge, and every full-screen phone layer paints its own background
+   there too, so nothing underneath can show. */
+@media (max-width: 767.98px) {
+  .vv-screen-phone { overflow: visible !important; }
+  .vv-screen-phone::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--background)); pointer-events: auto;
+  }
+  .option-sheet-backdrop { bottom: -60vh !important; }
+  .option-sheet-panel::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 60vh;
+    background: hsl(var(--card)); pointer-events: auto;
+  }
+}
+
+/* CLASSROOM BOARDS AND OTHER BIG TOUCH SCREENS (owner, 2026-10-26: "Sensus
+   board, Dahua boards"). 65-86 inch interactive panels: Android Chrome or a
+   WebView, 1920x1080 or 3840x2160, touch only, read from across a room.
+   Generic media queries, nothing tied to a make.
+
+   1. Touch without hover, wider than a phone: every target 48px (the phone
+      block above does this below 640px), settings rows and bands grown to
+      match, and no text under 14px. Measured at 1920x1080 coarse: dock
+      buttons, settings rows and dropdowns were 44px, captions 12-13px. */
+@media (pointer: coarse) and (hover: none) and (min-width: 640px) {
+  :root { --control-h: 48px; }
+  [style*='--srow-h'] { --srow-h: 52px !important; --srow-py: 8px !important; }
+  [style*='--sband-h'] { --sband-h: 48px !important; }
+  /* The slider's box is its target: 48 tall, the 6px track still centred. */
+  html:root [data-slider-row] > input[type='range'] { height: 48px !important; padding-top: 21px !important; padding-bottom: 21px !important; }
+  :where(
+    button, select, summary,
+    [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option'],
+    input:not([type='hidden']):not([type='range']):not([type='checkbox']):not([type='radio'])
+  ):not(.tap-inline):not(.bento-dot) { min-height: 48px; }
+  :where(
+    button, select, summary,
+    [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option']
+  ):not(.tap-inline):not(.bento-dot) { min-width: 48px; }
+  /* A link drawn as a row (Sign out, My profile) is a target too. */
+  :is(main, .settings-screen) a[href]:is([class*='min-h-'], [class*='flex']) { min-height: 48px !important; }
+  html:root :is(.text-xs, .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[11\.5px\],
+    .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\]) {
+    font-size: calc(14px * var(--font-scale, 1)) !important;
+  }
+  html:root .text-\[15px\] { font-size: max(14px, calc(15px * var(--font-scale, 1))) !important; }
+}
+
+/* Profile card Help, Settings and Sign out hover like the side-menu pills
+   (owner, 2026-10-27: "like how other things hover"): a 2px lift, the
+   primary's wash, a hairline border and a soft shadow; the icon grows a
+   touch. Pointer devices only, so a finger never leaves it stuck. */
+.foot-icon, .staff-foot-settings button { border: 1px solid transparent; }
+@media (hover: hover) {
+  .foot-icon, .staff-foot-settings button {
+    transition: transform .25s ease, background-color .25s ease, border-color .25s ease, box-shadow .25s ease, color .25s ease;
+  }
+  .foot-icon:hover, .staff-foot-settings button:hover {
+    transform: translateY(-2px);
+    background: hsl(var(--primary) / .08); border-color: hsl(var(--primary) / .45); color: hsl(var(--primary));
+    box-shadow: 0 10px 15px -3px hsl(var(--primary) / .12), 0 4px 6px -4px hsl(var(--primary) / .12);
+  }
+  .foot-icon:hover svg, .staff-foot-settings button:hover svg { transform: scale(1.1); transition: transform .25s ease; }
+}
+@media (prefers-reduced-motion: reduce) { .foot-icon:hover, .staff-foot-settings button:hover { transform: none; } }
+
+/* PHONE SEARCH (owner, 2026-10-27): the palette opens from the top bar's icon;
+   the page behind is blurred and lightly dimmed, and a tap on it closes.
+   Round (owner, 2026-10-27, "make it round, not cut off, smooth like
+   Telegram"): one floating card, 20px on all four corners, 12px from the
+   sides, its height held inside the VISIBLE viewport (the scrim is the visual
+   viewport via vv-screen-phone) so the bottom corners stay above the
+   keyboard; the results fade out at the card's bottom edge instead of a hard
+   cut. It grows out of the icon (--search-ox/--search-oy, set on tap) and the
+   rows follow 40ms apart. Transform and opacity only; instant under reduced
+   motion. Desktop is unchanged. */
+@media (max-width: 639px) {
+  .scrim.search-sheet {
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0;
+    background: hsl(var(--background) / 0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    animation: scrim-in 260ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .scrim.search-sheet > [role='dialog'] {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px -8px rgb(0 0 0 / .22), 0 2px 8px rgb(0 0 0 / .08);
+    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px));
+    transform-origin: calc(var(--search-ox, 50vw) - 12px) calc(var(--search-oy, 0px) - var(--vv-top, 0px) - 8px - env(safe-area-inset-top, 0px));
+    animation: search-card-in 260ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  /* The results take what the card has left (field 48px, footer ~34px). */
+  .scrim.search-sheet .search-results {
+    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px) - 84px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    overscroll-behavior: contain;
+  }
+  .scrim.search-sheet .search-results > ul > li { animation: search-row-in 220ms cubic-bezier(.2, .8, .2, 1) 240ms both; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(1) { animation-delay: 80ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(2) { animation-delay: 120ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(3) { animation-delay: 160ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(4) { animation-delay: 200ms; }
+  .scrim.search-sheet[data-closing],
+  .scrim.search-sheet[data-ghost] { animation: scrim-out 200ms cubic-bezier(.2, .8, .2, 1) both !important; }
+  .scrim.search-sheet[data-closing] > [role='dialog'],
+  .scrim.search-sheet[data-ghost] > [role='dialog'] { animation: search-card-out 200ms cubic-bezier(.4, 0, .2, 1) both !important; }
+  .scrim.search-sheet input { font-size: 16px; }
+}
+@keyframes search-card-in { from { opacity: 0; transform: scale(.12, .08); } 40% { opacity: 1; } }
+@keyframes search-card-out { to { opacity: 0; transform: scale(.12, .08); } }
+@keyframes search-row-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .scrim.search-sheet, .scrim.search-sheet > [role='dialog'],
+  .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
+html[data-reduce-motion] .scrim.search-sheet,
+html[data-reduce-motion] .scrim.search-sheet > [role='dialog'],
+html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }

@@ -4,6 +4,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './bento-ink'
+import { OptionSheet, inOptionSheet, useIsPhone } from '@/components/OptionSheet'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
@@ -246,6 +247,7 @@ export function DropdownRow<T extends string>({
   optionStyle?: (v: T) => React.CSSProperties
 }) {
   const [open, setOpen] = useOpenState(false)
+  const phone = useIsPhone()
   const ref = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   /* ON TOP OF THE PAGE, NOT INSIDE THE CARD (owner, 2026-10-09: the menu was
@@ -253,7 +255,7 @@ export function DropdownRow<T extends string>({
      when there is not room under it. */
   const [pos, setPos] = useState<React.CSSProperties | null>(null)
   useLayoutEffect(() => {
-    if (!open) { setPos(null); return }
+    if (!open || phone) { setPos(null); return }
     const place = () => {
       const b = ref.current?.getBoundingClientRect()
       if (!b) return
@@ -268,7 +270,7 @@ export function DropdownRow<T extends string>({
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
-  }, [open, options.length])
+  }, [open, options.length, phone])
 
   // Close on a click anywhere outside, and on Escape -- the two exits every
   // menu needs, mirrored on what the native picker did for free.
@@ -276,7 +278,7 @@ export function DropdownRow<T extends string>({
     if (!open) return
     const onDoc = (e: PointerEvent) => {
       const t = e.target as Node
-      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t)) setOpen(false)
+      if (ref.current && !ref.current.contains(t) && !listRef.current?.contains(t) && !inOptionSheet(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('pointerdown', onDoc)
@@ -304,18 +306,26 @@ export function DropdownRow<T extends string>({
         >
           <span style={valueStyle}>{name(value)}</span>
           <ChevronDown
-            className={cn('size-4 opacity-60 transition-transform', open && 'rotate-180')}
+            className={cn('field-chevron size-4 opacity-60 transition-transform', open && 'rotate-180')}
             aria-hidden="true"
           />
         </button>
-        {open && pos && createPortal(
+        <OptionSheet
+          open={open && phone}
+          onClose={() => setOpen(false)}
+          title={label}
+          options={options.map((o) => ({ value: o, label: name(o), text: name(o), style: optionStyle?.(o) }))}
+          value={value}
+          onPick={(v) => onPick(v as T)}
+        />
+        {open && !phone && pos && createPortal(
           <ul
             ref={listRef}
             role="listbox"
             aria-label={label}
             style={pos}
             className={cn(
-              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60vh] overflow-y-auto',
+              'z-[300] min-w-[190px] max-w-[min(260px,80vw)] max-h-[60dvh] overflow-y-auto',
               'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
               SEAM, SURFACE,
             )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Columns3, MessageSquare, Pencil, Plus, Rows3, SlidersHorizontal } from 'lucide-react'
@@ -22,7 +22,8 @@ import { formatDate, cn } from '@/lib/utils'
 
    Two doors, one screen. HR's door (hr.tasks.staff_tasks) shows every task,
    the per-person report and who reports to whom. A teacher's door
-   (faculty.my_profile.my_tasks) shows their own and their team's. The route
+   (faculty.my_profile.my_tasks) shows only their own (owner, 2026-10-28: "only
+   their own tasks is enough; let them add"), with no "Who" anywhere. The route
    says which; the server narrows regardless of what the screen asks. */
 
 export default function StaffTasks() {
@@ -126,7 +127,7 @@ function DueChip({ t }: { t: Task }) {
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')
 
-function TaskCard({ t, onOpen, draggable }: { t: Task; onOpen: () => void; draggable: boolean }) {
+function TaskCard({ t, onOpen, draggable, own }: { t: Task; onOpen: () => void; draggable: boolean; own?: boolean }) {
   return (
     <button
       type="button"
@@ -147,15 +148,17 @@ function TaskCard({ t, onOpen, draggable }: { t: Task; onOpen: () => void; dragg
           <span className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground"><MessageSquare className="h-3 w-3" aria-hidden />{t.comments}</span>
         )}
       </span>
+      {own ? (t.reviewed && t.assigned_by && <span className="mt-2 block truncate text-[12px] text-muted-foreground">from {t.assigned_by}</span>) : (
       <span className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
         <span aria-hidden className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[10.5px] font-semibold text-foreground">{initials(t.assigned_to)}</span>
         <span className="min-w-0 truncate">{t.mine ? 'You' : t.assigned_to}{t.assigned_by ? ` · from ${t.assigned_by}` : ''}</span>
       </span>
+      )}
     </button>
   )
 }
 
-function Board({ items, onOpen, onMove }: { items: Task[]; onOpen: (id: string) => void; onMove: (t: Task, to: Stage) => void }) {
+function Board({ items, onOpen, onMove, own }: { items: Task[]; onOpen: (id: string) => void; onMove: (t: Task, to: Stage) => void; own?: boolean }) {
   const phone = usePhone()
   const [shown, setShown] = useState<Stage>('open')
   const [over, setOver] = useState<Stage | null>(null)
@@ -181,7 +184,7 @@ function Board({ items, onOpen, onMove }: { items: Task[]; onOpen: (id: string) 
         </header>
         {list.length === 0
           ? <p className="px-1 pb-2 text-[12px] text-muted-foreground">{s.hint}</p>
-          : list.map((t) => <TaskCard key={t.id} t={t} draggable={!phone} onOpen={() => onOpen(t.id)} />)}
+          : list.map((t) => <TaskCard key={t.id} t={t} own={own} draggable={!phone} onOpen={() => onOpen(t.id)} />)}
       </section>
     )
   }
@@ -204,7 +207,7 @@ function Board({ items, onOpen, onMove }: { items: Task[]; onOpen: (id: string) 
 
 /* One task: what it is, where it has got to, what the reader can do next,
    its story, and (for whoever steers it) the details to change. */
-function TaskDialog({ id, onClose, move }: { id: string; onClose: () => void; move: (v: { id: string; action: Action; note?: string }) => Promise<unknown> }) {
+function TaskDialog({ id, onClose, move, own }: { id: string; onClose: () => void; move: (v: { id: string; action: Action; note?: string }) => Promise<unknown>; own?: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const q = useQuery({ queryKey: ['staff-task', id], queryFn: () => api.get<TaskDetail>(`/api/v1/hr/tasks/${id}`) })
@@ -212,7 +215,7 @@ function TaskDialog({ id, onClose, move }: { id: string; onClose: () => void; mo
   const [comment, setComment] = useState('')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ title: '', detail: '', due_on: '', priority: 'normal', assigned_to: '' })
-  const staff = useQuery({ queryKey: ['work-pattern-staff'], queryFn: () => api.get<{ items: Staff[] }>('/api/v1/setup/work-patterns/staff'), enabled: editing })
+  const staff = useQuery({ queryKey: ['work-pattern-staff'], queryFn: () => api.get<{ items: Staff[] }>('/api/v1/setup/work-patterns/staff'), enabled: editing && !own })
   const refresh = () => { qc.invalidateQueries({ queryKey: ['staff-task', id] }); qc.invalidateQueries({ queryKey: ['staff-tasks'] }) }
   const act = useMutation({
     mutationFn: (v: { action: Action; note?: string }) => move({ id, ...v }),
@@ -223,15 +226,24 @@ function TaskDialog({ id, onClose, move }: { id: string; onClose: () => void; mo
     onSuccess: () => { setComment(''); refresh() },
   })
   const save = useMutation({
-    mutationFn: () => api.patch(`/api/v1/hr/tasks/${id}`, { ...form, detail: form.detail, due_on: form.due_on }),
+    mutationFn: () => {
+      const { assigned_to, ...rest } = form
+      return api.patch(`/api/v1/hr/tasks/${id}`, own ? rest : { ...rest, assigned_to })
+    },
     onSuccess: () => { setEditing(false); toast.ok('Task changed'); refresh() },
+  })
+  /* One's own to-do (set by oneself) may be deleted. */
+  const [confirmDel, setConfirmDel] = useState(false)
+  const del = useMutation({
+    mutationFn: () => api.del(`/api/v1/hr/tasks/${id}`),
+    onSuccess: () => { buzz('warn'); toast.ok('Task deleted'); qc.invalidateQueries({ queryKey: ['staff-tasks'] }); onClose() },
   })
   const t = q.data
   const live = t && t.status !== 'done' && t.status !== 'cancelled'
   const actions = t ? actionsFor(t) : []
   const sendBack = actions.find((a) => a.needsNote)
   return (
-    <Dialog title={t?.title ?? 'Task'} description={t ? `${STATUS_LABEL[t.status]} · ${t.mine ? 'yours' : t.assigned_to}${t.assigned_by ? `, from ${t.assigned_by}` : ''}` : undefined}
+    <Dialog title={t?.title ?? 'Task'} description={t ? (own ? `${STATUS_LABEL[t.status]}${t.reviewed && t.assigned_by ? ` · from ${t.assigned_by}` : ''}` : `${STATUS_LABEL[t.status]} · ${t.mine ? 'yours' : t.assigned_to}${t.assigned_by ? `, from ${t.assigned_by}` : ''}`) : undefined}
       size="lg" onClose={onClose}>
       {q.isLoading ? <Loading shape="form" /> : q.error ? <ErrorState error={q.error} /> : t && (
         <div className="space-y-5">
@@ -239,10 +251,10 @@ function TaskDialog({ id, onClose, move }: { id: string; onClose: () => void; mo
             <div className="space-y-3">
               <Field label="What" required><Input value={form.title} onChange={(v) => setForm({ ...form, title: v })} /></Field>
               <FormGrid>
-                <Field label="Who">
+                {!own && <Field label="Who">
                   <Select value={form.assigned_to} onChange={(v) => setForm({ ...form, assigned_to: v })}
                     options={(staff.data?.items ?? []).map((e) => ({ value: e.id, label: e.full_name || e.employee_code }))} />
-                </Field>
+                </Field>}
                 <Field label="By when"><Input type="date" value={form.due_on} onChange={(v) => setForm({ ...form, due_on: v })} /></Field>
                 <Field label="Priority">
                   <Select value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} options={Object.entries(PRIORITY).map(([value, label]) => ({ value, label }))} />
@@ -269,6 +281,16 @@ function TaskDialog({ id, onClose, move }: { id: string; onClose: () => void; mo
                   setEditing(true)
                 }}><Pencil className="size-4" /> Change details</Button>
               )}
+              {t.mine && !t.reviewed && (confirmDel ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13.5px]">Delete this task for good?</span>
+                  <Button size="sm" tone="danger" disabled={del.isPending} pending={del.isPending} onClick={() => del.mutate()}>Delete</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDel(false)}>Keep it</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="ghost" tone="danger" onClick={() => setConfirmDel(true)}>Delete task</Button>
+              ))}
+              <FormNotice error={del.error} />
             </div>
           )}
 
@@ -359,7 +381,10 @@ function Tasks({ hr }: { hr: boolean }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [params, setParams] = useSearchParams()
-  const [scope, setScope] = useState<'mine' | 'team' | 'all'>(hr ? 'all' : 'mine')
+  /* No "Mine / My team / Everyone" switch (owner, 2026-10-28): staff see their
+     own tasks, HR's door every task. The API still takes for=team. */
+  const scope = hr ? 'all' : 'mine'
+  const own = !hr
   const [view, setView] = useState<'board' | 'list'>('board')
   const [due, setDue] = useState<'' | 'overdue' | 'week'>('')
   const [priority, setPriority] = useState('')
@@ -412,6 +437,7 @@ function Tasks({ hr }: { hr: boolean }) {
   const nOn = [due, priority, settled].filter(Boolean).length
   return (
     <div className="space-y-4">
+      {own && <AddTask />}
       <CellGrid cols={4}>
         <Stat label="To do" value={s.open} />
         <Stat label="In progress" value={s.in_progress} />
@@ -419,7 +445,7 @@ function Tasks({ hr }: { hr: boolean }) {
         <Stat label="Overdue" value={s.overdue} onClick={() => setDue(due === 'overdue' ? '' : 'overdue')} active={due === 'overdue'} />
       </CellGrid>
       <Card>
-        <CardHeader title="Tasks" action={<Button onClick={() => setAdding(true)}><Plus className="size-4" /> New task</Button>} />
+        <CardHeader title="Tasks" action={hr ? <Button onClick={() => setAdding(true)}><Plus className="size-4" /> New task</Button> : undefined} />
         <div className="flex flex-wrap items-center gap-3 px-[var(--card-pad)] pb-3 pt-3">
           {phone && (
             <Button size="sm" variant="secondary" ariaExpanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}>
@@ -427,11 +453,6 @@ function Tasks({ hr }: { hr: boolean }) {
             </Button>
           )}
           {showFilters && <>
-          <div className={SEG_BAR} role="group" aria-label="Whose">
-            {([['mine', 'Mine'], ['team', 'My team'], ...(hr ? [['all', 'Everyone'] as const] : [])] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={scope === k} className={segClass(scope === k)} onClick={() => setScope(k)}>{label}</button>
-            ))}
-          </div>
           <div className={SEG_BAR} role="group" aria-label="Due">
             {([['', 'Any time'], ['overdue', 'Overdue'], ['week', 'This week']] as const).map(([k, label]) => (
               <button key={k || 'any'} type="button" aria-pressed={due === k} className={segClass(due === k)} onClick={() => setDue(k)}>{label}</button>
@@ -439,7 +460,7 @@ function Tasks({ hr }: { hr: boolean }) {
           </div>
           <PickerMenu ariaLabel="Priority" value={priority} onChange={setPriority}
             options={[{ value: '', label: 'Any priority' }, ...Object.entries(PRIORITY).map(([value, label]) => ({ value, label }))]} />
-          <SearchBox value={text} onChange={setText} placeholder="Task or person" />
+          <SearchBox value={text} onChange={setText} placeholder={own ? 'Task' : 'Task or person'} />
           {narrowed && <Button size="sm" variant="ghost" onClick={() => { setDue(''); setPriority(''); setText('') }}>Clear</Button>}
           </>}
           {!phone && (
@@ -451,15 +472,15 @@ function Tasks({ hr }: { hr: boolean }) {
         </div>
         <div className="px-[var(--card-pad)] pb-[var(--card-pad)]">
           {q.isLoading ? <Loading shape="cards" /> : q.error ? <ErrorState error={q.error} /> : items.length === 0 ? (
-            <EmptyState title={narrowed ? 'No task matches.' : 'No tasks here.'} body={narrowed ? 'Clear the filters to see every task.' : 'Give somebody a task with New task.'} />
+            <EmptyState title={narrowed ? 'No task matches.' : 'No tasks here.'} body={narrowed ? 'Clear the filters to see every task.' : (own ? 'Add one with Add a task above.' : 'Give somebody a task with New task.')} />
           ) : view === 'board' || phone ? (
-            <Board items={items} onOpen={setOpen} onMove={onMove} />
+            <Board items={items} own={own} onOpen={setOpen} onMove={onMove} />
           ) : (
-            <Table head={['Task', 'Who', 'Due', 'Priority', 'Stage']}>
+            <Table head={own ? ['Task', 'Due', 'Priority', 'Stage'] : ['Task', 'Who', 'Due', 'Priority', 'Stage']}>
               {items.map((t) => (
                 <tr key={t.id} className="cursor-pointer hover:bg-accent/50" onClick={() => setOpen(t.id)}>
-                  <Td className="font-medium">{t.title}{t.assigned_by && <span className="block text-[11.5px] font-normal text-muted-foreground">from {t.assigned_by}</span>}</Td>
-                  <Td>{t.mine ? 'You' : t.assigned_to}</Td>
+                  <Td className="font-medium">{t.title}{t.assigned_by && (!own || t.reviewed) && <span className="block text-[11.5px] font-normal text-muted-foreground">from {t.assigned_by}</span>}</Td>
+                  {!own && <Td>{t.mine ? 'You' : t.assigned_to}</Td>}
                   <Td>{t.due_on ? <DueChip t={t} /> : <span className="text-muted-foreground">-</span>}</Td>
                   <Td>{t.priority === 'high' ? <Badge tone="danger">High</Badge> : <span className="text-muted-foreground">{PRIORITY[t.priority]}</span>}</Td>
                   <Td>{STATUS_LABEL[t.status]}</Td>
@@ -470,8 +491,87 @@ function Tasks({ hr }: { hr: boolean }) {
         </div>
       </Card>
       {adding && <NewTask onClose={() => setAdding(false)} onMade={() => { setAdding(false); toast.ok('Task given'); qc.invalidateQueries({ queryKey: ['staff-tasks'] }) }} />}
-      {open && <TaskDialog id={open} onClose={() => setOpen(null)} move={(v) => move.mutateAsync(v)} />}
+      {open && <TaskDialog id={open} onClose={() => setOpen(null)} own={own} move={(v) => move.mutateAsync(v)} />}
     </div>
+  )
+}
+
+/* Add a task: one's own to-do, laid out like the Leave screen's apply form
+   (owner, 2026-10-28): the button in the card's header opens the form in
+   place; once saved it shows read only, with Edit, until another is added. */
+function AddTask() {
+  const qc = useQueryClient()
+  const blank = { title: '', detail: '', due_on: '', priority: 'normal' }
+  const [openForm, setOpenForm] = useState(false)
+  const [form, setForm] = useState(blank)
+  const [sent, setSent] = useState<(typeof blank & { id: string }) | null>(null)
+  const [editing, setEditing] = useState(false)
+  const formRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!openForm) return
+    const el = formRef.current
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true })
+  }, [openForm])
+  const done = () => { setForm(blank); setEditing(false); setOpenForm(false); qc.invalidateQueries({ queryKey: ['staff-tasks'] }) }
+  const body = () => ({ title: form.title.trim(), detail: form.detail, due_on: form.due_on, priority: form.priority })
+  const add = useMutation({
+    mutationFn: () => api.post<{ id: string }>('/api/v1/hr/tasks', { ...body(), detail: form.detail || undefined, due_on: form.due_on || undefined }),
+    onSuccess: (r) => { buzz('tap'); setSent({ ...form, id: (r as { id: string }).id }); done() },
+  })
+  const save = useMutation({
+    mutationFn: () => api.patch(`/api/v1/hr/tasks/${sent!.id}`, body()),
+    onSuccess: () => { buzz('tap'); setSent({ ...form, id: sent!.id }); done() },
+  })
+  const cancel = () => { setEditing(false); setOpenForm(false); setForm(blank); save.reset(); add.reset() }
+  const pending = add.isPending || save.isPending
+  return (
+    <Card>
+      <CardHeader title="Add a task" description="Your own to-do. Only you see it."
+        action={
+          <div className="-mt-[5.25px] mb-[5.25px]">
+            <Button variant={openForm ? 'ghost' : 'primary'} onClick={() => (openForm ? cancel() : setOpenForm(true))}>
+              {openForm ? 'Cancel' : 'Add a task'}
+            </Button>
+          </div>
+        } />
+      {openForm && (
+        <div ref={formRef} className="scroll-mt-24 flex flex-col gap-3" style={{ padding: '0 var(--card-pad) var(--card-pad)' }}>
+          <Field label="What" required><Input value={form.title} onChange={(v) => setForm({ ...form, title: v })} /></Field>
+          <FormGrid>
+            <Field label="By when"><Input type="date" value={form.due_on} onChange={(v) => setForm({ ...form, due_on: v })} /></Field>
+            <Field label="Priority">
+              <Select value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} options={Object.entries(PRIORITY).map(([value, label]) => ({ value, label }))} />
+            </Field>
+          </FormGrid>
+          <Field label="Notes"><Textarea value={form.detail} onChange={(v) => setForm({ ...form, detail: v })} /></Field>
+          <FormNotice error={editing ? save.error : add.error} />
+          {editing ? (
+            <div className="flex flex-wrap gap-2">
+              <Button className="m-0" disabled={!form.title.trim() || pending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
+              <Button className="m-0" variant="secondary" onClick={cancel}>Cancel</Button>
+            </div>
+          ) : (
+            <Button className="m-0 self-start" disabled={!form.title.trim() || pending} onClick={() => add.mutate()}>{add.isPending ? 'Adding…' : 'Add task'}</Button>
+          )}
+        </div>
+      )}
+      {!openForm && sent && (
+        <div className="flex flex-col gap-3" style={{ padding: '0 var(--card-pad) var(--card-pad)' }}>
+          <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
+            <dt className="text-muted-foreground">Task</dt><dd className="m-0 break-words">{sent.title}</dd>
+            <dt className="text-muted-foreground">By when</dt><dd className="m-0">{sent.due_on ? formatDate(sent.due_on) : 'No date'}</dd>
+            <dt className="text-muted-foreground">Priority</dt><dd className="m-0">{PRIORITY[sent.priority]}</dd>
+            {sent.detail && <><dt className="text-muted-foreground">Notes</dt><dd className="m-0 whitespace-pre-wrap break-words">{sent.detail}</dd></>}
+          </dl>
+          <Button className="m-0 self-start" variant="secondary"
+            onClick={() => { const { id: _id, ...v } = sent; setForm(v); setEditing(true); setOpenForm(true) }}>
+            Edit
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }
 

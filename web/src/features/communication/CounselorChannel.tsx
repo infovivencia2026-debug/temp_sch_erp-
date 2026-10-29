@@ -365,7 +365,7 @@ export default function CounselorChannel() {
               {/* Folded under the chat: who is in it, and (for the counsellor)
                   adding somebody. Open on demand, so the thread keeps the
                   screen. */}
-              <details className="max-h-[45vh] shrink-0 overflow-auto border-t px-4 py-2">
+              <details className="max-h-[45dvh] shrink-0 overflow-auto border-t px-4 py-2">
                 <summary className="cursor-pointer text-[14px] font-semibold">
                   Who can read this conversation
                 </summary>

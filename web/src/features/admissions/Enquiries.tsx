@@ -477,7 +477,7 @@ function Board({ items, all, loading, error, today, term, setTerm, onOpen, onMov
                   {col.length}{pct !== null ? ` · ${pct}%` : ''}
                 </span>
               </div>
-              <div className="flex max-h-[60vh] min-h-[6rem] flex-col gap-2 overflow-y-auto p-2">
+              <div className="flex max-h-[60dvh] min-h-[6rem] flex-col gap-2 overflow-y-auto p-2">
                 {col.length === 0 && <div className="px-1 py-3 text-center text-[13px] text-muted-foreground">None</div>}
                 {col.map((e) => {
                   const late = e.next_follow_up && e.next_follow_up < today && OPEN(e.status)

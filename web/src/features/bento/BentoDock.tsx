@@ -52,6 +52,20 @@ const pickDockTab = (list: HTMLElement) =>
     ":scope > button[aria-current='page'], :scope > .dock-tab > button[aria-current='page'], :scope > .dock-tab > div > button[aria-current='page']",
   )
 
+/* 40px per mark plus the 2px gap, and the "+N" fold mark. */
+const MARK_W = 42
+const FOLD_W = 40
+/* Room for marks: the viewport less the dock's 3rem margins each side and
+   everything else in the dock at its natural width. */
+export function dockRoom(viewport: number, fixed: number, shave = 0): number {
+  return Math.floor(viewport - 96 - fixed - shave)
+}
+/* How many of n marks to draw in room px; null = not measured yet (all). */
+export function marksShown(n: number, room: number | null): number {
+  if (room == null || Math.floor(room / MARK_W) >= n) return n
+  return Math.max(0, Math.floor((room - FOLD_W) / MARK_W))
+}
+
 export function BentoDock() {
   const { layout } = useLayout()
   const t = useT()
@@ -153,20 +167,54 @@ export function BentoDock() {
      search, bell, gear, the separators): the room for marks is the dock's cap
      (the viewport less its 3rem margins) minus those. */
   const [room, setRoom] = useState<number | null>(null)
+  /* What still spilled after the sum below, per window width. It only grows
+     at one width (so folding a mark cannot bounce it back) and resets on a
+     resize. */
+  const shave = useRef({ w: 0, px: 0 })
+  const measureRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     const el = stripRef.current
     const dock = el?.parentElement
     if (!el || !dock) return
     const measure = () => {
-      const fixed = dock.getBoundingClientRect().width - el.getBoundingClientRect().width
-      setRoom(window.innerWidth - 96 - fixed)
+      /* Each other item at its OWN width, not the width flex squeezed it to.
+         `dock width - strip width` undercounted once the bar hit its cap:
+         the search pill gave way first, the sum came out short, one mark too
+         many was drawn, and at 768 the last mark sat on top of All features
+         (responsive sweep, 2026-10-26). */
+      const cs = getComputedStyle(dock)
+      const px = (v: string) => parseFloat(v) || 0
+      const kids = Array.from(dock.children).filter((k) => {
+        const s = getComputedStyle(k)
+        return k !== el && s.display !== 'none' && s.position !== 'absolute' && s.position !== 'fixed'
+      })
+      let fixed = px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth)
+        + px(cs.columnGap) * kids.length
+      for (const k of kids) {
+        const s = getComputedStyle(k)
+        fixed += Math.max(k.getBoundingClientRect().width, k.scrollWidth) + px(s.marginLeft) + px(s.marginRight)
+      }
+      if (shave.current.w !== window.innerWidth) shave.current = { w: window.innerWidth, px: 0 }
+      /* Only the strip's OWN spill counts. The dock's scrollWidth also grew
+         from things folding cannot fix, so adding it re-folded on every render
+         until every mark sat in "+N" on a wide desktop (owner, 2026-10-27).
+         The strip's spill goes once enough marks fold; it is capped too. */
+      const over = el.scrollWidth - el.clientWidth
+      if (over > 1) shave.current.px = Math.min(shave.current.px + Math.ceil(over), MARK_W * 2)
+      setRoom(dockRoom(window.innerWidth, fixed, shave.current.px))
     }
     measure()
+    measureRef.current = measure
+    /* Spill does not resize the dock, so the observer alone can miss it
+       (WebKit did): re-check once the fonts land and after each render. */
+    document.fonts?.ready.then(measure).catch(() => {})
     const ro = new ResizeObserver(measure)
     ro.observe(dock)
     window.addEventListener('resize', measure)
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+    return () => { measureRef.current = null; ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [phone])
+  /* Settles: room only changes while marks still spill, and shave only grows. */
+  useEffect(() => { measureRef.current?.() })
 
   const categories = useMemo(() => {
     if (!role) return []
@@ -425,13 +473,7 @@ export function BentoDock() {
   /* 40px per mark plus the 2px gap; the strip's width is null until measured,
      and until then everything shows, which is the pre-existing behaviour and
      a single frame long. */
-  const MARK_W = 42
-  const FOLD_W = 40
-  const fit = room == null ? visibleCategories.length : Math.max(0, Math.floor(room / MARK_W))
-  const shownCategories =
-    fit >= visibleCategories.length
-      ? visibleCategories
-      : visibleCategories.slice(0, Math.max(0, Math.floor((room! - FOLD_W) / MARK_W)))
+  const shownCategories = visibleCategories.slice(0, marksShown(visibleCategories.length, room))
   const foldedCount = visibleCategories.length - shownCategories.length
 
   return (

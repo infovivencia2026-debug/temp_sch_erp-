@@ -172,6 +172,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
   'student.home.my_day': screen(() => import('./portal/StudentHome')),
   'parent.home.dashboard': screen(() => import('./portal/Portal')),
+  'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   // The seller's own mail server and SMS channel, which carry every school's
   // password-reset links. The school's Email Server screen, told who it is for.
@@ -336,6 +337,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      quota register an inspection reads, the waiting list, open days and the
      prospectus cash book. */
   'admissions.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
+  'admissions.front_desk.alumni': screen(() => import('./students/Alumni')),
   'front_office.front_desk.front_desk': screen(() => import('./admissions/FrontDesk')),
   'admissions.admissions.waitlist': screen(() => import('./admissions/Funnel')),
   'institution_admin.hostel.hostel_rooms': screen(() => import('./operations/Hostel')),

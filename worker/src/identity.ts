@@ -228,7 +228,8 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
         OR (fb.portal = 'parent' AND EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = ?1 AND (fb.scope = 'school'
           OR EXISTS (SELECT 1 FROM student_guardians sg JOIN enrollments e ON e.student_id = sg.student_id AND e.status = 'active'
             WHERE sg.guardian_id = g.id
-            AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))`)
+            AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))
+        UNION SELECT 'staff:' || feature_slug FROM staff_feature_blocks`)
       .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
   ])
   if (!u) return null
@@ -237,7 +238,10 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
      the seller's handlers ran AsPlatform only for platform identities. Here CONTROL is one call
      away, so the key itself is refused to every school account. */
   const off = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('student.') || k.startsWith('parent.')))
-  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k))
+  // Screens off for all staff ride the same statement, as staff:<slug> (routes/admin/feature_blocks.ts).
+  const staffSlugs = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('staff:')).map((k) => k.slice(6)))
+  const staffBlocked = (k: string) => staffSlugs.size > 0 && !k.startsWith('student.') && !k.startsWith('parent.') && staffSlugs.has(k.slice(k.lastIndexOf('.') + 1))
+  const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k) && !staffBlocked(k))
   /* A TEACHING SCREEN GIVEN TO SOMEONE WHO DOES NOT TEACH (owner, 2026-10-13:
      CCE marks entry granted to an exam controller showed its icon, then
      "your login is not allowed to see this"). Every teacher screen reads

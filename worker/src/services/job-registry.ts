@@ -3,6 +3,7 @@
    module; order does not matter. */
 export {}
 import './background/school-jobs'
+import './background/staff_auto_absent'
 import './background/messaging-bridge'
 import './background/housekeeping'
 import './background/transport'

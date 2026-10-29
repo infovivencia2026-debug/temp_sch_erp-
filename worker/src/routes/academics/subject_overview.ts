@@ -1,5 +1,6 @@
 import type { Ctx, Router } from '../../router'
-import { ok, badRequest, forbidden, notFound, readJSON, isUUID, uuid, now } from '../../http'
+import { HttpError, ok, badRequest, forbidden, notFound, readJSON, isUUID, uuid, now } from '../../http'
+import { notifyPlanDecided } from './plan_notify'
 import { can } from '../../identity'
 import { institutionId } from '../admin/common'
 import { notifyStmt } from '../misc/chat'
@@ -330,8 +331,11 @@ async function decidePlan(c: Ctx) {
   const b = await readJSON<{ decision?: string; remarks?: string }>(c.req)
   if (b.decision !== 'approved' && b.decision !== 'returned') throw badRequest('decision must be approved or returned')
   if (b.decision === 'returned' && !(b.remarks ?? '').trim()) throw badRequest('say why it is being returned')
-  await c.db.prepare(`UPDATE lesson_plans SET status = ?, remarks = COALESCE(NULLIF(?, ''), remarks), reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?`)
+  // State guard (security audit, 2026-10-27): only a submitted plan is decided, once.
+  const res = await c.db.prepare(`UPDATE lesson_plans SET status = ?, remarks = COALESCE(NULLIF(?, ''), remarks), reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ? AND status = 'submitted'`)
     .bind(b.decision, (b.remarks ?? '').trim(), c.id.userId, now(), now(), c.params.id).run()
+  if (!res.meta.changes) throw new HttpError(409, 'this lesson plan is not waiting for a decision; it has been decided already or not submitted')
+  await notifyPlanDecided(c, c.params.id, b.decision, (b.remarks ?? '').trim())
   return ok()
 }
 

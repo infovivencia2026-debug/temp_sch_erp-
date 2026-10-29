@@ -309,3 +309,51 @@ html[data-reduce-motion] .m-large-title { transform: none; opacity: 1; }
   .note-row:hover { transform: translateY(-3px) scale(1.01); }
 }
 html[data-reduce-motion] .note-row:hover { transform: none; }
+
+/* --- sidebar item press (owner, 2026-10-28, gemini-code design) -----------
+   "The icon is moving and the box is not matching." The WHOLE pill moves as
+   one: hover lifts 2px with a soft accent shadow and a slightly deeper fill;
+   a press compresses to .96 in .1s and springs back on the .2s overshoot
+   curve. No separate icon bounce, no glow box: every effect is the pill's
+   own background and box-shadow, so it follows its border-radius exactly.
+   Accent = the pill's hue (--h) or the theme primary. A tapped item that
+   becomes current holds the press ~100ms so a quick phone tap is visible. */
+.nav-tap, .nav-pill {
+  --nav-tap-accent: var(--nav-tap-hsl, var(--primary));
+  --nav-tap-spring: cubic-bezier(.34, 1.56, .64, 1);
+  transition: transform .2s var(--nav-tap-spring), box-shadow .2s ease, background-color .2s ease,
+    color .25s ease, border-color .25s ease, border-radius .25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-pill { --nav-tap-hsl: var(--h) 75% 40%; }
+.nav-pill__head { -webkit-tap-highlight-color: transparent; }
+@media (hover: hover) {
+  .nav-tap:not(.nav-pill):hover {
+    transform: translateY(-2px); box-shadow: 0 6px 14px hsl(var(--nav-tap-accent) / .08);
+    background-color: hsl(var(--nav-tap-accent) / .08);
+  }
+  .nav-pill:hover { box-shadow: 0 6px 14px hsl(var(--nav-tap-accent) / .08); }
+  /* the icon no longer moves by itself */
+  .nav-pill:hover > .nav-pill__head .nav-pill__badge, a.nav-pill:hover .nav-pill__badge { transform: none; }
+}
+.nav-tap:active, .nav-pill:not([data-open]):has(> .nav-pill__head:active), .nav-pill[data-open] > .nav-pill__head:active {
+  transform: scale(.96); box-shadow: 0 1px 3px hsl(var(--nav-tap-accent) / .05);
+  transition: transform .1s cubic-bezier(.4, 0, .2, 1), box-shadow .1s ease, background-color .1s ease,
+    color .25s ease, border-color .25s ease, border-radius .25s ease;
+}
+.nav-tap:not(.nav-pill):active { background-color: hsl(var(--nav-tap-accent) / .14); }
+.nav-pill:not([data-open]):has(> .nav-pill__head:active), a.nav-pill:active { background: var(--pill-wash); }
+.nav-pill[data-open] > .nav-pill__head { transition: transform .2s var(--nav-tap-spring), box-shadow .2s ease; }
+.nav-tap[aria-current='page'] { animation: nav-tap-press 300ms both; }
+@keyframes nav-tap-press {
+  0% { transform: scale(.96); animation-timing-function: linear; }
+  33% { transform: scale(.96); animation-timing-function: cubic-bezier(.34, 1.56, .64, 1); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-tap, .nav-pill, .nav-pill__head { transition-duration: 1ms !important; animation: none !important; }
+  .nav-tap:active, .nav-tap:hover, .nav-pill:hover, .nav-pill:has(> .nav-pill__head:active), .nav-pill__head:active { transform: none !important; }
+}
+html[data-reduce-motion] .nav-tap, html[data-reduce-motion] .nav-pill, html[data-reduce-motion] .nav-pill__head { transition-duration: 1ms !important; animation: none !important; }
+html[data-reduce-motion] .nav-tap:active, html[data-reduce-motion] .nav-tap:hover, html[data-reduce-motion] .nav-pill:hover,
+html[data-reduce-motion] .nav-pill:has(> .nav-pill__head:active), html[data-reduce-motion] .nav-pill__head:active { transform: none !important; }

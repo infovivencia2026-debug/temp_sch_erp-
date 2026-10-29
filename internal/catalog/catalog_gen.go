@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 463 features.
+// Roles is the catalog: 24 roles, 473 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -616,6 +616,7 @@ var Roles = []Role{
 					{Key: "hod.academics.faculty_allocation", Slug: "faculty_allocation", Name: "Faculty allocation", Scope: Scope("department"), Tier: Tier("core"), Summary: "Which teacher teaches which subject to which section, across the department, with each teacher's total periods shown so the load can be seen while it is being set."},
 					{Key: "hod.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 					{Key: "hod.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
+					{Key: "hod.academics.course_outcomes", Slug: "course_outcomes", Name: "Course outcomes", Scope: Scope("department"), Tier: Tier("core"), Summary: "Programme and course outcomes for the department's subjects, which papers measure each outcome, and whether the class attained it, computed from marks."},
 				},
 			},
 			{
@@ -713,6 +714,7 @@ var Roles = []Role{
 					{Key: "exam_controller.examinations.hall_tickets_seating", Slug: "hall_tickets_seating", Name: "Hall tickets & seating", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Halls, seat allocation and the hall ticket each candidate carries in."},
 					{Key: "exam_controller.examinations.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Generate a section's report cards once every paper is in, preview the school's design, and send the set up for release."},
 					{Key: "exam_controller.examinations.performance_overview", Slug: "performance_overview", Name: "Performance overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Results by class and subject across the exams held this year."},
+					{Key: "exam_controller.examinations.exams_monitoring", Slug: "exams_monitoring", Name: "Exams monitoring", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every paper that has been sat, with how many of the class roll have marks entered. See who has not entered marks yet, approve a paper once it is complete, and publish the results."},
 				},
 			},
 			{
@@ -740,6 +742,18 @@ var Roles = []Role{
 				Workspace: "School Gallery",
 				Features: []Feature{
 					{Key: "exam_controller.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
+			{
+				Slug:      "board_exams",
+				Name:      "Board Exams",
+				Workspace: "Examinations",
+				Features: []Feature{
+					{Key: "exam_controller.board_exams.ssc_registration", Slug: "ssc_registration", Name: "SSC registration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The Class 10 nominal roll for the state board: who is entered, what they are entered for, amendments, and what the board has said about each candidate."},
+					{Key: "exam_controller.board_exams.intermediate_registration", Slug: "intermediate_registration", Name: "Intermediate registration", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The Class 11 and 12 nominal roll for the intermediate board, first year and second year: who is entered, amendments, and the board's response for each candidate."},
+					{Key: "exam_controller.board_exams.board_loc_filing", Slug: "board_loc_filing", Name: "Board LOC filing", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The List of Candidates for the board: validate it, see which candidates the board would refuse and why, export it and record the filing."},
+					{Key: "exam_controller.board_exams.board_results", Slug: "board_results", Name: "Board results", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Import the board's result file and reconcile it against the school's own candidates: who the board has that the school does not, and who is missing from the file. Publish once matched."},
+					{Key: "exam_controller.board_exams.baseline_analysis", Slug: "baseline_analysis", Name: "Baseline analysis", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Each class's latest results against its own earlier baseline exam, in percentage points, with the basis printed on the page."},
 				},
 			},
 		},
@@ -1394,6 +1408,7 @@ var Roles = []Role{
 					{Key: "finance.fees.fee_corrections", Slug: "fee_corrections", Name: "Fee corrections", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Void a receipt issued by mistake, move a receipt taken against the wrong child, mark received an online payment the gateway confirmed but never called back about, and stop a fee head for a whole class from a date. Each one keeps its reason on the record."},
 					{Key: "finance.fees.unpaid_fees_reminders", Slug: "unpaid_fees_reminders", Name: "Unpaid fees & reminders", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too."},
 					{Key: "finance.fees.class_transport_fee_setup", Slug: "class_transport_fee_setup", Name: "Class & transport fee setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each class is charged for the year, tuition, lab, transport by distance, with concessions and refunds, the receipt series, and the one action that turns the structure into every parent's invoice."},
+					{Key: "finance.fees.fee_regulatory_filing", Slug: "fee_regulatory_filing", Name: "Fee regulatory filing", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Compile the fee structure filed with the fee regulatory committee, attach the supporting documents, submit it and record the committee's decision, so the school charges only what was approved."},
 				},
 			},
 			{
@@ -1542,6 +1557,7 @@ var Roles = []Role{
 				Workspace: "Front Desk",
 				Features: []Feature{
 					{Key: "admissions.front_desk.front_desk", Slug: "front_desk", Name: "Front desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen."},
+					{Key: "admissions.front_desk.alumni", Slug: "alumni", Name: "Alumni", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Former students: their profiles, events and attendance, and contributions, with the leavers who have no alumni profile yet. Contactable is consent: an alumnus who asked to be left alone drops out of every mailing."},
 				},
 			},
 			{
@@ -1919,6 +1935,14 @@ var Roles = []Role{
 				Workspace: "Home",
 				Features: []Feature{
 					{Key: "parent.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's day on one page: attendance, fees, homework and what the school has said, with anything waiting on you at the top. Switch children from the same page if you have more than one."},
+				},
+			},
+			{
+				Slug:      "attendance",
+				Name:      "Attendance",
+				Workspace: "My Child",
+				Features: []Feature{
+					{Key: "parent.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("children"), Tier: Tier("core"), Summary: "Daily/monthly attendance and absence history for the selected child."},
 				},
 			},
 			{

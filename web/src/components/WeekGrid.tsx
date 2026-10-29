@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import DayTimeline from '@/components/DayTimeline'
 import type { Period } from '@/lib/api'
+import { mergePeriods } from '@/lib/mergePeriods'
 
 /* The week, as it is pinned to the staff-room wall.
  *
@@ -31,6 +32,8 @@ export interface WeekPeriod {
   starts_at: string
   ends_at?: string
   is_break?: boolean
+  bell_schedule_id?: string | null
+  sequence?: number
 }
 
 export interface WeekEntry {
@@ -82,12 +85,17 @@ function Free({ live, className }: { live: boolean; className?: string }) {
 }
 
 export default function WeekGrid({
-  entries,
-  periods,
+  entries: rawEntries,
+  periods: rawPeriods,
   weekdays,
+  who = '',
+  where = '',
   empty = 'Nothing timetabled yet.',
   id,
+  onCell,
 }: {
+  /** Makes every teaching cell a button (the live timetable's editor). */
+  onCell?: (weekday: number, periodID: string) => void
   entries: WeekEntry[]
   periods: WeekPeriod[]
   /** ISO weekdays the school runs, 1 = Monday. Defaults to Monday–Saturday. */
@@ -95,8 +103,13 @@ export default function WeekGrid({
   empty?: string
   /** For printing: the element printDocument() copies. */
   id?: string
+  /** Phone timeline heading: whose week, and where. */
+  who?: string
+  where?: string
 }) {
   const phone = usePhone()
+  // One row per period shape, entries moved onto it (several bell schedules).
+  const { periods, entries } = mergePeriods(rawPeriods, rawEntries)
   const days = weekdays?.length ? weekdays : [1, 2, 3, 4, 5, 6]
   const { today, hhmm } = nowParts()
 
@@ -107,7 +120,7 @@ export default function WeekGrid({
   if (!periods.some((p) => !p.is_break)) {
     return <p className="py-6 text-center text-[13.5px] text-muted-foreground">The school day has no periods yet, so there is nothing to lay a timetable on.</p>
   }
-  if (entries.length === 0) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
+  if (entries.length === 0 && !onCell) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
 
   const isLive = (d: number, p: WeekPeriod) =>
     d === today && !!p.ends_at && p.starts_at.slice(0, 5) <= hhmm && hhmm < p.ends_at.slice(0, 5)
@@ -118,8 +131,8 @@ export default function WeekGrid({
   if (phone) {
     return (
       <div id={id}>
-        <DayTimeline bare who="" where=""
-          periods={periods.map((p) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: null }) as unknown as Period)}
+        <DayTimeline bare who={who} where={where} onCell={onCell} weekdays={onCell ? days : undefined}
+          periods={periods.map((p, i) => ({ ...p, ends_at: p.ends_at ?? p.starts_at, bell_schedule_id: p.bell_schedule_id ?? null, sequence: p.sequence ?? i }) as unknown as Period)}
           entries={entries.map((e) => ({ weekday: e.weekday, period_id: e.period_id, title: e.title, detail: [e.detail, e.room].filter(Boolean).join(' · ') || undefined }))} />
       </div>
     )
@@ -157,7 +170,14 @@ export default function WeekGrid({
                 const live = isLive(d, p)
                 return (
                   <td key={d} className={cn('border-b border-l p-1.5', d === today && 'bg-primary/[0.03]')}>
-                    {e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
+                    {onCell ? (
+                      <div role="button" tabIndex={0} onClick={() => onCell(d, p.id)}
+                        onKeyDown={(k) => { if (k.key === 'Enter' || k.key === ' ') { k.preventDefault(); onCell(d, p.id) } }}
+                        aria-label={`${WEEKDAYS[d - 1] ?? `Day ${d}`} ${p.name}: ${e ? e.title : 'free'}. Edit`}
+                        className="block w-full rounded-md text-left hover:ring-1 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
+                      </div>
+                    ) : e ? <Lesson e={e} live={live} className="min-h-[4rem]" /> : <Free live={live} className="min-h-[4rem]" />}
                   </td>
                 )
               })}

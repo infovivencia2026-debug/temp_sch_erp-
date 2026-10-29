@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, conflict, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { has, instId } from './common'
 import { isDate, nameSQL, ownStudentIds, resolveRange, today } from '../fees/common'
+import { notifyStmt } from '../../notify_holders'
 
 /* Port of the hostel routes: beds (internal/api/mod_ops.go) and the warden's
    day (internal/api/hostel_life.go): outpasses, complaints, the mess board.
@@ -13,6 +14,23 @@ import { isDate, nameSQL, ownStudentIds, resolveRange, today } from '../fees/com
 
 const HOSTEL_READ = 'operations.hostel.read'
 const HOSTEL_WRITE = 'operations.hostel.write'
+
+/* The states each outpass step may be taken from (security audit,
+   2026-10-27): a rejected, cancelled or returned pass is finished. */
+const OUTPASS_FROM: Record<string, string[]> = {
+  approve: ['requested'], reject: ['requested'], consent: ['requested', 'approved'],
+  out: ['approved'], in: ['out'], cancel: ['requested', 'approved'],
+}
+
+/** The warden's decision, sent to every guardian who signs in for the boarder, linked to their outpass screen. */
+async function tellGuardians(c: Ctx, passId: string, studentId: string, action: string, note: string): Promise<void> {
+  const rows = await c.db.prepare(`SELECT DISTINCT g.user_id, TRIM(st.first_name || COALESCE(' ' || st.last_name, '')) AS name
+      FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id JOIN students st ON st.id = sg.student_id
+     WHERE sg.student_id = ? AND g.user_id IS NOT NULL AND NOT sg.portal_blocked`).bind(studentId).all<{ user_id: string; name: string }>()
+  const stmts = rows.results.map((g) => notifyStmt(c.db, instId(c), g.user_id, 'outpass_decided',
+    `Outpass ${action === 'approve' ? 'approved' : 'refused'} for ${g.name}`, note, '/go/consent_permissions/permission_slips', 'hostel_outpass', passId))
+  if (stmts.length) await c.db.batch(stmts)
+}
 
 const optStr = (v: unknown): string | null => { const s = typeof v === 'string' ? v.trim() : ''; return s === '' ? null : s }
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
@@ -182,21 +200,32 @@ export function registerHostel(r: Router): void {
       throw badRequest('say why it is being refused. A rejection with no reason is an argument the warden has to have twice')
     }
     const staff = has(c, HOSTEL_WRITE)
-    const own = has(c, 'students.read.all') ? [] : await ownStudentIds(c)
+    /* The caller's own children, always (security audit, 2026-10-27): consent
+       and cancel turn on being the boarder's guardian, whatever else the
+       caller may read. */
+    const own = await ownStudentIds(c)
     switch (action) {
       case 'approve': case 'reject': case 'out': case 'in':
         if (!staff) throw forbidden("only the hostel can permit or record a boarder's movement")
         break
       case 'consent':
-        if (own.length === 0 && !staff) throw forbidden('only a guardian can consent to their child leaving')
+        // The guardian's word, not the warden's: a warden cannot record it for them.
+        if (own.length === 0) throw forbidden('only a guardian can consent to their child leaving')
         break
       case 'cancel': break
       default: throw badRequest('action must be approve, reject, consent, out, in or cancel')
     }
-    const pass = await c.db.prepare(`SELECT student_id, approved_at, guardian_consent_at FROM hostel_outpasses WHERE id = ?`)
-      .bind(passId).first<{ student_id: string; approved_at: string | null; guardian_consent_at: string | null }>()
+    const pass = await c.db.prepare(`SELECT student_id, requested_by, status, approved_at, guardian_consent_at FROM hostel_outpasses WHERE id = ?`)
+      .bind(passId).first<{ student_id: string; requested_by: string | null; status: string; approved_at: string | null; guardian_consent_at: string | null }>()
     if (!pass) throw notFound()
-    if (action === 'consent' && own.length > 0 && !own.includes(pass.student_id)) throw notFound()
+    if (action === 'consent' && !own.includes(pass.student_id)) throw notFound()
+    if (action === 'cancel' && !staff && pass.requested_by !== c.id.userId && !own.includes(pass.student_id)) throw notFound()
+    // A finished outpass is not decided again.
+    if (!OUTPASS_FROM[action].includes(pass.status) || (action === 'consent' && pass.guardian_consent_at)) {
+      throw conflict(pass.status === 'requested' || pass.status === 'approved'
+        ? `this outpass is ${pass.status}${pass.guardian_consent_at ? ' and the guardian has already consented' : ''}; that step is not open now`
+        : `this outpass is already ${pass.status}; it cannot be changed`)
+    }
     if (action === 'out' && (!pass.approved_at || !pass.guardian_consent_at)) {
       throw conflict("the guardian has not consented yet; a warden's permission alone is not enough to let a boarder off campus")
     }
@@ -215,8 +244,9 @@ export function registerHostel(r: Router): void {
       cancel: `UPDATE hostel_outpasses SET status='cancelled', approved_by=?2,
                   decision_note=COALESCE(NULLIF(?3,''), decision_note), updated_at=?4 WHERE id=?1`,
     }
-    const res = await c.db.prepare(sql[action]).bind(passId, u, note, at).run()
-    if (!res.meta.changes) throw notFound()
+    const res = await c.db.prepare(sql[action] + ` AND status = ?5`).bind(passId, u, note, at, pass.status).run()
+    if (!res.meta.changes) throw conflict('this outpass was changed by somebody else just now; reload it')
+    if (action === 'approve' || action === 'reject') await tellGuardians(c, passId, pass.student_id, action, note)
     return ok({ id: passId, action })
   })
 

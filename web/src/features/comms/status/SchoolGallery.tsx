@@ -1,4 +1,5 @@
 import { MoreStorageButton } from './MoreStorage'
+import { GlassIconButton } from '@/components/ui'
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
@@ -108,9 +109,9 @@ export default function SchoolGallery({ onClose, initialPost = null }: { onClose
   return createPortal(
     <div className="fixed inset-0 z-[110] flex flex-col bg-background" role="dialog" aria-label="School gallery">
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-card px-4 py-3 sm:px-6">
-        <button type="button" onClick={onClose} aria-label="Back" className="grid size-9 place-items-center rounded-full hover:bg-muted">
+        <GlassIconButton label="Back" size="sm" onClick={onClose}>
           <ArrowLeft className="size-5" />
-        </button>
+        </GlassIconButton>
         <h2 className="text-[19px] font-bold tracking-[-0.02em]">School gallery</h2>
         {kid && (
           <span className="mr-auto inline-flex min-w-0 items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -205,7 +206,7 @@ export default function SchoolGallery({ onClose, initialPost = null }: { onClose
                           {/* The play mark arrives on hover, as in the mockup: a
                               still frame with a button already on it reads as a
                               video that failed to start. */}
-                          <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                          <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
                             <span className="grid size-[38px] place-items-center rounded-full bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.3)] transition-transform duration-200 group-hover:scale-100 scale-90">
                               <Play className="size-4 fill-primary text-primary" />
                             </span>

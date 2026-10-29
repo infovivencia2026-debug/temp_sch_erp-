@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Info, KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
+import { KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
@@ -79,6 +79,8 @@ function Fact({ label, value, mono }: { label: string; value: ReactNode; mono?: 
 interface Profile {
   id: string; full_name: string; email?: string; phone?: string
   status: string; last_login_at?: string; mfa_enabled: boolean
+  school_email?: string
+  teaching?: { classes: { name: string; class_teacher: boolean }[]; subjects: string[] }
   enrolment?: {
     admission_no: string; class_name?: string; section_name?: string
     roll_no?: number; status?: string
@@ -256,7 +258,6 @@ export default function ProfileView() {
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-[19px] font-bold">{data?.full_name}</h3>
-                  {session.user?.roles.map((role) => <Badge key={role}>{role}</Badge>)}
                   <Badge tone={data?.status === 'active' ? 'success' : 'warning'}>
                     {data?.status}
                   </Badge>
@@ -313,8 +314,8 @@ export default function ProfileView() {
              like a record, and two columns of tiles also stop the page being
              a single column of text on a wide screen. */
           <div className="grid gap-3 p-5 pt-0 sm:grid-cols-2">
-            <Fact label="Full name" value={data?.full_name ?? '—'} />
-            <Fact label="Email" value={data?.email ?? '—'} />
+            {data?.school_email && <Fact label="School email" value={data.school_email} />}
+            {data?.email && <Fact label="Personal email" value={data.email} />}
             <Fact label="Phone" value={data?.phone ?? '—'} mono={!!data?.phone} />
             {data?.enrolment && (
               <>
@@ -334,15 +335,22 @@ export default function ProfileView() {
               </>
             )}
             <Fact label="Roles" value={session.user?.roles.join(', ') || '—'} />
-            <Fact
-              label="Two-factor"
-              value={
-                data?.mfa_enabled
-                  ? <span className="text-success">On</span>
-                  : <span className="text-muted-foreground">Not set up</span>
-              }
-            />
-            <Fact label="Permissions" value={`${session.permissions.length} granted`} />
+            {data?.teaching && (
+              <>
+                <Fact
+                  label="Classes"
+                  value={data.teaching.classes.length
+                    ? data.teaching.classes
+                        .map((k) => (k.class_teacher ? `${k.name} (class teacher)` : k.name))
+                        .join(', ')
+                    : 'None assigned'}
+                />
+                <Fact
+                  label="Subjects"
+                  value={data.teaching.subjects.length ? data.teaching.subjects.join(', ') : 'None assigned'}
+                />
+              </>
+            )}
           </div>
         )}
       </Section>
@@ -446,13 +454,6 @@ export default function ProfileView() {
       <ConcernsCard />
       <MyGrowthPanels quiet />
 
-      <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-[12.5px]">
-        <Info className="h-4 w-4 shrink-0 text-primary" />
-        <span>
-          Need a role changed, a name corrected on the school&rsquo;s records, or access you do
-          not have? The office can do all three; this screen cannot.
-        </span>
-      </div>
     </PageBody>
   )
 }

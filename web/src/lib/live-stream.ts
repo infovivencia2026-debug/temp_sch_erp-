@@ -307,6 +307,9 @@ export function useLiveStream() {
     invalidateNotifications = () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
+      // A leave decision arrives as a notification; the applicant's Requests list
+      // (keyed 'leave', five-minute staleTime, persisted) otherwise kept "pending".
+      qc.invalidateQueries({ queryKey: ['leave'] })
     }
     return () => { invalidateNotifications = null }
   }, [qc])
@@ -378,6 +381,7 @@ export function useLiveStream() {
         case 'notification':
           qc.invalidateQueries({ queryKey: ['notifications'] })
           qc.invalidateQueries({ queryKey: ['attention'] })
+          qc.invalidateQueries({ queryKey: ['leave'] })
           break
         case 'typing': {
           const key = keyFromEvent(ev)
@@ -398,7 +402,7 @@ export function useLiveStream() {
       let opened = false
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       try {
-        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/live/socket?topics=transport`)
+        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/live/socket?topics=transport,timetable`)
       } catch { ws = null; wsFailures = 99; openSSE(); return }
       ws.onopen = () => {
         opened = true

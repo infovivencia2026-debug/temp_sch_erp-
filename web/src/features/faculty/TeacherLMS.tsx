@@ -1,3 +1,4 @@
+import { useAiFeature } from '@/components/ai/useAiStatus'
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Film, Plus, Sparkles, X } from 'lucide-react'
@@ -640,6 +641,7 @@ export function QuizForm({ d, done, unitId, day }: { d: CourseDetail; done: () =
   const [closes, setCloses] = useState('')
   const [qs, setQs] = useState<DraftQ[]>([{ stem: '', options: ['', '', '', ''], correct: 0 }])
   const [aiLesson, setAiLesson] = useState('')
+  const quizAi = useAiFeature('lms_quiz_draft')
   const [aiNote, setAiNote] = useState('')
   /* The module's own notes first when the quiz is made inside a module. */
   const lessons = [...d.units.filter((u) => u.id === unitId), ...d.units.filter((u) => u.id !== unitId)].flatMap((u) => u.lessons.filter((l) => l.kind === 'text' || l.body))
@@ -674,7 +676,7 @@ export function QuizForm({ d, done, unitId, day }: { d: CourseDetail; done: () =
         {!unitId && <ModulePick d={d} value={unit} onChange={setUnit} />}
         {unit && <Field label="Pass mark, %" hint="Optional. Empty: taking it opens the next day."><Input type="number" value={pass} onChange={setPass} /></Field>}
       </div>
-      {lessons.length > 0 && (
+      {quizAi && lessons.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
           <Sparkles className="mb-2 h-4 w-4 text-primary" />
           <div className="w-full sm:w-72"><Field label="Optional: draft questions with AI from a lesson"><Select value={aiLesson} onChange={setAiLesson} placeholder="Choose a lesson" options={lessons.map((l) => ({ value: l.id, label: l.title }))} /></Field></div>

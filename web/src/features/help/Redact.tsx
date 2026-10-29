@@ -60,7 +60,7 @@ export function Redact({ file, onChange }: { file: File; onChange: (img: Redacte
       <p className="text-[13px] text-muted-foreground">{t('help.redact')}</p>
       <canvas
         ref={canvas}
-        className="block max-h-[60vh] w-full touch-none rounded-md object-contain shadow-[var(--field-shadow)]"
+        className="block max-h-[60dvh] w-full touch-none rounded-md object-contain shadow-[var(--field-shadow)]"
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = at(e) }}
         onPointerMove={(e) => { if (drag.current) setLive(box(drag.current, at(e))) }}
         onPointerUp={(e) => {

@@ -371,10 +371,11 @@ export function BentoLauncher({
   const pinSet = useMemo(() => new Set(pinKeys), [pinKeys])
 
   /* FOLDERS, AS IN A FILE EXPLORER (school setting `app.focus_folders`, for
-     teaching workspaces): each workspace is a folder; opening one shows its
+     every role): each workspace is a folder; opening one shows its
      screens under a path with a way back, instead of every screen at once. */
   const session = useSessionIfAny()
-  const explorer = (role.key === 'faculty' || role.key === 'hod') &&
+  // Every role, the institution admin included (owner, 2026-10-24).
+  const explorer =
     !!session?.modules?.some((m) => m.module === 'focus_folders' && m.enabled)
   const [folder, setFolder] = useState<string | null>(null)
   useEffect(() => { if (!open) setFolder(null) }, [open])

@@ -4701,7 +4701,7 @@ body:has(.bento-frost) [data-assistant-orb] {
    is the phone's --dock-h rule, hence the !important. */
 @media (min-width: 768px) and (max-width: 879.98px) {
   [data-layout='bento'] [data-assistant-orb] {
-    bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 4px) !important;
+    bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 12px) !important;
   }
 }
 

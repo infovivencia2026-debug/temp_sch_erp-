@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { badRequest, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { institutionId, parseJSON } from './common'
@@ -265,6 +266,7 @@ export function registerAdminInbox(r: Router): void {
       if (n2) stmts.push(n2)
     }
     await c.db.batch(stmts)
+    await clearDoneWork(c, 'parent_message')
     await publish(c.env, inst, { users: [pid, tid, c.id.userId], type: 'message', scope: 'parent', from: c.id.userId,
       keys: { student: sid, parent: pid, teacher: tid, from_name: from, child } })
     // The email to the parent (Go: TypeMessageSend student.remark); a failure is logged, the reply stands.

@@ -49,6 +49,19 @@ export interface AiSettings {
   /** Weekly parent note: also by SMS / email when the school enables it (in-app always). */
   parent_weekly_sms: boolean
   parent_weekly_email: boolean
+  /** Per-feature switches (default on); off hides the button and the route refuses. */
+  features: Record<AiFeature, boolean>
+}
+
+/** The AI features a school can switch off one by one (settings registry, group 'ai'). */
+export const AI_FEATURES = ['smart_import', 'write_messages', 'notice_draft', 'notice_translate', 'student_summary', 'parent_weekly',
+  'lms_quiz_draft', 'admissions_draft', 'remarks_draft', 'leave_reply_draft', 'fee_reminder_draft', 'principal_brief', 'early_warnings'] as const
+export type AiFeature = typeof AI_FEATURES[number]
+
+/** Throws 403 ai_feature_off when the school switched this AI feature (or all AI) off. */
+export async function requireAiFeature(db: D1Database, f: AiFeature): Promise<void> {
+  const s = await aiSettings(db)
+  if (!s.enabled || !s.features[f]) throw new HttpError(403, 'This AI feature is switched off for this school.', { code: 'ai_feature_off' })
 }
 
 export async function aiSettings(db: D1Database): Promise<AiSettings> {
@@ -64,6 +77,7 @@ export async function aiSettings(db: D1Database): Promise<AiSettings> {
     email_principal_brief: cfg.email_principal_brief === true,
     parent_weekly_sms: cfg.parent_weekly_sms === true,
     parent_weekly_email: cfg.parent_weekly_email === true,
+    features: Object.fromEntries(AI_FEATURES.map((f) => [f, cfg[f] !== false])) as Record<AiFeature, boolean>,
   }
 }
 

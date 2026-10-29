@@ -71,7 +71,7 @@ function RequestSheet({ storage, onClose }: { storage: Storage; onClose: () => v
 
   return createPortal(
     <div role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      className="fixed inset-0 z-[400] flex items-end justify-center bg-black/30 p-0 backdrop-blur-[8px] sm:items-center sm:p-5">
+      className="vv-screen-phone fixed inset-0 z-[400] flex items-end justify-center bg-black/30 p-0 backdrop-blur-[8px] sm:items-center sm:p-5">
       <div role="dialog" aria-modal="true" aria-label="Get more storage"
         className="w-full max-w-[420px] overflow-hidden rounded-t-[24px] bg-card text-foreground shadow-[0_14px_40px_rgba(0,0,0,.18)] sm:rounded-[24px]">
         <div className="flex items-center justify-between px-5 pb-1 pt-4">

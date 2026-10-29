@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Camera, Image as ImageIcon, Type, Upload, Video, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
-import { Dialog, Select } from '@/components/ui'
+import { Dialog, GlassIconButton, Select } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { MAX_BYTES, makeThumb, postStatus, preparePhoto, videoSeconds, type AddMode, type Audiences, type TargetPick } from './status-api'
 
@@ -427,13 +427,13 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
        with the keyboard up, which is the whole difference between a form you
        can finish and one you cannot. */
     <div
-      className={cn('fixed inset-0 flex flex-col justify-end bg-[#0f172a]/65 backdrop-blur-[3px] sm:items-center sm:justify-center sm:p-6',
+      className={cn('vv-screen-phone fixed inset-0 flex flex-col justify-end bg-[#0f172a]/65 backdrop-blur-[3px] sm:items-center sm:justify-center sm:p-6',
         raised ? 'z-[140]' : 'z-[100]')}
       role="dialog" aria-label={asSchool ? 'Post as the school' : 'New status'}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="flex max-h-[92%] w-full flex-col overflow-hidden rounded-t-3xl bg-card text-foreground
-                      shadow-[0_-10px_40px_-10px_rgba(15,23,42,0.4)] sm:max-h-[88vh] sm:max-w-[980px] sm:rounded-2xl">
+                      shadow-[0_-10px_40px_-10px_rgba(15,23,42,0.4)] sm:max-h-[88dvh] sm:max-w-[980px] sm:rounded-2xl">
         <span aria-hidden className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30 sm:hidden" />
 
         <header className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
@@ -445,11 +445,9 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
               Seen for 24 hours, unless kept in the gallery
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground
-                       transition-colors hover:bg-muted/80 hover:text-foreground [@media(pointer:coarse)]:size-10">
-            <X className="size-4" />
-          </button>
+          <GlassIconButton label="Close" size="sm" onClick={onClose}>
+            <X className="size-[18px]" />
+          </GlassIconButton>
         </header>
 
         {/* PHONE: one column that scrolls. */}

@@ -52,11 +52,50 @@ export async function institutionByHost(env: Env, host: string | null): Promise<
     .bind(host.toLowerCase().replace(/:\d+$/, '')).first<Institution>()
 }
 
+/** Sub-domain labels under SCHOOL_DOMAIN that never name a school. */
+const RESERVED_LABELS = new Set(['school', 'www', 'app', 'api', 'admin', 'mail'])
+export const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
+
+/** The school with this slug, or null. Slugs are unique across countries (control 0001, COLLATE NOCASE). */
+export async function institutionBySlug(env: Env, slug: string): Promise<Institution | null> {
+  if (!SLUG.test(slug)) return null
+  return noteInstitution(await env.CONTROL.prepare('SELECT * FROM institutions WHERE slug = ?').bind(slug).first<Institution>())
+}
+
+/** What a sign-in host is: a school's own address (its custom domain or <slug>.<SCHOOL_DOMAIN>),
+    the school-code page (school.<SCHOOL_DOMAIN>), the vendor's page (<SCHOOL_DOMAIN> and www),
+    an unknown <slug>.<SCHOOL_DOMAIN>, or a shared host (test site, workers.dev, localhost) with today's behaviour. */
+export type Site =
+  | { kind: 'school'; school: Institution }
+  | { kind: 'chooser' }
+  | { kind: 'vendor' }
+  | { kind: 'unknown'; code: string }
+  | { kind: 'shared' }
+
+export async function siteOf(env: Env, host: string | null): Promise<Site> {
+  const custom = await institutionByHost(env, host)
+  if (custom) return { kind: 'school', school: custom }
+  const domain = env.SCHOOL_DOMAIN?.toLowerCase()
+  const h = (host ?? '').toLowerCase().replace(/:\d+$/, '')
+  if (!domain || !h) return { kind: 'shared' }
+  if (h === domain || h === `www.${domain}`) return { kind: 'vendor' }
+  if (h === `school.${domain}`) return { kind: 'chooser' }
+  if (!h.endsWith(`.${domain}`)) return { kind: 'shared' }
+  const label = h.slice(0, -domain.length - 1)
+  if (RESERVED_LABELS.has(label) || !SLUG.test(label)) return { kind: 'shared' }
+  const school = await institutionBySlug(env, label)
+  return school ? { kind: 'school', school } : { kind: 'unknown', code: label }
+}
+
 /** The store id a school's apps get unless the seller sets another: com.wisen.<slug>. */
 export const defaultAppId = (i: Pick<Institution, 'slug'>) => `com.wisen.${i.slug.replace(/[^a-z0-9]/g, '')}`.replace(/\.(\d)/, '.s$1')
 
 /** Where a school's sign-in page lives on the shared host. */
 export const schoolPath = (i: Pick<Institution, 'country' | 'slug'>) => `/${i.country}/${i.slug}`
+
+/** One sign-in picture's public address; ?v= changes with each upload. */
+export const slideUrl = (i: Pick<Institution, 'country' | 'slug'>, s: { id: string; file_key: string }) =>
+  `${schoolPath(i)}/slide/${s.id}?v=${encodeURIComponent(s.file_key.slice(-12))}`
 
 /**
  * The school's own database. Isolation is the database boundary: a query on

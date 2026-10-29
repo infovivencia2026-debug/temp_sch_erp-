@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } from '../../http'
 import { now } from '../../http'
 import { activitySettings, recordSignOutMany, recordViews, type ViewIn } from '../../services/session_activity'
@@ -47,6 +48,29 @@ async function readProfile(c: Ctx): Promise<Response> {
   if (e) {
     out.enrolment = { admission_no: e.admission_no, class_name: e.class_name || undefined, section_name: e.section_name || undefined,
       roll_no: e.roll_no ?? undefined, status: e.status || undefined }
+  }
+  /* The school address from Staff Inbox, if one is assigned (owner, 2026-10-24). */
+  const mail = await c.db.prepare(`SELECT address FROM mail_addresses WHERE user_id = ? AND status = 'active'`).bind(c.id.userId).first<{ address: string }>()
+  if (mail?.address) out.school_email = mail.address
+  /* WHAT THIS PERSON TEACHES, for staff only: the signed-in user's own
+     assignments, from the tables Staff 360 reads. Students and parents get no key. */
+  const staff = await c.db.prepare(`SELECT 1 AS x FROM employees WHERE user_id = ? LIMIT 1`).bind(c.id.userId).first()
+  const load = (await c.db.prepare(`
+    SELECT c.name AS class, sec.name AS section, sub.name AS subject
+      FROM section_subject_teachers sst JOIN sections sec ON sec.id = sst.section_id JOIN classes c ON c.id = sec.class_id
+      JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE sst.teacher_user_id = ? ORDER BY c.level, sec.name, sub.name`).bind(c.id.userId).all<{ class: string; section: string | null; subject: string }>()).results
+  const ct = (await c.db.prepare(`SELECT c.name AS class, sec.name AS section FROM sections sec JOIN classes c ON c.id = sec.class_id
+     WHERE sec.class_teacher_id = ? ORDER BY c.level, sec.name`).bind(c.id.userId).all<{ class: string; section: string | null }>()).results
+  if (staff || load.length || ct.length) {
+    const label = (r: { class: string; section: string | null }) => `${r.class} ${r.section ?? ''}`.trim()
+    const classes = new Map<string, boolean>()
+    for (const r of ct) classes.set(label(r), true)
+    for (const r of load) if (!classes.has(label(r))) classes.set(label(r), false)
+    out.teaching = {
+      classes: [...classes].map(([name, class_teacher]) => ({ name, class_teacher })),
+      subjects: [...new Set(load.map((r) => r.subject))],
+    }
   }
   return ok(out)
 }
@@ -191,6 +215,16 @@ export function registerProfile(r: Router): void {
     }
     // Two databases: the school row first, then the index. Not atomic across the two; the index is a cache of this row.
     await stmts[0].run()
+    /* One number for one person (Yajur, 2026-10-27): a member of staff editing
+       their own phone or email changes the staff record too, so the staff
+       register, every other admin and every role read the new one, and the
+       staff part of /portal/live moves so open screens refetch. */
+    if (req.phone !== undefined || newEmail) {
+      await c.db.prepare(`UPDATE employees SET
+          phone = CASE WHEN ?1 THEN NULLIF(?2, '') ELSE phone END,
+          email = COALESCE(?3, email), updated_at = ?4 WHERE user_id = ?5`)
+        .bind(req.phone !== undefined ? 1 : 0, req.phone ?? null, newEmail, now(), c.id.userId).run()
+    }
     for (const s of stmts.slice(1)) await s.run()
     return readProfile(c)
   })
@@ -234,7 +268,7 @@ export function registerProfile(r: Router): void {
     const secret = base32Encode(raw)
     const u = await c.db.prepare(`SELECT COALESCE(email, phone, username, full_name) AS account FROM users WHERE id = ?`).bind(c.id.userId)
       .first<{ account: string }>()
-    const account = u?.account ?? c.id.fullName
+    const account = shownSignIn(u?.account) || c.id.fullName
     const issuer = c.id.institution?.short_name || c.id.institution?.name || 'XULO'
     const q = new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' })
     const uri = 'otpauth://totp/' + encodeURIComponent(issuer + ':' + account) + '?' + q.toString()

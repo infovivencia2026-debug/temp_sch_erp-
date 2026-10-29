@@ -7,6 +7,8 @@ import {
   FormNotice, Select, SkeletonTiles, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
+import { Link } from 'react-router-dom'
+import { useFeatureHrefAny } from '@/features/bento/bento-kit'
 
 /* Who has not entered their marks yet.
 
@@ -42,6 +44,8 @@ interface Paper {
   complete: boolean
   signed_off: boolean
   entry_percent: number
+  /** On the date sheet with its date passed: only these are owed marks. */
+  due?: boolean
 }
 
 interface MonitorResponse {
@@ -51,6 +55,7 @@ interface MonitorResponse {
     complete: number
     signed_off: number
     marks_pending: number
+    unmarked_papers?: number
     backlogs: number
     complete_percent: number
   }
@@ -59,6 +64,12 @@ interface MonitorResponse {
 export default function ExamMonitoring() {
   const qc = useQueryClient()
   const [classId, setClassId] = useState('')
+  const marksHref = useFeatureHrefAny([
+    'hod.marks_report_cards.marks_entry',
+    'faculty.marks_report_cards.marks_entry',
+    'exam_controller.examinations.exams_papers',
+    'institution_admin.examinations.exams_papers',
+  ])
 
   const classes = useQuery({
     queryKey: ['classes'],
@@ -140,6 +151,37 @@ export default function ExamMonitoring() {
             hint="Marks below the pass line"
           />
         </CellGrid>
+
+        {/* The papers sat and still without a single mark (owner, 2026-10-27):
+            only a subject with an exam scheduled and its date passed. Each
+            row opens marks entry. */}
+        {rows.some((r) => r.due && r.entered === 0) && (
+          <Card>
+            <CardHeader
+              title="Not marked yet"
+              description="Exams already sat with no marks entered. A subject with no exam scheduled is not listed."
+            />
+            <ul className="divide-y divide-border">
+              {rows
+                .filter((r) => r.due && r.entered === 0)
+                .map((r) => (
+                  <li key={r.exam_subject_id}>
+                    <Link
+                      to={marksHref ?? '#'}
+                      className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-muted/50"
+                    >
+                      <span className="font-medium">
+                        {r.exam_name} · {r.class_name} · {r.subject}
+                      </span>
+                      <span className="text-[13px] text-muted-foreground">
+                        {r.exam_date ? formatDate(r.exam_date) : ''}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </Card>
+        )}
 
         {byExam.length > 0 && (
           <Card>

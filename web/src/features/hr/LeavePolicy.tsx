@@ -173,7 +173,17 @@ export default function LeavePolicy() {
         </div>
 
         {tab === 'rules' && (
-          <RulesTab types={draft.types} onChange={setType}
+          <RulesTab types={draft.types} saved={policy.data?.types ?? []} onChange={setType}
+            onSaveRow={(id, done) => {
+              /* Only this row's edits go out; other rows keep their saved values. */
+              const row = draft.types.find((t) => t.leave_type_id === id)
+              const base = policy.data ?? draft
+              save.mutate(
+                { ...draft, types: base.types.map((t) => (t.leave_type_id === id && row ? row : t)) },
+                { onSuccess: done },
+              )
+            }}
+            saving={save.isPending}
             onRemove={(id) => remove.mutate(id)} />
         )}
         {tab === 'lop' && <LOPRulesTab policy={draft} onChange={set} />}
@@ -183,15 +193,33 @@ export default function LeavePolicy() {
   )
 }
 
-function RulesTab({
+/* Saved leave types read as plain values; Edit opens one row at a time with
+   Save and Cancel, so a saved rule cannot be changed by a stray tap. */
+function show(v?: number | string) {
+  return v === undefined || v === '' ? '-' : String(v)
+}
+
+export function RulesTab({
   types,
+  saved,
   onChange,
+  onSaveRow,
+  saving,
   onRemove,
 }: {
   types: TypeRule[]
+  saved: TypeRule[]
   onChange: (id: string, patch: Partial<TypeRule>) => void
+  onSaveRow: (id: string, done: () => void) => void
+  saving: boolean
   onRemove: (id: string) => void
 }) {
+  const [editing, setEditing] = useState<string | null>(null)
+  const cancel = (id: string) => {
+    const s = saved.find((t) => t.leave_type_id === id)
+    if (s) onChange(id, { ...s })
+    setEditing(null)
+  }
   return (
     <>
       <NewLeaveType />
@@ -205,7 +233,44 @@ function RulesTab({
       <CardHeader title="What each type allows"
         description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
       <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to', 'Apply from', 'Apply to', '']}>
-        {types.map((t) => (
+        {types.map((t) => editing !== t.leave_type_id ? (
+          <tr key={t.leave_type_id}>
+            <Td className="font-medium">{t.name}
+              <div className="text-[12px] font-normal text-muted-foreground">{t.code}</div>
+            </Td>
+            <Td className="tabular-nums">{show(t.annual_quota)}</Td>
+            <Td className="tabular-nums">{show(t.max_per_month)}</Td>
+            <Td>{t.is_paid ? <Badge tone="success">paid</Badge> : <Badge tone="warning">unpaid</Badge>}</Td>
+            <Td className="tabular-nums">{t.carry_forward ? show(t.carry_forward_max) : <span className="text-muted-foreground">no</span>}</Td>
+            <Td>{t.allow_half_day ? 'yes' : 'no'}</Td>
+            <Td className="tabular-nums">{show(t.max_consecutive_days)}</Td>
+            <Td className="tabular-nums">{t.notice_days}</Td>
+            <Td className="tabular-nums">{show(t.document_required_after_days)}</Td>
+            <Td>{t.available_during_probation ? 'yes' : 'no'}</Td>
+            <Td>{t.applies_to_gender === 'female' ? 'Women only' : t.applies_to_gender === 'male' ? 'Men only' : 'Everybody'}</Td>
+            <Td>{show(t.window_from)}</Td>
+            <Td>{show(t.window_to)}</Td>
+            <Td>
+              <div className="flex gap-2">
+                <Button variant="secondary" disabled={editing !== null}
+                  aria-label={`Edit ${t.name}`} onClick={() => setEditing(t.leave_type_id)}>
+                  Edit
+                </Button>
+                {/* A school that accepted the five suggested types was then stuck
+                    with all five, including kinds of leave it does not grant. */}
+                <ConfirmButton
+                  confirmLabel="Remove"
+                  question="This school no longer offers this kind of leave."
+                  tone="danger"
+                  label={`Remove ${t.name}`}
+                  onConfirm={() => onRemove(t.leave_type_id)}
+                >
+                  Remove
+                </ConfirmButton>
+              </div>
+            </Td>
+          </tr>
+        ) : (
           <tr key={t.leave_type_id}>
             <Td className="font-medium">{t.name}
               <div className="text-[12px] font-normal text-muted-foreground">{t.code}</div>
@@ -281,18 +346,14 @@ function RulesTab({
               <Input value={t.window_to ?? ''} placeholder="04-30"
                 onChange={(v) => onChange(t.leave_type_id, { window_to: v || undefined })} />
             </Td>
-            {/* A school that accepted the five suggested types was then stuck
-                with all five, including kinds of leave it does not grant. */}
             <Td>
-              <ConfirmButton
-                confirmLabel="Remove"
-                question="This school no longer offers this kind of leave."
-                tone="danger"
-                label={`Remove ${t.name}`}
-                onConfirm={() => onRemove(t.leave_type_id)}
-              >
-                Remove
-              </ConfirmButton>
+              <div className="flex gap-2">
+                <Button disabled={saving}
+                  onClick={() => onSaveRow(t.leave_type_id, () => setEditing(null))}>
+                  Save
+                </Button>
+                <Button variant="ghost" onClick={() => cancel(t.leave_type_id)}>Cancel</Button>
+              </div>
             </Td>
           </tr>
         ))}
@@ -331,7 +392,7 @@ function NewLeaveType() {
     onSuccess: () => {
       setF({ name: '', code: '', quota: '', paid: true, carry: false })
       setOpen(false)
-      setNote({ ok: 'Added. Set its rules in the table below.' })
+      setNote({ ok: 'Added. Press Edit on its row to set its rules.' })
       qc.invalidateQueries({ queryKey: ['hr', 'leave-policy'] })
     },
     onError: (error) => setNote({ error }),

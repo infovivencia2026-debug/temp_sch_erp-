@@ -31,10 +31,13 @@ export interface Brief {
   model: string; ai: boolean; label: string; created_at: string; updated_at: string
 }
 
+/** Per-school AI switches (settings, group AI); worker/src/services/ai/llm.ts AI_FEATURES. */
+export type AiFeature = 'smart_import' | 'write_messages' | 'notice_draft' | 'notice_translate' | 'student_summary' | 'parent_weekly'
+  | 'lms_quiz_draft' | 'admissions_draft' | 'remarks_draft' | 'leave_reply_draft' | 'fee_reminder_draft' | 'principal_brief' | 'early_warnings'
 export type AiState = 'ok' | 'refused' | 'quota' | 'unreachable' | 'missing'
 
 export const aiApi = {
-  status: () => api.get<{ configured: boolean; state?: AiState; checked_at?: string | null }>('/api/v1/ai/status'),
+  status: () => api.get<{ features?: Partial<Record<AiFeature, boolean>>; configured: boolean; state?: AiState; checked_at?: string | null }>('/api/v1/ai/status'),
   draft: (body: DraftContext & { kind: DraftKind; tone: string; length: string; language: Lang; notes?: string; current?: string; variants?: number }) =>
     api.post<DraftResult>('/api/v1/ai/draft', body),
   translate: (body: { title?: string; text: string; language: Lang }) => api.post<TranslateResult>('/api/v1/ai/translate', body),

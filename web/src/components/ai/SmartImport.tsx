@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useMemo, useRef, useState } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { useQueryClient } from '@tanstack/react-query'
@@ -23,7 +24,11 @@ const confTone = (n: number) => (n >= 0.85 ? 'success' : n >= 0.6 ? 'warning' : 
 const SMART_KINDS = new Set(['students', 'classes', 'sections', 'subjects', 'periods', 'holidays', 'timetable', 'class_subjects', 'allocations',
   'attendance', 'staff_attendance', 'marks', 'student_history', 'staff', 'staff_history', 'fee_heads', 'fee_structures', 'fee_payments'])
 
-export function ImportWithAIButton({ kind, onDone, size = 'sm', variant = 'secondary' }: {
+export function ImportWithAIButton(props: Parameters<typeof ImportWithAIButtonInner>[0]) {
+  return useAiFeature('smart_import') ? <ImportWithAIButtonInner {...props} /> : null
+}
+
+function ImportWithAIButtonInner({ kind, onDone, size = 'sm', variant = 'secondary' }: {
   kind?: string; onDone?: () => void; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost' | 'outline'
 }) {
   const [open, setOpen] = useState(false)
@@ -274,7 +279,11 @@ function EditableGrid({ table, uncertain, onCell, onHeader }: {
 }
 
 /** The assistant's compact entry: an icon beside the paper-clip. */
-export function AssistantImportWithAI({ disabled }: { disabled?: boolean }) {
+export function AssistantImportWithAI(props: { disabled?: boolean }) {
+  return useAiFeature('smart_import') ? <AssistantImportWithAIInner {...props} /> : null
+}
+
+function AssistantImportWithAIInner({ disabled }: { disabled?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <>

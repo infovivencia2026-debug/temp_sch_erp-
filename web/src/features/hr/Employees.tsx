@@ -192,7 +192,7 @@ export default function Employees() {
       const head = [
         ['employee_code', 'Staff code'], ['full_name', 'Name'], ['designation', 'Designation'],
         ['department', 'Department'], ['status', 'Status'], ['employment_type', 'Employment'],
-        ['phone', 'Phone'], ['email', 'Email'], ['joined_on', 'Joined'],
+        ['phone', 'Phone'], ['email', 'Personal email'], ['school_email', 'School email'], ['joined_on', 'Joined'],
         ['qualification', 'Qualification'], ['experience_years', 'Years of experience'],
         ['class_teacher_of', 'Class teacher of'],
         /* The pairing first: it is the column somebody reads. The two flat

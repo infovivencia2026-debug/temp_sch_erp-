@@ -12,6 +12,7 @@
    raiser's name or any student. The original stays here and its raiser is told
    only that it was passed on. */
 import type { Ctx, Router } from '../../router'
+import { clearDoneWork } from '../../services/notification_done'
 import { reply } from '../../router'
 import { HttpError, badRequest, bool, conflict, like, notFound, now, readJSON, uuid, uuidParam } from '../../http'
 import { isoZ } from '../comms/common'
@@ -189,6 +190,7 @@ export function registerHelpdesk(r: Router): void {
       ...followers.results.filter((f) => f.user_id !== userId).map((f) =>
         bell(c.db, inst, f.user_id, 'A problem you reported is solved', null, '/help?tab=requests', t.id)),
     ])
+    await clearDoneWork(c, 'concern.support_ticket', t.id)
     return { status: 'resolved' }
   })
 

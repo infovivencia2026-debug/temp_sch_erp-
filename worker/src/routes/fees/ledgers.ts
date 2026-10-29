@@ -1,5 +1,6 @@
 import type { Ctx, Router } from '../../router'
-import { badRequest, bool, created, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
+import { HttpError, badRequest, bool, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
+import { auditStmt } from '../admin/common'
 import {
   addDays, daysBetween, fin, inList, isDate, isForeignKeyViolation, isUniqueViolation, items, p, paise, requireOpenPeriod, str, today,
 } from './common'
@@ -794,10 +795,12 @@ export function registerLedgers(r: Router): void {
   r.post(`${F}/ledgers/bills/{id}/approve`, POST, fin(async (c) => {
     const billID = c.params.id
     if (!isUUID(billID)) throw badRequest('invalid bill id')
-    const b = await c.db.prepare(`SELECT b.status, b.expense_account_id, b.taxable_paise, b.tax_paise, b.bill_date, v.name, b.bill_no
+    const b = await c.db.prepare(`SELECT b.status, b.expense_account_id, b.taxable_paise, b.tax_paise, b.bill_date, v.name, b.bill_no, b.created_by
         FROM vendor_bills b JOIN vendors v ON v.id = b.vendor_id WHERE b.id = ?`).bind(billID).first<Record<string, unknown>>()
     if (!b) throw notFound()
-    if (b.status !== 'draft') throw badRequest(`the bill is already ${str(b.status)}`)
+    if (b.status !== 'draft') throw new HttpError(409, `the bill is already ${str(b.status)}`, { code: 'already_decided' })
+    // Maker-checker: whoever entered the bill cannot also accept it as a liability.
+    if (b.created_by && b.created_by === c.id.userId) throw forbidden('you entered this bill, so someone else must approve it')
     const ctl = await loadControls(c)
     requireControls([ctl.payable, 'sundry creditors'])
     const taxable = p(b.taxable_paise), tax = p(b.tax_paise)
@@ -814,6 +817,26 @@ export function registerLedgers(r: Router): void {
       .bind(billID, actor(c), now(), v.id))
     await post.run()
     return ok({ id: billID, status: 'approved', voucher_no: v.voucherNo })
+  }))
+
+  /* Reject a draft bill: nothing was posted, so nothing is reversed. The bill
+     stays on record with the reason and cannot then be approved or paid. */
+  r.post(`${F}/ledgers/bills/{id}/reject`, POST, fin(async (c) => {
+    const billID = c.params.id
+    if (!isUUID(billID)) throw badRequest('invalid bill id')
+    const req = await readJSON<{ reason?: unknown }>(c.req)
+    const why = typeof req.reason === 'string' ? req.reason.trim() : ''
+    if (why.length < 5) throw badRequest('say why the bill is rejected; it goes on the record')
+    const b = await c.db.prepare(`SELECT status, narration FROM vendor_bills WHERE id = ?`).bind(billID).first<{ status: string; narration: string | null }>()
+    if (!b) throw notFound()
+    if (b.status !== 'draft') throw new HttpError(409, `the bill is already ${b.status}`, { code: 'already_decided' })
+    const narration = (b.narration && b.narration.trim() !== '' ? b.narration + ' | ' : '') + `Rejected on ${now().slice(0, 10)}: ${why}`
+    const res = await c.db.batch([
+      c.db.prepare(`UPDATE vendor_bills SET status = 'rejected', narration = ?2 WHERE id = ?1 AND status = 'draft'`).bind(billID, narration),
+      auditStmt(c, 'vendor_bill.reject', 'vendor_bill', billID, { status: 'draft' }, { status: 'rejected', reason: why }),
+    ])
+    if (!res[0].meta.changes) throw new HttpError(409, 'the bill was decided a moment ago', { code: 'already_decided' })
+    return ok({ id: billID, status: 'rejected' })
   }))
 
   r.post(`${F}/ledgers/bills/{id}/pay`, POST, fin(async (c) => {

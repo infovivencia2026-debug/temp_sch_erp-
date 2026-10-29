@@ -22,6 +22,16 @@
  */
 
 export const FEATURE_ICONS: Record<string, string> = {
+  // Built screens given a menu entry (owner, 2026-10-27).
+  exams_monitoring: 'pending_actions', // Exams monitoring
+  ssc_registration: 'how_to_reg', // SSC registration
+  intermediate_registration: 'assignment_ind', // Intermediate registration
+  board_loc_filing: 'fact_check', // Board LOC filing
+  board_results: 'upload_file', // Board results
+  baseline_analysis: 'trending_up', // Baseline analysis
+  course_outcomes: 'flag', // Course outcomes
+  fee_regulatory_filing: 'gavel', // Fee regulatory filing
+  alumni: 'diversity_3', // Alumni
   // Screens added 7 and 8 Oct 2026 (the MyClassBoard gaps and what a school needs); names already in the subset.
   rules: 'rule', // Rules
   move_from_myclassboard: 'upload_file', // Move from MyClassBoard
@@ -50,6 +60,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   all_messages: 'forum', // All messages
   class_status: 'photo_camera', // Class Status
   school_gallery: 'photo_library', // School Gallery
+  school_activity: 'browse_activity', // School activity
   scheduled_digests: 'schedule', // Scheduled digests
   interaction_log: 'timeline', // Interaction log
   store_catalogue: 'inventory_2', // Store catalogue
@@ -404,7 +415,9 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  board_exams: 'workspace_premium', // Board Exams
   tasks: 'checklist', // Tasks
+  activity: 'browse_activity', // Activity
   handbook: 'menu_book', // Handbook
   help: 'help',
   lms: 'cast_for_education', // LMS
@@ -432,6 +445,7 @@ export const SECTION_ICONS: Record<string, string> = {
   clinic: 'medical_services', // Clinic
   communication: 'forum', // Communication
   school_gallery: 'photo_library', // School Gallery
+  school_activity: 'browse_activity', // School activity
   consent_permissions: 'approval', // Consent & Permissions
   counselling: 'psychology', // Counselling
   dashboard: 'dashboard', // Dashboard

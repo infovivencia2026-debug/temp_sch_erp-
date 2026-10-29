@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { createPortal } from 'react-dom'
@@ -6,7 +7,7 @@ import { Button, Dialog, Textarea } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
 import { useAnchoredPosition } from '@/components/anchored'
 import { AiOffNote, isAiKeyError, useAiStatus, useMarkAiOff } from './useAiStatus'
-import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lang } from './aiApi'
+import { aiApi, AiLabel, LANG_LABEL, type AiFeature, type DraftContext, type DraftKind, type Lang } from './aiApi'
 
 /* "Write with AI": a button that opens a small panel (tone, length,
    language, optional points to cover), asks the server for two drafts built
@@ -16,11 +17,17 @@ import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lan
 
    <WriteWithAI kind="report_remark" context={{ student_id }} current={text} onInsert={setText} /> */
 
+/** Which per-school AI switch each draft kind sits behind (worker drafting.ts). */
+const DRAFT_FEATURE: Record<DraftKind, AiFeature> = {
+  parent_message: 'write_messages', circular: 'notice_draft', report_remark: 'remarks_draft', teacher_remark: 'remarks_draft',
+  admission_decision: 'admissions_draft', enquiry_follow_up: 'admissions_draft', leave_reply: 'leave_reply_draft', fee_reminder: 'fee_reminder_draft',
+}
+
 const TONES = ['warm', 'formal', 'neutral', 'encouraging', 'firm'] as const
 const LENGTHS = ['short', 'medium', 'long'] as const
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Could not write a draft just now.')
 
-export default function WriteWithAI({
+function WriteWithAIInner({
   kind, context, current, onInsert, label = 'Write with AI', defaultTone = 'warm', defaultLength = 'medium', align = 'left',
 }: {
   kind: DraftKind
@@ -156,4 +163,9 @@ export default function WriteWithAI({
       )}
     </div>
   )
+}
+
+/** Hidden entirely when the school switched this AI feature off. */
+export default function WriteWithAI(props: Parameters<typeof WriteWithAIInner>[0]) {
+  return useAiFeature(DRAFT_FEATURE[props.kind]) ? <WriteWithAIInner {...props} /> : null
 }

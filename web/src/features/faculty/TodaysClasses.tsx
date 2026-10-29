@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { CalendarPlus } from 'lucide-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
-import { Badge, Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
+import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
+import DayTimeline from '@/components/DayTimeline'
 import { useSession } from '@/lib/session'
 import { featurePath, useActiveRole } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import { staffLayoutOn } from '@/lib/staff-layout'
 import type { List } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import {
-  notificationDay, notificationKind, useNotificationActions, useShownNotes, type Note,
+  notificationDay, notificationKind, useDismissNotification, useNotificationActions, useShownNotes, type Note,
 } from '@/components/Notifications'
 import NotificationRow, { channelOf } from '@/components/NotificationRow'
 
@@ -115,6 +115,7 @@ export default function TodaysClasses() {
     staleTime: 5 * 60_000, retry: false, enabled: !inShellHeader,
   })
   const notes = useShownNotes()
+  const dismissNote = useDismissNotification()
   const cover = useQuery({
     queryKey: ['cover-today'],
     queryFn: () => api.get<{ items: { kind: 'covering' | 'covered'; entry_id: string; period_id: string; note: string | null; period: string; starts_at: string | null; section: string; subject: string; other: string }[] }>('/api/v1/timetable-cover/today'),
@@ -124,7 +125,6 @@ export default function TodaysClasses() {
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
-  const qc = useQueryClient()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
   /* This home is also every staff member's at a school with the staff layout on
@@ -144,6 +144,16 @@ export default function TodaysClasses() {
   const span = (a: string, b: string) => `${a.slice(0, 5)} – ${b.slice(0, 5)}`
   const coverItems = holiday ? [] : cover.data?.items ?? []
   const takenBy = new Map(coverItems.filter((x) => x.kind === 'covered').map((x) => [x.entry_id, x.other]))
+  const todayEntries = [
+      ...mine.map((e) => ({
+        weekday: e.weekday, period_id: e.period_id, title: e.subject_name,
+        detail: [`${e.class_name} ${e.section_name}`, takenBy.get(e.id) && `${takenBy.get(e.id)} is taking this class`, e.room].filter(Boolean).join(' · '),
+      })),
+      ...coverItems.filter((x) => x.kind === 'covering').map((x) => ({
+        weekday, period_id: x.period_id, title: `Cover: ${x.subject}`,
+        detail: [x.section, `for ${x.other}`, x.note].filter(Boolean).join(' · '),
+      })),
+  ]
   const lessonRows: Row[] = [...mine.map((e) => {
     const p = bell.get(e.period_id)
     const by = takenBy.get(e.id)
@@ -179,11 +189,7 @@ export default function TodaysClasses() {
     }))
   const rows = [...lessonRows, ...breakRows].sort((a, b) => a.start - b.start || a.end - b.end)
 
-  /* Done, Now and Upcoming are read off the clock rather than stored, so the
-     screen is right whenever it is opened. */
   const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const statusOf = (r: Row) => (r.end <= nowMin ? 'done' : r.start <= nowMin ? 'now' : 'upcoming')
 
   const hour = now.getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -242,38 +248,9 @@ export default function TodaysClasses() {
                   : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
               />
             ) : (
-              <ul>
-                {rows.map((r) => {
-                  if (r.kind === 'break') {
-                    return (
-                      <li key={r.key} className="flex items-center gap-3 px-5 py-1.5 text-[12px] text-muted-foreground">
-                        <span className="h-px flex-1 bg-border" />
-                        <span className="shrink-0">{r.label} · {r.span}</span>
-                        <span className="h-px flex-1 bg-border" />
-                      </li>
-                    )
-                  }
-                  const st = statusOf(r)
-                  return (
-                    <li key={r.key}
-                      className={cn('flex items-center gap-3 border-b border-l-2 border-l-transparent px-5 py-3 last:border-b-0',
-                        st === 'now' && 'border-l-primary bg-primary/[0.07]')}>
-                      <span className={cn('w-16 shrink-0 truncate text-[13px] font-semibold',
-                        st === 'now' ? 'text-primary' : 'text-muted-foreground')}>{r.label}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold">{r.title}</p>
-                        <p className="truncate text-[12.5px] text-muted-foreground tabular-nums">
-                          {r.span}{r.room ? ` · ${r.room}` : ''}
-                        </p>
-                        {r.cover && <p className="truncate text-[12.5px] font-medium text-primary">{r.cover}</p>}
-                      </div>
-                      <Badge tone={st === 'now' ? 'primary' : st === 'done' ? 'neutral' : 'info'} className="shrink-0">
-                        {st === 'now' ? 'Now' : st === 'done' ? 'Done' : 'Upcoming'}
-                      </Badge>
-                    </li>
-                  )
-                })}
-              </ul>
+              /* Today only (Yajur, 2026-10-24): the day timeline at every size; a one-day grid
+                 left half the dashboard card empty (Yajur, 2026-10-24). */
+              <DayTimeline bare todayOnly who="" where="" periods={periods.data?.items ?? []} entries={todayEntries} />
             )}
           </div>
         </Card>
@@ -314,8 +291,8 @@ export default function TodaysClasses() {
                         onView={() => {
                           const drop = () => {
                             if (urgent) return
-                            void api.post(`/api/v1/portal/notifications/${n.id}/dismiss`, {})
-                              .then(() => qc.invalidateQueries({ queryKey: ['notifications'] })).catch(() => {})
+                            // Gone from this panel and the bell at once (useDismissNotification).
+                            dismissNote.mutate(n.id)
                           }
                           if (link) { drop(); navigate(link); return }
                           // Read in full here, and gone once closed.
@@ -337,7 +314,7 @@ export default function TodaysClasses() {
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
             </div>
-            <Button className="shrink-0" onClick={() => navigate(leavePath)}>
+            <Button className="shrink-0" onClick={() => navigate(`${leavePath}?apply=1`)}>
               <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
           </Card>

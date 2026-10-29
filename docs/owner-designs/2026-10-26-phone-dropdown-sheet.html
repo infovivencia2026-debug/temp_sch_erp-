@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Draggable Bottom Sheet</title>
+    <style>
+        :root {
+            --bg-app: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --primary-color: #2563eb;
+            --selected-bg: #eff6ff;
+            --hover-bg: #f8fafc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Mock Phone Frame */
+        .phone-frame {
+            width: 390px;
+            height: 844px;
+            background-color: var(--bg-app);
+            border-radius: 44px;
+            border: 10px solid #334155;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Background Screen Content */
+        .app-screen {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .trigger-btn {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-primary);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Bottom Sheet Backdrop Overlay */
+        .sheet-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: flex-end;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sheet-backdrop.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Bottom Sheet Container */
+        .bottom-sheet {
+            background-color: #ffffff;
+            width: 100%;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            padding: 4px 20px 36px 20px;
+            box-sizing: border-box;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+            transform: translateY(0);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            touch-action: none; /* Prevents default page scroll while dragging sheet */
+        }
+
+        .sheet-backdrop.hidden .bottom-sheet {
+            transform: translateY(100%);
+        }
+
+        /* Interactive Drag Handle Area */
+        .sheet-handle-area {
+            width: 100%;
+            padding: 14px 0 10px 0;
+            display: flex;
+            justify-content: center;
+            cursor: grab;
+        }
+
+        .sheet-handle-area:active {
+            cursor: grabbing;
+        }
+
+        .sheet-handle-bar {
+            width: 40px;
+            height: 5px;
+            background-color: #cbd5e1;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .sheet-handle-area:hover .sheet-handle-bar {
+            background-color: #94a3b8;
+        }
+
+        /* Sheet Header Title */
+        .sheet-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 14px;
+            padding: 0 8px; /* Safe padding away from edges */
+        }
+
+        /* Options List */
+        .sheet-options {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 4px; /* Safe padding away from card borders */
+        }
+
+        .sheet-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-size: 15px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .sheet-option:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .sheet-option.selected {
+            font-weight: 600;
+            color: var(--primary-color);
+            background-color: var(--selected-bg);
+        }
+
+        .check-icon {
+            width: 18px;
+            height: 18px;
+            stroke: var(--primary-color);
+            stroke-width: 2.5;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <!-- Background Screen Content -->
+        <div class="app-screen">
+            <div style="font-weight: 600; font-size: 16px; color: #0f172a;">Communication / All messages</div>
+            <div style="font-size: 13px; color: #64748b; font-weight: 600;">Show</div>
+            <div class="trigger-btn" onclick="openSheet()">
+                <span>Everything (newest first)</span>
+                <span>▼</span>
+            </div>
+        </div>
+
+        <!-- Interactive Bottom Sheet Overlay -->
+        <div class="sheet-backdrop" id="sheetBackdrop" onclick="handleBackdropClick(event)">
+            <div class="bottom-sheet" id="bottomSheet">
+                
+                <!-- Draggable Handle Bar -->
+                <div class="sheet-handle-area" id="handleArea" title="Drag up/down or click to close">
+                    <div class="sheet-handle-bar"></div>
+                </div>
+
+                <div class="sheet-header">Filter messages</div>
+
+                <div class="sheet-options">
+                    <button class="sheet-option" onclick="selectOption(this)">
+                        <span>Not responded yet</span>
+                    </button>
+                    
+                    <button class="sheet-option" onclick="selectOption(this)">
+                        <span>Answered</span>
+                    </button>
+
+                    <button class="sheet-option selected" onclick="selectOption(this)">
+                        <span>Everything (newest first)</span>
+                        <svg class="check-icon" viewBox="0 0 24 24">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const backdrop = document.getElementById('sheetBackdrop');
+        const sheet = document.getElementById('bottomSheet');
+        const handleArea = document.getElementById('handleArea');
+
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        function openSheet() {
+            backdrop.classList.remove('hidden');
+            sheet.style.transform = 'translateY(0)';
+        }
+
+        function closeSheet() {
+            backdrop.classList.add('hidden');
+        }
+
+        function handleBackdropClick(e) {
+            if (e.target === backdrop) {
+                closeSheet();
+            }
+        }
+
+        // Dragging Logic for Mouse Cursor & Touch (Move Up & Down, Close on Release if dragged low)
+        handleArea.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            sheet.style.transition = 'none'; // Disable transition during drag for instant responsiveness
+            handleArea.setPointerCapture(e.pointerId);
+        });
+
+        handleArea.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            currentY = e.clientY - startY;
+            // Allow dragging down freely, limit dragging up past 0
+            if (currentY < 0) currentY = currentY * 0.2; 
+            sheet.style.transform = `translateY(${currentY}px)`;
+        });
+
+        handleArea.addEventListener('pointerup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            handleArea.releasePointerCapture(e.pointerId);
+            sheet.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            // If dragged down past 80px or clicked quickly, close it
+            if (currentY > 80 || (currentY === 0 && e.target === handleArea)) {
+                closeSheet();
+            }
+            sheet.style.transform = 'translateY(0)';
+            currentY = 0;
+        });
+
+        function selectOption(element) {
+            document.querySelectorAll('.sheet-option').forEach(opt => {
+                opt.classList.remove('selected');
+                const check = opt.querySelector('.check-icon');
+                if (check) check.remove();
+            });
+
+            element.classList.add('selected');
+            element.innerHTML += `<svg class="check-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            
+            setTimeout(closeSheet, 200);
+        }
+    </script>
+</body>
+</html>

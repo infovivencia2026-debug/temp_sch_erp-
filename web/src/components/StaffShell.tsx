@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BookOpen, Bus, Images, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
+  BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
+  Award, Bookmark, Briefcase, ChevronRight, Compass, Flag, GraduationCap, Megaphone, Puzzle, Shapes, Star,
   LogOut, Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -62,6 +63,23 @@ const LINE_ICONS: [RegExp, LucideIcon][] = [
   [/meeting/, CalendarClock],
   [/online test|quiz/, MonitorCheck],
 ]
+/* THE PILL MENU (Yajur, 2026-10-24, owner's designs): every top-level row is a
+   rounded card with a round pastel badge and an arrow, and every one is
+   unique -- its own hue and its own icon, so no two rows look alike. */
+const PILL_HUES = [199, 160, 262, 38, 330, 347, 173, 239, 24, 142, 280, 210, 52, 0, 190, 300]
+const SPARE_ICONS: LucideIcon[] = [Star, Compass, Bookmark, Flag, Shapes, Briefcase, GraduationCap, Megaphone, Award, Puzzle, LayoutGrid]
+/** The matching icon not yet used in this menu, else the first unused spare. */
+function uniqueIcon(name: string, used: Set<LucideIcon>): LucideIcon {
+  const n = name.toLowerCase()
+  const pick = LINE_ICONS.filter(([re]) => re.test(n)).map(([, I]) => I).find((I) => !used.has(I))
+    ?? SPARE_ICONS.find((I) => !used.has(I)) ?? LayoutGrid
+  used.add(pick)
+  return pick
+}
+function PillBadge({ icon: Icon }: { icon: LucideIcon }) {
+  return <span className="nav-pill__badge"><Icon aria-hidden strokeWidth={2} /></span>
+}
+
 export function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
   // On a phone .nav-line-icon goes to 24px (index.css, owner 2026-10-24).
@@ -97,33 +115,38 @@ function Count({ n }: { n: number }) {
 export function staffItemClass(on: boolean, live = true) {
   return cn(
     'flex min-h-[calc(44px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-3.5 rounded-[10px] px-3.5 py-2.5 text-[calc(14.5px*var(--font-scale,1))] transition-colors',
-    on ? 'bg-primary/10 font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-surface-hover hover:text-foreground',
+    on ? 'nav-pill__item--on font-bold' : 'font-medium text-muted-foreground hover:text-foreground',
     !live && !on && 'text-muted-foreground/70',
   )
 }
 
-export function StaffNavGroup({ slug, name, count = 0, children }: {
-  slug: string; name: string; count?: number; children: React.ReactNode
+/* `go`: pressing the head also lands on that screen and opens rather than
+   closes (Home holding the workspace's other screens, owner 2026-10-24). */
+export function StaffNavGroup({ slug, name, count = 0, hue = PILL_HUES[0], icon = LayoutGrid, go, children }: {
+  slug: string; name: string; count?: number; hue?: number; icon?: LucideIcon; go?: string; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => readOpen(slug))
+  const navigate = useNavigate()
   const toggle = () => {
     const next = !open
+    /* Opening Home also shows the dashboard; a second press closes the group
+       (owner, 2026-10-24: "after clicking Home it is not closing"). */
+    if (go && next) navigate(go)
     setOpen(next)
     try { localStorage.setItem(groupKey(slug), next ? 'open' : 'closed') } catch { /* private browsing: lasts the session */ }
   }
-  /* A soft card per group (owner's side-panel design, 2026-10-24): the
-     heading row is the card's full width, the screens sit inside it. */
   return (
-    <div className="overflow-hidden rounded-[14px] border bg-surface-subtle">
-      <button type="button" data-row onClick={toggle} aria-expanded={open}
-        className="flex min-h-[calc(48px*var(--font-scale,1))] w-full items-center justify-between gap-2 px-4 py-2 text-left
-                   text-[calc(15px*var(--font-scale,1))] font-semibold text-foreground max-sm:text-[calc(16px*var(--font-scale,1))]
-                   transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        <span className="truncate">{name}</span>
+    /* shrink-0: in the menu's fixed-height scroll column a card must keep its
+       height and let the column scroll; shrinking sliced titles and items. */
+    <div className="nav-pill shrink-0" data-open={open || undefined} style={{ '--h': hue } as React.CSSProperties}>
+      <button type="button" data-row onClick={toggle} aria-expanded={open} className="nav-pill__head">
+        <PillBadge icon={icon} />
+        <span className="min-w-0 flex-1 truncate">{name}</span>
         <Count n={count} />
-        <ChevronDown aria-hidden className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150', !open && '-rotate-90')} />
+        <ChevronRight aria-hidden className="nav-pill__arrow" />
       </button>
-      {open && <div className="flex flex-col gap-1 px-2.5 pb-3 pt-1">{children}</div>}
+      {/* Always mounted, so opening slides (grid rows 0fr to 1fr) instead of popping in. */}
+      <div className="nav-pill__body" {...({ inert: open ? undefined : '' } as Record<string, string | undefined>)}><div className="nav-pill__sub">{children}</div></div>
     </div>
   )
 }
@@ -163,11 +186,27 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
     if (!bySection.has(to)) bySection.set(to, [])
     bySection.get(to)!.push({ section: g.section.slug, f })
   }
+  /* Only the first Home is called Home; a role with several workspaces names
+     the others after their workspace (owner, 2026-10-24: three Homes). */
+  let homes = 0
+  let row = 0
+  const usedIcons = new Set<LucideIcon>()
+  /* Home holds the other screens of its workspace (owner, 2026-10-24: "Getting
+     started, Approvals, all those used to be inside one"): pressing Home opens
+     the dashboard and the group; the screens sit inside it. */
+  const homeHeld = new Map<string, { section: string; f: ApiSection['features'][number] }[]>()
+  const folded = new Set<string>()
+  for (const { ws, section } of listed) {
+    if (!isHomeSection(section) || homeHeld.has(ws.slug)) continue
+    const rest = listed.filter((g) => g.ws.slug === ws.slug && g.section.slug !== section.slug)
+      .flatMap((g) => { const l = bySection.get(g.section.slug) ?? []; if (l.length) folded.add(g.section.slug); return l })
+    homeHeld.set(ws.slug, rest)
+  }
   return (
     <>
       {listed.map(({ ws, section }) => {
         const list = bySection.get(section.slug) ?? []
-        if (!list.length) return null
+        if (!list.length || folded.has(section.slug)) return null
         const title = ws.sections.length > 1 ? section.name : ws.name
         /* Home is one item, not a group: it opens the workspace dashboard
            (Yajur, 2026-10-22: "No need of sub-section for Home; Today's
@@ -175,24 +214,41 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
            not a drawer around it (owner, 2026-10-24: "no need of again one
            sub section"). */
         const home = isHomeSection(section)
+        const hue = PILL_HUES[row++ % PILL_HUES.length]
+        const inHome = home ? homeHeld.get(ws.slug) ?? [] : []
+        if (home && inHome.length) {
+          const first = list[0]
+          const name = homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
+          return (
+            <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={label(name)}
+              hue={hue} icon={uniqueIcon('home', usedIcons)} go={featurePath(roleKey, first.section, first.f.slug)}>
+              {[...list, ...inHome].map(({ section: from, f }) => (
+                <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+                  className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>
+                  <LineIcon name={`${f.slug} ${f.name}`} size={20} />
+                  <span className="truncate">{label(f.name)}</span>
+                </NavLink>
+              ))}
+            </StaffNavGroup>
+          )
+        }
         if (home || list.length === 1) {
           const first = list[0]
-          const name = home ? 'Home' : first.f.name
+          const name = !home ? first.f.name : homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
-              title={home ? undefined : first.f.summary}
-              className={({ isActive }) => cn(
-                'mt-1 flex min-h-[calc(38px*var(--font-scale,1))] max-sm:min-h-[calc(48px*var(--font-scale,1))] max-sm:text-[calc(16px*var(--font-scale,1))] items-center gap-2.5 rounded-sm px-2.5 text-[calc(14px*var(--font-scale,1))] font-semibold transition-colors',
-                isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here)) ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-surface-hover',
-              )}>
-              <LineIcon name={home ? 'home' : `${section.slug} ${first.f.slug} ${name}`} size={18} />
-              <span className="truncate">{label(name)}</span>
+              title={home ? undefined : first.f.summary} style={{ '--h': hue } as React.CSSProperties}
+              className={({ isActive }) => cn('nav-pill nav-pill__head nav-tap shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
+              <PillBadge icon={uniqueIcon(home ? 'home' : `${section.slug} ${first.f.slug} ${name}`, usedIcons)} />
+              <span className="min-w-0 flex-1 truncate">{label(name)}</span>
               {first.f.slug === 'concerns_from_parents' && <Count n={concerns} />}
+              <ChevronRight aria-hidden className="nav-pill__arrow" />
             </NavLink>
           )
         }
         return (
           <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={title}
+            hue={hue} icon={uniqueIcon(`${section.slug} ${title}`, usedIcons)}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
             {list.map(({ section: from, f }) => (
               <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
@@ -222,7 +278,9 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 }
 
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
-export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof useTodaySignIns> }) {
+/* `dashboard`: the greeting, name and sign-in times show on the dashboard
+   only; other screens keep just the bar's controls (owner, 2026-10-24). */
+export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -244,9 +302,10 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
       <div className="flex min-w-0 flex-1 flex-col gap-3.5">
         <div className="flex items-center justify-between gap-2">
           <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
-          <Notifications />
+          {/* Search as an icon beside the bell (owner, 2026-10-27): it opens the palette across the top. */}
+          <div className="flex shrink-0 items-center gap-1"><CommandSearch /><Notifications /></div>
         </div>
-        <div className="min-w-0">
+        {dashboard && <div className="min-w-0">
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>
           <p className="truncate text-[20px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
           {(d?.employee_code || times) && (
@@ -255,17 +314,16 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
               {d?.employee_code && times && ' • '}{times}
             </p>
           )}
-        </div>
-        <CommandSearch wide fill />
+        </div>}
       </div>
     )
   }
   return (
     <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
       <div className="min-w-0">
-        {/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
+        {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
-        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p>
+        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p></>}
       </div>
       <div className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
         <CommandSearch wide fill />
@@ -275,7 +333,7 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
         <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={36} />
         <div className="min-w-0 max-w-[9.5rem] sm:max-w-none">
           {d?.employee_code && <p className="truncate text-[calc(13px*var(--font-scale,1))] font-semibold tabular-nums">{d.employee_code}</p>}
-          {times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+          {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         </div>
       </div>
     </div>
@@ -285,7 +343,7 @@ export function StaffHeaderContent({ signIns }: { signIns: ReturnType<typeof use
 /* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
    one full-width pill, then a card with who is signed in and Help, Settings
    and Sign out. The avatar and name open the account page. */
-const FOOT_ICON = 'grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: string | null; onNavigate: () => void }) {
   const session = useSession()
@@ -305,18 +363,22 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
   return (
     <div className="flex min-w-0 items-center justify-between gap-2 rounded-[14px] border bg-surface-subtle py-2.5 pl-3 pr-2">
       <Link to="/account" data-help-anchor="account" onClick={onNavigate}
-        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        title="My profile"
+        /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
+           lifts on hover and tints on press, with a chevron saying it opens. */
+        className="group -my-1 -ml-1.5 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-primary/10 active:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
         <span className="min-w-0">
           <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
           {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
         </span>
+        <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">
         <HelpButton className={FOOT_ICON} iconClassName="h-5 w-5 max-sm:h-6 max-sm:w-6" />
-        <div className="staff-foot-settings"><BentoSettings placement="rail" /></div>
+        <div className="staff-foot-settings foot-icon-wrap"><BentoSettings placement="rail" /></div>
         <a href="/logout" onClick={() => buzz('warn')} aria-label="Sign out" title="Sign out"
-          className={cn(FOOT_ICON, 'hover:bg-destructive/10 hover:text-destructive')}>
+          className={FOOT_ICON}>
           <LogOut aria-hidden className="h-5 w-5 max-sm:h-6 max-sm:w-6" />
         </a>
       </div>

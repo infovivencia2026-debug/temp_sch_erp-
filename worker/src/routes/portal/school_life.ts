@@ -1,8 +1,10 @@
 import type { Router, Ctx } from '../../router'
+import { liveChangesSince } from '../../live_changes'
 import type { Notification } from '@shared/api'
 import { json } from '../../env'
 import { readJSON, ok, created, notFound, badRequest, forbidden, isUUID, now } from '../../http'
 import { can } from '../../identity'
+import { pendingDoneSql } from '../../services/notification_done'
 import {
   familyChildren, portalChild, resolveScope, requirePerm, institutionId, marks, js,
   nowInIndia, todayIST, ymd, addDays, parseYMD, str, fullName, shortName,
@@ -858,10 +860,11 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
         (SELECT max(m.entered_at) FROM marks m WHERE ${where('m.student_id')}) AS marks,
         (SELECT max(i.updated_at) FROM invoices i WHERE ${where('i.student_id')}) AS invoices,
         (SELECT max(n.created_at) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ?) AS notes,
+        (SELECT count(*) FROM notifications n WHERE n.institution_id = ? AND n.user_id = ? AND n.dismissed_at IS NULL) AS notes_open,
         (SELECT max(h.updated_at) FROM homework h WHERE h.institution_id = ?) AS homework,
         (SELECT max(rc.published_at) FROM report_cards rc WHERE rc.is_published = 1 AND ${where('rc.student_id')}) AS results,
         (SELECT max(COALESCE(fc.decided_at, fc.created_at)) FROM fee_concessions fc WHERE ${where('fc.student_id')}) AS concessions`)
-    .bind(arg, arg, arg, arg, inst, c.id.userId, inst, arg, arg)
+    .bind(arg, arg, arg, arg, inst, c.id.userId, inst, c.id.userId, inst, arg, arg)
     .first<Record<string, string | null>>()
   const v = r ?? {}
   // Postgres greatest() ignores nulls; concat_ws skips them.
@@ -873,6 +876,10 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
      (a parent with no attendance yet saw homework changes as notifications). */
   const parts: string[] = [att, v.marks, v.invoices, v.notes, v.homework, v.results, v.concessions]
     .map((s) => ist(s)?.compact ?? '')
+  /* The bell's part also counts open rows: a notification cleared because its
+     work was done (services/notification_done.ts) moves it, so every other
+     user who had the same one refetches on the next poll (Yajur, 2026-10-24). */
+  parts[3] += ':' + String(v.notes_open ?? 0)
   /* AN EIGHTH PART: THE STAFF ROLL AND WHAT IT IS PAID (Yajur, 2026-10-14:
      "when one staff is added, show in the staff register and in salary setup
      and everywhere directly"). Somebody added on one login stayed missing on
@@ -895,8 +902,15 @@ async function getLiveRevision(c: Ctx): Promise<Response> {
       (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM holidays) AS h,
       (SELECT count(*) || ':' || COALESCE(max(rowid), 0) FROM school_events) AS ev`).first<{ h: string; ev: string }>()
   parts.push(cal ? `${cal.h};${cal.ev}` : '')
+  /* A TENTH, AND THE ONE THAT COVERS EVERYTHING ELSE (Yajur, 2026-10-27):
+     the school-wide number of the last write request, and the tables written
+     since the number the client last saw (live_changes.ts). The parts above
+     stay for what moves without a request (marks entered by a job, a
+     notification fanned out later). */
+  const changes = await liveChangesSince(c.db, c.url.searchParams.get('since'))
+  parts.push(changes.seq)
   const n = nowInIndia()
-  return json({ rev: parts.join('|'), at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
+  return json({ rev: parts.join('|'), tables: changes.tables, at: `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}` },
     200, { 'Cache-Control': 'no-store, max-age=0' })
 }
 
@@ -934,15 +948,21 @@ export function deliverFamilyAlerts(c: Ctx, user: string, kids: string[]): D1Pre
          AND ${notDelivered('circular', 'a.id', 'NULL')}`)
       .bind(inst, user, nowISO, monthAgo, nowISO, k, user),
     c.db.prepare(`
-      INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
-      SELECT ${SQL_UUID}, ?, ?, sa.student_id, 'attendance',
-             ${shortName('st')} || ' was marked absent',
-             ${sqlDayDDMon('sa.on_date')}, '/portal/attendance', 'attendance', sa.id,
-             COALESCE(sa.marked_at, ?)
-        FROM student_attendance sa
-        JOIN students st ON st.id = sa.student_id
-       WHERE ${inJSON('sa.student_id')} AND sa.status = 'absent' AND sa.on_date > ?
-         AND ${notDelivered('attendance', 'sa.id', 'sa.student_id')}`)
+      INSERT OR IGNORE INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
+      SELECT ${SQL_UUID}, ?, ?, x.student_id, 'attendance',
+             x.short_name || ' was marked absent',
+             ${sqlDayDDMon('x.on_date')}, '/portal/attendance', 'absence', x.on_date || ':' || x.student_id,
+             COALESCE(x.marked_at, ?)
+        FROM (SELECT sa.student_id, sa.on_date, MIN(sa.marked_at) AS marked_at, MIN(${shortName('st')}) AS short_name
+                FROM student_attendance sa
+                JOIN students st ON st.id = sa.student_id
+               WHERE ${inJSON('sa.student_id')} AND sa.status = 'absent' AND sa.on_date > ?
+               GROUP BY sa.student_id, sa.on_date) x
+       -- One bell per child per day (absenceNotifyStmts in routes/daily.ts):
+       -- keyed <on_date>:<student>; older per-period rows count as told.
+       WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = ? AND n.kind = 'attendance' AND n.student_id = x.student_id
+                           AND (n.source_id = x.on_date || ':' || x.student_id
+                                OR n.source_id IN (SELECT s2.id FROM student_attendance s2 WHERE s2.student_id = x.student_id AND s2.on_date = x.on_date)))`)
       .bind(inst, user, nowISO, k, fortnightAgo, user),
     c.db.prepare(`
       INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, link, source_kind, source_id, created_at)
@@ -987,19 +1007,8 @@ const PENDING_KEPT_SQL = `(kind IN ('concern.support_ticket', 'question_paper_de
 
 const PENDING_KEPT_N = PENDING_KEPT_SQL.split('notifications.').join('n.').replace('(kind IN', '(n.kind IN').replace('OR (kind =', 'OR (n.kind =')
 
-/* When each pending kind is done (?1 = the user). */
-const PENDING_DONE_SQL = [
-  `kind = 'concern.support_ticket' AND EXISTS (SELECT 1 FROM support_tickets t WHERE t.id = notifications.source_id AND (t.status IN ('resolved', 'closed')
-     OR EXISTS (SELECT 1 FROM grievance_updates gu WHERE gu.ticket_id = t.id AND gu.kind = 'teacher_resolved')))`,
-  `kind = 'question_paper_deadline' AND (
-     EXISTS (SELECT 1 FROM question_papers qp WHERE qp.exam_subject_id = notifications.source_id AND qp.status IN ('submitted', 'approved'))
-     OR EXISTS (SELECT 1 FROM question_paper_deadlines d WHERE d.exam_subject_id = notifications.source_id AND d.teacher_user_id = ?1 AND d.manually_received_at IS NOT NULL))`,
-  `kind = 'leave_request' AND source_kind = 'leave_request' AND EXISTS (SELECT 1 FROM leave_requests l WHERE l.id = notifications.source_id AND l.status <> 'pending')`,
-  `kind = 'staff_exit_approval' AND EXISTS (SELECT 1 FROM staff_exits x WHERE x.id = notifications.source_id AND x.status <> 'pending_approval')`,
-  `kind = 'parent_message' AND EXISTS (SELECT 1 FROM parent_teacher_messages m JOIN parent_teacher_messages r
-       ON r.student_id = m.student_id AND r.parent_user_id = m.parent_user_id AND r.teacher_user_id = m.teacher_user_id
-     WHERE m.id = notifications.source_id AND m.teacher_user_id = ?1 AND r.sender_user_id = ?1 AND r.sent_at > m.sent_at)`,
-]
+/* When each pending kind is done (?1 = the user); services/notification_done.ts. */
+const PENDING_DONE_SQL = pendingDoneSql('?1')
 
 async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[]; unread: number }> {
   const { scope, studentIds: kids } = await familyChildren(c, c.url.searchParams.get('student_id'))

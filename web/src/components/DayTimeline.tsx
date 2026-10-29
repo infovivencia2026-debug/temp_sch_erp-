@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Period } from '@/lib/api'
 import { Card, Badge } from '@/components/ui'
 import { cn, WEEKDAYS } from '@/lib/utils'
+import { mergePeriods } from '@/lib/mergePeriods'
 
 /** "09:15:00" → "09:15"; anything odd is shown as it came. */
 function hhmm(t: string): string {
@@ -46,9 +47,12 @@ export default function DayTimeline({
   bare,
   who,
   where,
-  periods,
-  entries,
+  periods: rawPeriods,
+  entries: rawEntries,
   breaks = true,
+  todayOnly,
+  onCell,
+  weekdays,
 }: {
   who: string
   where: string
@@ -59,14 +63,23 @@ export default function DayTimeline({
   breaks?: boolean
   /** Skip the card shell: the caller already draws one. */
   bare?: boolean
+  /** Today only, no day strip: a home page shows today, not the week (Yajur, 2026-10-24). */
+  todayOnly?: boolean
+  /** Every period is drawn and a teaching one is a button: the live timetable editor. */
+  onCell?: (weekday: number, periodID: string) => void
+  /** The school's days, when the week may still be empty. */
+  weekdays?: number[]
 }) {
+  // Several bell schedules: one row per period shape, entries moved onto it.
+  const { periods, entries } = useMemo(() => mergePeriods(rawPeriods, rawEntries), [rawPeriods, rawEntries])
   // The days the timetable actually has something on, Monday first. A school
   // that runs Saturday shows it; one that does not never shows an empty chip.
   const days = useMemo(() => {
+    if (weekdays?.length) return weekdays
     const seen = new Set(entries.map((e) => e.weekday))
     const list = [1, 2, 3, 4, 5, 6, 7].filter((d) => seen.has(d))
     return list.length ? list : [1, 2, 3, 4, 5, 6]
-  }, [entries])
+  }, [entries, weekdays])
 
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -79,15 +92,11 @@ export default function DayTimeline({
   // Today if the school runs today, else the next school day.
   const [day, setDay] = useState<number>(() => {
     const t = isoWeekday(new Date())
+    if (todayOnly) return t
     return days.includes(t) ? t : (days.find((d) => d > t) ?? days[0])
   })
 
-  const ordered = useMemo(() => {
-    const seen = new Set<string>()
-    return [...periods]
-      .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
-      .sort((a, b) => a.sequence - b.sequence || a.starts_at.localeCompare(b.starts_at))
-  }, [periods])
+  const ordered = periods
   const byPeriod = useMemo(() => {
     const m = new Map<string, DayEntry>()
     for (const e of entries) if (e.weekday === day) m.set(e.period_id, e)
@@ -109,6 +118,7 @@ export default function DayTimeline({
     [ordered, used],
   )
   const rows = useMemo(() => {
+    if (onCell) return ordered
     if (used.size === 0) return []
     /* One of each break. A school that keeps several bell schedules with the
        same recess at the same time (the live one has six) would otherwise
@@ -123,7 +133,7 @@ export default function DayTimeline({
       seenBreak.add(k)
       return true
     })
-  }, [ordered, used, byPeriod, breaks, schedules])
+  }, [ordered, used, byPeriod, breaks, schedules, onCell])
 
   const Shell = bare
     ? ({ children }: { children: React.ReactNode }) => <div className="w-full">{children}</div>
@@ -147,7 +157,7 @@ export default function DayTimeline({
             )}
           </div>
         )}
-        <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+        {!todayOnly && <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
           {days.map((d) => (
             <button
               key={d}
@@ -168,7 +178,7 @@ export default function DayTimeline({
               {WEEKDAYS[d - 1]}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {rows.length === 0 ? (
@@ -183,6 +193,7 @@ export default function DayTimeline({
             const e = byPeriod.get(p.id)
             const isNow = current(p)
             const isBreak = p.is_break
+            const Card_ = onCell && !isBreak ? 'button' : 'div'
             return (
               <li key={p.id} className="relative flex items-start">
                 <div className="flex w-[56px] shrink-0 flex-col items-end pr-2 pt-2.5">
@@ -196,9 +207,9 @@ export default function DayTimeline({
                     isNow ? 'bg-primary ring-4 ring-primary/20' : isBreak ? 'bg-warning' : 'bg-border',
                   )}
                 />
-                <div
+                <Card_ {...(onCell && !isBreak ? { type: 'button' as const, onClick: () => onCell(day, p.id), 'aria-label': `${p.name}: ${e?.title ?? 'free'}. Edit` } : {})}
                   className={cn(
-                    'ml-5 min-w-0 flex-1 rounded-xl border px-3.5 py-2.5 shadow-sm',
+                    'ml-5 min-w-0 flex-1 rounded-xl border px-3.5 py-2.5 text-left shadow-sm', onCell && !isBreak && 'min-h-[52px] hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     isNow
                       ? 'border-primary bg-primary/10'
                       : isBreak
@@ -216,13 +227,13 @@ export default function DayTimeline({
                         {p.name}
                         {isNow && ' · in progress'}
                       </div>
-                      <div className="text-[14px] font-bold">{e?.title}</div>
+                      <div className={cn('text-[14px] font-bold', !e && 'font-medium text-muted-foreground')}>{e?.title ?? (onCell ? 'Free' : '')}</div>
                       {e?.detail && (
                         <div className="mt-0.5 text-[12px] text-muted-foreground">{e.detail}</div>
                       )}
                     </>
                   )}
-                </div>
+                </Card_>
               </li>
             )
           })}

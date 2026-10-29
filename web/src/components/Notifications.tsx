@@ -17,8 +17,8 @@ import NotificationRow, { channelOf } from '@/components/NotificationRow'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import { useOpenState } from '@/lib/motion'
 import { useActiveRole } from '@/lib/catalog'
-import { Button, Dialog } from '@/components/ui'
-import { noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
+import { Button, Dialog, GlassIconButton } from '@/components/ui'
+import { dropFromFeed, noteShown, pendingFirst, statusPostIdOf } from '@/lib/notification-shown'
 import { noteDestination, type NoteHrefs } from '@/lib/notification-link'
 
 /* The bell in the header, and the panel it opens.
@@ -193,12 +193,26 @@ export function useNotificationFeed() {
     queryKey: ['notifications'],
     queryFn: () => api.call('GET /portal/notifications'),
     refetchOnWindowFocus: true,
-    staleTime: 60_000,
+    /* Ten seconds, not a minute: a list a minute old still showed work already
+       done (Yajur, 2026-10-24). The revision poll and every mutation
+       (App.tsx) invalidate it anyway; this only covers a remount. */
+    staleTime: 10_000,
     retry: false,
   })
 }
 
 type Feed = { items?: Note[]; unread?: number }
+
+/** Opening a row: gone from the bell and the home panel at once, then the
+    server is told (lib/notification-shown dropFromFeed). Work owed stays. */
+export function useDismissNotification() {
+  return useOptimisticMutation<string>({
+    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
+    queryKeys: [['notifications']],
+    apply: (old, id) => dropFromFeed(old as Feed, id),
+    failure: "Couldn't clear it",
+  })
+}
 
 /** Where a notification leads: shared by the bell and the home panels, so
     both open the same screen for the same row. */
@@ -296,8 +310,9 @@ export default function Notifications() {
   const statuses = useQuery({
     queryKey: ['notif-statuses'],
     queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
-    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
-    enabled: open,
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count.
+       Only roles with the hub (student, parent) may call it; others got a 404. */
+    enabled: open && !!toHub,
     retry: false,
   })
   
@@ -331,20 +346,7 @@ export default function Notifications() {
      but still there, so the only way the drawer ever shrank was the blunt
      Clear All. Opening a status post is unaffected -- that reads the post
      itself over in status-api.ts, not this table -- see openNote below. */
-  const dismissOne = useOptimisticMutation<string>({
-    mutationFn: (id) => api.post(`/api/v1/portal/notifications/${id}/dismiss`, {}),
-    queryKeys: [['notifications']],
-    apply: (old, id) => {
-      const f = old as Feed
-      const hit = (f.items ?? []).some((n) => n.id === id && !n.read_at)
-      return {
-        ...f,
-        unread: hit ? Math.max(0, (f.unread ?? 0) - 1) : f.unread,
-        items: (f.items ?? []).filter((n) => n.id !== id),
-      }
-    },
-    failure: "Couldn't clear it",
-  })
+  const dismissOne = useDismissNotification()
   /* The message being read in full, over the drawer. */
   const [viewing, setViewing] = useState<Note | null>(null)
 
@@ -508,11 +510,11 @@ export default function Notifications() {
         // eleven that were not.
         data-tip="Notifications"
         title="Notifications"
-        className="relative grid h-9 w-9 place-items-center rounded-sm text-muted-foreground
+        className="relative grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-sm text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"
       >
         {/* Bigger on a phone: the owner asked for larger top-bar buttons there. */}
-        <Bell className="h-[22px] w-[22px] md:h-4 md:w-4" />
+        <Bell className="h-[22px] w-[22px]" />
         {unread > 0 && (
           <span
             /* 12px, the smallest size text is drawn at anywhere else: at 10 the
@@ -546,7 +548,7 @@ export default function Notifications() {
       {(open || closing) && createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[100] flex justify-end',
+            'vv-screen-phone fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -570,7 +572,7 @@ export default function Notifications() {
                unread card is picked out by its border and bolder title.
                Full screen on a phone -- 100dvh, above the app header -- so it
                no longer starts under the top bar. */
-            className="flex h-[100dvh] w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
+            className="flex h-[100dvh] max-md:h-full w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -582,10 +584,9 @@ export default function Notifications() {
             <header className="shrink-0 border-b bg-card px-5 pb-3 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="whitespace-nowrap text-[20px] font-bold tracking-[-0.02em]">Notifications</h2>
-                <button onClick={dismiss} aria-label="Close notifications"
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <X className="size-4" />
-                </button>
+                <GlassIconButton label="Close notifications" size="sm" onClick={dismiss}>
+                  <X className="size-[18px]" />
+                </GlassIconButton>
               </div>
               {items.length > 0 && (
                 <div className="mt-2 flex items-center justify-between gap-2">

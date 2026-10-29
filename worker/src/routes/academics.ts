@@ -5,6 +5,7 @@ import {
   isForeignKeyViolation, nullStr, parseJSON, resolveScope, str, workingYearSQL,
 } from './students/common'
 import { registerAdminAcademics } from './academics/admin'
+import { notifyPlanDecided, notifyPlanSubmitted } from './academics/plan_notify'
 
 /* Port of the /syllabus and /academics route groups (internal/api/api.go
    lines 332-408): syllabus.go, academics.go, co_scholastic.go, houses.go,
@@ -151,6 +152,7 @@ async function saveLessonPlan(c: Ctx) {
     stmts.push(c.db.prepare(`INSERT OR IGNORE INTO lesson_plan_units (lesson_plan_id, syllabus_unit_id) VALUES (?, ?)`).bind(planId, u))
   }
   await batch(c, stmts)
+  if (status === 'submitted') await notifyPlanSubmitted(c, planId)
   return ok({ id: planId, status })
 }
 
@@ -166,11 +168,20 @@ async function decideLessonPlan(c: Ctx) {
     const own = await c.db.prepare(`SELECT 1 FROM lesson_plans WHERE id = ? AND teacher_user_id = ?`).bind(planId, c.id.userId).first()
     if (!own) throw forbiddenMsg('missing permission: another teacher\'s lesson plan')
   }
+  /* State guard (security audit, 2026-10-27): only a submitted plan is
+     decided; one already approved or returned is not decided again. Marking
+     a plan delivered (no decision) is unchanged. */
   const res = await c.db.prepare(`
     UPDATE lesson_plans SET status = COALESCE(?, status), remarks = COALESCE(?, remarks), delivered_on = COALESCE(?, delivered_on),
            reviewed_by = CASE WHEN ? <> '' THEN ? ELSE reviewed_by END, reviewed_at = CASE WHEN ? <> '' THEN ? ELSE reviewed_at END, updated_at = ?
-     WHERE id = ?`).bind(nullStr(decision), nullStr(str(req.remarks)), nullStr(str(req.delivered_on)), decision, c.id.userId, decision, now(), now(), planId).run()
-  if (!res.meta.changes) throw notFoundGo()
+     WHERE id = ? AND (? = '' OR status = 'submitted')`).bind(nullStr(decision), nullStr(str(req.remarks)), nullStr(str(req.delivered_on)), decision, c.id.userId, decision, now(), now(), planId, decision).run()
+  if (!res.meta.changes) {
+    if (decision !== '' && await c.db.prepare(`SELECT 1 FROM lesson_plans WHERE id = ?`).bind(planId).first()) {
+      throw new HttpError(409, 'this lesson plan is not waiting for a decision; it has been decided already or not submitted')
+    }
+    throw notFoundGo()
+  }
+  if (decision !== '') await notifyPlanDecided(c, planId, decision, str(req.remarks).trim())
   return ok({ id: planId })
 }
 

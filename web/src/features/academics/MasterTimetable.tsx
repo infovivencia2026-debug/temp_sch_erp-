@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
-  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice,
+  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice, SEG_BAR_FILL, segClass,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
@@ -265,6 +265,7 @@ export default function MasterTimetable() {
      the screen refused to draw at all. */
   const [jump, setJump] = useState<1 | 2 | 3 | null>(null)
   const [showClasses, setShowClasses] = useState(false)
+  const [mode, setMode] = useState<'current' | 'new'>('current')
 
   const overview = useQuery({
     queryKey: ['master-timetable', 'overview'],
@@ -375,9 +376,14 @@ export default function MasterTimetable() {
         description="The whole school's week. Making one only suggests it, nothing changes for teachers until you put it in use."
       />
       <PageBody>
+        {/* What is in use now, edited in place; or the three steps that make a new one (owner, 2026-10-28). */}
+        <div className={SEG_BAR_FILL} role="group" aria-label="Timetable">
+          <button type="button" className={segClass(mode === 'current')} aria-pressed={mode === 'current'} onClick={() => setMode('current')}>Current timetable</button>
+          <button type="button" className={segClass(mode === 'new')} aria-pressed={mode === 'new'} onClick={() => setMode('new')}>Make a new one</button>
+        </div>
+        {mode === 'current' ? <SectionGrid weekdays={d?.weekdays?.length ? d.weekdays : [1, 2, 3, 4, 5, 6]} mayWrite={mayWrite} /> : (
+        <>
         <Steps at={at} go={goStep} done={stepDone} />
-        {/* The school's shape, on every step: it is the thing being timetabled. */}
-        <SectionGrid />
         {/* The single instruction, and the single button that acts on it.
             Step 2 is where a draft gets made, so the instruction lives there;
             on step 1 the periods editor is the instruction. */}
@@ -658,6 +664,8 @@ export default function MasterTimetable() {
           </Table>
           )}
         </Card>
+        )}
+        </>
         )}
       </PageBody>
     </>

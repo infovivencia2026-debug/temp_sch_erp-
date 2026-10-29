@@ -258,6 +258,7 @@ export async function weeklySweep(env: Env, db: D1Database, inst: { id: string; 
   if (!(await aiConfigured(env))) { res.stopped = 'ai_not_configured'; return res }
   const settings = await aiSettings(db)
   if (!settings.enabled) { res.stopped = 'ai_disabled'; return res }
+  if (!settings.features.parent_weekly) { res.stopped = 'ai_feature_off'; return res }
   const today = schoolToday(inst.timezone || 'Asia/Kolkata')
   const kids = await db.prepare(`SELECT DISTINCT st.id, st.first_name FROM students st JOIN student_guardians sg ON sg.student_id = st.id
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL WHERE st.status = 'active' ORDER BY st.id LIMIT ?`).bind(limit).all<{ id: string; first_name: string }>()
@@ -304,6 +305,8 @@ async function emailBrief(env: Env, db: D1Database, inst: string, b: Brief): Pro
 
 registerJob('ai:principal_brief', async (env, job: Job) => {
   const { inst, db } = await jobSchool(env, job)
+  const st = await aiSettings(db)
+  if (!st.enabled || !st.features.principal_brief) return
   const b = await generatePrincipalBrief(env, db, inst)
   if ((await aiSettings(db)).email_principal_brief) await emailBrief(env, db, inst.id, b)
 })

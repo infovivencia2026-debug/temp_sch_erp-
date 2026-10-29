@@ -55,6 +55,8 @@ export interface StudentProfile {
     /** none | issued | active | invited | suspended … — the parent's own login. */
     login?: string
     last_login_at?: string | null
+    /** Other children on the roll who share this parent: a change to their number changes for them too. */
+    siblings?: string[]
   }[]
   recent_attendance: { date: string; status: string }[]
   results: { exam: string; percentage: string; grade: string; rank: string }[]
