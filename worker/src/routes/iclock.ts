@@ -446,7 +446,29 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
     if (!(at > Date.now() - CLOCK_EVERY_MS)) {
       await db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 0, ?)
           ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(dev.inst.id, ckey, JSON.stringify({ sent_at: now() })).run()
-      return text(`C:${id + 4}:SET OPTION DateTime=${zkTime(new Date())}\n`)
+      /* A READER THAT KEEPS A FIXED ERROR AFTER BEING SET (Yajur, 2026-10-29:
+         set to India time every hour and still 30 minutes behind, "it is
+         taking the server time zone"). Its firmware shifts the time we send by
+         its own whole-hour zone. The error it shows after a set is measured
+         from live punches (config.drift, minutes behind); it is added to what
+         we send next and remembered in config.clock_offset, so the reader
+         ends up showing India time. The measured drift is then cleared, since
+         the clock is now right and punches need no more moving. */
+      let offset = 0
+      try {
+        const row = await db.prepare(`SELECT config FROM module_settings WHERE module = 'biometric_clock'`).first<{ config: string | null }>()
+        if (row) {
+          const cfg = JSON.parse(row.config ?? '{}') as { drift?: Record<string, { day: string; minutes: number }>; clock_offset?: Record<string, number> } & Record<string, unknown>
+          const behind = cfg.drift?.[serial]?.minutes ?? 0
+          offset = Math.max(-180, Math.min(180, (cfg.clock_offset?.[serial] ?? 0) + behind))
+          if (behind) {
+            cfg.clock_offset = { ...(cfg.clock_offset ?? {}), [serial]: offset }
+            cfg.drift = { ...(cfg.drift ?? {}), [serial]: { day: cfg.drift![serial].day, minutes: 0 } }
+            await db.prepare(`UPDATE module_settings SET config = ? WHERE module = 'biometric_clock'`).bind(JSON.stringify(cfg)).run()
+          }
+        }
+      } catch { /* send plain India time */ }
+      return text(`C:${id + 4}:SET OPTION DateTime=${zkTime(new Date(Date.now() + offset * 60_000))}\n`)
     }
   }
 
